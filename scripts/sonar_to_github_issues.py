@@ -389,6 +389,7 @@ def ensure_label(
 def find_existing_issue(owner: str, repo: str, sonar_key: str) -> int | None:
     """Return an existing open GitHub issue number matching the Sonar key, if any."""
     from urllib.parse import quote
+
     # Search issues by exact Sonar key in body using GitHub search API
     q = f'repo:{owner}/{repo} in:body "SonarQube Key: {sonar_key}" state:open'
     url = f"https://api.github.com/search/issues?q={quote(q)}"
@@ -404,6 +405,7 @@ def find_existing_issue(owner: str, repo: str, sonar_key: str) -> int | None:
 def find_existing_file_issue(owner: str, repo: str, component: str) -> int | None:
     """Return an existing open GitHub issue number for the given component (file)."""
     from urllib.parse import quote
+
     marker = f"SonarQube Component: {component}"
     q = f'repo:{owner}/{repo} in:body "{marker}" state:open'
     url = f"https://api.github.com/search/issues?q={quote(q)}"

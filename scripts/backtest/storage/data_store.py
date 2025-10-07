@@ -16,7 +16,9 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from scripts.backtest.storage.providers.alpaca_historical import AlpacaHistoricalProvider
+    from scripts.backtest.storage.providers.alpaca_historical import (
+        AlpacaHistoricalProvider,
+    )
 
 # Add project root to path for imports
 _project_root = Path(__file__).resolve().parents[3]
@@ -46,9 +48,9 @@ class DataStore:
     """
 
     def __init__(
-        self, 
-        base_path: str = "data/historical", 
-        data_provider: AlpacaHistoricalProvider | None = None
+        self,
+        base_path: str = "data/historical",
+        data_provider: AlpacaHistoricalProvider | None = None,
     ) -> None:
         """Initialize data store.
 
@@ -181,15 +183,17 @@ class DataStore:
                 symbol=symbol,
                 missing_years=missing_years,
             )
-            
+
             try:
                 # Download data for the missing years
                 bars = self.data_provider.fetch_daily_bars(symbol, start_date, end_date)
-                
+
                 if not bars:
                     # Import here to avoid circular dependency
-                    from the_alchemiser.shared.types.exceptions import DataUnavailableError
-                    
+                    from the_alchemiser.shared.types.exceptions import (
+                        DataUnavailableError,
+                    )
+
                     error_msg = (
                         f"Symbol '{symbol}' has no data available from provider for the requested date range. "
                         f"Required: {start_date.date()} to {end_date.date()}."
@@ -200,7 +204,7 @@ class DataStore:
                         required_start_date=start_date.isoformat(),
                         required_end_date=end_date.isoformat(),
                     )
-                
+
                 # Save the downloaded data
                 self.save_bars(symbol, bars)
                 logger.info(
@@ -212,10 +216,10 @@ class DataStore:
                 # If it's already a DataUnavailableError, re-raise it
                 if e.__class__.__name__ == "DataUnavailableError":
                     raise
-                
+
                 # Import here to avoid circular dependency
                 from the_alchemiser.shared.types.exceptions import DataUnavailableError
-                
+
                 # Wrap other exceptions
                 error_msg = (
                     f"Failed to download data for '{symbol}' from provider. "
@@ -227,11 +231,11 @@ class DataStore:
                     required_start_date=start_date.isoformat(),
                     required_end_date=end_date.isoformat(),
                 ) from e
-        
+
         elif missing_years:
             # No data provider configured, raise error
             from the_alchemiser.shared.types.exceptions import DataUnavailableError
-            
+
             error_msg = (
                 f"Missing data files for {symbol} years {missing_years}. "
                 f"Required: {start_date.date()} to {end_date.date()}. "
@@ -260,7 +264,7 @@ class DataStore:
 
         if not all_dfs:
             from the_alchemiser.shared.types.exceptions import DataUnavailableError
-            
+
             error_msg = f"No data found for {symbol} in date range {start_date.date()} to {end_date.date()}"
             raise DataUnavailableError(
                 error_msg,
