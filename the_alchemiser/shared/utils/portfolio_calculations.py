@@ -112,11 +112,7 @@ def build_allocation_comparison(
 
         # Perform subtraction with Money to ensure precision
         if target_money >= current_money:
-            delta_money = (
-                target_money.subtract(current_money)
-                if not current_money.is_zero() or not target_money.is_zero()
-                else Money.zero("USD")
-            )
+            delta_money = target_money.subtract(current_money)
             deltas[symbol] = delta_money.to_decimal()
         else:
             # When current > target, we need a negative delta
