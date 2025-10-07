@@ -12,6 +12,7 @@ Key Features:
 - Fractionability checks
 - Market status and calendar information
 - Cache statistics and monitoring
+- Rate limiting and timeout handling for API calls
 """
 
 from __future__ import annotations
@@ -23,11 +24,13 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
+    RateLimitError,
     TradingClientError,
     ValidationError,
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.asset_info import AssetInfo
+from the_alchemiser.shared.utils.api_helpers import with_rate_limiting, with_timeout
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
@@ -147,6 +150,51 @@ class AssetMetadataService:
                 cache_size=len(self._asset_cache),
             )
 
+    @with_rate_limiting
+    @with_timeout(10.0)
+    def _fetch_asset_from_api(self, symbol: str) -> Any:
+        """Fetch asset from API with rate limiting and timeout.
+        
+        Args:
+            symbol: Symbol to fetch
+            
+        Returns:
+            Asset object from API
+            
+        Raises:
+            RateLimitError: If rate limit exceeded
+            TradingClientError: If API call fails
+        """
+        return self._trading_client.get_asset(symbol)
+
+    @with_rate_limiting
+    @with_timeout(10.0)
+    def _fetch_clock_from_api(self) -> Any:
+        """Fetch market clock from API with rate limiting and timeout.
+        
+        Returns:
+            Clock object from API
+            
+        Raises:
+            RateLimitError: If rate limit exceeded
+            TradingClientError: If API call fails
+        """
+        return self._trading_client.get_clock()
+
+    @with_rate_limiting
+    @with_timeout(15.0)
+    def _fetch_calendar_from_api(self) -> Any:
+        """Fetch market calendar from API with rate limiting and timeout.
+        
+        Returns:
+            Calendar data from API
+            
+        Raises:
+            RateLimitError: If rate limit exceeded
+            TradingClientError: If API call fails
+        """
+        return self._trading_client.get_calendar()
+
     def get_asset_info(
         self, symbol: str, *, correlation_id: str | None = None
     ) -> AssetInfo | None:
@@ -190,8 +238,7 @@ class AssetMetadataService:
         logger.debug("Asset cache miss, fetching from API", **log_context)
 
         try:
-            # TODO: Add timeout wrapper when available
-            asset = self._trading_client.get_asset(symbol_upper)
+            asset = self._fetch_asset_from_api(symbol_upper)
 
             # Validate required fields exist
             if not hasattr(asset, "fractionable"):
@@ -246,6 +293,15 @@ class AssetMetadataService:
                 **log_context,
             )
             raise DataProviderError(error_msg, context={"symbol": symbol_upper}) from e
+
+        except RateLimitError:
+            # Re-raise rate limit errors as-is for retry logic upstream
+            logger.warning(
+                "Rate limit error fetching asset",
+                symbol=symbol_upper,
+                **log_context,
+            )
+            raise
 
         except Exception as e:
             # Catch API errors and re-raise as appropriate typed exception
@@ -318,8 +374,7 @@ class AssetMetadataService:
             log_context["correlation_id"] = correlation_id
 
         try:
-            # TODO: Add timeout wrapper when available
-            clock = self._trading_client.get_clock()
+            clock = self._fetch_clock_from_api()
             is_open = getattr(clock, "is_open", False)
             
             logger.debug(
@@ -328,6 +383,11 @@ class AssetMetadataService:
                 **log_context,
             )
             return is_open
+
+        except RateLimitError:
+            # Re-raise rate limit errors as-is
+            logger.warning("Rate limit error checking market status", **log_context)
+            raise
 
         except Exception as e:
             error_msg = "Failed to get market status"
@@ -360,9 +420,7 @@ class AssetMetadataService:
             log_context["correlation_id"] = correlation_id
 
         try:
-            # TODO: Add timeout wrapper when available
-            # Note: Alpaca API may not support date filtering
-            calendar = self._trading_client.get_calendar()
+            calendar = self._fetch_calendar_from_api()
             
             # Convert to list of dictionaries
             result = [
@@ -380,6 +438,11 @@ class AssetMetadataService:
                 **log_context,
             )
             return result
+
+        except RateLimitError:
+            # Re-raise rate limit errors as-is
+            logger.warning("Rate limit error fetching calendar", **log_context)
+            raise
 
         except Exception as e:
             error_msg = "Failed to get market calendar"

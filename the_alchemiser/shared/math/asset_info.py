@@ -74,11 +74,18 @@ class FractionabilityDetector:
 
             symbol_obj = Symbol(symbol)
             fractionable = self.asset_metadata_provider.is_fractionable(symbol_obj)
-            logger.debug(f"📡 Provider: {symbol} fractionable = {fractionable}")
+            logger.debug("Provider result", symbol=symbol, fractionable=fractionable)
             return fractionable
 
         except Exception as e:
-            logger.warning(f"⚠️ Provider error for {symbol}: {e}")
+            # Provider unavailable, rate limited, or asset not found
+            # Fall back to backup prediction
+            logger.warning(
+                "Provider error, using fallback",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             return None
 
     def is_fractionable(self, symbol: str, *, use_cache: bool = True) -> bool:
@@ -97,7 +104,7 @@ class FractionabilityDetector:
         # Check cache first
         if use_cache and symbol in self._fractionability_cache:
             cached_result = self._fractionability_cache[symbol]
-            logger.debug(f"📋 Cache hit: {symbol} fractionable = {cached_result}")
+            logger.debug("Cache hit", symbol=symbol, fractionable=cached_result)
             return cached_result
 
         # Query provider for authoritative answer
@@ -109,7 +116,7 @@ class FractionabilityDetector:
             return provider_result
 
         # Fallback to backup prediction if provider unavailable
-        logger.info(f"🔄 Using fallback prediction for {symbol} (provider unavailable)")
+        logger.info("Using fallback prediction (provider unavailable)", symbol=symbol)
         fallback_result = self._fallback_fractionability_prediction(symbol)
 
         # Cache the fallback result with a warning
