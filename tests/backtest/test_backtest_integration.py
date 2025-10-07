@@ -80,9 +80,16 @@ def test_backtest_initialization(temp_backtest_runner: BacktestRunner) -> None:
     assert temp_backtest_runner.fill_simulator is not None
 
 
+@pytest.mark.slow
 def test_run_simple_backtest(sample_test_data: DataStore, tmp_path: Path) -> None:
-    """Test running a simple backtest."""
-    runner = BacktestRunner(data_store=sample_test_data)
+    """Test running a simple backtest.
+
+    Note: This test is marked as slow because it initializes the DSL engine
+    for each trading day (5 days), which involves parsing strategy files and
+    loading historical data. Takes ~2-3 minutes.
+    """
+    # Disable auto-download to speed up test
+    runner = BacktestRunner(data_store=sample_test_data, auto_download_missing=False)
 
     config = BacktestConfig(
         strategy_files=["test.clj"],
@@ -90,7 +97,8 @@ def test_run_simple_backtest(sample_test_data: DataStore, tmp_path: Path) -> Non
         end_date=datetime(2024, 1, 5, tzinfo=timezone.utc),
         initial_capital=Decimal("100000"),
         commission_per_trade=Decimal("0"),
-        symbols=["SPY", "QQQ"],
+        # Include all symbols that the test strategy might need
+        symbols=["SPY", "QQQ", "QQQE", "BITO", "BIL", "FXI", "FCG", "IOO", "UVXY"],
     )
 
     result = runner.run_backtest(config)
@@ -102,11 +110,16 @@ def test_run_simple_backtest(sample_test_data: DataStore, tmp_path: Path) -> Non
     assert result.final_value is not None
 
 
+@pytest.mark.slow
 def test_backtest_portfolio_evolution(
     sample_test_data: DataStore, tmp_path: Path
 ) -> None:
-    """Test that portfolio state evolves across days."""
-    runner = BacktestRunner(data_store=sample_test_data)
+    """Test that portfolio state evolves across days.
+
+    Note: Marked as slow - takes ~2-3 minutes due to DSL engine initialization.
+    """
+    # Disable auto-download to speed up test
+    runner = BacktestRunner(data_store=sample_test_data, auto_download_missing=False)
 
     config = BacktestConfig(
         strategy_files=["test.clj"],
@@ -114,7 +127,8 @@ def test_backtest_portfolio_evolution(
         end_date=datetime(2024, 1, 5, tzinfo=timezone.utc),
         initial_capital=Decimal("100000"),
         commission_per_trade=Decimal("0"),
-        symbols=["SPY"],
+        # Include all symbols that the test strategy might need
+        symbols=["SPY", "QQQ", "QQQE", "BITO", "BIL", "FXI", "FCG", "IOO", "UVXY"],
     )
 
     result = runner.run_backtest(config)
@@ -135,8 +149,12 @@ def test_backtest_portfolio_evolution(
         assert second_snapshot.total_value > 0
 
 
+@pytest.mark.slow
 def test_backtest_trade_generation(sample_test_data: DataStore, tmp_path: Path) -> None:
-    """Test that trades are generated during backtest."""
+    """Test that trades are generated during backtest.
+
+    Note: Marked as slow - takes ~2-3 minutes due to DSL engine initialization.
+    """
     runner = BacktestRunner(data_store=sample_test_data, auto_download_missing=False)
 
     # Include all symbols that DSL strategies might trade
@@ -167,11 +185,16 @@ def test_backtest_trade_generation(sample_test_data: DataStore, tmp_path: Path) 
         assert trade.price > 0
 
 
+@pytest.mark.slow
 def test_backtest_metrics_calculation(
     sample_test_data: DataStore, tmp_path: Path
 ) -> None:
-    """Test that performance metrics are calculated."""
-    runner = BacktestRunner(data_store=sample_test_data)
+    """Test that performance metrics are calculated.
+
+    Note: Marked as slow - takes ~2-3 minutes due to DSL engine initialization.
+    """
+    # Disable auto-download to speed up test
+    runner = BacktestRunner(data_store=sample_test_data, auto_download_missing=False)
 
     config = BacktestConfig(
         strategy_files=["test.clj"],
@@ -179,7 +202,8 @@ def test_backtest_metrics_calculation(
         end_date=datetime(2024, 1, 5, tzinfo=timezone.utc),
         initial_capital=Decimal("100000"),
         commission_per_trade=Decimal("0"),
-        symbols=["SPY"],
+        # Include all symbols that the test strategy might need
+        symbols=["SPY", "QQQ", "QQQE", "BITO", "BIL", "FXI", "FCG", "IOO", "UVXY"],
     )
 
     result = runner.run_backtest(config)
@@ -212,10 +236,14 @@ def test_backtest_empty_date_range(temp_backtest_runner: BacktestRunner) -> None
     assert len(result.trades) == 0
 
 
+@pytest.mark.slow
 def test_backtest_commission_impact(
     sample_test_data: DataStore, tmp_path: Path
 ) -> None:
-    """Test that commissions are tracked in trades."""
+    """Test that commissions are tracked in trades.
+
+    Note: Marked as slow - takes ~1-2 minutes due to DSL engine initialization.
+    """
     # Create runners with different commission rates
     from scripts.backtest.fill_simulator import FillSimulator
 
