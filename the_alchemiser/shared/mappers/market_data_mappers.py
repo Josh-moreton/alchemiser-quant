@@ -100,7 +100,7 @@ def quote_to_domain(raw: object) -> QuoteModel | None:
     try:
         if raw is None:
             return None
-        
+
         # Parse timestamp
         ts_any = getattr(raw, "timestamp", None)
         ts: datetime
@@ -110,24 +110,24 @@ def quote_to_domain(raw: object) -> QuoteModel | None:
         else:
             parsed = _parse_ts(ts_any)
             ts = parsed if parsed is not None else datetime.now(UTC)
-        
+
         # Ensure timezone-aware
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=UTC)
-        
+
         # Extract prices
         bid_price = getattr(raw, "bid_price", None)
         ask_price = getattr(raw, "ask_price", None)
         if bid_price is None or ask_price is None:
             return None
-        
+
         # Extract sizes (default to 0 if not available)
         bid_size = getattr(raw, "bid_size", 0)
         ask_size = getattr(raw, "ask_size", 0)
-        
+
         # Extract symbol
         symbol = getattr(raw, "symbol", "UNKNOWN")
-        
+
         return QuoteModel(
             symbol=str(symbol),
             bid_price=Decimal(str(bid_price)),

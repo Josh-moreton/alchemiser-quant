@@ -36,7 +36,6 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
-from the_alchemiser.shared.types.market_data import QuoteModel
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import (
