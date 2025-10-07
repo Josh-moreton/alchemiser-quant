@@ -320,13 +320,9 @@ class TestServiceFactoryImportErrorHandling:
 class TestServiceFactoryLogging:
     """Test that appropriate logging occurs for all operations."""
 
-    def test_logging_on_di_creation_path(self, capsys):
+    def test_logging_on_di_creation_path(self, caplog):
         """Test that DI creation path logs appropriately."""
-        mock_container = Mock()
-        mock_execution_container = Mock()
-        mock_execution_manager = Mock()
-        mock_execution_container.execution_manager.return_value = mock_execution_manager
-        mock_container.execution = mock_execution_container
+        mock_container = Mock(spec=ApplicationContainer)
 
         with patch("the_alchemiser.shared.utils.service_factory.ApplicationContainer") as mock_ac:
             mock_ac.initialize_execution_providers = Mock()
@@ -334,14 +330,14 @@ class TestServiceFactoryLogging:
             ServiceFactory.initialize(mock_container)
             ServiceFactory.create_execution_manager()
 
-            # Capture log output
-            captured = capsys.readouterr()
+            # Capture log output from caplog
+            log_text = " ".join(record.message for record in caplog.records)
 
             # Verify key log messages appear in output
-            assert "Creating ExecutionManager" in captured.out
-            assert "Initializing execution providers" in captured.out or "Using DI container" in captured.out
+            assert "Creating ExecutionManager" in log_text
+            assert "Initializing execution providers" in log_text or "Using DI container" in log_text
 
-    def test_logging_on_direct_creation_path(self, capsys):
+    def test_logging_on_direct_creation_path(self, caplog):
         """Test that direct creation path logs appropriately."""
         ServiceFactory._container = None
 
@@ -354,14 +350,14 @@ class TestServiceFactoryLogging:
                 api_key="key", secret_key="secret", paper=False
             )
 
-            # Capture log output
-            captured = capsys.readouterr()
+            # Capture log output from caplog
+            log_text = " ".join(record.message for record in caplog.records)
 
             # Verify key log messages appear in output
-            assert "Creating ExecutionManager" in captured.out
-            assert "direct instantiation" in captured.out.lower()
+            assert "Creating ExecutionManager" in log_text
+            assert "direct instantiation" in log_text.lower()
 
-    def test_logging_includes_context(self, capsys):
+    def test_logging_includes_context(self, caplog):
         """Test that logging includes appropriate context."""
         ServiceFactory._container = None
 
@@ -374,11 +370,11 @@ class TestServiceFactoryLogging:
                 api_key="key", secret_key="secret", paper=False
             )
 
-            # Capture log output
-            captured = capsys.readouterr()
+            # Capture log output from caplog
+            log_text = " ".join(record.message for record in caplog.records)
 
             # Verify context appears in logs (structlog formats as key=value)
-            assert "use_di" in captured.out
-            assert "has_api_key" in captured.out
-            assert "has_secret_key" in captured.out
-            assert "paper_mode" in captured.out
+            assert "use_di" in log_text
+            assert "has_api_key" in log_text
+            assert "has_secret_key" in log_text
+            assert "paper_mode" in log_text

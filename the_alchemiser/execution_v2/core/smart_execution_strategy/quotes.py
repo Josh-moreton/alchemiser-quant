@@ -237,7 +237,7 @@ class QuoteProvider:
             return None
 
         # REST quote looks reasonable - compare with streaming to decide
-        streaming_mid = (streaming_quote.bid_price + streaming_quote.ask_price) / Decimal("2")
+        streaming_mid = (Decimal(str(streaming_quote.bid_price)) + Decimal(str(streaming_quote.ask_price))) / Decimal("2")
         rest_mid = (rest_quote.bid_price + rest_quote.ask_price) / Decimal("2")
 
         # If REST mid-price is significantly different, prefer REST
