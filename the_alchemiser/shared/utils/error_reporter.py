@@ -251,7 +251,9 @@ class ErrorReporter:
 
         # Reset alerted errors if count drops below threshold
         errors_to_reset = {
-            key for key in self._alerted_errors if self.error_counts.get(key, 0) < self.error_rate_threshold
+            key
+            for key in self._alerted_errors
+            if self.error_counts.get(key, 0) < self.error_rate_threshold
         }
         self._alerted_errors -= errors_to_reset
 

@@ -12,6 +12,7 @@ Implements DSL control flow and conditional operators:
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Literal
 
 import structlog
 
@@ -155,6 +156,7 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
     )
 
     # Determine branch
+    branch_taken: Literal["then", "else"]
     if condition_result:
         branch_taken = "then"
         result = context.evaluate_node(then_expr, context.correlation_id, context.trace)

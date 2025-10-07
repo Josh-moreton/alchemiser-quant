@@ -102,9 +102,7 @@ class OrderTracker:
         with self._lock:
             if status is not None:
                 self._order_status[order_id] = str(status).lower()
-                logger.debug(
-                    "Updated order status", order_id=order_id, status=str(status).lower()
-                )
+                logger.debug("Updated order status", order_id=order_id, status=str(status).lower())
             if avg_price is not None:
                 self._order_avg_price[order_id] = avg_price
                 logger.debug("Updated order price", order_id=order_id, avg_price=str(avg_price))

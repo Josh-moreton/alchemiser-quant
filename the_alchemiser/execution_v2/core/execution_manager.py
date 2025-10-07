@@ -16,7 +16,6 @@ Key responsibilities:
 from __future__ import annotations
 
 import asyncio
-import logging
 import threading
 from typing import TYPE_CHECKING
 
@@ -136,7 +135,7 @@ class ExecutionManager:
                 )
                 # Note: Accessing package-private method - should be made public in AlpacaManager
                 # or this initialization should be handled by Executor
-                self.alpaca_manager._ensure_trading_stream()  # noqa: SLF001
+                self.alpaca_manager._ensure_trading_stream()
                 logger.debug(
                     "TradingStream initialization completed",
                     extra={"correlation_id": correlation_id},
@@ -202,7 +201,9 @@ class ExecutionManager:
                 "success": result.success,
                 "orders_placed": result.orders_placed,
                 "orders_succeeded": result.orders_succeeded,
-                "status": result.status.value if hasattr(result.status, "value") else str(result.status),
+                "status": result.status.value
+                if hasattr(result.status, "value")
+                else str(result.status),
             },
         )
 

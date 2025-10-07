@@ -41,6 +41,7 @@ class Percentage:
     Note:
         This is a frozen dataclass - immutable after construction.
         All arithmetic must be done on the .value attribute or via helper methods.
+
     """
 
     value: Decimal
@@ -78,6 +79,7 @@ class Percentage:
         Note:
             Float is converted to Decimal via str() to avoid precision issues.
             E.g., from_percent(33.33) becomes Decimal('0.3333'), not 0.33330000...
+
         """
         return cls(Decimal(str(percent)) / Decimal("100"))
 
@@ -98,5 +100,6 @@ class Percentage:
         Note:
             Result is exact Decimal multiplication, no rounding applied.
             E.g., Decimal("0.3333") * 100 = Decimal("33.33")
+
         """
         return self.value * Decimal("100")

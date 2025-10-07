@@ -32,7 +32,7 @@ class BarModel:
     @classmethod
     def from_dict(cls, data: MarketDataPoint) -> BarModel:
         """Create from MarketDataPoint TypedDict.
-        
+
         Converts Decimal values from TypedDict to float for internal storage.
         """
         timestamp_raw = data["timestamp"]
@@ -50,11 +50,11 @@ class BarModel:
 
     def to_dict(self) -> MarketDataPoint:
         """Convert to MarketDataPoint TypedDict.
-        
+
         Converts float values to Decimal for TypedDict compliance.
         """
         from decimal import Decimal
-        
+
         return {
             "symbol": self.symbol,
             "timestamp": self.timestamp.isoformat(),
@@ -89,7 +89,7 @@ class QuoteModel:
     @classmethod
     def from_dict(cls, data: QuoteData, symbol: str) -> QuoteModel:
         """Create from QuoteData TypedDict (domain-pure).
-        
+
         Converts Decimal values from TypedDict to float for internal storage.
         """
         timestamp_raw = data["timestamp"]
@@ -106,11 +106,11 @@ class QuoteModel:
 
     def to_dict(self) -> QuoteData:
         """Convert to QuoteData TypedDict.
-        
+
         Converts float values to Decimal for TypedDict compliance.
         """
         from decimal import Decimal
-        
+
         return {
             "bid_price": Decimal(str(self.bid_price)),
             "ask_price": Decimal(str(self.ask_price)),
@@ -144,7 +144,7 @@ class PriceDataModel:
     @classmethod
     def from_dict(cls, data: PriceData) -> PriceDataModel:
         """Create from PriceData TypedDict.
-        
+
         Converts Decimal values from TypedDict to float for internal storage.
         """
         timestamp_raw = data["timestamp"]
@@ -152,7 +152,7 @@ class PriceDataModel:
 
         bid_val = data.get("bid")
         ask_val = data.get("ask")
-        
+
         return cls(
             symbol=data["symbol"],
             price=float(data["price"]),
@@ -164,11 +164,11 @@ class PriceDataModel:
 
     def to_dict(self) -> PriceData:
         """Convert to PriceData TypedDict.
-        
+
         Converts float values to Decimal for TypedDict compliance.
         """
         from decimal import Decimal
-        
+
         return {
             "symbol": self.symbol,
             "price": Decimal(str(self.price)),

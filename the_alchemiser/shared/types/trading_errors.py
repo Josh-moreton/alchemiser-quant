@@ -72,7 +72,9 @@ class OrderError(AlchemiserError):
         self.order_id = order_id
 
 
-def classify_exception(exception: Exception) -> Literal["order_error", "alchemiser_error", "general_error"]:
+def classify_exception(
+    exception: Exception,
+) -> Literal["order_error", "alchemiser_error", "general_error"]:
     """Classify an exception into error categories for error handling.
 
     This function provides runtime exception classification for use in error

@@ -140,7 +140,7 @@ class StrategySignal(BaseModel):
     @field_validator("timestamp", mode="before")
     @classmethod
     def normalize_and_validate_timestamp(cls, v: datetime | None) -> datetime:
-        """Default to current UTC time if None, and validate timezone awareness.
+        """Normalize timestamp to current UTC time if None and validate timezone awareness.
 
         Args:
             v: Datetime value or None
