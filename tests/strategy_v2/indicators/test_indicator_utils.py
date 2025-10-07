@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.shared.types.exceptions import MarketDataError
+from the_alchemiser.shared.errors.exceptions import MarketDataError
 from the_alchemiser.strategy_v2.indicators.indicator_utils import (
     FALLBACK_INDICATOR_VALUE,
     _extract_series,

@@ -17,7 +17,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
 )
-from the_alchemiser.shared.types.exceptions import PortfolioError
+from the_alchemiser.shared.errors.exceptions import PortfolioError
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation

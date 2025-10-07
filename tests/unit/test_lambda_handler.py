@@ -24,7 +24,7 @@ from the_alchemiser.lambda_handler import (
     parse_event_mode,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,

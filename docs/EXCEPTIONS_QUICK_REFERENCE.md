@@ -15,7 +15,7 @@
 ### ✅ Use This
 
 ```python
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     AlchemiserError,           # Base exception
     OrderExecutionError,       # Trading errors
     PortfolioError,           # Portfolio errors  
@@ -60,7 +60,7 @@ AlchemiserError (base)
 
 ## When in Doubt
 
-1. Import from `the_alchemiser.shared.types.exceptions`
+1. Import from `the_alchemiser.shared.errors.exceptions`
 2. Use the most specific exception type available
 3. Provide context via constructor parameters
 4. Check `shared/types/exceptions.py` for available types

@@ -18,7 +18,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     InsufficientFundsError,
     MarketClosedError,
     OrderExecutionError,

@@ -91,10 +91,10 @@ All these modules work with exceptions from `shared/types/exceptions.py`.
 
 ### Importing Exceptions
 
-Always import from `the_alchemiser.shared.types.exceptions`:
+Always import from `the_alchemiser.shared.errors.exceptions`:
 
 ```python
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     AlchemiserError,           # Base exception
     OrderExecutionError,       # Trading errors
     PortfolioError,           # Portfolio errors  
@@ -257,4 +257,4 @@ The codebase uses a single, well-designed exception system in `shared/types/exce
 - ✅ Context tracking and structured logging support
 - ✅ Integrated with error handling infrastructure
 
-**For developers**: Always import from `the_alchemiser.shared.types.exceptions` and use the most specific exception type available.
+**For developers**: Always import from `the_alchemiser.shared.errors.exceptions` and use the most specific exception type available.

@@ -14,7 +14,7 @@ from typing import overload
 
 from ..constants import UTC_TIMEZONE_SUFFIX
 from ..logging import get_logger
-from ..types.exceptions import DataProviderError
+from ..errors.exceptions import DataProviderError
 
 logger = get_logger(__name__)
 

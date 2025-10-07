@@ -25,7 +25,7 @@
 Internal: 
   - the_alchemiser.shared.config.config (load_settings)
   - the_alchemiser.shared.logging (get_logger) [ADDED]
-  - the_alchemiser.shared.types.exceptions (ConfigurationError) [ADDED]
+  - the_alchemiser.shared.errors.exceptions (ConfigurationError) [ADDED]
 External: 
   - decimal (Decimal)
 ```
@@ -182,7 +182,7 @@ Produced:
 
 1. **Removed `Any` type annotations**: Replaced with specific union types
 2. **Added structured logging**: Entry, error, and completion logging with correlation_id
-3. **Replaced generic ValueError**: Now uses `ConfigurationError` from shared.types.exceptions
+3. **Replaced generic ValueError**: Now uses `ConfigurationError` from shared.errors.exceptions
 4. **Added correlation_id parameter**: Enables request tracing through the system
 5. **Added 4 property-based tests**: Using Hypothesis to verify mathematical properties
 6. **Updated test expectations**: Changed from ValueError to ConfigurationError

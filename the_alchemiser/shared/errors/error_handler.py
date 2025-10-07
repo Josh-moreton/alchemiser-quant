@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 # Import additional error types
 try:
-    from the_alchemiser.shared.types.trading_errors import (
+    from .trading_errors import (
         OrderError,
         classify_exception,
     )
@@ -71,7 +71,7 @@ except ImportError:
 
 # Import AlchemiserError for type checking
 try:
-    from the_alchemiser.shared.types.exceptions import (
+    from the_alchemiser.shared.errors.exceptions import (
         AlchemiserError,
         DataProviderError,
         TradingClientError,

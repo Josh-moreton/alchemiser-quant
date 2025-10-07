@@ -22,7 +22,7 @@
 
 **Direct dependencies (imports)**:
 ```
-Internal: the_alchemiser.shared.types.exceptions (AlchemiserError)
+Internal: the_alchemiser.shared.errors.exceptions (AlchemiserError)
 External: typing (Any)
 ```
 
@@ -89,7 +89,7 @@ None
 | 1-4 | Module header present and correct | ✅ PASS | `"""Business Unit: shared \| Status: current.` | None - compliant |
 | 6 | Future annotations import | ✅ PASS | Standard practice for modern type hints | None |
 | 8 | Any type import | ⚠️ INFO | `from typing import Any` - used in dict[str, Any] | Consider TypedDict for context |
-| 10 | Single dependency on AlchemiserError | ✅ PASS | Clean import from shared.types.exceptions | None |
+| 10 | Single dependency on AlchemiserError | ✅ PASS | Clean import from shared.errors.exceptions | None |
 | 13-14 | Class definition and docstring | ⚠️ MEDIUM | Docstring lacks pre/post-conditions, failure modes | Add comprehensive docstring |
 | 16-18 | Constructor signature | ✅ PASS | Type hints complete, optional parameters well-defined | None |
 | 19-26 | Docstring format | ⚠️ MEDIUM | Missing: pre-conditions, post-conditions, raises, examples | Expand docstring per standards |

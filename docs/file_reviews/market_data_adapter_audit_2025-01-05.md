@@ -19,7 +19,7 @@
 ## 0) Metadata
 
 **Direct dependencies (imports)**:
-- **Internal**: `shared.brokers.alpaca_manager`, `shared.logging`, `shared.schemas.market_bar`, `shared.services.market_data_service`, `shared.types.exceptions`
+- **Internal**: `shared.brokers.alpaca_manager`, `shared.logging`, `shared.schemas.market_bar`, `shared.services.market_data_service`, `shared.errors.exceptions`
 - **External**: `datetime` (stdlib), `decimal.Decimal` (stdlib), `typing` (stdlib)
 
 **External services touched**:

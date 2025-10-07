@@ -20,7 +20,7 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationResult,
     TerminalOrderError,
 )
-from the_alchemiser.shared.types.exceptions import OrderExecutionError
+from the_alchemiser.shared.errors.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import (

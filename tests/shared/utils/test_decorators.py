@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     MarketDataError,
