@@ -35,7 +35,9 @@ class ErrorDetailInfo(BaseModel):
     additional_data: dict[str, Any] = Field(
         default_factory=dict, description="Additional error metadata"
     )
-    suggested_action: str | None = Field(default=None, description="Recommended remediation action")
+    suggested_action: str | None = Field(
+        default=None, description="Recommended remediation action"
+    )
 
 
 class ErrorSummaryData(BaseModel):
@@ -47,7 +49,9 @@ class ErrorSummaryData(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True)
 
     count: int = Field(description="Number of errors in this category", ge=0)
-    errors: list[ErrorDetailInfo] = Field(default_factory=list, description="List of error details")
+    errors: list[ErrorDetailInfo] = Field(
+        default_factory=list, description="List of error details"
+    )
 
 
 class ErrorReportSummary(BaseModel):
@@ -59,17 +63,27 @@ class ErrorReportSummary(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    critical: ErrorSummaryData | None = Field(default=None, description="Critical system errors")
-    trading: ErrorSummaryData | None = Field(default=None, description="Trading execution errors")
+    critical: ErrorSummaryData | None = Field(
+        default=None, description="Critical system errors"
+    )
+    trading: ErrorSummaryData | None = Field(
+        default=None, description="Trading execution errors"
+    )
     data: ErrorSummaryData | None = Field(
         default=None, description="Data provider/market data errors"
     )
-    strategy: ErrorSummaryData | None = Field(default=None, description="Strategy execution errors")
-    configuration: ErrorSummaryData | None = Field(default=None, description="Configuration errors")
+    strategy: ErrorSummaryData | None = Field(
+        default=None, description="Strategy execution errors"
+    )
+    configuration: ErrorSummaryData | None = Field(
+        default=None, description="Configuration errors"
+    )
     notification: ErrorSummaryData | None = Field(
         default=None, description="Notification system errors"
     )
-    warning: ErrorSummaryData | None = Field(default=None, description="Warning-level issues")
+    warning: ErrorSummaryData | None = Field(
+        default=None, description="Warning-level issues"
+    )
 
 
 # Error Notification Types
@@ -78,7 +92,7 @@ class ErrorNotificationData(BaseModel):
 
     Contains formatted error information for sending via
     email, Slack, or other notification channels.
-    
+
     Extended with workflow tracking fields for event-driven architecture:
     - success: Whether the notification was successfully delivered
     - email_sent: Whether the email was actually sent

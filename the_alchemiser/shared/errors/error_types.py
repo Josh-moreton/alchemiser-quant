@@ -69,4 +69,3 @@ class ErrorCategory:
 # NOTE: Schema classes (ErrorDetailInfo, ErrorSummaryData, ErrorReportSummary,
 # ErrorNotificationData) are re-exported from shared.schemas.errors above.
 # Use those imports instead of defining duplicates here.
-
