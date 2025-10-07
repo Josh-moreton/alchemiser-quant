@@ -322,9 +322,13 @@ class QuoteModel:
 
         # Validate prices and sizes are non-negative
         if bid_price < 0 or ask_price < 0:
-            raise ValueError(f"Prices cannot be negative: bid={bid_price}, ask={ask_price}")
+            raise ValueError(
+                f"Prices cannot be negative: bid={bid_price}, ask={ask_price}"
+            )
         if bid_size < 0 or ask_size < 0:
-            raise ValueError(f"Sizes cannot be negative: bid_size={bid_size}, ask_size={ask_size}")
+            raise ValueError(
+                f"Sizes cannot be negative: bid_size={bid_size}, ask_size={ask_size}"
+            )
 
         # Validate bid <= ask (normal quote)
         if bid_price > ask_price:
@@ -507,7 +511,11 @@ class PriceDataModel:
                 raise ValueError(f"Invalid ask price: {e}") from e
 
         # Validate bid <= ask if both present
-        if bid_decimal is not None and ask_decimal is not None and bid_decimal > ask_decimal:
+        if (
+            bid_decimal is not None
+            and ask_decimal is not None
+            and bid_decimal > ask_decimal
+        ):
             logger.warning(
                 f"Inverted quote for {symbol}: bid={bid_decimal} > ask={ask_decimal}",
                 extra={
