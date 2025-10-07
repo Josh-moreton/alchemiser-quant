@@ -31,7 +31,7 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.types import StrategySignal
-from the_alchemiser.shared.types.exceptions import DataProviderError
+from the_alchemiser.shared.errors.exceptions import DataProviderError
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 
 

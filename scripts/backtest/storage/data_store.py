@@ -182,7 +182,7 @@ class DataStore:
                 
                 if not bars:
                     # Import here to avoid circular dependency
-                    from the_alchemiser.shared.types.exceptions import DataUnavailableError
+                    from the_alchemiser.shared.errors.exceptions import DataUnavailableError
                     
                     error_msg = (
                         f"Symbol '{symbol}' has no data available from provider for the requested date range. "
@@ -208,7 +208,7 @@ class DataStore:
                     raise
                 
                 # Import here to avoid circular dependency
-                from the_alchemiser.shared.types.exceptions import DataUnavailableError
+                from the_alchemiser.shared.errors.exceptions import DataUnavailableError
                 
                 # Wrap other exceptions
                 error_msg = (
@@ -224,7 +224,7 @@ class DataStore:
         
         elif missing_years:
             # No data provider configured, raise error
-            from the_alchemiser.shared.types.exceptions import DataUnavailableError
+            from the_alchemiser.shared.errors.exceptions import DataUnavailableError
             
             error_msg = (
                 f"Missing data files for {symbol} years {missing_years}. "
@@ -253,7 +253,7 @@ class DataStore:
             all_dfs.append(df)
 
         if not all_dfs:
-            from the_alchemiser.shared.types.exceptions import DataUnavailableError
+            from the_alchemiser.shared.errors.exceptions import DataUnavailableError
             
             error_msg = f"No data found for {symbol} in date range {start_date.date()} to {end_date.date()}"
             raise DataUnavailableError(

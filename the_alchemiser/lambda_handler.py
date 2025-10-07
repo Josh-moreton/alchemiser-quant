@@ -29,7 +29,7 @@ from the_alchemiser.shared.logging import (
     set_request_id,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,

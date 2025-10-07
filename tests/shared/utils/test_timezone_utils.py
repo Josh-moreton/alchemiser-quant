@@ -128,7 +128,7 @@ class TestNormalizeTimestampToUtc:
 
     def test_invalid_string_fallback_to_current_time(self):
         """Test that invalid string raises DataProviderError."""
-        from the_alchemiser.shared.types.exceptions import DataProviderError
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
         invalid_str = "not a valid datetime"
         
@@ -141,7 +141,7 @@ class TestNormalizeTimestampToUtc:
 
     def test_numeric_timestamp_converted_to_string(self):
         """Test that numeric timestamps raise DataProviderError."""
-        from the_alchemiser.shared.types.exceptions import DataProviderError
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
         # This tests that numeric conversion isn't properly implemented
         numeric_timestamp = 1673784600  # Unix timestamp
@@ -222,7 +222,7 @@ class TestTimezoneUtilsEdgeCases:
 
     def test_normalize_with_exception_fallback(self):
         """Test that normalize function raises DataProviderError on exceptions."""
-        from the_alchemiser.shared.types.exceptions import DataProviderError
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
         # Test an object that will cause an exception when converted to string
         class BadObject:

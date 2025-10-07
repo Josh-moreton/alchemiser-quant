@@ -30,7 +30,7 @@ from the_alchemiser.shared.schemas.trade_result_factory import (
     create_success_result,
 )
 from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )

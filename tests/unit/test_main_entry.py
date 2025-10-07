@@ -21,7 +21,7 @@ from the_alchemiser.main import (
     _parse_arguments,
     main,
 )
-from the_alchemiser.shared.types.exceptions import ConfigurationError
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 
 
 class TestArgumentParsing:

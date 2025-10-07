@@ -23,7 +23,7 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
-from the_alchemiser.shared.types.exceptions import AlchemiserError
+from the_alchemiser.shared.errors.exceptions import AlchemiserError
 
 logger = get_logger(__name__)
 

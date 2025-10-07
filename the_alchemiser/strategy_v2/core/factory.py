@@ -10,8 +10,8 @@ strategy orchestrators with market data adapters.
 from __future__ import annotations
 
 from ...shared.brokers.alpaca_manager import AlpacaManager
+from ...shared.errors.exceptions import ConfigurationError
 from ...shared.logging import get_logger
-from ...shared.types.exceptions import ConfigurationError
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from .orchestrator import SingleStrategyOrchestrator
 
@@ -71,7 +71,9 @@ def create_orchestrator(
         )
 
         # Create Alpaca manager
-        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+        alpaca_manager = AlpacaManager(
+            api_key=api_key, secret_key=secret_key, paper=paper
+        )
 
         # Create market data adapter
         market_data_adapter = StrategyMarketDataAdapter(alpaca_manager)

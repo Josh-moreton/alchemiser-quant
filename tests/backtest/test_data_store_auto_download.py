@@ -21,7 +21,7 @@ if project_root_str not in sys.path:
 
 from scripts.backtest.models.market_data import DailyBar
 from scripts.backtest.storage.data_store import DataStore
-from the_alchemiser.shared.types.exceptions import DataUnavailableError
+from the_alchemiser.shared.errors.exceptions import DataUnavailableError
 
 
 @pytest.fixture

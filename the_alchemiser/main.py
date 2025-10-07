@@ -24,7 +24,7 @@ from the_alchemiser.shared.logging import (
     get_logger,
     set_request_id,
 )
-from the_alchemiser.shared.types.exceptions import ConfigurationError
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult

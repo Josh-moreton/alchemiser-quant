@@ -35,9 +35,9 @@ from .error_utils import (
     retry_with_backoff,
 )
 
-# Import common exception types from shared.types for convenience
+# Import common exception types from local exceptions module
 try:
-    from the_alchemiser.shared.types.exceptions import (
+    from .exceptions import (
         AlchemiserError,
         ConfigurationError,
         DataProviderError,

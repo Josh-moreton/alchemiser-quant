@@ -20,7 +20,7 @@ import pandas as pd
 import pytest
 from hypothesis import given, strategies as st
 
-from the_alchemiser.shared.types.exceptions import MarketDataError
+from the_alchemiser.shared.errors.exceptions import MarketDataError
 from the_alchemiser.strategy_v2.indicators.indicators import (
     DEFAULT_RSI_WINDOW,
     NEUTRAL_RSI_VALUE,

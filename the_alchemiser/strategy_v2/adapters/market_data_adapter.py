@@ -17,7 +17,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.shared.services.market_data_service import MarketDataService
-from the_alchemiser.shared.types.exceptions import DataProviderError, MarketDataError
+from the_alchemiser.shared.errors.exceptions import DataProviderError, MarketDataError
 
 logger = get_logger(__name__)
 

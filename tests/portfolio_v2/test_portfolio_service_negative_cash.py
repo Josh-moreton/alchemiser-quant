@@ -14,7 +14,7 @@ import pytest
 
 from the_alchemiser.portfolio_v2.core.portfolio_service import PortfolioServiceV2
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     NegativeCashBalanceError,
     PortfolioError,
 )

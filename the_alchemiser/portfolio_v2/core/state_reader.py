@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.exceptions import NegativeCashBalanceError
+from the_alchemiser.shared.errors.exceptions import NegativeCashBalanceError
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (

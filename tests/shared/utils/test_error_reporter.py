@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from the_alchemiser.shared.types.exceptions import SecurityError
+from the_alchemiser.shared.errors.exceptions import SecurityError
 from the_alchemiser.shared.utils.error_reporter import (
     ErrorReporter,
     get_error_reporter,

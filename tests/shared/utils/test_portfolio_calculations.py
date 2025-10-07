@@ -13,7 +13,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from the_alchemiser.shared.types.exceptions import ConfigurationError
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.portfolio_calculations import (
     build_allocation_comparison,
 )

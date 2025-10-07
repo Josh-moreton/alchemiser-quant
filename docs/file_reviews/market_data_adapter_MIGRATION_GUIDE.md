@@ -113,7 +113,7 @@ if apple_price is None:
 
 #### Strategy 3: Fail-Fast (Recommended for Critical Operations)
 ```python
-from the_alchemiser.shared.types.exceptions import MarketDataError
+from the_alchemiser.shared.errors.exceptions import MarketDataError
 
 prices = adapter.get_current_prices(["AAPL"])
 apple_price = prices["AAPL"]
