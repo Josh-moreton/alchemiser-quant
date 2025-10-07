@@ -322,7 +322,7 @@ class TestErrorContextPropagation:
         """Test that both IDs propagate through error hierarchy."""
         correlation_id = "corr-123"
         causation_id = "cause-456"
-        
+
         exec_error = StrategyExecutionError(
             "Test",
             strategy_id="nuclear",
@@ -331,7 +331,7 @@ class TestErrorContextPropagation:
         )
         assert exec_error.correlation_id == correlation_id
         assert exec_error.causation_id == causation_id
-        
+
         config_error = ConfigurationError(
             "Test",
             correlation_id=correlation_id,
@@ -339,7 +339,7 @@ class TestErrorContextPropagation:
         )
         assert config_error.correlation_id == correlation_id
         assert config_error.causation_id == causation_id
-        
+
         data_error = MarketDataError(
             "Test",
             symbol="AAPL",
@@ -475,14 +475,14 @@ class TestErrorSerialization:
             extra_field="extra",
         )
         result = error.to_dict()
-        
+
         assert "error_type" in result
         assert "message" in result
         assert "module" in result
         assert "correlation_id" in result
         assert "causation_id" in result
         assert "context" in result
-        
+
         assert result["error_type"] == "StrategyV2Error"
         assert result["message"] == "Test error"
         assert result["correlation_id"] == "corr-123"
@@ -498,7 +498,7 @@ class TestErrorSerialization:
             symbol="SPY",
         )
         result = error.to_dict()
-        
+
         assert result["error_type"] == "StrategyExecutionError"
         assert result["message"] == "Execution failed"
         assert result["module"] == "strategy_v2.core.orchestrator"
@@ -509,7 +509,7 @@ class TestErrorSerialization:
         """Test that serialization handles None values gracefully."""
         error = StrategyV2Error("Test")
         result = error.to_dict()
-        
+
         assert result["correlation_id"] is None
         assert result["causation_id"] is None
         assert result["context"] == {}
@@ -526,7 +526,7 @@ class TestErrorSerialization:
         )
         result = error.to_dict()
         context = result["context"]
-        
+
         assert isinstance(context["int_val"], int)
         assert isinstance(context["float_val"], float)
         assert isinstance(context["str_val"], str)

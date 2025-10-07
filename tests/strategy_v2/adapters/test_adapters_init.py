@@ -28,19 +28,25 @@ class TestAdaptersModuleInterface:
         # Check __all__ exists
         assert hasattr(adapters, "__all__"), "Module must define __all__"
 
-        expected_exports = {"FeaturePipeline", "MarketDataProvider", "StrategyMarketDataAdapter"}
+        expected_exports = {
+            "FeaturePipeline",
+            "MarketDataProvider",
+            "StrategyMarketDataAdapter",
+        }
         actual_exports = set(adapters.__all__)
 
-        assert actual_exports == expected_exports, (
-            f"__all__ mismatch. Expected: {expected_exports}, Got: {actual_exports}"
-        )
+        assert (
+            actual_exports == expected_exports
+        ), f"__all__ mismatch. Expected: {expected_exports}, Got: {actual_exports}"
 
     def test_all_exports_are_importable(self) -> None:
         """Test that all items in __all__ can be imported."""
         from the_alchemiser.strategy_v2 import adapters
 
         for name in adapters.__all__:
-            assert hasattr(adapters, name), f"Export '{name}' in __all__ but not importable"
+            assert hasattr(
+                adapters, name
+            ), f"Export '{name}' in __all__ but not importable"
             obj = getattr(adapters, name)
             assert obj is not None, f"Export '{name}' is None"
 
@@ -129,7 +135,9 @@ class TestAdaptersModuleInterface:
         assert len(adapters.__doc__) > 0, "Module docstring must not be empty"
 
         # Check for business unit header
-        assert "Business Unit:" in adapters.__doc__, "Docstring must include Business Unit"
+        assert (
+            "Business Unit:" in adapters.__doc__
+        ), "Docstring must include Business Unit"
         assert "Status:" in adapters.__doc__, "Docstring must include Status"
 
     def test_exports_are_classes_or_protocols(self) -> None:
@@ -175,7 +183,9 @@ class TestAdaptersModuleInterface:
         # Exports should be identical
         assert adapters1.FeaturePipeline is adapters2.FeaturePipeline
         assert adapters1.MarketDataProvider is adapters2.MarketDataProvider
-        assert adapters1.StrategyMarketDataAdapter is adapters2.StrategyMarketDataAdapter
+        assert (
+            adapters1.StrategyMarketDataAdapter is adapters2.StrategyMarketDataAdapter
+        )
 
     def test_no_circular_imports(self) -> None:
         """Test that importing the module doesn't cause circular import issues."""
@@ -201,27 +211,32 @@ class TestModuleBoundaries:
         """Test that adapters module doesn't directly import from portfolio_v2."""
         import ast
         from pathlib import Path
-        
+
         # Get all Python files in strategy_v2/adapters
-        adapters_dir = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "strategy_v2" / "adapters"
+        adapters_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "the_alchemiser"
+            / "strategy_v2"
+            / "adapters"
+        )
         python_files = list(adapters_dir.glob("*.py"))
-        
+
         bad_imports = []
         for file_path in python_files:
             if file_path.name.startswith("_"):
                 continue  # Skip private/init files for now
-            
+
             try:
                 with open(file_path) as f:
                     tree = ast.parse(f.read())
-                
+
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ImportFrom):
                         if node.module and "portfolio_v2" in node.module:
                             bad_imports.append(f"{file_path.name}: {node.module}")
             except Exception:
                 pass  # Skip files that can't be parsed
-        
+
         # Strategy adapters should not import portfolio modules
         assert not bad_imports, (
             f"Strategy adapters should not import portfolio_v2 modules. "
@@ -232,27 +247,32 @@ class TestModuleBoundaries:
         """Test that adapters module doesn't directly import from execution_v2."""
         import ast
         from pathlib import Path
-        
+
         # Get all Python files in strategy_v2/adapters
-        adapters_dir = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "strategy_v2" / "adapters"
+        adapters_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "the_alchemiser"
+            / "strategy_v2"
+            / "adapters"
+        )
         python_files = list(adapters_dir.glob("*.py"))
-        
+
         bad_imports = []
         for file_path in python_files:
             if file_path.name.startswith("_"):
                 continue  # Skip private/init files for now
-            
+
             try:
                 with open(file_path) as f:
                     tree = ast.parse(f.read())
-                
+
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ImportFrom):
                         if node.module and "execution_v2" in node.module:
                             bad_imports.append(f"{file_path.name}: {node.module}")
             except Exception:
                 pass  # Skip files that can't be parsed
-        
+
         # Strategy adapters should not import execution modules
         assert not bad_imports, (
             f"Strategy adapters should not import execution_v2 modules. "
@@ -263,27 +283,32 @@ class TestModuleBoundaries:
         """Test that adapters module doesn't directly import from orchestration."""
         import ast
         from pathlib import Path
-        
+
         # Get all Python files in strategy_v2/adapters
-        adapters_dir = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "strategy_v2" / "adapters"
+        adapters_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "the_alchemiser"
+            / "strategy_v2"
+            / "adapters"
+        )
         python_files = list(adapters_dir.glob("*.py"))
-        
+
         bad_imports = []
         for file_path in python_files:
             if file_path.name.startswith("_"):
                 continue  # Skip private/init files for now
-            
+
             try:
                 with open(file_path) as f:
                     tree = ast.parse(f.read())
-                
+
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ImportFrom):
                         if node.module and "orchestration" in node.module:
                             bad_imports.append(f"{file_path.name}: {node.module}")
             except Exception:
                 pass  # Skip files that can't be parsed
-        
+
         # Strategy adapters should not import orchestration modules
         assert not bad_imports, (
             f"Strategy adapters should not import orchestration modules. "
@@ -338,7 +363,9 @@ class TestModuleMetadata:
         """Test that module status is 'current'."""
         from the_alchemiser.strategy_v2 import adapters
 
-        assert "current" in adapters.__doc__.lower(), "Module status should be 'current'"
+        assert (
+            "current" in adapters.__doc__.lower()
+        ), "Module status should be 'current'"
 
     def test_module_has_meaningful_description(self) -> None:
         """Test that module docstring describes purpose."""
