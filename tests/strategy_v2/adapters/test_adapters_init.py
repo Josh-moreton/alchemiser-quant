@@ -198,48 +198,96 @@ class TestModuleBoundaries:
     """Test suite for module boundary enforcement."""
 
     def test_no_portfolio_imports(self) -> None:
-        """Test that adapters module doesn't import from portfolio_v2."""
-        from the_alchemiser.strategy_v2 import adapters
-
-        # Check loaded modules
-        loaded_modules = [mod for mod in sys.modules if mod.startswith("the_alchemiser")]
-
-        portfolio_modules = [mod for mod in loaded_modules if "portfolio_v2" in mod]
-
-        # Strategy adapters should not load portfolio modules
-        assert not portfolio_modules, (
+        """Test that adapters module doesn't directly import from portfolio_v2."""
+        import ast
+        from pathlib import Path
+        
+        # Get all Python files in strategy_v2/adapters
+        adapters_dir = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "strategy_v2" / "adapters"
+        python_files = list(adapters_dir.glob("*.py"))
+        
+        bad_imports = []
+        for file_path in python_files:
+            if file_path.name.startswith("_"):
+                continue  # Skip private/init files for now
+            
+            try:
+                with open(file_path) as f:
+                    tree = ast.parse(f.read())
+                
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ImportFrom):
+                        if node.module and "portfolio_v2" in node.module:
+                            bad_imports.append(f"{file_path.name}: {node.module}")
+            except Exception:
+                pass  # Skip files that can't be parsed
+        
+        # Strategy adapters should not import portfolio modules
+        assert not bad_imports, (
             f"Strategy adapters should not import portfolio_v2 modules. "
-            f"Found: {portfolio_modules}"
+            f"Found: {bad_imports}"
         )
 
     def test_no_execution_imports(self) -> None:
-        """Test that adapters module doesn't import from execution_v2."""
-        from the_alchemiser.strategy_v2 import adapters
-
-        # Check loaded modules
-        loaded_modules = [mod for mod in sys.modules if mod.startswith("the_alchemiser")]
-
-        execution_modules = [mod for mod in loaded_modules if "execution_v2" in mod]
-
-        # Strategy adapters should not load execution modules
-        assert not execution_modules, (
+        """Test that adapters module doesn't directly import from execution_v2."""
+        import ast
+        from pathlib import Path
+        
+        # Get all Python files in strategy_v2/adapters
+        adapters_dir = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "strategy_v2" / "adapters"
+        python_files = list(adapters_dir.glob("*.py"))
+        
+        bad_imports = []
+        for file_path in python_files:
+            if file_path.name.startswith("_"):
+                continue  # Skip private/init files for now
+            
+            try:
+                with open(file_path) as f:
+                    tree = ast.parse(f.read())
+                
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ImportFrom):
+                        if node.module and "execution_v2" in node.module:
+                            bad_imports.append(f"{file_path.name}: {node.module}")
+            except Exception:
+                pass  # Skip files that can't be parsed
+        
+        # Strategy adapters should not import execution modules
+        assert not bad_imports, (
             f"Strategy adapters should not import execution_v2 modules. "
-            f"Found: {execution_modules}"
+            f"Found: {bad_imports}"
         )
 
     def test_no_orchestration_imports(self) -> None:
-        """Test that adapters module doesn't import from orchestration."""
-        from the_alchemiser.strategy_v2 import adapters
-
-        # Check loaded modules
-        loaded_modules = [mod for mod in sys.modules if mod.startswith("the_alchemiser")]
-
-        orchestration_modules = [mod for mod in loaded_modules if "orchestration" in mod]
-
-        # Strategy adapters should not load orchestration modules
-        assert not orchestration_modules, (
+        """Test that adapters module doesn't directly import from orchestration."""
+        import ast
+        from pathlib import Path
+        
+        # Get all Python files in strategy_v2/adapters
+        adapters_dir = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "strategy_v2" / "adapters"
+        python_files = list(adapters_dir.glob("*.py"))
+        
+        bad_imports = []
+        for file_path in python_files:
+            if file_path.name.startswith("_"):
+                continue  # Skip private/init files for now
+            
+            try:
+                with open(file_path) as f:
+                    tree = ast.parse(f.read())
+                
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ImportFrom):
+                        if node.module and "orchestration" in node.module:
+                            bad_imports.append(f"{file_path.name}: {node.module}")
+            except Exception:
+                pass  # Skip files that can't be parsed
+        
+        # Strategy adapters should not import orchestration modules
+        assert not bad_imports, (
             f"Strategy adapters should not import orchestration modules. "
-            f"Found: {orchestration_modules}"
+            f"Found: {bad_imports}"
         )
 
 

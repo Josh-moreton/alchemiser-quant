@@ -66,7 +66,9 @@ class QuoteProvider:
                 logger.warning(
                     f"🚨 Suspicious streaming prices for {symbol}, validating with REST NBBO"
                 )
-                rest_result = self._validate_suspicious_quote_with_rest(streaming_quote, symbol)
+                rest_result = self._validate_suspicious_quote_with_rest(
+                    streaming_quote, symbol
+                )
                 if rest_result:
                     return rest_result
                 # If REST validation fails, continue with streaming quote as fallback
@@ -124,7 +126,9 @@ class QuoteProvider:
         while elapsed < max_wait_time:
             quote = self.pricing_service.get_quote_data(symbol)
             if quote:
-                logger.info(f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s")
+                logger.info(
+                    f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
+                )
                 return quote
 
             time.sleep(check_interval)
@@ -149,7 +153,9 @@ class QuoteProvider:
         )
 
         # Check quote freshness
-        if not validate_quote_freshness(quote.timestamp, self.config.quote_freshness_seconds):
+        if not validate_quote_freshness(
+            quote.timestamp, self.config.quote_freshness_seconds
+        ):
             quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
             logger.debug(
                 f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
@@ -215,7 +221,9 @@ class QuoteProvider:
             (corrected_quote, True) if REST validation provides better data, None if REST fails
 
         """
-        logger.info(f"📊 Fetching REST NBBO to validate suspicious streaming prices for {symbol}")
+        logger.info(
+            f"📊 Fetching REST NBBO to validate suspicious streaming prices for {symbol}"
+        )
 
         rest_result = self._try_rest_fallback_quote(symbol)
         if not rest_result:
@@ -227,7 +235,9 @@ class QuoteProvider:
         rest_quote, _ = rest_result
 
         # Check if REST quote is reasonable compared to streaming
-        rest_suspicious, rest_reasons = self._check_quote_suspicious_patterns(rest_quote)
+        rest_suspicious, rest_reasons = self._check_quote_suspicious_patterns(
+            rest_quote
+        )
 
         if rest_suspicious:
             logger.warning(
@@ -237,7 +247,10 @@ class QuoteProvider:
             return None
 
         # REST quote looks reasonable - compare with streaming to decide
-        streaming_mid = (Decimal(str(streaming_quote.bid_price)) + Decimal(str(streaming_quote.ask_price))) / Decimal("2")
+        streaming_mid = (
+            Decimal(str(streaming_quote.bid_price))
+            + Decimal(str(streaming_quote.ask_price))
+        ) / Decimal("2")
         rest_mid = (rest_quote.bid_price + rest_quote.ask_price) / Decimal("2")
 
         # If REST mid-price is significantly different, prefer REST
@@ -251,10 +264,14 @@ class QuoteProvider:
             return rest_quote, True
 
         # If both are similar and REST isn't suspicious, prefer REST for safety
-        logger.info(f"✅ Using REST quote for {symbol} as validation passed (mid=${rest_mid:.2f})")
+        logger.info(
+            f"✅ Using REST quote for {symbol} as validation passed (mid=${rest_mid:.2f})"
+        )
         return rest_quote, True
 
-    def _check_quote_suspicious_patterns(self, quote: QuoteModel) -> tuple[bool, list[str]]:
+    def _check_quote_suspicious_patterns(
+        self, quote: QuoteModel
+    ) -> tuple[bool, list[str]]:
         """Check quote for suspicious patterns without logging.
 
         Args:
@@ -286,7 +303,9 @@ class QuoteProvider:
         rest_quote = self.alpaca_manager.get_latest_quote(symbol)
 
         if not rest_quote:
-            logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
+            logger.error(
+                f"❌ No quote data available for {symbol} (streaming and REST failed)"
+            )
             return None
 
         # Extract bid/ask from QuoteModel
@@ -303,7 +322,9 @@ class QuoteProvider:
             timestamp=datetime.now(UTC),
         )
 
-        logger.info(f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}")
+        logger.info(
+            f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}"
+        )
         return quote, True  # Used REST fallback
 
     def wait_for_quote_data(
@@ -362,17 +383,23 @@ class QuoteProvider:
                     "ask_size": 0,  # Not available in RealTimeQuote
                     "timestamp": real_time_quote.timestamp.timestamp(),
                 }
-                logger.info(f"✅ Got quote for {symbol} after {time.time() - start_time:.1f}s")
+                logger.info(
+                    f"✅ Got quote for {symbol} after {time.time() - start_time:.1f}s"
+                )
                 return quote
 
             time.sleep(check_interval)
             # Exponential backoff to reduce CPU usage
             check_interval = min(check_interval * 1.5, max_interval)
 
-        logger.warning(f"⏱️ Timeout waiting for quote data for {symbol} after {timeout}s")
+        logger.warning(
+            f"⏱️ Timeout waiting for quote data for {symbol} after {timeout}s"
+        )
         return None
 
-    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:
@@ -398,14 +425,18 @@ class QuoteProvider:
 
             # Basic price validation
             if bid_price <= 0 or ask_price <= 0:
-                logger.warning(f"Invalid prices for {symbol}: bid={bid_price}, ask={ask_price}")
+                logger.warning(
+                    f"Invalid prices for {symbol}: bid={bid_price}, ask={ask_price}"
+                )
                 return False
 
             # Spread validation (max 0.5% spread for liquidity)
             spread = (ask_price - bid_price) / ask_price
             max_spread = 0.005  # 0.5%
             if spread > max_spread:
-                logger.warning(f"Spread too wide for {symbol}: {spread:.2%} > {max_spread:.2%}")
+                logger.warning(
+                    f"Spread too wide for {symbol}: {spread:.2%} > {max_spread:.2%}"
+                )
                 return False
 
             # Size validation (ensure minimum liquidity)

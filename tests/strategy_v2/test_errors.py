@@ -196,7 +196,8 @@ class TestStrategyExecutionError:
         )
         result = error.to_dict()
         assert result["error_type"] == "StrategyExecutionError"
-        assert result["strategy_id"] is None  # Not in base to_dict
+        # strategy_id is not in base to_dict() method, it's only an instance attribute
+        assert "strategy_id" not in result
         assert result["correlation_id"] == "corr-123"
         assert result["context"]["symbol"] == "SPY"
         # strategy_id is stored as attribute but not in to_dict by default
