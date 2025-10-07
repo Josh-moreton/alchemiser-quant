@@ -44,6 +44,18 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Module-level constants for configuration and defaults
+MIN_ORDER_PRICE = Decimal("0.01")
+MIN_ORDER_QUANTITY = Decimal("0.01")
+MIN_TOTAL_VALUE = Decimal("0.01")
+POLL_INTERVAL_SECONDS = 0.3
+DEFAULT_ORDER_TIMEOUT_SECONDS = 30.0
+
+# Terminal order statuses used for completion detection
+TERMINAL_ORDER_STATUSES = {"FILLED", "CANCELED", "REJECTED", "EXPIRED"}
+TERMINAL_ORDER_EVENTS = {"fill", "canceled", "rejected", "expired"}
+TERMINAL_ORDER_STATUSES_LOWER = {"filled", "canceled", "rejected", "expired"}
+
 
 class AlpacaTradingService:
     """Service for trading operations using Alpaca API.
@@ -53,6 +65,14 @@ class AlpacaTradingService:
     - Order management (cancellation, retrieval, monitoring)
     - WebSocket integration for real-time order updates
     - DTO creation and conversion utilities
+
+    Thread Safety:
+        This class is not thread-safe. WebSocket handlers run in async context.
+        Order tracking uses thread-safe OrderTracker internally.
+
+    Idempotency:
+        Order operations do not automatically deduplicate. Callers should implement
+        idempotency keys at the application layer if replay protection is required.
     """
 
     def __init__(
@@ -65,10 +85,17 @@ class AlpacaTradingService:
         """Initialize trading service.
 
         Args:
-            trading_client: Alpaca trading client
-            websocket_manager: WebSocket manager for order updates
-            paper_trading: Whether using paper trading mode
+            trading_client: Alpaca trading client for API interactions
+            websocket_manager: WebSocket manager for real-time order updates
+            paper_trading: Whether using paper trading mode (default: True)
 
+        Post-conditions:
+            - Trading service is initialized but WebSocket stream is not active
+            - Order tracker is ready for order monitoring
+            - Service is ready to accept trading requests
+
+        Thread Safety:
+            Safe to call from any thread. WebSocket initialization is lazy.
         """
         self._trading_client = trading_client
         self._websocket_manager = websocket_manager
@@ -81,22 +108,37 @@ class AlpacaTradingService:
         self._trading_service_active = False
 
         logger.debug(
-            f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'})"
+            "AlpacaTradingService initialized",
+            paper_trading=paper_trading,
+            mode="paper" if paper_trading else "live",
         )
 
-    def __del__(self) -> None:
-        """Cleanup WebSocket resources when service is garbage collected."""
-        self.cleanup()
 
     def cleanup(self) -> None:
-        """Release WebSocket resources."""
+        """Release WebSocket resources.
+
+        This method should be called explicitly before service shutdown.
+        Safe to call multiple times (idempotent).
+
+        Post-conditions:
+            - WebSocket trading stream is released
+            - All order tracking events are cleaned up
+            - Service can no longer receive order updates
+
+        Raises:
+            Logs errors but does not raise exceptions to ensure cleanup completes.
+        """
         if self._trading_service_active:
             try:
                 self._websocket_manager.release_trading_service()
                 self._trading_service_active = False
-                logger.debug("🧹 AlpacaTradingService WebSocket resources released")
+                logger.debug("AlpacaTradingService WebSocket resources released")
             except Exception as e:
-                logger.error("Error releasing WebSocket resources", error=str(e))
+                logger.error(
+                    "Error releasing WebSocket resources",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
         # Clean up order tracking
         self._order_tracker.cleanup_all()
@@ -133,15 +175,46 @@ class AlpacaTradingService:
             result = [response] if isinstance(response, dict) else []
         return result
 
-    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
-        """Place an order and return execution details."""
+    def place_order(
+        self,
+        order_request: LimitOrderRequest | MarketOrderRequest,
+        *,
+        correlation_id: str | None = None,
+    ) -> ExecutedOrder:
+        """Place an order and return execution details.
+
+        Args:
+            order_request: Alpaca order request (market or limit order)
+            correlation_id: Optional correlation ID for event tracing
+
+        Returns:
+            ExecutedOrder with execution details and status
+
+        Raises:
+            Does not raise - returns ExecutedOrder with REJECTED status on failure
+
+        Post-conditions:
+            - Order is submitted to Alpaca API
+            - Order is tracked via WebSocket for status updates
+            - ExecutedOrder DTO is returned with current status
+
+        Side Effects:
+            - Ensures WebSocket trading stream is active
+            - Registers order with OrderTracker for monitoring
+        """
         try:
             self._ensure_trading_stream()
             order = self._trading_client.submit_order(order_request)
             self._track_submitted_order(order)
             return self._create_success_order_result(order, order_request)
         except Exception as e:
-            logger.error("Failed to place order", error=str(e))
+            logger.error(
+                "Failed to place order",
+                error=str(e),
+                error_type=type(e).__name__,
+                symbol=getattr(order_request, "symbol", "unknown"),
+                correlation_id=correlation_id,
+            )
             return self._create_failed_order_result(order_request, e)
 
     def place_market_order(
@@ -152,6 +225,7 @@ class AlpacaTradingService:
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
+        correlation_id: str | None = None,
     ) -> ExecutedOrder:
         """Place a market order with validation and execution result return.
 
@@ -161,10 +235,25 @@ class AlpacaTradingService:
             qty: Quantity to trade (use either qty OR notional)
             notional: Dollar amount to trade (use either qty OR notional)
             is_complete_exit: If True and side is 'sell', use available quantity
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             ExecutedOrder with execution details
 
+        Raises:
+            ValueError: If validation fails (via AlpacaErrorHandler)
+
+        Pre-conditions:
+            - Either qty or notional must be provided (not both)
+            - Symbol must be non-empty
+            - Side must be 'buy' or 'sell'
+            - Quantities must be positive if provided
+
+        Note:
+            is_complete_exit is passed through but not implemented in the trading service
+            by design. Position data access should be handled by the calling code (AlpacaManager)
+            which calls _adjust_quantity_for_complete_exit() before delegating to this service.
+            This maintains proper separation of concerns between trading operations and position management.
         """
 
         def _place_order() -> ExecutedOrder:
@@ -183,7 +272,11 @@ class AlpacaTradingService:
             # Log warning if is_complete_exit is True but qty wasn't adjusted by caller
             if is_complete_exit and qty:
                 logger.debug(
-                    f"Complete exit requested for {symbol}, using provided qty={qty} (caller should have adjusted)"
+                    "Complete exit requested, using provided quantity",
+                    symbol=symbol,
+                    qty=qty,
+                    note="caller should have adjusted quantity",
+                    correlation_id=correlation_id,
                 )
 
             # Create order request
@@ -195,7 +288,7 @@ class AlpacaTradingService:
                 time_in_force=TimeInForce.DAY,
             )
 
-            return self.place_order(order_request)
+            return self.place_order(order_request, correlation_id=correlation_id)
 
         return AlpacaErrorHandler.handle_market_order_errors(symbol, side, qty, _place_order)
 
@@ -206,6 +299,8 @@ class AlpacaTradingService:
         quantity: float,
         limit_price: float,
         time_in_force: str = "day",
+        *,
+        correlation_id: str | None = None,
     ) -> OrderExecutionResult:
         """Place a limit order and return execution result.
 
@@ -215,10 +310,20 @@ class AlpacaTradingService:
             quantity: Number of shares to trade
             limit_price: Maximum price for buy orders, minimum for sell orders
             time_in_force: Order duration ('day', 'gtc', 'ioc', 'fok')
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             OrderExecutionResult with execution details
 
+        Raises:
+            ValueError: If validation fails (symbol empty, quantity/price non-positive, invalid side)
+
+        Pre-conditions:
+            - Symbol must be non-empty
+            - Quantity must be positive
+            - Limit price must be positive
+            - Side must be 'buy' or 'sell'
+            - time_in_force must be valid ('day', 'gtc', 'ioc', 'fok')
         """
         try:
             # Validate inputs
@@ -259,22 +364,41 @@ class AlpacaTradingService:
             return self._alpaca_order_to_execution_result(order)
 
         except Exception as e:
-            logger.error("Failed to place limit order for", symbol=symbol, error=str(e))
+            logger.error(
+                "Failed to place limit order",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             return AlpacaErrorHandler.create_error_result(e, "Limit order placement")
 
-    def cancel_order(self, order_id: str) -> OrderCancellationResult:
+    def cancel_order(
+        self, order_id: str, *, correlation_id: str | None = None
+    ) -> OrderCancellationResult:
         """Cancel an order by ID.
 
         Args:
             order_id: Order ID to cancel
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             OrderCancellationResult with success status and detailed error information
 
+        Raises:
+            Does not raise - returns OrderCancellationResult with success=False on failure
+
+        Note:
+            If the order is already in a terminal state (filled, cancelled, etc.),
+            this is treated as a successful cancellation.
         """
         try:
             self._trading_client.cancel_order_by_id(order_id)
-            logger.info("Cancelled order", order_id=order_id)
+            logger.info(
+                "Cancelled order",
+                order_id=order_id,
+                correlation_id=correlation_id,
+            )
             return OrderCancellationResult(
                 success=True,
                 error=None,
@@ -287,8 +411,10 @@ class AlpacaTradingService:
             if is_terminal and terminal_error:
                 # This is not really an error - the order already reached a final state
                 logger.info(
-                    f"Order {order_id} already in terminal state '{terminal_error.value}' - "
-                    f"treating as successful cancellation"
+                    "Order already in terminal state, treating as successful cancellation",
+                    order_id=order_id,
+                    terminal_state=terminal_error.value,
+                    correlation_id=correlation_id,
                 )
                 return OrderCancellationResult(
                     success=True,
@@ -297,22 +423,36 @@ class AlpacaTradingService:
                 )
 
             # Genuine cancellation failure
-            logger.error("Failed to cancel order", order_id=order_id, error=str(e))
+            logger.error(
+                "Failed to cancel order",
+                order_id=order_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             return OrderCancellationResult(
                 success=False,
                 error=str(e),
                 order_id=order_id,
             )
 
-    def cancel_all_orders(self, symbol: str | None = None) -> bool:
+    def cancel_all_orders(
+        self, symbol: str | None = None, *, correlation_id: str | None = None
+    ) -> bool:
         """Cancel all orders, optionally filtered by symbol.
 
         Args:
             symbol: If provided, only cancel orders for this symbol
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
-            True if successful, False otherwise.
+            True if successful, False otherwise
 
+        Raises:
+            Does not raise - returns False on failure
+
+        Side Effects:
+            Cancels all open orders (or symbol-filtered orders) via Alpaca API
         """
         try:
             if symbol:
@@ -324,47 +464,87 @@ class AlpacaTradingService:
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
                     if order_id:
-                        self.cancel_order(str(order_id))
+                        self.cancel_order(str(order_id), correlation_id=correlation_id)
             else:
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
 
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
+            logger.info(
+                "Successfully cancelled orders",
+                symbol=symbol if symbol else "all",
+                correlation_id=correlation_id,
+            )
             return True
         except Exception as e:
-            logger.error("Failed to cancel orders", error=str(e))
+            logger.error(
+                "Failed to cancel orders",
+                error=str(e),
+                error_type=type(e).__name__,
+                symbol=symbol,
+                correlation_id=correlation_id,
+            )
             return False
 
     def replace_order(
-        self, order_id: str, order_data: ReplaceOrderRequest | None = None
+        self,
+        order_id: str,
+        order_data: ReplaceOrderRequest | None = None,
+        *,
+        correlation_id: str | None = None,
     ) -> OrderExecutionResult:
         """Replace an order with new parameters.
 
         Args:
             order_id: The unique order ID to replace
-            order_data: The parameters to update (quantity, limit_price, etc.)
+            order_data: The parameters to update (quantity, limit_price, etc.).
+                       If None, no changes will be made (no-op)
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             OrderExecutionResult with the updated order details
 
+        Raises:
+            Does not raise - returns OrderExecutionResult with error on failure
+
+        Pre-conditions:
+            - order_id must be a valid existing order ID
+            - If order_data is provided, it must contain valid update parameters
         """
         try:
             updated_order = self._trading_client.replace_order_by_id(order_id, order_data)
-            logger.info("Replaced order", order_id=order_id)
+            logger.info(
+                "Replaced order",
+                order_id=order_id,
+                correlation_id=correlation_id,
+            )
             return self._alpaca_order_to_execution_result(updated_order)
         except Exception as e:
-            logger.error("Failed to replace order", order_id=order_id, error=str(e))
+            logger.error(
+                "Failed to replace order",
+                order_id=order_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             return AlpacaErrorHandler.create_error_result(e, "Order replacement", order_id)
 
-    def get_orders(self, status: str | None = None) -> list[Any]:
+    def get_orders(
+        self, status: str | None = None, *, correlation_id: str | None = None
+    ) -> list[Order]:
         """Get orders filtered by status.
 
         Args:
-            status: Optional status filter (e.g., 'open', 'closed', 'all')
+            status: Optional status filter ('open', 'closed', or None for all)
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
-            List of order objects
+            List of Order objects from Alpaca API
 
+        Raises:
+            Does not raise - returns empty list on failure
+
+        Note:
+            Returns all orders if status is None or not recognized.
         """
         try:
             if status == "open":
@@ -377,44 +557,65 @@ class AlpacaTradingService:
             orders = self._trading_client.get_orders(request)
             return list(orders)
         except Exception as e:
-            logger.error("Failed to get orders", error=str(e))
+            logger.error(
+                "Failed to get orders",
+                error=str(e),
+                error_type=type(e).__name__,
+                status=status,
+                correlation_id=correlation_id,
+            )
             return []
 
-    def get_order_execution_result(self, order_id: str) -> OrderExecutionResult:
+    def get_order_execution_result(
+        self, order_id: str, *, correlation_id: str | None = None
+    ) -> OrderExecutionResult:
         """Fetch latest order state and map to execution result schema.
 
         Args:
             order_id: The unique Alpaca order ID
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             OrderExecutionResult with current order state
 
+        Raises:
+            Does not raise - returns OrderExecutionResult with error on failure
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
             return self._alpaca_order_to_execution_result(order)
         except Exception as e:
             logger.error(
-                "Failed to get order execution result for",
+                "Failed to get order execution result",
                 order_id=order_id,
                 error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
             )
             return AlpacaErrorHandler.create_error_result(e, "Order status fetch", order_id)
 
-    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
+    def place_smart_sell_order(
+        self, symbol: str, qty: float, *, correlation_id: str | None = None
+    ) -> str | None:
         """Place a smart sell order using execution logic.
+
+        This method places a market sell order and returns the order ID if successful.
+        The "smart" aspect refers to the use of AlpacaErrorHandler for error handling.
 
         Args:
             symbol: Symbol to sell
             qty: Quantity to sell
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             Order ID if successful, None if failed
 
+        Raises:
+            Does not raise - returns None on failure
         """
         try:
             # Use the place_market_order method which returns ExecutedOrder
-            result = self.place_market_order(symbol, "sell", qty=qty)
+            result = self.place_market_order(symbol, "sell", qty=qty, correlation_id=correlation_id)
 
             # Check if the order was successful and return order_id
             if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
@@ -427,65 +628,132 @@ class AlpacaTradingService:
             return None
 
         except Exception as e:
-            logger.error("Smart sell order failed for", symbol=symbol, error=str(e))
+            logger.error(
+                "Smart sell order failed",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             return None
 
-    def liquidate_position(self, symbol: str) -> str | None:
+    def liquidate_position(
+        self, symbol: str, *, correlation_id: str | None = None
+    ) -> str | None:
         """Liquidate entire position using close_position API.
+
+        Closes the entire position for the specified symbol by placing a market order
+        for the full quantity held.
 
         Args:
             symbol: Symbol to liquidate
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
-            Order ID if successful, None if failed.
+            Order ID if successful, None if failed
 
+        Raises:
+            Does not raise - returns None on failure
+
+        Note:
+            Uses Alpaca's close_position endpoint which automatically determines
+            the correct quantity and side based on current position.
         """
         try:
             order = self._trading_client.close_position(symbol)
             order_id = str(getattr(order, "id", "unknown"))
-            logger.info("Successfully liquidated position for", symbol=symbol, order_id=order_id)
+            logger.info(
+                "Successfully liquidated position",
+                symbol=symbol,
+                order_id=order_id,
+                correlation_id=correlation_id,
+            )
             return order_id
         except Exception as e:
-            logger.error("Failed to liquidate position for", symbol=symbol, error=str(e))
+            logger.error(
+                "Failed to liquidate position",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             return None
 
-    def close_all_positions(self, *, cancel_orders: bool = True) -> list[dict[str, Any]]:
+    def close_all_positions(
+        self, *, cancel_orders: bool = True, correlation_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """Liquidate all positions for an account.
 
         Places an order for each open position to liquidate.
 
         Args:
             cancel_orders: If True, cancel all open orders before liquidating positions
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             List of responses from each closed position containing status and order info
 
+        Raises:
+            Does not raise - returns empty list on failure
+
+        Side Effects:
+            - Cancels all open orders if cancel_orders=True
+            - Places market orders to close all positions
         """
         try:
-            logger.info(f"Closing all positions (cancel_orders={cancel_orders})...")
+            logger.info(
+                "Closing all positions",
+                cancel_orders=cancel_orders,
+                correlation_id=correlation_id,
+            )
             response = self._trading_client.close_all_positions(cancel_orders=cancel_orders)
 
             # Convert response to list of dicts for consistent interface
             result = self._normalize_response_to_dict_list(response)
 
-            logger.info(f"Successfully closed {len(result)} positions")
+            logger.info(
+                "Successfully closed positions",
+                count=len(result),
+                correlation_id=correlation_id,
+            )
             return result
         except Exception as e:
-            logger.error(f"Failed to close all positions: {e}")
+            logger.error(
+                "Failed to close all positions",
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             return []
 
     def wait_for_order_completion(
-        self, order_ids: list[str], max_wait_seconds: int = 30
+        self,
+        order_ids: list[str],
+        max_wait_seconds: float = DEFAULT_ORDER_TIMEOUT_SECONDS,
+        *,
+        correlation_id: str | None = None,
     ) -> WebSocketResult:
         """Wait for orders to reach a final state using TradingStream (with polling fallback).
 
         Args:
             order_ids: List of order IDs to monitor
-            max_wait_seconds: Maximum time to wait for completion
+            max_wait_seconds: Maximum time to wait for completion (default: 30.0)
+            correlation_id: Optional correlation ID for event tracing
 
         Returns:
             WebSocketResult with completion status and completed order IDs
 
+        Raises:
+            Does not raise - returns WebSocketResult with ERROR status on failure
+
+        Side Effects:
+            - Ensures WebSocket trading stream is active
+            - Polls Alpaca API as fallback if WebSocket doesn't complete
+            - Updates internal order tracking state
+
+        Note:
+            Uses WebSocket for primary monitoring with polling fallback.
+            Sleep interval is POLL_INTERVAL_SECONDS (0.3s) between polls.
         """
         completed_orders: list[str] = []
         start_time = time.time()
@@ -503,7 +771,7 @@ class AlpacaTradingService:
                     self._process_pending_orders(remaining, completed_orders)
                     remaining = [oid for oid in remaining if oid not in completed_orders]
                     if remaining:
-                        time.sleep(0.3)
+                        time.sleep(POLL_INTERVAL_SECONDS)
 
             success = len(completed_orders) == len(order_ids)
 
@@ -511,16 +779,25 @@ class AlpacaTradingService:
                 status=(WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT),
                 message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
                 completed_order_ids=completed_orders,
-                metadata={"total_wait_time": time.time() - start_time},
+                metadata={
+                    "total_wait_time": time.time() - start_time,
+                    "correlation_id": correlation_id,
+                },
             )
 
         except Exception as e:
-            logger.error("Error monitoring order completion", error=str(e))
+            logger.error(
+                "Error monitoring order completion",
+                error=str(e),
+                error_type=type(e).__name__,
+                order_count=len(order_ids),
+                correlation_id=correlation_id,
+            )
             return WebSocketResult(
                 status=WebSocketStatus.ERROR,
                 message=f"Error monitoring orders: {e}",
                 completed_order_ids=completed_orders,
-                metadata={"error": str(e)},
+                metadata={"error": str(e), "correlation_id": correlation_id},
             )
 
     # --- DTO Creation Methods ---
@@ -535,7 +812,9 @@ class AlpacaTradingService:
         order_data = self._extract_order_attributes(order)
 
         logger.info(
-            f"Successfully placed order: {order_data['order_id']} for {order_data['symbol']}"
+            "Successfully placed order",
+            order_id=order_data["order_id"],
+            symbol=order_data["symbol"],
         )
 
         # Calculate price and total value
@@ -567,10 +846,10 @@ class AlpacaTradingService:
             order_id="FAILED",  # Must be non-empty
             symbol=symbol,
             action=action,
-            quantity=Decimal("0.01"),  # Must be > 0
+            quantity=MIN_ORDER_QUANTITY,  # Must be > 0
             filled_quantity=Decimal("0"),
-            price=Decimal("0.01"),
-            total_value=Decimal("0.01"),  # Must be > 0
+            price=MIN_ORDER_PRICE,
+            total_value=MIN_TOTAL_VALUE,  # Must be > 0
             status="REJECTED",
             execution_timestamp=datetime.now(UTC),
             error_message=str(error),
@@ -635,8 +914,19 @@ class AlpacaTradingService:
                 completed_at=completed_at,
                 error=None if success else f"Order {status}",
             )
+        except (ValueError, AttributeError, TypeError) as e:
+            logger.error(
+                "Failed to convert order to execution result",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return AlpacaErrorHandler.create_error_result(e, "Order conversion")
         except Exception as e:
-            logger.error("Failed to convert order to execution result", error=str(e))
+            logger.error(
+                "Unexpected error converting order to execution result",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             return AlpacaErrorHandler.create_error_result(e, "Order conversion")
 
     # --- Helper Methods ---
@@ -674,17 +964,23 @@ class AlpacaTradingService:
         filled_avg_price: float | None,
         order_request: LimitOrderRequest | MarketOrderRequest,
     ) -> Decimal:
-        """Calculate order price from filled price or request."""
+        """Calculate order price from filled price or request.
+
+        Falls back to MIN_ORDER_PRICE if no price information is available.
+        """
         if filled_avg_price:
             return Decimal(str(filled_avg_price))
         if hasattr(order_request, "limit_price") and order_request.limit_price:
             return Decimal(str(order_request.limit_price))
-        return Decimal("0.01")  # Default minimal price
+        return MIN_ORDER_PRICE  # Default minimal price
 
     def _calculate_total_value(
         self, filled_qty_decimal: Decimal, order_qty_decimal: Decimal, price: Decimal
     ) -> Decimal:
-        """Calculate total value ensuring positive result for schema validation."""
+        """Calculate total value ensuring positive result for schema validation.
+
+        Uses filled quantity if available, otherwise uses order quantity.
+        """
         if filled_qty_decimal > 0:
             return filled_qty_decimal * price
         return order_qty_decimal * price
@@ -761,7 +1057,12 @@ class AlpacaTradingService:
             return completed
 
         except Exception as e:
-            logger.error("WebSocket order monitoring failed", error=str(e))
+            logger.error(
+                "WebSocket order monitoring failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                order_count=len(order_ids),
+            )
             return []
 
     def _track_submitted_order(self, order: Order | dict[str, Any]) -> None:
@@ -797,11 +1098,23 @@ class AlpacaTradingService:
 
             if self._order_tracker.is_terminal_status(status):
                 self._order_tracker.signal_completion(order_id)
-        except Exception as exc:
-            logger.debug("Skipping order tracking for submitted order", error=str(exc))
+        except (AttributeError, TypeError, ValueError) as exc:
+            logger.debug(
+                "Skipping order tracking for submitted order",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
 
     def _ensure_trading_stream(self) -> None:
-        """Ensure TradingStream is running via WebSocketConnectionManager."""
+        """Ensure TradingStream is running via WebSocketConnectionManager.
+
+        Raises:
+            Does not raise - logs errors and sets _trading_service_active to False on failure
+
+        Post-conditions:
+            - _trading_service_active is set to True if successful, False otherwise
+            - WebSocket trading stream is active if successful
+        """
         if self._trading_service_active:
             return
 
@@ -809,12 +1122,16 @@ class AlpacaTradingService:
             # Use the websocket manager to get trading stream with order update callback
             if self._websocket_manager.get_trading_service(self._on_trading_update):
                 self._trading_service_active = True
-                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
+                logger.info("TradingStream service activated via WebSocketConnectionManager")
             else:
-                logger.error("❌ Failed to activate TradingStream service")
+                logger.error("Failed to activate TradingStream service")
                 self._trading_service_active = False
         except Exception as e:
-            logger.error("Failed to ensure trading stream", error=str(e))
+            logger.error(
+                "Failed to ensure trading stream",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             self._trading_service_active = False
 
     async def _on_trading_update(self, data: object) -> None:
@@ -823,6 +1140,12 @@ class AlpacaTradingService:
         Args:
             data: Order update data from TradingStream
 
+        Side Effects:
+            - Updates order status in OrderTracker
+            - Signals completion for terminal order states
+
+        Note:
+            Async method that yields control to event loop. Errors are logged but not raised.
         """
         # Yield control to event loop for proper async behavior
         await asyncio.sleep(0)
@@ -842,10 +1165,21 @@ class AlpacaTradingService:
                 self._order_tracker.signal_completion(order_id)
 
         except Exception as e:
-            logger.error("Error in trading stream update", error=str(e))
+            logger.error(
+                "Error in trading stream update",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     def _extract_trading_update_info(self, data: object) -> tuple[str, str | None, str | None]:
-        """Extract event type, order ID, and status from trading update data."""
+        """Extract event type, order ID, and status from trading update data.
+
+        Args:
+            data: Trading update data (SDK model or dict)
+
+        Returns:
+            Tuple of (event_type, order_id, status), with empty/None values on failure
+        """
         try:
             # Handle SDK model objects
             if hasattr(data, "event"):
@@ -867,39 +1201,74 @@ class AlpacaTradingService:
 
             return "", None, None
 
-        except Exception as e:
-            logger.error("Error extracting trading update info", error=str(e))
+        except (AttributeError, TypeError, KeyError) as e:
+            logger.error(
+                "Error extracting trading update info",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             return "", None, None
 
     def _is_terminal_trading_event(self, event_type: str, status: str | None) -> bool:
-        """Check if event/status indicates terminal order state."""
-        terminal_events = {"fill", "canceled", "rejected", "expired"}
-        terminal_statuses = {"filled", "canceled", "rejected", "expired"}
+        """Check if event/status indicates terminal order state.
 
-        return event_type in terminal_events or (status is not None and status in terminal_statuses)
+        Uses module-level constants TERMINAL_ORDER_EVENTS and TERMINAL_ORDER_STATUSES_LOWER.
+        """
+        return event_type in TERMINAL_ORDER_EVENTS or (
+            status is not None and status in TERMINAL_ORDER_STATUSES_LOWER
+        )
 
     def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
-        """Check pending orders for completion via polling."""
-        for order_id in order_ids[:]:  # Create copy to avoid modification during iteration
+        """Check pending orders for completion via polling.
+
+        Args:
+            order_ids: List of order IDs to check (modified in-place)
+            completed_orders: List to append completed order IDs (modified in-place)
+
+        Side Effects:
+            - Removes completed order IDs from order_ids list
+            - Appends completed order IDs to completed_orders list
+        """
+        for order_id in list(order_ids):  # Create copy to avoid modification during iteration
             try:
                 status = self._check_order_completion_status(order_id)
                 if status:
                     completed_orders.append(order_id)
                     order_ids.remove(order_id)
             except Exception as e:
-                logger.error("Error checking order", order_id=order_id, error=str(e))
+                logger.error(
+                    "Error checking order",
+                    order_id=order_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
     def _check_order_completion_status(self, order_id: str) -> str | None:
-        """Check if a single order has reached a final state."""
+        """Check if a single order has reached a final state.
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Status string if terminal, None if still pending or on error
+
+        Note:
+            Uses module-level constant TERMINAL_ORDER_STATUSES for terminal states.
+        """
         try:
             order = self._trading_client.get_order_by_id(order_id)
             order_status = getattr(order, "status", "").upper()
 
-            # Check if order is in a final state
-            if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
+            # Check if order is in a final state (uses module constant)
+            if order_status in TERMINAL_ORDER_STATUSES:
                 return order_status
             return None
 
         except Exception as e:
-            logger.error("Failed to check order status", order_id=order_id, error=str(e))
+            logger.error(
+                "Failed to check order status",
+                order_id=order_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             return None
