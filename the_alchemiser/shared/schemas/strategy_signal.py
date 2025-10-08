@@ -53,7 +53,7 @@ class StrategySignal(BaseModel):
     Examples:
         >>> from datetime import datetime, UTC
         >>> from decimal import Decimal
-        >>> 
+        >>>
         >>> # Minimal signal
         >>> signal = StrategySignal(
         ...     correlation_id="corr-123",
@@ -63,7 +63,7 @@ class StrategySignal(BaseModel):
         ...     action="BUY",
         ...     reasoning="Strong momentum detected"
         ... )
-        >>> 
+        >>>
         >>> # Full signal with allocation
         >>> signal = StrategySignal(
         ...     correlation_id="corr-789",
@@ -76,7 +76,7 @@ class StrategySignal(BaseModel):
         ...     target_allocation=Decimal("0.3"),
         ...     signal_strength=Decimal("0.85")
         ... )
-        >>> 
+        >>>
         >>> # Serialization round-trip
         >>> data = signal.to_dict()
         >>> restored = StrategySignal.from_dict(data)
@@ -98,9 +98,7 @@ class StrategySignal(BaseModel):
 
     # Schema versioning
     schema_version: str = Field(
-        default="1.0",
-        pattern=r"^\d+\.\d+$",
-        description="DTO schema version (major.minor)"
+        default="1.0", pattern=r"^\d+\.\d+$", description="DTO schema version (major.minor)"
     )
 
     # Required correlation fields
@@ -113,7 +111,9 @@ class StrategySignal(BaseModel):
     # Signal fields (required)
     symbol: Symbol = Field(..., description="Trading symbol")
     action: ActionLiteral = Field(..., description="Trading action (BUY, SELL, HOLD)")
-    reasoning: str = Field(..., min_length=1, max_length=1000, description="Human-readable signal reasoning")
+    reasoning: str = Field(
+        ..., min_length=1, max_length=1000, description="Human-readable signal reasoning"
+    )
 
     # Optional strategy context
     strategy_name: str | None = Field(
@@ -133,15 +133,16 @@ class StrategySignal(BaseModel):
     @classmethod
     def normalize_symbol(cls, v: Symbol | str) -> Symbol:
         """Convert string to Symbol instance.
-        
+
         Args:
             v: Symbol instance or string symbol
-            
+
         Returns:
             Symbol instance (normalized to uppercase)
-            
+
         Raises:
             ValueError: If symbol validation fails
+
         """
         if isinstance(v, str):
             return Symbol(v.strip().upper())
@@ -160,15 +161,16 @@ class StrategySignal(BaseModel):
     @classmethod
     def normalize_allocation(cls, v: Decimal | float | int | Percentage | None) -> Decimal | None:
         """Convert allocation to Decimal.
-        
+
         Accepts Decimal, float, int, or Percentage. Converts to Decimal with
         proper precision handling (float -> str -> Decimal to avoid precision loss).
-        
+
         Args:
             v: Allocation value in various formats, or None
-            
+
         Returns:
             Decimal value in range [0, 1], or None
+
         """
         if v is None:
             return None
@@ -183,7 +185,7 @@ class StrategySignal(BaseModel):
 
         Returns:
             Dictionary representation with ISO timestamps and string Decimals.
-            
+
         Examples:
             >>> signal = StrategySignal(...)
             >>> data = signal.to_dict()
@@ -221,7 +223,7 @@ class StrategySignal(BaseModel):
 
         Raises:
             ValueError: If data is invalid or missing required fields
-            
+
         Examples:
             >>> data = {
             ...     "correlation_id": "corr-123",

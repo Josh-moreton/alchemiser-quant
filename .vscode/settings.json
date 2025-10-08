@@ -60,6 +60,26 @@
     "yaml.schemas": {
         "https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/schema/schema.json": "template.yaml"
     },
+    "yaml.customTags": [
+        "!And",
+        "!If",
+        "!Not",
+        "!Equals",
+        "!Or",
+        "!FindInMap sequence",
+        "!Base64",
+        "!Cidr",
+        "!Ref",
+        "!Sub",
+        "!GetAtt",
+        "!GetAZs",
+        "!ImportValue",
+        "!Select",
+        "!Split",
+        "!Join sequence",
+        "!Condition"
+    ],
+    "yaml.validate": false,
     "sonarlint.connectedMode.project": {
         "connectionId": "josh-moreton",
         "projectKey": "Josh-moreton_alchemiser-quant"

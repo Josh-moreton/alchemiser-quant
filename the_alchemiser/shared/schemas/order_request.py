@@ -97,8 +97,6 @@ class OrderRequest(BaseModel):
         """Ensure timestamp is timezone-aware."""
         return ensure_timezone_aware(v)
 
-
-
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
 

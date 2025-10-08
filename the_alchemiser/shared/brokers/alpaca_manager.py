@@ -529,32 +529,34 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_asset_info(self, symbol: str) -> AssetInfo | None:
         """Get asset information with caching.
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             AssetInfo or None if not found
-            
+
         Raises:
             ValidationError: If symbol is invalid
             TradingClientError: If API call fails (other than not found)
+
         """
         return self._asset_metadata_service.get_asset_info(symbol)
 
     def is_fractionable(self, symbol: str) -> bool:
         """Check if an asset supports fractional shares.
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             True if fractionable, False otherwise
-            
+
         Raises:
             ValidationError: If symbol is invalid
             DataProviderError: If asset not found
             TradingClientError: If API call fails
+
         """
         return self._asset_metadata_service.is_fractionable(symbol)
 
@@ -563,7 +565,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             True if market is open, False otherwise.
-            
+
         Raises:
             TradingClientError: If API call fails
 
@@ -575,7 +577,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             List of market calendar entries.
-            
+
         Raises:
             TradingClientError: If API call fails
 
@@ -624,7 +626,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         This is an alias for get_positions_dict() to satisfy OrderExecutor protocol.
 
         Returns:
-            Dictionary mapping symbol to quantity (as Decimal) owned. 
+            Dictionary mapping symbol to quantity (as Decimal) owned.
             Only includes non-zero positions.
 
         """

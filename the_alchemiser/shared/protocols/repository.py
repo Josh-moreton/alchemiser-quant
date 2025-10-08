@@ -63,7 +63,7 @@ class TradingRepository(Protocol):
         """Get all current positions as dict.
 
         Returns:
-            Dictionary mapping symbol to quantity owned (as Decimal). 
+            Dictionary mapping symbol to quantity owned (as Decimal).
             Only includes non-zero positions.
 
         """

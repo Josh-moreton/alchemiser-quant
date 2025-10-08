@@ -205,8 +205,8 @@ class OrderExecutionResult(Result):
                 raise ValueError("Status 'filled' requires filled_qty > 0")
             if self.avg_fill_price is None:
                 raise ValueError("Status 'filled' requires avg_fill_price to be set")
-        
+
         if self.status == "accepted" and self.filled_qty != 0:
             raise ValueError("Status 'accepted' should have filled_qty = 0")
-        
+
         return self
