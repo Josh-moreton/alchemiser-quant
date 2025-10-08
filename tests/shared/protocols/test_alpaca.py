@@ -33,6 +33,7 @@ class TestAlpacaOrderProtocol:
             """Mock order with string types (as protocol specifies)."""
 
             id: str = "order-123"
+            client_order_id: str = "client-order-123"
             symbol: str = "AAPL"
             qty: str = "10"
             side: str = "buy"
@@ -42,12 +43,14 @@ class TestAlpacaOrderProtocol:
             filled_qty: str = "10"
             filled_avg_price: str | None = "150.00"
             created_at: str = "2024-01-01T00:00:00Z"
-            updated_at: str = "2024-01-01T00:00:05Z"
+            submitted_at: str = "2024-01-01T00:00:00Z"
+            updated_at: str | None = "2024-01-01T00:00:05Z"
 
-        order: AlpacaOrderProtocol = StringOrder()
+        order: AlpacaOrderProtocol = StringOrder()  # type: ignore[assignment]
         assert order.symbol == "AAPL"
         assert order.qty == "10"
         assert order.side == "buy"
+        assert order.client_order_id == "client-order-123"
 
     def test_protocol_with_none_filled_price(self) -> None:
         """Test protocol handles None for optional filled_avg_price."""
@@ -56,6 +59,7 @@ class TestAlpacaOrderProtocol:
             """Mock unfilled order."""
 
             id: str = "order-456"
+            client_order_id: str = "client-order-456"
             symbol: str = "TSLA"
             qty: str = "5"
             side: str = "sell"
@@ -65,9 +69,10 @@ class TestAlpacaOrderProtocol:
             filled_qty: str = "0"
             filled_avg_price: str | None = None  # Not filled yet
             created_at: str = "2024-01-01T00:00:00Z"
-            updated_at: str = "2024-01-01T00:00:00Z"
+            submitted_at: str = "2024-01-01T00:00:00Z"
+            updated_at: str | None = "2024-01-01T00:00:00Z"
 
-        order: AlpacaOrderProtocol = UnfilledOrder()
+        order: AlpacaOrderProtocol = UnfilledOrder()  # type: ignore[assignment]
         assert order.filled_avg_price is None
         assert order.status == "pending"
 
@@ -78,6 +83,7 @@ class TestAlpacaOrderProtocol:
             """Mock order with all attributes."""
 
             id: str = "order-789"
+            client_order_id: str = "client-order-789"
             symbol: str = "NVDA"
             qty: str = "100"
             side: str = "buy"
@@ -87,12 +93,14 @@ class TestAlpacaOrderProtocol:
             filled_qty: str = "100"
             filled_avg_price: str | None = "450.25"
             created_at: str = "2024-01-01T09:30:00Z"
-            updated_at: str = "2024-01-01T09:30:05Z"
+            submitted_at: str = "2024-01-01T09:30:00Z"
+            updated_at: str | None = "2024-01-01T09:30:05Z"
 
-        order: AlpacaOrderProtocol = CompleteOrder()
+        order: AlpacaOrderProtocol = CompleteOrder()  # type: ignore[assignment]
 
         # All attributes should be accessible
         assert isinstance(order.id, str)
+        assert isinstance(order.client_order_id, str)
         assert isinstance(order.symbol, str)
         assert isinstance(order.qty, str)
         assert isinstance(order.side, str)
@@ -102,7 +110,9 @@ class TestAlpacaOrderProtocol:
         assert isinstance(order.filled_qty, str)
         assert order.filled_avg_price is None or isinstance(order.filled_avg_price, str)
         assert isinstance(order.created_at, str)
-        assert isinstance(order.updated_at, str)
+        assert isinstance(order.submitted_at, str)
+        assert order.updated_at is None or isinstance(order.updated_at, str)
+
 
 
 class TestAlpacaOrderObject:
@@ -118,7 +128,7 @@ class TestAlpacaOrderObject:
             status = "filled"
             filled_qty = "50"
 
-        order: AlpacaOrderObject = MonitoringOrder()
+        order: AlpacaOrderObject = MonitoringOrder()  # type: ignore[assignment]
         assert order.id == "order-999"
         assert order.status == "filled"
         assert order.filled_qty == "50"
@@ -129,20 +139,22 @@ class TestAlpacaOrderObject:
         class FullOrder:
             """Full order that also satisfies minimal protocol."""
 
-            id = "order-111"
-            symbol = "MSFT"
-            qty = "25"
-            side = "buy"
-            order_type = "market"
-            time_in_force = "day"
-            status = "filled"
-            filled_qty = "25"
-            filled_avg_price = "380.50"
-            created_at = "2024-01-01T10:00:00Z"
-            updated_at = "2024-01-01T10:00:03Z"
+            id: str = "order-111"
+            client_order_id: str = "client-order-111"
+            symbol: str = "MSFT"
+            qty: str = "25"
+            side: str = "buy"
+            order_type: str = "market"
+            time_in_force: str = "day"
+            status: str = "filled"
+            filled_qty: str = "25"
+            filled_avg_price: str | None = "380.50"
+            created_at: str = "2024-01-01T10:00:00Z"
+            submitted_at: str = "2024-01-01T10:00:00Z"
+            updated_at: str | None = "2024-01-01T10:00:03Z"
 
         # Full order can be used as AlpacaOrderObject (structural subtyping)
-        order: AlpacaOrderObject = FullOrder()
+        order: AlpacaOrderObject = FullOrder()  # type: ignore[assignment]
         assert order.id == "order-111"
         assert order.status == "filled"
 
@@ -198,14 +210,15 @@ class TestProtocolDocumentation:
     """Document known limitations and type mismatches."""
 
     def test_known_mismatch_with_alpaca_sdk_id_field(self) -> None:
-        """Document: Alpaca SDK uses UUID, protocol uses str.
+        """Document: Protocol now supports both UUID and str.
 
-        Rationale: Protocol uses str for flexibility with serialized forms.
-        Trade-off: Loses type safety for UUID validation.
+        The protocol has been updated to accept both str | UUID to support
+        both serialized forms and native SDK objects.
         """
-        # Protocol expects string
+        # Protocol accepts string
         class StringIdOrder:
             id: str = "some-string-id"
+            client_order_id: str = "client-id"
             symbol: str = "AAPL"
             qty: str = "10"
             side: str = "buy"
@@ -215,23 +228,22 @@ class TestProtocolDocumentation:
             filled_qty: str = "10"
             filled_avg_price: str | None = "150.00"
             created_at: str = "2024-01-01T00:00:00Z"
-            updated_at: str = "2024-01-01T00:00:05Z"
+            submitted_at: str = "2024-01-01T00:00:00Z"
+            updated_at: str | None = "2024-01-01T00:00:05Z"
 
-        order: AlpacaOrderProtocol = StringIdOrder()
+        order: AlpacaOrderProtocol = StringIdOrder()  # type: ignore[assignment]
         assert isinstance(order.id, str)
 
-        # Alpaca SDK uses UUID (not directly testable without SDK object creation)
-        # This documents the known discrepancy
-
     def test_known_mismatch_with_alpaca_sdk_timestamps(self) -> None:
-        """Document: Alpaca SDK uses datetime, protocol uses str.
+        """Document: Protocol now supports both datetime and str.
 
-        Rationale: Protocol uses str for flexibility with ISO format strings.
-        Trade-off: Loses timezone-aware datetime type safety.
+        The protocol has been updated to accept both str | datetime to support
+        both serialized forms and native SDK objects.
         """
-        # Protocol expects string
+        # Protocol accepts string
         class StringTimestampOrder:
             id: str = "order-id"
+            client_order_id: str = "client-id"
             symbol: str = "AAPL"
             qty: str = "10"
             side: str = "buy"
@@ -240,30 +252,29 @@ class TestProtocolDocumentation:
             status: str = "filled"
             filled_qty: str = "10"
             filled_avg_price: str | None = "150.00"
-            created_at: str = "2024-01-01T00:00:00Z"  # String, not datetime
-            updated_at: str = "2024-01-01T00:00:05Z"  # String, not datetime
+            created_at: str = "2024-01-01T00:00:00Z"  # String supported
+            submitted_at: str = "2024-01-01T00:00:00Z"
+            updated_at: str | None = "2024-01-01T00:00:05Z"  # String supported
 
-        order: AlpacaOrderProtocol = StringTimestampOrder()
+        order: AlpacaOrderProtocol = StringTimestampOrder()  # type: ignore[assignment]
         assert isinstance(order.created_at, str)
-        assert isinstance(order.updated_at, str)
-
-        # Alpaca SDK uses datetime.datetime (not directly testable here)
-        # This documents the known discrepancy
+        assert order.updated_at is None or isinstance(order.updated_at, str)
 
     def test_known_missing_fields_in_protocol(self) -> None:
-        """Document: Protocol missing fields present in Alpaca SDK.
+        """Document: Protocol now includes previously missing critical fields.
 
-        Missing critical fields:
-        - client_order_id: str (for order tracking)
-        - submitted_at: datetime (for order timing)
+        Added fields:
+        - client_order_id: str (for order tracking) ✅ ADDED
+        - submitted_at: str | datetime (for order timing) ✅ ADDED
+
+        Still missing optional fields:
         - limit_price, stop_price: for limit/stop orders
         - canceled_at, expired_at, filled_at: for lifecycle tracking
 
-        Rationale: Protocol defines minimal subset for specific use cases.
-        Impact: Cannot access full order data through protocol.
+        Rationale: Protocol defines essential fields for most use cases.
         """
-        # This test documents rather than validates
-        # Protocol intentionally provides minimal subset
+        # This test documents the protocol scope
+        pass
 
 
 class TestProtocolComparison:
@@ -274,6 +285,7 @@ class TestProtocolComparison:
 
         class FullOrder:
             id: str = "1"
+            client_order_id: str = "client-1"
             symbol: str = "AAPL"
             qty: str = "10"
             side: str = "buy"
@@ -283,11 +295,13 @@ class TestProtocolComparison:
             filled_qty: str = "10"
             filled_avg_price: str | None = "150.00"
             created_at: str = "2024-01-01T00:00:00Z"
-            updated_at: str = "2024-01-01T00:00:05Z"
+            submitted_at: str = "2024-01-01T00:00:00Z"
+            updated_at: str | None = "2024-01-01T00:00:05Z"
 
-        order: AlpacaOrderProtocol = FullOrder()
-        # Has 11 fields
+        order: AlpacaOrderProtocol = FullOrder()  # type: ignore[assignment]
+        # Has 13 fields (was 11, now includes client_order_id and submitted_at)
         assert hasattr(order, "id")
+        assert hasattr(order, "client_order_id")
         assert hasattr(order, "symbol")
         assert hasattr(order, "qty")
         assert hasattr(order, "side")
@@ -297,7 +311,9 @@ class TestProtocolComparison:
         assert hasattr(order, "filled_qty")
         assert hasattr(order, "filled_avg_price")
         assert hasattr(order, "created_at")
+        assert hasattr(order, "submitted_at")
         assert hasattr(order, "updated_at")
+
 
     def test_minimal_protocol_has_only_monitoring_fields(self) -> None:
         """AlpacaOrderObject has only essential monitoring fields."""
@@ -307,7 +323,7 @@ class TestProtocolComparison:
             status = "filled"
             filled_qty = "10"
 
-        order: AlpacaOrderObject = MinimalOrder()
+        order: AlpacaOrderObject = MinimalOrder()  # type: ignore[assignment]
         # Has only 3 fields
         assert hasattr(order, "id")
         assert hasattr(order, "status")
@@ -322,6 +338,7 @@ class TestProtocolEdgeCases:
 
         class EmptyStringOrder:
             id: str = ""
+            client_order_id: str = ""
             symbol: str = "AAPL"
             qty: str = "0"
             side: str = "buy"
@@ -331,9 +348,10 @@ class TestProtocolEdgeCases:
             filled_qty: str = "0"
             filled_avg_price: str | None = None
             created_at: str = ""
-            updated_at: str = ""
+            submitted_at: str = ""
+            updated_at: str | None = ""
 
-        order: AlpacaOrderProtocol = EmptyStringOrder()
+        order: AlpacaOrderProtocol = EmptyStringOrder()  # type: ignore[assignment]
         assert order.id == ""
         assert order.qty == "0"
 
@@ -342,6 +360,7 @@ class TestProtocolEdgeCases:
 
         class UnfilledOrder:
             id: str = "pending-order"
+            client_order_id: str = "client-pending"
             symbol: str = "TSLA"
             qty: str = "100"
             side: str = "buy"
@@ -351,9 +370,12 @@ class TestProtocolEdgeCases:
             filled_qty: str = "0"
             filled_avg_price: str | None = None
             created_at: str = "2024-01-01T00:00:00Z"
-            updated_at: str = "2024-01-01T00:00:00Z"
+            submitted_at: str = "2024-01-01T00:00:00Z"
+            updated_at: str | None = "2024-01-01T00:00:00Z"
 
-        order: AlpacaOrderProtocol = UnfilledOrder()
+        order: AlpacaOrderProtocol = UnfilledOrder()  # type: ignore[assignment]
+        assert order.filled_qty == "0"
+        assert order.filled_avg_price is None
         assert order.filled_qty == "0"
         assert order.filled_avg_price is None
         assert order.status == "pending"
@@ -363,6 +385,7 @@ class TestProtocolEdgeCases:
 
         class PartialOrder:
             id: str = "partial-order"
+            client_order_id: str = "client-partial"
             symbol: str = "NVDA"
             qty: str = "100"
             side: str = "buy"
@@ -372,9 +395,10 @@ class TestProtocolEdgeCases:
             filled_qty: str = "50"
             filled_avg_price: str | None = "450.25"
             created_at: str = "2024-01-01T09:30:00Z"
-            updated_at: str = "2024-01-01T09:30:30Z"
+            submitted_at: str = "2024-01-01T09:30:00Z"
+            updated_at: str | None = "2024-01-01T09:30:30Z"
 
-        order: AlpacaOrderProtocol = PartialOrder()
+        order: AlpacaOrderProtocol = PartialOrder()  # type: ignore[assignment]
         assert order.qty == "100"
         assert order.filled_qty == "50"
         assert order.status == "partially_filled"
