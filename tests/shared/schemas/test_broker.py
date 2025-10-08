@@ -346,14 +346,22 @@ class TestOrderExecutionResult:
         """Test that only valid status literals are accepted."""
         now = datetime.now(UTC)
         
-        # Valid statuses
-        valid_statuses = ["accepted", "filled", "partially_filled", "rejected", "canceled"]
-        for status in valid_statuses:
+        # Valid statuses with appropriate filled_qty
+        test_cases = [
+            ("accepted", Decimal("0"), None),
+            ("filled", Decimal("10"), Decimal("100.00")),
+            ("partially_filled", Decimal("5"), Decimal("100.00")),
+            ("rejected", Decimal("0"), None),
+            ("canceled", Decimal("0"), None),
+        ]
+        
+        for status, qty, price in test_cases:
             result = OrderExecutionResult(
                 success=True,
                 order_id=f"test_{status}",
                 status=status,
-                filled_qty=Decimal("0"),
+                filled_qty=qty,
+                avg_fill_price=price,
                 submitted_at=now,
             )
             assert result.status == status
@@ -486,3 +494,125 @@ class TestOrderExecutionResultEdgeCases:
         )
         
         assert result.completed_at is None
+
+
+class TestOrderExecutionResultNewValidations:
+    """Test new validations added in the enhancement."""
+
+    @pytest.mark.unit
+    def test_timezone_aware_submitted_at_required(self):
+        """Test that submitted_at must be timezone-aware."""
+        # Naive datetime should fail
+        naive_dt = datetime(2025, 1, 15, 10, 30, 0)
+        
+        with pytest.raises(ValidationError) as exc_info:
+            OrderExecutionResult(
+                success=True,
+                order_id="test_naive",
+                status="accepted",
+                filled_qty=Decimal("0"),
+                submitted_at=naive_dt,
+            )
+        
+        errors = exc_info.value.errors()
+        assert any("timezone-aware" in str(e).lower() for e in errors)
+
+    @pytest.mark.unit
+    def test_timezone_aware_completed_at_when_present(self):
+        """Test that completed_at must be timezone-aware when provided."""
+        now = datetime.now(UTC)
+        naive_dt = datetime(2025, 1, 15, 10, 30, 5)
+        
+        with pytest.raises(ValidationError) as exc_info:
+            OrderExecutionResult(
+                success=True,
+                order_id="test_naive_completion",
+                status="filled",
+                filled_qty=Decimal("10"),
+                avg_fill_price=Decimal("100.00"),
+                submitted_at=now,
+                completed_at=naive_dt,
+            )
+        
+        errors = exc_info.value.errors()
+        assert any("timezone-aware" in str(e).lower() for e in errors)
+
+    @pytest.mark.unit
+    def test_filled_status_requires_positive_quantity(self):
+        """Test that status='filled' requires filled_qty > 0."""
+        now = datetime.now(UTC)
+        
+        with pytest.raises(ValidationError) as exc_info:
+            OrderExecutionResult(
+                success=True,
+                order_id="test_filled_zero",
+                status="filled",
+                filled_qty=Decimal("0"),
+                avg_fill_price=Decimal("100.00"),
+                submitted_at=now,
+            )
+        
+        errors = exc_info.value.errors()
+        assert any("filled_qty > 0" in str(e) for e in errors)
+
+    @pytest.mark.unit
+    def test_filled_status_requires_avg_price(self):
+        """Test that status='filled' requires avg_fill_price."""
+        now = datetime.now(UTC)
+        
+        with pytest.raises(ValidationError) as exc_info:
+            OrderExecutionResult(
+                success=True,
+                order_id="test_filled_no_price",
+                status="filled",
+                filled_qty=Decimal("10"),
+                avg_fill_price=None,
+                submitted_at=now,
+            )
+        
+        errors = exc_info.value.errors()
+        assert any("avg_fill_price" in str(e) for e in errors)
+
+    @pytest.mark.unit
+    def test_accepted_status_requires_zero_quantity(self):
+        """Test that status='accepted' should have filled_qty = 0."""
+        now = datetime.now(UTC)
+        
+        with pytest.raises(ValidationError) as exc_info:
+            OrderExecutionResult(
+                success=True,
+                order_id="test_accepted_filled",
+                status="accepted",
+                filled_qty=Decimal("10"),
+                submitted_at=now,
+            )
+        
+        errors = exc_info.value.errors()
+        assert any("filled_qty = 0" in str(e) for e in errors)
+
+    @pytest.mark.unit
+    def test_schema_version_field_present(self):
+        """Test that schema_version field is present with default value."""
+        now = datetime.now(UTC)
+        
+        result = OrderExecutionResult(
+            success=True,
+            order_id="test_schema",
+            status="accepted",
+            filled_qty=Decimal("0"),
+            submitted_at=now,
+        )
+        
+        assert hasattr(result, "schema_version")
+        assert result.schema_version == "1.0"
+
+    @pytest.mark.unit
+    def test_websocket_result_schema_version(self):
+        """Test that WebSocketResult has schema_version field."""
+        result = WebSocketResult(
+            status=WebSocketStatus.COMPLETED,
+            message="Test",
+        )
+        
+        assert hasattr(result, "schema_version")
+        assert result.schema_version == "1.0"
