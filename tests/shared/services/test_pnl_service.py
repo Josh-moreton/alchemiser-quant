@@ -39,6 +39,123 @@ class TestPnLData:
         assert data.total_pnl_pct == Decimal("5.00")
         assert data.daily_data == []
 
+    def test_pnl_data_with_none_dates(self) -> None:
+        """Test P&L data creation with None dates (no data scenario)."""
+        data = PnLData(
+            period="1 week",
+            start_date=None,
+            end_date=None,
+        )
+
+        assert data.period == "1 week"
+        assert data.start_date is None
+        assert data.end_date is None
+        assert data.start_value is None
+        assert data.end_value is None
+        assert data.daily_data == []
+
+    def test_pnl_data_invalid_date_format(self) -> None:
+        """Test that invalid date format raises ValidationError."""
+        with pytest.raises(Exception) as exc_info:
+            PnLData(
+                period="1 week",
+                start_date="01-01-2025",  # Wrong format
+                end_date="2025-01-07",
+            )
+        assert "string_pattern_mismatch" in str(exc_info.value)
+
+    def test_pnl_data_negative_equity(self) -> None:
+        """Test that negative equity raises ValidationError."""
+        with pytest.raises(Exception) as exc_info:
+            PnLData(
+                period="1 week",
+                start_date="2025-01-01",
+                end_date="2025-01-07",
+                start_value=Decimal("-100.00"),  # Negative equity
+            )
+        assert "greater_than_equal" in str(exc_info.value)
+
+    def test_pnl_data_schema_version(self) -> None:
+        """Test that schema_version is set correctly."""
+        data = PnLData(
+            period="1 week",
+            start_date="2025-01-01",
+            end_date="2025-01-07",
+        )
+        assert data.schema_version == "1.0"
+
+    def test_daily_pnl_entry_creation(self) -> None:
+        """Test basic DailyPnLEntry creation."""
+        entry = DailyPnLEntry(
+            date="2025-01-01",
+            equity=Decimal("10000.00"),
+            profit_loss=Decimal("500.00"),
+            profit_loss_pct=Decimal("5.00"),
+        )
+
+        assert entry.date == "2025-01-01"
+        assert entry.equity == Decimal("10000.00")
+        assert entry.profit_loss == Decimal("500.00")
+        assert entry.profit_loss_pct == Decimal("5.00")
+        assert entry.schema_version == "1.0"
+
+    def test_daily_pnl_entry_invalid_date(self) -> None:
+        """Test that invalid date format in DailyPnLEntry raises ValidationError."""
+        with pytest.raises(Exception) as exc_info:
+            DailyPnLEntry(
+                date="2025/01/01",  # Wrong format
+                equity=Decimal("10000.00"),
+                profit_loss=Decimal("0.00"),
+                profit_loss_pct=Decimal("0.00"),
+            )
+        assert "string_pattern_mismatch" in str(exc_info.value)
+
+    def test_daily_pnl_entry_negative_equity(self) -> None:
+        """Test that negative equity in DailyPnLEntry raises ValidationError."""
+        with pytest.raises(Exception) as exc_info:
+            DailyPnLEntry(
+                date="2025-01-01",
+                equity=Decimal("-100.00"),  # Negative equity
+                profit_loss=Decimal("-100.00"),
+                profit_loss_pct=Decimal("-100.00"),
+            )
+        assert "greater_than_equal" in str(exc_info.value)
+
+    def test_daily_pnl_entry_allows_negative_pnl(self) -> None:
+        """Test that negative P&L values are allowed (losses)."""
+        entry = DailyPnLEntry(
+            date="2025-01-01",
+            equity=Decimal("9500.00"),
+            profit_loss=Decimal("-500.00"),
+            profit_loss_pct=Decimal("-5.00"),
+        )
+
+        assert entry.profit_loss == Decimal("-500.00")
+        assert entry.profit_loss_pct == Decimal("-5.00")
+
+    def test_pnl_data_immutability(self) -> None:
+        """Test that PnLData is immutable (frozen)."""
+        data = PnLData(
+            period="1 week",
+            start_date="2025-01-01",
+            end_date="2025-01-07",
+        )
+
+        with pytest.raises(Exception):
+            data.period = "2 weeks"  # type: ignore[misc]
+
+    def test_daily_pnl_entry_immutability(self) -> None:
+        """Test that DailyPnLEntry is immutable (frozen)."""
+        entry = DailyPnLEntry(
+            date="2025-01-01",
+            equity=Decimal("10000.00"),
+            profit_loss=Decimal("0.00"),
+            profit_loss_pct=Decimal("0.00"),
+        )
+
+        with pytest.raises(Exception):
+            entry.equity = Decimal("20000.00")  # type: ignore[misc]
+
 
 class TestPnLService:
     """Test cases for P&L service."""

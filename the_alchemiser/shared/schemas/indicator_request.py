@@ -9,9 +9,24 @@ with proper validation and type safety.
 
 from __future__ import annotations
 
-from typing import Any
+import math
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# Type aliases for indicator types
+IndicatorType = Literal[
+    "rsi",
+    "current_price",
+    "moving_average",
+    "moving_average_return",
+    "cumulative_return",
+    "exponential_moving_average_price",
+    "stdev_return",
+    "max_drawdown",
+]
+
+__all__ = ["IndicatorRequest", "IndicatorType", "PortfolioFragment"]
 
 
 class IndicatorRequest(BaseModel):
@@ -28,23 +43,58 @@ class IndicatorRequest(BaseModel):
         str_strip_whitespace=True,
     )
 
+    # Schema version
+    schema_version: str = Field(default="1.0", description="DTO schema version")
+
     # Request identification
     request_id: str = Field(..., min_length=1, description="Unique request identifier")
     correlation_id: str = Field(..., min_length=1, description="Correlation ID for tracking")
+    causation_id: str | None = Field(
+        default=None, description="Causation ID for event chain tracking"
+    )
 
     # Indicator specification
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    indicator_type: str = Field(..., min_length=1, description="Type of indicator (rsi, ma, etc.)")
-    parameters: dict[str, Any] = Field(default_factory=dict, description="Indicator parameters")
+    indicator_type: IndicatorType = Field(
+        ..., description="Type of indicator (rsi, moving_average, etc.)"
+    )
+    parameters: dict[str, int | float | str] = Field(
+        default_factory=dict, description="Indicator parameters"
+    )
 
     # Optional metadata
-    metadata: dict[str, Any] = Field(
+    metadata: dict[str, int | float | str | bool] = Field(
         default_factory=dict, description="Additional request metadata"
     )
 
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, v: str) -> str:
+        """Normalize symbol to uppercase and validate format.
+
+        Args:
+            v: Raw symbol string
+
+        Returns:
+            Normalized uppercase symbol
+
+        Raises:
+            ValueError: If symbol format is invalid
+
+        """
+        normalized = v.strip().upper()
+        if not normalized.replace(".", "").replace("-", "").isalnum():
+            raise ValueError(f"Invalid symbol format: {v}")
+        return normalized
+
     @classmethod
     def rsi_request(
-        cls, request_id: str, correlation_id: str, symbol: str, window: int = 14
+        cls,
+        request_id: str,
+        correlation_id: str,
+        symbol: str,
+        window: int = 14,
+        causation_id: str | None = None,
     ) -> IndicatorRequest:
         """Create RSI indicator request.
 
@@ -52,15 +102,27 @@ class IndicatorRequest(BaseModel):
             request_id: Unique request identifier
             correlation_id: Correlation ID for tracking
             symbol: Trading symbol
-            window: RSI window period
+            window: RSI window period (default: 14)
+            causation_id: Optional causation ID for event chain tracking
 
         Returns:
             IndicatorRequest for RSI
+
+        Example:
+            >>> request = IndicatorRequest.rsi_request(
+            ...     request_id="req-123",
+            ...     correlation_id="corr-456",
+            ...     symbol="AAPL",
+            ...     window=14
+            ... )
+            >>> request.indicator_type
+            'rsi'
 
         """
         return cls(
             request_id=request_id,
             correlation_id=correlation_id,
+            causation_id=causation_id,
             symbol=symbol,
             indicator_type="rsi",
             parameters={"window": window},
@@ -68,7 +130,12 @@ class IndicatorRequest(BaseModel):
 
     @classmethod
     def moving_average_request(
-        cls, request_id: str, correlation_id: str, symbol: str, window: int = 200
+        cls,
+        request_id: str,
+        correlation_id: str,
+        symbol: str,
+        window: int = 200,
+        causation_id: str | None = None,
     ) -> IndicatorRequest:
         """Create moving average indicator request.
 
@@ -76,15 +143,27 @@ class IndicatorRequest(BaseModel):
             request_id: Unique request identifier
             correlation_id: Correlation ID for tracking
             symbol: Trading symbol
-            window: Moving average window period
+            window: Moving average window period (default: 200)
+            causation_id: Optional causation ID for event chain tracking
 
         Returns:
             IndicatorRequest for moving average
+
+        Example:
+            >>> request = IndicatorRequest.moving_average_request(
+            ...     request_id="req-123",
+            ...     correlation_id="corr-456",
+            ...     symbol="AAPL",
+            ...     window=200
+            ... )
+            >>> request.indicator_type
+            'moving_average'
 
         """
         return cls(
             request_id=request_id,
             correlation_id=correlation_id,
+            causation_id=causation_id,
             symbol=symbol,
             indicator_type="moving_average",
             parameters={"window": window},
@@ -105,9 +184,20 @@ class PortfolioFragment(BaseModel):
         str_strip_whitespace=True,
     )
 
+    # Schema version
+    schema_version: str = Field(default="1.0", description="DTO schema version")
+
     # Fragment identification
     fragment_id: str = Field(..., min_length=1, description="Unique fragment identifier")
     source_step: str = Field(..., min_length=1, description="Evaluation step that created fragment")
+
+    # Event traceability
+    correlation_id: str | None = Field(
+        default=None, description="Correlation ID for request tracking"
+    )
+    causation_id: str | None = Field(
+        default=None, description="Causation ID for event chain tracking"
+    )
 
     # Allocation data
     weights: dict[str, float] = Field(
@@ -116,7 +206,10 @@ class PortfolioFragment(BaseModel):
     total_weight: float = Field(default=1.0, ge=0, le=1, description="Total weight of fragment")
 
     # Metadata
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Fragment metadata")
+    metadata: dict[str, int | float | str | bool] = Field(
+        default_factory=dict,
+        description="Fragment metadata (e.g., computation parameters, timestamps)",
+    )
 
     def normalize_weights(self) -> PortfolioFragment:
         """Normalize weights to sum to total_weight.
@@ -124,12 +217,17 @@ class PortfolioFragment(BaseModel):
         Returns:
             New PortfolioFragment with normalized weights
 
+        Note:
+            Uses math.isclose for float comparison to avoid precision issues.
+            If sum is zero (within tolerance), returns self unchanged.
+
         """
         if not self.weights:
             return self
 
         current_sum = sum(self.weights.values())
-        if current_sum == 0:
+        # Use math.isclose instead of direct float comparison
+        if math.isclose(current_sum, 0.0, abs_tol=1e-9):
             return self
 
         scale_factor = self.total_weight / current_sum

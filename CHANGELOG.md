@@ -16,6 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **reporting.py schema module** - Removed unused dashboard and reporting DTOs
+  - `DashboardMetrics`, `ReportingData`, `EmailReportData`, `EmailSummary` (0 usages)
+  - `BacktestResult`, `PerformanceMetrics` (only commented-out references)
+  - `MonthlySummaryDTO` and monthly summary email infrastructure removed
+  - Eliminates ~1000 lines of unused code (DTOs, tests, templates)
+- **monthly.py email template** - Monthly summary email functionality removed for simplicity
+- **test_reporting.py** - 31 tests for removed reporting DTOs
+- **test_monthly_summary_email.py** - Tests for removed monthly email template
+
+### Added
+- **notifications.py schema module** - New focused schema for email infrastructure
+  - Extracted `EmailCredentials` from reporting.py to appropriate location
+  - Maintains SMTP configuration for email notification system
+  - Includes comprehensive test suite (6 tests)
+
+### Changed
+- **email_facade.py** - Deprecated `monthly_financial_summary()` method
+  - Returns deprecation notice instead of generating email
+  - Monthly P&L analysis in `pnl_service.py` remains functional (separate from emails)
+- **client.py, config.py** - Updated imports to use `shared.schemas.notifications`
+
 ## [2.13.1] - 2025-10-07
 
 ### Fixed

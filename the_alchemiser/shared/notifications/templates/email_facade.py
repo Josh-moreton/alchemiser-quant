@@ -361,22 +361,14 @@ class EmailTemplates:
         )
 
     @staticmethod
-    def monthly_financial_summary(summary: object, mode: str = "PAPER") -> str:
-        """Generate monthly financial summary email.
+    def monthly_financial_summary(*_args: object, **_kwargs: object) -> str:  # Deprecated
+        """Return deprecated monthly financial summary notice.
 
-        Args:
-            summary: MonthlySummaryDTO with monthly performance data
-            mode: Trading mode for display (PAPER/LIVE)
-
-        Returns:
-            Complete HTML email content
-
+        This functionality has been removed. Monthly summary emails are no longer supported.
         """
-        from ...schemas.reporting import MonthlySummaryDTO
-        from .monthly import MonthlySummaryEmailBuilder
-
-        # Type check at runtime to ensure we have the right type
-        if not isinstance(summary, MonthlySummaryDTO):
-            raise TypeError(f"Expected MonthlySummaryDTO, got {type(summary)}")
-
-        return MonthlySummaryEmailBuilder.build(summary, mode)
+        return BaseEmailTemplate.wrap_content(
+            BaseEmailTemplate.create_alert_box(
+                "Monthly financial summary deprecated and removed for simplicity.", "info"
+            ),
+            "The Alchemiser - Monthly Summary (Deprecated)",
+        )
