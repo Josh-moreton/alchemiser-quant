@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 def build_allocation_comparison(
-    consolidated_portfolio: dict[str, float],
+    consolidated_portfolio: dict[str, Decimal],
     account_dict: dict[str, float | int | str],
     positions_dict: dict[str, float],
     correlation_id: str | None = None,
@@ -29,7 +29,7 @@ def build_allocation_comparison(
     """Build allocation comparison between target and current portfolio states.
 
     Args:
-        consolidated_portfolio: Target allocation percentages by symbol
+        consolidated_portfolio: Target allocation percentages by symbol (Decimal precision)
         account_dict: Account information including portfolio_value or equity
         positions_dict: Current positions with market values by symbol
         correlation_id: Optional correlation ID for request tracing
@@ -91,7 +91,8 @@ def build_allocation_comparison(
     # Calculate target values in dollars using effective portfolio value
     target_values = {}
     for symbol, weight in consolidated_portfolio.items():
-        target_money = effective_portfolio_value.multiply(Decimal(str(weight)))
+        # weight is already Decimal, no conversion needed
+        target_money = effective_portfolio_value.multiply(weight)
         target_values[symbol] = target_money.to_decimal()
 
     # Convert current position values to Money then extract Decimal
