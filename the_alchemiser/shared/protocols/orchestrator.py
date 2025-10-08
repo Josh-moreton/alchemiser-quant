@@ -9,9 +9,12 @@ proper typing without tight coupling to concrete implementations.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
+
+__all__ = ["TradingModeProvider"]
 
 
+@runtime_checkable
 class TradingModeProvider(Protocol):
     """Protocol for objects that can provide trading mode information.
 

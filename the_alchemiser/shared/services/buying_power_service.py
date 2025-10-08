@@ -90,9 +90,7 @@ class BuyingPowerService:
 
         for attempt in range(max_retries):
             try:
-                result = self._check_buying_power_attempt(
-                    expected_amount, attempt, correlation_id
-                )
+                result = self._check_buying_power_attempt(expected_amount, attempt, correlation_id)
                 if result is not None:
                     return result
 
@@ -197,7 +195,7 @@ class BuyingPowerService:
             # Add jitter (±10% random variation) - not cryptographic use
             jitter = base_wait * random.uniform(-0.1, 0.1)  # noqa: S311
             wait_time = base_wait + jitter
-            
+
             logger.info(
                 "⏳ Waiting for account state to update",
                 wait_time_seconds=wait_time,
@@ -313,7 +311,7 @@ class BuyingPowerService:
                     MONEY_PRECISION, rounding=ROUND_HALF_UP
                 )
                 estimated_cost = quantity * price_decimal
-                
+
                 # Calculate buffer multiplier
                 buffer_multiplier = Decimal(str(1 + buffer_pct / PERCENTAGE_DIVISOR))
                 return (estimated_cost * buffer_multiplier).quantize(
@@ -357,9 +355,7 @@ class BuyingPowerService:
 
         """
         try:
-            estimated_cost = self.estimate_order_cost(
-                symbol, quantity, buffer_pct, correlation_id
-            )
+            estimated_cost = self.estimate_order_cost(symbol, quantity, buffer_pct, correlation_id)
             buying_power = self.broker_manager.get_buying_power()
 
             if buying_power is None or estimated_cost is None:

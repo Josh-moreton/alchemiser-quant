@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import math
 import os
-import random
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from secrets import randbelow
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
@@ -32,8 +31,6 @@ from the_alchemiser.shared.utils.alpaca_error_handler import (
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from typing import cast
-
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
     from the_alchemiser.shared.protocols.market_data import BarsIterable
 
@@ -64,10 +61,11 @@ class MarketDataService(MarketDataPort):
     This service wraps the AlpacaManager and provides a clean domain interface
     that handles timeframe normalization, error translation, and other concerns
     that shouldn't be in the orchestration layer.
-    
+
     Attributes:
         _repo: AlpacaManager instance for market data access
         logger: Structlog logger with correlation context support
+
     """
 
     def __init__(self, market_data_repo: AlpacaManager) -> None:
@@ -80,7 +78,11 @@ class MarketDataService(MarketDataPort):
         self._repo = market_data_repo
         self.logger = get_logger(__name__)
         # Use deterministic RNG in test environment
-        self._use_deterministic_jitter = os.getenv("ALCHEMISER_TEST_MODE", "").lower() in ("1", "true", "yes")
+        self._use_deterministic_jitter = os.getenv("ALCHEMISER_TEST_MODE", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Get historical bars with timeframe normalization.
@@ -151,7 +153,7 @@ class MarketDataService(MarketDataPort):
 
             # Fetch quote from Alpaca API
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol_str])
-            quotes = self._repo.get_data_client().get_stock_latest_quote(request, timeout=API_TIMEOUT_SECONDS)
+            quotes = self._repo.get_data_client().get_stock_latest_quote(request)
             quote = quotes.get(symbol_str)
 
             if not quote:
@@ -189,22 +191,28 @@ class MarketDataService(MarketDataPort):
         ask_price_raw = float(getattr(quote, "ask_price", 0))
         bid_size = float(getattr(quote, "bid_size", 0))
         ask_size = float(getattr(quote, "ask_size", 0))
-        
+
         # Normalize timestamp
         timestamp = self._normalize_quote_timestamp(getattr(quote, "timestamp", None))
-        
+
         # Check price validity and build appropriate quote
         bid_valid = not math.isclose(bid_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE)
         ask_valid = not math.isclose(ask_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE)
 
         if bid_valid and ask_valid:
-            return self._create_quote_model(symbol, bid_price_raw, ask_price_raw, bid_size, ask_size, timestamp)
-        elif bid_valid:
+            return self._create_quote_model(
+                symbol, bid_price_raw, ask_price_raw, bid_size, ask_size, timestamp
+            )
+        if bid_valid:
             # Bid-only fallback: use bid for both sides
-            return self._create_quote_model(symbol, bid_price_raw, bid_price_raw, bid_size, 0, timestamp)
-        elif ask_valid:
+            return self._create_quote_model(
+                symbol, bid_price_raw, bid_price_raw, bid_size, 0, timestamp
+            )
+        if ask_valid:
             # Ask-only fallback: use ask for both sides
-            return self._create_quote_model(symbol, ask_price_raw, ask_price_raw, 0, ask_size, timestamp)
+            return self._create_quote_model(
+                symbol, ask_price_raw, ask_price_raw, 0, ask_size, timestamp
+            )
 
         return None
 
@@ -220,12 +228,18 @@ class MarketDataService(MarketDataPort):
         """
         if timestamp and timestamp.tzinfo is None:
             return timestamp.replace(tzinfo=UTC)
-        elif timestamp:
+        if timestamp:
             return timestamp
         return datetime.now(UTC)
 
     def _create_quote_model(
-        self, symbol: str, bid: float, ask: float, bid_size: float, ask_size: float, timestamp: datetime
+        self,
+        symbol: str,
+        bid: float,
+        ask: float,
+        bid_size: float,
+        ask_size: float,
+        timestamp: datetime,
     ) -> QuoteModel:
         """Create QuoteModel with Decimal conversion.
 
@@ -328,14 +342,14 @@ class MarketDataService(MarketDataPort):
         try:
             prices = {}
             missing_symbols = []
-            
+
             for symbol in symbols:
                 price = self.get_current_price(symbol)
                 if price is not None:
                     prices[symbol] = price
                 else:
                     missing_symbols.append(symbol)
-            
+
             # Log missing symbols once instead of per-symbol
             if missing_symbols:
                 self.logger.warning(
@@ -343,7 +357,7 @@ class MarketDataService(MarketDataPort):
                     missing_count=len(missing_symbols),
                     missing_symbols=missing_symbols,
                 )
-            
+
             return prices
         except Exception as e:
             self.logger.error(
@@ -373,7 +387,7 @@ class MarketDataService(MarketDataPort):
                 quote_dict = quote.model_dump()
                 # Ensure we have symbol in the output
                 quote_dict["symbol"] = symbol
-                return quote_dict
+                return quote_dict  # type: ignore[no-any-return]
             return None
         except (RetryException, HTTPError) as e:
             self._handle_api_error(e, symbol)
@@ -398,10 +412,10 @@ class MarketDataService(MarketDataPort):
 
         """
         request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-        quotes = self._repo.get_data_client().get_stock_latest_quote(request, timeout=API_TIMEOUT_SECONDS)
+        quotes = self._repo.get_data_client().get_stock_latest_quote(request)
         return quotes.get(symbol)
 
-    def _handle_api_error(self, error: Exception, symbol: str) -> None:
+    def _handle_api_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle Alpaca API errors.
 
         Args:
@@ -426,7 +440,7 @@ class MarketDataService(MarketDataPort):
         )
         raise RuntimeError(error_msg) from error
 
-    def _handle_network_error(self, error: Exception, symbol: str) -> None:
+    def _handle_network_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle network errors.
 
         Args:
@@ -470,7 +484,7 @@ class MarketDataService(MarketDataPort):
             except (RetryException, HTTPError, RequestException, Exception) as e:
                 if not self._should_retry_bars_fetch(e, attempt, symbol):
                     raise
-                    
+
                 # Retry with backoff
                 self._sleep_with_backoff(attempt, symbol)
 
@@ -509,13 +523,11 @@ class MarketDataService(MarketDataPort):
         )
 
         # Make API call and extract bars
-        response = self._repo.get_data_client().get_stock_bars(request, timeout=API_TIMEOUT_SECONDS)
+        response = self._repo.get_data_client().get_stock_bars(request)
         bars_obj = self._extract_bars_from_response_core(response, symbol)
 
         if not bars_obj:
-            if self._should_raise_missing_data_error_core(
-                start_date, end_date, timeframe, symbol
-            ):
+            if self._should_raise_missing_data_error_core(start_date, end_date, timeframe, symbol):
                 error_msg = f"No historical data returned for {symbol}"
                 # Treat as transient in retry path, many times this is upstream glitch
                 raise RuntimeError(error_msg)
@@ -524,9 +536,7 @@ class MarketDataService(MarketDataPort):
         # Convert bars to dictionaries and return
         return self._convert_bars_to_dicts_core(bars_obj, symbol)
 
-    def _should_retry_bars_fetch(
-        self, error: Exception, attempt: int, symbol: str
-    ) -> bool:
+    def _should_retry_bars_fetch(self, error: Exception, attempt: int, symbol: str) -> bool:
         """Determine if bars fetch should be retried.
 
         Args:
@@ -538,7 +548,7 @@ class MarketDataService(MarketDataPort):
             True if should retry, False otherwise
 
         """
-        transient, reason = AlpacaErrorHandler.is_transient_error(error)
+        transient, _reason = AlpacaErrorHandler.is_transient_error(error)
         last_attempt = attempt == MAX_RETRIES
 
         if not transient or last_attempt:
@@ -571,9 +581,9 @@ class MarketDataService(MarketDataPort):
             jitter = JITTER_BASE + JITTER_FACTOR * (attempt / MAX_RETRIES)
         else:
             jitter = JITTER_BASE + JITTER_FACTOR * (randbelow(JITTER_DIVISOR) / JITTER_DIVISOR)
-        
+
         sleep_s = BASE_SLEEP_SECONDS * (2 ** (attempt - 1)) * jitter
-        
+
         self.logger.warning(
             "Transient market data error, retrying",
             symbol=symbol,
@@ -681,7 +691,9 @@ class MarketDataService(MarketDataPort):
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
         raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
 
-    def _extract_bars_from_response_core(self, response: object, symbol: str) -> BarsIterable | None:
+    def _extract_bars_from_response_core(
+        self, response: object, symbol: str
+    ) -> BarsIterable | None:
         """Extract bars object from various possible response shapes.
 
         Args:

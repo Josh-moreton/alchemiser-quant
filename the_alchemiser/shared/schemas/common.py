@@ -56,17 +56,11 @@ class MultiStrategyExecutionResult(BaseModel):
     )
 
     # Order execution results
-    orders_executed: list[OrderDetails] = Field(
-        ..., description="List of executed order details"
-    )
+    orders_executed: list[OrderDetails] = Field(..., description="List of executed order details")
 
     # Account state tracking
-    account_info_before: AccountInfo = Field(
-        ..., description="Account state before execution"
-    )
-    account_info_after: AccountInfo = Field(
-        ..., description="Account state after execution"
-    )
+    account_info_before: AccountInfo = Field(..., description="Account state before execution")
+    account_info_after: AccountInfo = Field(..., description="Account state after execution")
 
     # Structured execution summary and portfolio state
     execution_summary: ExecutionSummary = Field(
@@ -90,9 +84,7 @@ class AllocationComparison(BaseModel):
         validate_assignment=True,
     )
 
-    target_values: dict[str, Decimal] = Field(
-        ..., description="Target allocation values by symbol"
-    )
+    target_values: dict[str, Decimal] = Field(..., description="Target allocation values by symbol")
     current_values: dict[str, Decimal] = Field(
         ..., description="Current allocation values by symbol"
     )
