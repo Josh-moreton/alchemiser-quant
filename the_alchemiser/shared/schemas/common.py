@@ -45,26 +45,44 @@ class MultiStrategyExecutionResult(BaseModel):
     )
 
     # Core execution status
-    success: bool
+    success: bool = Field(..., description="Whether the execution was successful")
 
     # Strategy data
-    strategy_signals: dict[str, StrategySignal]
-    consolidated_portfolio: dict[str, float]
+    strategy_signals: dict[str, StrategySignal] = Field(
+        ..., description="Strategy signals by strategy name"
+    )
+    consolidated_portfolio: dict[str, Decimal] = Field(
+        ..., description="Consolidated portfolio allocations by symbol (Decimal precision)"
+    )
 
     # Order execution results
-    orders_executed: list[OrderDetails]
+    orders_executed: list[OrderDetails] = Field(
+        ..., description="List of executed order details"
+    )
 
     # Account state tracking
-    account_info_before: AccountInfo
-    account_info_after: AccountInfo
+    account_info_before: AccountInfo = Field(
+        ..., description="Account state before execution"
+    )
+    account_info_after: AccountInfo = Field(
+        ..., description="Account state after execution"
+    )
 
     # Structured execution summary and portfolio state
-    execution_summary: ExecutionSummary
-    final_portfolio_state: PortfolioState | None = None
+    execution_summary: ExecutionSummary = Field(
+        ..., description="Structured execution summary with metrics"
+    )
+    final_portfolio_state: PortfolioState | None = Field(
+        None, description="Final portfolio state after execution (optional)"
+    )
 
 
 class AllocationComparison(BaseModel):
-    """DTO for allocation comparison with Decimal precision."""
+    """DTO for allocation comparison with Decimal precision.
+
+    Provides precise comparison of target vs current allocations with calculated deltas.
+    All values use Decimal to maintain financial precision per Alchemiser guardrails.
+    """
 
     model_config = ConfigDict(
         strict=True,
@@ -72,9 +90,15 @@ class AllocationComparison(BaseModel):
         validate_assignment=True,
     )
 
-    target_values: dict[str, Decimal]
-    current_values: dict[str, Decimal]
-    deltas: dict[str, Decimal]
+    target_values: dict[str, Decimal] = Field(
+        ..., description="Target allocation values by symbol"
+    )
+    current_values: dict[str, Decimal] = Field(
+        ..., description="Current allocation values by symbol"
+    )
+    deltas: dict[str, Decimal] = Field(
+        ..., description="Allocation deltas by symbol (current - target)"
+    )
 
 
 class MultiStrategySummary(BaseModel):
@@ -82,6 +106,9 @@ class MultiStrategySummary(BaseModel):
 
     Provides a unified summary structure that includes execution results,
     allocation comparison, and enriched account information for CLI rendering.
+
+    Note: enriched_account and closed_pnl_subset use dict[str, Any] to support
+    flexible display/rendering requirements. This is intentional for UI/CLI boundaries.
     """
 
     model_config = ConfigDict(
@@ -91,16 +118,25 @@ class MultiStrategySummary(BaseModel):
     )
 
     # Core execution result
-    execution_result: MultiStrategyExecutionResult
+    execution_result: MultiStrategyExecutionResult = Field(
+        ..., description="Multi-strategy execution result with metrics"
+    )
 
     # Allocation comparison with Decimal precision
-    allocation_comparison: AllocationComparison | None = None
+    allocation_comparison: AllocationComparison | None = Field(
+        None, description="Optional allocation comparison with target vs current"
+    )
 
-    # Enriched account information
-    enriched_account: dict[str, Any] | None = None
+    # Enriched account information (flexible for CLI/display)
+    enriched_account: dict[str, Any] | None = Field(
+        None,
+        description="Enriched account data for display (flexible schema for UI rendering)",
+    )
 
-    # Closed P&L subset for performance display
-    closed_pnl_subset: dict[str, Any] | None = None
+    # Closed P&L subset for performance display (flexible for CLI/display)
+    closed_pnl_subset: dict[str, Any] | None = Field(
+        None, description="Closed P&L data subset for display (flexible schema for UI rendering)"
+    )
 
 
 class Configuration(BaseModel):
