@@ -290,19 +290,25 @@ Resources:
             Principal:
               Service: scheduler.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: SchedulerLambdaInvokePolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource: !GetAtt TradingSystemFunction.Arn
-              - Effect: Allow
-                Action:
-                  - sqs:SendMessage
-                Resource: !GetAtt TradingSystemDLQ.Arn
+
+  # Separate policy for Scheduler role to avoid constant updates
+  SchedulerExecutionRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SchedulerLambdaInvokePolicy
+      Roles:
+        - !Ref SchedulerExecutionRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt TradingSystemFunction.Arn
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+            Resource: !GetAtt TradingSystemDLQ.Arn
 
   # IAM Role for Lambda execution
   TradingSystemExecutionRole:
@@ -317,30 +323,36 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: TradingSystemPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              # CloudWatch Logs (enhanced logging)
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogStreams
-                  - logs:DescribeLogGroups
-                Resource: "*"
 
-              # S3 access for trade ledger
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt TradeLedgerBucket.Arn
-                  - !Sub "${TradeLedgerBucket.Arn}/*"
+  # Separate policy for Lambda execution role to avoid constant updates
+  TradingSystemExecutionRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: TradingSystemPolicy
+      Roles:
+        - !Ref TradingSystemExecutionRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # CloudWatch Logs (enhanced logging)
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+            Resource: "*"
+
+          # S3 access for trade ledger
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - !GetAtt TradeLedgerBucket.Arn
+              - !Sub "${TradeLedgerBucket.Arn}/*"
 
 
   # CloudWatch Log Group with retention
