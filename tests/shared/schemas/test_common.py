@@ -156,7 +156,7 @@ class TestMultiStrategyExecutionResult:
         result = MultiStrategyExecutionResult(
             success=True,
             strategy_signals=valid_strategy_signals,
-            consolidated_portfolio={"SPY": 100.0},
+            consolidated_portfolio={"SPY": Decimal("100.0")},
             orders_executed=[],
             account_info_before=valid_account_info,
             account_info_after=valid_account_info,
@@ -164,7 +164,7 @@ class TestMultiStrategyExecutionResult:
         )
         assert result.success is True
         assert "nuclear" in result.strategy_signals
-        assert result.consolidated_portfolio["SPY"] == 100.0
+        assert result.consolidated_portfolio["SPY"] == Decimal("100.0")
 
     def test_immutability(
         self,
