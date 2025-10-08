@@ -308,9 +308,7 @@ class RealTimeStreamManager:
                         time.sleep(self._config.stream_stop_delay)
                         self._stream = None
                     except (OSError, RuntimeError) as e:
-                        self.logger.debug(
-                            "Error stopping stream for restart", error=str(e)
-                        )
+                        self.logger.debug("Error stopping stream for restart", error=str(e))
 
             # Wait for thread to finish
             if self._stream_thread and self._stream_thread.is_alive():
@@ -350,9 +348,7 @@ class RealTimeStreamManager:
         except StreamingError:
             raise
         except (OSError, RuntimeError) as e:
-            self.logger.error(
-                "Error restarting stream", error=str(e), error_type=type(e).__name__
-            )
+            self.logger.error("Error restarting stream", error=str(e), error_type=type(e).__name__)
             self._connected_event.clear()
             raise StreamingError(f"Failed to restart stream: {e}") from e
 
@@ -439,9 +435,7 @@ class RealTimeStreamManager:
                     "connection limit exceeded" in error_msg.lower()
                     or "http 429" in error_msg.lower()
                 ):
-                    self._circuit_breaker.record_failure(
-                        f"Connection limit exceeded: {error_msg}"
-                    )
+                    self._circuit_breaker.record_failure(f"Connection limit exceeded: {error_msg}")
                     self.logger.error(
                         "Connection limit exceeded",
                         error=error_msg,
@@ -570,13 +564,9 @@ class RealTimeStreamManager:
         # Subscribe to quotes and trades
         try:
             if self._on_quote:
-                self._stream.subscribe_quotes(
-                    async_quote_callback, *symbols_to_subscribe
-                )
+                self._stream.subscribe_quotes(async_quote_callback, *symbols_to_subscribe)
             if self._on_trade:
-                self._stream.subscribe_trades(
-                    async_trade_callback, *symbols_to_subscribe
-                )
+                self._stream.subscribe_trades(async_trade_callback, *symbols_to_subscribe)
         except (ValueError, TypeError) as e:
             self.logger.error(
                 "Failed to subscribe to symbols",

@@ -461,6 +461,46 @@ After:  Get service → Add symbols → Auto-start → Connect → SUCCESS (~2 s
 1. ⚠️ **Health monitoring:** Add pre-execution check (medium priority)
 2. ⚠️ **Error handling:** Consider fail-fast vs. graceful degradation (low priority)
 3. ✅ **Testing:** Add integration tests for lazy connection flow
+4. ✅ **Cleanup bug fixed:** `release_pricing_service()` now synchronous (supports `__del__`)
+
+### 4. ✅ Cleanup Method Async/Sync Issue - FIXED
+
+**Issue Found:** RuntimeWarning during cleanup
+```
+RuntimeWarning: coroutine 'WebSocketConnectionManager.release_pricing_service' was never awaited
+  self.websocket_manager.release_pricing_service()
+```
+
+**Problem:**
+- `release_pricing_service()` was `async` (to await `service.stop()`)
+- Called from `Executor.__del__()` which is synchronous
+- Cannot use `await` in destructors
+
+**Fix:**
+```python
+# BEFORE: Async (couldn't be called from __del__)
+async def release_pricing_service(self, correlation_id: str | None = None) -> None:
+    if self._pricing_ref_count == 0 and self._pricing_service is not None:
+        await self._pricing_service.stop()  # Async call
+        self._pricing_service = None
+
+# AFTER: Synchronous (works in __del__)
+def release_pricing_service(self, correlation_id: str | None = None) -> None:
+    if self._pricing_ref_count == 0 and self._pricing_service is not None:
+        # Stop synchronously - daemon threads terminate naturally
+        if self._pricing_service._stream_manager:
+            self._pricing_service._stream_manager.stop()
+        self._pricing_service._price_store.stop_cleanup()
+        self._pricing_service = None
+```
+
+**Why this works:**
+- Stream threads are daemon threads (terminate when main thread exits)
+- Background task cleanup happens naturally
+- No need to await async cleanup in destructor
+- Clean shutdown without warnings
+
+**Impact:** Low-risk fix, cleanup now works correctly without warnings
 
 ### Risk Assessment
 
