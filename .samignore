@@ -1,74 +1,214 @@
-# Exclude development and build artifacts from Lambda package
+# .samignore - Exclude files from Lambda deployment package
+# Based on diagnostics showing 105MB logs/ and 6.9MB data/ were being packaged
+
+# ============================================================================
+# CRITICAL EXCLUSIONS (Primary size culprits - 112MB total)
+# ============================================================================
+
+# Logs directory (105MB - MUST exclude)
+logs/
+logs/**
+*.log
+**/*.log
+
+# Data directories (6.9MB - historical market data, backtests, cache)
+data/
+data/**
+market_data/
+historical_data/
+backtest_results/
+cache/
+
+# Large result files
+stress_test_results.json
+coverage.json
+*.csv
+*.parquet
+**/*.csv
+**/*.parquet
+
+# ============================================================================
+# DOCUMENTATION (2.9MB)
+# ============================================================================
+
+docs/
+docs/**
+README.md
+CHANGELOG.md
+*.md
+**/*.md
+TYPE_SAFETY_AUDIT.md
+
+# ============================================================================
+# TESTS (2.6MB)
+# ============================================================================
+
+tests/
+tests/**
+test_*.py
+**/test_*.py
+*_test.py
+**/*_test.py
+conftest.py
+
+# ============================================================================
+# MEDIA FILES (1.3MB logo.png)
+# ============================================================================
+
+logo.png
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif
+*.pdf
+*.ico
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.svg
+**/*.gif
+**/*.pdf
+
+# ============================================================================
+# SCRIPTS AND DEVELOPMENT TOOLS (284KB)
+# ============================================================================
+
+scripts/
+scripts/**
+deploy.sh
+*.sh
+
+# ============================================================================
+# PYTHON CACHE AND BUILD ARTIFACTS
+# ============================================================================
 
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.so
+*.dylib
+*.dll
 .pytest_cache/
+.pytest_cache/**
 .ruff_cache/
+.ruff_cache/**
 .mypy_cache/
+.mypy_cache/**
 .coverage
 .tox/
-.env
-.venv/
-.DS_Store
-.git/
-.gitignore
-.vscode/
 *.egg-info/
+**/*.egg-info/
+htmlcov/
+.hypothesis/
+*.cover
+.cache/
 
-# Documentation and config files not needed in Lambda
+# ============================================================================
+# VERSION CONTROL AND CI/CD
+# ============================================================================
 
-README.md
-*.md
-.dockerignore
+.git/
+.git/**
+.github/
+.github/**
+.gitignore
+.gitattributes
+.pre-commit-config.yaml
+
+# ============================================================================
+# IDE AND EDITOR FILES
+# ============================================================================
+
+.vscode/
+.vscode/**
+.idea/
+.idea/**
+.DS_Store
+**/.DS_Store
+.editorconfig
 .lsp/
+.lsp/**
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# PYTHON ENVIRONMENTS
+# ============================================================================
+
+.env
+.env.*
+.venv/
+.venv/**
+venv/
+venv/**
+env/
+env/**
+ENV/
+
+# ============================================================================
+# CONFIGURATION FILES (Not needed at runtime)
+# ============================================================================
+
+# Build and deployment config
+template.yaml
+samconfig.toml
+Makefile
 pyproject.toml
 poetry.lock
 pytest.ini
-deploy.sh
-scripts/
-samconfig.toml
-Makefile
-TYPE_SAFETY_AUDIT.md
-
-# Test files not needed in production
-
-test_*.py
-tests/
-*_test.py
+sonar-project.properties
 
 # Prevent requirements.txt duplication (dependencies come from layer)
-
-requirements.txt
-
-# Build artifacts
-
-.aws-sam/
 requirements.txt
 lambda-requirements.txt
+dependencies/
+dependencies/**
 
-# Testing files
-
-tests/
-test_*.py
-*_test.py
-
-# Build artifacts
+# ============================================================================
+# BUILD ARTIFACTS
+# ============================================================================
 
 .aws-sam/
+.aws-sam/**
 build/
 dist/
 *.tar.gz
 *.zip
+*.whl
+*.egg
 
-# Development dependencies layer (already in layer)
+# ============================================================================
+# NOTEBOOKS AND MISC
+# ============================================================================
 
-dependencies/
+*.ipynb
+**/*.ipynb
+.ipynb_checkpoints/
+.jupyter/
 
-# Template and config files
+# ============================================================================
+# ADDITIONAL EXCLUSIONS
+# ============================================================================
 
-template.yaml
-samconfig.toml
+# Node artifacts (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Compiled documentation
+site/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*~
