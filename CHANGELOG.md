@@ -31,6 +31,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **performance.py notification templates** - Complete refactor to address institutional-grade standards
+  - **HIGH**: Replaced `Any` type hints with typed DTOs (`OrderNotificationDTO`, `TradingSummaryDTO`, `StrategyDataDTO`)
+  - **HIGH**: Converted all float formatting to use `Decimal` for monetary values
+  - **MEDIUM**: Added comprehensive docstrings with pre/post-conditions, failure modes, and examples
+  - **MEDIUM**: Added structured logging with context for debugging and observability
+  - **MEDIUM**: Added order truncation warnings when >10 orders displayed
+  - **MEDIUM**: Improved order categorization with enum-based logic
+  - **MEDIUM**: Added input validation with proper error handling
+  - **LOW**: Extracted color and styling logic to constants (DRY principle)
+  - **LOW**: Fixed magic number (MAX_REASON_LENGTH = 100) with named constant
+  - **LOW**: Improved reason text truncation safety
+
+### Added
+- **shared/schemas/notifications.py** - New DTOs for type-safe email templates
+  - `OrderSide` enum for BUY/SELL operations
+  - `OrderNotificationDTO` with Decimal quantity and optional estimated_value
+  - `TradingSummaryDTO` with validated counts and Decimal monetary values
+  - `StrategyDataDTO` with allocation bounds (0.0-1.0) validation
+- **tests/shared/notifications/templates/test_performance.py** - Comprehensive test suite (100+ tests)
+  - Tests for all public methods with valid and edge case inputs
+  - Tests for DTO validation and type safety
+  - Tests for HTML structure and content correctness
+  - Tests for order truncation behavior
+  - Tests for Decimal handling
+- **tests/shared/schemas/test_notifications.py** - Extended with DTO tests
+  - Tests for OrderSide enum
+  - Tests for OrderNotificationDTO validation and immutability
+  - Tests for TradingSummaryDTO bounds checking
+  - Tests for StrategyDataDTO allocation validation (0.0-1.0)
 ## [2.20.0] - 2025-01-06
 
 ### Added
