@@ -563,6 +563,9 @@ class AlpacaTradingService:
                 request = GetOrdersRequest()
 
             orders = self._trading_client.get_orders(request)
+            # API can return list or dict, ensure we have a list
+            if isinstance(orders, dict):
+                return []
             return list(orders)
         except Exception as e:
             logger.error(
@@ -856,7 +859,7 @@ class AlpacaTradingService:
         return ExecutedOrder(
             order_id="FAILED",  # Must be non-empty
             symbol=symbol,
-            action=action,
+            action=action,  # type: ignore[arg-type]
             quantity=MIN_ORDER_QUANTITY,  # Must be > 0
             filled_quantity=Decimal("0"),
             price=MIN_ORDER_PRICE,

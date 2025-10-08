@@ -210,7 +210,7 @@ class WebSocketConnectionManager:
             )
             return self._pricing_service
 
-    def release_pricing_service(self, correlation_id: str | None = None) -> None:
+    async def release_pricing_service(self, correlation_id: str | None = None) -> None:
         """Release a reference to the pricing service.
 
         Stops the service when no more references exist.

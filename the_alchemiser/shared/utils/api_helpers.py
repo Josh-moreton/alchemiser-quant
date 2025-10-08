@@ -169,11 +169,7 @@ def with_rate_limiting(func: Callable[..., T]) -> Callable[..., T]:  # noqa: UP0
         except Exception as e:
             # Check if it's a rate limit error from the API
             error_str = str(e).lower()
-            if (
-                "rate limit" in error_str
-                or "429" in error_str
-                or "too many requests" in error_str
-            ):
+            if "rate limit" in error_str or "429" in error_str or "too many requests" in error_str:
                 backoff = _rate_limiter.record_error()
                 raise RateLimitError(
                     f"API rate limit error: {e}",

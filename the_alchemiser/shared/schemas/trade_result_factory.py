@@ -152,7 +152,10 @@ def create_success_result(
     if not isinstance(trading_result, dict):
         logger.error(
             "Invalid trading_result type",
-            extra={"correlation_id": correlation_id, "type": type(trading_result).__name__},
+            extra={
+                "correlation_id": correlation_id,
+                "type": type(trading_result).__name__,
+            },
         )
         raise ValueError(f"trading_result must be dict, got {type(trading_result).__name__}")
 
@@ -169,7 +172,10 @@ def create_success_result(
     if not isinstance(orders_executed, list):
         logger.error(
             "Invalid orders_executed type",
-            extra={"correlation_id": correlation_id, "type": type(orders_executed).__name__},
+            extra={
+                "correlation_id": correlation_id,
+                "type": type(orders_executed).__name__,
+            },
         )
         raise ValueError(f"orders_executed must be list, got {type(orders_executed).__name__}")
 
@@ -385,5 +391,7 @@ def _determine_trading_mode(orchestrator: TradingModeProvider) -> TradingMode:
         Trading mode string: "LIVE" or "PAPER"
 
     """
-    mode: TradingMode = TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER  # type: ignore[assignment]
+    mode: TradingMode = (
+        TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER
+    )  # type: ignore[assignment]
     return mode

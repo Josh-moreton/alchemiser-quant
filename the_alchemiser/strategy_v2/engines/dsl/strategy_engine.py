@@ -274,6 +274,7 @@ class DslStrategyEngine:
 
         # Generate correlation IDs for fallback signal
         import uuid
+
         fallback_correlation_id = f"fallback-{uuid.uuid4().hex[:8]}"
 
         fallback_signal = StrategySignal(

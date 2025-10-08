@@ -92,10 +92,10 @@ class RealTimePriceStore:
     def update_quote_data(
         self,
         symbol: str,
-        bid_price: float,
-        ask_price: float,
-        bid_size: float | None,
-        ask_size: float | None,
+        bid_price: Decimal,
+        ask_price: Decimal,
+        bid_size: Decimal | None,
+        ask_size: Decimal | None,
         timestamp: datetime,
     ) -> None:
         """Update quote data with locking.
@@ -152,7 +152,7 @@ class RealTimePriceStore:
             self._last_update[symbol] = datetime.now(UTC)
 
     def update_trade_data(
-        self, symbol: str, price: float, timestamp: datetime, volume: int | float | None
+        self, symbol: str, price: Decimal, timestamp: datetime, volume: Decimal | None
     ) -> None:
         """Update trade data with locking.
 

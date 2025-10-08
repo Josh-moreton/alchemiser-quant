@@ -166,6 +166,7 @@ class RealTimeDataProcessor:
             DataProviderError: If timestamp is missing or data is invalid
 
         """
+        timestamp_raw: datetime | str | float | int | None
         if isinstance(trade, dict):
             price_raw = trade.get("price")
             if price_raw is None:

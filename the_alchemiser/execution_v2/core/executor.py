@@ -153,7 +153,8 @@ class Executor:
         """Clean up WebSocket connection when executor is destroyed."""
         if hasattr(self, "websocket_manager") and self.websocket_manager is not None:
             try:
-                self.websocket_manager.release_pricing_service()
+                # Sync cleanup - async stop called without await in cleanup
+                self.websocket_manager.release_pricing_service()  # type: ignore[unused-coroutine]
             except Exception as e:
                 logger.debug(f"Error releasing WebSocket manager: {e}")
 

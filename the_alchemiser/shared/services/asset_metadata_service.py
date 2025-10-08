@@ -79,9 +79,7 @@ class AssetMetadataService:
 
         """
         if not trading_client:
-            raise ValidationError(
-                "trading_client cannot be None", field_name="trading_client"
-            )
+            raise ValidationError("trading_client cannot be None", field_name="trading_client")
         if asset_cache_ttl <= 0:
             raise ValidationError(
                 "asset_cache_ttl must be positive",
@@ -120,9 +118,7 @@ class AssetMetadataService:
 
         """
         if not symbol or not symbol.strip():
-            raise ValidationError(
-                "Symbol cannot be empty", field_name="symbol", value=symbol
-            )
+            raise ValidationError("Symbol cannot be empty", field_name="symbol", value=symbol)
 
         symbol_upper = symbol.strip().upper()
 
@@ -202,9 +198,7 @@ class AssetMetadataService:
         """
         return self._trading_client.get_calendar()
 
-    def get_asset_info(
-        self, symbol: str, *, correlation_id: str | None = None
-    ) -> AssetInfo | None:
+    def get_asset_info(self, symbol: str, *, correlation_id: str | None = None) -> AssetInfo | None:
         """Get asset information with caching.
 
         Args:
@@ -330,9 +324,7 @@ class AssetMetadataService:
             # Re-raise as TradingClientError with context
             raise TradingClientError(error_msg) from e
 
-    def is_fractionable(
-        self, symbol: str, *, correlation_id: str | None = None
-    ) -> bool:
+    def is_fractionable(self, symbol: str, *, correlation_id: str | None = None) -> bool:
         """Check if an asset supports fractional shares.
 
         Args:
@@ -356,9 +348,7 @@ class AssetMetadataService:
 
         if asset_info is None:
             # Asset not found - this is a critical path, don't default to True
-            error_msg = (
-                f"Cannot determine fractionability for {symbol}: asset not found"
-            )
+            error_msg = f"Cannot determine fractionability for {symbol}: asset not found"
             logger.error("Asset not found for fractionability check", **log_context)
             raise DataProviderError(
                 error_msg,
@@ -410,9 +400,7 @@ class AssetMetadataService:
             )
             raise TradingClientError(error_msg) from e
 
-    def get_market_calendar(
-        self, *, correlation_id: str | None = None
-    ) -> list[dict[str, Any]]:
+    def get_market_calendar(self, *, correlation_id: str | None = None) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:

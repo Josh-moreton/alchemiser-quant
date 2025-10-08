@@ -14,7 +14,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from secrets import randbelow
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
@@ -78,9 +78,7 @@ class MarketDataService(MarketDataPort):
         self._repo = market_data_repo
         self.logger = get_logger(__name__)
         # Use deterministic RNG in test environment
-        self._use_deterministic_jitter = os.getenv(
-            "ALCHEMISER_TEST_MODE", ""
-        ).lower() in (
+        self._use_deterministic_jitter = os.getenv("ALCHEMISER_TEST_MODE", "").lower() in (
             "1",
             "true",
             "yes",
@@ -119,9 +117,7 @@ class MarketDataService(MarketDataPort):
 
             # Convert to BarModel list if needed
             if isinstance(bars_data, list):
-                return [
-                    self._convert_to_bar_model(bar, symbol_str) for bar in bars_data
-                ]
+                return [self._convert_to_bar_model(bar, symbol_str) for bar in bars_data]
 
             return []
 
@@ -136,9 +132,7 @@ class MarketDataService(MarketDataPort):
             # Re-raise with domain-appropriate error type
             from the_alchemiser.shared.errors.exceptions import DataProviderError
 
-            raise DataProviderError(
-                f"Market data fetch failed for {symbol}: {e}"
-            ) from e
+            raise DataProviderError(f"Market data fetch failed for {symbol}: {e}") from e
 
     def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Get latest quote with error handling.
@@ -159,9 +153,7 @@ class MarketDataService(MarketDataPort):
 
             # Fetch quote from Alpaca API
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol_str])
-            quotes = self._repo.get_data_client().get_stock_latest_quote(
-                request, timeout=API_TIMEOUT_SECONDS
-            )
+            quotes = self._repo.get_data_client().get_stock_latest_quote(request)
             quote = quotes.get(symbol_str)
 
             if not quote:
@@ -178,9 +170,7 @@ class MarketDataService(MarketDataPort):
             )
             return None
 
-    def _build_quote_model(
-        self, quote: Any, symbol: str
-    ) -> QuoteModel | None:  # noqa: ANN401
+    def _build_quote_model(self, quote: Any, symbol: str) -> QuoteModel | None:  # noqa: ANN401
         """Build QuoteModel from raw quote data with bid/ask fallback handling.
 
         Business Logic: When either bid or ask is missing, we use the available
@@ -206,12 +196,8 @@ class MarketDataService(MarketDataPort):
         timestamp = self._normalize_quote_timestamp(getattr(quote, "timestamp", None))
 
         # Check price validity and build appropriate quote
-        bid_valid = not math.isclose(
-            bid_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE
-        )
-        ask_valid = not math.isclose(
-            ask_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE
-        )
+        bid_valid = not math.isclose(bid_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE)
+        ask_valid = not math.isclose(ask_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE)
 
         if bid_valid and ask_valid:
             return self._create_quote_model(
@@ -401,7 +387,7 @@ class MarketDataService(MarketDataPort):
                 quote_dict = quote.model_dump()
                 # Ensure we have symbol in the output
                 quote_dict["symbol"] = symbol
-                return quote_dict
+                return quote_dict  # type: ignore[no-any-return]
             return None
         except (RetryException, HTTPError) as e:
             self._handle_api_error(e, symbol)
@@ -426,12 +412,10 @@ class MarketDataService(MarketDataPort):
 
         """
         request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-        quotes = self._repo.get_data_client().get_stock_latest_quote(
-            request, timeout=API_TIMEOUT_SECONDS
-        )
+        quotes = self._repo.get_data_client().get_stock_latest_quote(request)
         return quotes.get(symbol)
 
-    def _handle_api_error(self, error: Exception, symbol: str) -> None:
+    def _handle_api_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle Alpaca API errors.
 
         Args:
@@ -456,7 +440,7 @@ class MarketDataService(MarketDataPort):
         )
         raise RuntimeError(error_msg) from error
 
-    def _handle_network_error(self, error: Exception, symbol: str) -> None:
+    def _handle_network_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle network errors.
 
         Args:
@@ -496,9 +480,7 @@ class MarketDataService(MarketDataPort):
         """
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                return self._fetch_bars_with_request(
-                    symbol, start_date, end_date, timeframe
-                )
+                return self._fetch_bars_with_request(symbol, start_date, end_date, timeframe)
             except (RetryException, HTTPError, RequestException, Exception) as e:
                 if not self._should_retry_bars_fetch(e, attempt, symbol):
                     raise
@@ -541,15 +523,11 @@ class MarketDataService(MarketDataPort):
         )
 
         # Make API call and extract bars
-        response = self._repo.get_data_client().get_stock_bars(
-            request, timeout=API_TIMEOUT_SECONDS
-        )
+        response = self._repo.get_data_client().get_stock_bars(request)
         bars_obj = self._extract_bars_from_response_core(response, symbol)
 
         if not bars_obj:
-            if self._should_raise_missing_data_error_core(
-                start_date, end_date, timeframe, symbol
-            ):
+            if self._should_raise_missing_data_error_core(start_date, end_date, timeframe, symbol):
                 error_msg = f"No historical data returned for {symbol}"
                 # Treat as transient in retry path, many times this is upstream glitch
                 raise RuntimeError(error_msg)
@@ -558,9 +536,7 @@ class MarketDataService(MarketDataPort):
         # Convert bars to dictionaries and return
         return self._convert_bars_to_dicts_core(bars_obj, symbol)
 
-    def _should_retry_bars_fetch(
-        self, error: Exception, attempt: int, symbol: str
-    ) -> bool:
+    def _should_retry_bars_fetch(self, error: Exception, attempt: int, symbol: str) -> bool:
         """Determine if bars fetch should be retried.
 
         Args:
@@ -604,9 +580,7 @@ class MarketDataService(MarketDataPort):
             # Use seeded random for deterministic tests
             jitter = JITTER_BASE + JITTER_FACTOR * (attempt / MAX_RETRIES)
         else:
-            jitter = JITTER_BASE + JITTER_FACTOR * (
-                randbelow(JITTER_DIVISOR) / JITTER_DIVISOR
-            )
+            jitter = JITTER_BASE + JITTER_FACTOR * (randbelow(JITTER_DIVISOR) / JITTER_DIVISOR)
 
         sleep_s = BASE_SLEEP_SECONDS * (2 ** (attempt - 1)) * jitter
 
@@ -644,9 +618,7 @@ class MarketDataService(MarketDataPort):
 
         # If no mapping found, raise error for invalid input
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
-        raise ValueError(
-            f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}"
-        )
+        raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
 
     def _period_to_dates(self, period: str) -> tuple[str, str]:
         """Convert period string to start and end dates.
@@ -717,9 +689,7 @@ class MarketDataService(MarketDataPort):
             return TIMEFRAME_MAP[timeframe_lower][1]  # Return TimeFrame object
 
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
-        raise ValueError(
-            f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}"
-        )
+        raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
 
     def _extract_bars_from_response_core(
         self, response: object, symbol: str
@@ -753,9 +723,7 @@ class MarketDataService(MarketDataPort):
 
         return bars_obj
 
-    def _convert_bars_to_dicts_core(
-        self, bars_obj: Any, symbol: str
-    ) -> list[dict[str, Any]]:  # noqa: ANN401
+    def _convert_bars_to_dicts_core(self, bars_obj: Any, symbol: str) -> list[dict[str, Any]]:  # noqa: ANN401
         """Convert bars object to list of dictionaries using Pydantic model_dump.
 
         Args:
@@ -818,9 +786,7 @@ class MarketDataService(MarketDataPort):
         )
         return False
 
-    def _convert_to_bar_model(
-        self, bar_data: Any, symbol: str
-    ) -> BarModel:  # noqa: ANN401
+    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:  # noqa: ANN401
         """Convert raw bar data to BarModel.
 
         Args:
@@ -845,9 +811,7 @@ class MarketDataService(MarketDataPort):
 
             return BarModel(
                 symbol=symbol,
-                timestamp=(
-                    timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)
-                ),
+                timestamp=(timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)),
                 open=Decimal(str(open_price)),
                 high=Decimal(str(high_price)),
                 low=Decimal(str(low_price)),
@@ -856,6 +820,4 @@ class MarketDataService(MarketDataPort):
             )
 
         # This should not happen with clean Pydantic model_dump() data
-        raise ValueError(
-            f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}"
-        )
+        raise ValueError(f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}")

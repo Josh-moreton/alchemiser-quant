@@ -67,26 +67,18 @@ class ExecutedOrder(BaseModel):
 
     order_id: str = Field(..., min_length=1, description="Unique order identifier")
     symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol")
-    action: Literal["BUY", "SELL"] = Field(
-        ..., description="Trading action (BUY, SELL)"
-    )
+    action: Literal["BUY", "SELL"] = Field(..., description="Trading action (BUY, SELL)")
     quantity: Decimal = Field(..., gt=0, description="Order quantity")
     filled_quantity: Decimal = Field(..., ge=0, description="Filled quantity")
     price: Decimal = Field(..., gt=0, description="Execution price")
     total_value: Decimal = Field(..., gt=0, description="Total execution value")
-    status: str = Field(
-        ..., description="Order status (FILLED, PARTIAL, REJECTED, etc.)"
-    )
+    status: str = Field(..., description="Order status (FILLED, PARTIAL, REJECTED, etc.)")
     execution_timestamp: datetime = Field(..., description="Order execution timestamp")
 
     # Optional fields
-    commission: Decimal | None = Field(
-        default=None, ge=0, description="Commission paid"
-    )
+    commission: Decimal | None = Field(default=None, ge=0, description="Commission paid")
     fees: Decimal | None = Field(default=None, ge=0, description="Additional fees")
-    error_message: str | None = Field(
-        default=None, description="Error message if failed"
-    )
+    error_message: str | None = Field(default=None, description="Error message if failed")
 
     @field_validator("symbol")
     @classmethod
@@ -128,9 +120,7 @@ class ExecutedOrder(BaseModel):
         }
         status_upper = v.strip().upper()
         if status_upper not in valid_statuses:
-            raise ValueError(
-                f"Status must be one of {valid_statuses}, got '{status_upper}'"
-            )
+            raise ValueError(f"Status must be one of {valid_statuses}, got '{status_upper}'")
         return status_upper
 
     @field_validator("execution_timestamp")
@@ -197,21 +187,15 @@ class ExecutionReport(BaseModel):
     )
 
     # Required correlation fields
-    correlation_id: str = Field(
-        ..., min_length=1, description="Unique correlation identifier"
-    )
+    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
     timestamp: datetime = Field(..., description="Report generation timestamp")
 
     # Report identification
-    execution_id: str = Field(
-        ..., min_length=1, description="Unique execution identifier"
-    )
-    session_id: str | None = Field(
-        default=None, description="Trading session identifier"
-    )
+    execution_id: str = Field(..., min_length=1, description="Unique execution identifier")
+    session_id: str | None = Field(default=None, description="Trading session identifier")
 
     # Execution summary
     total_orders: int = Field(..., ge=0, description="Total number of orders")
@@ -248,12 +232,8 @@ class ExecutionReport(BaseModel):
     )
 
     # Optional metadata
-    broker_used: str | None = Field(
-        default=None, description="Broker used for execution"
-    )
-    execution_strategy: str | None = Field(
-        default=None, description="Execution strategy used"
-    )
+    broker_used: str | None = Field(default=None, description="Broker used for execution")
+    execution_strategy: str | None = Field(default=None, description="Execution strategy used")
     market_conditions: str | None = Field(
         default=None, description="Market conditions during execution"
     )
@@ -263,9 +243,7 @@ class ExecutionReport(BaseModel):
 
     @field_validator("timestamp", "execution_start_time", "execution_end_time")
     @classmethod
-    def ensure_timezone_aware_timestamps(
-        cls, v: datetime, info: ValidationInfo
-    ) -> datetime:
+    def ensure_timezone_aware_timestamps(cls, v: datetime, info: ValidationInfo) -> datetime:
         """Ensure timestamp is timezone-aware.
 
         Args:

@@ -56,7 +56,7 @@ import uuid
 import warnings
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from dotenv import load_dotenv
 
@@ -345,7 +345,7 @@ class RealTimePricingService:
             quote_values = self._data_processor.extract_quote_values(data)
             timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
 
-            await self._data_processor.log_quote_debug(
+            self._data_processor.log_quote_debug(
                 symbol, quote_values.bid_price, quote_values.ask_price
             )
 
@@ -374,7 +374,7 @@ class RealTimePricingService:
                     "error_type": type(e).__name__,
                 },
             )
-            await self._data_processor.handle_quote_error(e)
+            self._data_processor.handle_quote_error(e)
         except Exception as e:
             self.logger.exception(
                 "Unexpected error processing quote",
@@ -383,7 +383,7 @@ class RealTimePricingService:
                     "symbol": symbol if "symbol" in locals() else None,
                 },
             )
-            await self._data_processor.handle_quote_error(e)
+            self._data_processor.handle_quote_error(e)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream with async processing optimizations."""
@@ -546,7 +546,7 @@ class RealTimePricingService:
             "uptime_seconds": uptime,
         }
 
-    def _get_feed(self) -> str:
+    def _get_feed(self) -> Literal["iex", "sip"]:
         """Resolve the Alpaca data feed to use.
 
         Allows overriding via env vars `ALPACA_FEED` or `ALPACA_DATA_FEED`.
@@ -559,7 +559,7 @@ class RealTimePricingService:
                 extra={"correlation_id": self._correlation_id},
             )
             return "iex"
-        return feed
+        return feed  # type: ignore[return-value]
 
     # Subscription methods (delegate to subscription manager)
 
