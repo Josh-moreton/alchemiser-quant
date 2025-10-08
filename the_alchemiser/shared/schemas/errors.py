@@ -251,12 +251,8 @@ class ErrorReportSummary(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    critical: ErrorSummaryData | None = Field(
-        default=None, description="Critical system errors."
-    )
-    trading: ErrorSummaryData | None = Field(
-        default=None, description="Trading execution errors."
-    )
+    critical: ErrorSummaryData | None = Field(default=None, description="Critical system errors.")
+    trading: ErrorSummaryData | None = Field(default=None, description="Trading execution errors.")
     data: ErrorSummaryData | None = Field(
         default=None, description="Data provider/market data errors."
     )
@@ -269,9 +265,7 @@ class ErrorReportSummary(BaseModel):
     notification: ErrorSummaryData | None = Field(
         default=None, description="Notification system errors."
     )
-    warning: ErrorSummaryData | None = Field(
-        default=None, description="Warning-level issues."
-    )
+    warning: ErrorSummaryData | None = Field(default=None, description="Warning-level issues.")
     schema_version: Literal["1.0"] = Field(
         default="1.0", description="Schema version for compatibility tracking."
     )

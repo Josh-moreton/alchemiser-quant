@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
@@ -98,7 +98,7 @@ def create_failure_result(
         ),
         orders=[],
         warnings=[*warnings, error_message],
-        trading_mode=TRADING_MODE_UNKNOWN,
+        trading_mode=TRADING_MODE_UNKNOWN,  # type: ignore[arg-type]
         started_at=started_at,
         completed_at=completed_at,
         correlation_id=correlation_id,
@@ -152,7 +152,10 @@ def create_success_result(
     if not isinstance(trading_result, dict):
         logger.error(
             "Invalid trading_result type",
-            extra={"correlation_id": correlation_id, "type": type(trading_result).__name__},
+            extra={
+                "correlation_id": correlation_id,
+                "type": type(trading_result).__name__,
+            },
         )
         raise ValueError(f"trading_result must be dict, got {type(trading_result).__name__}")
 
@@ -169,7 +172,10 @@ def create_success_result(
     if not isinstance(orders_executed, list):
         logger.error(
             "Invalid orders_executed type",
-            extra={"correlation_id": correlation_id, "type": type(orders_executed).__name__},
+            extra={
+                "correlation_id": correlation_id,
+                "type": type(orders_executed).__name__,
+            },
         )
         raise ValueError(f"orders_executed must be list, got {type(orders_executed).__name__}")
 
@@ -282,7 +288,7 @@ def _create_single_order_result(
         raise ValueError(f"Invalid filled_avg_price type: {type(filled_price).__name__}")
 
     trade_amount = _calculate_trade_amount(order, qty, filled_price)
-    
+
     # Map action to OrderAction Literal type
     side = order.get("side", "").upper()
     action: OrderAction = "BUY" if side == "BUY" else "SELL"
@@ -302,7 +308,7 @@ def _create_single_order_result(
 
 
 def _calculate_trade_amount(
-    order: dict[str, Any], qty: Decimal, filled_price: float | None
+    order: dict[str, Any], qty: Decimal, filled_price: int | float | Decimal | None
 ) -> Decimal:
     """Calculate trade amount from order data.
 
@@ -355,7 +361,9 @@ def _calculate_execution_summary(
     )
 
 
-def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummary) -> ExecutionStatus:
+def _determine_execution_status(
+    *, success: bool, execution_summary: ExecutionSummary
+) -> ExecutionStatus:
     """Determine execution status based on success flag and summary.
 
     Args:
@@ -383,4 +391,7 @@ def _determine_trading_mode(orchestrator: TradingModeProvider) -> TradingMode:
         Trading mode string: "LIVE" or "PAPER"
 
     """
-    return TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER
+    mode_str = (
+        TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER
+    )
+    return cast(TradingMode, mode_str)

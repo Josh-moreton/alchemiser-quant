@@ -165,7 +165,11 @@ class MarketBar(BaseModel):
 
         # Convert string decimal fields back to Decimal
         for field_name in _DECIMAL_FIELDS:
-            if field_name in data and data[field_name] is not None and isinstance(data[field_name], str):
+            if (
+                field_name in data
+                and data[field_name] is not None
+                and isinstance(data[field_name], str)
+            ):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError, Exception) as e:
