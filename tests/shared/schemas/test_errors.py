@@ -27,7 +27,7 @@ class TestErrorDetailInfo:
         error = ErrorDetailInfo(
             error_type="ValueError",
             error_message="Invalid input",
-            category="TRADING",
+            category="trading",
             context="order_execution",
             component="execution_v2",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -36,7 +36,7 @@ class TestErrorDetailInfo:
 
         assert error.error_type == "ValueError"
         assert error.error_message == "Invalid input"
-        assert error.category == "TRADING"
+        assert error.category == "trading"
         assert error.context == "order_execution"
         assert error.component == "execution_v2"
         assert error.timestamp == "2025-10-08T12:00:00+00:00"
@@ -49,7 +49,7 @@ class TestErrorDetailInfo:
         error = ErrorDetailInfo(
             error_type="OrderExecutionError",
             error_message="Insufficient funds",
-            category="TRADING",
+            category="trading",
             context="place_order",
             component="execution_v2",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -66,7 +66,7 @@ class TestErrorDetailInfo:
         error = ErrorDetailInfo(
             error_type="ValueError",
             error_message="Test",
-            category="TRADING",
+            category="trading",
             context="test",
             component="test",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -86,7 +86,7 @@ class TestErrorDetailInfo:
         error = ErrorDetailInfo(
             error_type="ValueError",
             error_message="Test",
-            category="TRADING",
+            category="trading",
             context="test",
             component="test",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -102,7 +102,7 @@ class TestErrorDetailInfo:
         error = ErrorDetailInfo(
             error_type="ValueError",
             error_message="Test error",
-            category="DATA",
+            category="data",
             context="data_fetch",
             component="market_data",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -113,7 +113,7 @@ class TestErrorDetailInfo:
         data = error.model_dump()
         assert data["error_type"] == "ValueError"
         assert data["error_message"] == "Test error"
-        assert data["category"] == "DATA"
+        assert data["category"] == "data"
         assert data["additional_data"] == {"source": "alpaca"}
         assert data["suggested_action"] is None
 
@@ -122,7 +122,7 @@ class TestErrorDetailInfo:
         data = {
             "error_type": "ConfigurationError",
             "error_message": "Missing API key",
-            "category": "CONFIGURATION",
+            "category": "configuration",
             "context": "initialization",
             "component": "config_loader",
             "timestamp": "2025-10-08T12:00:00+00:00",
@@ -141,7 +141,7 @@ class TestErrorDetailInfo:
             ErrorDetailInfo(
                 error_type="ValueError",
                 error_message="Test",
-                category="TRADING",
+                category="trading",
                 # Missing context, component, timestamp, traceback
             )  # type: ignore
 
@@ -162,7 +162,7 @@ class TestErrorSummaryData:
         error1 = ErrorDetailInfo(
             error_type="ValueError",
             error_message="Error 1",
-            category="TRADING",
+            category="trading",
             context="test",
             component="test",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -171,7 +171,7 @@ class TestErrorSummaryData:
         error2 = ErrorDetailInfo(
             error_type="TypeError",
             error_message="Error 2",
-            category="TRADING",
+            category="trading",
             context="test",
             component="test",
             timestamp="2025-10-08T12:01:00+00:00",
@@ -202,7 +202,7 @@ class TestErrorSummaryData:
         error = ErrorDetailInfo(
             error_type="ValueError",
             error_message="Nested error",
-            category="STRATEGY",
+            category="strategy",
             context="signal_generation",
             component="strategy_v2",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -457,7 +457,7 @@ class TestComplexNestedScenarios:
         error1 = ErrorDetailInfo(
             error_type="InsufficientFundsError",
             error_message="Account balance too low",
-            category="TRADING",
+            category="trading",
             context="order_placement",
             component="execution_v2",
             timestamp="2025-10-08T12:00:00+00:00",
@@ -469,7 +469,7 @@ class TestComplexNestedScenarios:
         error2 = ErrorDetailInfo(
             error_type="MarketDataError",
             error_message="Quote stale",
-            category="DATA",
+            category="data",
             context="price_fetch",
             component="market_data",
             timestamp="2025-10-08T12:01:00+00:00",
@@ -524,7 +524,7 @@ class TestComplexNestedScenarios:
         original = ErrorDetailInfo(
             error_type="TestError",
             error_message="Test message",
-            category="TESTING",
+            category="warning",
             context="test_context",
             component="test_component",
             timestamp="2025-10-08T12:00:00+00:00",
