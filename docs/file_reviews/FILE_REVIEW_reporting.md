@@ -360,47 +360,50 @@ Consumed by:
 ## 9) Conclusion
 
 ### Overall Assessment
-**Status**: ⚠️ **REQUIRES FIXES** - High priority issues present
+**Status**: ✅ **REFACTORED AND SIMPLIFIED**
 
-The `reporting.py` file is **structurally sound** and follows Pydantic best practices for immutability and validation. However, it has **critical compliance issues** with the Alchemiser Copilot Instructions:
+Following audit completion, the user determined that the dashboard and monthly email functionality were no longer needed. The refactoring proceeded as follows:
 
-1. **CRITICAL**: Uses `float` for monetary values instead of `Decimal` (HIGH priority violation)
-2. **MEDIUM**: Missing field validation constraints on financial metrics
-3. **LOW**: Missing test coverage
+### Post-Audit Refactoring (2025-01-08)
 
-### Migration Path
-The file was successfully migrated from TypedDict to Pydantic (v2.13.0), but the migration did **not convert float → Decimal** for financial values. This must be addressed.
+**Actions Taken:**
+1. ✅ Extracted `EmailCredentials` to new `shared/schemas/notifications.py` module
+2. ✅ Removed entire `reporting.py` file (~295 lines) containing unused DTOs:
+   - `DashboardMetrics`, `ReportingData`, `EmailReportData`, `EmailSummary`
+   - `BacktestResult`, `PerformanceMetrics`, `MonthlySummaryDTO`
+3. ✅ Removed `tests/shared/schemas/test_reporting.py` (~546 lines, 31 tests)
+4. ✅ Removed `shared/notifications/templates/monthly.py` (~200 lines)
+5. ✅ Removed `tests/shared/notifications/test_monthly_summary_email.py`
+6. ✅ Updated imports in `client.py` and `config.py` to use new location
+7. ✅ Deprecated `monthly_financial_summary` method in `email_facade.py`
 
-### Breaking Changes Required
-Converting float → Decimal is a **BREAKING CHANGE** that requires:
-1. Update all DTOs in this file
-2. Update consuming code in:
-   - shared.notifications.client.EmailClient
-   - shared.notifications.templates.monthly.MonthlySummaryEmailBuilder
-   - Any dashboard/reporting display logic
-3. Increment version per semantic versioning (MINOR or MAJOR)
+**Impact:**
+- **~1000+ lines of code removed** (DTOs, tests, templates)
+- **EmailCredentials preserved** in appropriate location (`shared/schemas/notifications.py`)
+- Email notification infrastructure remains functional
+- Monthly P&L analysis in `pnl_service.py` remains (separate from email functionality)
 
-### Action Items
-1. ✅ Create this audit document
-2. 🔴 Fix float → Decimal conversion (HIGH priority)
-3. ⚠️ Add field validation constraints
-4. ⚠️ Add validate_assignment=True consistently
-5. ⚠️ Create test suite for reporting DTOs
-6. ⚠️ Add docstring examples
-7. ⚠️ Update version number per Copilot Instructions
+### Original Audit Summary
 
-### Compliance Score
-- **Structure**: 9/10 (excellent Pydantic usage)
-- **Type Safety**: 5/10 (wrong types used for money)
-- **Validation**: 6/10 (some constraints, missing others)
-- **Documentation**: 7/10 (good docstrings, missing examples)
-- **Testing**: 2/10 (no test file)
-- **Security**: 9/10 (proper sensitive data handling)
+The `reporting.py` file was **structurally sound** and followed Pydantic best practices for immutability and validation. The audit identified **critical compliance issues** with the Alchemiser Copilot Instructions:
 
-**Overall**: 6.3/10 - **REQUIRES FIXES** before production use with financial calculations
+1. **CRITICAL**: Used `float` for monetary values instead of `Decimal` (HIGH priority violation) - **FIXED**
+2. **MEDIUM**: Missing field validation constraints on financial metrics - **FIXED**
+3. **LOW**: Missing test coverage - **FIXED**
+
+All issues were resolved with float → Decimal conversion, enhanced validation, and comprehensive test coverage before the file was subsequently removed.
+
+### Final Status
+
+**Refactoring Complete**: ✅
+- Unused reporting DTOs removed
+- Core email functionality preserved via `EmailCredentials`
+- Codebase simplified by ~1000 lines
+- All linting and type checking passing
 
 ---
 
 **Audit completed**: 2025-01-08  
+**Refactoring completed**: 2025-01-08  
 **Reviewed by**: AI Agent (GitHub Copilot)  
-**Next review**: After fixes implemented
+**Status**: File removed; EmailCredentials migrated to shared/schemas/notifications.py
