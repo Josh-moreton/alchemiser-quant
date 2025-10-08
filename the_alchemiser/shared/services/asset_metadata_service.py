@@ -99,7 +99,7 @@ class AssetMetadataService:
         self._asset_cache_ttl = asset_cache_ttl
         self._max_cache_size = max_cache_size
         self._asset_cache_lock = threading.Lock()
-        
+
         # Metrics
         self._cache_hits = 0
         self._cache_misses = 0
@@ -133,7 +133,7 @@ class AssetMetadataService:
 
     def _evict_lru_if_needed(self) -> None:
         """Evict least recently used cache entry if cache is full.
-        
+
         Must be called within cache lock.
         """
         if len(self._asset_cache) >= self._max_cache_size:
@@ -152,52 +152,53 @@ class AssetMetadataService:
 
     @with_rate_limiting
     @with_timeout(10.0)
-    def _fetch_asset_from_api(self, symbol: str) -> Any:
+    def _fetch_asset_from_api(self, symbol: str) -> Any:  # noqa: ANN401
         """Fetch asset from API with rate limiting and timeout.
-        
+
         Args:
             symbol: Symbol to fetch
-            
+
         Returns:
             Asset object from API
-            
+
         Raises:
             RateLimitError: If rate limit exceeded
             TradingClientError: If API call fails
+
         """
         return self._trading_client.get_asset(symbol)
 
     @with_rate_limiting
     @with_timeout(10.0)
-    def _fetch_clock_from_api(self) -> Any:
+    def _fetch_clock_from_api(self) -> Any:  # noqa: ANN401
         """Fetch market clock from API with rate limiting and timeout.
-        
+
         Returns:
             Clock object from API
-            
+
         Raises:
             RateLimitError: If rate limit exceeded
             TradingClientError: If API call fails
+
         """
         return self._trading_client.get_clock()
 
     @with_rate_limiting
     @with_timeout(15.0)
-    def _fetch_calendar_from_api(self) -> Any:
+    def _fetch_calendar_from_api(self) -> Any:  # noqa: ANN401
         """Fetch market calendar from API with rate limiting and timeout.
-        
+
         Returns:
             Calendar data from API
-            
+
         Raises:
             RateLimitError: If rate limit exceeded
             TradingClientError: If API call fails
+
         """
         return self._trading_client.get_calendar()
 
-    def get_asset_info(
-        self, symbol: str, *, correlation_id: str | None = None
-    ) -> AssetInfo | None:
+    def get_asset_info(self, symbol: str, *, correlation_id: str | None = None) -> AssetInfo | None:
         """Get asset information with caching.
 
         Args:
@@ -214,7 +215,7 @@ class AssetMetadataService:
 
         """
         symbol_upper = self._validate_symbol(symbol)
-        
+
         log_context = {"symbol": symbol_upper}
         if correlation_id:
             log_context["correlation_id"] = correlation_id
@@ -313,13 +314,13 @@ class AssetMetadataService:
                 error_type=type(e).__name__,
                 **log_context,
             )
-            
+
             # Check if it's a not found case
             if "not found" in str(e).lower() or "404" in str(e):
                 # Asset doesn't exist - return None
                 logger.info("Asset not found", symbol=symbol_upper, **log_context)
                 return None
-            
+
             # Re-raise as TradingClientError with context
             raise TradingClientError(error_msg) from e
 
@@ -344,7 +345,7 @@ class AssetMetadataService:
             log_context["correlation_id"] = correlation_id
 
         asset_info = self.get_asset_info(symbol, correlation_id=correlation_id)
-        
+
         if asset_info is None:
             # Asset not found - this is a critical path, don't default to True
             error_msg = f"Cannot determine fractionability for {symbol}: asset not found"
@@ -353,7 +354,7 @@ class AssetMetadataService:
                 error_msg,
                 context={"symbol": symbol, "operation": "fractionability_check"},
             )
-        
+
         return asset_info.fractionable
 
     def is_market_open(self, *, correlation_id: str | None = None) -> bool:
@@ -376,7 +377,7 @@ class AssetMetadataService:
         try:
             clock = self._fetch_clock_from_api()
             is_open = getattr(clock, "is_open", False)
-            
+
             logger.debug(
                 "Market status checked",
                 is_open=is_open,
@@ -421,7 +422,7 @@ class AssetMetadataService:
 
         try:
             calendar = self._fetch_calendar_from_api()
-            
+
             # Convert to list of dictionaries
             result = [
                 {
@@ -431,7 +432,7 @@ class AssetMetadataService:
                 }
                 for day in calendar
             ]
-            
+
             logger.debug(
                 "Market calendar retrieved",
                 entries_count=len(result),
@@ -481,9 +482,7 @@ class AssetMetadataService:
             )
 
             total_requests = self._cache_hits + self._cache_misses
-            hit_ratio = (
-                self._cache_hits / total_requests if total_requests > 0 else 0.0
-            )
+            hit_ratio = self._cache_hits / total_requests if total_requests > 0 else 0.0
 
             return CacheStats(
                 total_cached=len(self._asset_cache),

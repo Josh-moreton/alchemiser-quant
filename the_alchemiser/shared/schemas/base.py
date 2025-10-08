@@ -39,6 +39,7 @@ class Result(BaseModel):
         - Immutable (frozen=True) - cannot be modified after creation
         - Strict validation (strict=True) - type coercion disabled
         - Widely subclassed (23+ subclasses across the system)
+
     """
 
     model_config = ConfigDict(strict=True, frozen=True, validate_assignment=True)
@@ -54,6 +55,7 @@ class Result(BaseModel):
 
         Returns:
             bool: True if operation succeeded, False otherwise.
+
         """
         return self.success
 
