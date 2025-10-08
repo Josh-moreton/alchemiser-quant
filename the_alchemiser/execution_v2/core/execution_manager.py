@@ -202,9 +202,7 @@ class ExecutionManager:
                 "orders_placed": result.orders_placed,
                 "orders_succeeded": result.orders_succeeded,
                 "status": (
-                    result.status.value
-                    if hasattr(result.status, "value")
-                    else str(result.status)
+                    result.status.value if hasattr(result.status, "value") else str(result.status)
                 ),
             },
         )

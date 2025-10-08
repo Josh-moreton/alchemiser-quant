@@ -49,6 +49,7 @@ This file now serves as the main orchestrator, delegating to these components.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -204,9 +205,7 @@ class RealTimePricingService:
                 # Start cleanup thread
                 self._price_store.start_cleanup(
                     is_connected_callback=lambda: (
-                        self._stream_manager.is_connected()
-                        if self._stream_manager
-                        else False
+                        self._stream_manager.is_connected() if self._stream_manager else False
                     )
                 )
                 self.logger.info("✅ Real-time pricing service started successfully")
@@ -252,9 +251,7 @@ class RealTimePricingService:
                 return
 
             quote_values = self._data_processor.extract_quote_values(data)
-            timestamp = self._data_processor.get_quote_timestamp(
-                quote_values.timestamp_raw
-            )
+            timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
 
             try:
                 await self._data_processor.log_quote_debug(
@@ -264,10 +261,7 @@ class RealTimePricingService:
                 # Event loop executor has shut down - gracefully ignore
                 return
 
-            if (
-                quote_values.bid_price is not None
-                and quote_values.ask_price is not None
-            ):
+            if quote_values.bid_price is not None and quote_values.ask_price is not None:
                 try:
                     # Use asyncio.to_thread for potentially blocking lock operations
                     await asyncio.to_thread(
@@ -290,11 +284,9 @@ class RealTimePricingService:
             # Event loop executor has shut down during error handling - gracefully ignore
             pass
         except Exception as e:
-            try:
-                await self._data_processor.handle_quote_error(e)
-            except RuntimeError:
+            with contextlib.suppress(RuntimeError):
                 # Event loop executor has shut down - gracefully ignore
-                pass
+                await self._data_processor.handle_quote_error(e)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream with async processing optimizations."""
@@ -399,9 +391,7 @@ class RealTimePricingService:
         """
         return self._price_store.get_real_time_price(symbol)
 
-    def get_bid_ask_spread(
-        self, symbol: str
-    ) -> tuple[Decimal | float, Decimal | float] | None:
+    def get_bid_ask_spread(self, symbol: str) -> tuple[Decimal | float, Decimal | float] | None:
         """Get current bid/ask spread for a symbol.
 
         Args:
@@ -421,9 +411,7 @@ class RealTimePricingService:
         """Get service statistics."""
         last_hb = self._datetime_stats.get("last_heartbeat")
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds()
-            if isinstance(last_hb, datetime)
-            else 0
+            (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
         )
 
         # Combine stats from all components
@@ -447,9 +435,7 @@ class RealTimePricingService:
         """
         import os
 
-        feed = (
-            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
-        ).lower()
+        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
             return "iex"
@@ -484,9 +470,7 @@ class RealTimePricingService:
         subscription_plan = self._subscription_manager.plan_bulk_subscription(
             normalized_symbols, priority
         )
-        self._subscription_manager.execute_subscription_plan(
-            subscription_plan, priority
-        )
+        self._subscription_manager.execute_subscription_plan(subscription_plan, priority)
 
         if subscription_plan.successfully_added > 0 and self.is_connected():
             self.logger.info(
