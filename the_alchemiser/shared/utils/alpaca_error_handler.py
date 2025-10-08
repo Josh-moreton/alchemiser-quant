@@ -401,10 +401,14 @@ class AlpacaErrorHandler:
         from datetime import UTC, datetime
         from decimal import Decimal
 
+        # Ensure action is a valid Literal type
+        action_str = side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY"
+        action: Literal["BUY", "SELL"] = action_str  # type: ignore[assignment]
+
         return ExecutedOrder(
             order_id=order_id,
             symbol=symbol.upper() if symbol else "UNKNOWN",
-            action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
+            action=action,
             quantity=Decimal(str(qty)) if qty and qty > 0 else Decimal("0.01"),
             filled_quantity=Decimal("0"),
             price=Decimal("0.01"),

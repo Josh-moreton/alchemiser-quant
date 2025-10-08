@@ -96,6 +96,7 @@ class AlpacaTradingService:
 
         Thread Safety:
             Safe to call from any thread. WebSocket initialization is lazy.
+
         """
         self._trading_client = trading_client
         self._websocket_manager = websocket_manager
@@ -113,7 +114,6 @@ class AlpacaTradingService:
             mode="paper" if paper_trading else "live",
         )
 
-
     def cleanup(self) -> None:
         """Release WebSocket resources.
 
@@ -127,6 +127,7 @@ class AlpacaTradingService:
 
         Raises:
             Logs errors but does not raise exceptions to ensure cleanup completes.
+
         """
         if self._trading_service_active:
             try:
@@ -201,6 +202,7 @@ class AlpacaTradingService:
         Side Effects:
             - Ensures WebSocket trading stream is active
             - Registers order with OrderTracker for monitoring
+
         """
         try:
             self._ensure_trading_stream()
@@ -254,6 +256,7 @@ class AlpacaTradingService:
             by design. Position data access should be handled by the calling code (AlpacaManager)
             which calls _adjust_quantity_for_complete_exit() before delegating to this service.
             This maintains proper separation of concerns between trading operations and position management.
+
         """
 
         def _place_order() -> ExecutedOrder:
@@ -324,6 +327,7 @@ class AlpacaTradingService:
             - Limit price must be positive
             - Side must be 'buy' or 'sell'
             - time_in_force must be valid ('day', 'gtc', 'ioc', 'fok')
+
         """
         try:
             # Validate inputs
@@ -391,6 +395,7 @@ class AlpacaTradingService:
         Note:
             If the order is already in a terminal state (filled, cancelled, etc.),
             this is treated as a successful cancellation.
+
         """
         try:
             self._trading_client.cancel_order_by_id(order_id)
@@ -453,6 +458,7 @@ class AlpacaTradingService:
 
         Side Effects:
             Cancels all open orders (or symbol-filtered orders) via Alpaca API
+
         """
         try:
             if symbol:
@@ -509,6 +515,7 @@ class AlpacaTradingService:
         Pre-conditions:
             - order_id must be a valid existing order ID
             - If order_data is provided, it must contain valid update parameters
+
         """
         try:
             updated_order = self._trading_client.replace_order_by_id(order_id, order_data)
@@ -545,6 +552,7 @@ class AlpacaTradingService:
 
         Note:
             Returns all orders if status is None or not recognized.
+
         """
         try:
             if status == "open":
@@ -555,6 +563,9 @@ class AlpacaTradingService:
                 request = GetOrdersRequest()
 
             orders = self._trading_client.get_orders(request)
+            # API can return list or dict, ensure we have a list
+            if isinstance(orders, dict):
+                return []
             return list(orders)
         except Exception as e:
             logger.error(
@@ -580,6 +591,7 @@ class AlpacaTradingService:
 
         Raises:
             Does not raise - returns OrderExecutionResult with error on failure
+
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
@@ -612,6 +624,7 @@ class AlpacaTradingService:
 
         Raises:
             Does not raise - returns None on failure
+
         """
         try:
             # Use the place_market_order method which returns ExecutedOrder
@@ -637,9 +650,7 @@ class AlpacaTradingService:
             )
             return None
 
-    def liquidate_position(
-        self, symbol: str, *, correlation_id: str | None = None
-    ) -> str | None:
+    def liquidate_position(self, symbol: str, *, correlation_id: str | None = None) -> str | None:
         """Liquidate entire position using close_position API.
 
         Closes the entire position for the specified symbol by placing a market order
@@ -658,6 +669,7 @@ class AlpacaTradingService:
         Note:
             Uses Alpaca's close_position endpoint which automatically determines
             the correct quantity and side based on current position.
+
         """
         try:
             order = self._trading_client.close_position(symbol)
@@ -699,6 +711,7 @@ class AlpacaTradingService:
         Side Effects:
             - Cancels all open orders if cancel_orders=True
             - Places market orders to close all positions
+
         """
         try:
             logger.info(
@@ -754,6 +767,7 @@ class AlpacaTradingService:
         Note:
             Uses WebSocket for primary monitoring with polling fallback.
             Sleep interval is POLL_INTERVAL_SECONDS (0.3s) between polls.
+
         """
         completed_orders: list[str] = []
         start_time = time.time()
@@ -845,7 +859,7 @@ class AlpacaTradingService:
         return ExecutedOrder(
             order_id="FAILED",  # Must be non-empty
             symbol=symbol,
-            action=action,
+            action=action,  # type: ignore[arg-type]
             quantity=MIN_ORDER_QUANTITY,  # Must be > 0
             filled_quantity=Decimal("0"),
             price=MIN_ORDER_PRICE,
@@ -1114,6 +1128,7 @@ class AlpacaTradingService:
         Post-conditions:
             - _trading_service_active is set to True if successful, False otherwise
             - WebSocket trading stream is active if successful
+
         """
         if self._trading_service_active:
             return
@@ -1146,6 +1161,7 @@ class AlpacaTradingService:
 
         Note:
             Async method that yields control to event loop. Errors are logged but not raised.
+
         """
         # Yield control to event loop for proper async behavior
         await asyncio.sleep(0)
@@ -1179,6 +1195,7 @@ class AlpacaTradingService:
 
         Returns:
             Tuple of (event_type, order_id, status), with empty/None values on failure
+
         """
         try:
             # Handle SDK model objects
@@ -1228,6 +1245,7 @@ class AlpacaTradingService:
         Side Effects:
             - Removes completed order IDs from order_ids list
             - Appends completed order IDs to completed_orders list
+
         """
         for order_id in list(order_ids):  # Create copy to avoid modification during iteration
             try:
@@ -1254,6 +1272,7 @@ class AlpacaTradingService:
 
         Note:
             Uses module-level constant TERMINAL_ORDER_STATUSES for terminal states.
+
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)

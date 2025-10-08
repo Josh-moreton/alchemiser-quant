@@ -24,7 +24,7 @@ from pydantic import ConfigDict, field_validator
 from the_alchemiser.shared.schemas.base import Result
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.value_objects.core_types import OrderStatusLiteral
+    pass
 
 
 class TerminalOrderError(str, Enum):
@@ -42,7 +42,7 @@ class TerminalOrderError(str, Enum):
 
 class OperationResult(Result):
     """Generic DTO for operation results with success/error handling.
-    
+
     Examples:
         >>> result = OperationResult(success=True, error=None)
         >>> result = OperationResult(
@@ -50,6 +50,7 @@ class OperationResult(Result):
         ...     error="Operation failed",
         ...     details={"reason": "timeout", "code": "500"}
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -63,7 +64,7 @@ class OperationResult(Result):
 
 class OrderCancellationResult(Result):
     """DTO for order cancellation results.
-    
+
     Examples:
         >>> result = OrderCancellationResult(
         ...     success=True,
@@ -75,6 +76,7 @@ class OrderCancellationResult(Result):
         ...     error="already_filled",
         ...     order_id="order-456"
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -96,7 +98,7 @@ class OrderCancellationResult(Result):
 
 class OrderStatusResult(Result):
     """DTO for order status query results.
-    
+
     Examples:
         >>> result = OrderStatusResult(
         ...     success=True,
@@ -104,6 +106,7 @@ class OrderStatusResult(Result):
         ...     order_id="order-123",
         ...     status="filled"
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -135,7 +138,7 @@ def __getattr__(name: str) -> type:
             stacklevel=2,
         )
         return OperationResult
-    elif name == "OrderCancellationDTO":
+    if name == "OrderCancellationDTO":
         warnings.warn(
             "OrderCancellationDTO is deprecated, use OrderCancellationResult instead. "
             "Will be removed in version 3.0.0",
@@ -143,7 +146,7 @@ def __getattr__(name: str) -> type:
             stacklevel=2,
         )
         return OrderCancellationResult
-    elif name == "OrderStatusDTO":
+    if name == "OrderStatusDTO":
         warnings.warn(
             "OrderStatusDTO is deprecated, use OrderStatusResult instead. "
             "Will be removed in version 3.0.0",

@@ -613,7 +613,7 @@ class Executor:
         """Shutdown the executor and cleanup resources."""
         if self.pricing_service:
             try:
-                self.pricing_service.stop()
+                self.pricing_service.stop()  # type: ignore[unused-coroutine]
                 logger.info("✅ Pricing service stopped")
             except Exception as e:
                 logger.debug(f"Error stopping pricing service: {e}")
