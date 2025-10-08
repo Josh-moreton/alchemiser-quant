@@ -11,6 +11,7 @@ from .accounts import (
     BuyingPowerResult,
     EnrichedAccountSummaryView,
     PortfolioAllocationResult,
+    RiskMetrics,
     RiskMetricsResult,
     TradeEligibilityResult,
 )
@@ -123,6 +124,7 @@ __all__ = [
     "RebalancePlan",
     "RebalancePlanItem",
     "Result",
+    "RiskMetrics",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
     "StrategyAllocation",
