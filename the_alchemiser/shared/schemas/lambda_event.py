@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LambdaEvent(BaseModel):
@@ -108,8 +108,9 @@ class LambdaEvent(BaseModel):
     )
 
     # Common optional fields
-    to: EmailStr | None = Field(
-        default=None, description="Override recipient email address for summary"
+    to: str | None = Field(
+        default=None,
+        description="Override recipient email address for summary (should be valid email)",
     )
     subject: str | None = Field(default=None, description="Override email subject for summary")
     dry_run: bool | None = Field(

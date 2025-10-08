@@ -95,9 +95,7 @@ class Executor:
 
         # Initialize smart execution if enabled
         try:
-            logger.info(
-                "🚀 Initializing smart execution with shared WebSocket connection..."
-            )
+            logger.info("🚀 Initializing smart execution with shared WebSocket connection...")
 
             # Use shared WebSocket connection manager to prevent connection limits
             self.websocket_manager = WebSocketConnectionManager(
@@ -136,9 +134,7 @@ class Executor:
             self.alpaca_manager, self.validator, self.buying_power_service
         )
         self._order_monitor = OrderMonitor(self.smart_strategy, self.execution_config)
-        self._order_finalizer = OrderFinalizer(
-            self.alpaca_manager, self.execution_config
-        )
+        self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
         self._position_utils = PositionUtils(
             self.alpaca_manager,
             self.pricing_service,
@@ -211,8 +207,7 @@ class Executor:
                         symbol=symbol,
                         action=side.upper(),
                         trade_amount=abs(
-                            Decimal(str(quantity))
-                            * (result.final_price or Decimal("0"))
+                            Decimal(str(quantity)) * (result.final_price or Decimal("0"))
                         ),
                         shares=Decimal(str(quantity)),
                         price=(result.final_price if result.final_price else None),
@@ -223,9 +218,7 @@ class Executor:
                         order_type="LIMIT",  # Smart execution uses LIMIT orders
                         filled_at=result.placement_timestamp,  # Use placement timestamp from smart result
                     )
-                logger.warning(
-                    f"⚠️ Smart execution failed for {symbol}: {result.error_message}"
-                )
+                logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
 
             except Exception as e:
                 logger.error(f"❌ Smart execution failed for {symbol}: {e}")
@@ -234,9 +227,7 @@ class Executor:
         logger.info(f"📈 Using standard market order for {symbol}")
         return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
-    def _execute_market_order(
-        self, symbol: str, side: str, quantity: Decimal
-    ) -> OrderResult:
+    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
         """Execute a standard market order with preflight validation.
 
         Args:
@@ -304,9 +295,7 @@ class Executor:
         # Phase 1: Execute SELL orders and monitor settlement
         sell_order_ids: list[str] = []
         if sell_items:
-            logger.info(
-                "🔄 Phase 1: Executing SELL orders with settlement monitoring..."
-            )
+            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
 
             sell_orders, sell_stats = await self._execute_sell_phase(
                 sell_items, plan.correlation_id
@@ -318,9 +307,7 @@ class Executor:
 
             # Collect successful sell order IDs for settlement monitoring
             sell_order_ids = [
-                order.order_id
-                for order in sell_orders
-                if order.success and order.order_id
+                order.order_id for order in sell_orders if order.success and order.order_id
             ]
 
         # Phase 2: Monitor settlement and execute BUY orders
@@ -328,10 +315,8 @@ class Executor:
             logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
 
             # Wait for settlement and then execute buys
-            buy_orders, buy_stats = (
-                await self._execute_buy_phase_with_settlement_monitoring(
-                    buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
-                )
+            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
+                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
             )
 
             orders.extend(buy_orders)
@@ -341,13 +326,9 @@ class Executor:
 
         elif buy_items:
             # No sells to wait for, execute buys immediately
-            logger.info(
-                "🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)..."
-            )
+            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
 
-            buy_orders, buy_stats = await self._execute_buy_phase(
-                buy_items, plan.correlation_id
-            )
+            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
             orders.extend(buy_orders)
             orders_placed += buy_stats["placed"]
             orders_succeeded += buy_stats["succeeded"]
@@ -364,9 +345,7 @@ class Executor:
         self._record_orders_to_ledger(orders, plan)
 
         # Classify execution status
-        success, status = ExecutionResult.classify_execution_status(
-            orders_placed, orders_succeeded
-        )
+        success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)
 
         # Create execution result
         execution_result = ExecutionResult(
@@ -545,18 +524,14 @@ class Executor:
                 if price is None or price <= Decimal("0"):
                     # Safety fallback to 1 share if price discovery fails
                     shares = Decimal("1")
-                    logger.warning(
-                        f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share"
-                    )
+                    logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
                 else:
                     raw_shares = abs(item.trade_amount) / price
                     shares = self._position_utils.adjust_quantity_for_fractionability(
                         item.symbol, raw_shares
                     )
 
-                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(
-                    Decimal("0.01")
-                )
+                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
                     f"📊 Executing {item.action} for {item.symbol}: "
                     f"${amount_fmt} (estimated {shares} shares)"
@@ -606,9 +581,7 @@ class Executor:
         """Wait for placed orders to complete and rebuild results based on final status."""
         return self._order_finalizer.finalize_phase_orders(orders, items, phase_type)
 
-    def _record_orders_to_ledger(
-        self, orders: list[OrderResult], plan: RebalancePlan
-    ) -> None:
+    def _record_orders_to_ledger(self, orders: list[OrderResult], plan: RebalancePlan) -> None:
         """Record filled orders to trade ledger.
 
         Args:

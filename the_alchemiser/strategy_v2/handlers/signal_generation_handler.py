@@ -28,10 +28,10 @@ from the_alchemiser.shared.events import (
     WorkflowStarted,
 )
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas import StrategySignal
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
-from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 
 

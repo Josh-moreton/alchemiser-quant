@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
@@ -157,7 +157,9 @@ def create_success_result(
                 "type": type(trading_result).__name__,
             },
         )
-        raise ValueError(f"trading_result must be dict, got {type(trading_result).__name__}")
+        raise ValueError(
+            f"trading_result must be dict, got {type(trading_result).__name__}"
+        )
 
     logger.info(
         "Creating trade result DTO",
@@ -177,11 +179,19 @@ def create_success_result(
                 "type": type(orders_executed).__name__,
             },
         )
-        raise ValueError(f"orders_executed must be list, got {type(orders_executed).__name__}")
+        raise ValueError(
+            f"orders_executed must be list, got {type(orders_executed).__name__}"
+        )
 
-    order_results = _convert_orders_to_results(orders_executed, completed_at, correlation_id)
-    execution_summary = _calculate_execution_summary(order_results, started_at, completed_at)
-    status = _determine_execution_status(success=success, execution_summary=execution_summary)
+    order_results = _convert_orders_to_results(
+        orders_executed, completed_at, correlation_id
+    )
+    execution_summary = _calculate_execution_summary(
+        order_results, started_at, completed_at
+    )
+    status = _determine_execution_status(
+        success=success, execution_summary=execution_summary
+    )
     trading_mode = _determine_trading_mode(orchestrator)
 
     logger.info(
@@ -285,7 +295,9 @@ def _create_single_order_result(
     # Validate filled_price if present
     filled_price = order.get("filled_avg_price")
     if filled_price is not None and not isinstance(filled_price, (int, float, Decimal)):
-        raise ValueError(f"Invalid filled_avg_price type: {type(filled_price).__name__}")
+        raise ValueError(
+            f"Invalid filled_avg_price type: {type(filled_price).__name__}"
+        )
 
     trade_amount = _calculate_trade_amount(order, qty, filled_price)
 
@@ -391,7 +403,5 @@ def _determine_trading_mode(orchestrator: TradingModeProvider) -> TradingMode:
         Trading mode string: "LIVE" or "PAPER"
 
     """
-    mode: TradingMode = (
-        TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER
-    )  # type: ignore[assignment]
-    return mode
+    mode_str = TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER
+    return cast(TradingMode, mode_str)
