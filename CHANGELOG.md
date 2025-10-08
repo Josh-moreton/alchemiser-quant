@@ -1,3 +1,15 @@
+## 2.16.5 - 2025-10-08
+
+### Changed
+- **SAM Build Architecture Improvement**: Optimized Lambda packaging following AWS best practices
+  - **Changed CodeUri from `./` to `the_alchemiser/`** - SAM now only scans application directory
+  - **Updated Handler path** - Now `lambda_handler.lambda_handler` (relative to CodeUri)
+  - **Simplified exclusion patterns** - Moved from extensive root-level exclusions to minimal, focused patterns
+  - **Added explicit includes** - Strategy files (*.clj) and config files (*.json) now explicitly included
+  - **Minimized .samignore** - Primary exclusion logic in template.yaml BuildProperties (AWS best practice)
+  - **Benefits**: Cleaner build process, easier maintenance, more aligned with AWS SAM documentation
+  - **Documentation**: Created `docs/SAM_BUILD_ARCHITECTURE.md` with comprehensive build architecture guide
+
 ## 2.16.1 - 2025-10-07
 
 ### Fixed

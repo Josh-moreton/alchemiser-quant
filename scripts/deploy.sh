@@ -96,6 +96,7 @@ if [ -f ".aws-sam/build/template.yaml" ]; then
 else
     echo "🔨 Building SAM application..."
     # Use --use-container to build in Lambda-compatible environment
+    # Note: CodeUri now points to the_alchemiser/ for cleaner packaging
     sam build --use-container --parallel --config-env "$ENVIRONMENT"
 fi
 
