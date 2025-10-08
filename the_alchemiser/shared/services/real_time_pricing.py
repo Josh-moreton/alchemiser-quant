@@ -151,8 +151,7 @@ class RealTimePricingService:
         if not api_key or not secret_key:
             logger.error("❌ Alpaca credentials not provided or found in environment")
             raise ConfigurationError(
-                "Alpaca API credentials required",
-                config_key="ALPACA_KEY/ALPACA_SECRET"
+                "Alpaca API credentials required", config_key="ALPACA_KEY/ALPACA_SECRET"
             )
 
         self._api_key = api_key
@@ -236,9 +235,7 @@ class RealTimePricingService:
 
             if result:
                 # Start cleanup thread
-                self._price_store.start_cleanup(
-                    is_connected_callback=self._is_stream_connected
-                )
+                self._price_store.start_cleanup(is_connected_callback=self._is_stream_connected)
                 self.logger.info(
                     "✅ Real-time pricing service started successfully",
                     extra={"correlation_id": self._correlation_id},
@@ -274,10 +271,10 @@ class RealTimePricingService:
 
     async def stop(self) -> None:
         """Stop the real-time pricing service.
-        
+
         Raises:
             StreamingError: If there are errors during shutdown
-        
+
         """
         try:
             if self._stream_manager:
@@ -297,7 +294,7 @@ class RealTimePricingService:
                         asyncio.gather(*self._background_tasks, return_exceptions=True),
                         timeout=5.0,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     self.logger.warning(
                         "Some background tasks did not complete within timeout",
                         extra={"correlation_id": self._correlation_id},
@@ -310,7 +307,7 @@ class RealTimePricingService:
                 extra={"correlation_id": self._correlation_id},
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Already handled in nested try/except
             pass
         except (StreamingError, WebSocketError) as e:
@@ -373,7 +370,7 @@ class RealTimePricingService:
                 "Error processing quote",
                 extra={
                     "correlation_id": self._correlation_id,
-                    "symbol": symbol if 'symbol' in locals() else None,
+                    "symbol": symbol if "symbol" in locals() else None,
                     "error_type": type(e).__name__,
                 },
             )
@@ -383,7 +380,7 @@ class RealTimePricingService:
                 "Unexpected error processing quote",
                 extra={
                     "correlation_id": self._correlation_id,
-                    "symbol": symbol if 'symbol' in locals() else None,
+                    "symbol": symbol if "symbol" in locals() else None,
                 },
             )
             await self._data_processor.handle_quote_error(e)
@@ -424,17 +421,17 @@ class RealTimePricingService:
                 "Error processing trade",
                 extra={
                     "correlation_id": self._correlation_id,
-                    "symbol": symbol if 'symbol' in locals() else None,
+                    "symbol": symbol if "symbol" in locals() else None,
                     "error_type": type(e).__name__,
                 },
                 exc_info=True,
             )
-        except Exception as e:
+        except Exception:
             self.logger.exception(
                 "Unexpected error processing trade",
                 extra={
                     "correlation_id": self._correlation_id,
-                    "symbol": symbol if 'symbol' in locals() else None,
+                    "symbol": symbol if "symbol" in locals() else None,
                 },
             )
 

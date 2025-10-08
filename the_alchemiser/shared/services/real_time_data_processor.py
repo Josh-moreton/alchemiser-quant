@@ -10,7 +10,7 @@ All financial data (prices, sizes) uses Decimal for precision per Alchemiser gua
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -30,21 +30,22 @@ else:
 
 class RealTimeDataProcessor:
     """Processes and extracts data from real-time market data streams.
-    
+
     Handles extraction, validation, and conversion of real-time quote and trade data
     from Alpaca WebSocket streams. All financial data uses Decimal for precision.
-    
+
     Attributes:
         logger: Structured logger instance for observability
-        
+
     Examples:
         >>> processor = RealTimeDataProcessor()
         >>> quote_data = {"S": "AAPL", "bp": 150.25, "ap": 150.27}
         >>> result = processor.extract_quote_values(quote_data)
         >>> result.bid_price  # Returns Decimal("150.25")
-        
+
     Raises:
         DataProviderError: When required data is missing or invalid
+
     """
 
     def __init__(self) -> None:
@@ -53,7 +54,7 @@ class RealTimeDataProcessor:
 
     def extract_symbol_from_quote(self, data: AlpacaQuoteData) -> str:
         """Extract symbol from quote data.
-        
+
         Alpaca uses different key names for dict vs object format:
         - Dict format: "S" key (shorthand for symbol)
         - Object format: "symbol" attribute
@@ -63,7 +64,7 @@ class RealTimeDataProcessor:
 
         Returns:
             Symbol string
-            
+
         Raises:
             DataProviderError: If symbol cannot be extracted from data
 
@@ -74,20 +75,19 @@ class RealTimeDataProcessor:
             symbol = str(data.get("S", ""))
         else:
             symbol = ""
-            
+
         if not symbol or not symbol.strip():
             raise DataProviderError(
-                "Symbol missing or empty in quote data",
-                {"data_type": type(data).__name__}
+                "Symbol missing or empty in quote data", {"data_type": type(data).__name__}
             )
-        
+
         return symbol
 
     def extract_quote_values(self, data: AlpacaQuoteData) -> QuoteExtractionResult:
         """Extract bid/ask data from quote.
-        
+
         Converts all financial data to Decimal for precision per Alchemiser guardrails.
-        Alpaca dict format uses abbreviated keys: bp=bid_price, ap=ask_price, 
+        Alpaca dict format uses abbreviated keys: bp=bid_price, ap=ask_price,
         bs=bid_size, as=ask_size, t=timestamp.
 
         Args:
@@ -95,7 +95,7 @@ class RealTimeDataProcessor:
 
         Returns:
             QuoteExtractionResult with extracted Decimal values
-            
+
         Raises:
             DataProviderError: If required quote data is missing or invalid
 
@@ -119,7 +119,7 @@ class RealTimeDataProcessor:
 
     def extract_symbol_from_trade(self, data: AlpacaTradeData) -> str:
         """Extract symbol from trade data.
-        
+
         Alpaca uses different key names for dict vs object format:
         - Dict format: "symbol" key (full name, not abbreviated like quotes)
         - Object format: "symbol" attribute
@@ -129,7 +129,7 @@ class RealTimeDataProcessor:
 
         Returns:
             Symbol string
-            
+
         Raises:
             DataProviderError: If symbol cannot be extracted from data
 
@@ -140,20 +140,19 @@ class RealTimeDataProcessor:
             symbol = str(data.get("symbol", ""))
         else:
             symbol = ""
-            
+
         if not symbol or not symbol.strip():
             raise DataProviderError(
-                "Symbol missing or empty in trade data",
-                {"data_type": type(data).__name__}
+                "Symbol missing or empty in trade data", {"data_type": type(data).__name__}
             )
-        
+
         return symbol
 
     def extract_trade_values(
         self, trade: AlpacaTradeData
     ) -> tuple[Decimal, Decimal | None, datetime]:
         """Extract price, volume, and timestamp from trade data.
-        
+
         Uses Decimal for price and volume to maintain financial precision per
         Alchemiser guardrails. Requires timestamp to be present.
 
@@ -162,7 +161,7 @@ class RealTimeDataProcessor:
 
         Returns:
             Tuple of (price, volume, timestamp) with Decimal precision
-            
+
         Raises:
             DataProviderError: If timestamp is missing or data is invalid
 
@@ -170,18 +169,14 @@ class RealTimeDataProcessor:
         if isinstance(trade, dict):
             price_raw = trade.get("price")
             if price_raw is None:
-                raise DataProviderError(
-                    "Price missing in trade data",
-                    {"data_type": "dict"}
-                )
+                raise DataProviderError("Price missing in trade data", {"data_type": "dict"})
             size = trade.get("size", 0)
             volume = trade.get("volume", size)
             timestamp_raw = trade.get("timestamp")
         else:
             if not hasattr(trade, "price"):
                 raise DataProviderError(
-                    "Price missing in trade data",
-                    {"data_type": type(trade).__name__}
+                    "Price missing in trade data", {"data_type": type(trade).__name__}
                 )
             price_raw = trade.price
             size = trade.size if hasattr(trade, "size") else 0
@@ -191,10 +186,7 @@ class RealTimeDataProcessor:
         # Convert price to Decimal
         price = self._safe_decimal_convert(price_raw)
         if price is None:
-            raise DataProviderError(
-                "Invalid price in trade data",
-                {"price_raw": str(price_raw)}
-            )
+            raise DataProviderError("Invalid price in trade data", {"price_raw": str(price_raw)})
 
         # Convert volume to Decimal (volume can be None)
         volume_decimal: Decimal | None = self._safe_decimal_convert(volume)
@@ -206,7 +198,7 @@ class RealTimeDataProcessor:
 
     def get_quote_timestamp(self, timestamp_raw: datetime | None) -> datetime:
         """Ensure timestamp is a datetime for quotes.
-        
+
         Deterministic behavior: raises exception if timestamp is missing rather
         than using datetime.now() which breaks test reproducibility.
 
@@ -215,7 +207,7 @@ class RealTimeDataProcessor:
 
         Returns:
             Valid datetime object
-            
+
         Raises:
             DataProviderError: If timestamp is None or not a datetime
 
@@ -223,13 +215,13 @@ class RealTimeDataProcessor:
         if not isinstance(timestamp_raw, datetime):
             raise DataProviderError(
                 "Quote timestamp missing or invalid",
-                {"timestamp_type": type(timestamp_raw).__name__ if timestamp_raw else "None"}
+                {"timestamp_type": type(timestamp_raw).__name__ if timestamp_raw else "None"},
             )
         return timestamp_raw
 
     def get_trade_timestamp(self, timestamp_raw: datetime | str | float | int | None) -> datetime:
         """Ensure timestamp is a datetime for trades.
-        
+
         Deterministic behavior: raises exception if timestamp is missing rather
         than using datetime.now() which breaks test reproducibility.
 
@@ -238,7 +230,7 @@ class RealTimeDataProcessor:
 
         Returns:
             Valid datetime object
-            
+
         Raises:
             DataProviderError: If timestamp is None or not a datetime
 
@@ -246,13 +238,13 @@ class RealTimeDataProcessor:
         if not isinstance(timestamp_raw, datetime):
             raise DataProviderError(
                 "Trade timestamp missing or invalid",
-                {"timestamp_type": type(timestamp_raw).__name__ if timestamp_raw else "None"}
+                {"timestamp_type": type(timestamp_raw).__name__ if timestamp_raw else "None"},
             )
         return timestamp_raw
 
     def _safe_decimal_convert(self, value: str | float | int | None) -> Decimal | None:
         """Safely convert value to Decimal for financial precision.
-        
+
         Per Alchemiser guardrails, all financial data must use Decimal
         to avoid floating-point precision issues.
 
@@ -270,7 +262,7 @@ class RealTimeDataProcessor:
         except (ValueError, TypeError, ArithmeticError):
             self.logger.warning(
                 "Failed to convert value to Decimal",
-                extra={"value": str(value), "value_type": type(value).__name__}
+                extra={"value": str(value), "value_type": type(value).__name__},
             )
             return None
 
@@ -289,11 +281,14 @@ class RealTimeDataProcessor:
         return None
 
     def log_quote_debug(
-        self, symbol: str, bid_price: Decimal | None, ask_price: Decimal | None,
-        correlation_id: str | None = None
+        self,
+        symbol: str,
+        bid_price: Decimal | None,
+        ask_price: Decimal | None,
+        correlation_id: str | None = None,
     ) -> None:
         """Log quote data for debugging with structured logging.
-        
+
         Uses structured logging with correlation_id for observability.
         Simplified to synchronous as logging is thread-safe.
 
@@ -311,12 +306,12 @@ class RealTimeDataProcessor:
                 "bid_price": str(bid_price) if bid_price else None,
                 "ask_price": str(ask_price) if ask_price else None,
                 "correlation_id": correlation_id,
-            }
+            },
         )
 
     def handle_quote_error(self, error: Exception, correlation_id: str | None = None) -> None:
         """Handle errors in quote processing with structured logging.
-        
+
         Uses structured logging with correlation_id for observability.
         Simplified to synchronous as logging is thread-safe.
 
@@ -332,5 +327,5 @@ class RealTimeDataProcessor:
                 "error_type": type(error).__name__,
                 "correlation_id": correlation_id,
             },
-            exc_info=True
+            exc_info=True,
         )

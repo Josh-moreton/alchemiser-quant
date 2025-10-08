@@ -226,12 +226,16 @@ class RealTimeStreamManager:
         connected = self._connected_event.wait(timeout=self._config.connection_timeout)
 
         if connected:
-            self.logger.info("Real-time stream started successfully", 
-                           timeout=self._config.connection_timeout)
+            self.logger.info(
+                "Real-time stream started successfully",
+                timeout=self._config.connection_timeout,
+            )
             return True
 
-        self.logger.error("Failed to establish stream connection",
-                         timeout=self._config.connection_timeout)
+        self.logger.error(
+            "Failed to establish stream connection",
+            timeout=self._config.connection_timeout,
+        )
         return False
 
     def stop(self) -> None:
@@ -254,7 +258,11 @@ class RealTimeStreamManager:
                     self.logger.debug("Stream stopped successfully")
                 except (OSError, RuntimeError) as e:
                     # Narrow exception handling for stream stop errors
-                    self.logger.warning("Error stopping stream", error=str(e), error_type=type(e).__name__)
+                    self.logger.warning(
+                        "Error stopping stream",
+                        error=str(e),
+                        error_type=type(e).__name__,
+                    )
                     raise StreamingError(f"Failed to stop stream: {e}") from e
 
         # Wait for thread outside lock to avoid deadlock
@@ -297,10 +305,13 @@ class RealTimeStreamManager:
                         self._stream.stop()
                         # Small delay to allow clean closure
                         import time
+
                         time.sleep(self._config.stream_stop_delay)
                         self._stream = None
                     except (OSError, RuntimeError) as e:
-                        self.logger.debug("Error stopping stream for restart", error=str(e))
+                        self.logger.debug(
+                            "Error stopping stream for restart", error=str(e)
+                        )
 
             # Wait for thread to finish
             if self._stream_thread and self._stream_thread.is_alive():
@@ -314,6 +325,7 @@ class RealTimeStreamManager:
 
             # Backoff delay before reconnecting
             import time
+
             time.sleep(self._config.reconnect_backoff_delay)
 
             # Restart with new subscriptions
@@ -331,13 +343,17 @@ class RealTimeStreamManager:
             if self._connected_event.wait(timeout=self._config.restart_wait_timeout):
                 self.logger.info("Stream restarted successfully")
             else:
-                self.logger.warning("Stream restart timed out", 
-                                  timeout=self._config.restart_wait_timeout)
+                self.logger.warning(
+                    "Stream restart timed out",
+                    timeout=self._config.restart_wait_timeout,
+                )
 
         except StreamingError:
             raise
         except (OSError, RuntimeError) as e:
-            self.logger.error("Error restarting stream", error=str(e), error_type=type(e).__name__)
+            self.logger.error(
+                "Error restarting stream", error=str(e), error_type=type(e).__name__
+            )
             self._connected_event.clear()
             raise StreamingError(f"Failed to restart stream: {e}") from e
 
@@ -357,9 +373,9 @@ class RealTimeStreamManager:
             # Expected errors - already logged
             pass
         except (OSError, RuntimeError) as e:
-            self.logger.error("Error in stream event loop", 
-                            error=str(e), 
-                            error_type=type(e).__name__)
+            self.logger.error(
+                "Error in stream event loop", error=str(e), error_type=type(e).__name__
+            )
         finally:
             try:
                 # Cancel any remaining tasks
@@ -368,13 +384,17 @@ class RealTimeStreamManager:
                     task.cancel()
 
                 if pending:
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
 
                 loop.close()
             except (RuntimeError, ValueError) as e:
-                self.logger.error("Error cleaning up event loop", 
-                                error=str(e), 
-                                error_type=type(e).__name__)
+                self.logger.error(
+                    "Error cleaning up event loop",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
     async def _run_stream_async(self) -> None:
         """Async method to run the WebSocket stream.
@@ -396,7 +416,10 @@ class RealTimeStreamManager:
             except (WebSocketError, StreamingError) as e:
                 retry_count += 1
                 should_retry = await self._handle_stream_error(
-                    e, retry_count, self._config.max_retries, self._config.base_retry_delay
+                    e,
+                    retry_count,
+                    self._config.max_retries,
+                    self._config.base_retry_delay,
                 )
                 if not should_retry:
                     break
@@ -445,7 +468,9 @@ class RealTimeStreamManager:
 
         try:
             if symbols_to_subscribe:
-                result = await self._setup_and_run_stream_with_symbols(symbols_to_subscribe)
+                result = await self._setup_and_run_stream_with_symbols(
+                    symbols_to_subscribe
+                )
             else:
                 result = await self._handle_no_symbols_to_subscribe()
 
@@ -455,14 +480,20 @@ class RealTimeStreamManager:
 
         except (OSError, RuntimeError, ConnectionError) as e:
             error_msg = str(e)
-            if "connection limit exceeded" in error_msg.lower() or "http 429" in error_msg.lower():
-                self._circuit_breaker.record_failure(f"Connection limit exceeded: {error_msg}")
+            if (
+                "connection limit exceeded" in error_msg.lower()
+                or "http 429" in error_msg.lower()
+            ):
+                self._circuit_breaker.record_failure(
+                    f"Connection limit exceeded: {error_msg}"
+                )
                 raise WebSocketError(f"Connection limit exceeded: {error_msg}") from e
-            else:
-                self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
-                raise StreamingError(f"Stream connection failed: {error_msg}") from e
+            self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
+            raise StreamingError(f"Stream connection failed: {error_msg}") from e
 
-    async def _setup_and_run_stream_with_symbols(self, symbols_to_subscribe: list[str]) -> bool:
+    async def _setup_and_run_stream_with_symbols(  # noqa: C901
+        self, symbols_to_subscribe: list[str]
+    ) -> bool:
         """Set up stream with symbols and run it.
 
         Args:
@@ -536,9 +567,13 @@ class RealTimeStreamManager:
         # Subscribe to quotes and trades with safe wrappers
         try:
             if self._on_quote:
-                self._stream.subscribe_quotes(safe_quote_callback, *symbols_to_subscribe)
+                self._stream.subscribe_quotes(
+                    safe_quote_callback, *symbols_to_subscribe
+                )
             if self._on_trade:
-                self._stream.subscribe_trades(safe_trade_callback, *symbols_to_subscribe)
+                self._stream.subscribe_trades(
+                    safe_trade_callback, *symbols_to_subscribe
+                )
         except (ValueError, TypeError) as e:
             raise StreamingError(f"Failed to subscribe to symbols: {e}") from e
 

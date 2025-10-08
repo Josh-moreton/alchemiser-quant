@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import math
 import os
-import random
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -32,8 +31,6 @@ from the_alchemiser.shared.utils.alpaca_error_handler import (
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from typing import cast
-
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
     from the_alchemiser.shared.protocols.market_data import BarsIterable
 
@@ -64,10 +61,11 @@ class MarketDataService(MarketDataPort):
     This service wraps the AlpacaManager and provides a clean domain interface
     that handles timeframe normalization, error translation, and other concerns
     that shouldn't be in the orchestration layer.
-    
+
     Attributes:
         _repo: AlpacaManager instance for market data access
         logger: Structlog logger with correlation context support
+
     """
 
     def __init__(self, market_data_repo: AlpacaManager) -> None:
@@ -80,7 +78,13 @@ class MarketDataService(MarketDataPort):
         self._repo = market_data_repo
         self.logger = get_logger(__name__)
         # Use deterministic RNG in test environment
-        self._use_deterministic_jitter = os.getenv("ALCHEMISER_TEST_MODE", "").lower() in ("1", "true", "yes")
+        self._use_deterministic_jitter = os.getenv(
+            "ALCHEMISER_TEST_MODE", ""
+        ).lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Get historical bars with timeframe normalization.
@@ -115,7 +119,9 @@ class MarketDataService(MarketDataPort):
 
             # Convert to BarModel list if needed
             if isinstance(bars_data, list):
-                return [self._convert_to_bar_model(bar, symbol_str) for bar in bars_data]
+                return [
+                    self._convert_to_bar_model(bar, symbol_str) for bar in bars_data
+                ]
 
             return []
 
@@ -130,7 +136,9 @@ class MarketDataService(MarketDataPort):
             # Re-raise with domain-appropriate error type
             from the_alchemiser.shared.errors.exceptions import DataProviderError
 
-            raise DataProviderError(f"Market data fetch failed for {symbol}: {e}") from e
+            raise DataProviderError(
+                f"Market data fetch failed for {symbol}: {e}"
+            ) from e
 
     def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Get latest quote with error handling.
@@ -151,7 +159,9 @@ class MarketDataService(MarketDataPort):
 
             # Fetch quote from Alpaca API
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol_str])
-            quotes = self._repo.get_data_client().get_stock_latest_quote(request, timeout=API_TIMEOUT_SECONDS)
+            quotes = self._repo.get_data_client().get_stock_latest_quote(
+                request, timeout=API_TIMEOUT_SECONDS
+            )
             quote = quotes.get(symbol_str)
 
             if not quote:
@@ -168,7 +178,9 @@ class MarketDataService(MarketDataPort):
             )
             return None
 
-    def _build_quote_model(self, quote: Any, symbol: str) -> QuoteModel | None:  # noqa: ANN401
+    def _build_quote_model(
+        self, quote: Any, symbol: str
+    ) -> QuoteModel | None:  # noqa: ANN401
         """Build QuoteModel from raw quote data with bid/ask fallback handling.
 
         Business Logic: When either bid or ask is missing, we use the available
@@ -189,22 +201,32 @@ class MarketDataService(MarketDataPort):
         ask_price_raw = float(getattr(quote, "ask_price", 0))
         bid_size = float(getattr(quote, "bid_size", 0))
         ask_size = float(getattr(quote, "ask_size", 0))
-        
+
         # Normalize timestamp
         timestamp = self._normalize_quote_timestamp(getattr(quote, "timestamp", None))
-        
+
         # Check price validity and build appropriate quote
-        bid_valid = not math.isclose(bid_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE)
-        ask_valid = not math.isclose(ask_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE)
+        bid_valid = not math.isclose(
+            bid_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE
+        )
+        ask_valid = not math.isclose(
+            ask_price_raw, 0.0, abs_tol=FLOAT_COMPARISON_TOLERANCE
+        )
 
         if bid_valid and ask_valid:
-            return self._create_quote_model(symbol, bid_price_raw, ask_price_raw, bid_size, ask_size, timestamp)
-        elif bid_valid:
+            return self._create_quote_model(
+                symbol, bid_price_raw, ask_price_raw, bid_size, ask_size, timestamp
+            )
+        if bid_valid:
             # Bid-only fallback: use bid for both sides
-            return self._create_quote_model(symbol, bid_price_raw, bid_price_raw, bid_size, 0, timestamp)
-        elif ask_valid:
+            return self._create_quote_model(
+                symbol, bid_price_raw, bid_price_raw, bid_size, 0, timestamp
+            )
+        if ask_valid:
             # Ask-only fallback: use ask for both sides
-            return self._create_quote_model(symbol, ask_price_raw, ask_price_raw, 0, ask_size, timestamp)
+            return self._create_quote_model(
+                symbol, ask_price_raw, ask_price_raw, 0, ask_size, timestamp
+            )
 
         return None
 
@@ -220,12 +242,18 @@ class MarketDataService(MarketDataPort):
         """
         if timestamp and timestamp.tzinfo is None:
             return timestamp.replace(tzinfo=UTC)
-        elif timestamp:
+        if timestamp:
             return timestamp
         return datetime.now(UTC)
 
     def _create_quote_model(
-        self, symbol: str, bid: float, ask: float, bid_size: float, ask_size: float, timestamp: datetime
+        self,
+        symbol: str,
+        bid: float,
+        ask: float,
+        bid_size: float,
+        ask_size: float,
+        timestamp: datetime,
     ) -> QuoteModel:
         """Create QuoteModel with Decimal conversion.
 
@@ -328,14 +356,14 @@ class MarketDataService(MarketDataPort):
         try:
             prices = {}
             missing_symbols = []
-            
+
             for symbol in symbols:
                 price = self.get_current_price(symbol)
                 if price is not None:
                     prices[symbol] = price
                 else:
                     missing_symbols.append(symbol)
-            
+
             # Log missing symbols once instead of per-symbol
             if missing_symbols:
                 self.logger.warning(
@@ -343,7 +371,7 @@ class MarketDataService(MarketDataPort):
                     missing_count=len(missing_symbols),
                     missing_symbols=missing_symbols,
                 )
-            
+
             return prices
         except Exception as e:
             self.logger.error(
@@ -398,7 +426,9 @@ class MarketDataService(MarketDataPort):
 
         """
         request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-        quotes = self._repo.get_data_client().get_stock_latest_quote(request, timeout=API_TIMEOUT_SECONDS)
+        quotes = self._repo.get_data_client().get_stock_latest_quote(
+            request, timeout=API_TIMEOUT_SECONDS
+        )
         return quotes.get(symbol)
 
     def _handle_api_error(self, error: Exception, symbol: str) -> None:
@@ -466,11 +496,13 @@ class MarketDataService(MarketDataPort):
         """
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                return self._fetch_bars_with_request(symbol, start_date, end_date, timeframe)
+                return self._fetch_bars_with_request(
+                    symbol, start_date, end_date, timeframe
+                )
             except (RetryException, HTTPError, RequestException, Exception) as e:
                 if not self._should_retry_bars_fetch(e, attempt, symbol):
                     raise
-                    
+
                 # Retry with backoff
                 self._sleep_with_backoff(attempt, symbol)
 
@@ -509,7 +541,9 @@ class MarketDataService(MarketDataPort):
         )
 
         # Make API call and extract bars
-        response = self._repo.get_data_client().get_stock_bars(request, timeout=API_TIMEOUT_SECONDS)
+        response = self._repo.get_data_client().get_stock_bars(
+            request, timeout=API_TIMEOUT_SECONDS
+        )
         bars_obj = self._extract_bars_from_response_core(response, symbol)
 
         if not bars_obj:
@@ -538,7 +572,7 @@ class MarketDataService(MarketDataPort):
             True if should retry, False otherwise
 
         """
-        transient, reason = AlpacaErrorHandler.is_transient_error(error)
+        transient, _reason = AlpacaErrorHandler.is_transient_error(error)
         last_attempt = attempt == MAX_RETRIES
 
         if not transient or last_attempt:
@@ -570,10 +604,12 @@ class MarketDataService(MarketDataPort):
             # Use seeded random for deterministic tests
             jitter = JITTER_BASE + JITTER_FACTOR * (attempt / MAX_RETRIES)
         else:
-            jitter = JITTER_BASE + JITTER_FACTOR * (randbelow(JITTER_DIVISOR) / JITTER_DIVISOR)
-        
+            jitter = JITTER_BASE + JITTER_FACTOR * (
+                randbelow(JITTER_DIVISOR) / JITTER_DIVISOR
+            )
+
         sleep_s = BASE_SLEEP_SECONDS * (2 ** (attempt - 1)) * jitter
-        
+
         self.logger.warning(
             "Transient market data error, retrying",
             symbol=symbol,
@@ -608,7 +644,9 @@ class MarketDataService(MarketDataPort):
 
         # If no mapping found, raise error for invalid input
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
-        raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
+        raise ValueError(
+            f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}"
+        )
 
     def _period_to_dates(self, period: str) -> tuple[str, str]:
         """Convert period string to start and end dates.
@@ -679,9 +717,13 @@ class MarketDataService(MarketDataPort):
             return TIMEFRAME_MAP[timeframe_lower][1]  # Return TimeFrame object
 
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
-        raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
+        raise ValueError(
+            f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}"
+        )
 
-    def _extract_bars_from_response_core(self, response: object, symbol: str) -> BarsIterable | None:
+    def _extract_bars_from_response_core(
+        self, response: object, symbol: str
+    ) -> BarsIterable | None:
         """Extract bars object from various possible response shapes.
 
         Args:
@@ -711,7 +753,9 @@ class MarketDataService(MarketDataPort):
 
         return bars_obj
 
-    def _convert_bars_to_dicts_core(self, bars_obj: Any, symbol: str) -> list[dict[str, Any]]:  # noqa: ANN401
+    def _convert_bars_to_dicts_core(
+        self, bars_obj: Any, symbol: str
+    ) -> list[dict[str, Any]]:  # noqa: ANN401
         """Convert bars object to list of dictionaries using Pydantic model_dump.
 
         Args:
@@ -774,7 +818,9 @@ class MarketDataService(MarketDataPort):
         )
         return False
 
-    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:  # noqa: ANN401
+    def _convert_to_bar_model(
+        self, bar_data: Any, symbol: str
+    ) -> BarModel:  # noqa: ANN401
         """Convert raw bar data to BarModel.
 
         Args:
@@ -799,7 +845,9 @@ class MarketDataService(MarketDataPort):
 
             return BarModel(
                 symbol=symbol,
-                timestamp=(timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)),
+                timestamp=(
+                    timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)
+                ),
                 open=Decimal(str(open_price)),
                 high=Decimal(str(high_price)),
                 low=Decimal(str(low_price)),
@@ -808,4 +856,6 @@ class MarketDataService(MarketDataPort):
             )
 
         # This should not happen with clean Pydantic model_dump() data
-        raise ValueError(f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}")
+        raise ValueError(
+            f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}"
+        )

@@ -57,13 +57,13 @@ class AlpacaAccountService:
 
     def get_account_dict(self) -> dict[str, Any] | None:
         """Get account information as a plain dictionary for convenience.
-        
+
         Note: Financial values are returned as strings to preserve precision.
         Convert to Decimal for calculations.
-        
+
         Returns:
             Dictionary with account data or None if unavailable
-            
+
         Raises:
             TradingClientError: If account retrieval fails
 
@@ -72,7 +72,7 @@ class AlpacaAccountService:
             account_obj = self._get_account_object()
             if not account_obj:
                 return None
-                
+
             # Build dict from known attributes with proper type handling
             return {
                 "id": getattr(account_obj, "id", None),
@@ -80,14 +80,18 @@ class AlpacaAccountService:
                 "status": getattr(account_obj, "status", None),
                 "currency": getattr(account_obj, "currency", None),
                 # Return financial values as strings to preserve precision
-                "buying_power": str(getattr(account_obj, "buying_power", "0")) 
-                    if getattr(account_obj, "buying_power", None) is not None else None,
+                "buying_power": str(getattr(account_obj, "buying_power", "0"))
+                if getattr(account_obj, "buying_power", None) is not None
+                else None,
                 "cash": str(getattr(account_obj, "cash", "0"))
-                    if getattr(account_obj, "cash", None) is not None else None,
+                if getattr(account_obj, "cash", None) is not None
+                else None,
                 "equity": str(getattr(account_obj, "equity", "0"))
-                    if getattr(account_obj, "equity", None) is not None else None,
+                if getattr(account_obj, "equity", None) is not None
+                else None,
                 "portfolio_value": str(getattr(account_obj, "portfolio_value", "0"))
-                    if getattr(account_obj, "portfolio_value", None) is not None else None,
+                if getattr(account_obj, "portfolio_value", None) is not None
+                else None,
             }
         except TradingClientError:
             # Already logged in _get_account_object
@@ -102,18 +106,16 @@ class AlpacaAccountService:
 
     def _get_account_object(self) -> TradeAccount | None:
         """Get account object for internal use.
-        
+
         Returns:
             TradeAccount object or None if retrieval fails
-            
+
         Raises:
             TradingClientError: If account retrieval fails after retries
 
         """
         try:
-            with alpaca_retry_context(
-                max_retries=3, operation_name="Get account information"
-            ):
+            with alpaca_retry_context(max_retries=3, operation_name="Get account information"):
                 account = self._trading_client.get_account()
                 logger.debug("Successfully retrieved account information")
                 if account is not None:
@@ -131,10 +133,10 @@ class AlpacaAccountService:
 
     def get_buying_power(self) -> Decimal | None:
         """Get current buying power.
-        
+
         Returns:
             Buying power as Decimal or None if unavailable
-            
+
         Raises:
             TradingClientError: If account retrieval fails
 
@@ -157,10 +159,10 @@ class AlpacaAccountService:
 
     def get_portfolio_value(self) -> Decimal | None:
         """Get current portfolio value.
-        
+
         Returns:
             Portfolio value as Decimal or None if unavailable
-            
+
         Raises:
             TradingClientError: If account retrieval fails
 
@@ -190,15 +192,13 @@ class AlpacaAccountService:
 
         Returns:
             List of position objects with attributes like symbol, qty, market_value, etc.
-            
+
         Raises:
             TradingClientError: If position retrieval fails
 
         """
         try:
-            with alpaca_retry_context(
-                max_retries=3, operation_name="Get all positions"
-            ):
+            with alpaca_retry_context(max_retries=3, operation_name="Get all positions"):
                 positions = self._trading_client.get_all_positions()
                 logger.debug(
                     "Successfully retrieved positions",
@@ -231,9 +231,9 @@ class AlpacaAccountService:
         """Get all positions as dict mapping symbol to quantity.
 
         Returns:
-            Dictionary mapping symbol to quantity (as Decimal) owned. 
+            Dictionary mapping symbol to quantity (as Decimal) owned.
             Only includes non-zero positions.
-            
+
         Raises:
             TradingClientError: If position retrieval fails
 
@@ -266,15 +266,13 @@ class AlpacaAccountService:
 
         Returns:
             Position object if found, None otherwise
-            
+
         Raises:
             TradingClientError: If position retrieval fails (except when position doesn't exist)
 
         """
         try:
-            with alpaca_retry_context(
-                max_retries=3, operation_name=f"Get position for {symbol}"
-            ):
+            with alpaca_retry_context(max_retries=3, operation_name=f"Get position for {symbol}"):
                 position = self._trading_client.get_open_position(symbol)
                 logger.debug(
                     "Successfully retrieved position",
@@ -301,13 +299,11 @@ class AlpacaAccountService:
                 error=str(e),
                 module="alpaca_account_service",
             )
-            raise TradingClientError(
-                f"Failed to retrieve position for {symbol}"
-            ) from e
+            raise TradingClientError(f"Failed to retrieve position for {symbol}") from e
 
     def validate_connection(self) -> bool:
         """Validate that the connection to Alpaca is working.
-        
+
         Returns:
             True if connection is valid, False otherwise
 

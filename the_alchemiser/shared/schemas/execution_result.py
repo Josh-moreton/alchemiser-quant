@@ -44,6 +44,7 @@ class ExecutionResult(BaseModel):
         >>> assert result.quantity == Decimal("10")
 
     Migrated from dataclass to Pydantic v2 for architecture compliance.
+
     """
 
     model_config = ConfigDict(
@@ -52,9 +53,7 @@ class ExecutionResult(BaseModel):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for evolution tracking"
-    )
+    schema_version: str = Field(default="1.0", description="Schema version for evolution tracking")
     symbol: str = Field(min_length=1, description="Trading symbol")
     side: Literal["buy", "sell"] = Field(description="Order side (buy/sell)")
     quantity: Decimal = Field(gt=0, description="Order quantity (must be positive)")
@@ -81,9 +80,7 @@ class ExecutionResult(BaseModel):
     correlation_id: str | None = Field(
         default=None, description="Correlation ID for distributed tracing"
     )
-    causation_id: str | None = Field(
-        default=None, description="Causation ID for event sourcing"
-    )
+    causation_id: str | None = Field(default=None, description="Causation ID for event sourcing")
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata only"
     )  # Arbitrary JSON-serializable metadata for extensibility; type safety not required, so Any is justified.
