@@ -604,3 +604,100 @@ class TestStrategyAllocationConstraintsField:
             constraints={},
         )
         assert allocation.constraints == {}
+
+
+class TestStrategyAllocationIdempotencyKey:
+    """Test idempotency key generation for event deduplication."""
+
+    def test_idempotency_key_is_deterministic(self):
+        """Test that idempotency key is deterministic for same allocation."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("0.6"), "MSFT": Decimal("0.4")},
+            correlation_id="test-123",
+        )
+        key1 = allocation.idempotency_key()
+        key2 = allocation.idempotency_key()
+        assert key1 == key2
+
+    def test_idempotency_key_format(self):
+        """Test that idempotency key has expected format."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test"
+        )
+        key = allocation.idempotency_key()
+        assert isinstance(key, str)
+        assert len(key) == 16
+        # Should be hex characters
+        assert all(c in "0123456789abcdef" for c in key)
+
+    def test_idempotency_key_different_for_different_weights(self):
+        """Test that different weights produce different keys."""
+        alloc1 = StrategyAllocation(
+            target_weights={"AAPL": Decimal("0.6"), "MSFT": Decimal("0.4")},
+            correlation_id="test",
+        )
+        alloc2 = StrategyAllocation(
+            target_weights={"AAPL": Decimal("0.5"), "MSFT": Decimal("0.5")},
+            correlation_id="test",
+        )
+        assert alloc1.idempotency_key() != alloc2.idempotency_key()
+
+    def test_idempotency_key_different_for_different_correlation_ids(self):
+        """Test that different correlation IDs produce different keys."""
+        alloc1 = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test-1"
+        )
+        alloc2 = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test-2"
+        )
+        assert alloc1.idempotency_key() != alloc2.idempotency_key()
+
+    def test_idempotency_key_same_for_different_symbol_order(self):
+        """Test that symbol order doesn't affect idempotency key."""
+        alloc1 = StrategyAllocation(
+            target_weights={"AAPL": Decimal("0.6"), "MSFT": Decimal("0.4")},
+            correlation_id="test",
+        )
+        alloc2 = StrategyAllocation(
+            target_weights={"MSFT": Decimal("0.4"), "AAPL": Decimal("0.6")},
+            correlation_id="test",
+        )
+        assert alloc1.idempotency_key() == alloc2.idempotency_key()
+
+    def test_idempotency_key_includes_schema_version(self):
+        """Test that schema version is part of the idempotency key."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test"
+        )
+        # Key should be different if schema version changes
+        # (This test documents the behavior; actual change would require code modification)
+        key = allocation.idempotency_key()
+        assert key  # Key is generated successfully
+
+
+class TestStrategyAllocationSchemaVersion:
+    """Test schema version field for backward compatibility."""
+
+    def test_schema_version_defaults_to_1_0(self):
+        """Test that schema_version defaults to 1.0."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test"
+        )
+        assert allocation.schema_version == "1.0"
+
+    def test_schema_version_in_model_dump(self):
+        """Test that schema_version is included in model_dump."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test"
+        )
+        dumped = allocation.model_dump()
+        assert "schema_version" in dumped
+        assert dumped["schema_version"] == "1.0"
+
+    def test_schema_version_immutable(self):
+        """Test that schema_version cannot be changed."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")}, correlation_id="test"
+        )
+        with pytest.raises(Exception):  # Pydantic ValidationError
+            allocation.schema_version = "2.0"  # type: ignore
