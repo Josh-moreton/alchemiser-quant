@@ -592,11 +592,17 @@ class RealTimePricingService:
         )
         self._subscription_manager.execute_subscription_plan(subscription_plan, priority)
 
-        if subscription_plan.successfully_added > 0 and self.is_connected():
-            self.logger.info(
-                f"🔄 Restarting stream to add {subscription_plan.successfully_added} new subscriptions"
-            )
-            if self._stream_manager:
+        # Auto-start on first subscription if not connected
+        if subscription_plan.successfully_added > 0:
+            if not self.is_connected():
+                self.logger.info("🚀 Auto-starting pricing service on first subscription")
+                if not self.start():
+                    self.logger.error("❌ Failed to auto-start pricing service")
+                    return subscription_plan.results
+            elif self._stream_manager:
+                self.logger.info(
+                    f"🔄 Restarting stream to add {subscription_plan.successfully_added} new subscriptions"
+                )
                 self._stream_manager.restart()
 
         self.logger.info(
@@ -618,9 +624,14 @@ class RealTimePricingService:
 
         needs_restart, _ = self._subscription_manager.subscribe_symbol(symbol, priority)
 
-        if needs_restart and self.is_connected() and self._stream_manager:
-            self.logger.info(f"🔄 Restarting stream to add subscription for {symbol}")
-            self._stream_manager.restart()
+        if needs_restart:
+            # Auto-start on first subscription if not connected
+            if not self.is_connected():
+                self.logger.info(f"🚀 Auto-starting pricing service for {symbol}")
+                self.start()
+            elif self._stream_manager:
+                self.logger.info(f"🔄 Restarting stream to add subscription for {symbol}")
+                self._stream_manager.restart()
 
     def unsubscribe_symbol(self, symbol: str) -> None:
         """Unsubscribe from real-time updates for a specific symbol.

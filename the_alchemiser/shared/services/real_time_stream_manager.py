@@ -8,7 +8,6 @@ connection monitoring, and reconnection logic.
 
 from __future__ import annotations
 
-import asyncio
 import threading
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -20,7 +19,6 @@ from the_alchemiser.shared.brokers.alpaca_utils import create_stock_data_stream
 from the_alchemiser.shared.errors.exceptions import (
     ConfigurationError,
     StreamingError,
-    WebSocketError,
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.utils.circuit_breaker import ConnectionCircuitBreaker
@@ -215,8 +213,9 @@ class RealTimeStreamManager:
             self._connected_event.clear()
 
             # Create and start background thread
+            # Use blocking SDK API which manages its own event loop
             self._stream_thread = threading.Thread(
-                target=self._run_stream_with_event_loop,
+                target=self._run_stream_blocking,
                 name="RealTimePricing",
                 daemon=True,
             )
@@ -333,7 +332,7 @@ class RealTimeStreamManager:
                 self._should_reconnect = True
                 self._connected_event.clear()
                 self._stream_thread = threading.Thread(
-                    target=self._run_stream_with_event_loop,
+                    target=self._run_stream_blocking,
                     name="RealTimePricing",
                     daemon=True,
                 )
@@ -357,74 +356,130 @@ class RealTimeStreamManager:
             self._connected_event.clear()
             raise StreamingError(f"Failed to restart stream: {e}") from e
 
-    def _run_stream_with_event_loop(self) -> None:
-        """Run the WebSocket stream in a new event loop.
+    def _run_stream_blocking(self) -> None:
+        """Run the WebSocket stream using SDK's public blocking API.
 
-        Creates a dedicated event loop for the async stream operations
-        and ensures proper cleanup of all tasks.
-
-        """
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            loop.run_until_complete(self._run_stream_async())
-        except (StreamingError, WebSocketError):
-            # Expected errors - already logged
-            pass
-        except (OSError, RuntimeError) as e:
-            self.logger.error(
-                "Error in stream event loop", error=str(e), error_type=type(e).__name__
-            )
-        finally:
-            try:
-                # Cancel any remaining tasks
-                pending = asyncio.all_tasks(loop)
-                for task in pending:
-                    task.cancel()
-
-                if pending:
-                    loop.run_until_complete(
-                        asyncio.gather(*pending, return_exceptions=True)
-                    )
-
-                loop.close()
-            except (RuntimeError, ValueError) as e:
-                self.logger.error(
-                    "Error cleaning up event loop",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-
-    async def _run_stream_async(self) -> None:
-        """Async method to run the WebSocket stream.
-
-        Implements retry logic with exponential backoff for stream connection.
-
-        Raises:
-            StreamingError: If all retry attempts are exhausted
+        This method runs in a dedicated thread and uses the Alpaca SDK's
+        public run() method, which manages its own event loop internally.
+        This is the architecturally correct approach as it:
+        - Uses the public API with stability guarantees
+        - Allows SDK to handle its own event loop lifecycle
+        - Includes proper cleanup via SDK's finally block
+        - Avoids nested event loop conflicts
 
         """
         retry_count = 0
 
         while self._should_reconnect and retry_count < self._config.max_retries:
             try:
-                should_break = await self._execute_stream_attempt(retry_count + 1)
-                if should_break:
+                # Setup stream for this attempt
+                symbols_to_subscribe = self._get_symbols()
+
+                if not symbols_to_subscribe:
+                    # Wait for symbols to be available
+                    self.logger.info("No symbols to subscribe to, waiting...")
+                    import time
+
+                    time.sleep(self._config.subscription_poll_interval)
+                    continue
+
+                # Create and configure stream
+                if not self._setup_stream_with_symbols(symbols_to_subscribe):
+                    retry_count += 1
+                    continue
+
+                # Check circuit breaker
+                if not self._circuit_breaker.can_attempt_connection():
+                    self.logger.warning(
+                        "Circuit breaker blocking connection attempt",
+                        attempt=retry_count + 1,
+                        circuit_state=self._circuit_breaker.state.value,
+                    )
+                    retry_count += 1
+                    import time
+
+                    time.sleep(self._config.reconnect_backoff_delay)
+                    continue
+
+                self.logger.info("Attempting to start stream", attempt=retry_count + 1)
+
+                # Signal connection immediately before calling run()
+                # The SDK's run() method establishes the WebSocket connection synchronously,
+                # so if we reach this point with subscriptions set up, we're connected
+                if self._stream:
+                    self._connected_event.set()
+                    self.logger.info("Connection signaled - starting SDK run()")
+
+                    # Run the stream - this blocks until stream stops
+                    # The SDK handles connection establishment and maintains it
+                    self._stream.run()
+
+                    # If we get here, stream stopped
+                    self._connected_event.clear()
+                else:
+                    self.logger.error("Stream is None, cannot run")
+                    retry_count += 1
+                    continue
+
+                # If we get here, stream stopped normally
+                self._circuit_breaker.record_success()
+                self.logger.info("Stream closed normally")
+                break
+
+            except KeyboardInterrupt:
+                self.logger.info("Stream interrupted by user")
+                break
+
+            except (OSError, RuntimeError, ConnectionError) as e:
+                self._connected_event.clear()
+                retry_count += 1
+
+                error_msg = str(e)
+                if (
+                    "connection limit exceeded" in error_msg.lower()
+                    or "http 429" in error_msg.lower()
+                ):
+                    self._circuit_breaker.record_failure(
+                        f"Connection limit exceeded: {error_msg}"
+                    )
+                    self.logger.error(
+                        "Connection limit exceeded",
+                        error=error_msg,
+                        retry_count=retry_count,
+                    )
+                else:
+                    self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
+                    self.logger.error(
+                        "Stream connection error",
+                        error=error_msg,
+                        error_type=type(e).__name__,
+                        retry_count=retry_count,
+                    )
+
+                if retry_count >= self._config.max_retries:
+                    self.logger.error(
+                        "Max retries exceeded, giving up",
+                        max_retries=self._config.max_retries,
+                    )
                     break
 
-            except (WebSocketError, StreamingError) as e:
-                retry_count += 1
-                should_retry = await self._handle_stream_error(
-                    e,
-                    retry_count,
-                    self._config.max_retries,
-                    self._config.base_retry_delay,
+                # Exponential backoff
+                delay = min(
+                    self._config.base_retry_delay * (2 ** (retry_count - 1)),
+                    self._config.max_retry_delay,
                 )
-                if not should_retry:
-                    break
-            except (OSError, RuntimeError, asyncio.CancelledError) as e:
-                # Unexpected errors
+                self.logger.info(
+                    "Retrying connection",
+                    retry_count=retry_count,
+                    delay=delay,
+                )
+                import time
+
+                time.sleep(delay)
+
+            except Exception as e:
+                # Catch-all for unexpected errors
+                self._connected_event.clear()
                 self.logger.error(
                     "Unexpected error in stream",
                     error=str(e),
@@ -434,77 +489,17 @@ class RealTimeStreamManager:
                 retry_count += 1
                 if retry_count >= self._config.max_retries:
                     break
-            finally:
-                self._connected_event.clear()
 
         self.logger.info("Stream thread exiting", retry_count=retry_count)
 
-    async def _execute_stream_attempt(self, attempt_number: int) -> bool:
-        """Execute a single stream attempt with circuit breaker protection.
-
-        Args:
-            attempt_number: Current attempt number
-
-        Returns:
-            True if should break from retry loop
-
-        Raises:
-            WebSocketError: If connection fails
-            StreamingError: If stream setup fails
-
-        """
-        # Check circuit breaker before attempting connection
-        if not self._circuit_breaker.can_attempt_connection():
-            self.logger.warning(
-                "Circuit breaker blocking connection attempt",
-                attempt=attempt_number,
-                circuit_state=self._circuit_breaker.state.value,
-            )
-            raise WebSocketError("Circuit breaker open - connection blocked")
-
-        self.logger.info("Attempting to start stream", attempt=attempt_number)
-
-        symbols_to_subscribe = self._get_symbols()
-
-        try:
-            if symbols_to_subscribe:
-                result = await self._setup_and_run_stream_with_symbols(
-                    symbols_to_subscribe
-                )
-            else:
-                result = await self._handle_no_symbols_to_subscribe()
-
-            if result:
-                self._circuit_breaker.record_success()
-            return result
-
-        except (OSError, RuntimeError, ConnectionError) as e:
-            error_msg = str(e)
-            if (
-                "connection limit exceeded" in error_msg.lower()
-                or "http 429" in error_msg.lower()
-            ):
-                self._circuit_breaker.record_failure(
-                    f"Connection limit exceeded: {error_msg}"
-                )
-                raise WebSocketError(f"Connection limit exceeded: {error_msg}") from e
-            self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
-            raise StreamingError(f"Stream connection failed: {error_msg}") from e
-
-    async def _setup_and_run_stream_with_symbols(  # noqa: C901
-        self, symbols_to_subscribe: list[str]
-    ) -> bool:
-        """Set up stream with symbols and run it.
+    def _setup_stream_with_symbols(self, symbols_to_subscribe: list[str]) -> bool:
+        """Set up stream instance with symbol subscriptions.
 
         Args:
             symbols_to_subscribe: List of symbols to subscribe to
 
         Returns:
-            True if stream closed normally
-
-        Raises:
-            StreamingError: If stream setup or execution fails
-            WebSocketError: If WebSocket connection fails
+            True if setup succeeded, False otherwise
 
         """
         self.logger.info(
@@ -513,7 +508,7 @@ class RealTimeStreamManager:
             symbols=sorted(symbols_to_subscribe),
         )
 
-        # Create a fresh stream instance (credentials accessed via .value)
+        # Create a fresh stream instance
         try:
             self._stream = create_stock_data_stream(
                 api_key=self._api_key.value,
@@ -521,12 +516,24 @@ class RealTimeStreamManager:
                 feed=self._feed,
             )
         except (ValueError, TypeError, OSError) as e:
-            raise StreamingError(f"Failed to create stream: {e}") from e
+            self.logger.error(
+                "Failed to create stream",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return False
 
-        # Wrap callbacks to handle errors gracefully
-        async def safe_quote_callback(data: AlpacaQuoteData) -> None:
+        # Track background tasks to prevent garbage collection
+        import asyncio
+
+        self._background_tasks: set[asyncio.Task[None]] = set()
+
+        # Set up callback wrappers that bridge our async callbacks to SDK's async API
+        async def async_quote_callback(data: AlpacaQuoteData) -> None:
+            """Wrap async quote callback for SDK's asynchronous callback interface."""
             try:
                 if self._on_quote:
+                    # Call our async callback
                     await self._on_quote(data)
             except (KeyError, ValueError, TypeError) as e:
                 self.logger.error(
@@ -534,19 +541,18 @@ class RealTimeStreamManager:
                     error=str(e),
                     error_type=type(e).__name__,
                 )
-            except asyncio.CancelledError:
-                raise
-            except (OSError, RuntimeError, AttributeError, ImportError) as e:
-                # Log but don't crash stream for common user errors
+            except Exception as e:
                 self.logger.error(
                     "Unexpected error in quote callback",
                     error=str(e),
                     error_type=type(e).__name__,
                 )
 
-        async def safe_trade_callback(data: AlpacaTradeData) -> None:
+        async def async_trade_callback(data: AlpacaTradeData) -> None:
+            """Wrap async trade callback for SDK's asynchronous callback interface."""
             try:
                 if self._on_trade:
+                    # Call our async callback
                     await self._on_trade(data)
             except (KeyError, ValueError, TypeError) as e:
                 self.logger.error(
@@ -554,107 +560,30 @@ class RealTimeStreamManager:
                     error=str(e),
                     error_type=type(e).__name__,
                 )
-            except asyncio.CancelledError:
-                raise
-            except (OSError, RuntimeError, AttributeError, ImportError) as e:
-                # Log but don't crash stream for common user errors
+            except Exception as e:
                 self.logger.error(
                     "Unexpected error in trade callback",
                     error=str(e),
                     error_type=type(e).__name__,
                 )
 
-        # Subscribe to quotes and trades with safe wrappers
+        # Subscribe to quotes and trades
         try:
             if self._on_quote:
                 self._stream.subscribe_quotes(
-                    safe_quote_callback, *symbols_to_subscribe
+                    async_quote_callback, *symbols_to_subscribe
                 )
             if self._on_trade:
                 self._stream.subscribe_trades(
-                    safe_trade_callback, *symbols_to_subscribe
+                    async_trade_callback, *symbols_to_subscribe
                 )
         except (ValueError, TypeError) as e:
-            raise StreamingError(f"Failed to subscribe to symbols: {e}") from e
+            self.logger.error(
+                "Failed to subscribe to symbols",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return False
 
         self.logger.info("All subscriptions set up successfully")
-
-        # Mark as connected
-        self._connected_event.set()
-
-        # Run the stream using _run_forever() to avoid nested asyncio.run() issues
-        # The public run() method calls asyncio.run() which conflicts with our event loop
-        try:
-            await self._stream._run_forever()
-        except (OSError, RuntimeError, ConnectionError) as e:
-            raise WebSocketError(f"WebSocket connection failed: {e}") from e
-
-        # If we get here, the stream closed normally
-        self.logger.info("Stream closed normally")
         return True
-
-    async def _handle_no_symbols_to_subscribe(self) -> bool:
-        """Handle case when no symbols are available.
-
-        Returns:
-            True if should break from retry loop, False to continue
-
-        """
-        await self._wait_for_subscription_requests()
-        symbols_to_subscribe = self._get_symbols()
-
-        if symbols_to_subscribe:
-            self.logger.info(
-                "New subscriptions detected",
-                symbols=sorted(symbols_to_subscribe),
-            )
-            self._connected_event.clear()
-            return False  # Continue retry loop
-
-        self.logger.info("Shutting down stream - no reconnection requested")
-        return True  # Break from retry loop
-
-    async def _wait_for_subscription_requests(self) -> None:
-        """Wait for subscriptions to be added.
-
-        Uses Event for efficient signaling instead of polling.
-        """
-        self.logger.info("No symbols to subscribe to, waiting...")
-        self._connected_event.set()  # Mark as ready
-
-        symbols_to_subscribe: list[str] = []
-        while self._should_reconnect and not symbols_to_subscribe:
-            await asyncio.sleep(self._config.subscription_poll_interval)
-            symbols_to_subscribe = self._get_symbols()
-
-    async def _handle_stream_error(
-        self, error: Exception, retry_count: int, max_retries: int, base_delay: float
-    ) -> bool:
-        """Handle stream errors and determine if retry should continue.
-
-        Args:
-            error: The exception that occurred
-            retry_count: Current retry attempt number
-            max_retries: Maximum number of retries allowed
-            base_delay: Base delay for exponential backoff
-
-        Returns:
-            True if should continue retrying, False otherwise
-
-        """
-        delay = min(base_delay * (2 ** (retry_count - 1)), self._config.max_retry_delay)
-        self.logger.error(
-            "Stream error",
-            error=str(error),
-            error_type=type(error).__name__,
-            retry_attempt=retry_count,
-            max_retries=max_retries,
-        )
-
-        if retry_count < max_retries and self._should_reconnect:
-            self.logger.info("Retrying stream connection", retry_delay_seconds=delay)
-            await asyncio.sleep(delay)
-            return True
-
-        self.logger.error("Max retries exceeded", retry_count=retry_count)
-        return False

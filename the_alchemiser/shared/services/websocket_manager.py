@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from alpaca.trading.stream import TradingStream
 
-from the_alchemiser.shared.errors.exceptions import WebSocketError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
@@ -170,7 +169,7 @@ class WebSocketConnectionManager:
         with self._service_lock:
             if self._pricing_service is None:
                 logger.info(
-                    "Creating shared real-time pricing service",
+                    "Creating shared real-time pricing service (lazy connection)",
                     correlation_id=correlation_id,
                     credentials_hash=self._credentials_hash[:8],
                 )
@@ -181,24 +180,11 @@ class WebSocketConnectionManager:
                     max_symbols=50,  # Increased limit for shared service
                 )
 
-                # Start the service
-                if not self._pricing_service.start():
-                    logger.error(
-                        "Failed to start shared real-time pricing service",
-                        correlation_id=correlation_id,
-                        credentials_hash=self._credentials_hash[:8],
-                    )
-                    raise WebSocketError(
-                        "Failed to start real-time pricing service",
-                        context={
-                            "service": "pricing",
-                            "operation": "start",
-                            "correlation_id": correlation_id,
-                        },
-                    )
-
+                # DO NOT start the service here - let it start lazily when symbols are added
+                # This avoids the "no symbols to subscribe to" timeout issue
+                # The service will automatically start when first subscription is added
                 logger.info(
-                    "Shared real-time pricing service started successfully",
+                    "Shared real-time pricing service created (will connect on first subscription)",
                     correlation_id=correlation_id,
                 )
 
