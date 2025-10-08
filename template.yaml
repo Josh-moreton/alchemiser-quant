@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/validator/sam_schema/schema.json
+# yaml-language-server: disable-validation
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
@@ -155,48 +157,73 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Exclude:
+          # Version control and CI/CD
           - .git/**
           - .git*
           - .github/**
           - .aws-sam/**
+
+          # Python environments
           - .venv/**
-          - .vscode/**
-          - .idea/**
           - venv/**
           - env/**
           - .env*
+
+          # IDE and editor files
+          - .vscode/**
+          - .idea/**
+          - .editorconfig
+
+          # Python cache and build artifacts
           - .cache/**
           - .pytest_cache/**
           - .mypy_cache/**
           - .ruff_cache/**
           - '**/__pycache__/**'
           - '**/*.pyc'
+          - '**/*.pyo'
           - dist/**
           - build/**
           - '**/*.egg-info/**'
+
+          # Development and testing
           - tests/**
+          - .pre-commit-config.yaml
+          - pytest.ini
+
+          # Documentation
           - docs/**
+          - CHANGELOG.md
+          - README.md
+          - '**/*.md'
+
+          # Data and logs (not needed in Lambda)
           - logs/**
           - data/**
+          - '**/*.csv'
+          - '**/*.parquet'
+
+          # Scripts directory (backtest, stress_test, etc - dev only)
           - scripts/**
+
+          # Dependencies layer is separate
           - dependencies/**
+
+          # Media files
           - '**/*.ipynb'
           - '**/*.png'
           - '**/*.jpg'
           - '**/*.svg'
           - '**/*.gif'
           - '**/*.pdf'
-          - '**/*.csv'
-          - CHANGELOG.md
-          - README.md
           - logo.png
+
+          # Configuration files (not needed at runtime)
           - Makefile
-          - .editorconfig
-          - .pre-commit-config.yaml
           - poetry.lock
           - pyproject.toml
-          - pytest.ini
           - sonar-project.properties
+          - samconfig.toml
 
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
@@ -263,19 +290,25 @@ Resources:
             Principal:
               Service: scheduler.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: SchedulerLambdaInvokePolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource: !GetAtt TradingSystemFunction.Arn
-              - Effect: Allow
-                Action:
-                  - sqs:SendMessage
-                Resource: !GetAtt TradingSystemDLQ.Arn
+
+  # Separate policy for Scheduler role to avoid constant updates
+  SchedulerExecutionRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SchedulerLambdaInvokePolicy
+      Roles:
+        - !Ref SchedulerExecutionRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt TradingSystemFunction.Arn
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+            Resource: !GetAtt TradingSystemDLQ.Arn
 
   # IAM Role for Lambda execution
   TradingSystemExecutionRole:
@@ -290,30 +323,36 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: TradingSystemPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              # CloudWatch Logs (enhanced logging)
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogStreams
-                  - logs:DescribeLogGroups
-                Resource: "*"
 
-              # S3 access for trade ledger
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt TradeLedgerBucket.Arn
-                  - !Sub "${TradeLedgerBucket.Arn}/*"
+  # Separate policy for Lambda execution role to avoid constant updates
+  TradingSystemExecutionRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: TradingSystemPolicy
+      Roles:
+        - !Ref TradingSystemExecutionRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # CloudWatch Logs (enhanced logging)
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+            Resource: "*"
+
+          # S3 access for trade ledger
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - !GetAtt TradeLedgerBucket.Arn
+              - !Sub "${TradeLedgerBucket.Arn}/*"
 
 
   # CloudWatch Log Group with retention

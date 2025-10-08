@@ -266,8 +266,8 @@ class PnLService:
         self,
         history: dict[str, list[float] | list[int]],
         period: str,
-        start_date: str = "",
-        end_date: str = "",
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> PnLData:
         """Process portfolio history data into P&L metrics.
 
@@ -319,8 +319,8 @@ class PnLService:
 
             return PnLData(
                 period=period,
-                start_date=start_date or (daily_data[0].date if daily_data else ""),
-                end_date=end_date or (daily_data[-1].date if daily_data else ""),
+                start_date=start_date or (daily_data[0].date if daily_data else None),
+                end_date=end_date or (daily_data[-1].date if daily_data else None),
                 start_value=start_value,
                 end_value=end_value,
                 total_pnl=total_pnl,

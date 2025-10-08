@@ -21,11 +21,11 @@ ExecutionStatus = Literal["SUCCESS", "FAILURE", "PARTIAL"]
 TradingMode = Literal["PAPER", "LIVE"]
 
 __all__ = [
-    "OrderResultSummary",
-    "ExecutionSummary",
-    "TradeRunResult",
-    "OrderAction",
     "ExecutionStatus",
+    "ExecutionSummary",
+    "OrderAction",
+    "OrderResultSummary",
+    "TradeRunResult",
     "TradingMode",
 ]
 
@@ -46,6 +46,7 @@ class OrderResultSummary(BaseModel):
         ...     timestamp=datetime.now(UTC),
         ...     schema_version="1.0"
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -94,6 +95,7 @@ class ExecutionSummary(BaseModel):
         ...     execution_duration_seconds=12.5,
         ...     schema_version="1.0"
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -150,6 +152,7 @@ class TradeRunResult(BaseModel):
         ...     correlation_id="550e8400-e29b-41d4-a716-446655440000",
         ...     schema_version="1.0"
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -174,7 +177,9 @@ class TradeRunResult(BaseModel):
 
     # Warnings and notifications
     warnings: list[str] = Field(
-        default_factory=list, max_length=100, description="Non-critical warnings (e.g., email failures)"
+        default_factory=list,
+        max_length=100,
+        description="Non-critical warnings (e.g., email failures)",
     )
 
     # Execution metadata
@@ -206,10 +211,7 @@ class TradeRunResult(BaseModel):
     def validate_temporal_ordering(self) -> TradeRunResult:
         """Validate that completed_at is not before started_at."""
         if self.completed_at < self.started_at:
-            msg = (
-                f"completed_at ({self.completed_at}) must be >= "
-                f"started_at ({self.started_at})"
-            )
+            msg = f"completed_at ({self.completed_at}) must be >= started_at ({self.started_at})"
             raise ValueError(msg)
         return self
 
