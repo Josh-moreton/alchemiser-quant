@@ -78,7 +78,7 @@ class TestErrorDetailInfo:
 
     def test_extra_fields_are_ignored(self):
         """Test that extra fields are silently ignored (not forbidden).
-        
+
         Note: ConfigDict has strict=True and frozen=True but not extra='forbid',
         so extra fields are ignored rather than raising an error. This is
         documented as a Medium severity finding in the file review.
@@ -508,7 +508,15 @@ class TestComplexNestedScenarios:
         data = report.model_dump()
 
         # All categories should be None
-        for category in ["critical", "trading", "data", "strategy", "configuration", "notification", "warning"]:
+        for category in [
+            "critical",
+            "trading",
+            "data",
+            "strategy",
+            "configuration",
+            "notification",
+            "warning",
+        ]:
             assert data[category] is None
 
     def test_serialization_roundtrip(self):
