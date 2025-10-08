@@ -112,9 +112,7 @@ class LambdaEvent(BaseModel):
         default=None,
         description="Override recipient email address for summary (should be valid email)",
     )
-    subject: str | None = Field(
-        default=None, description="Override email subject for summary"
-    )
+    subject: str | None = Field(default=None, description="Override email subject for summary")
     dry_run: bool | None = Field(
         default=None, description="When true, compute summary but do not send email"
     )
