@@ -9,22 +9,45 @@ serialization helpers for communication between execution and other modules.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..utils.data_conversion import (
     convert_datetime_fields_from_dict,
+    convert_datetime_fields_to_dict,
     convert_decimal_fields_from_dict,
+    convert_decimal_fields_to_dict,
     convert_nested_order_data,
 )
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class ExecutedOrder(BaseModel):
-    """DTO for individual executed order."""
+    """DTO for individual executed order.
+    
+    Represents a single executed order with all relevant execution details.
+    This DTO is immutable (frozen) and strictly validated.
+    
+    Example:
+        >>> from decimal import Decimal
+        >>> from datetime import datetime, UTC
+        >>> order = ExecutedOrder(
+        ...     schema_version="1.0",
+        ...     order_id="abc123",
+        ...     symbol="AAPL",
+        ...     action="BUY",
+        ...     quantity=Decimal("10"),
+        ...     filled_quantity=Decimal("10"),
+        ...     price=Decimal("150.50"),
+        ...     total_value=Decimal("1505.00"),
+        ...     status="FILLED",
+        ...     execution_timestamp=datetime.now(UTC)
+        ... )
+    """
 
     model_config = ConfigDict(
         strict=True,
@@ -33,9 +56,16 @@ class ExecutedOrder(BaseModel):
         str_strip_whitespace=True,
     )
 
+    # Schema version for evolution
+    schema_version: str = Field(
+        default="1.0",
+        frozen=True,
+        description="Schema version for DTO evolution",
+    )
+
     order_id: str = Field(..., min_length=1, description="Unique order identifier")
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    action: str = Field(..., description="Trading action (BUY, SELL)")
+    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol")
+    action: Literal["BUY", "SELL"] = Field(..., description="Trading action (BUY, SELL)")
     quantity: Decimal = Field(..., gt=0, description="Order quantity")
     filled_quantity: Decimal = Field(..., ge=0, description="Filled quantity")
     price: Decimal = Field(..., gt=0, description="Execution price")
@@ -57,17 +87,26 @@ class ExecutedOrder(BaseModel):
     @field_validator("action")
     @classmethod
     def validate_action(cls, v: str) -> str:
-        """Validate action is supported."""
-        valid_actions = {"BUY", "SELL"}
+        """Validate and normalize action to uppercase.
+        
+        Note: Field type is Literal["BUY", "SELL"], but this validator
+        provides helpful error messages and normalization for string inputs.
+        """
         action_upper = v.strip().upper()
-        if action_upper not in valid_actions:
-            raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
+        if action_upper not in {"BUY", "SELL"}:
+            raise ValueError(
+                f"Action must be 'BUY' or 'SELL', got '{action_upper}'"
+            )
         return action_upper
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        """Validate order status."""
+        """Validate order status.
+        
+        Normalizes status to uppercase and validates against known statuses.
+        Note: CANCELLED and CANCELED are both accepted (different spellings).
+        """
         valid_statuses = {
             "FILLED",
             "PARTIAL",
@@ -81,13 +120,19 @@ class ExecutedOrder(BaseModel):
         }
         status_upper = v.strip().upper()
         if status_upper not in valid_statuses:
-            raise ValueError(f"Status must be one of {valid_statuses}, got {status_upper}")
+            raise ValueError(
+                f"Status must be one of {valid_statuses}, got '{status_upper}'"
+            )
         return status_upper
 
     @field_validator("execution_timestamp")
     @classmethod
     def ensure_timezone_aware_execution_timestamp(cls, v: datetime) -> datetime:
-        """Ensure timestamp is timezone-aware."""
+        """Ensure execution_timestamp is timezone-aware.
+        
+        Raises:
+            ValueError: If timestamp cannot be made timezone-aware.
+        """
         result = ensure_timezone_aware(v)
         if result is None:
             raise ValueError("execution_timestamp cannot be None")
@@ -98,7 +143,33 @@ class ExecutionReport(BaseModel):
     """DTO for execution report data transfer.
 
     Used for communication between execution module and other modules.
-    Includes correlation tracking and serialization helpers.
+    Includes correlation tracking, schema versioning, idempotency support,
+    and serialization helpers for event-driven architecture.
+    
+    The idempotency_key is generated from a hash of key fields to enable
+    deduplication in event replay scenarios.
+    
+    Example:
+        >>> from decimal import Decimal
+        >>> from datetime import datetime, UTC
+        >>> report = ExecutionReport(
+        ...     schema_version="1.0",
+        ...     correlation_id="corr-123",
+        ...     causation_id="cause-456",
+        ...     timestamp=datetime.now(UTC),
+        ...     execution_id="exec-789",
+        ...     total_orders=5,
+        ...     successful_orders=5,
+        ...     failed_orders=0,
+        ...     total_value_traded=Decimal("10000.00"),
+        ...     total_commissions=Decimal("10.00"),
+        ...     total_fees=Decimal("5.00"),
+        ...     net_cash_flow=Decimal("-10015.00"),
+        ...     execution_start_time=datetime.now(UTC),
+        ...     execution_end_time=datetime.now(UTC),
+        ...     total_duration_seconds=Decimal("45.5"),
+        ...     success_rate=Decimal("1.0")
+        ... )
     """
 
     model_config = ConfigDict(
@@ -106,6 +177,13 @@ class ExecutionReport(BaseModel):
         frozen=True,
         validate_assignment=True,
         str_strip_whitespace=True,
+    )
+
+    # Schema version for evolution
+    schema_version: str = Field(
+        default="1.0",
+        frozen=True,
+        description="Schema version for DTO evolution",
     )
 
     # Required correlation fields
@@ -128,15 +206,21 @@ class ExecutionReport(BaseModel):
     total_value_traded: Decimal = Field(..., ge=0, description="Total value traded")
     total_commissions: Decimal = Field(..., ge=0, description="Total commissions paid")
     total_fees: Decimal = Field(..., ge=0, description="Total fees paid")
-    net_cash_flow: Decimal = Field(..., description="Net cash flow (negative for net purchases)")
+    net_cash_flow: Decimal = Field(
+        ..., description="Net cash flow (negative for net purchases, positive for net sales)"
+    )
 
-    # Timing
+    # Timing - use Decimal for consistency with average_execution_time_seconds
     execution_start_time: datetime = Field(..., description="Execution start timestamp")
     execution_end_time: datetime = Field(..., description="Execution end timestamp")
-    total_duration_seconds: int = Field(..., ge=0, description="Total execution duration")
+    total_duration_seconds: Decimal = Field(..., ge=0, description="Total execution duration in seconds")
 
     # Order details
-    orders: list[ExecutedOrder] = Field(default_factory=list, description="List of executed orders")
+    orders: list[ExecutedOrder] = Field(
+        default_factory=list,
+        description="List of executed orders",
+        max_length=10000,  # Reasonable limit to prevent memory issues
+    )
 
     # Performance metrics
     success_rate: Decimal = Field(..., ge=0, le=1, description="Success rate (0-1)")
@@ -156,50 +240,77 @@ class ExecutionReport(BaseModel):
 
     @field_validator("timestamp", "execution_start_time", "execution_end_time")
     @classmethod
-    def ensure_timezone_aware_timestamps(cls, v: datetime) -> datetime:
-        """Ensure timestamp is timezone-aware."""
+    def ensure_timezone_aware_timestamps(cls, v: datetime, info: Any) -> datetime:
+        """Ensure timestamp is timezone-aware.
+        
+        Args:
+            v: The datetime value to validate
+            info: Pydantic validation info containing field name
+            
+        Raises:
+            ValueError: If timestamp cannot be made timezone-aware, with field name in error.
+        """
         result = ensure_timezone_aware(v)
         if result is None:
-            raise ValueError("timestamp cannot be None")
+            field_name = info.field_name if hasattr(info, 'field_name') else 'timestamp'
+            raise ValueError(f"{field_name} cannot be None")
         return result
 
-    @field_validator("success_rate")
-    @classmethod
-    def validate_success_rate(cls, v: Decimal) -> Decimal:
-        """Validate success rate is between 0 and 1."""
-        if not (0 <= v <= 1):
-            raise ValueError("Success rate must be between 0 and 1")
-        return v
+    @property
+    def idempotency_key(self) -> str:
+        """Generate deterministic idempotency key from report content.
+        
+        The key is a SHA-256 hash of critical fields to enable deduplication
+        in event replay scenarios. This ensures the same execution report
+        produces the same idempotency key.
+        
+        Returns:
+            Hex string representation of SHA-256 hash of key fields.
+            
+        Example:
+            >>> report = ExecutionReport(...)
+            >>> key1 = report.idempotency_key
+            >>> key2 = report.idempotency_key
+            >>> assert key1 == key2  # Deterministic
+        """
+        # Create deterministic string from key fields
+        key_data = (
+            f"{self.schema_version}|"
+            f"{self.execution_id}|"
+            f"{self.correlation_id}|"
+            f"{self.timestamp.isoformat()}|"
+            f"{self.total_orders}|"
+            f"{self.successful_orders}|"
+            f"{self.failed_orders}|"
+            f"{self.total_value_traded}|"
+            f"{self.success_rate}"
+        )
+        return hashlib.sha256(key_data.encode("utf-8")).hexdigest()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
+        
+        Uses centralized data_conversion utilities for consistent serialization
+        across all DTOs. Returns a new dictionary without modifying internal state.
 
         Returns:
             Dictionary representation of the DTO with properly serialized values.
-
+            
+        Example:
+            >>> report = ExecutionReport(...)
+            >>> data = report.to_dict()
+            >>> isinstance(data["total_value_traded"], str)  # Decimals as strings
+            True
+            >>> isinstance(data["timestamp"], str)  # Datetimes as ISO strings
+            True
         """
         data = self.model_dump()
 
-        # Convert datetime fields to ISO strings
-        self._convert_datetime_fields(data)
-
-        # Convert Decimal fields to string for JSON serialization
-        self._convert_decimal_fields(data)
-
-        # Convert nested orders
-        self._convert_nested_orders(data)
-
-        return data
-
-    def _convert_datetime_fields(self, data: dict[str, Any]) -> None:
-        """Convert datetime fields to ISO string format."""
+        # Convert datetime fields to ISO strings using centralized utility
         datetime_fields = ["timestamp", "execution_start_time", "execution_end_time"]
-        for field_name in datetime_fields:
-            if data.get(field_name):
-                data[field_name] = data[field_name].isoformat()
+        convert_datetime_fields_to_dict(data, datetime_fields)
 
-    def _convert_decimal_fields(self, data: dict[str, Any]) -> None:
-        """Convert Decimal fields to string for JSON serialization."""
+        # Convert Decimal fields to string for JSON serialization using centralized utility
         decimal_fields = [
             "total_value_traded",
             "total_commissions",
@@ -207,46 +318,48 @@ class ExecutionReport(BaseModel):
             "net_cash_flow",
             "success_rate",
             "average_execution_time_seconds",
+            "total_duration_seconds",
         ]
-        for field_name in decimal_fields:
-            if data.get(field_name) is not None:
-                data[field_name] = str(data[field_name])
+        convert_decimal_fields_to_dict(data, decimal_fields)
 
-    def _convert_nested_orders(self, data: dict[str, Any]) -> None:
-        """Convert nested order objects to dictionaries with proper serialization."""
-        if "orders" not in data:
-            return
+        # Convert nested orders - must be done manually due to nested structure
+        if "orders" in data and data["orders"]:
+            orders_data = []
+            for order in data["orders"]:
+                # Convert order model to dict if needed
+                order_dict = dict(order) if not isinstance(order, dict) else order
+                
+                # Convert order datetime fields
+                if order_dict.get("execution_timestamp") is not None:
+                    if isinstance(order_dict["execution_timestamp"], datetime):
+                        order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
+                
+                # Convert order Decimal fields
+                order_decimal_fields = [
+                    "quantity",
+                    "filled_quantity",
+                    "price",
+                    "total_value",
+                    "commission",
+                    "fees",
+                ]
+                for field_name in order_decimal_fields:
+                    if order_dict.get(field_name) is not None and isinstance(
+                        order_dict[field_name], Decimal
+                    ):
+                        order_dict[field_name] = str(order_dict[field_name])
+                
+                orders_data.append(order_dict)
+            data["orders"] = orders_data
 
-        orders_data = []
-        for order in data["orders"]:
-            order_dict = dict(order)
-            self._convert_order_datetime(order_dict)
-            self._convert_order_decimals(order_dict)
-            orders_data.append(order_dict)
-        data["orders"] = orders_data
-
-    def _convert_order_datetime(self, order_dict: dict[str, Any]) -> None:
-        """Convert datetime fields in order dictionary."""
-        if order_dict.get("execution_timestamp"):
-            order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
-
-    def _convert_order_decimals(self, order_dict: dict[str, Any]) -> None:
-        """Convert Decimal fields in order dictionary."""
-        order_decimal_fields = [
-            "quantity",
-            "filled_quantity",
-            "price",
-            "total_value",
-            "commission",
-            "fees",
-        ]
-        for field_name in order_decimal_fields:
-            if order_dict.get(field_name) is not None:
-                order_dict[field_name] = str(order_dict[field_name])
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ExecutionReport:
         """Create DTO from dictionary.
+        
+        Handles deserialization from JSON-compatible dictionaries,
+        converting string representations back to proper types.
 
         Args:
             data: Dictionary containing DTO data
@@ -256,7 +369,21 @@ class ExecutionReport(BaseModel):
 
         Raises:
             ValueError: If data is invalid or missing required fields
-
+            
+        Example:
+            >>> data = {
+            ...     "schema_version": "1.0",
+            ...     "correlation_id": "corr-123",
+            ...     "execution_id": "exec-456",
+            ...     "timestamp": "2024-01-01T12:00:00+00:00",
+            ...     "total_orders": 5,
+            ...     "successful_orders": 5,
+            ...     "failed_orders": 0,
+            ...     "total_value_traded": "10000.00",
+            ...     "success_rate": "1.0",
+            ...     # ... other required fields
+            ... }
+            >>> report = ExecutionReport.from_dict(data)
         """
         # Convert string timestamps back to datetime
         datetime_fields = ["timestamp", "execution_start_time", "execution_end_time"]
@@ -270,6 +397,7 @@ class ExecutionReport(BaseModel):
             "net_cash_flow",
             "success_rate",
             "average_execution_time_seconds",
+            "total_duration_seconds",
         ]
         convert_decimal_fields_from_dict(data, decimal_fields)
 
@@ -281,23 +409,36 @@ class ExecutionReport(BaseModel):
     @classmethod
     def _convert_orders_from_dict(cls, orders: list[Any]) -> list[ExecutedOrder]:
         """Convert orders list from dictionary format.
+        
+        Provides type-safe conversion with explicit validation that all
+        items are either dicts (to be converted) or ExecutedOrder instances.
 
         Args:
             orders: List of order data (dicts or DTOs)
 
         Returns:
             List of ExecutedOrder instances
+            
+        Raises:
+            TypeError: If orders contains invalid types
 
         """
         if not isinstance(orders, list):
             return []
 
-        orders_data = []
+        orders_data: list[ExecutedOrder] = []
         for order_data in orders:
             if isinstance(order_data, dict):
+                # Convert dict to ExecutedOrder
                 converted_order = convert_nested_order_data(dict(order_data))
                 orders_data.append(ExecutedOrder(**converted_order))
+            elif isinstance(order_data, ExecutedOrder):
+                # Already a proper DTO
+                orders_data.append(order_data)
             else:
-                orders_data.append(order_data)  # Assume already a DTO
+                # Invalid type - fail explicitly rather than silently assuming
+                raise TypeError(
+                    f"Order data must be dict or ExecutedOrder, got {type(order_data).__name__}"
+                )
 
         return orders_data
