@@ -97,17 +97,7 @@ class OrderRequest(BaseModel):
         """Ensure timestamp is timezone-aware."""
         return ensure_timezone_aware(v)
 
-    @field_validator("side")
-    @classmethod
-    def validate_side(cls, v: str) -> str:
-        """Validate and normalize side."""
-        return v.strip().upper()
 
-    @field_validator("order_type")
-    @classmethod
-    def validate_order_type(cls, v: str) -> str:
-        """Validate and normalize order type."""
-        return v.strip().upper()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
@@ -177,6 +167,9 @@ class OrderRequest(BaseModel):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+                except Exception as e:
+                    # Catch any other Decimal conversion errors (e.g., InvalidOperation)
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
@@ -309,6 +302,9 @@ class MarketData(BaseModel):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+                except Exception as e:
+                    # Catch any other Decimal conversion errors (e.g., InvalidOperation)
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
