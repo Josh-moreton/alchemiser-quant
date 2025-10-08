@@ -76,6 +76,9 @@ class RebalancePlan(BaseModel):
         str_strip_whitespace=True,
     )
 
+    # Schema versioning for evolution tracking
+    schema_version: str = Field(default="1.0", description="DTO schema version")
+
     # Required correlation fields
     correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
     causation_id: str = Field(
@@ -199,8 +202,12 @@ class RebalancePlan(BaseModel):
         ]
         convert_decimal_fields_from_dict(data, decimal_fields)
 
-        # Convert items if present
-        data["items"] = cls._convert_items_from_dict(data.get("items", []))
+        # Validate items exist and non-empty before conversion
+        if "items" not in data or not data["items"]:
+            raise ValueError("RebalancePlan requires at least one item")
+
+        # Convert items
+        data["items"] = cls._convert_items_from_dict(data["items"])
 
         return cls(**data)
 
@@ -214,16 +221,23 @@ class RebalancePlan(BaseModel):
         Returns:
             List of RebalancePlanItem instances
 
+        Raises:
+            TypeError: If items is not a list or contains invalid types
+
         """
         if not isinstance(items, list):
-            return []
+            raise TypeError(f"Items must be a list, got {type(items).__name__}")
 
         items_data = []
         for item_data in items:
             if isinstance(item_data, dict):
                 converted_item = convert_nested_rebalance_item_data(dict(item_data))
                 items_data.append(RebalancePlanItem(**converted_item))
+            elif isinstance(item_data, RebalancePlanItem):
+                items_data.append(item_data)
             else:
-                items_data.append(item_data)  # Assume already a DTO
+                raise TypeError(
+                    f"Expected dict or RebalancePlanItem, got {type(item_data).__name__}"
+                )
 
         return items_data

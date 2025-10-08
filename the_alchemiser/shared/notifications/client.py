@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.reporting import EmailCredentials
+from the_alchemiser.shared.schemas.notifications import EmailCredentials
 
 from .config import EmailConfig
 
