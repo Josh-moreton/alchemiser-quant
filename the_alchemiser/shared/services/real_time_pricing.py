@@ -235,7 +235,9 @@ class RealTimePricingService:
 
             if result:
                 # Start cleanup thread
-                self._price_store.start_cleanup(is_connected_callback=self._is_stream_connected)
+                self._price_store.start_cleanup(
+                    is_connected_callback=self._is_stream_connected
+                )
                 self.logger.info(
                     "✅ Real-time pricing service started successfully",
                     extra={"correlation_id": self._correlation_id},
@@ -343,13 +345,18 @@ class RealTimePricingService:
                 return
 
             quote_values = self._data_processor.extract_quote_values(data)
-            timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
+            timestamp = self._data_processor.get_quote_timestamp(
+                quote_values.timestamp_raw
+            )
 
             self._data_processor.log_quote_debug(
                 symbol, quote_values.bid_price, quote_values.ask_price
             )
 
-            if quote_values.bid_price is not None and quote_values.ask_price is not None:
+            if (
+                quote_values.bid_price is not None
+                and quote_values.ask_price is not None
+            ):
                 # Use asyncio.to_thread for potentially blocking lock operations
                 await asyncio.to_thread(
                     self._price_store.update_quote_data,
@@ -530,7 +537,9 @@ class RealTimePricingService:
         """Get service statistics."""
         last_hb = self._datetime_stats.get("last_heartbeat")
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
+            (datetime.now(UTC) - last_hb).total_seconds()
+            if isinstance(last_hb, datetime)
+            else 0
         )
 
         # Combine stats from all components
@@ -552,7 +561,9 @@ class RealTimePricingService:
         Allows overriding via env vars `ALPACA_FEED` or `ALPACA_DATA_FEED`.
         Defaults to "iex". Use "sip" if you have the required subscription.
         """
-        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
+        feed = (
+            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
+        ).lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(
                 f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'",
@@ -590,7 +601,9 @@ class RealTimePricingService:
         subscription_plan = self._subscription_manager.plan_bulk_subscription(
             normalized_symbols, priority
         )
-        self._subscription_manager.execute_subscription_plan(subscription_plan, priority)
+        self._subscription_manager.execute_subscription_plan(
+            subscription_plan, priority
+        )
 
         if subscription_plan.successfully_added > 0 and self.is_connected():
             self.logger.info(

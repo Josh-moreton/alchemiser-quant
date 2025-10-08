@@ -296,8 +296,12 @@ class TradingSystemErrorHandler:
             "These errors affected trade execution:",
         )
         report = self._add_error_section(report, summary["data"], "📊 DATA ERRORS")
-        report = self._add_error_section(report, summary["strategy"], "🧠 STRATEGY ERRORS")
-        return self._add_error_section(report, summary["configuration"], "⚙️ CONFIGURATION ERRORS")
+        report = self._add_error_section(
+            report, summary["strategy"], "🧠 STRATEGY ERRORS"
+        )
+        return self._add_error_section(
+            report, summary["configuration"], "⚙️ CONFIGURATION ERRORS"
+        )
 
     def classify_order_error(
         self,

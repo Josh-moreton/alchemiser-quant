@@ -41,7 +41,9 @@ class RealTimePriceStore:
 
         """
         if cleanup_interval <= 0:
-            raise ValueError(f"cleanup_interval must be positive, got {cleanup_interval}")
+            raise ValueError(
+                f"cleanup_interval must be positive, got {cleanup_interval}"
+            )
         if max_quote_age <= 0:
             raise ValueError(f"max_quote_age must be positive, got {max_quote_age}")
 
@@ -143,8 +145,12 @@ class RealTimePriceStore:
                 symbol=symbol,
                 bid_price=Decimal(str(bid_price)),
                 ask_price=Decimal(str(ask_price)),
-                bid_size=(Decimal(str(bid_size)) if bid_size is not None else Decimal("0.0")),
-                ask_size=(Decimal(str(ask_size)) if ask_size is not None else Decimal("0.0")),
+                bid_size=(
+                    Decimal(str(bid_size)) if bid_size is not None else Decimal("0.0")
+                ),
+                ask_size=(
+                    Decimal(str(ask_size)) if ask_size is not None else Decimal("0.0")
+                ),
                 timestamp=timestamp,
             )
 
@@ -313,7 +319,9 @@ class RealTimePriceStore:
 
         return None
 
-    def get_bid_ask_spread(self, symbol: str) -> tuple[Decimal | float, Decimal | float] | None:
+    def get_bid_ask_spread(
+        self, symbol: str
+    ) -> tuple[Decimal | float, Decimal | float] | None:
         """Get current bid/ask spread for a symbol.
 
         Args:
@@ -387,7 +395,9 @@ class RealTimePriceStore:
             # Check if we have recent data for this symbol
             if symbol in self._quotes and symbol in self._last_update:
                 # If data is very recent (within 1 second), use it immediately
-                time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+                time_since_update = (
+                    datetime.now(UTC) - self._last_update[symbol]
+                ).total_seconds()
                 if time_since_update < 1.0:
                     break
 
@@ -425,7 +435,9 @@ class RealTimePriceStore:
         with self._quotes_lock:
             if symbol not in self._last_update:
                 return False
-            time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+            time_since_update = (
+                datetime.now(UTC) - self._last_update[symbol]
+            ).total_seconds()
             return time_since_update < max_age_seconds
 
     def _cleanup_old_quotes(self) -> None:
@@ -453,7 +465,9 @@ class RealTimePriceStore:
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
-                        self.logger.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
+                        self.logger.info(
+                            f"🧹 Cleaned up {len(symbols_to_remove)} old quotes"
+                        )
 
             except Exception as e:
                 self.logger.error(f"Error during quote cleanup: {e}")

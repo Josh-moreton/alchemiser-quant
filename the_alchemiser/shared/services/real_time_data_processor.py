@@ -78,7 +78,8 @@ class RealTimeDataProcessor:
 
         if not symbol or not symbol.strip():
             raise DataProviderError(
-                "Symbol missing or empty in quote data", {"data_type": type(data).__name__}
+                "Symbol missing or empty in quote data",
+                {"data_type": type(data).__name__},
             )
 
         return symbol
@@ -143,7 +144,8 @@ class RealTimeDataProcessor:
 
         if not symbol or not symbol.strip():
             raise DataProviderError(
-                "Symbol missing or empty in trade data", {"data_type": type(data).__name__}
+                "Symbol missing or empty in trade data",
+                {"data_type": type(data).__name__},
             )
 
         return symbol
@@ -170,7 +172,9 @@ class RealTimeDataProcessor:
         if isinstance(trade, dict):
             price_raw = trade.get("price")
             if price_raw is None:
-                raise DataProviderError("Price missing in trade data", {"data_type": "dict"})
+                raise DataProviderError(
+                    "Price missing in trade data", {"data_type": "dict"}
+                )
             size = trade.get("size", 0)
             volume = trade.get("volume", size)
             timestamp_raw = trade.get("timestamp")
@@ -187,7 +191,9 @@ class RealTimeDataProcessor:
         # Convert price to Decimal
         price = self._safe_decimal_convert(price_raw)
         if price is None:
-            raise DataProviderError("Invalid price in trade data", {"price_raw": str(price_raw)})
+            raise DataProviderError(
+                "Invalid price in trade data", {"price_raw": str(price_raw)}
+            )
 
         # Convert volume to Decimal (volume can be None)
         volume_decimal: Decimal | None = self._safe_decimal_convert(volume)
@@ -216,11 +222,17 @@ class RealTimeDataProcessor:
         if not isinstance(timestamp_raw, datetime):
             raise DataProviderError(
                 "Quote timestamp missing or invalid",
-                {"timestamp_type": type(timestamp_raw).__name__ if timestamp_raw else "None"},
+                {
+                    "timestamp_type": (
+                        type(timestamp_raw).__name__ if timestamp_raw else "None"
+                    )
+                },
             )
         return timestamp_raw
 
-    def get_trade_timestamp(self, timestamp_raw: datetime | str | float | int | None) -> datetime:
+    def get_trade_timestamp(
+        self, timestamp_raw: datetime | str | float | int | None
+    ) -> datetime:
         """Ensure timestamp is a datetime for trades.
 
         Deterministic behavior: raises exception if timestamp is missing rather
@@ -239,7 +251,11 @@ class RealTimeDataProcessor:
         if not isinstance(timestamp_raw, datetime):
             raise DataProviderError(
                 "Trade timestamp missing or invalid",
-                {"timestamp_type": type(timestamp_raw).__name__ if timestamp_raw else "None"},
+                {
+                    "timestamp_type": (
+                        type(timestamp_raw).__name__ if timestamp_raw else "None"
+                    )
+                },
             )
         return timestamp_raw
 
@@ -267,7 +283,9 @@ class RealTimeDataProcessor:
             )
             return None
 
-    def _safe_datetime_convert(self, value: str | float | int | datetime | None) -> datetime | None:
+    def _safe_datetime_convert(
+        self, value: str | float | int | datetime | None
+    ) -> datetime | None:
         """Safely convert value to datetime.
 
         Args:
@@ -310,7 +328,9 @@ class RealTimeDataProcessor:
             },
         )
 
-    def handle_quote_error(self, error: Exception, correlation_id: str | None = None) -> None:
+    def handle_quote_error(
+        self, error: Exception, correlation_id: str | None = None
+    ) -> None:
         """Handle errors in quote processing with structured logging.
 
         Uses structured logging with correlation_id for observability.
