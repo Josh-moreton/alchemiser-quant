@@ -13,7 +13,7 @@ Tests verify:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
@@ -22,18 +22,6 @@ from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )
-
-if TYPE_CHECKING:
-    from alpaca.trading.requests import (
-        LimitOrderRequest,
-        MarketOrderRequest,
-        ReplaceOrderRequest,
-    )
-
-    from the_alchemiser.shared.schemas.broker import OrderExecutionResult
-    from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
-    from the_alchemiser.shared.schemas.operations import OrderCancellationResult
-
 
 # =============================================================================
 # Mock Implementations for Testing Protocol Conformance
@@ -87,7 +75,7 @@ class MockTradingRepository:
         """Get total portfolio value."""
         return Decimal("100000.00")
 
-    def place_order(self, order_request: Any) -> Any:
+    def place_order(self, order_request: Any) -> Any:  # noqa: ANN401  # Test mock
         """Place an order."""
         # Mock implementation returns a simple dict
         # In real tests, would return ExecutedOrder
@@ -101,15 +89,15 @@ class MockTradingRepository:
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
-    ) -> Any:
+    ) -> Any:  # noqa: ANN401  # Test mock
         """Place a market order."""
         return {"order_id": "market123"}
 
-    def cancel_order(self, order_id: str) -> Any:
+    def cancel_order(self, order_id: str) -> Any:  # noqa: ANN401  # Test mock
         """Cancel an order."""
         return {"cancelled": True}
 
-    def replace_order(self, order_id: str, order_data: Any = None) -> Any:
+    def replace_order(self, order_id: str, order_data: Any = None) -> Any:  # noqa: ANN401  # Test mock
         """Replace an order."""
         return {"replaced": True}
 
@@ -135,7 +123,7 @@ class MockTradingRepository:
         return True
 
     @property
-    def trading_client(self) -> Any:
+    def trading_client(self) -> Any:  # noqa: ANN401  # Test mock matching protocol
         """Access to underlying trading client."""
         return None
 
@@ -376,7 +364,7 @@ class TestAlpacaManagerConformance:
     """
 
     @pytest.fixture
-    def alpaca_manager_class(self):
+    def alpaca_manager_class(self) -> type:
         """Import AlpacaManager class."""
         try:
             from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -385,21 +373,21 @@ class TestAlpacaManagerConformance:
         except ImportError:
             pytest.skip("AlpacaManager not available")
 
-    def test_alpaca_manager_has_account_repository_methods(self, alpaca_manager_class) -> None:
+    def test_alpaca_manager_has_account_repository_methods(self, alpaca_manager_class: type) -> None:
         """Test AlpacaManager has all AccountRepository methods."""
         required_methods = ["get_account", "get_buying_power", "get_positions_dict"]
 
         for method in required_methods:
             assert hasattr(alpaca_manager_class, method), f"AlpacaManager missing: {method}"
 
-    def test_alpaca_manager_has_market_data_repository_methods(self, alpaca_manager_class) -> None:
+    def test_alpaca_manager_has_market_data_repository_methods(self, alpaca_manager_class: type) -> None:
         """Test AlpacaManager has all MarketDataRepository methods."""
         required_methods = ["get_current_price", "get_quote"]
 
         for method in required_methods:
             assert hasattr(alpaca_manager_class, method), f"AlpacaManager missing: {method}"
 
-    def test_alpaca_manager_has_trading_repository_methods(self, alpaca_manager_class) -> None:
+    def test_alpaca_manager_has_trading_repository_methods(self, alpaca_manager_class: type) -> None:
         """Test AlpacaManager has all TradingRepository methods."""
         required_methods = [
             "get_positions_dict",
@@ -419,7 +407,7 @@ class TestAlpacaManagerConformance:
         for method in required_methods:
             assert hasattr(alpaca_manager_class, method), f"AlpacaManager missing: {method}"
 
-    def test_alpaca_manager_class_declares_protocols(self, alpaca_manager_class) -> None:
+    def test_alpaca_manager_class_declares_protocols(self, alpaca_manager_class: type) -> None:
         """Test that AlpacaManager declares it implements the protocols."""
         # Check class bases
         base_names = [base.__name__ for base in alpaca_manager_class.__mro__]
