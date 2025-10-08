@@ -31,6 +31,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.0] - 2025-01-06
+
+### Added
+- **File review document** - Comprehensive institution-grade review of `shared/schemas/__init__.py`
+  - 680+ lines of detailed analysis covering correctness, security, performance, and compliance
+  - Line-by-line audit table with severity classifications
+  - Identified 1 critical issue, 2 medium issues, 2 low issues
+  - Documentation in `docs/file_reviews/FILE_REVIEW_shared_schemas_init.md`
+- **Backward compatibility for ErrorContextData** - Deprecated import path now supported
+  - `ErrorContextData` moved from `shared.schemas.errors` to `shared.errors.context` in v2.18.0
+  - Added `__getattr__` hook to provide backward compatibility with deprecation warning
+  - Warns users to update imports, scheduled for removal in v3.0.0
+  - Prevents breaking existing code that imports from old location
+- **Comprehensive test suite** - `tests/shared/schemas/test_init.py` with 15 tests
+  - Verifies all 58 exports are importable
+  - Tests backward compatibility and deprecation warnings
+  - Validates alphabetical sorting of `__all__`
+  - Checks module documentation and Pydantic model conformance
+  - Verifies invalid attribute access raises proper errors
+
+### Fixed
+- **Critical: Broken ErrorContextData export** - Fixed `AttributeError` on import
+  - `ErrorContextData` was listed in `__all__` but not imported (moved to different module)
+  - Would cause runtime errors for any code importing it
+  - Fixed with backward compatibility shim + deprecation warning
+- **Medium: Unsorted __all__ exports** - Alphabetically sorted 58 exports for maintainability
+  - Previously unordered, making it difficult to spot missing/duplicate entries
+  - Now sorted A-Z for easy maintenance and code review
+  - Consistent with best practices seen in other reviewed modules
+
+### Changed
+- **Schemas module version** - Bumped from 2.19.0 to 2.20.0 (MINOR version)
+  - New backward compatibility feature (non-breaking change)
+  - Follows semantic versioning guidelines from copilot-instructions.md
+
 ### Removed
 - **reporting.py schema module** - Removed unused dashboard and reporting DTOs
   - `DashboardMetrics`, `ReportingData`, `EmailReportData`, `EmailSummary` (0 usages)
