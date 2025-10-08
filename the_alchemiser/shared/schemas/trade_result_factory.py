@@ -403,5 +403,9 @@ def _determine_trading_mode(orchestrator: TradingModeProvider) -> TradingMode:
         Trading mode string: "LIVE" or "PAPER"
 
     """
-    mode_str = TRADING_MODE_LIVE if getattr(orchestrator, "live_trading", False) else TRADING_MODE_PAPER
+    mode_str = (
+        TRADING_MODE_LIVE
+        if getattr(orchestrator, "live_trading", False)
+        else TRADING_MODE_PAPER
+    )
     return cast(TradingMode, mode_str)
