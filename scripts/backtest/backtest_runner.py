@@ -135,10 +135,11 @@ class BacktestRunner:
 
         # Initialize reusable market data port and strategy engine (performance optimization)
         # This avoids recreating the engine for every trading day
+        # Reset cached instances to ensure clean state for each backtest run
         self._market_data_port = HistoricalMarketDataPort(self.data_store, config.start_date)
         self._strategy_engine = DslStrategyEngine(
             market_data_port=self._market_data_port,
-            strategy_file=(self.strategy_files[0] if self.strategy_files else "KLM.clj"),
+            strategy_file=(config.strategy_files[0] if config.strategy_files else "KLM.clj"),
         )
         logger.info("Initialized reusable strategy engine for backtest performance")
 
@@ -274,7 +275,11 @@ class BacktestRunner:
             try:
                 # Update market data port timestamp (reuse existing port for performance)
                 if self._market_data_port is None or self._strategy_engine is None:
-                    # Fallback: create new instances if not initialized
+                    # Fallback: create new instances if not initialized (should not happen)
+                    logger.warning(
+                        "Strategy engine not initialized, creating new instance",
+                        date=date.date(),
+                    )
                     self._market_data_port = HistoricalMarketDataPort(self.data_store, date)
                     self._strategy_engine = DslStrategyEngine(
                         market_data_port=self._market_data_port,
