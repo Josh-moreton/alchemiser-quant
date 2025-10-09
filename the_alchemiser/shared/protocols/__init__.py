@@ -1,15 +1,18 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: shared; Status: current.
 
-Protocol definitions for type-safe interfaces.
+Protocol definitions for dependency inversion.
 
-This module exports protocols that define minimal interfaces for type-safe
-interactions without tight coupling to concrete implementations.
+This package contains protocol (interface) definitions that allow domain logic
+to remain independent of infrastructure implementations. Protocols use structural
+subtyping (PEP 544) to define contracts without requiring explicit inheritance.
 """
 
-from __future__ import annotations
-
-from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
+from the_alchemiser.shared.protocols.asset_metadata import (
+    AssetClass,
+    AssetMetadataProvider,
+)
 
 __all__ = [
-    "TradingModeProvider",
+    "AssetClass",
+    "AssetMetadataProvider",
 ]
