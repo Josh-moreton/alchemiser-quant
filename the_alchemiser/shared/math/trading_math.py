@@ -192,7 +192,8 @@ def _log_critical_bug_detection(
             "🚨 FIX: Ensure portfolio value reflects cash balance for fresh accounts or fix API data fetching"
         )
 
-    if total_portfolio_value == 0 and target_weight > 0:
+    # Use math.isclose for float comparison per guardrails (no == on floats)
+    if math.isclose(total_portfolio_value, 0.0, abs_tol=1e-10) and target_weight > 0:
         logger.error(
             "🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value"
         )
