@@ -14,7 +14,7 @@ from __future__ import annotations
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors.exceptions import DataProviderError, RateLimitError
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.protocols.asset_metadata import AssetMetadataProvider
+from the_alchemiser.shared.protocols.asset_metadata import AssetClass, AssetMetadataProvider
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 logger = get_logger(__name__)
@@ -57,19 +57,20 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
             logger.error("Asset not found for fractionability check", symbol=str(symbol))
             raise
 
-    def get_asset_class(self, symbol: Symbol) -> str:
+    def get_asset_class(self, symbol: Symbol) -> AssetClass:
         """Get the asset class for a symbol.
 
         Args:
             symbol: The symbol to classify
 
         Returns:
-            Asset class string (e.g., 'stock', 'etf', 'crypto')
+            Asset class: 'us_equity' for stocks/ETFs, 'crypto' for cryptocurrencies,
+            'unknown' if classification unavailable
 
         """
         asset_info = self._alpaca_manager.get_asset_info(str(symbol))
         if asset_info and asset_info.asset_class:
-            return asset_info.asset_class
+            return asset_info.asset_class  # type: ignore[return-value]
         return "unknown"
 
     def should_use_notional_order(self, symbol: Symbol, quantity: float) -> bool:

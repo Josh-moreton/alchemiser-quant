@@ -162,9 +162,7 @@ class ConsolidatedPortfolio(BaseModel):
                         "weight": str(weight),
                     },
                 )
-                raise ValueError(
-                    f"Weight for {symbol_upper} must be between 0 and 1, got {weight}"
-                )
+                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
 
             normalized[symbol_upper] = weight
             total_weight += weight
@@ -238,7 +236,10 @@ class ConsolidatedPortfolio(BaseModel):
         if result is None:
             logger.error(
                 "Timestamp validation failed",
-                extra={"module": "consolidated_portfolio", "validator": "ensure_timezone_aware_timestamp"},
+                extra={
+                    "module": "consolidated_portfolio",
+                    "validator": "ensure_timezone_aware_timestamp",
+                },
             )
             raise ValueError("Timestamp cannot be None")
         return result

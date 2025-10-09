@@ -27,6 +27,13 @@ if ! command -v sam &> /dev/null; then
     exit 1
 fi
 
+# Check if Docker is running (required for --use-container builds)
+if ! docker info &> /dev/null; then
+    echo "❌ Error: Docker is not running. SAM requires Docker for Lambda-compatible builds."
+    echo "   Please start Docker Desktop and try again."
+    exit 1
+fi
+
 # Check if poetry is available
 if ! command -v poetry &> /dev/null; then
     echo "❌ Error: Poetry is not installed. Please install it first."
@@ -82,9 +89,15 @@ fi
 
 echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
 
-# Build the SAM application
-echo "🔨 Building SAM application..."
-sam build --parallel --config-env "$ENVIRONMENT"
+# Build the SAM application (skip if already built, e.g., by CI/CD)
+if [ -f ".aws-sam/build/template.yaml" ]; then
+    echo "ℹ️  SAM build artifacts already exist, skipping build..."
+    echo "   (To force rebuild, run: rm -rf .aws-sam)"
+else
+    echo "🔨 Building SAM application..."
+    # Use --use-container to build in Lambda-compatible environment
+    sam build --use-container --parallel --config-env "$ENVIRONMENT"
+fi
 
 # Show actual built package sizes
 echo ""

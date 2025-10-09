@@ -1,4 +1,4 @@
 """Business Unit: shared | Status: current.
 
-Tests for protocol definitions.
+Tests for shared protocol definitions.
 """
