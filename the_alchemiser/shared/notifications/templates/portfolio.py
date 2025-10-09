@@ -14,11 +14,22 @@ Any reintroduction of financial metrics must go through explicit design review.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResult
+
+# Module-level logger
+logger = get_logger(__name__)
+
+# Constants for deployment classification thresholds
+HIGH_DEPLOYMENT_PCT = Decimal("95.0")
+MODERATE_DEPLOYMENT_PCT = Decimal("80.0")
+REBALANCE_TOLERANCE = Decimal("0.01")  # 1% tolerance for rebalancing decisions
 
 
 @runtime_checkable
@@ -34,11 +45,20 @@ ExecutionLike = (
 
 
 def _normalise_result(result: ExecutionLike) -> dict[str, Any]:
-    """Return a plain dict for an execution result (DTO / mapping / object)."""
+    """Return a plain dict for an execution result (DTO / mapping / object).
+    
+    Args:
+        result: Execution result in various formats (DTO, mapping, or object)
+        
+    Returns:
+        Dictionary representation of the execution result
+
+    """
     if isinstance(result, MultiStrategyExecutionResult):  # pragma: no branch
         try:
             return result.model_dump()
-        except Exception:  # pragma: no cover - defensive
+        except (AttributeError, TypeError, ValueError) as e:  # pragma: no cover - defensive
+            logger.warning(f"Failed to dump MultiStrategyExecutionResult: {e}")
             return {}
     if isinstance(result, Mapping):  # pragma: no branch
         return dict(result)
@@ -70,6 +90,15 @@ class PortfolioBuilder:
     # ---------------------- internal helpers ---------------------- #
     @staticmethod
     def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
+        """Extract current positions from execution result data.
+        
+        Args:
+            data: Execution result dictionary containing account information
+            
+        Returns:
+            Dictionary mapping symbols to position data
+
+        """
         account_after = data.get("account_info_after", {})
         if isinstance(account_after, dict) and account_after.get("open_positions"):
             open_positions = account_after.get("open_positions", [])
@@ -82,21 +111,45 @@ class PortfolioBuilder:
         return {}
 
     @staticmethod
-    def _extract_portfolio_value(data: dict[str, Any]) -> float:
+    def _extract_portfolio_value(data: dict[str, Any]) -> Decimal:
+        """Extract portfolio value as Decimal for financial calculations.
+        
+        Args:
+            data: Execution result dictionary containing account information
+            
+        Returns:
+            Portfolio value as Decimal
+            
+        Raises:
+            ValueError: If portfolio value is missing or invalid
+
+        """
         account_after = data.get("account_info_after", {})
         if not isinstance(account_after, dict):  # pragma: no cover - defensive
+            logger.warning("account_info_after missing or invalid")
             raise ValueError("account_info_after missing or invalid")
         raw = account_after.get("portfolio_value") or account_after.get("equity")
         if raw is None:
+            logger.warning("portfolio value unavailable in account data")
             raise ValueError("portfolio value unavailable")
         try:
-            return float(raw)
-        except (TypeError, ValueError) as e:  # pragma: no cover - defensive
+            return Decimal(str(raw))
+        except (TypeError, ValueError, ArithmeticError) as e:  # pragma: no cover - defensive
+            logger.warning(f"invalid portfolio value: {raw}, error: {e}")
             raise ValueError("invalid portfolio value") from e
 
     # ------- helper methods used by neutral public tables (restored) ------- #
     @staticmethod
     def _get_order_action_info(side: str) -> tuple[str, str]:
+        """Get color and label for order action (BUY/SELL).
+        
+        Args:
+            side: Order side string (buy, sell, etc.)
+            
+        Returns:
+            Tuple of (color_hex, label)
+
+        """
         side_upper = side.upper()
         if side_upper == "BUY":
             return "#10B981", "BUY"
@@ -106,6 +159,15 @@ class PortfolioBuilder:
 
     @staticmethod
     def _get_order_status_info(status: str) -> tuple[str, str]:
+        """Get color and display label for order status.
+        
+        Args:
+            status: Order status string
+            
+        Returns:
+            Tuple of (color_hex, display_label)
+
+        """
         status_upper = status.upper()
         if status_upper in ("FILLED", "COMPLETE"):
             return "#10B981", "Filled"
@@ -118,9 +180,24 @@ class PortfolioBuilder:
         return "#6B7280", status_upper
 
     @staticmethod
-    def _format_quantity_display(qty: Any) -> str:  # noqa: ANN401
-        if isinstance(qty, (int, float)) and qty != 0:
-            return f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
+    def _format_quantity_display(qty: float | int | Decimal | None) -> str:
+        """Format quantity for display with appropriate precision.
+        
+        Args:
+            qty: Quantity value (supports float, int, Decimal, or None)
+            
+        Returns:
+            Formatted quantity string or em dash if invalid/zero
+
+        """
+        if qty is None:
+            return "—"
+        try:
+            qty_val = float(qty) if not isinstance(qty, (int, float)) else qty
+            if qty_val != 0:
+                return f"{qty_val:.2f}" if qty_val >= 1 else f"{qty_val:.6f}".rstrip("0").rstrip(".")
+        except (TypeError, ValueError, ArithmeticError):
+            pass
         return "—"
 
     # ---------------------- neutral public builders ---------------------- #
@@ -130,6 +207,13 @@ class PortfolioBuilder:
 
         Accepts a mapping (AccountInfo or EnrichedAccountInfo). Dollar values are
         not surfaced—only derived deployment percentage.
+        
+        Args:
+            account_info: Account information mapping
+            
+        Returns:
+            HTML table with account summary
+
         """
         status = str(account_info.get("status", "UNKNOWN"))
         remaining = account_info.get("day_trades_remaining")
@@ -138,15 +222,19 @@ class PortfolioBuilder:
             used = 3 - remaining
             used_str = f"{used}/3"
         # Deployment percentage (if equity & cash present) but no raw numbers
+        # Use Decimal for financial calculations to avoid float precision issues
         try:
-            equity = float(account_info.get("equity", 0) or 0)
-            cash = float(account_info.get("cash", 0) or 0)
-            deployed_pct = (equity - cash) / equity * 100 if equity > 0 else 0.0
-        except (TypeError, ValueError):  # pragma: no cover - defensive
-            deployed_pct = 0.0
-        if deployed_pct >= 95:
+            equity = Decimal(str(account_info.get("equity", 0) or 0))
+            cash = Decimal(str(account_info.get("cash", 0) or 0))
+            deployed_pct = (equity - cash) / equity * Decimal("100") if equity > 0 else Decimal("0")
+        except (TypeError, ValueError, ArithmeticError):  # pragma: no cover - defensive
+            logger.warning("Failed to calculate deployment percentage from account info")
+            deployed_pct = Decimal("0")
+        
+        # Use Decimal comparison with constants for deployment classification
+        if deployed_pct >= HIGH_DEPLOYMENT_PCT:
             deploy_color, deploy_label = "#10B981", "High"
-        elif deployed_pct >= 80:
+        elif deployed_pct >= MODERATE_DEPLOYMENT_PCT:
             deploy_color, deploy_label = "#F59E0B", "Moderate"
         else:
             deploy_color, deploy_label = "#EF4444", "Low"
@@ -156,7 +244,15 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_portfolio_rebalancing_table(result: ExecutionLike) -> str:
-        """Percent-only rebalancing actions (BUY/SELL/HOLD) vs target weights."""
+        """Percent-only rebalancing actions (BUY/SELL/HOLD) vs target weights.
+        
+        Args:
+            result: Execution result containing portfolio data
+            
+        Returns:
+            HTML table showing rebalancing actions
+
+        """
         data = _normalise_result(result)
         target_portfolio = (
             data.get("consolidated_portfolio")
@@ -167,32 +263,41 @@ class PortfolioBuilder:
             return "<p>No target portfolio data available</p>"
         current_positions = PortfolioBuilder._extract_current_positions(data)
         # Build current value map if present (market_value fields) for weight estimation
-        current_values: dict[str, float] = {}
+        # Use Decimal for financial calculations to avoid float precision issues
+        current_values: dict[str, Decimal] = {}
         for sym, pos in current_positions.items():
             try:
-                current_values[sym] = float(pos.get("market_value", 0) or 0)
-            except (TypeError, ValueError):  # pragma: no cover
+                market_val = Decimal(str(pos.get("market_value", 0) or 0))
+                current_values[sym] = market_val
+            except (TypeError, ValueError, ArithmeticError):  # pragma: no cover
+                logger.debug(f"Failed to parse market_value for {sym}")
                 continue
         total_value = sum(current_values.values())
         rows: list[str] = []
         for symbol in sorted(target_portfolio.keys()):
-            target_weight = float(target_portfolio.get(symbol, 0.0))
-            current_weight = (
-                (current_values.get(symbol, 0.0) / total_value) if total_value > 0 else 0.0
-            )
+            # Convert target weight to Decimal for precise comparison
+            target_weight = Decimal(str(target_portfolio.get(symbol, 0.0)))
+            if total_value > 0:
+                current_weight = current_values.get(symbol, Decimal("0")) / total_value
+            else:
+                current_weight = Decimal("0")
             diff = target_weight - current_weight
-            if abs(diff) < 0.01:
+            # Use math.isclose for float comparison with explicit tolerance
+            if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
                 action, color = "HOLD", "#6B7280"
             elif diff > 0:
                 action, color = "BUY", "#10B981"
             else:
                 action, color = "SELL", "#EF4444"
+            # Convert to float for display formatting
+            target_pct = float(target_weight)
+            current_pct = float(current_weight)
             rows.append(
                 f"""
                 <tr>
                     <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;font-weight:600;color:#1F2937;\">{symbol}</td>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#059669;\">{target_weight:.1%}</td>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_weight:.1%}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#059669;\">{target_pct:.1%}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_pct:.1%}</td>
                     <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;font-weight:600;color:{color};\">{action}</td>
                 </tr>
                 """
@@ -203,7 +308,15 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_orders_table_neutral(orders: list[Any]) -> str:
-        """Build a neutral orders table without financial values."""
+        """Build a neutral orders table without financial values.
+        
+        Args:
+            orders: List of order dictionaries
+            
+        Returns:
+            HTML table with order details
+
+        """
         if not orders:
             return """
             <div style="text-align: center; padding: 20px; color: #6B7280;">
@@ -270,5 +383,6 @@ class PortfolioBuilder:
         return table_html
 
 
-# Backwards compatibility alias
+# Backwards compatibility alias - maintained for legacy code
+# TODO: Consider deprecating this alias in favor of explicit class method usage
 build_account_summary = PortfolioBuilder.build_account_summary_neutral

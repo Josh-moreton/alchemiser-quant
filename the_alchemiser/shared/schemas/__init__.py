@@ -5,12 +5,18 @@ Business Unit: shared | Status: current
 Common schema definitions used across modules.
 """
 
+from __future__ import annotations
+
+import warnings
+from typing import Any
+
 from .accounts import (
     AccountMetrics,
     AccountSummary,
     BuyingPowerResult,
     EnrichedAccountSummaryView,
     PortfolioAllocationResult,
+    RiskMetrics,
     RiskMetricsResult,
     TradeEligibilityResult,
 )
@@ -123,6 +129,7 @@ __all__ = [
     "RebalancePlan",
     "RebalancePlanItem",
     "Result",
+    "RiskMetrics",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
     "StrategyAllocation",
@@ -140,3 +147,32 @@ __all__ = [
     "create_failure_result",
     "create_success_result",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    """Provide backward compatibility for moved symbols.
+
+    Args:
+        name: Attribute name being accessed
+
+    Returns:
+        The requested attribute if available
+
+    Raises:
+        AttributeError: If attribute does not exist
+
+    """
+    if name == "ErrorContextData":
+        warnings.warn(
+            "Importing ErrorContextData from shared.schemas is deprecated. "
+            "Use 'from the_alchemiser.shared.errors.context import ErrorContextData' instead. "
+            "This backward compatibility will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from the_alchemiser.shared.errors.context import (
+            ErrorContextData as _ErrorContextData,
+        )
+
+        return _ErrorContextData
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
