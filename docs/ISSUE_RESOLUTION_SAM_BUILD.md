@@ -20,33 +20,33 @@
    - **Impact**: Handler path is now relative to CodeUri (more conventional)
 
 3. **Streamlined Build Configuration**
-   - **Exclusions reduced**: 40+ patterns → 10 patterns (75% reduction)
-   - **Config lines reduced**: 271 → 58 (79% reduction)
+   - **Exclusions reduced**: 40+ patterns → 12 patterns (70% reduction)
+   - **Config lines reduced**: 271 → 60 (78% reduction)
    - **Added explicit includes**: `.clj` and `.json` files now explicitly included
-   - **Simplified .samignore**: 215 → 32 lines (85% reduction)
+   - **All exclusions in template.yaml**: Including security exclusions (.env*, .aws/)
 
 ### Files Modified
 
 1. **template.yaml**
    - Changed CodeUri: `./` → `the_alchemiser/`
    - Updated Handler: `the_alchemiser.lambda_handler.lambda_handler` → `lambda_handler.lambda_handler`
-   - Simplified BuildProperties.Exclude from 40+ to 10 patterns
+   - Simplified BuildProperties.Exclude from 40+ to 12 patterns
    - Added BuildProperties.Include for `.clj` and `.json` files
+   - Added security exclusions (.env*, .aws/) to BuildProperties
 
-2. **.samignore**
-   - Reduced from comprehensive (215 lines) to security-focused (32 lines)
-   - Kept only critical exclusions (.env, .aws/, .git/)
-   - Moved primary exclusion logic to template.yaml (AWS best practice)
-
-3. **scripts/deploy.sh**
+2. **scripts/deploy.sh**
    - Added comment noting new CodeUri structure
    - No functional changes
 
-4. **pyproject.toml**
+3. **pyproject.toml**
    - Version bumped: 2.16.4 → 2.16.5
 
-5. **CHANGELOG.md**
+4. **CHANGELOG.md**
    - Added entry for version 2.16.5 with detailed change description
+
+5. **Removed .samignore**
+   - AWS SAM does not support `.samignore` files
+   - All exclusions moved to template.yaml BuildProperties
 
 ### Documentation Added
 
@@ -86,15 +86,15 @@ Created three comprehensive documentation files:
 - ✅ Clear intent with explicit includes for non-Python files
 
 ### 2. Easier Maintenance
-- ✅ 79% fewer configuration lines to maintain
-- ✅ 75% fewer exclusion patterns
-- ✅ Single source of truth (template.yaml, not scattered)
+- ✅ 78% fewer configuration lines to maintain
+- ✅ 70% fewer exclusion patterns
+- ✅ Single source of truth (template.yaml for all exclusions)
 - ✅ Changes to docs/, tests/, scripts/ don't affect Lambda build
 
 ### 3. AWS Best Practices Alignment
 - ✅ CodeUri points to application code (not repository root)
-- ✅ BuildProperties in template.yaml (primary exclusion mechanism)
-- ✅ Minimal .samignore (security-focused only)
+- ✅ All exclusions in template.yaml BuildProperties (AWS standard)
+- ✅ No `.samignore` (not supported by AWS SAM)
 - ✅ Explicit includes for non-Python runtime files
 
 ### 4. Better Clarity
@@ -132,18 +132,18 @@ Created three comprehensive documentation files:
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
 | Files Scanned | ~1000+ | ~500 | -50% |
-| Exclusion Patterns | 40+ | 10 | -75% |
-| Config Lines | 271 | 58 | -79% |
-| .samignore Lines | 215 | 32 | -85% |
-| Documentation | 0 | 777 lines | +∞ |
+| Exclusion Patterns | 40+ | 12 | -70% |
+| Config Lines | 271 | 60 | -78% |
+| Documentation | 0 | 1200+ lines | ✨ New |
 
 ## Implementation Timeline
 
 1. **Commit 1** (af8d9ed): Initial plan
-2. **Commit 2** (03d484a): Core changes to template.yaml, .samignore, deploy.sh, version bump
+2. **Commit 2** (03d484a): Core changes to template.yaml, deploy.sh, version bump
 3. **Commit 3** (5e51c98): Comprehensive documentation
+4. **Commit 4+**: Documentation updates and .samignore removal
 
-**Total Changes**: 8 files modified, 815 additions, 255 deletions
+**Total Changes**: Files modified, configuration simplified, comprehensive documentation added
 
 ## References
 

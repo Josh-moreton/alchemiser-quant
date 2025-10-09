@@ -112,10 +112,11 @@ find .aws-sam/build/TradingSystemFunction -name "*.pyc"
 
 | File | Purpose | Primary Control |
 |------|---------|-----------------|
-| `template.yaml` | SAM template | CodeUri, Handler, BuildProperties |
-| `.samignore` | Security exclusions | .env, .aws/, .git/ |
+| `template.yaml` | SAM template | CodeUri, Handler, BuildProperties (all exclusions) |
 | `scripts/deploy.sh` | Deployment script | Build & deploy automation |
 | `dependencies/requirements.txt` | Lambda Layer | Production dependencies |
+
+**Note:** AWS SAM does not support `.samignore` files. All exclusions are in template.yaml BuildProperties.
 
 ## Quick Checks
 
@@ -144,8 +145,8 @@ find .aws-sam/build/TradingSystemFunction -name "*.pyc"
 ❌ **DON'T**: Put CodeUri as `./` (scans entire repo)
 ✅ **DO**: Use `the_alchemiser/` (scans app only)
 
-❌ **DON'T**: Duplicate exclusions in .samignore and template
-✅ **DO**: Use template.yaml BuildProperties as primary
+❌ **DON'T**: Use `.samignore` (not supported by AWS SAM)
+✅ **DO**: Use template.yaml BuildProperties for all exclusions
 
 ❌ **DON'T**: Forget to include non-Python files
 ✅ **DO**: Add explicit Include patterns for .clj, .json

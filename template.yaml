@@ -161,6 +161,10 @@ Resources:
           - '**/*.clj'
           - 'config/*.json'
         Exclude:
+          # Sensitive files (security)
+          - '.env*'
+          - .aws/**
+
           # Python cache and build artifacts
           - '**/__pycache__/**'
           - '**/*.pyc'

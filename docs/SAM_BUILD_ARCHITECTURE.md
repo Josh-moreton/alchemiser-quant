@@ -86,17 +86,11 @@ Exclude:
   - .vscode/**           # IDE files
   - .editorconfig        # Editor config
   - '**/*.md'            # Documentation
+  - '.env*'              # Environment files (security)
+  - .aws/**              # AWS credentials (security)
 ```
 
-### .samignore
-
-The `.samignore` file is kept minimal for security-critical exclusions:
-- Environment files (`.env`, `.env.*`)
-- AWS credentials (`.aws/`)
-- Version control (`.git/`)
-- Python cache (redundant with template.yaml but belt-and-suspenders)
-
-**Note:** Primary exclusion logic is in `template.yaml` BuildProperties, not `.samignore`.
+**Note:** All exclusion logic is in `template.yaml` BuildProperties. AWS SAM does not support `.samignore` files.
 
 ## Build Process
 
@@ -125,8 +119,9 @@ The `scripts/deploy.sh` script:
 - ❌ **DON'T:** Use root directory (`./`) requiring extensive exclusions
 
 ### 2. Exclusion Strategy
-- ✅ **DO:** Use `template.yaml` BuildProperties for primary exclusions
-- ✅ **DO:** Keep `.samignore` minimal for security-critical files
+- ✅ **DO:** Use `template.yaml` BuildProperties for all exclusions
+- ✅ **DO:** Include security exclusions (`.env*`, `.aws/`) in template.yaml
+- ❌ **DON'T:** Use `.samignore` (not supported by AWS SAM)
 - ❌ **DON'T:** Duplicate exclusion logic across files
 
 ### 3. Include Patterns
@@ -218,7 +213,7 @@ If `sam build --use-container` fails:
 - Simplified exclusion patterns
 - Added explicit includes for `.clj` and `.json` files
 - Updated Handler path to be relative to new CodeUri
-- Minimized `.samignore` (primary exclusions now in template.yaml)
+- Moved all exclusions to template.yaml BuildProperties (AWS SAM best practice)
 - Created this documentation
 
 ### 2.16.1 - 2025-10-07

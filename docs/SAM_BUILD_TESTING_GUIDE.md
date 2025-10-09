@@ -14,10 +14,11 @@ This PR implements AWS SAM best practices for Lambda packaging by restructuring 
    - Handler path is now relative to CodeUri
    - Cleaner, more conventional Lambda handler specification
 
-3. **Simplified Exclusions**: 40+ patterns → 10 patterns
+3. **Simplified Exclusions**: 40+ patterns → 12 patterns
    - Removed all root-level exclusions (no longer needed)
    - Kept only build artifact exclusions within the_alchemiser/
-   - Primary exclusion logic in template.yaml (not .samignore)
+   - All exclusion logic in template.yaml BuildProperties (AWS SAM standard)
+   - Added security exclusions (.env*, .aws/) to BuildProperties
 
 4. **Explicit Includes**: Added for non-Python runtime files
    - `**/*.clj` - DSL strategy files (10 files)
@@ -198,7 +199,7 @@ Include:
 **Fix**: 
 1. Check for large files: `du -sh .aws-sam/build/TradingSystemFunction/* | sort -hr | head -10`
 2. Verify exclusions in template.yaml BuildProperties
-3. Check .gitignore and .samignore for security-critical exclusions
+3. Ensure security files (.env*, .aws/) are excluded in BuildProperties
 
 ## Rollback Plan
 

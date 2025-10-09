@@ -130,13 +130,10 @@ Both configurations produce the SAME runtime structure:
    │   ├─ Exclude: *.png
    │   └─ ... (40+ patterns)
    │
-   ├─→ Apply additional exclusions from .samignore
-   │   └─→ (215 lines of redundant patterns)
-   │
    └─→ Copy: the_alchemiser/** to .aws-sam/build/
        └─→ Adjust import paths for Handler
 
-Result: Slow scan, complex config, redundant exclusions
+Result: Slow scan, complex config
 ```
 
 ### AFTER Flow
@@ -151,13 +148,15 @@ Result: Slow scan, complex config, redundant exclusions
    │   ├─ Include: **/*.clj (strategy files)
    │   └─ Include: config/*.json (config files)
    │
-   ├─→ Apply 10 exclusions from template.yaml
+   ├─→ Apply 12 exclusions from template.yaml
+   │   ├─ Exclude: '.env*' (security)
+   │   ├─ Exclude: .aws/** (security)
    │   ├─ Exclude: **/__pycache__/**
    │   ├─ Exclude: **/*.pyc
    │   ├─ Exclude: .pytest_cache/**
    │   ├─ Exclude: .mypy_cache/**
    │   ├─ Exclude: .ruff_cache/**
-   │   └─ ... (10 patterns total)
+   │   └─ ... (12 patterns total)
    │
    └─→ Copy: Current directory to .aws-sam/build/
        └─→ Handler path already correct (relative)
@@ -172,10 +171,10 @@ Result: Fast scan, simple config, clear intent
 | **CodeUri** | `./` | `the_alchemiser/` |
 | **Handler** | `the_alchemiser.lambda_handler.lambda_handler` | `lambda_handler.lambda_handler` |
 | **Files Scanned** | ~1000+ | ~500 |
-| **Exclusion Patterns** | 40+ | 10 |
+| **Exclusion Patterns** | 40+ | 12 |
 | **Include Patterns** | 0 (implicit) | 2 (explicit) |
 | **Root Files Excluded** | Explicitly (40+ patterns) | Implicitly (outside CodeUri) |
-| **Config Complexity** | High (redundant) | Low (focused) |
+| **Config Complexity** | High | Low (single source) |
 | **Maintenance Burden** | High (many patterns) | Low (few patterns) |
 | **Build Speed** | Slower (more scanning) | Faster (less scanning) |
 | **Clarity** | Mixed (code + repo) | Clear (code only) |
@@ -212,27 +211,29 @@ Saved:   ███████████████████████�
 
 ```
 Before:  ████████████████████████████████████████  40+ patterns
-After:   ██████████                                10 patterns
-Saved:   ██████████████████████████████            30 patterns (-75%)
+After:   ███████████████                           12 patterns
+Saved:   █████████████████████████                 28 patterns (-70%)
 ```
 
-### .samignore Simplification
+### Configuration Complexity Reduction
 
 ```
-Before:  ████████████████████████████████████████  215 lines
-After:   ████                                       32 lines
-Saved:   ████████████████████████████████          183 lines (-85%)
+Before:  ████████████████████████████████████████  271 lines
+After:   ███████████████                            60 lines
+Saved:   █████████████████████████                 211 lines (-78%)
 ```
 
 ## Files Changed Summary
 
 ```
 Modified:
-  ├── template.yaml          (-56 lines exclusions, +26 new patterns)
-  ├── .samignore            (-183 lines, simplified)
-  ├── scripts/deploy.sh     (+1 comment)
-  ├── pyproject.toml        (version: 2.16.4 → 2.16.5)
-  └── CHANGELOG.md          (+12 lines entry)
+  ├── template.yaml          (CodeUri, Handler, BuildProperties updated)
+  ├── scripts/deploy.sh      (+1 comment)
+  ├── pyproject.toml         (version: 2.16.4 → 2.16.5)
+  └── CHANGELOG.md           (+entry for 2.16.5)
+
+Removed:
+  └── .samignore             (Not supported by AWS SAM)
 
 Created:
   ├── docs/SAM_BUILD_ARCHITECTURE.md      (228 lines)

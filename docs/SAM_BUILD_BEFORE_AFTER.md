@@ -120,41 +120,9 @@ Metadata:
       - '**/*.md'
 ```
 
-**Lines Reduced**: 56 lines → 26 lines (54% reduction)
+**Lines Reduced**: 56 lines → 28 lines (50% reduction)
 
-## .samignore Changes
-
-### Before: 215 Lines (Comprehensive)
-
-```
-# Extensive exclusions for:
-# - Logs (105MB)
-# - Data files (6.9MB)
-# - Documentation (2.9MB)
-# - Tests (2.6MB)
-# - Media files (1.3MB)
-# - Scripts (284KB)
-# - Python cache
-# - Version control
-# - IDE files
-# - Python environments
-# - Configuration files
-# - Build artifacts
-# - Notebooks
-# - Additional exclusions
-```
-
-### After: 32 Lines (Security-Focused)
-
-```
-# Minimal exclusions for:
-# - Environment files with secrets (.env*)
-# - AWS credentials (.aws/)
-# - Python cache (redundant with template.yaml)
-# - Version control (.git/)
-```
-
-**Lines Reduced**: 215 lines → 32 lines (85% reduction)
+**Note:** AWS SAM does not support `.samignore` files. All exclusions must be in template.yaml BuildProperties.
 
 ## Why the Reduction Works
 
@@ -239,8 +207,7 @@ the_alchemiser/
 
 ### Configuration Changes Required
 
-- ✅ `template.yaml` - CodeUri and Handler updated
-- ✅ `.samignore` - Simplified to security essentials
+- ✅ `template.yaml` - CodeUri, Handler, and BuildProperties updated
 - ✅ `scripts/deploy.sh` - Comment added (no logic change)
 
 ### Documentation Added
