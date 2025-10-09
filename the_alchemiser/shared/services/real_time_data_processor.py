@@ -9,6 +9,7 @@ quote and trade data from Alpaca WebSocket streams.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -116,7 +117,9 @@ class RealTimeDataProcessor:
         volume_typed: int | float | None = None
         if volume is not None:
             try:
-                volume_typed = float(volume) if isinstance(volume, (str, int, float)) else None
+                volume_typed = (
+                    float(volume) if isinstance(volume, (str, int, float)) else None
+                )
             except (ValueError, TypeError):
                 volume_typed = None
 
@@ -132,9 +135,13 @@ class RealTimeDataProcessor:
             Valid datetime object
 
         """
-        return timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+        return (
+            timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+        )
 
-    def get_trade_timestamp(self, timestamp_raw: datetime | str | float | int | None) -> datetime:
+    def get_trade_timestamp(
+        self, timestamp_raw: datetime | str | float | int | None
+    ) -> datetime:
         """Ensure timestamp is a datetime for trades.
 
         Args:
@@ -165,7 +172,9 @@ class RealTimeDataProcessor:
         except (ValueError, TypeError):
             return None
 
-    def _safe_datetime_convert(self, value: str | float | int | datetime | None) -> datetime | None:
+    def _safe_datetime_convert(
+        self, value: str | float | int | datetime | None
+    ) -> datetime | None:
         """Safely convert value to datetime.
 
         Args:
@@ -191,10 +200,12 @@ class RealTimeDataProcessor:
 
         """
         if self.logger.isEnabledFor(logging.DEBUG):
-            await asyncio.to_thread(
-                self.logger.debug,
-                f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}",
-            )
+            with contextlib.suppress(RuntimeError):
+                # Event loop executor has shut down - gracefully ignore
+                await asyncio.to_thread(
+                    self.logger.debug,
+                    f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}",
+                )
         await asyncio.sleep(0)
 
     async def handle_quote_error(self, error: Exception) -> None:
@@ -204,7 +215,9 @@ class RealTimeDataProcessor:
             error: Exception that occurred
 
         """
-        await asyncio.to_thread(
-            self.logger.error, f"Error processing quote: {error}", exc_info=True
-        )
+        with contextlib.suppress(RuntimeError):
+            # Event loop executor has shut down - gracefully ignore
+            await asyncio.to_thread(
+                self.logger.error, f"Error processing quote: {error}", exc_info=True
+            )
         await asyncio.sleep(0)

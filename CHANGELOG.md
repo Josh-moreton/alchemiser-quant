@@ -10,6 +10,16 @@
   - **Benefits**: Cleaner build process, easier maintenance, more aligned with AWS SAM documentation
   - **Documentation**: Created `docs/SAM_BUILD_ARCHITECTURE.md` with comprehensive build architecture guide
 
+## 2.16.6 - 2025-10-09
+
+### Fixed
+- **Development workflow**: Aligned Makefile `format` target with pre-commit hooks to prevent double commits
+  - Added trailing whitespace removal (matches pre-commit's `trailing-whitespace` hook)
+  - Added end-of-file newline fixer (matches pre-commit's `end-of-file-fixer` hook)
+  - Running `make format` now produces the same result as pre-commit hooks
+  - Eliminates the need for two commits when using `make format && make type-check` before committing
+  - Updated help text to reflect all formatting steps performed
+
 ## 2.16.1 - 2025-10-07
 
 ### Fixed
