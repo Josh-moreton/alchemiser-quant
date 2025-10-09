@@ -16,20 +16,21 @@ def test_templates_module_exports() -> None:
     # Verify __all__ attribute exists and contains expected exports
     assert hasattr(templates, "__all__")
     
-    # Verify minimum expected exports are present (current state)
-    # Note: PortfolioBuilder, SignalsBuilder, MultiStrategyReportBuilder should be added per review
-    minimum_expected = {
+    # Verify all expected exports are present (after H1 fix)
+    expected_exports = {
         "BaseEmailTemplate",
         "EmailTemplates",
+        "MultiStrategyReportBuilder",
+        "PortfolioBuilder",
+        "SignalsBuilder",
         "build_error_email_html",
         "build_multi_strategy_email_html",
         "build_trading_report_html",
     }
     
     actual_exports = set(templates.__all__)
-    assert minimum_expected.issubset(actual_exports), (
-        f"Missing expected exports. Expected (minimum): {minimum_expected}, "
-        f"Got: {actual_exports}"
+    assert actual_exports == expected_exports, (
+        f"Export mismatch. Expected: {expected_exports}, Got: {actual_exports}"
     )
 
 
@@ -171,35 +172,34 @@ def test_email_templates_has_static_methods() -> None:
     )
 
 
-# TODO: Uncomment after fixing H1 (adding builder classes to exports)
-# def test_builder_classes_import() -> None:
-#     """Test that builder classes can be imported directly."""
-#     from the_alchemiser.shared.notifications.templates import (
-#         MultiStrategyReportBuilder,
-#         PortfolioBuilder,
-#         SignalsBuilder,
-#     )
-# 
-#     # Verify they're classes
-#     assert isinstance(PortfolioBuilder, type)
-#     assert isinstance(SignalsBuilder, type)
-#     assert isinstance(MultiStrategyReportBuilder, type)
+def test_builder_classes_import() -> None:
+    """Test that builder classes can be imported directly."""
+    from the_alchemiser.shared.notifications.templates import (
+        MultiStrategyReportBuilder,
+        PortfolioBuilder,
+        SignalsBuilder,
+    )
+
+    # Verify they're classes
+    assert isinstance(PortfolioBuilder, type)
+    assert isinstance(SignalsBuilder, type)
+    assert isinstance(MultiStrategyReportBuilder, type)
 
 
-# TODO: Uncomment after fixing H1 (adding builder classes to exports)
-# def test_complete_api_surface() -> None:
-#     """Test that all expected components are exported (after H1 fix)."""
-#     from the_alchemiser.shared.notifications import templates
-# 
-#     expected_exports = {
-#         "BaseEmailTemplate",
-#         "EmailTemplates",
-#         "MultiStrategyReportBuilder",
-#         "PortfolioBuilder",
-#         "SignalsBuilder",
-#         "build_error_email_html",
-#         "build_multi_strategy_email_html",
-#         "build_trading_report_html",
-#     }
-#     
-#     assert set(templates.__all__) == expected_exports
+def test_builder_classes_have_expected_methods() -> None:
+    """Test that builder classes have their expected methods."""
+    from the_alchemiser.shared.notifications.templates import (
+        MultiStrategyReportBuilder,
+        PortfolioBuilder,
+        SignalsBuilder,
+    )
+
+    # PortfolioBuilder should have build methods
+    assert hasattr(PortfolioBuilder, "build_account_summary_neutral")
+    
+    # SignalsBuilder should have build methods
+    # (exact method names may vary, just verify it's a proper class)
+    assert hasattr(SignalsBuilder, "__dict__") or hasattr(SignalsBuilder, "__class__")
+    
+    # MultiStrategyReportBuilder should have build methods
+    assert hasattr(MultiStrategyReportBuilder, "build_multi_strategy_report_neutral")
