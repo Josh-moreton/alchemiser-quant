@@ -55,6 +55,7 @@ class AccountMetrics(BaseModel):
         leverage_ratio: Leverage ratio if applicable, None for cash accounts.
         available_buying_power_ratio: Available buying power as percentage of equity.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -118,6 +119,7 @@ class AccountSummary(BaseModel):
         ...     account_blocked=False,
         ...     calculated_metrics=metrics,
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -164,6 +166,7 @@ class BuyingPowerResult(Result):
         required_amount: Amount required for the trade.
         sufficient_funds: Whether sufficient funds are available.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -197,6 +200,7 @@ class RiskMetrics(BaseModel):
         total_exposure: Total market exposure as percentage.
         risk_score: Calculated risk score for the account.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -228,6 +232,7 @@ class RiskMetricsResult(Result):
         error: Error message if operation failed.
         risk_metrics: Typed risk metrics data.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -268,6 +273,7 @@ class TradeEligibilityResult(BaseModel):
         ...     side="BUY",
         ...     estimated_cost=Decimal("1500.00"),
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -309,6 +315,7 @@ class PortfolioAllocationResult(Result):
         allocation_data uses dict[str, Any] to maintain flexibility for
         varying allocation structures. Consider defining typed models
         for specific allocation use cases.
+
     """
 
     model_config = ConfigDict(
@@ -339,6 +346,7 @@ class EnrichedAccountSummaryView(BaseModel):
     Note:
         The raw field maintains dict[str, Any] to preserve original broker
         response structure without transformation.
+
     """
 
     model_config = ConfigDict(
