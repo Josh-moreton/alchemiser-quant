@@ -3,6 +3,14 @@
 
 set -e
 
+# Load environment variables from .env if it exists
+if [ -f ".env" ]; then
+    echo "📝 Loading environment variables from .env..."
+    set -a  # automatically export all variables
+    source .env
+    set +a
+fi
+
 echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
 echo "================================================"
 
