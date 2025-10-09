@@ -170,7 +170,13 @@ backtest-range:
 # Development
 format:
 	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
+	@echo "  → Fixing trailing whitespace..."
+	@find the_alchemiser/ -type f -name "*.py" -exec sed -i 's/[[:space:]]*$$//' {} +
+	@echo "  → Ensuring files end with newline..."
+	@find the_alchemiser/ -type f -name "*.py" -exec sh -c 'tail -c 1 "$$1" | read -r _ || echo >> "$$1"' sh {} \;
+	@echo "  → Running Ruff formatter..."
 	poetry run ruff format the_alchemiser/
+	@echo "  → Running Ruff auto-fix..."
 	poetry run ruff check --fix the_alchemiser/
 
 lint:
