@@ -164,3 +164,28 @@ class TestMonthlySummaryEmail:
         assert "account value snapshots" in html
         assert "Decimal precision" in html
         assert "UTC-based month windows" in html
+
+    def test_validates_mode_parameter(self) -> None:
+        """Test that mode parameter is validated."""
+        import pytest
+
+        summary = MonthlySummaryDTO(
+            month_label="Aug 2025",
+            portfolio_first_value=Decimal("10000.00"),
+            portfolio_last_value=Decimal("11000.00"),
+            portfolio_pnl_abs=Decimal("1000.00"),
+            portfolio_pnl_pct=Decimal("10.00"),
+            strategy_rows=[],
+            notes=[],
+        )
+
+        # Valid modes should work
+        html_paper = MonthlySummaryEmailBuilder.build(summary, "PAPER")
+        assert "PAPER Monthly Summary" in html_paper
+
+        html_live = MonthlySummaryEmailBuilder.build(summary, "LIVE")
+        assert "LIVE Monthly Summary" in html_live
+
+        # Invalid mode should raise ValueError
+        with pytest.raises(ValueError, match="Invalid mode 'INVALID'. Must be 'PAPER' or 'LIVE'."):
+            MonthlySummaryEmailBuilder.build(summary, "INVALID")

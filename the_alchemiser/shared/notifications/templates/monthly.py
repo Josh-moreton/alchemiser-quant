@@ -29,10 +29,18 @@ class MonthlySummaryEmailBuilder:
         Returns:
             Complete HTML email content
 
+        Raises:
+            ValueError: If mode is not PAPER or LIVE
+
         """
+        # Validate mode parameter
+        mode_upper = mode.upper()
+        if mode_upper not in ("PAPER", "LIVE"):
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'PAPER' or 'LIVE'.")
+
         # Create header with status
         header = BaseEmailTemplate.get_combined_header_status(
-            f"Monthly Summary — {summary.month_label}", "Completed", "#3B82F6", "📅"
+            f"{mode_upper} Monthly Summary — {summary.month_label}", "Completed", "#3B82F6", "📅"
         )
 
         # Build main content sections
@@ -54,7 +62,7 @@ class MonthlySummaryEmailBuilder:
         """
 
         return BaseEmailTemplate.wrap_content(
-            content, f"The Alchemiser — Monthly Summary ({summary.month_label})"
+            content, f"The Alchemiser — {mode_upper} Monthly Summary ({summary.month_label})"
         )
 
     @staticmethod
