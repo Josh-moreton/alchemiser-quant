@@ -1,8 +1,10 @@
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: shared; Status: current.
 
 Multi-strategy report template builder.
 
-This module handles the multi-strategy email template generation.
+This module handles the multi-strategy email template generation for
+neutral-mode reports (no financial values exposed). Used by the notification
+system to generate HTML email templates for multi-strategy execution reports.
 """
 
 from __future__ import annotations
@@ -19,11 +21,54 @@ class MultiStrategyReportBuilder:
     Non-neutral (financial value) variant removed - system policy mandates
     neutral reporting only. Historical build_multi_strategy_report() deleted
     to simplify maintenance and avoid accidental financial disclosure.
+
+    This class provides static methods to generate HTML email templates for
+    multi-strategy execution reports. All templates follow the neutral reporting
+    policy - no dollar values, P&L, or financial metrics are exposed.
+
+    Example:
+        >>> from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+        >>> result = ExecutionResult(success=True, orders_executed=[...])
+        >>> html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+        ...     result, mode="PAPER"
+        ... )
+        >>> # Returns HTML string suitable for email delivery
     """
 
     @staticmethod
     def build_multi_strategy_report_neutral(result: ExecutionLike, mode: str) -> str:
-        """Build a neutral multi-strategy email report without financial values."""
+        """Build a neutral multi-strategy email report without financial values.
+
+        Generates an HTML email template showing portfolio rebalancing actions,
+        strategy signals, and order execution details without exposing any
+        financial values (dollar amounts, P&L, account balances).
+
+        Args:
+            result: Execution result object with attributes:
+                - success (bool): Execution success status
+                - strategy_signals (dict): Strategy signal data
+                - orders_executed (list): List of executed orders
+            mode: Trading mode, should be "PAPER" or "LIVE" (case-insensitive)
+
+        Returns:
+            str: Complete HTML email template ready for delivery
+
+        Raises:
+            ValueError: If mode is not "PAPER" or "LIVE"
+            AttributeError: If result object lacks required attributes (propagated
+                from builder delegates)
+
+        Note:
+            This function is deterministic and has no side effects. It delegates
+            to PortfolioBuilder and SignalsBuilder for specific content sections.
+        """
+        # Validate mode parameter
+        mode_upper = mode.upper()
+        if mode_upper not in ("PAPER", "LIVE"):
+            raise ValueError(
+                f"Invalid mode '{mode}'. Must be 'PAPER' or 'LIVE'."
+            )
+
         # Determine success status
         success = getattr(result, "success", True)
         status_color = "#059669" if success else "#DC2626"
@@ -32,7 +77,7 @@ class MultiStrategyReportBuilder:
 
         # Build content sections
         combined_header = BaseEmailTemplate.get_combined_header_status(
-            f"{mode.upper()} Multi-Strategy Execution Report",
+            f"{mode_upper} Multi-Strategy Execution Report",
             status_text,
             status_color,
             status_emoji,
@@ -123,5 +168,5 @@ class MultiStrategyReportBuilder:
         """
 
         return BaseEmailTemplate.wrap_content(
-            content, f"{APPLICATION_NAME} - {mode.upper()} Multi-Strategy Execution Report"
+            content, f"{APPLICATION_NAME} - {mode_upper} Multi-Strategy Execution Report"
         )

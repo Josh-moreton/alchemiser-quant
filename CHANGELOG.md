@@ -1,3 +1,18 @@
+## 2.16.1 - 2025-10-07
+
+### Fixed
+- **AWS Lambda deployment**: Fixed layer size exceeding 250MB unzipped limit and build failures
+  - **Moved `pyarrow` from main to dev dependencies** - only needed for local backtest scripts, saves ~100MB
+  - **Added `--use-container` flag to SAM build** - ensures Lambda-compatible wheel resolution for pandas/numpy
+  - Enhanced `template.yaml` exclusions to prevent dev-only files from being packaged:
+    - Excluded `scripts/` directory (backtest, stress_test - dev only)
+    - Excluded data files (*.csv, *.parquet, data/ directory)
+    - Excluded all Python cache artifacts (*.pyc, *.pyo, __pycache__)
+    - Excluded documentation and configuration files not needed at runtime
+  - Added Docker availability check in deployment script (required for container builds)
+  - **Layer size reduced from ~287MB to ~149MB unzipped** (well under 250MB limit)
+  - Changed pandas version constraint from `2.3.3` to `^2.2.0` for better wheel compatibility
+
 ## 2.5.16 - 2025-10-03
 
 ### Changed
@@ -15,6 +30,71 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed
+- **performance.py notification templates** - Complete refactor to address institutional-grade standards
+  - **HIGH**: Replaced `Any` type hints with typed DTOs (`OrderNotificationDTO`, `TradingSummaryDTO`, `StrategyDataDTO`)
+  - **HIGH**: Converted all float formatting to use `Decimal` for monetary values
+  - **MEDIUM**: Added comprehensive docstrings with pre/post-conditions, failure modes, and examples
+  - **MEDIUM**: Added structured logging with context for debugging and observability
+  - **MEDIUM**: Added order truncation warnings when >10 orders displayed
+  - **MEDIUM**: Improved order categorization with enum-based logic
+  - **MEDIUM**: Added input validation with proper error handling
+  - **LOW**: Extracted color and styling logic to constants (DRY principle)
+  - **LOW**: Fixed magic number (MAX_REASON_LENGTH = 100) with named constant
+  - **LOW**: Improved reason text truncation safety
+
+### Added
+- **shared/schemas/notifications.py** - New DTOs for type-safe email templates
+  - `OrderSide` enum for BUY/SELL operations
+  - `OrderNotificationDTO` with Decimal quantity and optional estimated_value
+  - `TradingSummaryDTO` with validated counts and Decimal monetary values
+  - `StrategyDataDTO` with allocation bounds (0.0-1.0) validation
+- **tests/shared/notifications/templates/test_performance.py** - Comprehensive test suite (100+ tests)
+  - Tests for all public methods with valid and edge case inputs
+  - Tests for DTO validation and type safety
+  - Tests for HTML structure and content correctness
+  - Tests for order truncation behavior
+  - Tests for Decimal handling
+- **tests/shared/schemas/test_notifications.py** - Extended with DTO tests
+  - Tests for OrderSide enum
+  - Tests for OrderNotificationDTO validation and immutability
+  - Tests for TradingSummaryDTO bounds checking
+  - Tests for StrategyDataDTO allocation validation (0.0-1.0)
+## [2.20.0] - 2025-01-06
+
+### Added
+- **File review document** - Comprehensive institution-grade review of `shared/schemas/__init__.py`
+  - 680+ lines of detailed analysis covering correctness, security, performance, and compliance
+  - Line-by-line audit table with severity classifications
+  - Identified 1 critical issue, 2 medium issues, 2 low issues
+  - Documentation in `docs/file_reviews/FILE_REVIEW_shared_schemas_init.md`
+- **Backward compatibility for ErrorContextData** - Deprecated import path now supported
+  - `ErrorContextData` moved from `shared.schemas.errors` to `shared.errors.context` in v2.18.0
+  - Added `__getattr__` hook to provide backward compatibility with deprecation warning
+  - Warns users to update imports, scheduled for removal in v3.0.0
+  - Prevents breaking existing code that imports from old location
+- **Comprehensive test suite** - `tests/shared/schemas/test_init.py` with 15 tests
+  - Verifies all 58 exports are importable
+  - Tests backward compatibility and deprecation warnings
+  - Validates alphabetical sorting of `__all__`
+  - Checks module documentation and Pydantic model conformance
+  - Verifies invalid attribute access raises proper errors
+
+### Fixed
+- **Critical: Broken ErrorContextData export** - Fixed `AttributeError` on import
+  - `ErrorContextData` was listed in `__all__` but not imported (moved to different module)
+  - Would cause runtime errors for any code importing it
+  - Fixed with backward compatibility shim + deprecation warning
+- **Medium: Unsorted __all__ exports** - Alphabetically sorted 58 exports for maintainability
+  - Previously unordered, making it difficult to spot missing/duplicate entries
+  - Now sorted A-Z for easy maintenance and code review
+  - Consistent with best practices seen in other reviewed modules
+
+### Changed
+- **Schemas module version** - Bumped from 2.19.0 to 2.20.0 (MINOR version)
+  - New backward compatibility feature (non-breaking change)
+  - Follows semantic versioning guidelines from copilot-instructions.md
 
 ### Removed
 - **reporting.py schema module** - Removed unused dashboard and reporting DTOs

@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from the_alchemiser.shared.logging import get_logger
 
@@ -405,13 +405,16 @@ def _send_error_notification_via_events(
 
     # Determine severity for subject
     if _error_handler.has_critical_errors():
-        severity = "🚨 CRITICAL"
+        severity_display = "🚨 CRITICAL"
+        severity: Literal["low", "medium", "high", "critical"] = "critical"
         priority = "URGENT"
     elif _error_handler.has_trading_errors():
-        severity = "💰 TRADING"
+        severity_display = "💰 TRADING"
+        severity = "high"
         priority = "HIGH"
     else:
-        severity = "⚠️ SYSTEM"
+        severity_display = "⚠️ SYSTEM"
+        severity = "medium"
         priority = "MEDIUM"
 
     # Find primary error code for subject (first non-None error code)
@@ -422,7 +425,7 @@ def _send_error_notification_via_events(
             break
 
     # Build error title for notification
-    error_title = f"{severity} Alert - Trading System Errors"
+    error_title = f"{severity_display} Alert - Trading System Errors"
 
     # Create and emit error notification event
     error_event = ErrorNotificationRequested(
