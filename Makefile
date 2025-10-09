@@ -44,7 +44,7 @@ help:
 	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
-	@echo "  format          Format code with Ruff (formatter + fixes)"
+	@echo "  format          Format code (trailing space fix, end-of-file fix, Ruff formatter + auto-fix)"
 	@echo "  lint            Run linting"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
