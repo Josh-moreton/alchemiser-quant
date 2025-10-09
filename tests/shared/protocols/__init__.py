@@ -1,4 +1,4 @@
 """Business Unit: shared | Status: current.
 
-Init file for shared protocols tests.
+Tests for shared protocol definitions.
 """
