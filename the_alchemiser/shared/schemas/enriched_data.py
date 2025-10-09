@@ -24,14 +24,14 @@ The enrichment pattern provides three views of the same data:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.base import Result
 
-
 # Nested data models for type safety
+
 
 class RawOrderData(BaseModel):
     """Raw order data from Alpaca API."""

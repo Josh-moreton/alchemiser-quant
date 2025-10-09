@@ -210,9 +210,7 @@ class SubscriptionManager:
             # Mark symbols we couldn't subscribe to due to limits
             for symbol in plan.symbols_to_add[plan.available_slots :]:
                 plan.results[symbol] = False
-                self.logger.warning(
-                    f"⚠️ Cannot subscribe to {symbol} - subscription limit reached"
-                )
+                self.logger.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> tuple[bool, bool]:
         """Subscribe to a single symbol with priority management.

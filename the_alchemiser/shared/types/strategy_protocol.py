@@ -26,9 +26,10 @@ may define their own __init__ signatures with required dependencies.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from .strategy_value_objects import StrategySignal
+if TYPE_CHECKING:
+    from the_alchemiser.shared.schemas.strategy_signal import StrategySignal
 
 
 @runtime_checkable
