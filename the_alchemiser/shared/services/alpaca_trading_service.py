@@ -927,6 +927,20 @@ class AlpacaTradingService:
                 "accepted", "filled", "partially_filled", "rejected", "canceled"
             ] = status_mapping.get(status_str, "accepted")
 
+            # CRITICAL: If status is filled/partially_filled but avg_fill_price is None,
+            # treat as "accepted" (pending) to avoid validation error. This handles race
+            # conditions where Alpaca reports status before price settlement.
+            # We must also reset filled_qty to 0 since "accepted" status requires filled_qty == 0.
+            if mapped_status in ["filled", "partially_filled"] and avg_fill_price is None:
+                logger.warning(
+                    "Order marked as filled but avg_fill_price is None - treating as accepted",
+                    order_id=order_id,
+                    original_status=mapped_status,
+                    original_filled_qty=filled_qty,
+                )
+                mapped_status = "accepted"
+                filled_qty = Decimal("0")  # Reset to 0 for "accepted" status validation
+
             success = mapped_status not in ["rejected", "canceled"]
 
             return OrderExecutionResult(
