@@ -21,7 +21,6 @@ from the_alchemiser.execution_v2.utils.liquidity_analysis import (
 @dataclass(frozen=True)
 class MockQuote:
     """Mock quote for testing.
-    
     Uses float for convenience in tests. The LiquidityAnalyzer converts to Decimal internally.
     """
 
