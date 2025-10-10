@@ -54,6 +54,23 @@ class HistoricalMarketDataPort:
         self.current_date = current_date
         logger.debug(f"HistoricalMarketDataPort initialized for {current_date.date()}")
 
+    def update_current_date(self, new_date: datetime) -> None:
+        """Update the current date for this port (for engine reuse in backtesting).
+
+        Args:
+            new_date: New current date (must be timezone-aware)
+
+        Raises:
+            ValueError: If new_date is not timezone-aware
+
+        """
+        if new_date.tzinfo is None:
+            error_msg = "new_date must be timezone-aware"
+            raise ValueError(error_msg)
+
+        self.current_date = new_date
+        logger.debug(f"HistoricalMarketDataPort updated to {new_date.date()}")
+
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Get historical bars for a symbol.
 

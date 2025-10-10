@@ -33,6 +33,7 @@ class MultiStrategyReportBuilder:
         ...     result, mode="PAPER"
         ... )
         >>> # Returns HTML string suitable for email delivery
+
     """
 
     @staticmethod
@@ -61,13 +62,12 @@ class MultiStrategyReportBuilder:
         Note:
             This function is deterministic and has no side effects. It delegates
             to PortfolioBuilder and SignalsBuilder for specific content sections.
+
         """
         # Validate mode parameter
         mode_upper = mode.upper()
         if mode_upper not in ("PAPER", "LIVE"):
-            raise ValueError(
-                f"Invalid mode '{mode}'. Must be 'PAPER' or 'LIVE'."
-            )
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'PAPER' or 'LIVE'.")
 
         # Determine success status
         success = getattr(result, "success", True)
