@@ -20,7 +20,10 @@ from the_alchemiser.execution_v2.utils.liquidity_analysis import (
 
 @dataclass(frozen=True)
 class MockQuote:
-    """Mock quote for testing."""
+    """Mock quote for testing.
+    
+    Uses float for convenience in tests. The LiquidityAnalyzer converts to Decimal internally.
+    """
 
     symbol: str
     bid_price: float
@@ -392,3 +395,112 @@ class TestLiquidityAnalyzer:
         assert analysis.volume_imbalance == 0.0
         assert analysis.liquidity_score >= 0
         assert analysis.confidence >= 0.1  # Minimum confidence
+
+
+class TestNegativePricePrevention:
+    """Test that the analyzer prevents negative recommended prices.
+    
+    This test class specifically addresses the issue where correct streaming quotes
+    (e.g., bid=269.58, ask=270.73) would somehow lead to negative recommended prices
+    (-0.01, -0.02) causing order placement failures.
+    """
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create liquidity analyzer."""
+        return LiquidityAnalyzer(min_volume_threshold=100.0, tick_size=0.01)
+
+    def test_prevents_negative_prices_with_zero_quote_prices(self, analyzer):
+        """Test that zero quote prices are detected and handled gracefully."""
+        # Simulate corrupted quote data with zero prices
+        quote = MockQuote(
+            symbol="BULZ",
+            bid_price=0.0,
+            ask_price=0.0,
+            bid_size=100.0,
+            ask_size=100.0,
+            timestamp=datetime.now(UTC),
+        )
+
+        analysis = analyzer.analyze_liquidity(quote, order_size=36.69)
+
+        # Should return minimum valid prices, not negative
+        assert analysis.recommended_bid_price >= 0.01
+        assert analysis.recommended_ask_price >= 0.01
+
+    def test_prevents_negative_prices_with_negative_quote_prices(self, analyzer):
+        """Test that negative quote prices are detected and handled."""
+        # Simulate corrupted quote data with negative prices
+        quote = MockQuote(
+            symbol="BULZ",
+            bid_price=-10.0,
+            ask_price=-5.0,
+            bid_size=100.0,
+            ask_size=100.0,
+            timestamp=datetime.now(UTC),
+        )
+
+        analysis = analyzer.analyze_liquidity(quote, order_size=36.69)
+
+        # Should return minimum valid prices, not propagate negatives
+        assert analysis.recommended_bid_price >= 0.01
+        assert analysis.recommended_ask_price >= 0.01
+
+    def test_normal_quotes_produce_positive_recommended_prices(self, analyzer):
+        """Test that normal quotes produce positive recommended prices."""
+        # Simulate the actual BULZ quote from the issue
+        quote = MockQuote(
+            symbol="BULZ",
+            bid_price=269.58,
+            ask_price=270.73,
+            bid_size=100.0,
+            ask_size=100.0,
+            timestamp=datetime.now(UTC),
+        )
+
+        analysis = analyzer.analyze_liquidity(quote, order_size=36.69)
+
+        # Should produce sensible positive prices near the quote
+        assert analysis.recommended_bid_price > 0
+        assert analysis.recommended_ask_price > 0
+        assert analysis.recommended_bid_price >= 269.0  # Reasonably close to bid
+        assert analysis.recommended_ask_price >= 269.0  # Reasonably close to bid
+
+    def test_aggressive_pricing_doesnt_produce_negative_values(self, analyzer):
+        """Test aggressive pricing adjustments don't produce negative values."""
+        # Test with heavy imbalance that triggers aggressive pricing
+        quote = MockQuote(
+            symbol="TEST",
+            bid_price=1.00,
+            ask_price=1.10,
+            bid_size=10.0,  # Very low volume to trigger aggressive pricing
+            ask_size=1000.0,  # Heavy ask imbalance
+            timestamp=datetime.now(UTC),
+        )
+
+        # Large order relative to bid volume
+        analysis = analyzer.analyze_liquidity(quote, order_size=50.0)
+
+        # Even with aggressive adjustments, prices must remain positive
+        assert analysis.recommended_bid_price > 0
+        assert analysis.recommended_ask_price > 0
+        assert analysis.recommended_ask_price >= analysis.recommended_bid_price
+
+    def test_small_price_stocks_handled_safely(self, analyzer):
+        """Test that low-priced stocks don't produce negative recommendations."""
+        # Test with a low-priced stock
+        quote = MockQuote(
+            symbol="PENNY",
+            bid_price=0.50,
+            ask_price=0.52,
+            bid_size=1000.0,
+            ask_size=1000.0,
+            timestamp=datetime.now(UTC),
+        )
+
+        analysis = analyzer.analyze_liquidity(quote, order_size=100.0)
+
+        # Should maintain positive prices even for low-priced stocks
+        assert analysis.recommended_bid_price > 0
+        assert analysis.recommended_ask_price > 0
+        assert analysis.recommended_bid_price <= analysis.recommended_ask_price
