@@ -19,6 +19,7 @@ from the_alchemiser.shared.math.trading_math import (
     calculate_allocation_discrepancy,
     calculate_allocation_discrepancy_decimal,
     calculate_rebalance_amounts,
+    calculate_rebalance_amounts_decimal,
     _calculate_midpoint_price,
     _calculate_precision_from_tick_size,
 )
@@ -309,6 +310,133 @@ class TestCalculateRebalanceAmounts:
         target = {"AAPL": 0.5}
         result = calculate_rebalance_amounts(target, {"AAPL": 0.0}, 0.0)
         assert result == {}
+
+
+class TestCalculateRebalanceAmountsDecimal:
+    """Test Decimal-based rebalance amounts calculation."""
+
+    @pytest.mark.unit
+    def test_empty_target_weights_returns_empty(self):
+        """Test that empty target weights returns empty result."""
+        result = calculate_rebalance_amounts_decimal(
+            {}, {"AAPL": Decimal("5000.0")}, Decimal("10000.0")
+        )
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_zero_portfolio_value_returns_empty(self):
+        """Test that zero portfolio value returns empty result."""
+        target = {"AAPL": Decimal("0.5")}
+        result = calculate_rebalance_amounts_decimal(
+            target, {"AAPL": Decimal("0.0")}, Decimal("0.0")
+        )
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_basic_rebalancing_plan(self):
+        """Test basic rebalancing plan with Decimal precision."""
+        target = {
+            "AAPL": Decimal("0.5"),
+            "MSFT": Decimal("0.3"),
+            "CASH": Decimal("0.2")
+        }
+        current = {
+            "AAPL": Decimal("4000"),
+            "MSFT": Decimal("4000"),
+            "CASH": Decimal("2000")
+        }
+        portfolio_value = Decimal("10000")
+        
+        result = calculate_rebalance_amounts_decimal(target, current, portfolio_value)
+        
+        # Check structure
+        assert "AAPL" in result
+        assert "MSFT" in result
+        assert "CASH" in result
+        
+        # Check AAPL (should need to buy more - target 50%, currently 40%)
+        aapl_plan = result["AAPL"]
+        assert isinstance(aapl_plan["current_weight"], Decimal)
+        assert isinstance(aapl_plan["target_weight"], Decimal)
+        assert isinstance(aapl_plan["trade_amount"], Decimal)
+        assert aapl_plan["target_weight"] == Decimal("0.5")
+        assert aapl_plan["current_weight"] == Decimal("0.4")
+
+    @pytest.mark.unit
+    def test_decimal_precision_advantage(self):
+        """Test that Decimal version maintains precision with complex values."""
+        # Use values that expose float precision issues
+        target = {"ASSET": Decimal("0.333333333")}
+        current = {"ASSET": Decimal("3333.33")}
+        portfolio = Decimal("10000.00")
+        
+        result_decimal = calculate_rebalance_amounts_decimal(target, current, portfolio)
+        
+        # Verify Decimal results maintain type precision
+        assert isinstance(result_decimal["ASSET"]["current_weight"], Decimal)
+        assert isinstance(result_decimal["ASSET"]["trade_amount"], Decimal)
+        assert isinstance(result_decimal["ASSET"]["target_value"], Decimal)
+        assert isinstance(result_decimal["ASSET"]["current_value"], Decimal)
+        
+        # Verify precision is maintained in calculations
+        current_weight = result_decimal["ASSET"]["current_weight"]
+        # With Decimal, we get exact precision
+        assert current_weight == Decimal("3333.33") / Decimal("10000.00")
+
+    @pytest.mark.unit
+    def test_needs_rebalance_threshold(self):
+        """Test that needs_rebalance flag respects threshold."""
+        target = {"ASSET": Decimal("0.5")}
+        current = {"ASSET": Decimal("5010")}  # 50.1% - just above 50%
+        portfolio = Decimal("10000")
+        threshold = Decimal("0.002")  # 0.2% threshold
+        
+        result = calculate_rebalance_amounts_decimal(
+            target, current, portfolio, threshold
+        )
+        
+        # Weight diff is 0.1%, below 0.2% threshold
+        assert result["ASSET"]["needs_rebalance"] == False
+        
+        # Now test with larger difference
+        current2 = {"ASSET": Decimal("5300")}  # 53% - 3% above target
+        result2 = calculate_rebalance_amounts_decimal(
+            target, current2, portfolio, threshold
+        )
+        assert result2["ASSET"]["needs_rebalance"] == True
+
+    @pytest.mark.unit
+    def test_multiple_symbols_rebalancing(self):
+        """Test rebalancing with multiple symbols."""
+        target = {
+            "AAPL": Decimal("0.4"),
+            "MSFT": Decimal("0.3"),
+            "GOOGL": Decimal("0.2"),
+            "CASH": Decimal("0.1")
+        }
+        current = {
+            "AAPL": Decimal("5000"),
+            "MSFT": Decimal("2000"),
+            "GOOGL": Decimal("2000"),
+            "CASH": Decimal("1000")
+        }
+        portfolio = Decimal("10000")
+        
+        result = calculate_rebalance_amounts_decimal(target, current, portfolio)
+        
+        # Verify all symbols are in result
+        assert len(result) == 4
+        assert all(symbol in result for symbol in target.keys())
+        
+        # Verify structure for each symbol
+        for symbol, plan in result.items():
+            assert "current_weight" in plan
+            assert "target_weight" in plan
+            assert "weight_diff" in plan
+            assert "target_value" in plan
+            assert "current_value" in plan
+            assert "trade_amount" in plan
+            assert "needs_rebalance" in plan
 
 
 class TestCalculateMidpointPrice:

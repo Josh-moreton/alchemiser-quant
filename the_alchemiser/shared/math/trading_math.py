@@ -358,7 +358,13 @@ def _process_symbol_rebalance(
     else:
         logger.debug(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
 
-    if logger.isEnabledFor(logging.DEBUG):
+    # Check if logger supports isEnabledFor (standard logging) or is_enabled_for (structlog)
+    if hasattr(logger, 'isEnabledFor') and logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
+            f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}"
+        )
+    elif hasattr(logger, 'is_enabled_for') and logger.is_enabled_for(logging.DEBUG):
         logger.debug(
             f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
             f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}"
@@ -833,5 +839,128 @@ def calculate_rebalance_amounts(
         rebalance_plan,
         logger,
     )
+
+    return rebalance_plan
+
+
+def calculate_rebalance_amounts_decimal(
+    target_weights: dict[str, Decimal],
+    current_values: dict[str, Decimal],
+    total_portfolio_value: Decimal,
+    min_trade_threshold: Decimal = Decimal("0.001"),  # 0.1% minimum threshold
+) -> dict[str, dict[str, Decimal]]:
+    """Calculate comprehensive rebalancing plan using Decimal for financial precision.
+
+    This function provides financial-grade precision for portfolio rebalancing
+    calculations by using Decimal arithmetic throughout. Use this version for
+    production trading where floating-point precision errors are unacceptable.
+
+    Args:
+        target_weights (dict[str, Decimal]): Dictionary mapping symbols to
+            target weights (0.0 to 1.0). Example: {'AAPL': Decimal('0.3')}
+        current_values (dict[str, Decimal]): Dictionary mapping symbols to
+            current position values in dollars.
+        total_portfolio_value (Decimal): Total portfolio value in dollars.
+        min_trade_threshold (Decimal, optional): Minimum weight difference
+            to trigger a rebalancing trade. Defaults to Decimal('0.001') (0.1%).
+
+    Returns:
+        dict[str, dict]: Dictionary mapping each symbol to a detailed
+            rebalancing plan with the following structure:
+            {
+                'current_weight': Decimal,     # Current allocation (0.0-1.0)
+                'target_weight': Decimal,      # Target allocation (0.0-1.0)
+                'weight_diff': Decimal,        # Difference (target - current)
+                'target_value': Decimal,       # Target dollar value
+                'current_value': Decimal,      # Current dollar value
+                'trade_amount': Decimal,       # Dollar amount to trade (+ = buy, - = sell)
+                'needs_rebalance': bool        # Whether trade exceeds threshold
+            }
+
+    Example:
+        >>> from decimal import Decimal
+        >>> target = {'AAPL': Decimal('0.5'), 'MSFT': Decimal('0.3')}
+        >>> current = {'AAPL': Decimal('4000'), 'MSFT': Decimal('4000')}
+        >>> plan = calculate_rebalance_amounts_decimal(
+        ...     target, current, Decimal('10000')
+        ... )
+        >>> for symbol, details in plan.items():
+        ...     if details['needs_rebalance']:
+        ...         action = "BUY" if details['trade_amount'] > 0 else "SELL"
+        ...         print(f"{symbol}: {action} ${abs(details['trade_amount']):.0f}")
+        AAPL: BUY $1000
+        MSFT: SELL $1000
+
+    Note:
+        This function uses Decimal arithmetic per guardrails for money calculations.
+        The function handles symbols that exist in either target_weights or
+        current_values but not both. Missing positions are treated as Decimal('0').
+
+    """
+    logger = get_logger(__name__)
+
+    # === TRADING_MATH ENTRY POINT LOGGING ===
+    logger.info("=== TRADING_MATH: CALCULATE_REBALANCE_AMOUNTS_DECIMAL ===")
+    logger.info("MATH_FUNCTION_ENTRY")
+    logger.info(f"RECEIVED_TARGET_WEIGHTS: {target_weights}")
+    logger.info(f"RECEIVED_CURRENT_VALUES: {current_values}")
+    logger.info(f"RECEIVED_PORTFOLIO_VALUE: {total_portfolio_value}")
+    logger.info(f"RECEIVED_THRESHOLD: {min_trade_threshold}")
+
+    # Validate inputs
+    if not target_weights:
+        logger.error("❌ TRADING_MATH_RECEIVED_EMPTY_TARGET_WEIGHTS")
+        return {}
+
+    if total_portfolio_value <= 0:
+        logger.error(f"❌ TRADING_MATH_RECEIVED_INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
+        return {}
+
+    rebalance_plan = {}
+
+    # Get all symbols from both target and current positions
+    all_symbols = set(target_weights.keys()) | set(current_values.keys())
+    logger.info(f"ALL_SYMBOLS_TO_PROCESS: {all_symbols}")
+
+    symbols_needing_rebalance = 0
+
+    # Apply cash reserve to avoid buying power issues
+    settings = load_settings()
+    usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
+    effective_portfolio_value = total_portfolio_value * usage_multiplier
+
+    for symbol in all_symbols:
+        target_weight = target_weights.get(symbol, Decimal("0"))
+        current_value = current_values.get(symbol, Decimal("0"))
+
+        # Calculate using Decimal precision
+        current_weight, weight_diff = calculate_allocation_discrepancy_decimal(
+            target_weight, current_value, total_portfolio_value
+        )
+
+        target_value = effective_portfolio_value * target_weight
+        trade_amount = target_value - current_value
+        needs_rebalance = abs(weight_diff) >= min_trade_threshold
+
+        symbol_plan = {
+            "current_weight": current_weight,
+            "target_weight": target_weight,
+            "weight_diff": weight_diff,
+            "target_value": target_value,
+            "current_value": current_value,
+            "trade_amount": trade_amount,
+            "needs_rebalance": needs_rebalance,
+        }
+
+        rebalance_plan[symbol] = symbol_plan
+
+        if needs_rebalance:
+            symbols_needing_rebalance += 1
+
+    # Log summary
+    logger.info("=== REBALANCE CALCULATION SUMMARY (DECIMAL) ===")
+    logger.info(f"Total symbols processed: {len(all_symbols)}")
+    logger.info(f"Symbols needing rebalance: {symbols_needing_rebalance}")
+    logger.info(f"Portfolio value: ${total_portfolio_value}")
 
     return rebalance_plan
