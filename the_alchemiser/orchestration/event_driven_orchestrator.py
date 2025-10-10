@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable as TypingCallable
 from datetime import UTC, datetime
+from decimal import Decimal
 from enum import Enum
 from logging import Logger
 from threading import Lock
@@ -601,12 +602,12 @@ class EventDrivenOrchestrator:
 
             orders_placed = event.orders_placed
             orders_succeeded = event.orders_succeeded
-            # total_trade_value may be Decimal, float, or string; normalize for formatting
+            # total_trade_value may be Decimal, float, or string; normalize to Decimal
             raw_total_value = execution_data.get("total_trade_value", 0)
             try:
-                total_trade_value_float = float(raw_total_value)
-            except (TypeError, ValueError):
-                total_trade_value_float = 0.0
+                total_trade_value_decimal = Decimal(str(raw_total_value))
+            except (TypeError, ValueError, Exception):
+                total_trade_value_decimal = Decimal("0")
 
             # Get error details if trading failed
             error_message = None
@@ -631,7 +632,7 @@ class EventDrivenOrchestrator:
                 trading_mode=mode_str,
                 orders_placed=orders_placed,
                 orders_succeeded=orders_succeeded,
-                total_trade_value=total_trade_value_float,
+                total_trade_value=total_trade_value_decimal,
                 execution_data=execution_data,
                 error_message=error_message,
                 error_code=error_code,
