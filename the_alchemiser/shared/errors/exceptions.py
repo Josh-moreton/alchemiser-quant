@@ -200,6 +200,33 @@ class PositionValidationError(TradingClientError):
         self.available_qty = available_qty
 
 
+class TemplateGenerationError(AlchemiserError):
+    """Raised when email template generation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        template_type: str | None = None,
+        data_type: str | None = None,
+    ) -> None:
+        """Initialize template generation error.
+
+        Args:
+            message: Error message
+            template_type: Type of template being generated (e.g., "signals", "portfolio")
+            data_type: Type of data that caused the error (e.g., "signal", "indicators")
+
+        """
+        context = {}
+        if template_type:
+            context["template_type"] = template_type
+        if data_type:
+            context["data_type"] = data_type
+        super().__init__(message, context)
+        self.template_type = template_type
+        self.data_type = data_type
+
+
 class PortfolioError(AlchemiserError):
     """Raised when portfolio operations fail."""
 

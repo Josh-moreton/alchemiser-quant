@@ -469,7 +469,7 @@ class SmartExecutionStrategy:
             self.alpaca_manager.place_market_order,
             symbol=request.symbol,
             side=request.side.lower(),
-            qty=float(request.quantity),
+            qty=request.quantity,
             is_complete_exit=request.is_complete_exit,
         )
 

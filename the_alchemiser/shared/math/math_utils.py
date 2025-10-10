@@ -240,6 +240,49 @@ def normalize_to_range(
     return target_min + normalized * (target_max - target_min)
 
 
+def _normalize_ensemble_weights(metrics: list[float], weights: list[float] | None) -> list[float]:
+    """Normalize weights to match the number of metrics.
+
+    Args:
+        metrics: List of valid metric values
+        weights: Optional weights list
+
+    Returns:
+        Normalized weights matching metrics length
+
+    """
+    if weights is None:
+        return [1.0] * len(metrics)
+
+    # Truncate if too long
+    normalized = weights[: len(metrics)]
+
+    # Pad if too short
+    if len(normalized) < len(metrics):
+        normalized.extend([1.0] * (len(metrics) - len(normalized)))
+
+    return normalized
+
+
+def _clamp_result_to_range(result: float, min_val: float, max_val: float) -> float:
+    """Clamp result within valid range accounting for floating point tolerance.
+
+    Args:
+        result: Calculated result value
+        min_val: Minimum allowed value
+        max_val: Maximum allowed value
+
+    Returns:
+        Clamped result within [min_val, max_val]
+
+    """
+    if result < min_val and isclose(result, min_val, rel_tol=1e-12, abs_tol=1e-12):
+        return min_val
+    if result > max_val and isclose(result, max_val, rel_tol=1e-12, abs_tol=1e-12):
+        return max_val
+    return result
+
+
 def calculate_ensemble_score(
     performance_metrics: list[float], weights: list[float] | None = None
 ) -> float:
@@ -260,16 +303,11 @@ def calculate_ensemble_score(
     if not metrics:
         return 0.0
 
-    if weights is None:
-        weights = [1.0] * len(metrics)
-    else:
-        weights = weights[: len(metrics)]  # Truncate if too long
-        if len(weights) < len(metrics):
-            weights.extend([1.0] * (len(metrics) - len(weights)))  # Pad if too short
+    normalized_weights = _normalize_ensemble_weights(metrics, weights)
 
     try:
-        weighted_sum = sum(m * w for m, w in zip(metrics, weights, strict=False))
-        total_weight = sum(weights)
+        weighted_sum = sum(m * w for m, w in zip(metrics, normalized_weights, strict=False))
+        total_weight = sum(normalized_weights)
         if total_weight <= 0:
             return 0.0
 
@@ -278,10 +316,6 @@ def calculate_ensemble_score(
         # Clamp to within [min(metrics), max(metrics)] allowing for floating point tolerances
         min_val = min(metrics)
         max_val = max(metrics)
-        if result < min_val and isclose(result, min_val, rel_tol=1e-12, abs_tol=1e-12):
-            return min_val
-        if result > max_val and isclose(result, max_val, rel_tol=1e-12, abs_tol=1e-12):
-            return max_val
-        return result
+        return _clamp_result_to_range(result, min_val, max_val)
     except Exception:
         return 0.0

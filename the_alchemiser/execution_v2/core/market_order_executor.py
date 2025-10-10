@@ -173,7 +173,7 @@ class MarketOrderExecutor:
             Broker order object
 
         """
-        return self.alpaca_manager.place_market_order(symbol, side, float(quantity))
+        return self.alpaca_manager.place_market_order(symbol, side, quantity)
 
     def _build_market_order_execution_result(
         self, symbol: str, side: str, quantity: Decimal, broker_result: ExecutedOrder
@@ -219,7 +219,7 @@ class MarketOrderExecutor:
             error_message=None,
             timestamp=datetime.now(UTC),
             order_type="MARKET",  # This is a market order
-            filled_at=datetime.now(UTC) if avg_fill_price else None,  # Set filled_at if executed
+            filled_at=(datetime.now(UTC) if avg_fill_price else None),  # Set filled_at if executed
         )
 
     def _handle_market_order_exception(

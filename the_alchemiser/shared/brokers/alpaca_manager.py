@@ -316,24 +316,40 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self,
         symbol: str,
         side: str,
-        qty: float | None = None,
-        notional: float | None = None,
+        qty: Decimal | None = None,
+        notional: Decimal | None = None,
         *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrder:
-        """Place a market order with validation and execution result return."""
+        """Place a market order with validation and execution result return.
+
+        Args:
+            symbol: Stock symbol
+            side: "buy" or "sell"
+            qty: Quantity to trade as Decimal (use either qty OR notional)
+            notional: Dollar amount to trade as Decimal (use either qty OR notional)
+            is_complete_exit: If True and side is 'sell', use actual available quantity
+
+        Returns:
+            ExecutedOrder with execution details and status.
+
+        """
 
         def _place_order() -> ExecutedOrder:
+            # Convert Decimal to float for internal processing
+            qty_float = float(qty) if qty is not None else None
+            notional_float = float(notional) if notional is not None else None
+
             # Validation
             normalized_symbol, side_normalized = self._validate_market_order_params(
-                symbol, side, qty, notional
+                symbol, side, qty_float, notional_float
             )
 
             # Adjust quantity for complete exits
             final_qty = self._adjust_quantity_for_complete_exit(
                 normalized_symbol,
                 side_normalized,
-                qty,
+                qty_float,
                 is_complete_exit=is_complete_exit,
             )
 
@@ -342,11 +358,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 normalized_symbol,
                 side_normalized,
                 final_qty,
-                notional,
+                notional_float,
                 is_complete_exit=is_complete_exit,
             )
 
-        return AlpacaErrorHandler.handle_market_order_errors(symbol, side, qty, _place_order)
+        return AlpacaErrorHandler.handle_market_order_errors(
+            symbol, side, float(qty) if qty is not None else None, _place_order
+        )
 
     def place_limit_order(
         self,
@@ -402,7 +420,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._get_trading_service().get_orders(status)
 
     # Market Data Operations
-    def get_current_price(self, symbol: str) -> float | None:
+    def get_current_price(self, symbol: str) -> Decimal | None:
         """Get current price for a symbol.
 
         Returns the mid price between bid and ask, or None if not available.
@@ -413,8 +431,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         - RealTimePricingService.get_quote_data() surfaces bid/ask spreads with market depth
         - RealTimePricingService.get_price_data() adds volume and enhanced trade data
         - Enhanced price discovery with QuoteModel and PriceDataModel becomes possible
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Current price as Decimal for financial precision, or None if unavailable.
+
         """
-        return self._market_data_service.get_current_price(symbol)
+        price = self._market_data_service.get_current_price(symbol)
+        return Decimal(str(price)) if price is not None else None
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols.

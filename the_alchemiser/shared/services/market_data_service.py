@@ -286,7 +286,8 @@ class MarketDataService(MarketDataPort):
             symbol_str = symbol.value if hasattr(symbol, "value") else str(symbol)
 
             # Use get_current_price method which should return mid price
-            return self._repo.get_current_price(symbol_str)
+            price = self._repo.get_current_price(symbol_str)
+            return float(price) if price is not None else None
 
         except Exception as e:
             self.logger.warning(

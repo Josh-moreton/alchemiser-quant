@@ -11,9 +11,12 @@ This module now uses the AssetMetadataProvider protocol to avoid infrastructure 
 
 from __future__ import annotations
 
+import math
+from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.errors.exceptions import DataProviderError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -52,9 +55,12 @@ class FractionabilityDetector:
         self._fractionability_cache: dict[str, bool] = {}
 
         # Backup prediction patterns (used only when provider is unavailable)
-        self.backup_known_non_fractionable = {
-            "FNGU",  # Confirmed non-fractionable via API
-        }
+        # Using frozenset for immutability
+        self.backup_known_non_fractionable = frozenset(
+            {
+                "FNGU",  # Confirmed non-fractionable via API
+            }
+        )
 
     def _query_provider_fractionability(self, symbol: str) -> bool | None:
         """Query provider for definitive fractionability information.
@@ -77,11 +83,20 @@ class FractionabilityDetector:
             logger.debug("Provider result", symbol=symbol, fractionable=fractionable)
             return fractionable
 
-        except Exception as e:
+        except DataProviderError as e:
             # Provider unavailable, rate limited, or asset not found
             # Fall back to backup prediction
             logger.warning(
                 "Provider error, using fallback",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+        except Exception as e:
+            # Catch any unexpected errors and fall back
+            logger.warning(
+                "Unexpected provider error, using fallback",
                 symbol=symbol,
                 error=str(e),
                 error_type=type(e).__name__,
@@ -169,7 +184,7 @@ class FractionabilityDetector:
         # Assume stocks by default
         return AssetType.STOCK
 
-    def should_use_notional_order(self, symbol: str, quantity: float) -> bool:
+    def should_use_notional_order(self, symbol: str, quantity: Decimal | float) -> bool:
         """Determine if we should use notional (dollar) orders instead of quantity orders.
 
         Professional strategy using provider data:
@@ -179,56 +194,76 @@ class FractionabilityDetector:
 
         Args:
             symbol: Stock symbol
-            quantity: Intended quantity to trade
+            quantity: Intended quantity to trade (Decimal preferred for precision)
 
         Returns:
             True if should use notional order, False for quantity order
 
         """
+        # Convert to Decimal for precise comparisons
+        quantity_dec = Decimal(str(quantity)) if isinstance(quantity, float) else quantity
+
         # Always use notional for non-fractionable assets (provider-confirmed)
         if not self.is_fractionable(symbol):
             return True
 
         # Use notional for very small fractional amounts (< 1 share)
-        if quantity < 1.0:
+        if quantity_dec < Decimal("1.0"):
             return True
 
         # Use notional if the fractional part is significant (> 0.1)
-        return quantity % 1.0 > 0.1
+        # Using explicit tolerance for float comparison
+        fractional_part = quantity_dec % Decimal("1.0")
+        return fractional_part > Decimal("0.1")
 
     def convert_to_whole_shares(
-        self, symbol: str, quantity: float, current_price: float
-    ) -> tuple[float, bool]:
+        self, symbol: str, quantity: Decimal | float, current_price: Decimal | float
+    ) -> tuple[Decimal, bool]:
         """Convert fractional quantity to whole shares for non-fractionable assets.
 
         Uses provider data to determine if conversion is needed.
 
         Args:
             symbol: Stock symbol
-            quantity: Fractional quantity desired
-            current_price: Current price per share
+            quantity: Fractional quantity desired (Decimal preferred for precision)
+            current_price: Current price per share (Decimal preferred for precision)
 
         Returns:
             Tuple of (adjusted_quantity, used_rounding)
 
         """
+        # Convert to Decimal for precise financial calculations
+        quantity_dec = Decimal(str(quantity)) if isinstance(quantity, float) else quantity
+        price_dec = (
+            Decimal(str(current_price)) if isinstance(current_price, float) else current_price
+        )
+
         # Only convert if asset is actually non-fractionable (provider-confirmed)
         if self.is_fractionable(symbol):
-            return quantity, False
+            return quantity_dec, False
 
         # Round down to whole shares for non-fractionable assets
-        whole_shares = int(quantity)
-        used_rounding = whole_shares != quantity
+        whole_shares = int(quantity_dec)
+        whole_shares_dec = Decimal(whole_shares)
+
+        # Check if rounding occurred using Decimal comparison
+        used_rounding = not math.isclose(float(quantity_dec), float(whole_shares_dec), rel_tol=1e-9)
 
         if used_rounding:
-            original_value = quantity * current_price
-            new_value = whole_shares * current_price
+            # Use Decimal arithmetic for precise money calculations
+            original_value = quantity_dec * price_dec
+            new_value = whole_shares_dec * price_dec
+
             logger.info(
-                f"🔄 Provider-confirmed non-fractionable {symbol}: {quantity:.6f} → {whole_shares} shares "
-                f"(${original_value:.2f} → ${new_value:.2f})"
+                "Converting non-fractionable asset",
+                symbol=symbol,
+                original_quantity=str(quantity_dec),
+                adjusted_quantity=whole_shares,
+                original_value=str(original_value),
+                new_value=str(new_value),
             )
 
-        return float(whole_shares), used_rounding
+        return whole_shares_dec, used_rounding
 
     def get_cache_stats(self) -> dict[str, int]:
         """Get statistics about the fractionability cache."""

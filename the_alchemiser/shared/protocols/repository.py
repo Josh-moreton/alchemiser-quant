@@ -6,7 +6,7 @@ Shared protocols and interfaces for trading and data access.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from alpaca.trading.requests import (
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 
 
+@runtime_checkable
 class AccountRepository(Protocol):
     """Protocol defining account operations interface."""
 
@@ -36,11 +37,20 @@ class AccountRepository(Protocol):
         ...
 
 
+@runtime_checkable
 class MarketDataRepository(Protocol):
     """Protocol defining market data operations interface."""
 
-    def get_current_price(self, symbol: str) -> float | None:
-        """Get current price for a symbol."""
+    def get_current_price(self, symbol: str) -> Decimal | None:
+        """Get current price for a symbol.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Current price as Decimal for financial precision, or None if unavailable.
+
+        """
         ...
 
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
@@ -48,6 +58,7 @@ class MarketDataRepository(Protocol):
         ...
 
 
+@runtime_checkable
 class TradingRepository(Protocol):
     """Protocol defining trading operations interface.
 
@@ -112,8 +123,8 @@ class TradingRepository(Protocol):
         self,
         symbol: str,
         side: str,
-        qty: float | None = None,
-        notional: float | None = None,
+        qty: Decimal | None = None,
+        notional: Decimal | None = None,
         *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrder:
@@ -122,8 +133,8 @@ class TradingRepository(Protocol):
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
-            qty: Quantity to trade (use either qty OR notional)
-            notional: Dollar amount to trade (use either qty OR notional)
+            qty: Quantity to trade as Decimal (use either qty OR notional)
+            notional: Dollar amount to trade as Decimal (use either qty OR notional)
             is_complete_exit: If True and side is 'sell', use actual available quantity
 
         Returns:
