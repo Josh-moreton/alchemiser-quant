@@ -23,6 +23,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.base import Result
 
+# Constants for schema documentation
+_SCHEMA_VERSION_DESC = "Schema version for backward compatibility"
+
 __all__ = [
     # Backward compatibility aliases
     "AccountMetrics",
@@ -74,9 +77,7 @@ class AccountMetrics(BaseModel):
     available_buying_power_ratio: Decimal = Field(
         ..., ge=0, description="Available buying power as percentage of equity"
     )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class AccountSummary(BaseModel):
@@ -138,9 +139,7 @@ class AccountSummary(BaseModel):
     calculated_metrics: AccountMetrics = Field(
         ..., description="Calculated financial metrics and ratios"
     )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class BuyingPowerResult(Result):
@@ -171,9 +170,7 @@ class BuyingPowerResult(Result):
     sufficient_funds: bool | None = Field(
         None, description="Whether sufficient funds are available"
     )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class RiskMetrics(BaseModel):
@@ -202,9 +199,7 @@ class RiskMetrics(BaseModel):
     )
     total_exposure: Decimal = Field(..., ge=0, description="Total market exposure percentage")
     risk_score: Decimal = Field(..., ge=0, description="Calculated risk score")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class RiskMetricsResult(Result):
@@ -227,9 +222,7 @@ class RiskMetricsResult(Result):
     )
 
     risk_metrics: RiskMetrics | None = Field(None, description="Calculated risk metrics")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class TradeEligibilityResult(BaseModel):
@@ -272,9 +265,7 @@ class TradeEligibilityResult(BaseModel):
     quantity: Decimal | None = Field(None, gt=0, description="Trade quantity")
     side: Literal["BUY", "SELL"] | None = Field(None, description="Trade side")
     estimated_cost: Decimal | None = Field(None, ge=0, description="Estimated trade cost")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class PortfolioAllocationResult(Result):
@@ -302,9 +293,7 @@ class PortfolioAllocationResult(Result):
     )
 
     allocation_data: dict[str, Any] | None = Field(None, description="Portfolio allocation details")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class EnrichedAccountSummaryView(BaseModel):
@@ -332,9 +321,7 @@ class EnrichedAccountSummaryView(BaseModel):
 
     raw: dict[str, Any] = Field(..., description="Raw broker API response")
     summary: AccountSummary = Field(..., description="Parsed account summary")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 # Backward compatibility aliases - will be removed in future version

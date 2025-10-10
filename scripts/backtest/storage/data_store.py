@@ -285,7 +285,7 @@ class DataStore:
         df = df[(df.index >= start_date) & (df.index <= end_date)]
 
         # Convert to DailyBar objects
-        bars: list[DailyBar] = []
+        result_bars: list[DailyBar] = []
         for date, row in df.iterrows():
             # Ensure date is timezone-aware
             if isinstance(date, pd.Timestamp):
@@ -304,13 +304,13 @@ class DataStore:
                 volume=int(row["Volume"]),
                 adjusted_close=Decimal(str(row["Adjusted_Close"])),
             )
-            bars.append(bar)
+            result_bars.append(bar)
 
         logger.info(
-            f"Loaded {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars)
+            f"Loaded {len(result_bars)} bars for {symbol}", symbol=symbol, bar_count=len(result_bars)
         )
 
-        return bars
+        return result_bars
 
     def get_metadata(self, symbol: str) -> MarketDataMetadata | None:
         """Get metadata about stored data for a symbol.

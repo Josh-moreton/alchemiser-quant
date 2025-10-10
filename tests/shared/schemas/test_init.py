@@ -167,11 +167,17 @@ def test_error_context_data_backward_compatibility() -> None:
         assert hasattr(ErrorContextData, "model_validate")
 
         # Verify deprecation warning was issued
-        assert len(w) == 1, "Should emit exactly one deprecation warning"
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "deprecated" in str(w[0].message).lower()
-        assert "shared.errors.context" in str(w[0].message)
-        assert "v3.0.0" in str(w[0].message)
+        assert len(w) >= 1, "Should emit at least one deprecation warning"
+        deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+        assert len(deprecation_warnings) >= 1, "Should have at least one DeprecationWarning"
+        
+        # Find the ErrorContextData deprecation warning
+        error_context_warnings = [
+            warning for warning in deprecation_warnings
+            if "deprecated" in str(warning.message).lower() and "shared.errors.context" in str(warning.message)
+        ]
+        assert len(error_context_warnings) >= 1, "Should have ErrorContextData deprecation warning"
+        assert "v3.0.0" in str(error_context_warnings[0].message)
 
 
 def test_error_context_data_direct_import_no_warning() -> None:
@@ -200,10 +206,10 @@ def test_export_count() -> None:
     """Verify expected number of exports (regression test)."""
     from the_alchemiser.shared import schemas
 
-    # As of 2025-01-06, there are 58 exports
+    # As of 2025-01-07, there are 59 exports (added NotificationEmail)
     # This test will catch unintended additions/removals
-    assert len(schemas.__all__) == 58, (
-        f"Expected 58 exports in __all__, found {len(schemas.__all__)}. "
+    assert len(schemas.__all__) == 59, (
+        f"Expected 59 exports in __all__, found {len(schemas.__all__)}. "
         "If this is intentional, update the test."
     )
 

@@ -236,9 +236,7 @@ class RealTimePricingService:
 
             if result:
                 # Start cleanup thread
-                self._price_store.start_cleanup(
-                    is_connected_callback=self._is_stream_connected
-                )
+                self._price_store.start_cleanup(is_connected_callback=self._is_stream_connected)
                 self.logger.info(
                     "✅ Real-time pricing service started successfully",
                     extra={"correlation_id": self._correlation_id},
@@ -251,7 +249,8 @@ class RealTimePricingService:
             )
             return False
 
-        except (ConnectionError, OSError, WebSocketError) as e:
+        except (OSError, WebSocketError) as e:
+            # Note: ConnectionError is a subclass of OSError, so we only catch OSError
             self.logger.error(
                 "Failed to start real-time pricing service",
                 extra={
@@ -346,9 +345,7 @@ class RealTimePricingService:
                 return
 
             quote_values = self._data_processor.extract_quote_values(data)
-            timestamp = self._data_processor.get_quote_timestamp(
-                quote_values.timestamp_raw
-            )
+            timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
 
             try:
                 await self._data_processor.log_quote_debug(
@@ -361,10 +358,7 @@ class RealTimePricingService:
                 # Event loop executor has shut down - gracefully ignore
                 return
 
-            if (
-                quote_values.bid_price is not None
-                and quote_values.ask_price is not None
-            ):
+            if quote_values.bid_price is not None and quote_values.ask_price is not None:
                 try:
                     # Use asyncio.to_thread for potentially blocking lock operations
                     await asyncio.to_thread(
@@ -539,9 +533,7 @@ class RealTimePricingService:
         """Get service statistics."""
         last_hb = self._datetime_stats.get("last_heartbeat")
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds()
-            if isinstance(last_hb, datetime)
-            else 0
+            (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
         )
 
         # Combine stats from all components
@@ -563,9 +555,7 @@ class RealTimePricingService:
         Allows overriding via env vars `ALPACA_FEED` or `ALPACA_DATA_FEED`.
         Defaults to "iex". Use "sip" if you have the required subscription.
         """
-        feed = (
-            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
-        ).lower()
+        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(
                 f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'",
@@ -603,16 +593,12 @@ class RealTimePricingService:
         subscription_plan = self._subscription_manager.plan_bulk_subscription(
             normalized_symbols, priority
         )
-        self._subscription_manager.execute_subscription_plan(
-            subscription_plan, priority
-        )
+        self._subscription_manager.execute_subscription_plan(subscription_plan, priority)
 
         # Auto-start on first subscription if not connected
         if subscription_plan.successfully_added > 0:
             if not self.is_connected():
-                self.logger.info(
-                    "🚀 Auto-starting pricing service on first subscription"
-                )
+                self.logger.info("🚀 Auto-starting pricing service on first subscription")
                 if not self.start():
                     self.logger.error("❌ Failed to auto-start pricing service")
                     return subscription_plan.results
@@ -647,9 +633,7 @@ class RealTimePricingService:
                 self.logger.info(f"🚀 Auto-starting pricing service for {symbol}")
                 self.start()
             elif self._stream_manager:
-                self.logger.info(
-                    f"🔄 Restarting stream to add subscription for {symbol}"
-                )
+                self.logger.info(f"🔄 Restarting stream to add subscription for {symbol}")
                 self._stream_manager.restart()
 
     def unsubscribe_symbol(self, symbol: str) -> None:
