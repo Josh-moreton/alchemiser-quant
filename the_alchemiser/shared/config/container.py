@@ -33,7 +33,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
     services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
 
     # Execution providers (initialized lazily to avoid circular imports)
-    execution = None
+    execution: object | None = None
 
     # Application layer (will be added in Phase 2)
 
