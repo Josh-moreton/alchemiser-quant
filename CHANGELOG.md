@@ -1,3 +1,65 @@
+## 2.16.5 - 2025-10-08
+
+### Changed
+- **SAM Build Architecture Improvement**: Optimized Lambda packaging following AWS best practices
+  - **Changed CodeUri from `./` to `the_alchemiser/`** - SAM now only scans application directory
+  - **Updated Handler path** - Now `lambda_handler.lambda_handler` (relative to CodeUri)
+  - **Simplified exclusion patterns** - Moved from extensive root-level exclusions to minimal, focused patterns
+  - **Added explicit includes** - Strategy files (*.clj) and config files (*.json) now explicitly included
+  - **All exclusions in template.yaml** - BuildProperties now handles all exclusions including security (.env*, .aws/)
+  - **Benefits**: Cleaner build process, easier maintenance, more aligned with AWS SAM documentation
+  - **Documentation**: Created `docs/SAM_BUILD_ARCHITECTURE.md` with comprehensive build architecture guide
+
+## 2.16.6 - 2025-10-09
+
+### Fixed
+- **Development workflow**: Aligned Makefile `format` target with pre-commit hooks to prevent double commits
+  - Added trailing whitespace removal (matches pre-commit's `trailing-whitespace` hook)
+  - Added end-of-file newline fixer (matches pre-commit's `end-of-file-fixer` hook)
+  - Running `make format` now produces the same result as pre-commit hooks
+  - Eliminates the need for two commits when using `make format && make type-check` before committing
+  - Updated help text to reflect all formatting steps performed
+
+## 2.16.1 - 2025-10-07
+
+### Fixed
+- **AWS Lambda deployment**: Fixed layer size exceeding 250MB unzipped limit and build failures
+  - **Moved `pyarrow` from main to dev dependencies** - only needed for local backtest scripts, saves ~100MB
+  - **Added `--use-container` flag to SAM build** - ensures Lambda-compatible wheel resolution for pandas/numpy
+  - Enhanced `template.yaml` exclusions to prevent dev-only files from being packaged:
+    - Excluded `scripts/` directory (backtest, stress_test - dev only)
+    - Excluded data files (*.csv, *.parquet, data/ directory)
+    - Excluded all Python cache artifacts (*.pyc, *.pyo, __pycache__)
+    - Excluded documentation and configuration files not needed at runtime
+  - Added Docker availability check in deployment script (required for container builds)
+  - **Layer size reduced from ~287MB to ~149MB unzipped** (well under 250MB limit)
+  - Changed pandas version constraint from `2.3.3` to `^2.2.0` for better wheel compatibility
+
+## 2.20.2 - 2025-01-10
+
+### Fixed
+- **Mapper validation and observability**: Enhanced `execution_summary_mapping.py` with production-ready controls
+  - **Added input validation** - All dict_to_* functions now validate dict inputs with TypeError on failure
+  - **Added structured logging** - All conversions now log with correlation_id for traceability
+  - **Fixed mode validation** - dict_to_execution_summary now validates mode is "paper" or "live" before DTO construction
+  - **Fixed Decimal precision** - Replaced float defaults (0.0) with ZERO_DECIMAL constant to prevent precision loss
+  - **Fixed idempotency issue** - dict_to_portfolio_state now accepts correlation_id/causation_id/timestamp as parameters
+  - **Removed dead code** - Deleted unused allocation_comparison_to_dict function with silent error handling
+  - **Added comprehensive docstrings** - All functions now document Args/Returns/Raises with field descriptions
+  - **Added __all__ export** - Explicit API surface definition for public functions
+  - **Added constants** - UNKNOWN_STRATEGY, DEFAULT_PORTFOLIO_ID, ZERO_DECIMAL for consistent defaults
+
+### Added
+- **Comprehensive test suite** - Created tests/shared/mappers/test_execution_summary_mapping.py
+  - Tests for all dict_to_* functions with happy path, edge cases, and error conditions
+  - Tests for Decimal precision preservation
+  - Tests for default value handling
+  - Tests for type validation
+- **FILE_REVIEW documentation** - Created comprehensive line-by-line audit document
+  - Identified 15 issues across Critical/High/Medium/Low severities
+  - Documented all findings with severity labels and proposed fixes
+  - Follows institution-grade review standards
+
 ## 2.16.1 - 2025-10-07
 
 ### Fixed
@@ -30,6 +92,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.21.0] - 2025-01-10
+
+### Fixed
+- **shared/notifications/config.py** - Comprehensive remediation of all findings from file review
+  - **HIGH**: Replaced bare `except Exception` handlers with typed `ConfigurationError` from `shared.errors`
+  - **HIGH**: Removed PII leakage - no longer logs email addresses in debug mode
+  - **HIGH**: Converted all logging to structured format with explicit parameters (no f-strings)
+  - **HIGH**: Changed return type from `Optional[EmailCredentials]` to `EmailCredentials` with proper error raising
+  - **MEDIUM**: Added thread-safe singleton pattern with double-check locking for global instance
+  - **MEDIUM**: Implemented caching for `neutral_mode` flag to avoid redundant config loads
+  - **MEDIUM**: Updated business unit classification from "utilities" to "notifications"
+  - **LOW**: Added comprehensive docstrings with examples, pre/post-conditions, and use cases
+  - **LOW**: Added deprecation warnings to backward compatibility functions (`get_email_config`, `is_neutral_mode_enabled`)
+  - **INFO**: Enhanced class docstring with thread safety notes and caching strategy documentation
+
+### Added
+- **tests/shared/notifications/test_config.py** - Comprehensive test suite (400+ lines)
+  - Test successful configuration loading with all fields
+  - Test caching behavior and cache invalidation
+  - Test missing required fields raise `ConfigurationError`
+  - Test default fallback behavior (to_email defaults to from_email)
+  - Test neutral mode caching and error handling
+  - Test thread safety of singleton pattern with concurrent access
+  - Test backward compatibility functions with deprecation warnings
+  - Test error wrapping as `ConfigurationError` with proper chaining
+  - 100% coverage of public API methods
+
+### Changed
+- **shared/notifications/config.py** - API changes for better type safety
+  - `EmailConfig.get_config()` now raises `ConfigurationError` instead of returning `None`
+  - `EmailConfig.is_neutral_mode_enabled()` now raises `ConfigurationError` on errors instead of returning `False`
+  - Backward compatibility functions maintain original behavior (return `None`/`False` on errors) but emit deprecation warnings
+  - Added `MODULE_NAME` constant for consistent structured logging
+
+### Added
+- **docs/file_reviews/FILE_REVIEW_shared_notifications_config.md** - Comprehensive financial-grade line-by-line audit of email configuration module
+  - Identified 4 High severity issues (bare exception handlers, PII logging, tuple-returning legacy function)
+  - Identified 5 Medium severity issues (f-string logging, cache validation, global mutable state)
+  - Identified 4 Low severity issues (import inconsistencies, missing test coverage, performance)
+  - Provided detailed remediation plan with priority-ordered fixes
+  - Included comprehensive testing recommendations and implementation checklist
 
 ### Fixed
 - **performance.py notification templates** - Complete refactor to address institutional-grade standards
