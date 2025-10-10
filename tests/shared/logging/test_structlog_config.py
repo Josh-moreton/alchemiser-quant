@@ -137,6 +137,56 @@ def test_structlog_includes_context_vars() -> None:
         context.set_error_id(None)
 
 
+def test_structlog_includes_event_traceability_context() -> None:
+    """Test that structlog includes correlation_id and causation_id in output."""
+    context.set_correlation_id("corr-789")
+    context.set_causation_id("cause-012")
+
+    try:
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+            logger = get_structlog_logger(__name__)
+            logger.info("test event")
+
+            output = fake_out.getvalue()
+            log_entry = json.loads(output)
+
+            assert log_entry["correlation_id"] == "corr-789"
+            assert log_entry["causation_id"] == "cause-012"
+            assert log_entry["system"] == "alchemiser"
+    finally:
+        context.set_correlation_id(None)
+        context.set_causation_id(None)
+
+
+def test_structlog_includes_all_context_vars() -> None:
+    """Test that structlog includes all context variables in output."""
+    context.set_request_id("req-123")
+    context.set_error_id("err-456")
+    context.set_correlation_id("corr-789")
+    context.set_causation_id("cause-012")
+
+    try:
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+            logger = get_structlog_logger(__name__)
+            logger.info("test event with all context")
+
+            output = fake_out.getvalue()
+            log_entry = json.loads(output)
+
+            assert log_entry["request_id"] == "req-123"
+            assert log_entry["error_id"] == "err-456"
+            assert log_entry["correlation_id"] == "corr-789"
+            assert log_entry["causation_id"] == "cause-012"
+            assert log_entry["system"] == "alchemiser"
+    finally:
+        context.set_request_id(None)
+        context.set_error_id(None)
+        context.set_correlation_id(None)
+        context.set_causation_id(None)
+
+
 def test_structlog_logger_bind() -> None:
     """Test that structlog logger supports bind for context."""
     with patch("sys.stdout", new=StringIO()) as fake_out:

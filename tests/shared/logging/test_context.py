@@ -77,6 +77,124 @@ class TestRequestIdManagement:
 
 
 @pytest.mark.unit
+class TestCorrelationIdManagement:
+    """Test correlation ID context variable management."""
+
+    def test_set_and_get_correlation_id(self) -> None:
+        """Test setting and getting correlation ID."""
+        test_id = "corr-123"
+        context.set_correlation_id(test_id)
+        
+        try:
+            result = context.get_correlation_id()
+            assert result == test_id
+        finally:
+            context.set_correlation_id(None)
+
+    def test_get_correlation_id_returns_none_by_default(self) -> None:
+        """Test that get_correlation_id returns None when not set."""
+        # Ensure clean slate
+        context.set_correlation_id(None)
+        result = context.get_correlation_id()
+        assert result is None
+
+    def test_set_correlation_id_with_none_clears_value(self) -> None:
+        """Test that setting None clears the correlation ID."""
+        context.set_correlation_id("test-corr")
+        context.set_correlation_id(None)
+        
+        result = context.get_correlation_id()
+        assert result is None
+
+    def test_set_correlation_id_is_idempotent(self) -> None:
+        """Test that setting correlation ID multiple times is idempotent."""
+        test_id = "corr-456"
+        
+        try:
+            context.set_correlation_id(test_id)
+            context.set_correlation_id(test_id)
+            context.set_correlation_id(test_id)
+            
+            result = context.get_correlation_id()
+            assert result == test_id
+        finally:
+            context.set_correlation_id(None)
+
+    def test_set_correlation_id_overwrites_previous_value(self) -> None:
+        """Test that setting a new correlation ID overwrites the previous one."""
+        first_id = "corr-1"
+        second_id = "corr-2"
+        
+        try:
+            context.set_correlation_id(first_id)
+            assert context.get_correlation_id() == first_id
+            
+            context.set_correlation_id(second_id)
+            assert context.get_correlation_id() == second_id
+        finally:
+            context.set_correlation_id(None)
+
+
+@pytest.mark.unit
+class TestCausationIdManagement:
+    """Test causation ID context variable management."""
+
+    def test_set_and_get_causation_id(self) -> None:
+        """Test setting and getting causation ID."""
+        test_id = "cause-789"
+        context.set_causation_id(test_id)
+        
+        try:
+            result = context.get_causation_id()
+            assert result == test_id
+        finally:
+            context.set_causation_id(None)
+
+    def test_get_causation_id_returns_none_by_default(self) -> None:
+        """Test that get_causation_id returns None when not set."""
+        # Ensure clean slate
+        context.set_causation_id(None)
+        result = context.get_causation_id()
+        assert result is None
+
+    def test_set_causation_id_with_none_clears_value(self) -> None:
+        """Test that setting None clears the causation ID."""
+        context.set_causation_id("test-cause")
+        context.set_causation_id(None)
+        
+        result = context.get_causation_id()
+        assert result is None
+
+    def test_set_causation_id_is_idempotent(self) -> None:
+        """Test that setting causation ID multiple times is idempotent."""
+        test_id = "cause-999"
+        
+        try:
+            context.set_causation_id(test_id)
+            context.set_causation_id(test_id)
+            context.set_causation_id(test_id)
+            
+            result = context.get_causation_id()
+            assert result == test_id
+        finally:
+            context.set_causation_id(None)
+
+    def test_set_causation_id_overwrites_previous_value(self) -> None:
+        """Test that setting a new causation ID overwrites the previous one."""
+        first_id = "cause-1"
+        second_id = "cause-2"
+        
+        try:
+            context.set_causation_id(first_id)
+            assert context.get_causation_id() == first_id
+            
+            context.set_causation_id(second_id)
+            assert context.get_causation_id() == second_id
+        finally:
+            context.set_causation_id(None)
+
+
+@pytest.mark.unit
 class TestErrorIdManagement:
     """Test error ID context variable management."""
 
@@ -203,6 +321,37 @@ class TestContextIsolation:
         finally:
             context.set_request_id(None)
             context.set_error_id(None)
+
+    def test_all_context_variables_are_independent(self) -> None:
+        """Test that all context variables are independent of each other."""
+        request_id = "req-123"
+        error_id = "err-456"
+        correlation_id = "corr-789"
+        causation_id = "cause-012"
+        
+        try:
+            context.set_request_id(request_id)
+            context.set_error_id(error_id)
+            context.set_correlation_id(correlation_id)
+            context.set_causation_id(causation_id)
+            
+            # All should be set
+            assert context.get_request_id() == request_id
+            assert context.get_error_id() == error_id
+            assert context.get_correlation_id() == correlation_id
+            assert context.get_causation_id() == causation_id
+            
+            # Clear one, others should remain
+            context.set_correlation_id(None)
+            assert context.get_correlation_id() is None
+            assert context.get_request_id() == request_id
+            assert context.get_error_id() == error_id
+            assert context.get_causation_id() == causation_id
+        finally:
+            context.set_request_id(None)
+            context.set_error_id(None)
+            context.set_correlation_id(None)
+            context.set_causation_id(None)
 
     @pytest.mark.asyncio
     async def test_context_isolation_in_async_tasks(self) -> None:

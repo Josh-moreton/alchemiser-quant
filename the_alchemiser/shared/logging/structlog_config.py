@@ -20,7 +20,12 @@ import structlog
 
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
-from .context import error_id_context, request_id_context
+from .context import (
+    causation_id_context,
+    correlation_id_context,
+    error_id_context,
+    request_id_context,
+)
 
 
 def add_alchemiser_context(
@@ -47,6 +52,15 @@ def add_alchemiser_context(
     error_id = error_id_context.get()
     if error_id:
         event_dict["error_id"] = error_id
+
+    # Add event traceability context for event-driven architecture
+    correlation_id = correlation_id_context.get()
+    if correlation_id:
+        event_dict["correlation_id"] = correlation_id
+
+    causation_id = causation_id_context.get()
+    if causation_id:
+        event_dict["causation_id"] = causation_id
 
     # Add system identifier
     event_dict["system"] = "alchemiser"

@@ -20,8 +20,12 @@ from .config import (
 # Context management (still using contextvars)
 from .context import (
     generate_request_id,
+    get_causation_id,
+    get_correlation_id,
     get_error_id,
     get_request_id,
+    set_causation_id,
+    set_correlation_id,
     set_error_id,
     set_request_id,
 )
@@ -47,6 +51,8 @@ __all__ = [
     "configure_test_logging",
     # Context management
     "generate_request_id",
+    "get_causation_id",
+    "get_correlation_id",
     "get_error_id",
     "get_request_id",
     "get_structlog_logger",
@@ -54,6 +60,8 @@ __all__ = [
     "log_order_flow",
     "log_repeg_operation",
     "log_trade_event",
+    "set_causation_id",
+    "set_correlation_id",
     "set_error_id",
     "set_request_id",
 ]
