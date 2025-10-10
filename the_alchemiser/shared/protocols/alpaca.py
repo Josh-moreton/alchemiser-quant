@@ -66,4 +66,4 @@ class AlpacaOrderObject(Protocol):
     filled_qty: str | float | None
 
 
-__all__ = ["AlpacaOrderProtocol", "AlpacaOrderObject"]
+__all__ = ["AlpacaOrderObject", "AlpacaOrderProtocol"]

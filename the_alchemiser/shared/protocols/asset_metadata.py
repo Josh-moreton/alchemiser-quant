@@ -40,7 +40,7 @@ AssetClass = Literal["us_equity", "crypto", "unknown"]
 
 class AssetMetadataProvider(Protocol):
     """Protocol for accessing asset metadata and trading characteristics.
-    
+
     This protocol defines the interface for querying asset metadata required
     for trading decisions, such as fractionability support, asset classification,
     and order type determination.

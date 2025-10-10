@@ -23,23 +23,26 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.base import Result
 
+# Constants for schema documentation
+_SCHEMA_VERSION_DESC = "Schema version for backward compatibility"
+
 __all__ = [
-    "AccountSummary",
-    "AccountMetrics",
-    "BuyingPowerResult",
-    "RiskMetrics",
-    "RiskMetricsResult",
-    "TradeEligibilityResult",
-    "PortfolioAllocationResult",
-    "EnrichedAccountSummaryView",
     # Backward compatibility aliases
-    "AccountSummaryDTO",
+    "AccountMetrics",
     "AccountMetricsDTO",
+    "AccountSummary",
+    "AccountSummaryDTO",
     "BuyingPowerDTO",
-    "RiskMetricsDTO",
-    "TradeEligibilityDTO",
-    "PortfolioAllocationDTO",
+    "BuyingPowerResult",
     "EnrichedAccountSummaryDTO",
+    "EnrichedAccountSummaryView",
+    "PortfolioAllocationDTO",
+    "PortfolioAllocationResult",
+    "RiskMetrics",
+    "RiskMetricsDTO",
+    "RiskMetricsResult",
+    "TradeEligibilityDTO",
+    "TradeEligibilityResult",
 ]
 
 
@@ -55,6 +58,7 @@ class AccountMetrics(BaseModel):
         leverage_ratio: Leverage ratio if applicable, None for cash accounts.
         available_buying_power_ratio: Available buying power as percentage of equity.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -63,12 +67,8 @@ class AccountMetrics(BaseModel):
         validate_assignment=True,
     )
 
-    cash_ratio: Decimal = Field(
-        ..., ge=0, le=1, description="Cash as percentage of equity (0-1)"
-    )
-    market_exposure: Decimal = Field(
-        ..., ge=0, description="Market value as percentage of equity"
-    )
+    cash_ratio: Decimal = Field(..., ge=0, le=1, description="Cash as percentage of equity (0-1)")
+    market_exposure: Decimal = Field(..., ge=0, description="Market value as percentage of equity")
     leverage_ratio: Decimal | None = Field(
         None,
         ge=0,
@@ -77,9 +77,7 @@ class AccountMetrics(BaseModel):
     available_buying_power_ratio: Decimal = Field(
         ..., ge=0, description="Available buying power as percentage of equity"
     )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class AccountSummary(BaseModel):
@@ -118,6 +116,7 @@ class AccountSummary(BaseModel):
         ...     account_blocked=False,
         ...     calculated_metrics=metrics,
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -132,24 +131,15 @@ class AccountSummary(BaseModel):
     market_value: Decimal = Field(..., ge=0, description="Market value of positions")
     buying_power: Decimal = Field(..., ge=0, description="Available buying power")
     last_equity: Decimal = Field(..., ge=0, description="Previous day equity")
-    day_trade_count: int = Field(
-        ..., ge=0, description="Day trades in last 5 business days"
-    )
-    pattern_day_trader: bool = Field(
-        ..., description="Pattern day trader flag status"
-    )
+    day_trade_count: int = Field(..., ge=0, description="Day trades in last 5 business days")
+    pattern_day_trader: bool = Field(..., description="Pattern day trader flag status")
     trading_blocked: bool = Field(..., description="Trading block status")
     transfers_blocked: bool = Field(..., description="Transfer block status")
     account_blocked: bool = Field(..., description="Complete account block status")
     calculated_metrics: AccountMetrics = Field(
         ..., description="Calculated financial metrics and ratios"
     )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
-
-
-
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class BuyingPowerResult(Result):
@@ -164,6 +154,7 @@ class BuyingPowerResult(Result):
         required_amount: Amount required for the trade.
         sufficient_funds: Whether sufficient funds are available.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -175,15 +166,11 @@ class BuyingPowerResult(Result):
     available_buying_power: Decimal | None = Field(
         None, ge=0, description="Current available buying power"
     )
-    required_amount: Decimal | None = Field(
-        None, ge=0, description="Amount required for trade"
-    )
+    required_amount: Decimal | None = Field(None, ge=0, description="Amount required for trade")
     sufficient_funds: bool | None = Field(
         None, description="Whether sufficient funds are available"
     )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class RiskMetrics(BaseModel):
@@ -197,6 +184,7 @@ class RiskMetrics(BaseModel):
         total_exposure: Total market exposure as percentage.
         risk_score: Calculated risk score for the account.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -209,13 +197,9 @@ class RiskMetrics(BaseModel):
     concentration_limit: Decimal = Field(
         ..., ge=0, le=1, description="Maximum concentration per position (0-1)"
     )
-    total_exposure: Decimal = Field(
-        ..., ge=0, description="Total market exposure percentage"
-    )
+    total_exposure: Decimal = Field(..., ge=0, description="Total market exposure percentage")
     risk_score: Decimal = Field(..., ge=0, description="Calculated risk score")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class RiskMetricsResult(Result):
@@ -228,6 +212,7 @@ class RiskMetricsResult(Result):
         error: Error message if operation failed.
         risk_metrics: Typed risk metrics data.
         schema_version: Schema version for backward compatibility tracking.
+
     """
 
     model_config = ConfigDict(
@@ -236,12 +221,8 @@ class RiskMetricsResult(Result):
         validate_assignment=True,
     )
 
-    risk_metrics: RiskMetrics | None = Field(
-        None, description="Calculated risk metrics"
-    )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    risk_metrics: RiskMetrics | None = Field(None, description="Calculated risk metrics")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class TradeEligibilityResult(BaseModel):
@@ -268,6 +249,7 @@ class TradeEligibilityResult(BaseModel):
         ...     side="BUY",
         ...     estimated_cost=Decimal("1500.00"),
         ... )
+
     """
 
     model_config = ConfigDict(
@@ -278,20 +260,12 @@ class TradeEligibilityResult(BaseModel):
 
     eligible: bool = Field(..., description="Whether trade is eligible")
     reason: str | None = Field(None, description="Reason if not eligible")
-    details: dict[str, Any] | None = Field(
-        None, description="Additional validation details"
-    )
-    symbol: str | None = Field(
-        None, min_length=1, max_length=10, description="Trading symbol"
-    )
+    details: dict[str, Any] | None = Field(None, description="Additional validation details")
+    symbol: str | None = Field(None, min_length=1, max_length=10, description="Trading symbol")
     quantity: Decimal | None = Field(None, gt=0, description="Trade quantity")
     side: Literal["BUY", "SELL"] | None = Field(None, description="Trade side")
-    estimated_cost: Decimal | None = Field(
-        None, ge=0, description="Estimated trade cost"
-    )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    estimated_cost: Decimal | None = Field(None, ge=0, description="Estimated trade cost")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class PortfolioAllocationResult(Result):
@@ -309,6 +283,7 @@ class PortfolioAllocationResult(Result):
         allocation_data uses dict[str, Any] to maintain flexibility for
         varying allocation structures. Consider defining typed models
         for specific allocation use cases.
+
     """
 
     model_config = ConfigDict(
@@ -317,12 +292,8 @@ class PortfolioAllocationResult(Result):
         validate_assignment=True,
     )
 
-    allocation_data: dict[str, Any] | None = Field(
-        None, description="Portfolio allocation details"
-    )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    allocation_data: dict[str, Any] | None = Field(None, description="Portfolio allocation details")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 class EnrichedAccountSummaryView(BaseModel):
@@ -339,6 +310,7 @@ class EnrichedAccountSummaryView(BaseModel):
     Note:
         The raw field maintains dict[str, Any] to preserve original broker
         response structure without transformation.
+
     """
 
     model_config = ConfigDict(
@@ -349,9 +321,7 @@ class EnrichedAccountSummaryView(BaseModel):
 
     raw: dict[str, Any] = Field(..., description="Raw broker API response")
     summary: AccountSummary = Field(..., description="Parsed account summary")
-    schema_version: str = Field(
-        default="1.0", description="Schema version for backward compatibility"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 
 # Backward compatibility aliases - will be removed in future version
