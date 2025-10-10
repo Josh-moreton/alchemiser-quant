@@ -419,6 +419,53 @@ def calculate_position_size(
     return round(target_value / current_price, 6)  # 6 decimals is safe for Alpaca
 
 
+def calculate_position_size_decimal(
+    current_price: Decimal, portfolio_weight: Decimal, account_value: Decimal
+) -> Decimal:
+    """Calculate the number of shares to buy/sell using Decimal for precision.
+
+    This function provides financial-grade precision for position sizing calculations
+    by using Decimal arithmetic throughout. Use this version for production trading
+    where floating-point precision errors are unacceptable.
+
+    Args:
+        current_price (Decimal): Current price per share. Must be positive.
+        portfolio_weight (Decimal): Target weight as a fraction (0.0 to 1.0).
+            For example, Decimal('0.25') represents 25% of the portfolio.
+        account_value (Decimal): Total account value in dollars.
+
+    Returns:
+        Decimal: Number of shares to buy/sell, with 6 decimal places precision
+            for fractional share support. Returns Decimal('0') if price is invalid.
+
+    Example:
+        >>> from decimal import Decimal
+        >>> # Target 25% allocation in AAPL at $150/share with $10,000 account
+        >>> price = Decimal('150.00')
+        >>> weight = Decimal('0.25')
+        >>> account = Decimal('10000.00')
+        >>> shares = calculate_position_size_decimal(price, weight, account)
+        >>> print(f"Shares to buy: {shares}")
+        Shares to buy: 16.666667
+
+    Note:
+        This function uses Decimal arithmetic per guardrails for money calculations.
+        The result is quantized to 6 decimal places (Alpaca's maximum precision).
+
+    """
+    if current_price <= 0:
+        return Decimal("0")
+
+    # Calculate target dollar amount based on strategy allocation
+    target_value = account_value * portfolio_weight
+
+    # Calculate shares (fractional) with Decimal precision
+    shares = target_value / current_price
+    
+    # Quantize to 6 decimal places (Alpaca's maximum)
+    return shares.quantize(Decimal("0.000001"))
+
+
 def calculate_dynamic_limit_price(
     *,
     side_is_buy: bool,
@@ -631,6 +678,53 @@ def calculate_allocation_discrepancy(
         current_value = float(current_value)
     except (ValueError, TypeError):
         current_value = 0.0
+
+    current_weight = current_value / total_portfolio_value
+    weight_difference = target_weight - current_weight
+
+    return current_weight, weight_difference
+
+
+def calculate_allocation_discrepancy_decimal(
+    target_weight: Decimal, current_value: Decimal, total_portfolio_value: Decimal
+) -> tuple[Decimal, Decimal]:
+    """Calculate allocation discrepancy using Decimal for financial precision.
+
+    This function provides financial-grade precision for portfolio allocation
+    calculations by using Decimal arithmetic throughout. Use this version for
+    production trading where floating-point precision errors are unacceptable.
+
+    Args:
+        target_weight (Decimal): Target allocation weight (0.0 to 1.0).
+            For example, Decimal('0.3') represents 30% target allocation.
+        current_value (Decimal): Current position value in dollars.
+        total_portfolio_value (Decimal): Total portfolio value in dollars.
+
+    Returns:
+        tuple[Decimal, Decimal]: A tuple containing:
+            - current_weight: Current allocation as a fraction (0.0 to 1.0)
+            - weight_difference: Target minus current weight (can be negative)
+
+    Example:
+        >>> from decimal import Decimal
+        >>> # Current $3000 position, target 25%, total portfolio $10000
+        >>> target = Decimal('0.25')
+        >>> current = Decimal('3000.00')
+        >>> portfolio = Decimal('10000.00')
+        >>> current_weight, diff = calculate_allocation_discrepancy_decimal(
+        ...     target, current, portfolio
+        ... )
+        >>> print(f"Current: {current_weight:.1%}, Difference: {diff:+.1%}")
+        Current: 30.0%, Difference: -5.0%
+
+    Note:
+        This function uses Decimal arithmetic per guardrails for money calculations.
+        A positive weight_difference means the position is underweight and needs
+        to be increased. A negative difference means overweight and should be reduced.
+
+    """
+    if total_portfolio_value <= 0:
+        return Decimal("0"), target_weight
 
     current_weight = current_value / total_portfolio_value
     weight_difference = target_weight - current_weight

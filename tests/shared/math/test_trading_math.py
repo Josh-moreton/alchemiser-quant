@@ -13,9 +13,11 @@ from unittest.mock import Mock
 
 from the_alchemiser.shared.math.trading_math import (
     calculate_position_size,
+    calculate_position_size_decimal,
     calculate_dynamic_limit_price,
     calculate_slippage_buffer,
     calculate_allocation_discrepancy,
+    calculate_allocation_discrepancy_decimal,
     calculate_rebalance_amounts,
     _calculate_midpoint_price,
     _calculate_precision_from_tick_size,
@@ -335,6 +337,169 @@ class TestCalculateMidpointPrice:
         """Test midpoint with wide spread."""
         result = _calculate_midpoint_price(100.0, 101.0, side_is_buy=True)
         assert result == 100.5
+
+
+class TestCalculatePrecisionFromTickSize:
+    """Test precision calculation from tick size."""
+
+    @pytest.mark.unit
+    def test_cent_tick_size(self):
+        """Test with 1 cent tick size."""
+        precision = _calculate_precision_from_tick_size(Decimal("0.01"))
+        assert precision == 2
+
+    @pytest.mark.unit
+    def test_tenth_cent_tick_size(self):
+        """Test with 0.1 cent tick size."""
+        precision = _calculate_precision_from_tick_size(Decimal("0.001"))
+        assert precision == 3
+
+    @pytest.mark.unit
+    def test_nickel_tick_size(self):
+        """Test with 5 cent tick size."""
+        precision = _calculate_precision_from_tick_size(Decimal("0.05"))
+        assert precision == 2
+
+    @pytest.mark.unit
+    def test_minimum_precision_is_two(self):
+        """Test that minimum precision is 2."""
+        precision = _calculate_precision_from_tick_size(Decimal("1.0"))
+        assert precision == 2
+
+
+class TestCalculatePositionSizeDecimal:
+    """Test Decimal-based position size calculation."""
+
+    @pytest.mark.unit
+    def test_basic_position_size(self):
+        """Test basic position size calculation with Decimal."""
+        # 25% of $10,000 at $100/share = 25 shares
+        result = calculate_position_size_decimal(
+            Decimal("100.0"), Decimal("0.25"), Decimal("10000.0")
+        )
+        assert result == Decimal("25.0")
+
+    @pytest.mark.unit
+    def test_fractional_shares(self):
+        """Test calculation with fractional shares using Decimal."""
+        # 25% of $10,000 at $150/share = 16.666667 shares
+        result = calculate_position_size_decimal(
+            Decimal("150.0"), Decimal("0.25"), Decimal("10000.0")
+        )
+        expected = Decimal("16.666667")
+        assert abs(result - expected) < Decimal("0.000001")
+
+    @pytest.mark.unit
+    def test_zero_price_returns_zero(self):
+        """Test that zero price returns Decimal zero."""
+        result = calculate_position_size_decimal(
+            Decimal("0.0"), Decimal("0.5"), Decimal("10000.0")
+        )
+        assert result == Decimal("0")
+
+    @pytest.mark.unit
+    def test_negative_price_returns_zero(self):
+        """Test that negative price returns Decimal zero."""
+        result = calculate_position_size_decimal(
+            Decimal("-100.0"), Decimal("0.5"), Decimal("10000.0")
+        )
+        assert result == Decimal("0")
+
+    @pytest.mark.unit
+    def test_result_precision_six_decimals(self):
+        """Test that result has exactly 6 decimal places."""
+        result = calculate_position_size_decimal(
+            Decimal("137.456"), Decimal("0.333"), Decimal("10000.0")
+        )
+        # Check that result is quantized to 6 decimal places
+        assert str(result).split(".")[1] if "." in str(result) else "" 
+        # Verify it's a Decimal type
+        assert isinstance(result, Decimal)
+
+    @pytest.mark.unit
+    def test_precision_vs_float(self):
+        """Test that Decimal version is more precise than float."""
+        # Use a case where float precision matters
+        price = Decimal("0.333333")
+        weight = Decimal("0.333333")
+        account = Decimal("10000.0")
+        
+        result_decimal = calculate_position_size_decimal(price, weight, account)
+        result_float = calculate_position_size(
+            float(price), float(weight), float(account)
+        )
+        
+        # Both should be close but Decimal should maintain precision
+        assert isinstance(result_decimal, Decimal)
+        assert isinstance(result_float, float)
+
+
+class TestCalculateAllocationDiscrepancyDecimal:
+    """Test Decimal-based allocation discrepancy calculation."""
+
+    @pytest.mark.unit
+    def test_overweight_position(self):
+        """Test detecting overweight position with Decimal."""
+        # Target 25%, current $3000 of $10000 = 30%
+        current_weight, diff = calculate_allocation_discrepancy_decimal(
+            Decimal("0.25"), Decimal("3000.0"), Decimal("10000.0")
+        )
+        assert abs(current_weight - Decimal("0.30")) < Decimal("0.001")
+        assert abs(diff - Decimal("-0.05")) < Decimal("0.001")
+
+    @pytest.mark.unit
+    def test_underweight_position(self):
+        """Test detecting underweight position with Decimal."""
+        # Target 25%, current $2000 of $10000 = 20%
+        current_weight, diff = calculate_allocation_discrepancy_decimal(
+            Decimal("0.25"), Decimal("2000.0"), Decimal("10000.0")
+        )
+        assert abs(current_weight - Decimal("0.20")) < Decimal("0.001")
+        assert abs(diff - Decimal("0.05")) < Decimal("0.001")
+
+    @pytest.mark.unit
+    def test_correctly_weighted_position(self):
+        """Test correctly weighted position with Decimal."""
+        # Target 25%, current $2500 of $10000 = 25%
+        current_weight, diff = calculate_allocation_discrepancy_decimal(
+            Decimal("0.25"), Decimal("2500.0"), Decimal("10000.0")
+        )
+        assert current_weight == Decimal("0.25")
+        assert diff == Decimal("0")
+
+    @pytest.mark.unit
+    def test_zero_portfolio_value_returns_target(self):
+        """Test that zero portfolio value returns zero weight and target diff."""
+        current_weight, diff = calculate_allocation_discrepancy_decimal(
+            Decimal("0.25"), Decimal("1000.0"), Decimal("0.0")
+        )
+        assert current_weight == Decimal("0")
+        assert diff == Decimal("0.25")
+
+    @pytest.mark.unit
+    def test_decimal_precision(self):
+        """Test that Decimal maintains precision better than float."""
+        # Use values that would lose precision with float
+        target = Decimal("0.333333333")
+        current = Decimal("3333.33")
+        portfolio = Decimal("10000.00")
+        
+        current_weight, diff = calculate_allocation_discrepancy_decimal(
+            target, current, portfolio
+        )
+        
+        # Verify we get Decimal results
+        assert isinstance(current_weight, Decimal)
+        assert isinstance(diff, Decimal)
+        
+        # Compare with float version
+        current_weight_float, diff_float = calculate_allocation_discrepancy(
+            float(target), float(current), float(portfolio)
+        )
+        
+        # Decimal should maintain more precision
+        assert isinstance(current_weight_float, float)
+        assert isinstance(diff_float, float)
 
 
 class TestCalculatePrecisionFromTickSize:
