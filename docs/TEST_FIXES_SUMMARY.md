@@ -1,7 +1,7 @@
 # Test Suite Fixes Summary
 
-**Date:** October 10, 2025  
-**Version:** 2.20.3  
+**Date:** October 10, 2025
+**Version:** 2.20.3
 **Status:** In Progress
 
 ## Overview
@@ -29,7 +29,7 @@ From the full test run: **109 failed, 4080 passed, 9 skipped, 11 warnings, 13 er
 
 **Issue:** Tests expected deprecated exports that were removed in v2.10.7+
 - `BrokerOrderSide` - Removed (use Alpaca SDK)
-- `BrokerTimeInForce` - Removed (use Alpaca SDK)  
+- `BrokerTimeInForce` - Removed (use Alpaca SDK)
 - `OrderSideType` - Removed (use Alpaca SDK)
 - `TimeInForceType` - Removed (use Alpaca SDK)
 - `StrategySignal` - Moved to `shared.schemas`
@@ -44,7 +44,7 @@ From the full test run: **109 failed, 4080 passed, 9 skipped, 11 warnings, 13 er
 **Failures:**
 1. `test_can_import_from_types_module` - Expects backward compat import
 2. `test_from_dict_invalid_decimal` - Decimal validation changed
-  
+
 **Root Cause:** Backward compatibility import no longer exists
 
 **Recommended Fix:**
@@ -80,7 +80,7 @@ def test_action_validation_uppercase(self) -> None:
 def test_action_validation_invalid(self) -> None:
     with pytest.raises(ValidationError) as exc_info:
         ExecutedOrder(action="INVALID", ...)
-    
+
     # Pydantic v2 error format
     assert "Input should be 'BUY' or 'SELL'" in str(exc_info.value)
 ```
