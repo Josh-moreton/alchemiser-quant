@@ -59,17 +59,7 @@ repos:
       # Step 2: Auto-fix lint violations
       - id: ruff-fix
         name: Ruff Auto-fix (safe fixes)
-        entry: poetry run ruff check --fix --exit-zero
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: true
-        stages: [pre-commit]
-
-      # Step 3: Check remaining lint issues (fail if unfixable)
-      - id: ruff-check
-        name: Ruff Lint (unfixable issues)
-        entry: poetry run ruff check --exit-non-zero-on-fix
+        entry: poetry run ruff check --fix
         language: system
         types: [python]
         files: ^the_alchemiser/
@@ -80,7 +70,6 @@ repos:
   # NOTE: Temporarily disabled due to duplicate module issue in codebase
   # both execution_v2/core/smart_execution_strategy.py AND
   # execution_v2/core/smart_execution_strategy/__init__.py exist
-  # TODO: Resolve by renaming the re-export file or using mypy namespace packages
   # Run manually: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
   # - repo: local
   #   hooks:
