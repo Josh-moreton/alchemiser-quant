@@ -10,7 +10,7 @@ and validation to ensure consistent indicator data across strategy engines.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -193,7 +193,7 @@ class TechnicalIndicator(BaseModel):
         ):
             try:
                 data["current_price"] = Decimal(data["current_price"])
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError, InvalidOperation) as e:
                 raise ValueError(f"Invalid current_price value: {data['current_price']}") from e
 
         return cls(**data)

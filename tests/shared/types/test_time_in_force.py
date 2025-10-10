@@ -21,10 +21,15 @@ import warnings
 import pytest
 
 # Load TimeInForce module directly from file to avoid __init__.py dependencies
-_module_path = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "shared" / "types" / "time_in_force.py"
+_module_path = (
+    Path(__file__).parent.parent.parent.parent
+    / "the_alchemiser"
+    / "shared"
+    / "types"
+    / "time_in_force.py"
+)
 spec = importlib.util.spec_from_file_location(
-    "the_alchemiser.shared.types.time_in_force",
-    str(_module_path)
+    "the_alchemiser.shared.types.time_in_force", str(_module_path)
 )
 _time_in_force_module = importlib.util.module_from_spec(spec)
 sys.modules["the_alchemiser.shared.types.time_in_force"] = _time_in_force_module
@@ -81,13 +86,13 @@ class TestTimeInForceConstruction:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             TimeInForce(value="day")
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             message = str(w[0].message)
             assert "2.10.7" in message
             assert "3.0.0" in message
-            assert "BrokerTimeInForce" in message
+            assert "Alpaca SDK" in message
 
     @pytest.mark.unit
     def test_frozen_immutable(self):
@@ -101,17 +106,17 @@ class TestTimeInForceConstruction:
     @pytest.mark.unit
     def test_invalid_value_rejected_by_type_checker(self):
         """Test that invalid values are rejected by type checker.
-        
+
         NOTE: This test demonstrates that the Literal type constraint
         prevents invalid values at the type-checking level, making the
         __post_init__ validation unreachable in practice.
-        
+
         This test cannot actually execute the invalid code path because
         mypy would reject it. The test is included for documentation.
         """
         # The following would fail type checking:
         # tif = TimeInForce(value="invalid")  # type: ignore
-        
+
         # To test runtime validation, we'd need to bypass type checking:
         # This is why the __post_init__ validation is marked with pragma: no cover
         pass
@@ -146,11 +151,11 @@ class TestTimeInForceEquality:
             tif1 = TimeInForce(value="day")
             tif2 = TimeInForce(value="gtc")
             tif3 = TimeInForce(value="day")
-            
+
             # Can create set
             tif_set = {tif1, tif2, tif3}
             assert len(tif_set) == 2  # tif1 and tif3 are equal
-            
+
             # Can use as dict key
             tif_dict = {tif1: "Day order", tif2: "GTC order"}
             assert tif_dict[tif1] == "Day order"
@@ -181,75 +186,6 @@ class TestTimeInForceRepresentation:
             assert "gtc" in str_repr
 
 
-class TestTimeInForceComparisonWithBrokerEnum:
-    """Test relationship between TimeInForce and BrokerTimeInForce.
-    
-    These tests document the architectural duplication issue where
-    BrokerTimeInForce provides superior functionality.
-    """
-
-    @pytest.mark.unit
-    def test_values_match_broker_enum(self):
-        """Test that valid values match BrokerTimeInForce enum values."""
-        # Load broker_enums module directly too
-        broker_path = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "shared" / "types" / "broker_enums.py"
-        spec = importlib.util.spec_from_file_location(
-            "the_alchemiser.shared.types.broker_enums",
-            str(broker_path)
-        )
-        broker_module = importlib.util.module_from_spec(spec)
-        sys.modules["the_alchemiser.shared.types.broker_enums"] = broker_module
-        spec.loader.exec_module(broker_module)
-        
-        BrokerTimeInForce = broker_module.BrokerTimeInForce
-        
-        # TimeInForce valid values
-        tif_values = {"day", "gtc", "ioc", "fok"}
-        
-        # BrokerTimeInForce enum values
-        broker_values = {member.value for member in BrokerTimeInForce}
-        
-        assert tif_values == broker_values
-
-    @pytest.mark.unit
-    def test_broker_enum_has_more_features(self):
-        """Document that BrokerTimeInForce has superior functionality.
-        
-        This test documents the architectural issue: BrokerTimeInForce
-        provides from_string() and to_alpaca() methods that TimeInForce lacks.
-        """
-        # Load broker_enums module
-        broker_path = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "shared" / "types" / "broker_enums.py"
-        spec = importlib.util.spec_from_file_location(
-            "the_alchemiser.shared.types.broker_enums",
-            str(broker_path)
-        )
-        broker_module = importlib.util.module_from_spec(spec)
-        sys.modules["the_alchemiser.shared.types.broker_enums"] = broker_module
-        spec.loader.exec_module(broker_module)
-        
-        BrokerTimeInForce = broker_module.BrokerTimeInForce
-        
-        # BrokerTimeInForce can convert from string
-        broker_tif = BrokerTimeInForce.from_string("day")
-        assert broker_tif == BrokerTimeInForce.DAY
-        
-        # BrokerTimeInForce can convert to Alpaca format
-        # Note: This requires alpaca-py, may fail if not installed
-        try:
-            alpaca_value = broker_tif.to_alpaca()
-            assert isinstance(alpaca_value, str)
-        except (ImportError, ModuleNotFoundError):
-            pytest.skip("alpaca-py not installed")
-        
-        # TimeInForce lacks these methods
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # Suppress deprecation warning
-            tif = TimeInForce(value="day")
-            assert not hasattr(tif, "from_string")
-            assert not hasattr(tif, "to_alpaca")
-
-
 class TestTimeInForceUsage:
     """Test actual usage patterns and dead code detection."""
 
@@ -264,10 +200,11 @@ class TestTimeInForceUsage:
     @pytest.mark.unit
     def test_type_hints_work(self):
         """Test that type hints work correctly with TimeInForce."""
+
         def process_order(tif: TimeInForce) -> str:
             """Example function using TimeInForce type hint."""
             return f"Order with TIF: {tif.value}"
-        
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # Suppress deprecation warning
             tif = TimeInForce(value="gtc")

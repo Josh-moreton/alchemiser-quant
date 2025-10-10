@@ -8,75 +8,228 @@ order execution reports, and performance metrics.
 
 from __future__ import annotations
 
-from typing import Any
+from decimal import Decimal
+
+from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.notifications import (
+    OrderNotificationDTO,
+    OrderSide,
+    StrategyDataDTO,
+    TradingSummaryDTO,
+)
 
 from .base import BaseEmailTemplate
 
+logger = get_logger(__name__)
+
+# Constants for styling
+SIDE_COLORS = {
+    OrderSide.BUY: "#10B981",
+    OrderSide.SELL: "#EF4444",
+}
+
+SIDE_EMOJIS = {
+    OrderSide.BUY: "🟢",
+    OrderSide.SELL: "🔴",
+}
+
+SIGNAL_STYLES = {
+    "BUY": {"color": "#10B981", "bg": "#D1FAE5", "emoji": "📈"},
+    "SELL": {"color": "#EF4444", "bg": "#FEE2E2", "emoji": "📉"},
+}
+
+DEFAULT_SIGNAL_STYLE = {"color": "#6B7280", "bg": "#F3F4F6", "emoji": "⏸️"}
+
+MAX_DISPLAYED_ORDERS = 10
+MAX_REASON_LENGTH = 100
+
 
 class PerformanceBuilder:
-    """Builds performance-related HTML content for emails."""
+    """Builds performance-related HTML content for emails.
+
+    This class provides static methods to generate HTML email sections for:
+    - Order execution summaries
+    - Trading performance metrics
+    - Strategy performance reports
+
+    All monetary values are handled as Decimal types for precision.
+    """
 
     @staticmethod
-    def _normalize_order_side(side: Any) -> str:  # noqa: ANN401
-        """Normalize order side to uppercase string."""
-        if hasattr(side, "value") and side.value:
-            return str(side.value).upper()
-        return str(side).upper()
+    def _normalize_order_side(side: OrderSide | str) -> OrderSide:
+        """Normalize order side to OrderSide enum.
+
+        Args:
+            side: Order side as enum or string (e.g., "BUY", "buy", OrderSide.BUY)
+
+        Returns:
+            OrderSide enum value
+
+        Raises:
+            ValueError: If side cannot be normalized to a valid OrderSide
+
+        Examples:
+            >>> PerformanceBuilder._normalize_order_side("BUY")
+            <OrderSide.BUY: 'BUY'>
+            >>> PerformanceBuilder._normalize_order_side(OrderSide.SELL)
+            <OrderSide.SELL: 'SELL'>
+
+        """
+        if isinstance(side, OrderSide):
+            return side
+
+        # Handle enum-like objects with .value attribute
+        side_str = str(side.value).upper() if hasattr(side, "value") else str(side).upper()
+
+        # Remove "ORDERSIDE." prefix if present (e.g., "ORDERSIDE.BUY" -> "BUY")
+        if side_str.startswith("ORDERSIDE."):
+            side_str = side_str.replace("ORDERSIDE.", "")
+
+        try:
+            return OrderSide(side_str)
+        except ValueError as e:
+            logger.warning(
+                "Invalid order side value",
+                extra={"side": side, "normalized": side_str},
+            )
+            raise ValueError(f"Invalid order side: {side}") from e
 
     @staticmethod
     def _categorize_orders(
-        orders: list[dict[str, Any]],
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Categorize orders into buy and sell lists."""
+        orders: list[OrderNotificationDTO],
+    ) -> tuple[list[OrderNotificationDTO], list[OrderNotificationDTO]]:
+        """Categorize orders into buy and sell lists.
+
+        Args:
+            orders: List of order DTOs to categorize
+
+        Returns:
+            Tuple of (buy_orders, sell_orders)
+
+        Examples:
+            >>> from decimal import Decimal
+            >>> orders = [
+            ...     OrderNotificationDTO(side=OrderSide.BUY, symbol="AAPL", qty=Decimal("10")),
+            ...     OrderNotificationDTO(side=OrderSide.SELL, symbol="TSLA", qty=Decimal("5")),
+            ... ]
+            >>> buy, sell = PerformanceBuilder._categorize_orders(orders)
+            >>> len(buy), len(sell)
+            (1, 1)
+
+        """
         buy_orders = []
         sell_orders = []
 
         for order in orders:
-            side = order.get("side")
-            if not side:
+            try:
+                normalized_side = PerformanceBuilder._normalize_order_side(order.side)
+                if normalized_side == OrderSide.BUY:
+                    buy_orders.append(order)
+                elif normalized_side == OrderSide.SELL:
+                    sell_orders.append(order)
+            except ValueError:
+                logger.warning(
+                    "Skipping order with invalid side",
+                    extra={"symbol": order.symbol, "side": order.side},
+                )
                 continue
-
-            normalized_side = PerformanceBuilder._normalize_order_side(side)
-            if normalized_side in ["BUY", "ORDERSIDE.BUY"]:
-                buy_orders.append(order)
-            elif normalized_side in ["SELL", "ORDERSIDE.SELL"]:
-                sell_orders.append(order)
 
         return buy_orders, sell_orders
 
     @staticmethod
-    def _format_order_row(order: dict[str, Any]) -> str:
-        """Format a single order as an HTML table row."""
-        side = order.get("side", "N/A")
-        symbol = order.get("symbol", "N/A")
-        qty = order.get("qty", 0)
-        estimated_value = order.get("estimated_value", 0)
+    def _get_side_styling(side: OrderSide) -> tuple[str, str]:
+        """Get color and emoji for an order side.
 
-        side_str = PerformanceBuilder._normalize_order_side(side)
-        side_color = "#10B981" if side_str == "BUY" else "#EF4444"
-        side_emoji = "🟢" if side_str == "BUY" else "🔴"
+        Args:
+            side: Order side enum
+
+        Returns:
+            Tuple of (color, emoji)
+
+        """
+        return SIDE_COLORS[side], SIDE_EMOJIS[side]
+
+    @staticmethod
+    def _format_order_row(order: OrderNotificationDTO) -> str:
+        """Format a single order as an HTML table row.
+
+        Args:
+            order: Order DTO with side, symbol, qty, and optional estimated_value
+
+        Returns:
+            HTML string representing a table row
+
+        Pre-conditions:
+            - order.qty must be >= 0
+            - order.estimated_value must be >= 0 if provided
+
+        Post-conditions:
+            - Returns valid HTML <tr> element
+            - Decimal values formatted to 6 decimal places for qty
+            - Monetary values formatted to 2 decimal places with thousands separator
+
+        """
+        side_enum = PerformanceBuilder._normalize_order_side(order.side)
+        side_color, side_emoji = PerformanceBuilder._get_side_styling(side_enum)
+
+        # Format values with proper Decimal handling
+        qty_str = f"{order.qty:.6f}"
+        value_str = f"${order.estimated_value:,.2f}" if order.estimated_value else "$0.00"
 
         return f"""
         <tr>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
+                <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_enum.value}</span>
             </td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                {symbol}
+                {order.symbol}
             </td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                {qty:.6f}
+                {qty_str}
             </td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: #059669; font-weight: 600;">
-                ${estimated_value:,.2f}
+                {value_str}
             </td>
         </tr>
         """
 
     @staticmethod
-    def build_trading_activity(orders: list[dict[str, Any]] | None = None) -> str:
-        """Build HTML for trading activity section."""
-        if not orders or len(orders) == 0:
+    def build_trading_activity(orders: list[OrderNotificationDTO] | None = None) -> str:
+        """Build HTML for trading activity section.
+
+        Args:
+            orders: List of order DTOs to display, or None/empty for no orders
+
+        Returns:
+            HTML string with order table and summary
+
+        Pre-conditions:
+            - orders must be a list of valid OrderNotificationDTO instances or None
+            - All order quantities and values must be non-negative
+
+        Post-conditions:
+            - Returns valid HTML5 <div> element
+            - Displays up to MAX_DISPLAYED_ORDERS (10) orders in table
+            - Shows summary with total counts and values
+            - Logs warning if orders are truncated
+
+        Examples:
+            >>> from decimal import Decimal
+            >>> orders = [
+            ...     OrderNotificationDTO(
+            ...         side=OrderSide.BUY,
+            ...         symbol="AAPL",
+            ...         qty=Decimal("10"),
+            ...         estimated_value=Decimal("1500.00")
+            ...     )
+            ... ]
+            >>> html = PerformanceBuilder.build_trading_activity(orders)
+            >>> "AAPL" in html and "$1,500.00" in html
+            True
+
+        """
+        if not orders:
+            logger.info("Building trading activity HTML with no orders")
             return """
             <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">
                 <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">📋 Orders Executed (0)</h3>
@@ -84,13 +237,31 @@ class PerformanceBuilder:
             </div>
             """
 
+        logger.info(
+            "Building trading activity HTML",
+            extra={"order_count": len(orders)},
+        )
+
+        # Warn if truncating orders
+        displayed_orders = orders[:MAX_DISPLAYED_ORDERS]
+        if len(orders) > MAX_DISPLAYED_ORDERS:
+            logger.warning(
+                "Truncating order display",
+                extra={
+                    "total_orders": len(orders),
+                    "displayed_orders": MAX_DISPLAYED_ORDERS,
+                },
+            )
+
         # Generate order rows
-        orders_rows = "".join(PerformanceBuilder._format_order_row(order) for order in orders[:10])
+        orders_rows = "".join(
+            PerformanceBuilder._format_order_row(order) for order in displayed_orders
+        )
 
         # Calculate totals for summary
         buy_orders, sell_orders = PerformanceBuilder._categorize_orders(orders)
-        total_buy_value = sum(o.get("estimated_value", 0) for o in buy_orders)
-        total_sell_value = sum(o.get("estimated_value", 0) for o in sell_orders)
+        total_buy_value = sum((o.estimated_value or Decimal("0")) for o in buy_orders)
+        total_sell_value = sum((o.estimated_value or Decimal("0")) for o in sell_orders)
 
         return f"""
         <div style="margin: 24px 0;">
@@ -126,21 +297,59 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_trading_summary(trading_summary: dict[str, Any]) -> str:
-        """Build enhanced trading summary HTML section."""
+    def build_trading_summary(trading_summary: TradingSummaryDTO | None) -> str:
+        """Build enhanced trading summary HTML section.
+
+        Args:
+            trading_summary: Trading summary DTO with metrics, or None if unavailable
+
+        Returns:
+            HTML string with trading metrics cards
+
+        Pre-conditions:
+            - If provided, trading_summary must be a valid TradingSummaryDTO
+            - All counts must be non-negative integers
+            - All values must be valid Decimal instances
+
+        Post-conditions:
+            - Returns valid HTML5 <div> element
+            - Displays 4 metric cards: total trades, buy value, sell value, net value
+            - Net value colored green (positive) or red (negative)
+
+        Failure modes:
+            - If trading_summary is None, returns warning alert box
+            - Logs INFO when building summary
+
+        Examples:
+            >>> from decimal import Decimal
+            >>> summary = TradingSummaryDTO(
+            ...     total_trades=5,
+            ...     total_buy_value=Decimal("10000"),
+            ...     total_sell_value=Decimal("8000"),
+            ...     net_value=Decimal("2000"),
+            ...     buy_orders=3,
+            ...     sell_orders=2
+            ... )
+            >>> html = PerformanceBuilder.build_trading_summary(summary)
+            >>> "$10,000" in html and "$8,000" in html
+            True
+
+        """
         if not trading_summary:
+            logger.warning("Trading summary not provided")
             return BaseEmailTemplate.create_alert_box("Trading summary not available", "warning")
 
-        total_trades = trading_summary.get("total_trades", 0)
-        total_buy_value = trading_summary.get("total_buy_value", 0)
-        total_sell_value = trading_summary.get("total_sell_value", 0)
-        net_value = trading_summary.get("net_value", total_buy_value - total_sell_value)
-        buy_orders = trading_summary.get("buy_orders", 0)
-        sell_orders = trading_summary.get("sell_orders", 0)
+        logger.info(
+            "Building trading summary HTML",
+            extra={
+                "total_trades": trading_summary.total_trades,
+                "net_value": str(trading_summary.net_value),
+            },
+        )
 
         # Calculate additional metrics
-        net_color = "#10B981" if net_value >= 0 else "#EF4444"
-        net_sign = "+" if net_value >= 0 else ""
+        net_color = "#10B981" if trading_summary.net_value >= 0 else "#EF4444"
+        net_sign = "+" if trading_summary.net_value >= 0 else ""
 
         return f"""
         <div style="margin: 24px 0;">
@@ -149,25 +358,25 @@ class PerformanceBuilder:
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
                     <div style="text-align: center; padding: 16px; background-color: #F8FAFC; border-radius: 8px;">
                         <div style="font-size: 24px; font-weight: 700; color: #1F2937; margin-bottom: 4px;">
-                            {total_trades}
+                            {trading_summary.total_trades}
                         </div>
                         <div style="font-size: 14px; color: #6B7280;">Total Trades</div>
                     </div>
                     <div style="text-align: center; padding: 16px; background-color: #F0FDF4; border-radius: 8px;">
                         <div style="font-size: 20px; font-weight: 600; color: #10B981; margin-bottom: 4px;">
-                            ${total_buy_value:,.0f}
+                            ${trading_summary.total_buy_value:,.0f}
                         </div>
-                        <div style="font-size: 14px; color: #6B7280;">{buy_orders} Buy Orders</div>
+                        <div style="font-size: 14px; color: #6B7280;">{trading_summary.buy_orders} Buy Orders</div>
                     </div>
                     <div style="text-align: center; padding: 16px; background-color: #FEF2F2; border-radius: 8px;">
                         <div style="font-size: 20px; font-weight: 600; color: #EF4444; margin-bottom: 4px;">
-                            ${total_sell_value:,.0f}
+                            ${trading_summary.total_sell_value:,.0f}
                         </div>
-                        <div style="font-size: 14px; color: #6B7280;">{sell_orders} Sell Orders</div>
+                        <div style="font-size: 14px; color: #6B7280;">{trading_summary.sell_orders} Sell Orders</div>
                     </div>
                     <div style="text-align: center; padding: 16px; background-color: #F8FAFC; border-radius: 8px; border: 2px solid {net_color};">
                         <div style="font-size: 20px; font-weight: 700; color: {net_color}; margin-bottom: 4px;">
-                            {net_sign}${net_value:,.0f}
+                            {net_sign}${trading_summary.net_value:,.0f}
                         </div>
                         <div style="font-size: 14px; color: #6B7280;">Net Value</div>
                     </div>
@@ -177,51 +386,112 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_strategy_performance(strategy_summary: dict[str, Any]) -> str:
-        """Build strategy performance summary."""
+    def _get_signal_styling(signal: str) -> dict[str, str]:
+        """Get styling configuration for a trading signal.
+
+        Args:
+            signal: Trading signal string (e.g., "BUY", "SELL", "HOLD")
+
+        Returns:
+            Dictionary with 'color', 'bg', and 'emoji' keys
+
+        """
+        return SIGNAL_STYLES.get(signal.upper(), DEFAULT_SIGNAL_STYLE)
+
+    @staticmethod
+    def _format_reason(reason: str) -> str:
+        """Format reason text with truncation if needed.
+
+        Args:
+            reason: Reason text to format
+
+        Returns:
+            Formatted reason with ellipsis if truncated, or empty string if no reason
+
+        """
+        if not reason:
+            return ""
+
+        # Truncate to MAX_REASON_LENGTH and add ellipsis if needed
+        if len(reason) > MAX_REASON_LENGTH:
+            truncated = reason[:MAX_REASON_LENGTH]
+            return f'<div style="color: #6B7280; font-size: 14px; font-style: italic;">{truncated}...</div>'
+
+        return f'<div style="color: #6B7280; font-size: 14px; font-style: italic;">{reason}</div>'
+
+    @staticmethod
+    def build_strategy_performance(
+        strategy_summary: dict[str, StrategyDataDTO] | None,
+    ) -> str:
+        """Build strategy performance summary.
+
+        Args:
+            strategy_summary: Dictionary mapping strategy names to their data DTOs,
+                            or None if unavailable
+
+        Returns:
+            HTML string with strategy performance cards
+
+        Pre-conditions:
+            - If provided, strategy_summary must map string names to StrategyDataDTO instances
+            - All allocation values must be between 0.0 and 1.0
+
+        Post-conditions:
+            - Returns valid HTML5 <div> element
+            - Each strategy displayed as a card with signal, symbol, allocation
+            - Signal styled with appropriate color and emoji
+
+        Failure modes:
+            - If strategy_summary is None/empty, returns warning alert box
+            - Logs INFO with strategy count when building
+            - Invalid strategy data logged as WARNING and skipped
+
+        Examples:
+            >>> strategy_data = StrategyDataDTO(
+            ...     allocation=0.5,
+            ...     signal="BUY",
+            ...     symbol="AAPL",
+            ...     reason="Strong momentum"
+            ... )
+            >>> strategies = {"Momentum": strategy_data}
+            >>> html = PerformanceBuilder.build_strategy_performance(strategies)
+            >>> "Momentum" in html and "AAPL" in html
+            True
+
+        """
         if not strategy_summary:
+            logger.warning("Strategy performance data not provided")
             return BaseEmailTemplate.create_alert_box(
                 "Strategy performance data not available", "warning"
             )
 
+        logger.info(
+            "Building strategy performance HTML",
+            extra={"strategy_count": len(strategy_summary)},
+        )
+
         strategy_cards = ""
         for strategy_name, strategy_data in strategy_summary.items():
-            allocation = strategy_data.get("allocation", 0)
-            signal = strategy_data.get("signal", "UNKNOWN")
-            symbol = strategy_data.get("symbol", "N/A")
-            reason = strategy_data.get("reason", "")
-
-            # Determine color scheme based on signal
-            if signal == "BUY":
-                signal_color = "#10B981"
-                signal_bg = "#D1FAE5"
-                signal_emoji = "📈"
-            elif signal == "SELL":
-                signal_color = "#EF4444"
-                signal_bg = "#FEE2E2"
-                signal_emoji = "📉"
-            else:
-                signal_color = "#6B7280"
-                signal_bg = "#F3F4F6"
-                signal_emoji = "⏸️"
+            style = PerformanceBuilder._get_signal_styling(strategy_data.signal)
+            reason_html = PerformanceBuilder._format_reason(strategy_data.reason)
 
             strategy_cards += f"""
-            <div style="margin-bottom: 16px; padding: 16px; background-color: white; border-radius: 8px; border-left: 4px solid {signal_color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="margin-bottom: 16px; padding: 16px; background-color: white; border-radius: 8px; border-left: 4px solid {style["color"]}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h4 style="margin: 0; color: #1F2937; font-size: 16px; font-weight: 600;">
                         {strategy_name}
                     </h4>
-                    <div style="background-color: {signal_bg}; color: {signal_color}; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">
-                        {signal_emoji} {signal}
+                    <div style="background-color: {style["bg"]}; color: {style["color"]}; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                        {style["emoji"]} {strategy_data.signal}
                     </div>
                 </div>
                 <div style="margin-bottom: 8px;">
                     <span style="color: #6B7280; font-size: 14px;">Target: </span>
-                    <span style="font-weight: 600; color: #1F2937;">{symbol}</span>
+                    <span style="font-weight: 600; color: #1F2937;">{strategy_data.symbol}</span>
                     <span style="color: #6B7280; font-size: 14px; margin-left: 16px;">Allocation: </span>
-                    <span style="font-weight: 600; color: #1F2937;">{allocation:.1%}</span>
+                    <span style="font-weight: 600; color: #1F2937;">{strategy_data.allocation:.1%}</span>
                 </div>
-                {f'<div style="color: #6B7280; font-size: 14px; font-style: italic;">{reason[:100]}...</div>' if reason else ""}
+                {reason_html}
             </div>
             """
 
@@ -235,26 +505,29 @@ class PerformanceBuilder:
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
 
     @staticmethod
-    def _format_order_row_neutral(order: dict[str, Any]) -> str:
-        """Format a single order as an HTML table row for neutral mode."""
-        side = order.get("side", "N/A")
-        symbol = order.get("symbol", "N/A")
-        qty = order.get("qty", 0)
+    def _format_order_row_neutral(order: OrderNotificationDTO) -> str:
+        """Format a single order as an HTML table row for neutral mode.
 
-        side_str = PerformanceBuilder._normalize_order_side(side)
-        side_color = "#10B981" if side_str == "BUY" else "#EF4444"
-        side_emoji = "🟢" if side_str == "BUY" else "🔴"
+        Args:
+            order: Order DTO with side, symbol, and qty
+
+        Returns:
+            HTML string representing a table row without monetary values
+
+        """
+        side_enum = PerformanceBuilder._normalize_order_side(order.side)
+        side_color, side_emoji = PerformanceBuilder._get_side_styling(side_enum)
 
         return f"""
         <tr>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
+                <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_enum.value}</span>
             </td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                {symbol}
+                {order.symbol}
             </td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                {qty:.6f} shares
+                {order.qty:.6f} shares
             </td>
             <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #10B981;">
                 ✅ Executed
@@ -263,9 +536,29 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_trading_activity_neutral(orders: list[dict[str, Any]] | None = None) -> str:
-        """Build HTML for trading activity section without dollar values."""
-        if not orders or len(orders) == 0:
+    def build_trading_activity_neutral(
+        orders: list[OrderNotificationDTO] | None = None,
+    ) -> str:
+        """Build HTML for trading activity section without dollar values.
+
+        Args:
+            orders: List of order DTOs to display, or None/empty for no orders
+
+        Returns:
+            HTML string with order table and summary (counts only, no monetary values)
+
+        Pre-conditions:
+            - orders must be a list of valid OrderNotificationDTO instances or None
+
+        Post-conditions:
+            - Returns valid HTML5 <div> element
+            - Displays up to MAX_DISPLAYED_ORDERS (10) orders in table
+            - Shows summary with order counts only (no dollar amounts)
+            - Logs warning if orders are truncated
+
+        """
+        if not orders:
+            logger.info("Building neutral trading activity HTML with no orders")
             return """
             <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">
                 <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">📋 Orders Executed (0)</h3>
@@ -273,9 +566,25 @@ class PerformanceBuilder:
             </div>
             """
 
+        logger.info(
+            "Building neutral trading activity HTML",
+            extra={"order_count": len(orders)},
+        )
+
+        # Warn if truncating orders
+        displayed_orders = orders[:MAX_DISPLAYED_ORDERS]
+        if len(orders) > MAX_DISPLAYED_ORDERS:
+            logger.warning(
+                "Truncating neutral order display",
+                extra={
+                    "total_orders": len(orders),
+                    "displayed_orders": MAX_DISPLAYED_ORDERS,
+                },
+            )
+
         # Generate order rows
         orders_rows = "".join(
-            PerformanceBuilder._format_order_row_neutral(order) for order in orders[:10]
+            PerformanceBuilder._format_order_row_neutral(order) for order in displayed_orders
         )
 
         # Calculate totals for summary (count only, no dollar amounts)

@@ -254,6 +254,7 @@ class DslStrategyEngine:
                         strategy=strategy_display,
                         data_source="dsl_engine:multi",
                         correlation_id=correlation_id,
+                        causation_id=correlation_id,  # Using correlation_id as causation for DSL signals
                     )
                 )
         return signals
@@ -271,6 +272,11 @@ class DslStrategyEngine:
         # Extract strategy name from CLJ filename (remove extension and path) using pathlib
         strategy_name = Path(self.strategy_file).stem
 
+        # Generate correlation IDs for fallback signal
+        import uuid
+
+        fallback_correlation_id = f"fallback-{uuid.uuid4().hex[:8]}"
+
         fallback_signal = StrategySignal(
             symbol=Symbol("CASH"),
             action="BUY",
@@ -280,6 +286,8 @@ class DslStrategyEngine:
             data_source="dsl_fallback",
             fallback=True,
             dsl_file=self.strategy_file,
+            correlation_id=fallback_correlation_id,
+            causation_id=fallback_correlation_id,
         )
         return [fallback_signal]
 

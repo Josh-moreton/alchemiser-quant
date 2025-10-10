@@ -3,36 +3,26 @@
 Common types and value objects used across modules.
 
 Note: TimeInForce is deprecated as of 2.10.7 and removed from exports.
-Use BrokerTimeInForce instead.
+Use Alpaca SDK enums directly (OrderSide, TimeInForce from alpaca.trading.enums).
 """
 
 from __future__ import annotations
 
-from .broker_enums import (
-    BrokerOrderSide,
-    BrokerTimeInForce,
-    OrderSideType,
-    TimeInForceType,
-)
 from .market_data_port import MarketDataPort
 from .quantity import Quantity
 from .strategy_protocol import StrategyEngine
 from .strategy_types import StrategyType
-from .strategy_value_objects import StrategySignal
 
+# StrategySignal moved to schemas module - import from there instead
+# from .strategy_value_objects import StrategySignal  # DEPRECATED: Use shared.schemas.StrategySignal
 # Import but don't export - deprecated as of 2.10.7, will be removed in 3.0.0
 from .time_in_force import TimeInForce  # noqa: F401
 
 __all__ = [
-    "BrokerOrderSide",
-    "BrokerTimeInForce",
     "MarketDataPort",
-    "OrderError",
-    "OrderSideType",
     "Quantity",
     "StrategyEngine",
-    "StrategySignal",
+    # "StrategySignal",  # MOVED: Use the_alchemiser.shared.schemas.StrategySignal
     "StrategyType",
-    "TimeInForceType",
-    # "TimeInForce",  # DEPRECATED: Removed from exports in 2.10.7, use BrokerTimeInForce
+    # "TimeInForce",  # DEPRECATED: Removed from exports in 2.10.7, use Alpaca SDK directly
 ]

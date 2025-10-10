@@ -33,10 +33,18 @@ class RealTimePriceStore:
         """Initialize the price store.
 
         Args:
-            cleanup_interval: Seconds between cleanup cycles
-            max_quote_age: Maximum age of quotes in seconds before cleanup
+            cleanup_interval: Seconds between cleanup cycles (must be > 0)
+            max_quote_age: Maximum age of quotes in seconds before cleanup (must be > 0)
+
+        Raises:
+            ValueError: If cleanup_interval or max_quote_age are not positive
 
         """
+        if cleanup_interval <= 0:
+            raise ValueError(f"cleanup_interval must be positive, got {cleanup_interval}")
+        if max_quote_age <= 0:
+            raise ValueError(f"max_quote_age must be positive, got {max_quote_age}")
+
         self._cleanup_interval = cleanup_interval
         self._max_quote_age = max_quote_age
 
@@ -52,6 +60,7 @@ class RealTimePriceStore:
         # Cleanup control
         self._should_cleanup = False
         self._cleanup_thread: threading.Thread | None = None
+        self._is_connected: Callable[[], bool] | None = None
 
         self.logger = get_logger(__name__)
 
@@ -83,23 +92,40 @@ class RealTimePriceStore:
     def update_quote_data(
         self,
         symbol: str,
-        bid_price: float,
-        ask_price: float,
-        bid_size: float | None,
-        ask_size: float | None,
+        bid_price: Decimal,
+        ask_price: Decimal,
+        bid_size: Decimal | None,
+        ask_size: Decimal | None,
         timestamp: datetime,
     ) -> None:
         """Update quote data with locking.
 
         Args:
-            symbol: Stock symbol
-            bid_price: Bid price
-            ask_price: Ask price
-            bid_size: Bid size (optional)
-            ask_size: Ask size (optional)
-            timestamp: Quote timestamp
+            symbol: Stock symbol (non-empty)
+            bid_price: Bid price (>= 0)
+            ask_price: Ask price (>= 0)
+            bid_size: Bid size (optional, >= 0 if provided)
+            ask_size: Ask size (optional, >= 0 if provided)
+            timestamp: Quote timestamp (timezone-aware UTC)
+
+        Raises:
+            ValueError: If symbol is empty, prices negative, or timestamp not timezone-aware
 
         """
+        # Validate inputs
+        if not symbol or not symbol.strip():
+            raise ValueError("Symbol cannot be empty")
+        if bid_price < 0:
+            raise ValueError(f"Bid price cannot be negative: {bid_price}")
+        if ask_price < 0:
+            raise ValueError(f"Ask price cannot be negative: {ask_price}")
+        if bid_size is not None and bid_size < 0:
+            raise ValueError(f"Bid size cannot be negative: {bid_size}")
+        if ask_size is not None and ask_size < 0:
+            raise ValueError(f"Ask size cannot be negative: {ask_size}")
+        if timestamp.tzinfo is None:
+            raise ValueError("Timestamp must be timezone-aware")
+
         with self._quotes_lock:
             current_quote = self._quotes.get(symbol)
             last_price = current_quote.last_price if current_quote else 0.0
@@ -122,18 +148,37 @@ class RealTimePriceStore:
                 timestamp=timestamp,
             )
 
+            # Update last update timestamp inside lock
+            self._last_update[symbol] = datetime.now(UTC)
+
     def update_trade_data(
-        self, symbol: str, price: float, timestamp: datetime, volume: int | float | None
+        self, symbol: str, price: Decimal, timestamp: datetime, volume: Decimal | None
     ) -> None:
         """Update trade data with locking.
 
         Args:
-            symbol: Stock symbol
-            price: Trade price
-            timestamp: Trade timestamp
-            volume: Trade volume (optional)
+            symbol: Stock symbol (non-empty)
+            price: Trade price (must be > 0)
+            timestamp: Trade timestamp (timezone-aware UTC)
+            volume: Trade volume (optional, >= 0 if provided)
+
+        Raises:
+            ValueError: If symbol is empty, price non-positive, or timestamp not timezone-aware
 
         """
+        # Validate inputs
+        if not symbol or not symbol.strip():
+            raise ValueError("Symbol cannot be empty")
+        if price is None or price <= 0:
+            raise ValueError(f"Trade price must be positive, got {price}")
+        if timestamp.tzinfo is None:
+            raise ValueError("Timestamp must be timezone-aware")
+        if volume is not None and volume < 0:
+            raise ValueError(f"Volume cannot be negative: {volume}")
+
+        # Convert price to Decimal early for consistency
+        price_decimal = Decimal(str(price))
+
         with self._quotes_lock:
             current_quote = self._quotes.get(symbol)
             current_quote_data = self._quote_data.get(symbol)
@@ -144,7 +189,7 @@ class RealTimePriceStore:
                 self._quotes[symbol] = RealTimeQuote(
                     bid=current_quote.bid,
                     ask=current_quote.ask,
-                    last_price=float(price or 0),
+                    last_price=float(price_decimal),
                     timestamp=timestamp,
                 )
             else:
@@ -152,7 +197,7 @@ class RealTimePriceStore:
                 self._quotes[symbol] = RealTimeQuote(
                     bid=0.0,
                     ask=0.0,
-                    last_price=float(price or 0),
+                    last_price=float(price_decimal),
                     timestamp=timestamp,
                 )
 
@@ -162,13 +207,14 @@ class RealTimePriceStore:
 
             self._price_data[symbol] = PriceDataModel(
                 symbol=symbol,
-                price=Decimal(str(price or 0)),
+                price=price_decimal,
                 timestamp=timestamp,
                 bid=bid_price,
                 ask=ask_price,
-                volume=int(volume or 0) if volume else None,
+                volume=int(volume) if volume else None,
             )
 
+            # CRITICAL FIX: Update timestamp inside lock to prevent race condition
             self._last_update[symbol] = datetime.now(UTC)
 
     def get_real_time_quote(self, symbol: str) -> RealTimeQuote | None:
@@ -311,17 +357,27 @@ class RealTimePriceStore:
     ) -> Decimal | float | None:
         """Get the most accurate price for order placement.
 
+        This method blocks the calling thread while waiting for fresh data.
+        Use with care in async contexts or high-frequency trading paths.
+
         Args:
             symbol: Stock symbol
             subscribe_callback: Callback to subscribe symbol with high priority
-            max_wait: Maximum wait time for fresh data
+            max_wait: Maximum wait time for fresh data in seconds
 
         Returns:
             Current price optimized for order accuracy (Decimal from structured data or float from legacy)
 
+        Note:
+            This method will sleep for up to max_wait seconds while checking for data.
+            Consider using an async variant if blocking is not acceptable.
+
         """
         # Subscribe with highest priority for order placement
-        subscribe_callback(symbol)
+        try:
+            subscribe_callback(symbol)
+        except Exception as e:
+            self.logger.warning(f"Subscribe callback failed for {symbol}: {e}")
 
         # Wait for real-time data with timeout and early exit if data available
         check_interval = 0.05  # Check every 50ms
@@ -351,7 +407,6 @@ class RealTimePriceStore:
         with self._quotes_lock:
             return {
                 "symbols_tracked": len(self._quotes),
-                "symbols_tracked_legacy": len(self._quotes),
                 "symbols_tracked_structured_prices": len(self._price_data),
                 "symbols_tracked_structured_quotes": len(self._quote_data),
             }
@@ -379,7 +434,7 @@ class RealTimePriceStore:
             try:
                 time.sleep(self._cleanup_interval)
 
-                if not self._is_connected():
+                if self._is_connected is None or not self._is_connected():
                     continue
 
                 cutoff_time = datetime.now(UTC) - timedelta(seconds=self._max_quote_age)

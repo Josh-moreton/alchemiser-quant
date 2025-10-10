@@ -5,6 +5,7 @@ Shared protocols and interfaces for trading and data access.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
@@ -26,11 +27,11 @@ class AccountRepository(Protocol):
         """Get account information."""
         ...
 
-    def get_buying_power(self) -> float | None:
+    def get_buying_power(self) -> Decimal | None:
         """Get current buying power."""
         ...
 
-    def get_positions_dict(self) -> dict[str, float]:
+    def get_positions_dict(self) -> dict[str, Decimal]:
         """Get all current positions as dict."""
         ...
 
@@ -58,11 +59,12 @@ class TradingRepository(Protocol):
     providing the foundation for our eventual infrastructure layer.
     """
 
-    def get_positions_dict(self) -> dict[str, float]:
+    def get_positions_dict(self) -> dict[str, Decimal]:
         """Get all current positions as dict.
 
         Returns:
-            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+            Dictionary mapping symbol to quantity owned (as Decimal).
+            Only includes non-zero positions.
 
         """
         ...
@@ -76,20 +78,20 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def get_buying_power(self) -> float | None:
+    def get_buying_power(self) -> Decimal | None:
         """Get current buying power.
 
         Returns:
-            Available buying power in dollars, or None if failed.
+            Available buying power as Decimal, or None if failed.
 
         """
         ...
 
-    def get_portfolio_value(self) -> float | None:
+    def get_portfolio_value(self) -> Decimal | None:
         """Get total portfolio value.
 
         Returns:
-            Total portfolio value in dollars, or None if failed.
+            Total portfolio value as Decimal, or None if failed.
 
         """
         ...

@@ -11,11 +11,26 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Final
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..logging import get_logger
 from ..utils.timezone_utils import ensure_timezone_aware
+
+logger = get_logger(__name__)
+
+# Module exports
+__all__ = ["MarketBar"]
+
+# Constants for decimal field handling
+_DECIMAL_FIELDS: Final[tuple[str, ...]] = (
+    "open_price",
+    "high_price",
+    "low_price",
+    "close_price",
+    "vwap",
+)
 
 
 class MarketBar(BaseModel):
@@ -23,6 +38,21 @@ class MarketBar(BaseModel):
 
     Focused specifically on OHLCV data needed by strategy engines
     for technical analysis and indicator calculations.
+
+    Example:
+        >>> from datetime import datetime, UTC
+        >>> from decimal import Decimal
+        >>> bar = MarketBar(
+        ...     timestamp=datetime(2024, 1, 1, 9, 30, tzinfo=UTC),
+        ...     symbol="AAPL",
+        ...     timeframe="1D",
+        ...     open_price=Decimal("150.00"),
+        ...     high_price=Decimal("155.00"),
+        ...     low_price=Decimal("149.00"),
+        ...     close_price=Decimal("154.00"),
+        ...     volume=1000000,
+        ... )
+
     """
 
     model_config = ConfigDict(
@@ -31,6 +61,9 @@ class MarketBar(BaseModel):
         validate_assignment=True,
         str_strip_whitespace=True,
     )
+
+    # Schema versioning for evolution tracking
+    schema_version: str = Field(default="1.0", description="Schema version for compatibility")
 
     # Bar identification
     timestamp: datetime = Field(..., description="Bar timestamp")
@@ -70,21 +103,22 @@ class MarketBar(BaseModel):
         """Ensure timestamp is timezone-aware."""
         return ensure_timezone_aware(v)
 
-    @field_validator("high_price")
-    @classmethod
-    def validate_high_price(cls, v: Decimal, info: ValidationInfo) -> Decimal:
-        """Validate high price is >= low price if both present."""
-        if hasattr(info, "data") and "low_price" in info.data and v < info.data["low_price"]:
+    @model_validator(mode="after")
+    def validate_ohlc_relationships(self) -> MarketBar:
+        """Validate OHLC price relationships after all fields are set."""
+        # Validate high >= low
+        if self.high_price < self.low_price:
             raise ValueError("High price must be >= low price")
-        return v
 
-    @field_validator("low_price")
-    @classmethod
-    def validate_low_price(cls, v: Decimal, info: ValidationInfo) -> Decimal:
-        """Validate low price is <= high price if both present."""
-        if hasattr(info, "data") and "high_price" in info.data and v > info.data["high_price"]:
-            raise ValueError("Low price must be <= high price")
-        return v
+        # Validate open is within [low, high]
+        if self.open_price < self.low_price or self.open_price > self.high_price:
+            raise ValueError(f"Open price must be within [{self.low_price}, {self.high_price}]")
+
+        # Validate close is within [low, high]
+        if self.close_price < self.low_price or self.close_price > self.high_price:
+            raise ValueError(f"Close price must be within [{self.low_price}, {self.high_price}]")
+
+        return self
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
@@ -95,19 +129,11 @@ class MarketBar(BaseModel):
         """
         data = self.model_dump()
 
-        # Convert datetime to ISO string
-        if self.timestamp:
-            data["timestamp"] = self.timestamp.isoformat()
+        # Convert datetime to ISO string (timestamp is always present as required field)
+        data["timestamp"] = self.timestamp.isoformat()
 
         # Convert Decimal fields to string for JSON serialization
-        decimal_fields = [
-            "open_price",
-            "high_price",
-            "low_price",
-            "close_price",
-            "vwap",
-        ]
-        for field_name in decimal_fields:
+        for field_name in _DECIMAL_FIELDS:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
 
@@ -138,14 +164,7 @@ class MarketBar(BaseModel):
                 raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
 
         # Convert string decimal fields back to Decimal
-        decimal_fields = [
-            "open_price",
-            "high_price",
-            "low_price",
-            "close_price",
-            "vwap",
-        ]
-        for field_name in decimal_fields:
+        for field_name in _DECIMAL_FIELDS:
             if (
                 field_name in data
                 and data[field_name] is not None
@@ -153,7 +172,7 @@ class MarketBar(BaseModel):
             ):
                 try:
                     data[field_name] = Decimal(data[field_name])
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError, Exception) as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
@@ -186,6 +205,14 @@ class MarketBar(BaseModel):
             else:
                 timestamp = datetime.fromisoformat(str(timestamp_value).replace("Z", "+00:00"))
 
+            logger.info(
+                "converting_alpaca_bar",
+                symbol=symbol,
+                timeframe=timeframe,
+                has_vwap="vw" in bar_dict,
+                has_trade_count="n" in bar_dict,
+            )
+
             return cls(
                 timestamp=timestamp,
                 symbol=symbol,
@@ -200,10 +227,20 @@ class MarketBar(BaseModel):
                 data_source="alpaca",
             )
         except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                "alpaca_bar_conversion_failed",
+                symbol=symbol,
+                timeframe=timeframe,
+                error=str(e),
+            )
             raise ValueError(f"Invalid Alpaca bar data for {symbol}: {e}") from e
 
     def to_legacy_dict(self) -> dict[str, Any]:
         """Convert to legacy dictionary format for backward compatibility.
+
+        Note: This method converts Decimal prices to float, which may result in
+        precision loss. This is necessary for backward compatibility with existing
+        strategy engines that expect float values.
 
         Returns:
             Dictionary in the format expected by existing strategy engines.

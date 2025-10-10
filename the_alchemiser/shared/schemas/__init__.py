@@ -5,12 +5,17 @@ Business Unit: shared | Status: current
 Common schema definitions used across modules.
 """
 
+from __future__ import annotations
+
+import warnings
+
 from .accounts import (
     AccountMetrics,
     AccountSummary,
     BuyingPowerResult,
     EnrichedAccountSummaryView,
     PortfolioAllocationResult,
+    RiskMetrics,
     RiskMetricsResult,
     TradeEligibilityResult,
 )
@@ -72,9 +77,12 @@ from .trace import Trace, TraceEntry
 from .trade_ledger import TradeLedger, TradeLedgerEntry
 from .trade_result_factory import create_failure_result, create_success_result
 from .trade_run_result import (
+    ExecutionStatus,
     ExecutionSummary,
+    OrderAction,
     OrderResultSummary,
     TradeRunResult,
+    TradingMode,
 )
 
 __all__ = [
@@ -96,6 +104,7 @@ __all__ = [
     "ExecutedOrder",
     "ExecutionReport",
     "ExecutionResult",
+    "ExecutionStatus",
     "ExecutionSummary",
     "IndicatorRequest",
     "LambdaEvent",
@@ -105,6 +114,7 @@ __all__ = [
     "MultiStrategyExecutionResult",
     "MultiStrategySummary",
     "MultiSymbolQuotesResult",
+    "OrderAction",
     "OrderExecutionResult",
     "OrderRequest",
     "OrderResultSummary",
@@ -118,6 +128,7 @@ __all__ = [
     "RebalancePlan",
     "RebalancePlanItem",
     "Result",
+    "RiskMetrics",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
     "StrategyAllocation",
@@ -129,8 +140,38 @@ __all__ = [
     "TradeLedger",
     "TradeLedgerEntry",
     "TradeRunResult",
+    "TradingMode",
     "WebSocketResult",
     "WebSocketStatus",
     "create_failure_result",
     "create_success_result",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Provide backward compatibility for moved symbols.
+
+    Args:
+        name: Attribute name being accessed
+
+    Returns:
+        The requested attribute if available
+
+    Raises:
+        AttributeError: If attribute does not exist
+
+    """
+    if name == "ErrorContextData":
+        warnings.warn(
+            "Importing ErrorContextData from shared.schemas is deprecated. "
+            "Use 'from the_alchemiser.shared.errors.context import ErrorContextData' instead. "
+            "This backward compatibility will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from the_alchemiser.shared.errors.context import (
+            ErrorContextData as _ErrorContextData,
+        )
+
+        return _ErrorContextData
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

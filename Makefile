@@ -44,7 +44,7 @@ help:
 	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
-	@echo "  format          Format code (trailing space fix, end-of-file fix, Ruff formatter + auto-fix)"
+	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  lint            Run linting"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
@@ -170,13 +170,9 @@ backtest-range:
 # Development
 format:
 	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
-	@echo "  → Fixing trailing whitespace..."
-	@find the_alchemiser/ -type f -name "*.py" -exec sed -i 's/[[:space:]]*$$//' {} +
-	@echo "  → Ensuring files end with newline..."
-	@find the_alchemiser/ -type f -name "*.py" -exec sh -c 'tail -c 1 "$$1" | read -r _ || echo >> "$$1"' sh {} \;
-	@echo "  → Running Ruff formatter..."
+	@echo "  → Running Ruff formatter (handles whitespace, line endings, style)..."
 	poetry run ruff format the_alchemiser/
-	@echo "  → Running Ruff auto-fix..."
+	@echo "  → Running Ruff auto-fix (safe fixes for lints)..."
 	poetry run ruff check --fix the_alchemiser/
 
 lint:
