@@ -397,3 +397,106 @@ class TestPositionUtils:
         assert isinstance(adjusted, Decimal)
         # No float conversion
         assert str(adjusted) == "10.123457"
+
+
+class TestFractionalLiquidationEdgeCase:
+    """Test edge cases for liquidating fractional positions of non-fractionable assets.
+    
+    This test class specifically addresses the bug where EDZ (non-fractionable) had
+    0.3 shares in the position but liquidation rounded down to 0 shares, causing
+    order placement failure.
+    """
+
+    @pytest.fixture
+    def mock_alpaca_manager(self):
+        """Mock Alpaca manager."""
+        return Mock()
+
+    @pytest.fixture
+    def position_utils(self, mock_alpaca_manager):
+        """Create position utils without pricing service (not needed for these tests)."""
+        return PositionUtils(
+            alpaca_manager=mock_alpaca_manager,
+            pricing_service=None,
+            enable_smart_execution=False,
+        )
+
+    def test_liquidation_preserves_fractional_quantity_for_non_fractionable(
+        self, position_utils, mock_alpaca_manager
+    ):
+        """Test that liquidation does NOT round down fractional positions.
+        
+        This is the EDZ bug fix: even for non-fractionable assets, we must sell
+        the exact position quantity during liquidation, not apply rounding rules.
+        """
+        # Setup: EDZ is non-fractionable but has 0.3 shares in position
+        asset_info = Mock()
+        asset_info.fractionable = False  # EDZ does not support fractional BUYS
+        mock_alpaca_manager.get_asset_info.return_value = asset_info
+        
+        position = Mock()
+        position.qty = Decimal("0.3")  # The exact EDZ position from the bug
+        mock_alpaca_manager.get_position.return_value = position
+
+        # Act: Get position quantity (as used in liquidation)
+        # NOTE: For liquidation, we should NOT call adjust_quantity_for_fractionability
+        # as that would round down to 0
+        quantity = position_utils.get_position_quantity("EDZ")
+
+        # Assert: Must preserve exact fractional quantity for liquidation
+        assert quantity == Decimal("0.3"), (
+            "Liquidation must sell exact position (0.3 shares) even for "
+            "non-fractionable assets like EDZ"
+        )
+        
+    def test_fractionability_adjustment_does_round_for_new_purchases(
+        self, position_utils, mock_alpaca_manager
+    ):
+        """Test that fractionability rules DO apply to new purchases.
+        
+        This confirms that the rounding logic still works correctly for NEW
+        BUY orders, just not for liquidations.
+        """
+        # Setup: Non-fractionable asset
+        asset_info = Mock()
+        asset_info.fractionable = False
+        mock_alpaca_manager.get_asset_info.return_value = asset_info
+
+        # Act: Adjust quantity for a NEW purchase (not liquidation)
+        adjusted = position_utils.adjust_quantity_for_fractionability(
+            "EDZ", Decimal("0.3")
+        )
+
+        # Assert: NEW purchases should round down to whole shares
+        assert adjusted == Decimal("0"), (
+            "New purchases of non-fractionable assets should round down "
+            "to whole shares (0.3 → 0)"
+        )
+
+    def test_liquidation_various_fractional_amounts(
+        self, position_utils, mock_alpaca_manager
+    ):
+        """Test liquidation preserves various fractional position amounts."""
+        asset_info = Mock()
+        asset_info.fractionable = False
+        mock_alpaca_manager.get_asset_info.return_value = asset_info
+
+        test_cases = [
+            Decimal("0.1"),
+            Decimal("0.3"),  # The EDZ case
+            Decimal("0.5"),
+            Decimal("0.9"),
+            Decimal("1.3"),  # Also has whole share
+            Decimal("2.7"),
+        ]
+
+        for qty in test_cases:
+            position = Mock()
+            position.qty = qty
+            mock_alpaca_manager.get_position.return_value = position
+
+            quantity = position_utils.get_position_quantity("EDZ")
+
+            assert quantity == qty, (
+                f"Liquidation must preserve exact quantity {qty}, not round it"
+            )
