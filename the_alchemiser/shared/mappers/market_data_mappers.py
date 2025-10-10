@@ -71,9 +71,7 @@ def _parse_ts(value: datetime | str | int | float | None) -> datetime | None:
             return datetime.fromisoformat(v)
         if isinstance(value, int | float):
             # Heuristic: treat very large values as milliseconds
-            ts_sec = float(value) / (
-                1000.0 if value > _UNIX_TIMESTAMP_MS_THRESHOLD else 1.0
-            )
+            ts_sec = float(value) / (1000.0 if value > _UNIX_TIMESTAMP_MS_THRESHOLD else 1.0)
             return datetime.fromtimestamp(ts_sec, tz=UTC)
     except (ValueError, OSError, OverflowError) as exc:
         logger.debug("Failed to parse timestamp: %s (value: %s)", exc, value)
@@ -216,12 +214,7 @@ def bars_to_domain(
             low_raw = r.get("l") or r.get("low")
             close_raw = r.get("c") or r.get("close")
 
-            if (
-                open_raw is None
-                or high_raw is None
-                or low_raw is None
-                or close_raw is None
-            ):
+            if open_raw is None or high_raw is None or low_raw is None or close_raw is None:
                 skipped_count += 1
                 logger.warning(
                     "Skipping bar row with missing price data",
@@ -250,9 +243,7 @@ def bars_to_domain(
             close_price = Decimal(str(close_raw))
 
             # Validate OHLC relationships
-            _validate_bar_prices(
-                open_price, high_price, low_price, close_price, bar_symbol
-            )
+            _validate_bar_prices(open_price, high_price, low_price, close_price, bar_symbol)
 
             # Extract volume (can be zero)
             volume = int(r.get("v") or r.get("volume") or 0)
@@ -307,9 +298,7 @@ def bars_to_domain(
                 "successful_count": len(out),
                 "skipped_count": skipped_count,
                 "success_rate": (
-                    f"{(len(out) / processed_count * 100):.1f}%"
-                    if processed_count > 0
-                    else "0%"
+                    f"{(len(out) / processed_count * 100):.1f}%" if processed_count > 0 else "0%"
                 ),
             },
         )
@@ -317,9 +306,7 @@ def bars_to_domain(
     return out
 
 
-def quote_to_domain(
-    raw: object, correlation_id: str | None = None
-) -> QuoteModel | None:
+def quote_to_domain(raw: object, correlation_id: str | None = None) -> QuoteModel | None:
     """Convert raw quote data object to domain QuoteModel.
 
     Transforms raw quote objects from external sources (e.g., Alpaca SDK) into validated

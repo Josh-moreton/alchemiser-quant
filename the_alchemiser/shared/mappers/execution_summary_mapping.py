@@ -74,9 +74,7 @@ def dict_to_allocation_summary(data: dict[str, Any]) -> AllocationSummary:
 
     """
     if not isinstance(data, dict):
-        raise TypeError(
-            f"Expected dict for AllocationSummary, got {type(data).__name__}"
-        )
+        raise TypeError(f"Expected dict for AllocationSummary, got {type(data).__name__}")
 
     # Safe extraction with None checks for Decimal conversion
     total_allocation = data.get("total_allocation")
@@ -84,15 +82,11 @@ def dict_to_allocation_summary(data: dict[str, Any]) -> AllocationSummary:
 
     return AllocationSummary(
         total_allocation=(
-            Decimal(str(total_allocation))
-            if total_allocation is not None
-            else ZERO_DECIMAL
+            Decimal(str(total_allocation)) if total_allocation is not None else ZERO_DECIMAL
         ),
         num_positions=data.get("num_positions", 0),
         largest_position_pct=(
-            Decimal(str(largest_position_pct))
-            if largest_position_pct is not None
-            else ZERO_DECIMAL
+            Decimal(str(largest_position_pct)) if largest_position_pct is not None else ZERO_DECIMAL
         ),
     )
 
@@ -116,9 +110,7 @@ def dict_to_strategy_pnl_summary(data: dict[str, Any]) -> StrategyPnLSummary:
 
     """
     if not isinstance(data, dict):
-        raise TypeError(
-            f"Expected dict for StrategyPnLSummary, got {type(data).__name__}"
-        )
+        raise TypeError(f"Expected dict for StrategyPnLSummary, got {type(data).__name__}")
 
     total_pnl = data.get("total_pnl")
 
@@ -161,9 +153,7 @@ def dict_to_strategy_summary(data: dict[str, Any]) -> StrategySummary:
             Decimal(str(allocation_pct)) if allocation_pct is not None else ZERO_DECIMAL
         ),
         signal_strength=(
-            Decimal(str(signal_strength))
-            if signal_strength is not None
-            else ZERO_DECIMAL
+            Decimal(str(signal_strength)) if signal_strength is not None else ZERO_DECIMAL
         ),
         pnl=Decimal(str(pnl)) if pnl is not None else ZERO_DECIMAL,
     )
@@ -196,12 +186,8 @@ def dict_to_trading_summary(data: dict[str, Any]) -> TradingSummary:
     return TradingSummary(
         total_orders=data.get("total_orders", 0),
         orders_executed=data.get("orders_executed", 0),
-        success_rate=(
-            Decimal(str(success_rate)) if success_rate is not None else ZERO_DECIMAL
-        ),
-        total_value=(
-            Decimal(str(total_value)) if total_value is not None else ZERO_DECIMAL
-        ),
+        success_rate=(Decimal(str(success_rate)) if success_rate is not None else ZERO_DECIMAL),
+        total_value=(Decimal(str(total_value)) if total_value is not None else ZERO_DECIMAL),
     )
 
 
@@ -239,9 +225,7 @@ def dict_to_execution_summary(
             correlation_id=correlation_id,
             actual_type=type(data).__name__,
         )
-        raise TypeError(
-            f"Expected dict for ExecutionSummary, got {type(data).__name__}"
-        )
+        raise TypeError(f"Expected dict for ExecutionSummary, got {type(data).__name__}")
 
     try:
         # Handle allocation summary
@@ -263,9 +247,7 @@ def dict_to_execution_summary(
                     **strategy_data,
                     "strategy_name": strategy_name,
                 }
-                strategy_summary[strategy_name] = dict_to_strategy_summary(
-                    strategy_data_with_name
-                )
+                strategy_summary[strategy_name] = dict_to_strategy_summary(strategy_data_with_name)
             else:
                 logger.warning(
                     "dict_to_execution_summary_skipped_non_dict_strategy",
@@ -303,9 +285,7 @@ def dict_to_execution_summary(
                 correlation_id=correlation_id,
                 mode=mode,
             )
-            raise ValueError(
-                f"Invalid execution mode: {mode}. Must be 'paper' or 'live'."
-            )
+            raise ValueError(f"Invalid execution mode: {mode}. Must be 'paper' or 'live'.")
 
         summary = ExecutionSummary(
             allocations=allocations,

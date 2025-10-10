@@ -44,9 +44,7 @@ class FractionabilityDetector:
     implementation for authoritative fractionability information.
     """
 
-    def __init__(
-        self, asset_metadata_provider: AssetMetadataProvider | None = None
-    ) -> None:
+    def __init__(self, asset_metadata_provider: AssetMetadataProvider | None = None) -> None:
         """Initialize with optional AssetMetadataProvider.
 
         Args:
@@ -169,9 +167,7 @@ class FractionabilityDetector:
 
         # Check if it's non-fractionable first
         if not self.is_fractionable(symbol):
-            return (
-                AssetType.LEVERAGED_ETF
-            )  # Most non-fractionable assets are leveraged products
+            return AssetType.LEVERAGED_ETF  # Most non-fractionable assets are leveraged products
 
         # Regular ETFs (common patterns)
         if symbol in [
@@ -205,9 +201,7 @@ class FractionabilityDetector:
 
         """
         # Convert to Decimal for precise comparisons
-        quantity_dec = (
-            Decimal(str(quantity)) if isinstance(quantity, float) else quantity
-        )
+        quantity_dec = Decimal(str(quantity)) if isinstance(quantity, float) else quantity
 
         # Always use notional for non-fractionable assets (provider-confirmed)
         if not self.is_fractionable(symbol):
@@ -239,13 +233,9 @@ class FractionabilityDetector:
 
         """
         # Convert to Decimal for precise financial calculations
-        quantity_dec = (
-            Decimal(str(quantity)) if isinstance(quantity, float) else quantity
-        )
+        quantity_dec = Decimal(str(quantity)) if isinstance(quantity, float) else quantity
         price_dec = (
-            Decimal(str(current_price))
-            if isinstance(current_price, float)
-            else current_price
+            Decimal(str(current_price)) if isinstance(current_price, float) else current_price
         )
 
         # Only convert if asset is actually non-fractionable (provider-confirmed)
@@ -257,9 +247,7 @@ class FractionabilityDetector:
         whole_shares_dec = Decimal(whole_shares)
 
         # Check if rounding occurred using Decimal comparison
-        used_rounding = not math.isclose(
-            float(quantity_dec), float(whole_shares_dec), rel_tol=1e-9
-        )
+        used_rounding = not math.isclose(float(quantity_dec), float(whole_shares_dec), rel_tol=1e-9)
 
         if used_rounding:
             # Use Decimal arithmetic for precise money calculations
@@ -281,12 +269,8 @@ class FractionabilityDetector:
         """Get statistics about the fractionability cache."""
         return {
             "cached_symbols": len(self._fractionability_cache),
-            "fractionable_count": sum(
-                1 for v in self._fractionability_cache.values() if v
-            ),
-            "non_fractionable_count": sum(
-                1 for v in self._fractionability_cache.values() if not v
-            ),
+            "fractionable_count": sum(1 for v in self._fractionability_cache.values() if v),
+            "non_fractionable_count": sum(1 for v in self._fractionability_cache.values() if not v),
         }
 
 
