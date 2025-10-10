@@ -220,6 +220,26 @@ class TestIndicatorComputed:
         )
         assert event.computation_time_ms == 0.0
 
+    def test_excessive_computation_time_fails(self) -> None:
+        """Test that computation time exceeding max limit is rejected."""
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            IndicatorComputed(
+                correlation_id="corr-123",
+                causation_id="cause-123",
+                event_id="event-123",
+                timestamp=datetime.now(UTC),
+                source_module="test",
+                request_id="req-123",
+                indicator=indicator,
+                computation_time_ms=400000.0,  # Exceeds 300000ms (5 min) limit
+            )
+        assert "computation_time_ms" in str(exc_info.value)
+
 
 @pytest.mark.unit
 class TestPortfolioAllocationProduced:
@@ -243,6 +263,43 @@ class TestPortfolioAllocationProduced:
         )
         assert event.allocation_type == "final"
         assert event.strategy_id == "strategy-1"
+
+    def test_valid_intermediate_allocation(self) -> None:
+        """Test creating valid intermediate allocation event."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")},
+            correlation_id="corr-123",
+        )
+        event = PortfolioAllocationProduced(
+            correlation_id="corr-123",
+            causation_id="cause-123",
+            event_id="event-123",
+            timestamp=datetime.now(UTC),
+            source_module="test",
+            strategy_id="strategy-1",
+            allocation=allocation,
+            allocation_type="intermediate",
+        )
+        assert event.allocation_type == "intermediate"
+
+    def test_invalid_allocation_type_fails(self) -> None:
+        """Test that invalid allocation_type values are rejected."""
+        allocation = StrategyAllocation(
+            target_weights={"AAPL": Decimal("1.0")},
+            correlation_id="corr-123",
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            PortfolioAllocationProduced(
+                correlation_id="corr-123",
+                causation_id="cause-123",
+                event_id="event-123",
+                timestamp=datetime.now(UTC),
+                source_module="test",
+                strategy_id="strategy-1",
+                allocation=allocation,
+                allocation_type="invalid",  # type: ignore[arg-type]  # Testing validation
+            )
+        assert "allocation_type" in str(exc_info.value)
 
 
 @pytest.mark.unit
@@ -334,6 +391,23 @@ class TestTopNSelected:
         )
         assert event.n_selected == 0
 
+    def test_n_selected_mismatch_fails(self) -> None:
+        """Test that n_selected must match length of selected_symbols."""
+        selection_expr = ASTNode.symbol("select")
+        with pytest.raises(ValidationError) as exc_info:
+            TopNSelected(
+                correlation_id="corr-123",
+                causation_id="cause-123",
+                event_id="event-123",
+                timestamp=datetime.now(UTC),
+                source_module="test",
+                selection_expression=selection_expr,
+                selected_symbols=["AAPL", "GOOGL"],
+                n_selected=5,  # Mismatch: says 5 but only 2 symbols
+            )
+        assert "n_selected" in str(exc_info.value)
+        assert "must match length" in str(exc_info.value)
+
 
 @pytest.mark.unit
 class TestDecisionEvaluated:
@@ -406,7 +480,23 @@ class TestDecisionEvaluated:
                 source_module="test",
                 decision_expression=decision_expr,
                 condition_result=True,
-                branch_taken="",  # Empty should fail
+                branch_taken="",  # type: ignore[arg-type]  # Testing validation
+            )
+        assert "branch_taken" in str(exc_info.value)
+
+    def test_invalid_branch_taken_fails(self) -> None:
+        """Test that invalid branch_taken values are rejected."""
+        decision_expr = ASTNode.symbol("if")
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionEvaluated(
+                correlation_id="corr-123",
+                causation_id="cause-123",
+                event_id="event-123",
+                timestamp=datetime.now(UTC),
+                source_module="test",
+                decision_expression=decision_expr,
+                condition_result=True,
+                branch_taken="maybe",  # type: ignore[arg-type]  # Testing validation
             )
         assert "branch_taken" in str(exc_info.value)
 
