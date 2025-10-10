@@ -194,9 +194,49 @@ Added comprehensive tests in `tests/execution_v2/test_liquidity_analysis.py`:
    - Auto-reconnect on quality degradation
    - Track message latency and gaps
 
+## Additional Fix: Partial Quote Handling
+
+### Problem
+Streaming quotes sometimes arrive with only bid OR ask available (the other side is None). The original code rejected these entirely:
+
+```python
+# Old code - line 361
+if quote_values.bid_price is not None and quote_values.ask_price is not None:
+    # Only update if BOTH are present
+```
+
+This caused valid partial quotes to be ignored, potentially leaving stale data in the system.
+
+### Solution
+Implemented the same fallback logic as the REST API (already present in `market_data_service.py` lines 206-215):
+
+```python
+# New code - lines 361-387
+if bid_price is not None and ask_price is not None:
+    # Both available - use as-is
+    pass
+elif bid_price is not None:
+    # Only bid available - use bid for both sides
+    ask_price = bid_price
+elif ask_price is not None:
+    # Only ask available - use ask for both sides
+    bid_price = ask_price
+else:
+    # Both None - skip update, keep previously stored quote
+    return
+```
+
+### Behavior
+- **Bid-only quote:** Uses bid price for both bid and ask sides
+- **Ask-only quote:** Uses ask price for both bid and ask sides
+- **Both None:** Keeps previously stored quote (doesn't update)
+- **Both present:** Updates normally with both values
+
+This ensures we always have valid quote data even when the data provider sends partial updates, which is common in real-time streaming scenarios.
+
 ## Version Update
 - **Previous:** 2.20.6
-- **Current:** 2.20.7 (PATCH: Bug fix for negative price handling)
+- **Current:** 2.20.7 (PATCH: Bug fixes for negative price handling + partial quote handling)
 
 ## Related Files
 - `the_alchemiser/execution_v2/utils/liquidity_analysis.py` - Primary fix location
