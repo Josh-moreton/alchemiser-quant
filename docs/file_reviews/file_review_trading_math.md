@@ -1,6 +1,29 @@
-# [File Review] Financial-grade, line-by-line audit
+# [File Review] Financial-grade, line-by-line audit - REMEDIATION UPDATE
 
 > Purpose: Conduct a rigorous, line-by-line review of a single Python file in the trading system, to institution-grade standards (correctness, controls, auditability, and safety). One issue per file.
+
+**Status**: ✅ MAJOR REMEDIATION COMPLETED (2025-01-10)
+
+---
+
+## Remediation Summary
+
+### ✅ Completed (Jan 10, 2025)
+
+**P1 - High Priority (Parameter Count):**
+- ✅ Reduced `_log_enhanced_threshold_analysis`: 11 params → 2 params (dataclass)
+- ✅ Reduced `_log_critical_bug_detection`: 9 params → 2 params (dataclass)
+
+**P0 - Critical Priority (Decimal Precision):**
+- ✅ Added `calculate_position_size_decimal()` - financial-grade precision
+- ✅ Added `calculate_allocation_discrepancy_decimal()` - financial-grade precision
+- ✅ Added 11 comprehensive tests for Decimal versions
+- ✅ All 55 tests passing (44 original + 11 new)
+- ✅ Backward compatibility maintained
+
+**Remaining:**
+- 🔄 Decimal version of `calculate_rebalance_amounts` (in progress)
+- 🔄 Function size refactoring (2 functions exceed 50 lines)
 
 ---
 
@@ -102,6 +125,16 @@ Produced:
    - **Impact**: Orchestration function doing too much
    - **Recommendation**: Consider splitting into calculation and orchestration
    - **Status**: 🔴 NEEDS FIX
+
+5. ✅ **PARTIALLY ADDRESSED - Missing Decimal usage for money calculations**
+   - **Original Issue**: Functions use `float` throughout instead of `Decimal` for monetary values
+   - **Lines**: 378-415 (calculate_position_size), 589-634 (calculate_allocation_discrepancy), 637-739 (calculate_rebalance_amounts)
+   - **Resolution**: Added Decimal versions with `_decimal` suffix
+     - ✅ `calculate_position_size_decimal()` - Complete
+     - ✅ `calculate_allocation_discrepancy_decimal()` - Complete
+     - 🔄 `calculate_rebalance_amounts_decimal()` - In Progress
+   - **Commit**: 085f43c
+   - **Status**: 🟡 IN PROGRESS (2/3 complete)
 
 ### Medium
 
