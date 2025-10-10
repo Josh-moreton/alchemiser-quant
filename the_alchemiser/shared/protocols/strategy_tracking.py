@@ -16,10 +16,10 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 __all__ = [
-    "StrategyPositionProtocol",
-    "StrategyPnLSummaryProtocol",
     "StrategyOrderProtocol",
     "StrategyOrderTrackerProtocol",
+    "StrategyPnLSummaryProtocol",
+    "StrategyPositionProtocol",
 ]
 
 
@@ -59,6 +59,7 @@ class StrategyPositionProtocol(Protocol):
 
         Returns:
             Non-empty string identifying the strategy (e.g., "NUCLEAR", "TECL").
+
         """
         ...
 
@@ -68,6 +69,7 @@ class StrategyPositionProtocol(Protocol):
 
         Returns:
             Non-empty uppercase ticker symbol (e.g., "SPY", "AAPL").
+
         """
         ...
 
@@ -78,6 +80,7 @@ class StrategyPositionProtocol(Protocol):
         Returns:
             Position size as Decimal for precision.
             Positive for long positions, negative for short positions.
+
         """
         ...
 
@@ -88,6 +91,7 @@ class StrategyPositionProtocol(Protocol):
         Returns:
             Average cost basis per share as Decimal for money precision.
             Must be non-negative.
+
         """
         ...
 
@@ -98,6 +102,7 @@ class StrategyPositionProtocol(Protocol):
         Returns:
             Total cost basis (quantity * average_cost) as Decimal.
             Must be non-negative for long positions.
+
         """
         ...
 
@@ -111,6 +116,7 @@ class StrategyPositionProtocol(Protocol):
         Note:
             Must be timezone-aware (tzinfo is not None).
             System enforces UTC timezone for all trading timestamps.
+
         """
         ...
 
@@ -166,6 +172,7 @@ class StrategyPnLSummaryProtocol(Protocol):
         Returns:
             Sum of realized and unrealized P&L as Decimal.
             Positive values indicate profit, negative indicate loss.
+
         """
         ...
 
@@ -180,6 +187,7 @@ class StrategyPnLSummaryProtocol(Protocol):
         Note:
             This is an alias property. Implementations should return
             the same value as total_pnl to maintain consistency.
+
         """
         ...
 
@@ -189,6 +197,7 @@ class StrategyPnLSummaryProtocol(Protocol):
 
         Returns:
             Non-negative integer count of all orders (both successful and failed).
+
         """
         ...
 
@@ -200,6 +209,7 @@ class StrategyPnLSummaryProtocol(Protocol):
             Success rate in range [0.0, 100.0] where 100.0 represents 100%.
             Calculated as (successful_orders / total_orders * 100).
             Returns 0.0 when total_orders is 0.
+
         """
         ...
 
@@ -211,6 +221,7 @@ class StrategyPnLSummaryProtocol(Protocol):
             Average P&L per trade as Decimal.
             Calculated as (total_pnl / total_orders).
             Returns Decimal('0') when total_orders is 0.
+
         """
         ...
 
@@ -223,6 +234,7 @@ class StrategyPnLSummaryProtocol(Protocol):
             Calculated as (total_pnl / cost_basis * 100).
             Returns 0.0 when cost_basis is 0.
             -100.0 represents total loss, 0.0 is break-even, positive is profit.
+
         """
         ...
 
@@ -232,6 +244,7 @@ class StrategyPnLSummaryProtocol(Protocol):
 
         Returns:
             Non-negative integer count of currently open positions.
+
         """
         ...
 
@@ -242,6 +255,7 @@ class StrategyPnLSummaryProtocol(Protocol):
         Returns:
             P&L from closed positions as Decimal.
             Positive for realized gains, negative for realized losses.
+
         """
         ...
 
@@ -252,6 +266,7 @@ class StrategyPnLSummaryProtocol(Protocol):
         Returns:
             Mark-to-market P&L from open positions as Decimal.
             Positive for unrealized gains, negative for unrealized losses.
+
         """
         ...
 
@@ -263,6 +278,7 @@ class StrategyPnLSummaryProtocol(Protocol):
             Total cost basis of positions as Decimal.
             Used as denominator for calculating total_return_pct.
             Must be non-negative.
+
         """
         ...
 
@@ -276,6 +292,7 @@ class StrategyPnLSummaryProtocol(Protocol):
         Note:
             Must be timezone-aware (tzinfo is not None).
             System enforces UTC timezone for all trading timestamps.
+
         """
         ...
 
@@ -320,6 +337,7 @@ class StrategyOrderProtocol(Protocol):
 
         Returns:
             Non-empty string uniquely identifying this order.
+
         """
         ...
 
@@ -329,6 +347,7 @@ class StrategyOrderProtocol(Protocol):
 
         Returns:
             Non-empty string identifying the strategy (e.g., "NUCLEAR", "TECL").
+
         """
         ...
 
@@ -338,6 +357,7 @@ class StrategyOrderProtocol(Protocol):
 
         Returns:
             Non-empty uppercase ticker symbol (e.g., "SPY", "AAPL").
+
         """
         ...
 
@@ -394,6 +414,7 @@ class StrategyOrderTrackerProtocol(Protocol):
         Note:
             This method aggregates positions from all tracked strategies.
             The returned list is a snapshot at call time.
+
         """
         ...
 
@@ -412,6 +433,7 @@ class StrategyOrderTrackerProtocol(Protocol):
         Note:
             The returned summary is a snapshot at call time.
             For real-time P&L, implementations should recalculate on each call.
+
         """
         ...
 
@@ -428,6 +450,7 @@ class StrategyOrderTrackerProtocol(Protocol):
         Note:
             Unlike get_pnl_summary, this method does not raise KeyError for unknown strategies.
             It returns an empty list for graceful handling of missing strategies.
+
         """
         ...
 
@@ -445,5 +468,6 @@ class StrategyOrderTrackerProtocol(Protocol):
             This is a convenience method that returns None instead of raising KeyError.
             Use get_pnl_summary if you want an exception for missing strategies.
             The returned summary is a snapshot at call time.
+
         """
         ...
