@@ -79,10 +79,7 @@ class PerformanceBuilder:
             return side
 
         # Handle enum-like objects with .value attribute
-        if hasattr(side, "value"):
-            side_str = str(side.value).upper()
-        else:
-            side_str = str(side).upper()
+        side_str = str(side.value).upper() if hasattr(side, "value") else str(side).upper()
 
         # Remove "ORDERSIDE." prefix if present (e.g., "ORDERSIDE.BUY" -> "BUY")
         if side_str.startswith("ORDERSIDE."):
@@ -177,11 +174,7 @@ class PerformanceBuilder:
 
         # Format values with proper Decimal handling
         qty_str = f"{order.qty:.6f}"
-        value_str = (
-            f"${order.estimated_value:,.2f}"
-            if order.estimated_value
-            else "$0.00"
-        )
+        value_str = f"${order.estimated_value:,.2f}" if order.estimated_value else "$0.00"
 
         return f"""
         <tr>
@@ -267,12 +260,8 @@ class PerformanceBuilder:
 
         # Calculate totals for summary
         buy_orders, sell_orders = PerformanceBuilder._categorize_orders(orders)
-        total_buy_value = sum(
-            (o.estimated_value or Decimal("0")) for o in buy_orders
-        )
-        total_sell_value = sum(
-            (o.estimated_value or Decimal("0")) for o in sell_orders
-        )
+        total_buy_value = sum((o.estimated_value or Decimal("0")) for o in buy_orders)
+        total_sell_value = sum((o.estimated_value or Decimal("0")) for o in sell_orders)
 
         return f"""
         <div style="margin: 24px 0;">
@@ -487,13 +476,13 @@ class PerformanceBuilder:
             reason_html = PerformanceBuilder._format_reason(strategy_data.reason)
 
             strategy_cards += f"""
-            <div style="margin-bottom: 16px; padding: 16px; background-color: white; border-radius: 8px; border-left: 4px solid {style['color']}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="margin-bottom: 16px; padding: 16px; background-color: white; border-radius: 8px; border-left: 4px solid {style["color"]}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h4 style="margin: 0; color: #1F2937; font-size: 16px; font-weight: 600;">
                         {strategy_name}
                     </h4>
-                    <div style="background-color: {style['bg']}; color: {style['color']}; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">
-                        {style['emoji']} {strategy_data.signal}
+                    <div style="background-color: {style["bg"]}; color: {style["color"]}; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                        {style["emoji"]} {strategy_data.signal}
                     </div>
                 </div>
                 <div style="margin-bottom: 8px;">
