@@ -41,19 +41,16 @@ from .structlog_trading import (
 )
 
 __all__ = [
-    # Trading-specific helpers
     "bind_trading_context",
-    # Configuration functions
     "configure_application_logging",
     "configure_production_logging",
-    # Structlog primary functions
     "configure_structlog",
     "configure_test_logging",
-    # Context management
     "generate_request_id",
     "get_causation_id",
     "get_correlation_id",
     "get_error_id",
+    "get_logger",
     "get_request_id",
     "get_structlog_logger",
     "log_data_integrity_checkpoint",

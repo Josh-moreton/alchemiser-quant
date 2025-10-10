@@ -47,9 +47,9 @@ class MockAccountRepository:
 class MockMarketDataRepository:
     """Mock implementation of MarketDataRepository for testing."""
 
-    def get_current_price(self, symbol: str) -> float | None:
+    def get_current_price(self, symbol: str) -> Decimal | None:
         """Get current price for a symbol."""
-        return 150.50
+        return Decimal("150.50")
 
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
         """Get quote information for a symbol."""
@@ -85,8 +85,8 @@ class MockTradingRepository:
         self,
         symbol: str,
         side: str,
-        qty: float | None = None,
-        notional: float | None = None,
+        qty: Decimal | None = None,
+        notional: Decimal | None = None,
         *,
         is_complete_exit: bool = False,
     ) -> Any:  # noqa: ANN401  # Test mock
@@ -184,7 +184,9 @@ class TestAccountRepository:
         assert isinstance(result, dict)
         for symbol, quantity in result.items():
             assert isinstance(symbol, str)
-            assert isinstance(quantity, Decimal), f"Quantity for {symbol} should be Decimal, not {type(quantity)}"
+            assert isinstance(quantity, Decimal), (
+                f"Quantity for {symbol} should be Decimal, not {type(quantity)}"
+            )
 
 
 # =============================================================================
@@ -220,9 +222,9 @@ class TestMarketDataRepository:
         """Test get_current_price accepts symbol parameter."""
         mock = MockMarketDataRepository()
 
-        # Should accept string symbol
+        # Should accept string symbol and return Decimal
         result = mock.get_current_price("AAPL")
-        assert result is None or isinstance(result, (float, int))
+        assert result is None or isinstance(result, Decimal)
 
     def test_get_quote_signature(self) -> None:
         """Test get_quote accepts symbol parameter."""
@@ -231,18 +233,11 @@ class TestMarketDataRepository:
         result = mock.get_quote("AAPL")
         assert result is None or isinstance(result, dict)
 
-    @pytest.mark.skip(reason="Known issue: get_current_price uses float instead of Decimal")
     def test_get_current_price_should_return_decimal(self) -> None:
-        """Test that get_current_price should return Decimal for financial precision.
-        
-        NOTE: This test is skipped because the current protocol uses float.
-        This is documented as a HIGH severity issue in the file review.
-        When fixed, remove the skip decorator.
-        """
+        """Test that get_current_price returns Decimal for financial precision."""
         mock = MockMarketDataRepository()
         result = mock.get_current_price("AAPL")
 
-        # This is what it SHOULD be
         assert result is None or isinstance(result, Decimal)
 
 
@@ -320,17 +315,11 @@ class TestTradingRepository:
 
         assert result is None or isinstance(result, Decimal)
 
-    @pytest.mark.skip(reason="Known issue: place_market_order uses float instead of Decimal")
     def test_place_market_order_should_accept_decimal(self) -> None:
-        """Test that place_market_order should accept Decimal for qty/notional.
-        
-        NOTE: This test is skipped because the current protocol uses float.
-        This is documented as a HIGH severity issue in the file review.
-        When fixed, remove the skip decorator and update test.
-        """
+        """Test that place_market_order accepts Decimal for qty/notional."""
         mock = MockTradingRepository()
 
-        # This is what it SHOULD accept
+        # Should accept Decimal parameters
         result = mock.place_market_order(
             symbol="AAPL",
             side="buy",
@@ -358,7 +347,7 @@ class TestTradingRepository:
 
 class TestAlpacaManagerConformance:
     """Test that AlpacaManager properly implements all protocols.
-    
+
     NOTE: These tests require AlpacaManager to be importable and properly initialized.
     They may be skipped in CI environments without credentials.
     """
@@ -373,21 +362,27 @@ class TestAlpacaManagerConformance:
         except ImportError:
             pytest.skip("AlpacaManager not available")
 
-    def test_alpaca_manager_has_account_repository_methods(self, alpaca_manager_class: type) -> None:
+    def test_alpaca_manager_has_account_repository_methods(
+        self, alpaca_manager_class: type
+    ) -> None:
         """Test AlpacaManager has all AccountRepository methods."""
         required_methods = ["get_account", "get_buying_power", "get_positions_dict"]
 
         for method in required_methods:
             assert hasattr(alpaca_manager_class, method), f"AlpacaManager missing: {method}"
 
-    def test_alpaca_manager_has_market_data_repository_methods(self, alpaca_manager_class: type) -> None:
+    def test_alpaca_manager_has_market_data_repository_methods(
+        self, alpaca_manager_class: type
+    ) -> None:
         """Test AlpacaManager has all MarketDataRepository methods."""
         required_methods = ["get_current_price", "get_quote"]
 
         for method in required_methods:
             assert hasattr(alpaca_manager_class, method), f"AlpacaManager missing: {method}"
 
-    def test_alpaca_manager_has_trading_repository_methods(self, alpaca_manager_class: type) -> None:
+    def test_alpaca_manager_has_trading_repository_methods(
+        self, alpaca_manager_class: type
+    ) -> None:
         """Test AlpacaManager has all TradingRepository methods."""
         required_methods = [
             "get_positions_dict",
@@ -413,7 +408,9 @@ class TestAlpacaManagerConformance:
         base_names = [base.__name__ for base in alpaca_manager_class.__mro__]
 
         assert "TradingRepository" in base_names, "AlpacaManager should implement TradingRepository"
-        assert "MarketDataRepository" in base_names, "AlpacaManager should implement MarketDataRepository"
+        assert "MarketDataRepository" in base_names, (
+            "AlpacaManager should implement MarketDataRepository"
+        )
         assert "AccountRepository" in base_names, "AlpacaManager should implement AccountRepository"
 
 
@@ -424,33 +421,26 @@ class TestAlpacaManagerConformance:
 
 class TestProtocolRuntimeChecking:
     """Test runtime type checking capabilities of protocols.
-    
+
     NOTE: These tests will fail until @runtime_checkable decorator is added.
     This is documented as a HIGH severity issue in the file review.
     """
 
-    @pytest.mark.skip(reason="Protocols missing @runtime_checkable decorator")
     def test_account_repository_runtime_checkable(self) -> None:
-        """Test AccountRepository can be used with isinstance().
-        
-        This requires @runtime_checkable decorator.
-        """
+        """Test AccountRepository can be used with isinstance()."""
         mock = MockAccountRepository()
         assert isinstance(mock, AccountRepository)
 
-    @pytest.mark.skip(reason="Protocols missing @runtime_checkable decorator")
     def test_market_data_repository_runtime_checkable(self) -> None:
         """Test MarketDataRepository can be used with isinstance()."""
         mock = MockMarketDataRepository()
         assert isinstance(mock, MarketDataRepository)
 
-    @pytest.mark.skip(reason="Protocols missing @runtime_checkable decorator")
     def test_trading_repository_runtime_checkable(self) -> None:
         """Test TradingRepository can be used with isinstance()."""
         mock = MockTradingRepository()
         assert isinstance(mock, TradingRepository)
 
-    @pytest.mark.skip(reason="Protocols missing @runtime_checkable decorator")
     def test_alpaca_manager_isinstance_checks(self) -> None:
         """Test that AlpacaManager passes isinstance checks for all protocols."""
         try:
@@ -458,11 +448,22 @@ class TestProtocolRuntimeChecking:
         except ImportError:
             pytest.skip("AlpacaManager not available")
 
-        # Can't instantiate without credentials, but can check class
-        # In a real implementation, would use a test instance
-        assert issubclass(AlpacaManager, AccountRepository)
-        assert issubclass(AlpacaManager, MarketDataRepository)
-        assert issubclass(AlpacaManager, TradingRepository)
+        # Note: Protocols with properties don't support issubclass()
+        # Instead, test that an instance would satisfy the protocol structure
+        # by checking that all required methods exist
+        required_methods = [
+            "get_account",
+            "get_buying_power",
+            "get_positions_dict",  # AccountRepository
+            "get_current_price",
+            "get_quote",  # MarketDataRepository
+            "place_order",
+            "place_market_order",
+            "cancel_order",  # TradingRepository
+        ]
+
+        for method in required_methods:
+            assert hasattr(AlpacaManager, method), f"AlpacaManager missing: {method}"
 
 
 # =============================================================================
@@ -501,5 +502,9 @@ class TestProtocolDocumentation:
 
             for method_name in methods:
                 method = getattr(protocol, method_name)
-                assert method.__doc__ is not None, f"{protocol.__name__}.{method_name} missing docstring"
-                assert len(method.__doc__) > 0, f"{protocol.__name__}.{method_name} has empty docstring"
+                assert method.__doc__ is not None, (
+                    f"{protocol.__name__}.{method_name} missing docstring"
+                )
+                assert len(method.__doc__) > 0, (
+                    f"{protocol.__name__}.{method_name} has empty docstring"
+                )

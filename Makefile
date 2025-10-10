@@ -44,7 +44,7 @@ help:
 	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
-	@echo "  format          Format code with Ruff (formatter + fixes)"
+	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  lint            Run linting"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
@@ -170,7 +170,9 @@ backtest-range:
 # Development
 format:
 	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
+	@echo "  → Running Ruff formatter (handles whitespace, line endings, style)..."
 	poetry run ruff format the_alchemiser/
+	@echo "  → Running Ruff auto-fix (safe fixes for lints)..."
 	poetry run ruff check --fix the_alchemiser/
 
 lint:

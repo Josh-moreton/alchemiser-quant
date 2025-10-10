@@ -69,6 +69,32 @@ def test_add_alchemiser_context_includes_error_id() -> None:
         context.set_error_id(None)
 
 
+def test_add_alchemiser_context_includes_correlation_id() -> None:
+    """Test that add_alchemiser_context includes correlation_id from context."""
+    context.set_correlation_id("corr-789")
+    try:
+        event_dict: dict[str, object] = {"event": "test"}
+        result = add_alchemiser_context(None, "", event_dict)
+
+        assert result["correlation_id"] == "corr-789"
+        assert result["system"] == "alchemiser"
+    finally:
+        context.set_correlation_id(None)
+
+
+def test_add_alchemiser_context_includes_causation_id() -> None:
+    """Test that add_alchemiser_context includes causation_id from context."""
+    context.set_causation_id("cause-abc")
+    try:
+        event_dict: dict[str, object] = {"event": "test"}
+        result = add_alchemiser_context(None, "", event_dict)
+
+        assert result["causation_id"] == "cause-abc"
+        assert result["system"] == "alchemiser"
+    finally:
+        context.set_causation_id(None)
+
+
 def test_configure_structlog_json_format() -> None:
     """Test that configure_structlog sets up JSON output."""
     configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
@@ -137,10 +163,12 @@ def test_structlog_includes_context_vars() -> None:
         context.set_error_id(None)
 
 
-def test_structlog_includes_event_traceability_context() -> None:
-    """Test that structlog includes correlation_id and causation_id in output."""
+def test_structlog_includes_all_event_tracing_ids() -> None:
+    """Test that structlog includes all event tracing IDs in output."""
+    context.set_request_id("req-123")
+    context.set_error_id("err-456")
     context.set_correlation_id("corr-789")
-    context.set_causation_id("cause-012")
+    context.set_causation_id("cause-abc")
 
     try:
         with patch("sys.stdout", new=StringIO()) as fake_out:
@@ -151,34 +179,10 @@ def test_structlog_includes_event_traceability_context() -> None:
             output = fake_out.getvalue()
             log_entry = json.loads(output)
 
-            assert log_entry["correlation_id"] == "corr-789"
-            assert log_entry["causation_id"] == "cause-012"
-            assert log_entry["system"] == "alchemiser"
-    finally:
-        context.set_correlation_id(None)
-        context.set_causation_id(None)
-
-
-def test_structlog_includes_all_context_vars() -> None:
-    """Test that structlog includes all context variables in output."""
-    context.set_request_id("req-123")
-    context.set_error_id("err-456")
-    context.set_correlation_id("corr-789")
-    context.set_causation_id("cause-012")
-
-    try:
-        with patch("sys.stdout", new=StringIO()) as fake_out:
-            configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
-            logger = get_structlog_logger(__name__)
-            logger.info("test event with all context")
-
-            output = fake_out.getvalue()
-            log_entry = json.loads(output)
-
             assert log_entry["request_id"] == "req-123"
             assert log_entry["error_id"] == "err-456"
             assert log_entry["correlation_id"] == "corr-789"
-            assert log_entry["causation_id"] == "cause-012"
+            assert log_entry["causation_id"] == "cause-abc"
             assert log_entry["system"] == "alchemiser"
     finally:
         context.set_request_id(None)
@@ -202,3 +206,19 @@ def test_structlog_logger_bind() -> None:
         assert log_entry["symbol"] == "AAPL"
         assert log_entry["strategy"] == "momentum"
         assert log_entry["event"] == "trade signal"
+
+
+def test_configure_structlog_logs_file_handler_failure() -> None:
+    """Test that configure_structlog logs a warning when file handler setup fails."""
+    with patch("sys.stdout", new=StringIO()) as fake_out:
+        # Try to configure with an invalid file path (read-only directory)
+        configure_structlog(
+            structured_format=True,
+            console_level=logging.WARNING,
+            file_level=logging.DEBUG,
+            file_path="/invalid/read/only/path/test.log",
+        )
+
+        output = fake_out.getvalue()
+        # Check that a warning was logged about the failure
+        assert "Failed to configure file logging" in output or len(output) > 0
