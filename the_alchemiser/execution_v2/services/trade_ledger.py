@@ -108,9 +108,25 @@ class TradeLedgerService:
             order_result.symbol, rebalance_plan
         )
 
-        # Extract bid/ask from quote if available
-        bid_at_fill = quote_at_fill.bid_price if quote_at_fill else None
-        ask_at_fill = quote_at_fill.ask_price if quote_at_fill else None
+        # Extract bid/ask from quote if available and valid (> 0)
+        # Filter out zero or negative prices which fail validation
+        bid_at_fill = None
+        ask_at_fill = None
+        if quote_at_fill:
+            if quote_at_fill.bid_price > 0:
+                bid_at_fill = quote_at_fill.bid_price
+            if quote_at_fill.ask_price > 0:
+                ask_at_fill = quote_at_fill.ask_price
+
+            # Log warning if quote data is invalid
+            if quote_at_fill.bid_price <= 0 or quote_at_fill.ask_price <= 0:
+                logger.warning(
+                    "Quote data has invalid prices (≤ 0) - excluding from ledger",
+                    symbol=order_result.symbol,
+                    bid_price=str(quote_at_fill.bid_price),
+                    ask_price=str(quote_at_fill.ask_price),
+                    order_id=order_result.order_id,
+                )
 
         # Extract order type from OrderResult
         order_type = order_result.order_type
