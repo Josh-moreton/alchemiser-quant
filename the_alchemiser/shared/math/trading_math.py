@@ -359,12 +359,9 @@ def _process_symbol_rebalance(
         logger.debug(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
 
     # Check if logger supports isEnabledFor (standard logging) or is_enabled_for (structlog)
-    if hasattr(logger, 'isEnabledFor') and logger.isEnabledFor(logging.DEBUG):
-        logger.debug(
-            f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
-            f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}"
-        )
-    elif hasattr(logger, 'is_enabled_for') and logger.is_enabled_for(logging.DEBUG):
+    if (hasattr(logger, "isEnabledFor") and logger.isEnabledFor(logging.DEBUG)) or (
+        hasattr(logger, "is_enabled_for") and logger.is_enabled_for(logging.DEBUG)
+    ):
         logger.debug(
             f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
             f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}"
@@ -467,7 +464,7 @@ def calculate_position_size_decimal(
 
     # Calculate shares (fractional) with Decimal precision
     shares = target_value / current_price
-    
+
     # Quantize to 6 decimal places (Alpaca's maximum)
     return shares.quantize(Decimal("0.000001"))
 
@@ -942,14 +939,14 @@ def calculate_rebalance_amounts_decimal(
         trade_amount = target_value - current_value
         needs_rebalance = abs(weight_diff) >= min_trade_threshold
 
-        symbol_plan = {
+        symbol_plan: dict[str, Decimal] = {
             "current_weight": current_weight,
             "target_weight": target_weight,
             "weight_diff": weight_diff,
             "target_value": target_value,
             "current_value": current_value,
             "trade_amount": trade_amount,
-            "needs_rebalance": needs_rebalance,
+            "needs_rebalance": Decimal("1") if needs_rebalance else Decimal("0"),
         }
 
         rebalance_plan[symbol] = symbol_plan

@@ -14,9 +14,12 @@ Provides specific event classes for DSL strategy evaluation workflow:
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, field_validator
+
+if TYPE_CHECKING:
+    from pydantic import ValidationInfo
 
 from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
 from ..schemas.ast_node import ASTNode
@@ -197,7 +200,7 @@ class TopNSelected(BaseEvent):
 
     @field_validator("n_selected")
     @classmethod
-    def validate_n_selected(cls, v: int, info: Any) -> int:
+    def validate_n_selected(cls, v: int, info: ValidationInfo) -> int:
         """Validate n_selected matches length of selected_symbols.
 
         Args:

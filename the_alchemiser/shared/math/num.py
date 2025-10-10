@@ -15,9 +15,11 @@ from math import isclose
 
 try:
     from the_alchemiser.shared.logging import get_logger
+
     logger = get_logger(__name__)
 except ImportError:  # pragma: no cover - logging optional
     import logging
+
     logger = logging.getLogger(__name__)
 
 try:
@@ -29,7 +31,7 @@ except ImportError:  # pragma: no cover - numpy optional (gracefully degrades to
 Number = float | int | Decimal
 SequenceLike = Sequence[Number] | Number
 
-__all__ = ["floats_equal", "Number", "SequenceLike"]
+__all__ = ["Number", "SequenceLike", "floats_equal"]
 
 
 def _extract_numeric_value(value: SequenceLike) -> Number:

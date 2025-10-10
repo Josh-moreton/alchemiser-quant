@@ -240,9 +240,7 @@ def normalize_to_range(
     return target_min + normalized * (target_max - target_min)
 
 
-def _normalize_ensemble_weights(
-    metrics: list[float], weights: list[float] | None
-) -> list[float]:
+def _normalize_ensemble_weights(metrics: list[float], weights: list[float] | None) -> list[float]:
     """Normalize weights to match the number of metrics.
 
     Args:

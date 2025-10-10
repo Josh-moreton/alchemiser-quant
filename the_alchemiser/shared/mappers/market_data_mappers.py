@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.errors.exceptions import MarketDataError, ValidationError
+from the_alchemiser.shared.errors.exceptions import ValidationError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 
@@ -79,7 +79,7 @@ def _parse_ts(value: datetime | str | int | float | None) -> datetime | None:
     except Exception as exc:
         # Catch unexpected errors but log them for investigation
         logger.warning("Unexpected error parsing timestamp: %s (value: %s)", exc, value)
-        return None
+    return None
 
 
 def _validate_bar_prices(

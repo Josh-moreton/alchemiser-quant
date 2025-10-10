@@ -8,11 +8,12 @@ strategy signals, and trading signal analysis.
 Note:
     This module is display-only and does not perform financial calculations.
     Float comparisons use threshold values appropriate for display purposes.
+
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal, Protocol, TypedDict
+from typing import Any, Protocol, TypedDict
 
 from ...errors.exceptions import TemplateGenerationError
 from ...logging import get_logger
@@ -161,9 +162,7 @@ class SignalsBuilder:
         ma_200 = indicators.get("ma_200", 0)
 
         rsi_color = SignalsBuilder._get_rsi_color(rsi_10)
-        price_vs_ma, price_color = SignalsBuilder._get_price_vs_ma_info(
-            current_price, ma_200
-        )
+        price_vs_ma, price_color = SignalsBuilder._get_price_vs_ma_info(current_price, ma_200)
 
         return f"""
         <tr>
@@ -260,7 +259,7 @@ class SignalsBuilder:
             ) from e
 
     @staticmethod
-    def build_technical_indicators(strategy_signals: dict[Any, SignalData]) -> str:  # noqa: ANN401
+    def build_technical_indicators(strategy_signals: dict[Any, SignalData]) -> str:
         """Build technical indicators HTML section.
 
         Args:
@@ -276,13 +275,9 @@ class SignalsBuilder:
         """
         if not strategy_signals:
             logger.debug("build_technical_indicators_skipped", reason="no_signals")
-            return BaseEmailTemplate.create_alert_box(
-                "No technical indicators available", "info"
-            )
+            return BaseEmailTemplate.create_alert_box("No technical indicators available", "info")
 
-        logger.debug(
-            "building_technical_indicators", strategy_count=len(strategy_signals)
-        )
+        logger.debug("building_technical_indicators", strategy_count=len(strategy_signals))
 
         indicators_html = ""
 
@@ -324,9 +319,7 @@ class SignalsBuilder:
 
         if not indicators_html:
             logger.debug("build_technical_indicators_no_data")
-            return BaseEmailTemplate.create_alert_box(
-                "No technical indicators data found", "info"
-            )
+            return BaseEmailTemplate.create_alert_box("No technical indicators data found", "info")
 
         return f"""
         <div style="margin: 24px 0;">
@@ -337,8 +330,8 @@ class SignalsBuilder:
 
     @staticmethod
     def build_detailed_strategy_signals(
-        strategy_signals: dict[Any, SignalData],  # noqa: ANN401
-        strategy_summary: dict[str, Any],  # noqa: ANN401
+        strategy_signals: dict[Any, SignalData],
+        strategy_summary: dict[str, Any],
     ) -> str:
         """Build detailed strategy signals HTML section.
 
@@ -356,9 +349,7 @@ class SignalsBuilder:
         """
         if not strategy_signals:
             logger.debug("build_detailed_strategy_signals_skipped", reason="no_signals")
-            return BaseEmailTemplate.create_alert_box(
-                "No strategy signals available", "info"
-            )
+            return BaseEmailTemplate.create_alert_box("No strategy signals available", "info")
 
         logger.debug(
             "building_detailed_strategy_signals",
@@ -386,9 +377,7 @@ class SignalsBuilder:
             action_label = colors["label"]
 
             # Truncate reason text using helper method
-            formatted_reason = SignalsBuilder._truncate_reason(
-                reason, MAX_REASON_LENGTH_DETAILED
-            )
+            formatted_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_DETAILED)
             formatted_reason = formatted_reason.replace("\n", "<br>")
 
             signals_html += f"""
@@ -426,7 +415,7 @@ class SignalsBuilder:
         """
 
     @staticmethod
-    def build_market_regime_analysis(strategy_signals: dict[Any, SignalData]) -> str:  # noqa: ANN401
+    def build_market_regime_analysis(strategy_signals: dict[Any, SignalData]) -> str:
         """Build market regime analysis section.
 
         Analyzes SPY (S&P 500 ETF) technical indicators to determine
@@ -535,7 +524,7 @@ class SignalsBuilder:
         """
 
     @staticmethod
-    def build_strategy_signals_neutral(strategy_signals: dict[Any, Any]) -> str:  # noqa: ANN401
+    def build_strategy_signals_neutral(strategy_signals: dict[Any, Any]) -> str:
         """Build strategy signals section for neutral mode (no financial data).
 
         Creates a summary table of strategy signals without detailed
@@ -595,9 +584,7 @@ class SignalsBuilder:
             action_label = colors["label"]
 
             # Truncate reason for summary display
-            display_reason = SignalsBuilder._truncate_reason(
-                reason, MAX_REASON_LENGTH_SUMMARY
-            )
+            display_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
 
             signal_rows.append(
                 f"""

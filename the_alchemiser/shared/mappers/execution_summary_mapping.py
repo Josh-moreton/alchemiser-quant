@@ -291,7 +291,7 @@ def dict_to_execution_summary(
             pnl_summary=pnl_summary,
             account_info_before=account_info_before,  # type: ignore[arg-type]
             account_info_after=account_info_after,  # type: ignore[arg-type]
-            mode=mode,  # type: ignore[arg-type]
+            mode=mode,
             engine_mode=data.get("engine_mode"),
             error=data.get("error"),
         )

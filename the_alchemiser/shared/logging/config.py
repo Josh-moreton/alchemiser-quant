@@ -17,13 +17,13 @@ from .structlog_config import configure_structlog
 
 def configure_test_logging(log_level: int = logging.WARNING) -> None:
     """Configure structlog for test environments with human-readable output.
-    
+
     Args:
         log_level: Log level for both console and file output (default: WARNING).
-    
+
     Example:
         >>> configure_test_logging(log_level=logging.DEBUG)
-    
+
     """
     configure_structlog(
         structured_format=False,  # Console format for readability in tests
@@ -48,7 +48,7 @@ def configure_production_logging(
     Example:
         >>> configure_production_logging(log_level=logging.INFO)
         >>> configure_production_logging(log_file_path="/tmp/app.log", console_level=logging.WARNING)
-    
+
     Note:
         File logging may fail silently if the log file path is not writable.
         In AWS Lambda environments, only /tmp is writable. The underlying
@@ -71,18 +71,18 @@ def configure_application_logging() -> None:
 
     Automatically selects appropriate configuration based on environment.
     Production uses JSON format, development uses console format with clean terminal output.
-    
+
     Environment Detection:
         - Production: AWS_LAMBDA_FUNCTION_NAME environment variable is set (not None)
         - Development: AWS_LAMBDA_FUNCTION_NAME is not set
-    
+
     Example:
         >>> # In Lambda (production)
         >>> configure_application_logging()  # Uses JSON format, console-only
-        >>> 
+        >>>
         >>> # In local development
         >>> configure_application_logging()  # Uses console format, logs to logs/trade_run.log
-    
+
     Note:
         In development, file logging to logs/trade_run.log may fail silently if the
         directory doesn't exist. The underlying structlog_config module catches OSError

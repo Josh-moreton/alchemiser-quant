@@ -173,7 +173,7 @@ class MarketOrderExecutor:
             Broker order object
 
         """
-        return self.alpaca_manager.place_market_order(symbol, side, float(quantity))
+        return self.alpaca_manager.place_market_order(symbol, side, quantity)
 
     def _build_market_order_execution_result(
         self, symbol: str, side: str, quantity: Decimal, broker_result: ExecutedOrder

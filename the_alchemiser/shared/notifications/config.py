@@ -25,19 +25,19 @@ MODULE_NAME = "shared.notifications.config"
 
 class EmailConfig:
     """Manages email configuration settings.
-    
+
     This class provides cached configuration loading from environment variables
     and AWS Secrets Manager. Configuration is loaded once and cached for the
     lifetime of the instance unless explicitly cleared.
-    
+
     Thread Safety:
         Instance methods are not thread-safe. Use the module-level functions
         which leverage a thread-safe singleton pattern.
-    
+
     Attributes:
         _config_cache: Cached EmailCredentials instance (None until first load)
         _neutral_mode_cache: Cached neutral mode flag (None until first load)
-    
+
     """
 
     def __init__(self) -> None:
@@ -47,25 +47,25 @@ class EmailConfig:
 
     def get_config(self) -> EmailCredentials:
         """Get email configuration from environment variables and secrets manager.
-        
+
         Configuration is loaded from:
         1. Environment variables (via Pydantic Settings)
         2. AWS Secrets Manager (for password, via secrets_adapter)
-        
+
         Configuration is cached after first successful load. Call clear_cache()
         to force reload.
 
         Returns:
             EmailCredentials: Frozen DTO with SMTP configuration
-        
+
         Raises:
             ConfigurationError: If required configuration is missing or invalid
-        
+
         Examples:
             >>> config_loader = EmailConfig()
             >>> creds = config_loader.get_config()
             >>> print(f"SMTP: {creds.smtp_server}:{creds.smtp_port}")
-        
+
         """
         if self._config_cache:
             return self._config_cache
@@ -139,39 +139,37 @@ class EmailConfig:
                 error_type=type(e).__name__,
                 module=MODULE_NAME,
             )
-            raise ConfigurationError(
-                f"Failed to load email configuration: {e}"
-            ) from e
+            raise ConfigurationError(f"Failed to load email configuration: {e}") from e
 
     def clear_cache(self) -> None:
         """Clear the configuration cache.
-        
+
         Forces reload on next get_config() call. Useful for:
         - Testing with different configuration values
         - Runtime configuration updates (rare)
         - Manual cache invalidation after config changes
-        
+
         """
         self._config_cache = None
         self._neutral_mode_cache = None
 
     def is_neutral_mode_enabled(self) -> bool:
         """Check if neutral mode is enabled for emails.
-        
+
         Returns cached value if available, otherwise loads from settings.
         Neutral mode is typically used to disable actual email sending in
         development/test environments.
-        
+
         Returns:
             bool: True if neutral mode is enabled, False otherwise
-        
+
         Raises:
             ConfigurationError: If configuration cannot be loaded
-        
+
         """
         if self._neutral_mode_cache is not None:
             return self._neutral_mode_cache
-        
+
         try:
             config = load_settings()
             self._neutral_mode_cache = config.email.neutral_mode
@@ -183,9 +181,7 @@ class EmailConfig:
                 error_type=type(e).__name__,
                 module=MODULE_NAME,
             )
-            raise ConfigurationError(
-                f"Failed to check neutral mode configuration: {e}"
-            ) from e
+            raise ConfigurationError(f"Failed to check neutral mode configuration: {e}") from e
 
 
 # Thread-safe singleton management
@@ -195,13 +191,13 @@ _email_config: EmailConfig | None = None
 
 def _get_email_config_singleton() -> EmailConfig:
     """Get or create the global EmailConfig instance (thread-safe).
-    
+
     Uses double-check locking pattern to ensure thread safety with
     minimal performance overhead.
-    
+
     Returns:
         EmailConfig: Global singleton instance
-    
+
     """
     global _email_config
     if _email_config is None:
@@ -213,16 +209,16 @@ def _get_email_config_singleton() -> EmailConfig:
 
 def get_email_config() -> tuple[str, int, str, str, str] | None:
     """Get email configuration (backward compatibility function).
-    
+
     .. deprecated:: 2.20.2
         Use EmailConfig().get_config() to get EmailCredentials DTO instead.
         This function returns a tuple for backward compatibility and will be
         removed in version 3.0.0.
-    
+
     Returns:
         Tuple of (smtp_server, smtp_port, from_email, password, to_email) or None
         if configuration cannot be loaded.
-    
+
     """
     warnings.warn(
         "get_email_config() is deprecated. Use EmailConfig().get_config() for DTO.",
@@ -250,14 +246,14 @@ def get_email_config() -> tuple[str, int, str, str, str] | None:
 
 def is_neutral_mode_enabled() -> bool:
     """Check if neutral mode is enabled for emails (standalone function).
-    
+
     .. deprecated:: 2.20.2
         Use EmailConfig().is_neutral_mode_enabled() for better error handling.
         This function will be removed in version 3.0.0.
-    
+
     Returns:
         bool: True if neutral mode is enabled, False on any error
-    
+
     """
     warnings.warn(
         "is_neutral_mode_enabled() standalone function is deprecated. "
