@@ -38,13 +38,13 @@ class StrategyAllocation(BaseModel):
     Examples:
         >>> from decimal import Decimal
         >>> from datetime import datetime, UTC
-        >>> 
+        >>>
         >>> # Create allocation with minimal fields
         >>> alloc = StrategyAllocation(
         ...     target_weights={"AAPL": Decimal("0.6"), "MSFT": Decimal("0.4")},
         ...     correlation_id="trade-123"
         ... )
-        >>> 
+        >>>
         >>> # Create allocation with all fields
         >>> alloc = StrategyAllocation(
         ...     target_weights={"SPY": Decimal("1.0")},
@@ -53,7 +53,7 @@ class StrategyAllocation(BaseModel):
         ...     as_of=datetime.now(UTC),
         ...     constraints={"max_position_size": 0.5}
         ... )
-        >>> 
+        >>>
         >>> # Use from_dict for type conversion
         >>> alloc = StrategyAllocation.from_dict({
         ...     "target_weights": {"AAPL": "0.6", "MSFT": 0.4},
@@ -71,8 +71,7 @@ class StrategyAllocation(BaseModel):
     )
 
     schema_version: Literal["1.0"] = Field(
-        default="1.0",
-        description="Schema version for backward compatibility"
+        default="1.0", description="Schema version for backward compatibility"
     )
     target_weights: dict[str, Decimal] = Field(
         ..., description="Target allocation weights by symbol (symbol -> weight 0-1)"
@@ -229,7 +228,7 @@ class StrategyAllocation(BaseModel):
                 "Failed to create StrategyAllocation from dict",
                 correlation_id=correlation_id,
                 error=str(e),
-                data_keys=list(data.keys())
+                data_keys=list(data.keys()),
             )
             raise
 
@@ -293,8 +292,7 @@ class StrategyAllocation(BaseModel):
             return Decimal(str(portfolio_value))
         except (ValueError, TypeError) as e:
             raise ValueError(
-                f"Invalid portfolio_value: {portfolio_value} "
-                f"(correlation_id: {correlation_id})"
+                f"Invalid portfolio_value: {portfolio_value} (correlation_id: {correlation_id})"
             ) from e
 
     def idempotency_key(self) -> str:
@@ -320,8 +318,7 @@ class StrategyAllocation(BaseModel):
 
         """
         weights_str = json.dumps(
-            {k: str(v) for k, v in sorted(self.target_weights.items())},
-            sort_keys=True
+            {k: str(v) for k, v in sorted(self.target_weights.items())}, sort_keys=True
         )
         key_material = f"{self.correlation_id}:{self.schema_version}:{weights_str}"
         return hashlib.sha256(key_material.encode()).hexdigest()[:16]

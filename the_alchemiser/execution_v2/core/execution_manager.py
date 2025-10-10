@@ -201,9 +201,9 @@ class ExecutionManager:
                 "success": result.success,
                 "orders_placed": result.orders_placed,
                 "orders_succeeded": result.orders_succeeded,
-                "status": result.status.value
-                if hasattr(result.status, "value")
-                else str(result.status),
+                "status": (
+                    result.status.value if hasattr(result.status, "value") else str(result.status)
+                ),
             },
         )
 
@@ -216,6 +216,19 @@ class ExecutionManager:
             )
 
         return result
+
+    def shutdown(self) -> None:
+        """Shutdown the execution manager and cleanup resources.
+
+        This ensures proper cleanup of the underlying executor,
+        including stopping the real-time pricing service WebSocket connection.
+        """
+        try:
+            if hasattr(self, "executor") and self.executor:
+                self.executor.shutdown()
+                logger.debug("ExecutionManager: Executor shutdown completed")
+        except Exception as e:
+            logger.warning(f"ExecutionManager: Error during shutdown: {e}")
 
     @classmethod
     def create_with_config(
