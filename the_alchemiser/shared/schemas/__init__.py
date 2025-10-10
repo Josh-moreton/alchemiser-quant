@@ -8,7 +8,6 @@ Common schema definitions used across modules.
 from __future__ import annotations
 
 import warnings
-from typing import Any
 
 from .accounts import (
     AccountMetrics,
@@ -149,7 +148,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> object:
     """Provide backward compatibility for moved symbols.
 
     Args:
