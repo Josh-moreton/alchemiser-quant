@@ -31,16 +31,14 @@ class TestTypesModuleInterface:
         # Check __all__ exists
         assert hasattr(types, "__all__"), "Module must define __all__"
 
+        # Updated for v2.10.7+: Removed deprecated types
+        # BrokerOrderSide, BrokerTimeInForce, OrderSideType, TimeInForceType removed
+        # StrategySignal moved to shared.schemas
         expected_exports = {
-            "BrokerOrderSide",
-            "BrokerTimeInForce",
             "MarketDataPort",
-            "OrderSideType",
             "Quantity",
             "StrategyEngine",
-            "StrategySignal",
             "StrategyType",
-            "TimeInForceType",
         }
         actual_exports = set(types.__all__)
 
@@ -59,6 +57,7 @@ class TestTypesModuleInterface:
             obj = getattr(types, name)
             assert obj is not None, f"Export '{name}' is None"
 
+    @pytest.mark.skip(reason="BrokerOrderSide removed in v2.10.7+ - use Alpaca SDK enums directly")
     def test_broker_order_side_export(self) -> None:
         """Test BrokerOrderSide enum is correctly exported."""
         from the_alchemiser.shared.types import BrokerOrderSide
@@ -72,6 +71,7 @@ class TestTypesModuleInterface:
         assert hasattr(BrokerOrderSide, "BUY")
         assert hasattr(BrokerOrderSide, "SELL")
 
+    @pytest.mark.skip(reason="BrokerTimeInForce removed in v2.10.7+ - use Alpaca SDK enums directly")
     def test_broker_time_in_force_export(self) -> None:
         """Test BrokerTimeInForce enum is correctly exported."""
         from the_alchemiser.shared.types import BrokerTimeInForce
@@ -117,6 +117,7 @@ class TestTypesModuleInterface:
         assert StrategyEngine is SourceStrategyEngine
         assert StrategyEngine.__name__ == "StrategyEngine"
 
+    @pytest.mark.skip(reason="StrategySignal moved to shared.schemas in v2.10.7+")
     def test_strategy_signal_export(self) -> None:
         """Test StrategySignal value object is correctly exported."""
         from the_alchemiser.shared.types import StrategySignal
@@ -139,6 +140,7 @@ class TestTypesModuleInterface:
         assert StrategyType is SourceStrategyType
         assert StrategyType.__name__ == "StrategyType"
 
+    @pytest.mark.skip(reason="Type aliases removed in v2.10.7+ - use Alpaca SDK enums directly")
     def test_type_aliases_export(self) -> None:
         """Test that type aliases are correctly exported."""
         from the_alchemiser.shared.types import OrderSideType, TimeInForceType
@@ -256,6 +258,7 @@ class TestTypesModuleInterface:
                 f"Export '{name}' should be a type/protocol/alias, got {type(obj)}"
             )
 
+    @pytest.mark.skip(reason="StrategySignal moved to shared.schemas in v2.10.7+")
     def test_relative_imports_work(self) -> None:
         """Test that relative imports within the module work correctly."""
         # Import from module directly
@@ -269,6 +272,7 @@ class TestTypesModuleInterface:
         # Should be the same object
         assert StrategySignal is DirectStrategySignal
 
+    @pytest.mark.skip(reason="StrategySignal moved to shared.schemas in v2.10.7+")
     def test_imports_are_deterministic(self) -> None:
         """Test that imports are deterministic (same result on re-import)."""
         # First import
@@ -397,6 +401,7 @@ class TestModuleBoundaries:
 class TestTypePreservation:
     """Test suite for type information preservation."""
 
+    @pytest.mark.skip(reason="StrategySignal moved to shared.schemas in v2.10.7+")
     def test_type_hints_preserved(self) -> None:
         """Test that type hints are preserved through re-exports."""
         from the_alchemiser.shared.types import StrategySignal
