@@ -117,7 +117,9 @@ class StrategyDataDTO(BaseModel):
         validate_assignment=True,
     )
 
-    allocation: float = Field(ge=0, le=1, description="Portfolio allocation percentage (0.0 to 1.0)")
+    allocation: float = Field(
+        ge=0, le=1, description="Portfolio allocation percentage (0.0 to 1.0)"
+    )
     signal: str = Field(description="Trading signal (BUY, SELL, HOLD, etc.)")
     symbol: str = Field(description="Target symbol for the strategy")
     reason: str = Field(default="", description="Optional reason or description for the signal")
