@@ -46,10 +46,10 @@ ExecutionLike = (
 
 def _normalise_result(result: ExecutionLike) -> dict[str, Any]:
     """Return a plain dict for an execution result (DTO / mapping / object).
-    
+
     Args:
         result: Execution result in various formats (DTO, mapping, or object)
-        
+
     Returns:
         Dictionary representation of the execution result
 
@@ -91,10 +91,10 @@ class PortfolioBuilder:
     @staticmethod
     def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
         """Extract current positions from execution result data.
-        
+
         Args:
             data: Execution result dictionary containing account information
-            
+
         Returns:
             Dictionary mapping symbols to position data
 
@@ -113,13 +113,13 @@ class PortfolioBuilder:
     @staticmethod
     def _extract_portfolio_value(data: dict[str, Any]) -> Decimal:
         """Extract portfolio value as Decimal for financial calculations.
-        
+
         Args:
             data: Execution result dictionary containing account information
-            
+
         Returns:
             Portfolio value as Decimal
-            
+
         Raises:
             ValueError: If portfolio value is missing or invalid
 
@@ -142,10 +142,10 @@ class PortfolioBuilder:
     @staticmethod
     def _get_order_action_info(side: str) -> tuple[str, str]:
         """Get color and label for order action (BUY/SELL).
-        
+
         Args:
             side: Order side string (buy, sell, etc.)
-            
+
         Returns:
             Tuple of (color_hex, label)
 
@@ -160,10 +160,10 @@ class PortfolioBuilder:
     @staticmethod
     def _get_order_status_info(status: str) -> tuple[str, str]:
         """Get color and display label for order status.
-        
+
         Args:
             status: Order status string
-            
+
         Returns:
             Tuple of (color_hex, display_label)
 
@@ -182,10 +182,10 @@ class PortfolioBuilder:
     @staticmethod
     def _format_quantity_display(qty: float | int | Decimal | None) -> str:
         """Format quantity for display with appropriate precision.
-        
+
         Args:
             qty: Quantity value (supports float, int, Decimal, or None)
-            
+
         Returns:
             Formatted quantity string or em dash if invalid/zero
 
@@ -195,7 +195,9 @@ class PortfolioBuilder:
         try:
             qty_val = float(qty) if not isinstance(qty, (int, float)) else qty
             if qty_val != 0:
-                return f"{qty_val:.2f}" if qty_val >= 1 else f"{qty_val:.6f}".rstrip("0").rstrip(".")
+                return (
+                    f"{qty_val:.2f}" if qty_val >= 1 else f"{qty_val:.6f}".rstrip("0").rstrip(".")
+                )
         except (TypeError, ValueError, ArithmeticError):
             pass
         return "—"
@@ -207,10 +209,10 @@ class PortfolioBuilder:
 
         Accepts a mapping (AccountInfo or EnrichedAccountInfo). Dollar values are
         not surfaced—only derived deployment percentage.
-        
+
         Args:
             account_info: Account information mapping
-            
+
         Returns:
             HTML table with account summary
 
@@ -230,7 +232,7 @@ class PortfolioBuilder:
         except (TypeError, ValueError, ArithmeticError):  # pragma: no cover - defensive
             logger.warning("Failed to calculate deployment percentage from account info")
             deployed_pct = Decimal("0")
-        
+
         # Use Decimal comparison with constants for deployment classification
         if deployed_pct >= HIGH_DEPLOYMENT_PCT:
             deploy_color, deploy_label = "#10B981", "High"
@@ -245,10 +247,10 @@ class PortfolioBuilder:
     @staticmethod
     def build_portfolio_rebalancing_table(result: ExecutionLike) -> str:
         """Percent-only rebalancing actions (BUY/SELL/HOLD) vs target weights.
-        
+
         Args:
             result: Execution result containing portfolio data
-            
+
         Returns:
             HTML table showing rebalancing actions
 
@@ -309,10 +311,10 @@ class PortfolioBuilder:
     @staticmethod
     def build_orders_table_neutral(orders: list[Any]) -> str:
         """Build a neutral orders table without financial values.
-        
+
         Args:
             orders: List of order dictionaries
-            
+
         Returns:
             HTML table with order details
 
