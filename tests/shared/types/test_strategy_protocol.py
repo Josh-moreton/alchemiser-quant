@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from the_alchemiser.shared.types import StrategyEngine, StrategySignal
+from the_alchemiser.shared.schemas import StrategySignal
+from the_alchemiser.shared.types import StrategyEngine
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
@@ -47,9 +48,12 @@ class ConformingEngine:
             raise ValueError("Timestamp must be timezone-aware (UTC)")
         return [
             StrategySignal(
+                correlation_id="test-corr-123",
+                causation_id="test-cause-456",
                 symbol="SPY",
                 action="BUY",
                 timestamp=timestamp,
+                reasoning="Test signal generation",
             )
         ]
 
@@ -127,9 +131,12 @@ def test_validate_signals_invalid_symbol():
     # StrategySignal itself validates and will raise during construction
     with pytest.raises(Exception):  # Pydantic ValidationError
         invalid_signal = StrategySignal(
+            correlation_id="test-corr-123",
+            causation_id="test-cause-456",
             symbol="",  # Empty symbol - caught by Pydantic validation
             action="BUY",
             timestamp=datetime.now(timezone.utc),
+            reasoning="Test invalid symbol",
         )
 
 
@@ -140,9 +147,12 @@ def test_validate_signals_invalid_action():
     # StrategySignal itself validates action and will raise during construction
     with pytest.raises(Exception):  # Pydantic ValidationError
         invalid_signal = StrategySignal(
+            correlation_id="test-corr-123",
+            causation_id="test-cause-456",
             symbol="SPY",
             action="INVALID",  # Invalid action - caught by Pydantic validation
             timestamp=datetime.now(timezone.utc),
+            reasoning="Test invalid action",
         )
 
 
@@ -152,14 +162,20 @@ def test_validate_signals_valid():
 
     valid_signals = [
         StrategySignal(
+            correlation_id="test-corr-123",
+            causation_id="test-cause-456",
             symbol="SPY",
             action="BUY",
             timestamp=datetime.now(timezone.utc),
+            reasoning="Test valid signal 1",
         ),
         StrategySignal(
+            correlation_id="test-corr-789",
+            causation_id="test-cause-012",
             symbol="QQQ",
             action="HOLD",
             timestamp=datetime.now(timezone.utc),
+            reasoning="Test valid signal 2",
         ),
     ]
 

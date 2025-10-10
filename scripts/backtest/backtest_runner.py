@@ -82,6 +82,11 @@ class BacktestRunner:
         self.strategy_files = strategy_files or ["KLM.clj"]
         self.auto_download_missing = auto_download_missing
         self._missing_symbols_cache: set[str] = set()
+        
+        # Cache for reusable components (performance optimization)
+        self._market_data_port: HistoricalMarketDataPort | None = None
+        self._strategy_engine: DslStrategyEngine | None = None
+        
         logger.info(
             f"BacktestRunner initialized with strategies: {self.strategy_files}"
         )
@@ -127,6 +132,16 @@ class BacktestRunner:
         logger.info(
             f"Using real Strategy_v2 DSL engine with files: {', '.join(config.strategy_files)}"
         )
+
+        # Initialize reusable market data port and strategy engine (performance optimization)
+        # This avoids recreating the engine for every trading day
+        # Reset cached instances to ensure clean state for each backtest run
+        self._market_data_port = HistoricalMarketDataPort(self.data_store, config.start_date)
+        self._strategy_engine = DslStrategyEngine(
+            market_data_port=self._market_data_port,
+            strategy_file=(config.strategy_files[0] if config.strategy_files else "KLM.clj"),
+        )
+        logger.info("Initialized reusable strategy engine for backtest performance")
 
         # Iterate through each trading day
         current_date = config.start_date
@@ -258,19 +273,26 @@ class BacktestRunner:
 
         while retry_count < max_retries:
             try:
-                # Create historical market data port for this date
-                market_data_port = HistoricalMarketDataPort(self.data_store, date)
+                # Update market data port timestamp (reuse existing port for performance)
+                if self._market_data_port is None or self._strategy_engine is None:
+                    # Fallback: create new instances if not initialized (should not happen)
+                    logger.warning(
+                        "Strategy engine not initialized, creating new instance",
+                        date=date.date(),
+                    )
+                    self._market_data_port = HistoricalMarketDataPort(self.data_store, date)
+                    self._strategy_engine = DslStrategyEngine(
+                        market_data_port=self._market_data_port,
+                        strategy_file=(
+                            self.strategy_files[0] if self.strategy_files else "KLM.clj"
+                        ),
+                    )
+                else:
+                    # Reuse existing instances - just update the date
+                    self._market_data_port.update_current_date(date)
 
-                # Initialize DSL strategy engine with historical data
-                strategy_engine = DslStrategyEngine(
-                    market_data_port=market_data_port,
-                    strategy_file=(
-                        self.strategy_files[0] if self.strategy_files else "KLM.clj"
-                    ),
-                )
-
-                # Generate signals using real strategy
-                strategy_signals = strategy_engine.generate_signals(timestamp=date)
+                # Generate signals using reused strategy engine
+                strategy_signals = self._strategy_engine.generate_signals(timestamp=date)
 
                 # Convert StrategySignal list to symbol -> weight dict
                 signals: dict[str, Decimal] = {}

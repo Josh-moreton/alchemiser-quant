@@ -153,7 +153,12 @@ class TradingExecutionHandler:
                 alpaca_manager=self.container.infrastructure.alpaca_manager(),
                 execution_config=ExecutionConfig(),
             )
-            execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
+
+            try:
+                execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
+            finally:
+                # Always cleanup execution resources, including WebSocket connections
+                execution_manager.shutdown()
 
             # Note: ExecutionResult.metadata is read-only (frozen), so strategy attribution
             # needs to be handled in the ExecutionManager itself via rebalance plan metadata

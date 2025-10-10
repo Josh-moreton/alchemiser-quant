@@ -10,6 +10,9 @@ All financial data (prices, sizes) uses Decimal for precision per Alchemiser gua
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -283,7 +286,7 @@ class RealTimeDataProcessor:
             return value
         return None
 
-    def log_quote_debug(
+    async def log_quote_debug(
         self,
         symbol: str,
         bid_price: Decimal | None,
@@ -293,7 +296,7 @@ class RealTimeDataProcessor:
         """Log quote data for debugging with structured logging.
 
         Uses structured logging with correlation_id for observability.
-        Simplified to synchronous as logging is thread-safe.
+        Async implementation with graceful executor shutdown handling.
 
         Args:
             symbol: Stock symbol
@@ -302,33 +305,42 @@ class RealTimeDataProcessor:
             correlation_id: Optional correlation ID for tracing
 
         """
-        self.logger.debug(
-            "Quote received",
-            extra={
-                "symbol": symbol,
-                "bid_price": str(bid_price) if bid_price else None,
-                "ask_price": str(ask_price) if ask_price else None,
-                "correlation_id": correlation_id,
-            },
-        )
+        if self.logger.isEnabledFor(logging.DEBUG):
+            with contextlib.suppress(RuntimeError):
+                # Event loop executor has shut down - gracefully ignore
+                await asyncio.to_thread(
+                    self.logger.debug,
+                    "Quote received",
+                    extra={
+                        "symbol": symbol,
+                        "bid_price": str(bid_price) if bid_price else None,
+                        "ask_price": str(ask_price) if ask_price else None,
+                        "correlation_id": correlation_id,
+                    },
+                )
+        await asyncio.sleep(0)
 
-    def handle_quote_error(self, error: Exception, correlation_id: str | None = None) -> None:
+    async def handle_quote_error(self, error: Exception, correlation_id: str | None = None) -> None:
         """Handle errors in quote processing with structured logging.
 
         Uses structured logging with correlation_id for observability.
-        Simplified to synchronous as logging is thread-safe.
+        Async implementation with graceful executor shutdown handling.
 
         Args:
             error: Exception that occurred
             correlation_id: Optional correlation ID for tracing
 
         """
-        self.logger.error(
-            "Error processing quote",
-            extra={
-                "error": str(error),
-                "error_type": type(error).__name__,
-                "correlation_id": correlation_id,
-            },
-            exc_info=True,
-        )
+        with contextlib.suppress(RuntimeError):
+            # Event loop executor has shut down - gracefully ignore
+            await asyncio.to_thread(
+                self.logger.error,
+                "Error processing quote",
+                extra={
+                    "error": str(error),
+                    "error_type": type(error).__name__,
+                    "correlation_id": correlation_id,
+                },
+                exc_info=True,
+            )
+        await asyncio.sleep(0)

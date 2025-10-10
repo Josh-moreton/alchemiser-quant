@@ -148,82 +148,38 @@ Resources:
       FunctionName: !Sub "the-alchemiser-v2-lambda-${Stage}"
       PackageType: Zip
       Runtime: python3.12
-      CodeUri: ./
-      Handler: the_alchemiser.lambda_handler.lambda_handler
+      CodeUri: the_alchemiser/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
+        # Include strategy DSL files and configuration
+        Include:
+          - '**/*.clj'
+          - 'config/*.json'
         Exclude:
-          # Version control and CI/CD
-          - .git/**
-          - .git*
-          - .github/**
-          - .aws-sam/**
-
-          # Python environments
-          - .venv/**
-          - venv/**
-          - env/**
-          - .env*
-
-          # IDE and editor files
-          - .vscode/**
-          - .idea/**
-          - .editorconfig
+          # Sensitive files (security)
+          - '.env*'
+          - .aws/**
 
           # Python cache and build artifacts
-          - .cache/**
-          - .pytest_cache/**
-          - .mypy_cache/**
-          - .ruff_cache/**
           - '**/__pycache__/**'
           - '**/*.pyc'
           - '**/*.pyo'
-          - dist/**
-          - build/**
           - '**/*.egg-info/**'
+          - .pytest_cache/**
+          - .mypy_cache/**
+          - .ruff_cache/**
 
-          # Development and testing
-          - tests/**
-          - .pre-commit-config.yaml
-          - pytest.ini
+          # IDE and editor files
+          - .vscode/**
+          - .editorconfig
 
-          # Documentation
-          - docs/**
-          - CHANGELOG.md
-          - README.md
+          # Documentation within the_alchemiser
           - '**/*.md'
-
-          # Data and logs (not needed in Lambda)
-          - logs/**
-          - data/**
-          - '**/*.csv'
-          - '**/*.parquet'
-
-          # Scripts directory (backtest, stress_test, etc - dev only)
-          - scripts/**
-
-          # Dependencies layer is separate
-          - dependencies/**
-
-          # Media files
-          - '**/*.ipynb'
-          - '**/*.png'
-          - '**/*.jpg'
-          - '**/*.svg'
-          - '**/*.gif'
-          - '**/*.pdf'
-          - logo.png
-
-          # Configuration files (not needed at runtime)
-          - Makefile
-          - poetry.lock
-          - pyproject.toml
-          - sonar-project.properties
-          - samconfig.toml
 
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:

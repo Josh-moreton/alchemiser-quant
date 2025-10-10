@@ -23,8 +23,6 @@ from ..schemas.portfolio_state import PortfolioState
 from ..schemas.rebalance_plan import RebalancePlan
 from .base import BaseEvent
 
-# Constants
-
 
 class StartupEvent(BaseEvent):
     """Event emitted when the system starts up.
@@ -34,6 +32,7 @@ class StartupEvent(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="StartupEvent", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Startup-specific fields
     startup_mode: str = Field(..., description="Startup mode (signal, trade, etc.)")
@@ -50,6 +49,7 @@ class SignalGenerated(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="SignalGenerated", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Signal-specific fields
     signals_data: dict[str, Any] = Field(..., description="Strategy signals data")
@@ -68,6 +68,7 @@ class RebalancePlanned(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="RebalancePlanned", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Rebalance-specific fields
     rebalance_plan: RebalancePlan = Field(..., description="Portfolio rebalancing plan")
@@ -88,6 +89,7 @@ class TradeExecuted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Trade execution fields
     execution_data: dict[str, Any] = Field(..., description="Trade execution data")
@@ -114,6 +116,7 @@ class TradeExecutionStarted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="TradeExecutionStarted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Execution startup fields
     execution_plan: dict[str, Any] = Field(..., description="Trading execution plan")
@@ -134,6 +137,7 @@ class PortfolioStateChanged(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Portfolio state change fields
     portfolio_state_before: PortfolioState = Field(..., description="Portfolio state before change")
@@ -154,6 +158,7 @@ class AllocationComparisonCompleted(BaseEvent):
     event_type: str = Field(
         default="AllocationComparisonCompleted", description=EVENT_TYPE_DESCRIPTION
     )
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Allocation comparison fields
     target_allocations: dict[str, Decimal] = Field(..., description="Target allocation percentages")
@@ -177,6 +182,7 @@ class OrderSettlementCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="OrderSettlementCompleted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Settlement fields
     order_id: str = Field(..., description="Order ID that completed settlement")
@@ -201,6 +207,7 @@ class BulkSettlementCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="BulkSettlementCompleted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Bulk settlement fields
     settled_order_ids: list[str] = Field(
@@ -221,6 +228,7 @@ class ExecutionPhaseCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="ExecutionPhaseCompleted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Execution phase fields
     phase_type: str = Field(..., description="Phase type (SELL_PHASE/BUY_PHASE)")
@@ -241,6 +249,7 @@ class WorkflowStarted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="WorkflowStarted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Workflow fields
     workflow_type: str = Field(..., description="Type of workflow (trading, signal_analysis, etc.)")
@@ -258,6 +267,7 @@ class WorkflowCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="WorkflowCompleted", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Workflow completion fields
     workflow_type: str = Field(..., description="Type of workflow completed")
@@ -274,6 +284,7 @@ class WorkflowFailed(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="WorkflowFailed", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Workflow failure fields
     workflow_type: str = Field(..., description="Type of workflow that failed")
@@ -297,6 +308,7 @@ class ErrorNotificationRequested(BaseEvent):
     event_type: str = Field(
         default="ErrorNotificationRequested", description=EVENT_TYPE_DESCRIPTION
     )
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Error notification fields
     error_severity: str = Field(..., description="Error severity level (CRITICAL, HIGH, MEDIUM)")
@@ -319,13 +331,14 @@ class TradingNotificationRequested(BaseEvent):
     event_type: str = Field(
         default="TradingNotificationRequested", description=EVENT_TYPE_DESCRIPTION
     )
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Trading notification fields
     trading_success: bool = Field(..., description="Whether trading was successful")
     trading_mode: str = Field(..., description="Trading mode (LIVE, PAPER)")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of orders that succeeded")
-    total_trade_value: float = Field(..., description="Total value of trades executed")
+    total_trade_value: Decimal = Field(..., description="Total value of trades executed")
     execution_data: dict[str, Any] = Field(..., description="Detailed execution data")
     error_message: str | None = Field(default=None, description="Error message if trading failed")
     error_code: str | None = Field(default=None, description="Optional error code")
@@ -342,6 +355,7 @@ class SystemNotificationRequested(BaseEvent):
     event_type: str = Field(
         default="SystemNotificationRequested", description=EVENT_TYPE_DESCRIPTION
     )
+    schema_version: str = Field(default="1.0", description="Event schema version")
 
     # System notification fields
     notification_type: str = Field(..., description="Type of notification (INFO, WARNING, ALERT)")
