@@ -48,7 +48,10 @@ class SingleStrategyOrchestrator:
         self._market_data = market_data_adapter
 
     def run(
-        self, strategy_id: str, context: StrategyContext, correlation_id: str | None = None
+        self,
+        strategy_id: str,
+        context: StrategyContext,
+        correlation_id: str | None = None,
     ) -> StrategyAllocation:
         """Run strategy and return allocation schema.
 
@@ -93,7 +96,7 @@ class SingleStrategyOrchestrator:
                 as_of=context.as_of or datetime.now(UTC),
                 constraints={
                     "strategy_id": strategy_id,
-                    "symbols": context.symbols,
+                    "symbols": ",".join(context.symbols),
                     "timeframe": context.timeframe,
                 },
             )

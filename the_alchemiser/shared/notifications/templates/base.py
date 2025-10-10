@@ -1,9 +1,13 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
 Base HTML email template module.
 
 This module provides the core HTML template structure and common styling
-used across all email types.
+used across all email types in the notification system.
+
+The BaseEmailTemplate class offers static methods for generating responsive,
+email-client-compatible HTML templates with consistent branding and styling.
+All methods are pure functions with no side effects.
 """
 
 from __future__ import annotations
@@ -14,7 +18,22 @@ from ...constants import APPLICATION_NAME
 
 
 class BaseEmailTemplate:
-    """Base class for HTML email templates with responsive design."""
+    """Base class for HTML email templates with responsive design.
+
+    This class provides static methods for building professional HTML email templates
+    with consistent branding, responsive layouts, and email client compatibility
+    (including Outlook/MSO support).
+
+    All methods are pure functions (no side effects) and return HTML strings.
+    The templates use inline CSS for maximum email client compatibility.
+
+    Usage:
+        >>> content = BaseEmailTemplate.create_alert_box("Success!", "success")
+        >>> header = BaseEmailTemplate.get_header()
+        >>> footer = BaseEmailTemplate.get_footer()
+        >>> email_html = BaseEmailTemplate.wrap_content(header + content + footer)
+
+    """
 
     # Logo configuration - update this URL to your hosted logo
     LOGO_URL = "https://alchemiser.rwxt.org/android-chrome-512x512.png"
@@ -22,7 +41,13 @@ class BaseEmailTemplate:
 
     @staticmethod
     def get_base_styles() -> str:
-        """Get common CSS styles for email templates."""
+        """Get common CSS styles for email templates.
+
+        Returns:
+            str: CSS <style> block with responsive media queries for mobile devices.
+                 Includes width adjustments and padding for screens under 600px.
+
+        """
         return """
         <style>
             @media (max-width: 600px) {
@@ -34,7 +59,17 @@ class BaseEmailTemplate:
 
     @staticmethod
     def get_header(subtitle: str = "Institutional Portfolio Management System") -> str:
-        """Get HTML header section."""
+        """Get HTML header section with logo and branding.
+
+        Args:
+            subtitle: Subtitle text displayed under the main application name.
+                     Defaults to "Institutional Portfolio Management System".
+
+        Returns:
+            str: HTML table row containing the header with gradient background,
+                 logo, application name, and subtitle.
+
+        """
         return f"""
         <tr>
             <td style="padding: 16px 24px; text-align: center; background: linear-gradient(135deg, #1F2937, #374151); border-radius: 8px 8px 0 0;">
@@ -99,7 +134,19 @@ class BaseEmailTemplate:
         status_emoji: str,
         timestamp: datetime | None = None,
     ) -> str:
-        """Get HTML status banner section."""
+        """Get HTML status banner section.
+
+        Args:
+            title: Main title text for the banner
+            status: Status text (e.g., "Success", "Failed", "Running")
+            status_color: Background color for the banner (e.g., "#10B981", "#EF4444")
+            status_emoji: Status emoji (currently not displayed in output)
+            timestamp: Optional timestamp. If None, uses current UTC time.
+
+        Returns:
+            str: HTML table row containing the status banner with colored background.
+
+        """
         timestamp = timestamp or datetime.now(UTC)
 
         return f"""
@@ -117,7 +164,13 @@ class BaseEmailTemplate:
 
     @staticmethod
     def get_footer() -> str:
-        """Get HTML footer section."""
+        """Get HTML footer section with branding and disclaimers.
+
+        Returns:
+            str: HTML table row containing the footer with dark background,
+                 application name, tagline, and legal disclaimer.
+
+        """
         return f"""
         <tr>
             <td style="padding: 24px; background-color: #1F2937; border-radius: 0 0 12px 12px; text-align: center;">
@@ -136,7 +189,18 @@ class BaseEmailTemplate:
 
     @staticmethod
     def wrap_content(content: str, title: str = APPLICATION_NAME) -> str:
-        """Wrap content in base HTML email structure."""
+        """Wrap content in base HTML email structure.
+
+        Args:
+            content: Inner HTML content to wrap (typically includes header, body, footer)
+            title: Email title used in <title> tag and preview text.
+                  Defaults to APPLICATION_NAME constant.
+
+        Returns:
+            str: Complete HTML document with DOCTYPE, head section (meta tags, styles),
+                 and body containing the wrapped content in a responsive email layout.
+
+        """
         return f"""
         <!DOCTYPE html>
         <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -180,7 +244,17 @@ class BaseEmailTemplate:
 
     @staticmethod
     def create_section(title: str, content: str, margin: str = "24px 0") -> str:
-        """Create a content section with title."""
+        """Create a content section with title.
+
+        Args:
+            title: Section title text
+            content: HTML content for the section body
+            margin: CSS margin value for the section. Defaults to "24px 0".
+
+        Returns:
+            str: HTML div containing the title (h3) and content with specified styling.
+
+        """
         return f"""
         <div style="margin: {margin};">
             <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">{title}</h3>
@@ -190,7 +264,19 @@ class BaseEmailTemplate:
 
     @staticmethod
     def create_alert_box(content: str, alert_type: str = "info") -> str:
-        """Create an alert/notification box."""
+        """Create an alert/notification box.
+
+        Args:
+            content: Alert message content (HTML allowed)
+            alert_type: Type of alert determining color scheme.
+                       Valid values: "success", "error", "warning", "info" (default).
+                       Invalid values fall back to "info" styling.
+
+        Returns:
+            str: HTML div with colored background, border, and padding styled
+                 according to the alert type.
+
+        """
         colors = {
             "success": {"bg": "#D1FAE5", "border": "#10B981", "text": "#065F46"},
             "error": {"bg": "#FEE2E2", "border": "#EF4444", "text": "#DC2626"},
@@ -208,7 +294,18 @@ class BaseEmailTemplate:
 
     @staticmethod
     def create_table(headers: list[str], rows: list[list[str]], table_id: str = "") -> str:
-        """Create a responsive table."""
+        """Create a responsive table.
+
+        Args:
+            headers: List of header column names
+            rows: List of rows, where each row is a list of cell values (strings)
+            table_id: Optional HTML id attribute for the table element
+
+        Returns:
+            str: HTML table with styled header and body rows. Includes responsive
+                 styling with borders, shadows, and alternating row colors.
+
+        """
         header_html = "".join(
             [
                 f"<th style='padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;'>{header}</th>"

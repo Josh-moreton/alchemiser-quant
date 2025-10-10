@@ -49,6 +49,7 @@ This file now serves as the main orchestrator, delegating to these components.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import threading
 import time
@@ -248,7 +249,8 @@ class RealTimePricingService:
             )
             return False
 
-        except (ConnectionError, OSError, WebSocketError) as e:
+        except (OSError, WebSocketError) as e:
+            # Note: ConnectionError is a subclass of OSError, so we only catch OSError
             self.logger.error(
                 "Failed to start real-time pricing service",
                 extra={
@@ -345,45 +347,44 @@ class RealTimePricingService:
             quote_values = self._data_processor.extract_quote_values(data)
             timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
 
-            self._data_processor.log_quote_debug(
-                symbol, quote_values.bid_price, quote_values.ask_price
-            )
-
-            if quote_values.bid_price is not None and quote_values.ask_price is not None:
-                # Use asyncio.to_thread for potentially blocking lock operations
-                await asyncio.to_thread(
-                    self._price_store.update_quote_data,
+            try:
+                await self._data_processor.log_quote_debug(
                     symbol,
                     quote_values.bid_price,
                     quote_values.ask_price,
-                    quote_values.bid_size,
-                    quote_values.ask_size,
-                    timestamp,
+                    self._correlation_id,
                 )
+            except RuntimeError:
+                # Event loop executor has shut down - gracefully ignore
+                return
+
+            if quote_values.bid_price is not None and quote_values.ask_price is not None:
+                try:
+                    # Use asyncio.to_thread for potentially blocking lock operations
+                    await asyncio.to_thread(
+                        self._price_store.update_quote_data,
+                        symbol,
+                        quote_values.bid_price,
+                        quote_values.ask_price,
+                        quote_values.bid_size,
+                        quote_values.ask_size,
+                        timestamp,
+                    )
+                except RuntimeError:
+                    # Event loop executor has shut down - gracefully ignore
+                    return
 
             # Update stats with thread safety
             with self._stats_lock:
                 self._stats["quotes_received"] += 1
 
-        except (StreamingError, WebSocketError) as e:
-            self.logger.error(
-                "Error processing quote",
-                extra={
-                    "correlation_id": self._correlation_id,
-                    "symbol": symbol if "symbol" in locals() else None,
-                    "error_type": type(e).__name__,
-                },
-            )
-            self._data_processor.handle_quote_error(e)
+        except RuntimeError:
+            # Event loop executor has shut down during error handling - gracefully ignore
+            pass
         except Exception as e:
-            self.logger.exception(
-                "Unexpected error processing quote",
-                extra={
-                    "correlation_id": self._correlation_id,
-                    "symbol": symbol if "symbol" in locals() else None,
-                },
-            )
-            self._data_processor.handle_quote_error(e)
+            with contextlib.suppress(RuntimeError):
+                # Event loop executor has shut down - gracefully ignore
+                await self._data_processor.handle_quote_error(e, self._correlation_id)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream with async processing optimizations."""
@@ -399,14 +400,18 @@ class RealTimePricingService:
             price, volume, timestamp = self._data_processor.extract_trade_values(trade)
 
             if price and price > 0:
-                # Use asyncio.to_thread for potentially blocking lock operations
-                await asyncio.to_thread(
-                    self._price_store.update_trade_data,
-                    symbol,
-                    price,
-                    timestamp,
-                    volume,
-                )
+                try:
+                    # Use asyncio.to_thread for potentially blocking lock operations
+                    await asyncio.to_thread(
+                        self._price_store.update_trade_data,
+                        symbol,
+                        price,
+                        timestamp,
+                        volume,
+                    )
+                except RuntimeError:
+                    # Event loop executor has shut down - gracefully ignore
+                    return
 
                 # Update stats with thread safety
                 with self._stats_lock:
@@ -416,24 +421,22 @@ class RealTimePricingService:
             # Yield control to event loop
             await asyncio.sleep(0)
 
-        except (StreamingError, WebSocketError) as e:
-            self.logger.error(
-                "Error processing trade",
-                extra={
-                    "correlation_id": self._correlation_id,
-                    "symbol": symbol if "symbol" in locals() else None,
-                    "error_type": type(e).__name__,
-                },
-                exc_info=True,
-            )
-        except Exception:
-            self.logger.exception(
-                "Unexpected error processing trade",
-                extra={
-                    "correlation_id": self._correlation_id,
-                    "symbol": symbol if "symbol" in locals() else None,
-                },
-            )
+        except RuntimeError:
+            # Event loop executor has shut down during error handling - gracefully ignore
+            pass
+        except Exception as e:
+            with contextlib.suppress(RuntimeError):
+                # Event loop executor has shut down - gracefully ignore
+                await asyncio.to_thread(
+                    self.logger.error,
+                    "Error processing trade",
+                    extra={
+                        "correlation_id": self._correlation_id,
+                        "symbol": symbol if "symbol" in locals() else None,
+                        "error": str(e),
+                    },
+                    exc_info=True,
+                )
 
     # Price retrieval methods (delegate to price store)
 
