@@ -31,6 +31,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.0] - 2025-01-10
+
+### Fixed
+- **shared/notifications/config.py** - Comprehensive remediation of all findings from file review
+  - **HIGH**: Replaced bare `except Exception` handlers with typed `ConfigurationError` from `shared.errors`
+  - **HIGH**: Removed PII leakage - no longer logs email addresses in debug mode
+  - **HIGH**: Converted all logging to structured format with explicit parameters (no f-strings)
+  - **HIGH**: Changed return type from `Optional[EmailCredentials]` to `EmailCredentials` with proper error raising
+  - **MEDIUM**: Added thread-safe singleton pattern with double-check locking for global instance
+  - **MEDIUM**: Implemented caching for `neutral_mode` flag to avoid redundant config loads
+  - **MEDIUM**: Updated business unit classification from "utilities" to "notifications"
+  - **LOW**: Added comprehensive docstrings with examples, pre/post-conditions, and use cases
+  - **LOW**: Added deprecation warnings to backward compatibility functions (`get_email_config`, `is_neutral_mode_enabled`)
+  - **INFO**: Enhanced class docstring with thread safety notes and caching strategy documentation
+
+### Added
+- **tests/shared/notifications/test_config.py** - Comprehensive test suite (400+ lines)
+  - Test successful configuration loading with all fields
+  - Test caching behavior and cache invalidation
+  - Test missing required fields raise `ConfigurationError`
+  - Test default fallback behavior (to_email defaults to from_email)
+  - Test neutral mode caching and error handling
+  - Test thread safety of singleton pattern with concurrent access
+  - Test backward compatibility functions with deprecation warnings
+  - Test error wrapping as `ConfigurationError` with proper chaining
+  - 100% coverage of public API methods
+
+### Changed
+- **shared/notifications/config.py** - API changes for better type safety
+  - `EmailConfig.get_config()` now raises `ConfigurationError` instead of returning `None`
+  - `EmailConfig.is_neutral_mode_enabled()` now raises `ConfigurationError` on errors instead of returning `False`
+  - Backward compatibility functions maintain original behavior (return `None`/`False` on errors) but emit deprecation warnings
+  - Added `MODULE_NAME` constant for consistent structured logging
+
 ### Added
 - **docs/file_reviews/FILE_REVIEW_shared_notifications_config.md** - Comprehensive financial-grade line-by-line audit of email configuration module
   - Identified 4 High severity issues (bare exception handlers, PII logging, tuple-returning legacy function)
