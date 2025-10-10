@@ -2,15 +2,9 @@
 
 Context management for logging system.
 
-This module provides context variable management for request tracking, error tracking,
-and event tracing across the logging infrastructure. Context variables are used to
-propagate IDs through the logging system without requiring them to be passed explicitly.
-
-Context variables support event-driven workflow tracing:
-- request_id: Unique identifier for a request/workflow
-- error_id: Unique identifier for an error instance
-- correlation_id: Tracks related events across the event-driven system
-- causation_id: Tracks the immediate cause of an event (parent event)
+This module provides context variable management for request tracking and error tracking
+across the logging infrastructure. Context variables are used to propagate request IDs
+and error IDs through the logging system without requiring them to be passed explicitly.
 """
 
 from __future__ import annotations
@@ -33,6 +27,9 @@ def set_request_id(request_id: str | None) -> None:
     Args:
         request_id: The request ID to set, or None to clear
 
+    Raises:
+        This function does not raise exceptions.
+
     """
     request_id_context.set(request_id)
 
@@ -42,6 +39,9 @@ def set_error_id(error_id: str | None) -> None:
 
     Args:
         error_id: The error ID to set, or None to clear
+
+    Raises:
+        This function does not raise exceptions.
 
     """
     error_id_context.set(error_id)
@@ -53,6 +53,9 @@ def get_request_id() -> str | None:
     Returns:
         The current request ID, or None if not set
 
+    Raises:
+        This function does not raise exceptions.
+
     """
     return request_id_context.get()
 
@@ -62,6 +65,9 @@ def get_error_id() -> str | None:
 
     Returns:
         The current error ID, or None if not set
+
+    Raises:
+        This function does not raise exceptions.
 
     """
     return error_id_context.get()
@@ -73,6 +79,9 @@ def set_correlation_id(correlation_id: str | None) -> None:
     Args:
         correlation_id: The correlation ID to set, or None to clear
 
+    Raises:
+        This function does not raise exceptions.
+
     """
     correlation_id_context.set(correlation_id)
 
@@ -82,6 +91,9 @@ def get_correlation_id() -> str | None:
 
     Returns:
         The current correlation ID, or None if not set
+
+    Raises:
+        This function does not raise exceptions.
 
     """
     return correlation_id_context.get()
@@ -93,6 +105,9 @@ def set_causation_id(causation_id: str | None) -> None:
     Args:
         causation_id: The causation ID to set, or None to clear
 
+    Raises:
+        This function does not raise exceptions.
+
     """
     causation_id_context.set(causation_id)
 
@@ -103,6 +118,9 @@ def get_causation_id() -> str | None:
     Returns:
         The current causation ID, or None if not set
 
+    Raises:
+        This function does not raise exceptions.
+
     """
     return causation_id_context.get()
 
@@ -111,7 +129,10 @@ def generate_request_id() -> str:
     """Generate a new request ID.
 
     Returns:
-        A unique request ID string
+        A unique request ID string (UUID v4 format)
+
+    Raises:
+        This function does not raise exceptions.
 
     """
     return str(uuid.uuid4())

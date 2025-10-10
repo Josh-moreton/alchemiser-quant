@@ -1,10 +1,10 @@
-# Pre-commit hooks for The Alchemiser - Production-grade automated code quality
-# Philosophy: Fail fast, run locally what CI runs, maintain consistency with make commands
+# Pre-commit hooks for The Alchemiser - Simplified, non-blocking workflow
+# Philosophy: Catch obvious mistakes, don't block commits
+# Run ruff/mypy manually with: make format, make type-check
 # All tool configurations centralized in pyproject.toml
-# Runs on the_alchemiser/ directory (production code) - tests have separate validation
 
 repos:
-  # Basic file hygiene - foundational checks that don't overlap with Ruff
+  # Basic file hygiene - fast, essential checks only
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
@@ -24,9 +24,8 @@ repos:
       - id: check-added-large-files
         name: Prevent large files (>500KB)
         args: ['--maxkb=500']
-      - id: mixed-line-ending
-        name: Enforce consistent line endings
-        args: ['--fix=lf']
+      - id: end-of-file-fixer
+        name: Ensure files end with newline
         files: ^the_alchemiser/.*\.py$
 
   # Security: Secret detection (baseline approach)
@@ -42,79 +41,3 @@ repos:
               .*\.min\.js$|
               coverage\.xml$
           )$
-
-  # Code Quality: Ruff (formatting, linting, import sorting)
-  - repo: local
-    hooks:
-      # Step 1: Format code (includes whitespace normalization)
-      - id: ruff-format
-        name: Ruff Format (whitespace, style)
-        entry: poetry run ruff format
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: true
-        stages: [pre-commit]
-
-      # Step 2: Auto-fix lint violations
-      - id: ruff-fix
-        name: Ruff Auto-fix (safe fixes)
-        entry: poetry run ruff check --fix
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: true
-        stages: [pre-commit]
-
-  # Type Safety: MyPy strict type checking
-  # NOTE: Temporarily disabled due to duplicate module issue in codebase
-  # both execution_v2/core/smart_execution_strategy.py AND
-  # execution_v2/core/smart_execution_strategy/__init__.py exist
-  # Run manually: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
-  # - repo: local
-  #   hooks:
-  #     - id: mypy
-  #       name: MyPy Type Check (strict mode)
-  #       entry: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
-  #       language: system
-  #       types: [python]
-  #       files: ^the_alchemiser/
-  #       pass_filenames: false
-  #       require_serial: true  # MyPy cache not thread-safe
-  #       stages: [pre-commit]
-
-  # Architecture: Import boundary enforcement
-  - repo: local
-    hooks:
-      - id: import-linter
-        name: Import Linter (architecture boundaries)
-        entry: bash -c 'poetry run lint-imports --config pyproject.toml || poetry run python -m importlinter --config pyproject.toml'
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: false  # Analyzes entire module graph
-        stages: [pre-commit]
-
-  # Security: Bandit (security issue detection)
-  - repo: local
-    hooks:
-      - id: bandit
-        name: Bandit Security Scan
-        entry: poetry run bandit -c pyproject.toml -r the_alchemiser/
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: false
-        stages: [pre-commit]
-
-  # Code Quality: Vulture (dead code detection) - advisory only
-  - repo: local
-    hooks:
-      - id: vulture
-        name: Vulture Dead Code Detection (advisory)
-        entry: poetry run vulture the_alchemiser/ --min-confidence 80
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: false
-        stages: [manual]  # Run manually: pre-commit run vulture --hook-stage manual

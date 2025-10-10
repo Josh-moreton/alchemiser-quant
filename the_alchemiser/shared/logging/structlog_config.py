@@ -58,7 +58,6 @@ def add_alchemiser_context(
     if error_id:
         event_dict["error_id"] = error_id
 
-    # Add event-driven workflow tracing IDs
     correlation_id = correlation_id_context.get()
     if correlation_id:
         event_dict["correlation_id"] = correlation_id
