@@ -44,18 +44,28 @@ class StrategyEvaluationRequested(BaseEvent):
     )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Request fields
-    strategy_id: str = Field(..., min_length=1, description="Strategy identifier to evaluate")
-    strategy_config_path: str = Field(..., min_length=1, description="Path to .clj strategy file")
-    universe: list[str] = Field(default_factory=list, description="Trading universe symbols")
+    strategy_id: str = Field(
+        ..., min_length=1, description="Strategy identifier to evaluate"
+    )
+    strategy_config_path: str = Field(
+        ..., min_length=1, description="Path to .clj strategy file"
+    )
+    universe: list[str] = Field(
+        default_factory=list, description="Trading universe symbols"
+    )
     as_of_date: str | None = Field(
         default=None, description="Optional evaluation date (ISO format)"
     )
 
     # Optional parameters
-    parameters: dict[str, Any] = Field(default_factory=dict, description="Evaluation parameters")
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Evaluation parameters"
+    )
 
 
 class StrategyEvaluated(BaseEvent):
@@ -65,14 +75,22 @@ class StrategyEvaluated(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="StrategyEvaluated", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="StrategyEvaluated", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Result fields
-    strategy_id: str = Field(..., min_length=1, description="Strategy that was evaluated")
-    allocation: StrategyAllocation = Field(..., description="Final portfolio allocation")
+    strategy_id: str = Field(
+        ..., min_length=1, description="Strategy that was evaluated"
+    )
+    allocation: StrategyAllocation = Field(
+        ..., description="Final portfolio allocation"
+    )
     trace: Trace = Field(..., description="Complete evaluation trace")
     success: bool = Field(..., description="Whether evaluation succeeded")
 
@@ -80,7 +98,9 @@ class StrategyEvaluated(BaseEvent):
     error_message: str | None = Field(
         default=None, description="Error message if evaluation failed"
     )
-    error_code: str | None = Field(default=None, description="Structured error code if failed")
+    error_code: str | None = Field(
+        default=None, description="Structured error code if failed"
+    )
 
     # Metadata
     evaluation_metadata: dict[str, Any] = Field(
@@ -95,13 +115,19 @@ class IndicatorComputed(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="IndicatorComputed", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="IndicatorComputed", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Indicator fields
-    request_id: str = Field(..., min_length=1, description="Original request identifier")
+    request_id: str = Field(
+        ..., min_length=1, description="Original request identifier"
+    )
     indicator: TechnicalIndicator = Field(..., description="Computed indicator data")
     computation_time_ms: float = Field(
         ge=0, le=300000, description="Computation time in milliseconds (max 5 minutes)"
@@ -125,11 +151,17 @@ class PortfolioAllocationProduced(BaseEvent):
     )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Allocation fields
-    strategy_id: str = Field(..., min_length=1, description="Strategy that produced allocation")
-    allocation: StrategyAllocation = Field(..., description="Portfolio allocation result")
+    strategy_id: str = Field(
+        ..., min_length=1, description="Strategy that produced allocation"
+    )
+    allocation: StrategyAllocation = Field(
+        ..., description="Portfolio allocation result"
+    )
     allocation_type: Literal["final", "intermediate"] = Field(
         ..., description="Type of allocation (final or intermediate)"
     )
@@ -147,14 +179,22 @@ class FilterEvaluated(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="FilterEvaluated", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="FilterEvaluated", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Filter fields
-    filter_expression: ASTNode = Field(..., description="Filter expression that was evaluated")
-    input_symbols: list[str] = Field(default_factory=list, description="Input symbols to filter")
+    filter_expression: ASTNode = Field(
+        ..., description="Filter expression that was evaluated"
+    )
+    input_symbols: list[str] = Field(
+        default_factory=list, description="Input symbols to filter"
+    )
     filtered_symbols: list[str] = Field(
         default_factory=list, description="Symbols that passed filter"
     )
@@ -178,7 +218,9 @@ class TopNSelected(BaseEvent):
     event_type: str = Field(default="TopNSelected", description=EVENT_TYPE_DESCRIPTION)
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Selection fields
     selection_expression: ASTNode = Field(
@@ -187,7 +229,9 @@ class TopNSelected(BaseEvent):
     input_symbols: list[str] = Field(
         default_factory=list, description="Input symbols for selection"
     )
-    selected_symbols: list[str] = Field(default_factory=list, description="Selected symbols")
+    selected_symbols: list[str] = Field(
+        default_factory=list, description="Selected symbols"
+    )
     selection_criteria: dict[str, Any] = Field(
         default_factory=dict, description="Selection criteria used"
     )
@@ -229,15 +273,23 @@ class DecisionEvaluated(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="DecisionEvaluated", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="DecisionEvaluated", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: int = Field(
+        default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Decision fields
-    decision_expression: ASTNode = Field(..., description="Decision expression that was evaluated")
+    decision_expression: ASTNode = Field(
+        ..., description="Decision expression that was evaluated"
+    )
     condition_result: bool = Field(..., description="Result of condition evaluation")
-    branch_taken: Literal["then", "else"] = Field(..., description="Branch taken (then or else)")
+    branch_taken: Literal["then", "else"] = Field(
+        ..., description="Branch taken (then or else)"
+    )
     branch_result: PortfolioFragment | None = Field(
         default=None, description="Result of branch evaluation"
     )

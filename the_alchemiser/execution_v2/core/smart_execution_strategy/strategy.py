@@ -99,8 +99,13 @@ class SmartExecutionStrategy:
         )
 
         if not validation_result.is_valid:
-            error_msg = validation_result.error_message or f"Validation failed for {request.symbol}"
-            logger.error(f"❌ Preflight validation failed for {request.symbol}: {error_msg}")
+            error_msg = (
+                validation_result.error_message
+                or f"Validation failed for {request.symbol}"
+            )
+            logger.error(
+                f"❌ Preflight validation failed for {request.symbol}: {error_msg}"
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=error_msg,
@@ -186,7 +191,9 @@ class SmartExecutionStrategy:
 
         return quote, used_fallback
 
-    def _handle_quote_validation_failure(self, request: SmartOrderRequest) -> SmartOrderResult:
+    def _handle_quote_validation_failure(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Handle case where quote validation fails.
 
         Args:
@@ -210,7 +217,9 @@ class SmartExecutionStrategy:
             execution_strategy="smart_limit_failed",
         )
 
-    def _create_market_fallback_result(self, request: SmartOrderRequest) -> SmartOrderResult:
+    def _create_market_fallback_result(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Create a market fallback result that indicates need for async processing.
 
         Args:
@@ -247,7 +256,9 @@ class SmartExecutionStrategy:
             return self.pricing_calculator.calculate_liquidity_aware_price(
                 quote, request.side, order_size
             )
-        return self.pricing_calculator.calculate_simple_inside_spread_price(quote, request.side)
+        return self.pricing_calculator.calculate_simple_inside_spread_price(
+            quote, request.side
+        )
 
     async def _place_validated_order(
         self,
@@ -294,7 +305,9 @@ class SmartExecutionStrategy:
             used_fallback=used_fallback,
         )
 
-    async def _handle_invalid_price_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _handle_invalid_price_fallback(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Handle invalid price by falling back to market order if urgency is high.
 
         Args:
@@ -313,7 +326,9 @@ class SmartExecutionStrategy:
             execution_strategy="smart_limit_failed",
         )
 
-    def _prepare_final_price(self, optimal_price: Decimal, request: SmartOrderRequest) -> Decimal:
+    def _prepare_final_price(
+        self, optimal_price: Decimal, request: SmartOrderRequest
+    ) -> Decimal:
         """Prepare final price with quantization and validation.
 
         Args:
@@ -416,7 +431,9 @@ class SmartExecutionStrategy:
 
         """
         # Track for potential re-pegging
-        self.order_tracker.add_order(result.order_id, request, placement_time, optimal_price)
+        self.order_tracker.add_order(
+            result.order_id, request, placement_time, optimal_price
+        )
 
         logger.info(
             f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
@@ -435,7 +452,9 @@ class SmartExecutionStrategy:
             **analysis_metadata,
             "bid_price": float(quote.bid_price),
             "ask_price": float(quote.ask_price),
-            "spread_percent": float((quote.ask_price - quote.bid_price) / quote.bid_price * 100),
+            "spread_percent": float(
+                (quote.ask_price - quote.bid_price) / quote.bid_price * 100
+            ),
             "bid_size": float(quote.bid_size),
             "ask_size": float(quote.ask_size),
             "used_fallback": used_fallback,
@@ -452,7 +471,9 @@ class SmartExecutionStrategy:
             metadata=metadata_dict,
         )
 
-    async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _place_market_order_fallback(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
 
         Args:
@@ -526,7 +547,9 @@ class SmartExecutionStrategy:
         """
         return self.quote_provider.wait_for_quote_data(symbol, timeout)
 
-    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:

@@ -42,7 +42,9 @@ class MarketOrderExecutor:
         self.validator = validator
         self.buying_power_service = buying_power_service
 
-    def execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+    def execute_market_order(
+        self, symbol: str, side: str, quantity: Decimal
+    ) -> OrderResult:
         """Execute a standard market order with preflight validation.
 
         Args:
@@ -57,7 +59,9 @@ class MarketOrderExecutor:
         validation_result = self._validate_market_order(symbol, quantity, side)
 
         if not validation_result.is_valid:
-            return self._build_validation_failure_result(symbol, side, quantity, validation_result)
+            return self._build_validation_failure_result(
+                symbol, side, quantity, validation_result
+            )
 
         final_quantity = validation_result.adjusted_quantity or quantity
 
@@ -67,12 +71,16 @@ class MarketOrderExecutor:
             if side.lower() == "buy":
                 self._ensure_buying_power(symbol, final_quantity)
 
-            broker_result = self._place_market_order_with_broker(symbol, side, final_quantity)
+            broker_result = self._place_market_order_with_broker(
+                symbol, side, final_quantity
+            )
             return self._build_market_order_execution_result(
                 symbol, side, final_quantity, broker_result
             )
         except Exception as exc:
-            return self._handle_market_order_exception(symbol, side, final_quantity, exc)
+            return self._handle_market_order_exception(
+                symbol, side, final_quantity, exc
+            )
 
     def _validate_market_order(
         self,
@@ -112,7 +120,9 @@ class MarketOrderExecutor:
             filled_at=None,  # Not filled since validation failed
         )
 
-    def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
+    def _log_validation_warnings(
+        self, validation_result: OrderValidationResult
+    ) -> None:
         """Log any warnings produced during validation."""
         for warning in validation_result.warnings:
             logger.warning(f"⚠️ {warning}")
@@ -133,7 +143,9 @@ class MarketOrderExecutor:
             try:
                 price = self.alpaca_manager.get_current_price(symbol)
                 if not price or price <= 0:
-                    logger.warning(f"⚠️ Could not get price for {symbol} buying power check")
+                    logger.warning(
+                        f"⚠️ Could not get price for {symbol} buying power check"
+                    )
                     return  # Skip buying power check if no price available
 
                 estimated_cost = quantity * Decimal(str(price))
@@ -141,8 +153,8 @@ class MarketOrderExecutor:
                 logger.warning(f"⚠️ Could not estimate cost for {symbol}: {exc}")
                 return  # Skip buying power check if price unavailable
 
-            buying_power_check = self.buying_power_service.verify_buying_power_available(
-                estimated_cost
+            buying_power_check = (
+                self.buying_power_service.verify_buying_power_available(estimated_cost)
             )
             if not buying_power_check[0]:
                 error_msg = (
@@ -219,7 +231,9 @@ class MarketOrderExecutor:
             error_message=None,
             timestamp=datetime.now(UTC),
             order_type="MARKET",  # This is a market order
-            filled_at=datetime.now(UTC) if avg_fill_price else None,  # Set filled_at if executed
+            filled_at=(
+                datetime.now(UTC) if avg_fill_price else None
+            ),  # Set filled_at if executed
         )
 
     def _handle_market_order_exception(
