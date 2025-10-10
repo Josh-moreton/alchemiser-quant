@@ -167,6 +167,16 @@ class TestGetErrorSpec:
             assert spec.code == error_code
             assert isinstance(spec, ErrorSpec)
 
+    def test_get_error_spec_raises_type_error_for_invalid_type(self):
+        """Test that get_error_spec raises TypeError for non-ErrorCode input."""
+        with pytest.raises(TypeError, match="Expected ErrorCode enum"):
+            get_error_spec("TRD_MARKET_CLOSED")  # type: ignore[arg-type]
+
+    def test_get_error_spec_raises_type_error_for_none(self):
+        """Test that get_error_spec raises TypeError for None input."""
+        with pytest.raises(TypeError, match="Expected ErrorCode enum"):
+            get_error_spec(None)  # type: ignore[arg-type]
+
 
 class TestGetSuggestedAction:
     """Test get_suggested_action function."""
@@ -199,6 +209,16 @@ class TestGetSuggestedAction:
             action = get_suggested_action(error_code)
             assert isinstance(action, str)
             assert len(action) > 10  # Should be a meaningful message
+
+    def test_get_suggested_action_raises_type_error_for_invalid_type(self):
+        """Test that get_suggested_action raises TypeError for non-ErrorCode input."""
+        with pytest.raises(TypeError, match="Expected ErrorCode enum"):
+            get_suggested_action("TRD_MARKET_CLOSED")  # type: ignore[arg-type]
+
+    def test_get_suggested_action_raises_type_error_for_none(self):
+        """Test that get_suggested_action raises TypeError for None input."""
+        with pytest.raises(TypeError, match="Expected ErrorCode enum"):
+            get_suggested_action(None)  # type: ignore[arg-type]
 
 
 class TestErrorCatalogCompleteness:
