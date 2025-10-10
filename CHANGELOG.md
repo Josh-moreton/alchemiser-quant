@@ -1,3 +1,25 @@
+## 2.16.5 - 2025-10-08
+
+### Changed
+- **SAM Build Architecture Improvement**: Optimized Lambda packaging following AWS best practices
+  - **Changed CodeUri from `./` to `the_alchemiser/`** - SAM now only scans application directory
+  - **Updated Handler path** - Now `lambda_handler.lambda_handler` (relative to CodeUri)
+  - **Simplified exclusion patterns** - Moved from extensive root-level exclusions to minimal, focused patterns
+  - **Added explicit includes** - Strategy files (*.clj) and config files (*.json) now explicitly included
+  - **All exclusions in template.yaml** - BuildProperties now handles all exclusions including security (.env*, .aws/)
+  - **Benefits**: Cleaner build process, easier maintenance, more aligned with AWS SAM documentation
+  - **Documentation**: Created `docs/SAM_BUILD_ARCHITECTURE.md` with comprehensive build architecture guide
+
+## 2.16.6 - 2025-10-09
+
+### Fixed
+- **Development workflow**: Aligned Makefile `format` target with pre-commit hooks to prevent double commits
+  - Added trailing whitespace removal (matches pre-commit's `trailing-whitespace` hook)
+  - Added end-of-file newline fixer (matches pre-commit's `end-of-file-fixer` hook)
+  - Running `make format` now produces the same result as pre-commit hooks
+  - Eliminates the need for two commits when using `make format && make type-check` before committing
+  - Updated help text to reflect all formatting steps performed
+
 ## 2.16.1 - 2025-10-07
 
 ### Fixed
