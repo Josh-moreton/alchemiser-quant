@@ -65,11 +65,11 @@ graph TD
     B -->|Route by event type| D[Execution Lambda]
     D -->|TradeExecuted event| B
     B -->|Route by event type| E[Orchestration Lambda]
-    
+
     B -->|Archive| F[S3 Event Archive]
     B -->|Failed events| G[DLQ SQS]
     B -->|Metrics| H[CloudWatch]
-    
+
     style B fill:#ff9900,stroke:#333,stroke-width:4px
     style F fill:#569A31,stroke:#333,stroke-width:2px
     style G fill:#D13212,stroke:#333,stroke-width:2px
@@ -250,7 +250,7 @@ logger = get_logger(__name__)
 
 class EventBridgeBus(EventBus):
     """EventBus implementation using Amazon EventBridge.
-    
+
     Provides durable, async, distributed event routing with:
     - Event persistence and replay
     - Automatic retries with exponential backoff
@@ -266,7 +266,7 @@ class EventBridgeBus(EventBus):
         enable_local_handlers: bool = False,
     ) -> None:
         """Initialize EventBridge bus.
-        
+
         Args:
             event_bus_name: Name of the EventBridge event bus
             source_prefix: Prefix for event sources (e.g., "alchemiser.strategy")
@@ -276,10 +276,10 @@ class EventBridgeBus(EventBus):
         self.event_bus_name = event_bus_name
         self.source_prefix = source_prefix
         self.enable_local_handlers = enable_local_handlers
-        
+
         # Initialize EventBridge client
         self.events_client = boto3.client("events")
-        
+
         logger.info(
             "EventBridgeBus initialized",
             event_bus_name=event_bus_name,
@@ -288,20 +288,20 @@ class EventBridgeBus(EventBus):
 
     def publish(self, event: BaseEvent) -> None:
         """Publish event to EventBridge.
-        
+
         Args:
             event: Event to publish
-            
+
         Raises:
             Does not raise - logs errors and continues
         """
         try:
             # Determine source based on module
             source = f"{self.source_prefix}.{event.source_module}"
-            
+
             # Serialize event to dict
             event_dict = event.model_dump(mode="json")
-            
+
             # Build EventBridge entry
             entry = {
                 "Time": datetime.now(UTC),
@@ -311,16 +311,16 @@ class EventBridgeBus(EventBus):
                 "EventBusName": self.event_bus_name,
                 "Resources": [],
             }
-            
+
             # Add correlation/causation for tracing
             if event.correlation_id:
                 entry["Resources"].append(f"correlation:{event.correlation_id}")
             if event.causation_id:
                 entry["Resources"].append(f"causation:{event.causation_id}")
-            
+
             # Publish to EventBridge
             response = self.events_client.put_events(Entries=[entry])
-            
+
             # Check for failures
             if response.get("FailedEntryCount", 0) > 0:
                 failed = response["Entries"][0]
@@ -338,11 +338,11 @@ class EventBridgeBus(EventBus):
                     correlation_id=event.correlation_id,
                     source=source,
                 )
-            
+
             # Also trigger local handlers if enabled (for testing/hybrid mode)
             if self.enable_local_handlers:
                 super().publish(event)
-                
+
         except ClientError as e:
             logger.error(
                 "EventBridge client error",
@@ -360,10 +360,10 @@ class EventBridgeBus(EventBus):
 
     def subscribe(self, event_type: str, handler: EventHandler) -> None:
         """Subscribe handler to event type.
-        
+
         Note: With EventBridge, subscriptions are managed via CloudFormation
         EventRules, not programmatically. This method is kept for local testing.
-        
+
         Args:
             event_type: Type of event to subscribe to
             handler: Handler instance
@@ -399,11 +399,11 @@ logger = get_logger(__name__)
 
 def eventbridge_handler(event: dict, context: object) -> dict:
     """Handle EventBridge event by routing to appropriate handler.
-    
+
     Args:
         event: EventBridge event payload
         context: Lambda context object
-        
+
     Returns:
         Response dict with statusCode and body
     """
@@ -412,45 +412,45 @@ def eventbridge_handler(event: dict, context: object) -> dict:
         detail_type = event.get("detail-type", "")
         detail = event.get("detail", {})
         source = event.get("source", "")
-        
+
         logger.info(
             "Received EventBridge event",
             detail_type=detail_type,
             source=source,
             event_id=detail.get("event_id"),
         )
-        
+
         # Parse detail as event object
         if isinstance(detail, str):
             detail = json.loads(detail)
-        
+
         # Reconstruct event from detail
         event_class = _get_event_class(detail_type)
         if not event_class:
             logger.warning(f"Unknown event type: {detail_type}")
             return {"statusCode": 400, "body": f"Unknown event type: {detail_type}"}
-        
+
         event_obj = event_class.model_validate(detail)
-        
+
         # Initialize container and get appropriate handler
         container = ApplicationContainer.create_for_environment("production")
         handler = _get_handler_for_event(container, detail_type)
-        
+
         if not handler:
             logger.warning(f"No handler configured for event type: {detail_type}")
             return {"statusCode": 404, "body": f"No handler for: {detail_type}"}
-        
+
         # Invoke handler
         handler.handle_event(event_obj)
-        
+
         logger.info(
             "Event handled successfully",
             detail_type=detail_type,
             event_id=event_obj.event_id,
         )
-        
+
         return {"statusCode": 200, "body": "Event processed successfully"}
-        
+
     except Exception as e:
         logger.error(
             "Failed to handle EventBridge event",
@@ -471,7 +471,7 @@ def _get_event_class(detail_type: str) -> type[BaseEvent] | None:
         WorkflowCompleted,
         WorkflowFailed,
     )
-    
+
     event_map = {
         "SignalGenerated": SignalGenerated,
         "RebalancePlanned": RebalancePlanned,
@@ -479,7 +479,7 @@ def _get_event_class(detail_type: str) -> type[BaseEvent] | None:
         "WorkflowCompleted": WorkflowCompleted,
         "WorkflowFailed": WorkflowFailed,
     }
-    
+
     return event_map.get(detail_type)
 
 
@@ -488,7 +488,7 @@ def _get_handler_for_event(container: ApplicationContainer, detail_type: str) ->
     # Import handlers
     from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
     from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
-    
+
     handler_map = {
         "SignalGenerated": lambda: PortfolioAnalysisHandler(container),
         "RebalancePlanned": lambda: TradingExecutionHandler(container),
@@ -497,7 +497,7 @@ def _get_handler_for_event(container: ApplicationContainer, detail_type: str) ->
         "WorkflowCompleted": lambda: None,  # Orchestrator only
         "WorkflowFailed": lambda: None,  # Orchestrator only
     }
-    
+
     factory = handler_map.get(detail_type)
     return factory() if factory else None
 ```
@@ -518,7 +518,7 @@ def _get_handler_for_event(container: ApplicationContainer, detail_type: str) ->
 
 class EventBusSettings(BaseSettings):
     """Event bus configuration."""
-    
+
     # EventBridge settings
     use_eventbridge: bool = Field(
         default=False,
@@ -556,7 +556,7 @@ from datetime import datetime, timedelta
 def replay_events(start_time: datetime, end_time: datetime, event_pattern: dict):
     """Replay events from archive."""
     events = boto3.client("events")
-    
+
     response = events.start_replay(
         ReplayName=f"replay-{datetime.now().isoformat()}",
         EventSourceArn=f"arn:aws:events:us-east-1:123456789012:archive/alchemiser-event-archive",
@@ -566,7 +566,7 @@ def replay_events(start_time: datetime, end_time: datetime, event_pattern: dict)
             "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/alchemiser-trading-events"
         },
     )
-    
+
     print(f"Replay started: {response['ReplayArn']}")
 ```
 
@@ -645,10 +645,10 @@ def test_full_workflow_via_eventbridge(eventbridge_bus):
     # Publish SignalGenerated
     signal_event = SignalGenerated(...)
     eventbridge_bus.publish(signal_event)
-    
+
     # Wait for workflow completion (check DynamoDB or SQS)
     result = wait_for_workflow_completion(signal_event.correlation_id, timeout=60)
-    
+
     assert result.success
     assert result.orders_executed > 0
 ```
