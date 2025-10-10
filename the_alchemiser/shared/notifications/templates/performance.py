@@ -79,7 +79,9 @@ class PerformanceBuilder:
             return side
 
         # Handle enum-like objects with .value attribute
-        side_str = str(side.value).upper() if hasattr(side, "value") else str(side).upper()
+        side_str = (
+            str(side.value).upper() if hasattr(side, "value") else str(side).upper()
+        )
 
         # Remove "ORDERSIDE." prefix if present (e.g., "ORDERSIDE.BUY" -> "BUY")
         if side_str.startswith("ORDERSIDE."):
@@ -174,7 +176,9 @@ class PerformanceBuilder:
 
         # Format values with proper Decimal handling
         qty_str = f"{order.qty:.6f}"
-        value_str = f"${order.estimated_value:,.2f}" if order.estimated_value else "$0.00"
+        value_str = (
+            f"${order.estimated_value:,.2f}" if order.estimated_value else "$0.00"
+        )
 
         return f"""
         <tr>
@@ -337,7 +341,9 @@ class PerformanceBuilder:
         """
         if not trading_summary:
             logger.warning("Trading summary not provided")
-            return BaseEmailTemplate.create_alert_box("Trading summary not available", "warning")
+            return BaseEmailTemplate.create_alert_box(
+                "Trading summary not available", "warning"
+            )
 
         logger.info(
             "Building trading summary HTML",
@@ -536,7 +542,9 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_trading_activity_neutral(orders: list[OrderNotificationDTO] | None = None) -> str:
+    def build_trading_activity_neutral(
+        orders: list[OrderNotificationDTO] | None = None,
+    ) -> str:
         """Build HTML for trading activity section without dollar values.
 
         Args:
@@ -582,7 +590,8 @@ class PerformanceBuilder:
 
         # Generate order rows
         orders_rows = "".join(
-            PerformanceBuilder._format_order_row_neutral(order) for order in displayed_orders
+            PerformanceBuilder._format_order_row_neutral(order)
+            for order in displayed_orders
         )
 
         # Calculate totals for summary (count only, no dollar amounts)
