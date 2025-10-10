@@ -236,18 +236,25 @@ class PhaseExecutor:
     def _calculate_liquidation_shares(self, symbol: str) -> Decimal:
         """Calculate shares for liquidation (full position sell).
 
+        For liquidation, we MUST sell the exact position quantity regardless
+        of fractionability rules. This is critical because:
+        1. We need to close out the position completely
+        2. Brokers accept fractional sells even for non-fractionable assets
+        3. Rounding down would leave orphaned fractional positions
+
         Args:
             symbol: Stock symbol
 
         Returns:
-            Number of shares to sell
+            Number of shares to sell (exact position quantity)
 
         """
         if not self.position_utils:
             return Decimal("0")
 
-        raw_shares = self.position_utils.get_position_quantity(symbol)
-        return self.position_utils.adjust_quantity_for_fractionability(symbol, raw_shares)
+        # For liquidation, return the EXACT position quantity without rounding
+        # Fractionability rules only apply to NEW purchases, not position closes
+        return self.position_utils.get_position_quantity(symbol)
 
     def _calculate_shares_from_amount(self, symbol: str, trade_amount: Decimal) -> Decimal:
         """Calculate shares from trade amount using estimated price.
