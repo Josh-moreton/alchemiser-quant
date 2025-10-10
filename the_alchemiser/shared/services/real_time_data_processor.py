@@ -10,6 +10,9 @@ All financial data (prices, sizes) uses Decimal for precision per Alchemiser gua
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -172,7 +175,9 @@ class RealTimeDataProcessor:
         if isinstance(trade, dict):
             price_raw = trade.get("price")
             if price_raw is None:
-                raise DataProviderError("Price missing in trade data", {"data_type": "dict"})
+                raise DataProviderError(
+                    "Price missing in trade data", {"data_type": "dict"}
+                )
             size = trade.get("size", 0)
             volume = trade.get("volume", size)
             timestamp_raw = trade.get("timestamp")
@@ -189,7 +194,9 @@ class RealTimeDataProcessor:
         # Convert price to Decimal
         price = self._safe_decimal_convert(price_raw)
         if price is None:
-            raise DataProviderError("Invalid price in trade data", {"price_raw": str(price_raw)})
+            raise DataProviderError(
+                "Invalid price in trade data", {"price_raw": str(price_raw)}
+            )
 
         # Convert volume to Decimal (volume can be None)
         volume_decimal: Decimal | None = self._safe_decimal_convert(volume)
@@ -218,11 +225,17 @@ class RealTimeDataProcessor:
         if not isinstance(timestamp_raw, datetime):
             raise DataProviderError(
                 "Quote timestamp missing or invalid",
-                {"timestamp_type": (type(timestamp_raw).__name__ if timestamp_raw else "None")},
+                {
+                    "timestamp_type": (
+                        type(timestamp_raw).__name__ if timestamp_raw else "None"
+                    )
+                },
             )
         return timestamp_raw
 
-    def get_trade_timestamp(self, timestamp_raw: datetime | str | float | int | None) -> datetime:
+    def get_trade_timestamp(
+        self, timestamp_raw: datetime | str | float | int | None
+    ) -> datetime:
         """Ensure timestamp is a datetime for trades.
 
         Deterministic behavior: raises exception if timestamp is missing rather
@@ -241,7 +254,11 @@ class RealTimeDataProcessor:
         if not isinstance(timestamp_raw, datetime):
             raise DataProviderError(
                 "Trade timestamp missing or invalid",
-                {"timestamp_type": (type(timestamp_raw).__name__ if timestamp_raw else "None")},
+                {
+                    "timestamp_type": (
+                        type(timestamp_raw).__name__ if timestamp_raw else "None"
+                    )
+                },
             )
         return timestamp_raw
 
@@ -269,7 +286,9 @@ class RealTimeDataProcessor:
             )
             return None
 
-    def _safe_datetime_convert(self, value: str | float | int | datetime | None) -> datetime | None:
+    def _safe_datetime_convert(
+        self, value: str | float | int | datetime | None
+    ) -> datetime | None:
         """Safely convert value to datetime.
 
         Args:
@@ -283,7 +302,7 @@ class RealTimeDataProcessor:
             return value
         return None
 
-    def log_quote_debug(
+    async def log_quote_debug(
         self,
         symbol: str,
         bid_price: Decimal | None,
@@ -293,7 +312,7 @@ class RealTimeDataProcessor:
         """Log quote data for debugging with structured logging.
 
         Uses structured logging with correlation_id for observability.
-        Simplified to synchronous as logging is thread-safe.
+        Async implementation with graceful executor shutdown handling.
 
         Args:
             symbol: Stock symbol
@@ -302,33 +321,44 @@ class RealTimeDataProcessor:
             correlation_id: Optional correlation ID for tracing
 
         """
-        self.logger.debug(
-            "Quote received",
-            extra={
-                "symbol": symbol,
-                "bid_price": str(bid_price) if bid_price else None,
-                "ask_price": str(ask_price) if ask_price else None,
-                "correlation_id": correlation_id,
-            },
-        )
+        if self.logger.isEnabledFor(logging.DEBUG):
+            with contextlib.suppress(RuntimeError):
+                # Event loop executor has shut down - gracefully ignore
+                await asyncio.to_thread(
+                    self.logger.debug,
+                    "Quote received",
+                    extra={
+                        "symbol": symbol,
+                        "bid_price": str(bid_price) if bid_price else None,
+                        "ask_price": str(ask_price) if ask_price else None,
+                        "correlation_id": correlation_id,
+                    },
+                )
+        await asyncio.sleep(0)
 
-    def handle_quote_error(self, error: Exception, correlation_id: str | None = None) -> None:
+    async def handle_quote_error(
+        self, error: Exception, correlation_id: str | None = None
+    ) -> None:
         """Handle errors in quote processing with structured logging.
 
         Uses structured logging with correlation_id for observability.
-        Simplified to synchronous as logging is thread-safe.
+        Async implementation with graceful executor shutdown handling.
 
         Args:
             error: Exception that occurred
             correlation_id: Optional correlation ID for tracing
 
         """
-        self.logger.error(
-            "Error processing quote",
-            extra={
-                "error": str(error),
-                "error_type": type(error).__name__,
-                "correlation_id": correlation_id,
-            },
-            exc_info=True,
-        )
+        with contextlib.suppress(RuntimeError):
+            # Event loop executor has shut down - gracefully ignore
+            await asyncio.to_thread(
+                self.logger.error,
+                "Error processing quote",
+                extra={
+                    "error": str(error),
+                    "error_type": type(error).__name__,
+                    "correlation_id": correlation_id,
+                },
+                exc_info=True,
+            )
+        await asyncio.sleep(0)

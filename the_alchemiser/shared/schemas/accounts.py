@@ -64,12 +64,8 @@ class AccountMetrics(BaseModel):
         validate_assignment=True,
     )
 
-    cash_ratio: Decimal = Field(
-        ..., ge=0, le=1, description="Cash as percentage of equity (0-1)"
-    )
-    market_exposure: Decimal = Field(
-        ..., ge=0, description="Market value as percentage of equity"
-    )
+    cash_ratio: Decimal = Field(..., ge=0, le=1, description="Cash as percentage of equity (0-1)")
+    market_exposure: Decimal = Field(..., ge=0, description="Market value as percentage of equity")
     leverage_ratio: Decimal | None = Field(
         None,
         ge=0,
@@ -134,9 +130,7 @@ class AccountSummary(BaseModel):
     market_value: Decimal = Field(..., ge=0, description="Market value of positions")
     buying_power: Decimal = Field(..., ge=0, description="Available buying power")
     last_equity: Decimal = Field(..., ge=0, description="Previous day equity")
-    day_trade_count: int = Field(
-        ..., ge=0, description="Day trades in last 5 business days"
-    )
+    day_trade_count: int = Field(..., ge=0, description="Day trades in last 5 business days")
     pattern_day_trader: bool = Field(..., description="Pattern day trader flag status")
     trading_blocked: bool = Field(..., description="Trading block status")
     transfers_blocked: bool = Field(..., description="Transfer block status")
@@ -173,9 +167,7 @@ class BuyingPowerResult(Result):
     available_buying_power: Decimal | None = Field(
         None, ge=0, description="Current available buying power"
     )
-    required_amount: Decimal | None = Field(
-        None, ge=0, description="Amount required for trade"
-    )
+    required_amount: Decimal | None = Field(None, ge=0, description="Amount required for trade")
     sufficient_funds: bool | None = Field(
         None, description="Whether sufficient funds are available"
     )
@@ -208,9 +200,7 @@ class RiskMetrics(BaseModel):
     concentration_limit: Decimal = Field(
         ..., ge=0, le=1, description="Maximum concentration per position (0-1)"
     )
-    total_exposure: Decimal = Field(
-        ..., ge=0, description="Total market exposure percentage"
-    )
+    total_exposure: Decimal = Field(..., ge=0, description="Total market exposure percentage")
     risk_score: Decimal = Field(..., ge=0, description="Calculated risk score")
     schema_version: str = Field(
         default="1.0", description="Schema version for backward compatibility"
@@ -236,9 +226,7 @@ class RiskMetricsResult(Result):
         validate_assignment=True,
     )
 
-    risk_metrics: RiskMetrics | None = Field(
-        None, description="Calculated risk metrics"
-    )
+    risk_metrics: RiskMetrics | None = Field(None, description="Calculated risk metrics")
     schema_version: str = Field(
         default="1.0", description="Schema version for backward compatibility"
     )
@@ -279,17 +267,11 @@ class TradeEligibilityResult(BaseModel):
 
     eligible: bool = Field(..., description="Whether trade is eligible")
     reason: str | None = Field(None, description="Reason if not eligible")
-    details: dict[str, Any] | None = Field(
-        None, description="Additional validation details"
-    )
-    symbol: str | None = Field(
-        None, min_length=1, max_length=10, description="Trading symbol"
-    )
+    details: dict[str, Any] | None = Field(None, description="Additional validation details")
+    symbol: str | None = Field(None, min_length=1, max_length=10, description="Trading symbol")
     quantity: Decimal | None = Field(None, gt=0, description="Trade quantity")
     side: Literal["BUY", "SELL"] | None = Field(None, description="Trade side")
-    estimated_cost: Decimal | None = Field(
-        None, ge=0, description="Estimated trade cost"
-    )
+    estimated_cost: Decimal | None = Field(None, ge=0, description="Estimated trade cost")
     schema_version: str = Field(
         default="1.0", description="Schema version for backward compatibility"
     )
@@ -319,9 +301,7 @@ class PortfolioAllocationResult(Result):
         validate_assignment=True,
     )
 
-    allocation_data: dict[str, Any] | None = Field(
-        None, description="Portfolio allocation details"
-    )
+    allocation_data: dict[str, Any] | None = Field(None, description="Portfolio allocation details")
     schema_version: str = Field(
         default="1.0", description="Schema version for backward compatibility"
     )
