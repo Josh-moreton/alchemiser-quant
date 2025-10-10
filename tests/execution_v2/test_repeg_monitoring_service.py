@@ -14,6 +14,7 @@ import pytest
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.execution_v2.utils.repeg_monitoring_service import (
+    RepegMonitoringError,
     RepegMonitoringService,
 )
 
@@ -61,6 +62,7 @@ async def test_check_and_process_repegs_no_strategy():
         attempts=0,
         elapsed_total=1.0,
         last_repeg_action_time=last_repeg_time,
+        correlation_id="test-correlation-id",
     )
 
     # Time should not change when no strategy available
@@ -81,6 +83,7 @@ async def test_check_and_process_repegs_no_results(mock_smart_strategy):
         attempts=0,
         elapsed_total=1.0,
         last_repeg_action_time=last_repeg_time,
+        correlation_id="test-correlation-id",
     )
 
     # check_and_repeg_orders should be called
@@ -117,6 +120,7 @@ async def test_check_and_process_repegs_with_results(mock_smart_strategy, sample
         attempts=0,
         elapsed_total=1.0,
         last_repeg_action_time=last_repeg_time,
+        correlation_id="test-correlation-id",
     )
 
     # check_and_repeg_orders should be called
@@ -151,6 +155,7 @@ async def test_execute_repeg_monitoring_loop_simplified_structure(mock_smart_str
         orders=sample_orders,
         config=config,
         start_time=start_time,
+        correlation_id="test-correlation-id",
     )
     
     # Should complete successfully
@@ -161,5 +166,90 @@ async def test_execute_repeg_monitoring_loop_simplified_structure(mock_smart_str
     service._escalate_remaining_orders.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_invalid_phase_type_raises_error():
+    """Test that invalid phase_type raises RepegMonitoringError."""
+    service = RepegMonitoringService(smart_strategy=None)
+    
+    config = {
+        "max_total_wait": 1,
+        "wait_between_checks": 0.1,
+        "fill_wait_seconds": 10,
+    }
+    
+    with pytest.raises(RepegMonitoringError) as exc_info:
+        await service.execute_repeg_monitoring_loop(
+            phase_type="INVALID",  # Invalid phase type
+            orders=[],
+            config=config,
+            start_time=time.time(),
+            correlation_id="test-correlation-id",
+        )
+    
+    assert "Invalid phase_type" in str(exc_info.value)
+    assert "INVALID" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_missing_config_keys_raises_error():
+    """Test that missing config keys raise RepegMonitoringError."""
+    service = RepegMonitoringService(smart_strategy=None)
+    
+    incomplete_config = {
+        "max_total_wait": 1,
+        # Missing wait_between_checks and fill_wait_seconds
+    }
+    
+    with pytest.raises(RepegMonitoringError) as exc_info:
+        await service.execute_repeg_monitoring_loop(
+            phase_type="BUY",
+            orders=[],
+            config=incomplete_config,
+            start_time=time.time(),
+            correlation_id="test-correlation-id",
+        )
+    
+    assert "Missing required config keys" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_escalate_missing_order_tracker(sample_orders):
+    """Test escalation handles missing order_tracker gracefully."""
+    # Create strategy without order_tracker attribute
+    mock_strategy = Mock(spec=[])  # Empty spec - no attributes
+    service = RepegMonitoringService(smart_strategy=mock_strategy)
+    
+    # Should return orders unchanged without raising
+    result_orders = await service._escalate_orders_to_market(
+        phase_type="BUY",
+        orders=sample_orders,
+        correlation_id="test-correlation-id",
+    )
+    
+    assert result_orders == sample_orders
+
+
+@pytest.mark.asyncio
+async def test_escalate_missing_repeg_manager(sample_orders):
+    """Test escalation raises error when repeg_manager is missing."""
+    # Create strategy with order_tracker but no repeg_manager
+    mock_strategy = Mock()
+    mock_strategy.order_tracker.get_active_orders = Mock(return_value={"order-1": Mock()})
+    # Don't set repeg_manager attribute
+    delattr(mock_strategy, "repeg_manager")  # Ensure it doesn't exist
+    
+    service = RepegMonitoringService(smart_strategy=mock_strategy)
+    
+    with pytest.raises(RepegMonitoringError) as exc_info:
+        await service._escalate_orders_to_market(
+            phase_type="BUY",
+            orders=sample_orders,
+            correlation_id="test-correlation-id",
+        )
+    
+    assert "missing repeg_manager" in str(exc_info.value).lower()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
