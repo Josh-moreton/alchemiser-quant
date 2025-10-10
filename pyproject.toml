@@ -86,24 +86,33 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E","F","I",
-    "UP",
-    "B","C4","SIM",
-    "PTH","DTZ","Q",
-    "PIE","RET","FBT",
-    "ANN",
-    "D",
-    "S",
-    "RUF",
-    "C901"  # McCabe complexity
+    "E",     # pycodestyle errors (includes whitespace)
+    "W",     # pycodestyle warnings (whitespace, deprecated features)
+    "F",     # pyflakes (unused imports, undefined names)
+    "I",     # isort (import sorting)
+    "UP",    # pyupgrade (syntax modernization)
+    "B",     # flake8-bugbear (likely bugs and design problems)
+    "C4",    # flake8-comprehensions (better list/set/dict comprehensions)
+    "SIM",   # flake8-simplify (simplification opportunities)
+    "PTH",   # flake8-use-pathlib (prefer pathlib over os.path)
+    "DTZ",   # flake8-datetimez (timezone-aware datetime)
+    "Q",     # flake8-quotes (quote consistency)
+    "PIE",   # flake8-pie (miscellaneous lints)
+    "RET",   # flake8-return (return statement issues)
+    "FBT",   # flake8-boolean-trap (boolean positional arguments)
+    "ANN",   # flake8-annotations (type annotations)
+    "D",     # pydocstyle (docstring conventions)
+    "S",     # flake8-bandit (security issues)
+    "RUF",   # Ruff-specific rules
+    "C901",  # McCabe complexity
 ]
 ignore = [
-    "E501",
-    "B008",
-    "B904",
+    "E501",  # line-too-long (handled by formatter)
+    "B008",  # function-call-in-default-argument (common in DI frameworks)
+    "B904",  # raise-without-from-inside-except (intentional in some error handling)
     # Docstring rule conflicts (prefer D211, D212)
-    "D203",
-    "D213",
+    "D203",  # one-blank-line-before-class (conflicts with D211)
+    "D213",  # multi-line-summary-second-line (conflicts with D212)
 ]
 fixable = ["ALL"]
 unfixable = []
@@ -137,6 +146,8 @@ exclude = [
     # Exclude problematic legacy files
     "the_alchemiser/.*_backup/",
     "the_alchemiser/.*/.*original.*",
+    # Duplicate module issue - re-export compatibility shim conflicts with package
+    "the_alchemiser/execution_v2/core/smart_execution_strategy.py",
     # Exclude tests from type checking
     "tests/",
 ]
@@ -238,3 +249,23 @@ testpaths = ["tests"]
 markers = [
   "serial: cannot be run in parallel (uses shared state, real network/broker, or depends on order)"
 ]
+
+[tool.bandit]
+# Security linting configuration
+# Focuses on production code; supplements Ruff's "S" rules
+exclude_dirs = [
+    "tests/",
+    ".venv/",
+    "build/",
+    "dist/",
+]
+skips = [
+    "B101",  # assert_used - acceptable in type narrowing and invariant checks
+    "B311",  # random - acceptable for non-cryptographic jitter/backoff (use secrets.SystemRandom for crypto)
+    "B601",  # paramiko_calls - not using paramiko
+    "B602",  # subprocess_popen_with_shell_equals_true - validated use
+]
+# Confidence levels: LOW, MEDIUM, HIGH
+# Report HIGH and MEDIUM only (reduce noise from LOW confidence findings)
+severity_level = "LOW"
+confidence_level = "MEDIUM"
