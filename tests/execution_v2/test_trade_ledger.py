@@ -774,3 +774,177 @@ class TestTradeLedgerService:
 
         assert entry is not None
         assert entry.fill_timestamp == placement_time  # Should fall back to timestamp
+
+
+class TestTradeLedgerInvalidQuoteHandling:
+    """Test handling of invalid quote data (zero or negative prices)."""
+
+    def test_zero_ask_price_filtered_out(self):
+        """Test that zero ask_price is filtered out and doesn't cause validation error."""
+        from the_alchemiser.shared.types.market_data import QuoteModel
+
+        service = TradeLedgerService()
+
+        # Create quote with zero ask_price (invalid)
+        quote = QuoteModel(
+            symbol="GE",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("0.0"),  # Invalid - should be filtered
+            bid_size=Decimal("100"),
+            ask_size=Decimal("0"),
+            timestamp=datetime.now(UTC),
+        )
+
+        order_result = OrderResult(
+            symbol="GE",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.50"),
+            order_id="order-zero-ask",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+
+        # Should not raise validation error
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-zero-ask",
+            rebalance_plan=None,
+            quote_at_fill=quote,
+        )
+
+        assert entry is not None
+        assert entry.bid_at_fill == Decimal("100.00")  # Valid bid preserved
+        assert entry.ask_at_fill is None  # Invalid ask filtered out
+
+    def test_zero_bid_price_filtered_out(self):
+        """Test that zero bid_price is filtered out."""
+        from the_alchemiser.shared.types.market_data import QuoteModel
+
+        service = TradeLedgerService()
+
+        # Create quote with zero bid_price (invalid)
+        quote = QuoteModel(
+            symbol="KOLD",
+            bid_price=Decimal("0.0"),  # Invalid - should be filtered
+            ask_price=Decimal("50.50"),
+            bid_size=Decimal("0"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
+
+        order_result = OrderResult(
+            symbol="KOLD",
+            action="SELL",
+            trade_amount=Decimal("500.00"),
+            shares=Decimal("10"),
+            price=Decimal("50.00"),
+            order_id="order-zero-bid",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+
+        # Should not raise validation error
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-zero-bid",
+            rebalance_plan=None,
+            quote_at_fill=quote,
+        )
+
+        assert entry is not None
+        assert entry.bid_at_fill is None  # Invalid bid filtered out
+        assert entry.ask_at_fill == Decimal("50.50")  # Valid ask preserved
+
+    def test_both_prices_zero_filtered_out(self):
+        """Test that both zero prices are filtered out completely."""
+        from the_alchemiser.shared.types.market_data import QuoteModel
+
+        service = TradeLedgerService()
+
+        # Create quote with both prices zero (completely invalid)
+        quote = QuoteModel(
+            symbol="BADQUOTE",
+            bid_price=Decimal("0.0"),  # Invalid
+            ask_price=Decimal("0.0"),  # Invalid
+            bid_size=Decimal("0"),
+            ask_size=Decimal("0"),
+            timestamp=datetime.now(UTC),
+        )
+
+        order_result = OrderResult(
+            symbol="BADQUOTE",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-bad-quote",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+
+        # Should not raise validation error
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-bad-quote",
+            rebalance_plan=None,
+            quote_at_fill=quote,
+        )
+
+        assert entry is not None
+        assert entry.bid_at_fill is None  # Both filtered out
+        assert entry.ask_at_fill is None
+        assert entry.fill_price == Decimal("100.00")  # Core data still recorded
+
+    def test_negative_prices_filtered_out(self):
+        """Test that negative prices are filtered out (edge case)."""
+        from the_alchemiser.shared.types.market_data import QuoteModel
+
+        service = TradeLedgerService()
+
+        # Create quote with negative prices (shouldn't happen but defensive)
+        quote = QuoteModel(
+            symbol="NEGATIVE",
+            bid_price=Decimal("-10.00"),  # Invalid
+            ask_price=Decimal("-5.00"),  # Invalid
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
+
+        order_result = OrderResult(
+            symbol="NEGATIVE",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-negative",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+
+        # Should not raise validation error
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-negative",
+            rebalance_plan=None,
+            quote_at_fill=quote,
+        )
+
+        assert entry is not None
+        assert entry.bid_at_fill is None  # Negative filtered out
+        assert entry.ask_at_fill is None  # Negative filtered out
+

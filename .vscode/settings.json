@@ -1,6 +1,7 @@
 {
     // VS Code Editor Behavior (tools configured in pyproject.toml)
-    "editor.formatOnSave": true,
+    // Formatting handled by pre-commit hooks (make format) - not on save
+    "editor.formatOnSave": false,
     "editor.rulers": [
         100
     ],
@@ -10,15 +11,13 @@
     "files.insertFinalNewline": true,
     // Python Editor Settings
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.codeActionsOnSave": {
-            "source.organizeImports": "never" // Let Ruff handle imports
+            "source.organizeImports": "never" // Let pre-commit/Ruff handle imports
         }
     },
     // Tool Configuration References (actual config in pyproject.toml)
-    "black-formatter.args": [
-        "--config=pyproject.toml"
-    ],
+    // Note: Formatting via pre-commit, not IDE
     "mypy-type-checker.args": [
         "--config-file=pyproject.toml"
     ],

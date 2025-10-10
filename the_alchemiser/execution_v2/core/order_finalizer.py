@@ -210,6 +210,21 @@ class OrderFinalizer:
             avg_price: Decimal | None = (
                 avg_price_obj if isinstance(avg_price_obj, Decimal) else None
             )
+
+            # CRITICAL: Warn if order stuck in "accepted" without price
+            # This indicates potential Alpaca API issue where price never settles
+            if status_str == "accepted" and avg_price is None:
+                filled_qty_obj = getattr(exec_res, "filled_qty", Decimal("0"))
+                if filled_qty_obj > 0:
+                    logger.error(
+                        "🚨 Order has fills but stuck in 'accepted' status without price - potential API issue",
+                        order_id=order_id,
+                        status=status_str,
+                        filled_qty=filled_qty_obj,
+                        alert="MANUAL_REVIEW_REQUIRED",
+                        risk="HIGH",
+                    )
+
             return status_str, avg_price
         except Exception as exc:
             logger.warning(f"Failed to refresh order {order_id}: {exc}")

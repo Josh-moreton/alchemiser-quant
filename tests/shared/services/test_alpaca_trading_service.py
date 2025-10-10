@@ -256,6 +256,126 @@ class TestAlpacaTradingServiceOrderPlacement:
 
         result = trading_service.place_limit_order("AAPL", "buy", 10.0, 150.0)
 
+
         assert result.success is False
         # Just verify it failed, don't check exact error message
         assert result.order_id == "unknown"
+
+
+class TestAlpacaOrderConversionEdgeCases:
+    """Test edge cases in Alpaca order to execution result conversion."""
+
+    @pytest.fixture
+    def mock_trading_client(self):
+        """Create mock Alpaca trading client."""
+        return Mock()
+
+    @pytest.fixture
+    def mock_websocket_manager(self):
+        """Create mock WebSocket manager."""
+        return Mock()
+
+    @pytest.fixture
+    def trading_service(self, mock_trading_client, mock_websocket_manager):
+        """Create trading service with mocks."""
+        return AlpacaTradingService(
+            trading_client=mock_trading_client,
+            websocket_manager=mock_websocket_manager,
+            paper_trading=True,
+        )
+
+    def test_filled_order_without_avg_fill_price_treated_as_accepted(
+        self, trading_service, mock_trading_client
+    ):
+        """Test that filled orders without avg_fill_price are treated as accepted.
+
+        This handles race conditions where Alpaca reports status='filled' before
+        the avg_fill_price is populated during settlement.
+
+        When this happens, we downgrade the status to 'accepted' and reset filled_qty to 0
+        to satisfy validation rules (accepted status requires filled_qty == 0).
+        """
+        from datetime import UTC, datetime
+        from decimal import Decimal
+
+        # Create mock order that is "filled" but missing avg_fill_price
+        mock_order = Mock()
+        mock_order.id = "test-order-123"
+        mock_order.status = OrderStatus.FILLED  # Status is FILLED
+        mock_order.filled_qty = "10.5"
+        mock_order.avg_fill_price = None  # But price is None (race condition)
+        mock_order.filled_avg_price = None  # Alternative field also None
+        mock_order.submitted_at = datetime.now(UTC)
+        mock_order.updated_at = None
+
+        mock_trading_client.get_order_by_id.return_value = mock_order
+
+        # Get execution result
+        result = trading_service.get_order_execution_result("test-order-123")
+
+        # Should treat as "accepted" (pending) not "filled" to avoid validation error
+        assert result.success is True
+        assert result.status == "accepted"  # NOT "filled"
+        assert result.filled_qty == Decimal("0")  # Reset to 0 for validation
+        assert result.avg_fill_price is None
+        assert result.order_id == "test-order-123"
+
+    def test_filled_order_with_avg_fill_price_stays_filled(
+        self, trading_service, mock_trading_client
+    ):
+        """Test that filled orders WITH avg_fill_price remain as filled."""
+        from datetime import UTC, datetime
+        from decimal import Decimal
+
+        # Create mock order with both status and price
+        mock_order = Mock()
+        mock_order.id = "test-order-456"
+        mock_order.status = OrderStatus.FILLED
+        mock_order.filled_qty = "10.5"
+        mock_order.avg_fill_price = "150.25"  # Price IS populated
+        mock_order.filled_avg_price = None
+        mock_order.submitted_at = datetime.now(UTC)
+        mock_order.updated_at = datetime.now(UTC)
+
+        mock_trading_client.get_order_by_id.return_value = mock_order
+
+        # Get execution result
+        result = trading_service.get_order_execution_result("test-order-456")
+
+        # Should remain as "filled"
+        assert result.success is True
+        assert result.status == "filled"
+        assert result.filled_qty == Decimal("10.5")
+        assert result.avg_fill_price == Decimal("150.25")
+        assert result.order_id == "test-order-456"
+
+    def test_partially_filled_without_price_treated_as_accepted(
+        self, trading_service, mock_trading_client
+    ):
+        """Test that partially_filled orders without price are treated as accepted.
+
+        Similar to filled orders, partially filled orders without avg_fill_price
+        are downgraded to 'accepted' status with filled_qty reset to 0.
+        """
+        from datetime import UTC, datetime
+        from decimal import Decimal
+
+        mock_order = Mock()
+        mock_order.id = "test-order-789"
+        mock_order.status = OrderStatus.PARTIALLY_FILLED
+        mock_order.filled_qty = "5.25"
+        mock_order.avg_fill_price = None  # Missing price
+        mock_order.filled_avg_price = None
+        mock_order.submitted_at = datetime.now(UTC)
+        mock_order.updated_at = None
+
+        mock_trading_client.get_order_by_id.return_value = mock_order
+
+        result = trading_service.get_order_execution_result("test-order-789")
+
+        # Should treat as "accepted" to avoid validation error
+        assert result.success is True
+        assert result.status == "accepted"  # NOT "partially_filled"
+        assert result.filled_qty == Decimal("0")  # Reset to 0 for validation
+        assert result.avg_fill_price is None
+
