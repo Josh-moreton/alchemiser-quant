@@ -273,8 +273,8 @@ class TestBarsToDomainFunction:
         assert result[0].timestamp < result[1].timestamp < result[2].timestamp
         assert all(bar.symbol == "AAPL" for bar in result)
 
-    def test_bars_to_domain_handles_zero_prices(self) -> None:
-        """Test that zero prices are handled (defaults from missing data)."""
+    def test_bars_to_domain_skips_rows_with_missing_prices(self) -> None:
+        """Test that rows with missing prices are skipped (not defaulted to zero)."""
         rows = [
             {
                 "t": "2024-01-01T10:00:00Z",
@@ -285,11 +285,8 @@ class TestBarsToDomainFunction:
         ]
         result = bars_to_domain(rows)
         
-        assert len(result) == 1
-        assert result[0].open == Decimal("0")
-        assert result[0].high == Decimal("0")
-        assert result[0].low == Decimal("0")
-        assert result[0].close == Decimal("0")
+        # Should skip rows with missing prices instead of defaulting to zero
+        assert len(result) == 0
 
     def test_bars_to_domain_handles_zero_volume(self) -> None:
         """Test that zero volume is handled."""
@@ -309,8 +306,8 @@ class TestBarsToDomainFunction:
         assert len(result) == 1
         assert result[0].volume == 0
 
-    def test_bars_to_domain_defaults_to_unknown_symbol(self) -> None:
-        """Test that missing symbol defaults to UNKNOWN."""
+    def test_bars_to_domain_skips_rows_with_missing_symbol(self) -> None:
+        """Test that rows with missing symbol are skipped (when no default provided)."""
         rows = [
             {
                 "t": "2024-01-01T10:00:00Z",
@@ -323,8 +320,8 @@ class TestBarsToDomainFunction:
         ]
         result = bars_to_domain(rows)
         
-        assert len(result) == 1
-        assert result[0].symbol == "UNKNOWN"
+        # Should skip rows with missing symbol when no default provided
+        assert len(result) == 0
 
     def test_bars_to_domain_with_unix_timestamps(self) -> None:
         """Test conversion with Unix timestamps."""
@@ -394,6 +391,75 @@ class TestBarsToDomainFunction:
         assert isinstance(bar.low, Decimal)
         assert isinstance(bar.close, Decimal)
 
+    def test_bars_to_domain_validates_ohlc_relationships(self) -> None:
+        """Test that invalid OHLC relationships are caught."""
+        # High < Low
+        rows = [
+            {
+                "t": "2024-01-01T10:00:00Z",
+                "S": "AAPL",
+                "o": "150",
+                "h": "148",  # high < low - invalid
+                "l": "149",
+                "c": "149.50",
+                "v": 1000,
+            }
+        ]
+        result = bars_to_domain(rows)
+        # Should skip invalid row
+        assert len(result) == 0
+
+    def test_bars_to_domain_validates_open_in_range(self) -> None:
+        """Test that open price outside high-low range is caught."""
+        rows = [
+            {
+                "t": "2024-01-01T10:00:00Z",
+                "S": "AAPL",
+                "o": "160",  # open > high - invalid
+                "h": "155",
+                "l": "149",
+                "c": "154",
+                "v": 1000,
+            }
+        ]
+        result = bars_to_domain(rows)
+        # Should skip invalid row
+        assert len(result) == 0
+
+    def test_bars_to_domain_validates_close_in_range(self) -> None:
+        """Test that close price outside high-low range is caught."""
+        rows = [
+            {
+                "t": "2024-01-01T10:00:00Z",
+                "S": "AAPL",
+                "o": "150",
+                "h": "155",
+                "l": "149",
+                "c": "148",  # close < low - invalid
+                "v": 1000,
+            }
+        ]
+        result = bars_to_domain(rows)
+        # Should skip invalid row
+        assert len(result) == 0
+
+    def test_bars_to_domain_validates_negative_prices(self) -> None:
+        """Test that negative prices are caught."""
+        rows = [
+            {
+                "t": "2024-01-01T10:00:00Z",
+                "S": "AAPL",
+                "o": "-150",  # negative price - invalid
+                "h": "155",
+                "l": "149",
+                "c": "154",
+                "v": 1000,
+            }
+        ]
+        result = bars_to_domain(rows)
+        # Should skip invalid row
+        assert len(result) == 0
+
 
 class TestQuoteToDomainFunction:
     """Test suite for quote_to_domain conversion function."""
@@ -423,8 +489,8 @@ class TestQuoteToDomainFunction:
         result = quote_to_domain(None)
         assert result is None
 
-    def test_quote_to_domain_missing_timestamp_uses_current_time(self) -> None:
-        """Test that missing timestamp falls back to current time."""
+    def test_quote_to_domain_missing_timestamp_returns_none(self) -> None:
+        """Test that missing timestamp returns None (no fallback to current time)."""
         class MockQuote:
             symbol = "AAPL"
             bid_price = 150.25
@@ -435,13 +501,11 @@ class TestQuoteToDomainFunction:
 
         result = quote_to_domain(MockQuote())
         
-        assert result is not None
-        # Should have a timestamp (current time)
-        assert result.timestamp is not None
-        assert result.timestamp.tzinfo == UTC
+        # Should return None instead of using datetime.now() for determinism
+        assert result is None
 
-    def test_quote_to_domain_invalid_timestamp_uses_fallback(self) -> None:
-        """Test that invalid timestamp falls back to current time."""
+    def test_quote_to_domain_invalid_timestamp_returns_none(self) -> None:
+        """Test that invalid timestamp returns None (no fallback to current time)."""
         class MockQuote:
             timestamp = "invalid date"
             symbol = "AAPL"
@@ -452,9 +516,8 @@ class TestQuoteToDomainFunction:
 
         result = quote_to_domain(MockQuote())
         
-        assert result is not None
-        # Should have a timestamp (fallback to current time)
-        assert result.timestamp is not None
+        # Should return None for invalid timestamp (deterministic behavior)
+        assert result is None
 
     def test_quote_to_domain_ensures_timezone_aware(self) -> None:
         """Test that naive timestamps are made timezone-aware."""
