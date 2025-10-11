@@ -17,7 +17,7 @@ from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
 )
 from the_alchemiser.portfolio_v2.core.state_reader import PortfolioStateReader
 from the_alchemiser.portfolio_v2.models.portfolio_snapshot import PortfolioSnapshot
-from the_alchemiser.shared.errors.exceptions import NegativeCashBalanceError
+from the_alchemiser.shared.errors.exceptions import DataProviderError, NegativeCashBalanceError
 
 
 class TestStateReaderBranchCoverage:
@@ -41,7 +41,7 @@ class TestStateReaderBranchCoverage:
         return PortfolioStateReader(data_adapter)
 
     def test_missing_price_for_position_raises_error(self, state_reader, mock_alpaca_manager):
-        """Test that missing price for a position raises ValueError."""
+        """Test that missing price for a position raises DataProviderError."""
         # Setup: account has a position but no price available
         mock_alpaca_manager.get_account.return_value = {
             "cash": "1000.00",
@@ -56,11 +56,12 @@ class TestStateReaderBranchCoverage:
         # Mock get_current_price to return None (price unavailable)
         mock_alpaca_manager.get_current_price.return_value = None
         
-        # Should raise ValueError when price is missing or invalid
-        with pytest.raises(ValueError) as exc_info:
+        # Should raise DataProviderError when price is missing or invalid
+        with pytest.raises(DataProviderError) as exc_info:
             state_reader.build_portfolio_snapshot()
         
         # Check the actual error message from the adapter
+        assert "Invalid price" in str(exc_info.value)
         assert "Invalid price" in str(exc_info.value) or "Missing price" in str(exc_info.value)
 
     def test_validation_failure_logs_warning_but_continues(self, state_reader, mock_alpaca_manager):
@@ -262,13 +263,12 @@ class TestStateReaderBranchCoverage:
         # Return zero price
         mock_alpaca_manager.get_current_price.return_value = 0.0
         
-        # Should raise ValueError for invalid price
-        with pytest.raises(ValueError) as exc_info:
+        # Should raise DataProviderError for invalid price
+        with pytest.raises(DataProviderError) as exc_info:
             state_reader.build_portfolio_snapshot()
         
-        # Zero/negative prices should be filtered in the adapter,
-        # but if they get through, snapshot validation should catch them
-        assert "price" in str(exc_info.value).lower() or "missing" in str(exc_info.value).lower()
+        # Zero/negative prices should be caught in the adapter
+        assert "Invalid price" in str(exc_info.value)
 
 
 class TestStateReaderLiquidationBranches:
