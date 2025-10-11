@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from the_alchemiser.shared.errors.exceptions import PortfolioError
+
 
 @dataclass(frozen=True)
 class PortfolioSnapshot:
@@ -29,21 +31,37 @@ class PortfolioSnapshot:
         # Validate all positions have prices
         missing_prices = set(self.positions.keys()) - set(self.prices.keys())
         if missing_prices:
-            raise ValueError(f"Missing prices for positions: {sorted(missing_prices)}")
+            raise PortfolioError(
+                f"Missing prices for positions: {sorted(missing_prices)}",
+                module="portfolio_v2.models.portfolio_snapshot",
+                operation="validation",
+            )
 
         # Validate total value is non-negative
         if self.total_value < 0:
-            raise ValueError(f"Total value cannot be negative: {self.total_value}")
+            raise PortfolioError(
+                f"Total value cannot be negative: {self.total_value}",
+                module="portfolio_v2.models.portfolio_snapshot",
+                operation="validation",
+            )
 
         # Validate position quantities are non-negative
         for symbol, quantity in self.positions.items():
             if quantity < 0:
-                raise ValueError(f"Position quantity cannot be negative for {symbol}: {quantity}")
+                raise PortfolioError(
+                    f"Position quantity cannot be negative for {symbol}: {quantity}",
+                    module="portfolio_v2.models.portfolio_snapshot",
+                    operation="validation",
+                )
 
         # Validate prices are positive
         for symbol, price in self.prices.items():
             if price <= 0:
-                raise ValueError(f"Price must be positive for {symbol}: {price}")
+                raise PortfolioError(
+                    f"Price must be positive for {symbol}: {price}",
+                    module="portfolio_v2.models.portfolio_snapshot",
+                    operation="validation",
+                )
 
     def get_position_value(self, symbol: str) -> Decimal:
         """Get the market value of a position.

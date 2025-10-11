@@ -1,26 +1,87 @@
 [build-system]
-requires = ["poetry-core"]
+requires = [ "poetry-core",]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "2.20.7"
+version = "2.20.8"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
-authors = ["Josh Moreton <josh@example.com>"]
+authors = [ "Josh Moreton <josh@example.com>",]
 license = "MIT"
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Financial and Insurance Industry",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-]
-packages = [{include = "the_alchemiser"}]
-include = [
-    { path = "the_alchemiser/config/*.json", format = "sdist" },
-    { path = "the_alchemiser/config/*.json", format = "wheel" }
-]
+classifiers = [ "Development Status :: 4 - Beta", "Intended Audience :: Financial and Insurance Industry", "License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12",]
+[[tool.poetry.packages]]
+include = "the_alchemiser"
+
+[[tool.poetry.include]]
+path = "the_alchemiser/config/*.json"
+format = "sdist"
+
+[[tool.poetry.include]]
+path = "the_alchemiser/config/*.json"
+format = "wheel"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [ ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pycache__", "build", "dist", "tests",]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = [ "pydantic.mypy",]
+files = [ "the_alchemiser",]
+show_error_codes = true
+pretty = true
+color_output = true
+cache_dir = ".mypy_cache"
+exclude = [ "the_alchemiser/application/", "the_alchemiser/domain/", "the_alchemiser/infrastructure/config/execution_config.py", "the_alchemiser/services/", "the_alchemiser/utils/", "the_alchemiser/.*_backup/", "the_alchemiser/.*/.*original.*", "the_alchemiser/execution_v2/core/smart_execution_strategy.py", "tests/",]
+[[tool.mypy.overrides]]
+module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*",]
+ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "the_alchemiser"
+[[tool.importlinter.contracts]]
+name = "Shared module isolation - prevent upward dependencies"
+type = "forbidden"
+source_modules = [ "the_alchemiser.shared",]
+forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2", "the_alchemiser.orchestration",]
+
+[[tool.importlinter.contracts]]
+name = "Strategy module isolation"
+type = "forbidden"
+source_modules = [ "the_alchemiser.strategy_v2",]
+forbidden_modules = [ "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2", "the_alchemiser.orchestration",]
+
+[[tool.importlinter.contracts]]
+name = "Portfolio module isolation"
+type = "forbidden"
+source_modules = [ "the_alchemiser.portfolio_v2",]
+forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.execution_v2", "the_alchemiser.orchestration",]
+
+[[tool.importlinter.contracts]]
+name = "Execution module isolation"
+type = "forbidden"
+source_modules = [ "the_alchemiser.execution_v2",]
+forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2", "the_alchemiser.orchestration",]
+
+[[tool.importlinter.contracts]]
+name = "Event-driven layered architecture enforcement"
+type = "layers"
+layers = [ "the_alchemiser.orchestration", "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2", "the_alchemiser.shared",]
+
+[[tool.importlinter.contracts]]
+name = "Deprecated DTO module forbidden"
+type = "forbidden"
+source_modules = [ "the_alchemiser",]
+forbidden_modules = [ "the_alchemiser.shared.dto",]
+
+[tool.bandit]
+exclude_dirs = [ "tests/", ".venv/", "build/", "dist/",]
+skips = [ "B101", "B311", "B601", "B602",]
+severity_level = "LOW"
+confidence_level = "MEDIUM"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0.0"
@@ -39,233 +100,48 @@ dependency-injector = "^4.48.2"
 python-dotenv = "^1.1.1"
 structlog = "^25.4.0"
 
+[tool.poetry.urls]
+Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
+Repository = "https://github.com/Josh-moreton/The-Alchemiser"
+Issues = "https://github.com/Josh-moreton/The-Alchemiser/issues"
+
+[tool.ruff.lint]
+select = [ "E", "W", "F", "I", "UP", "B", "C4", "SIM", "PTH", "DTZ", "Q", "PIE", "RET", "FBT", "ANN", "D", "S", "RUF", "C901",]
+ignore = [ "E501", "B008", "B904", "D203", "D213",]
+fixable = [ "ALL",]
+unfixable = []
+
+[tool.pytest.ini_options]
+addopts = "-n auto --dist=loadscope -q --durations=10"
+testpaths = [ "tests",]
+markers = [ "serial: cannot be run in parallel (uses shared state, real network/broker, or depends on order)",]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.isort]
+known-first-party = [ "the_alchemiser",]
+
 [tool.poetry.group.dev.dependencies]
-pyarrow = "^21.0.0"  # Only needed for backtest scripts (Parquet I/O)
+pyarrow = "^21.0.0"
 ruff = ">=0.1.0"
 mypy = ">=1.0.0"
 pre-commit = "^4.3.0"
 types-PyYAML = ">=6.0.0"
 types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
-bandit = ">=1.7.0"  # Legacy direct usage; Ruff "S" rules supplement
-vulture = "^2.14"   # Dead code detection
+bandit = ">=1.7.0"
+vulture = "^2.14"
 psutil = "^7.1.0"
-pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
+pydocstyle = ">=6.0.0"
 pytest = "^8.4.2"
-pytest-cov = "^7.0.0"  # Coverage reporting for SonarCloud
-pip-audit = "^2.7.3"  # Dependency vulnerability scanning
-detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
-pyright = "^1.1.406"  # Supplemental static type analysis (optional CI/nightly)
-import-linter = "^2.5"  # Module dependency enforcement
+pytest-cov = "^7.0.0"
+pip-audit = "^2.7.3"
+detect-secrets = "^1.5.0"
+pyright = "^1.1.406"
+import-linter = "^2.5"
 pytest-asyncio = "^1.2.0"
 hypothesis = "^6.140.3"
 pytest-xdist = "^3.8.0"
 pytest-randomly = "^4.0.1"
 pytest-timeout = "^2.4.0"
-
-
-
-[tool.poetry.urls]
-Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
-Repository = "https://github.com/Josh-moreton/The-Alchemiser"
-Issues = "https://github.com/Josh-moreton/The-Alchemiser/issues"
-
-[tool.ruff]
-target-version = "py312"
-line-length = 100
-extend-exclude = [
-    ".git",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".venv",
-    "__pycache__",
-    "build",
-    "dist",
-    "tests",
-]
-
-[tool.ruff.lint]
-select = [
-    "E",     # pycodestyle errors (includes whitespace)
-    "W",     # pycodestyle warnings (whitespace, deprecated features)
-    "F",     # pyflakes (unused imports, undefined names)
-    "I",     # isort (import sorting)
-    "UP",    # pyupgrade (syntax modernization)
-    "B",     # flake8-bugbear (likely bugs and design problems)
-    "C4",    # flake8-comprehensions (better list/set/dict comprehensions)
-    "SIM",   # flake8-simplify (simplification opportunities)
-    "PTH",   # flake8-use-pathlib (prefer pathlib over os.path)
-    "DTZ",   # flake8-datetimez (timezone-aware datetime)
-    "Q",     # flake8-quotes (quote consistency)
-    "PIE",   # flake8-pie (miscellaneous lints)
-    "RET",   # flake8-return (return statement issues)
-    "FBT",   # flake8-boolean-trap (boolean positional arguments)
-    "ANN",   # flake8-annotations (type annotations)
-    "D",     # pydocstyle (docstring conventions)
-    "S",     # flake8-bandit (security issues)
-    "RUF",   # Ruff-specific rules
-    "C901",  # McCabe complexity
-]
-ignore = [
-    "E501",  # line-too-long (handled by formatter)
-    "B008",  # function-call-in-default-argument (common in DI frameworks)
-    "B904",  # raise-without-from-inside-except (intentional in some error handling)
-    # Docstring rule conflicts (prefer D211, D212)
-    "D203",  # one-blank-line-before-class (conflicts with D211)
-    "D213",  # multi-line-summary-second-line (conflicts with D212)
-]
-fixable = ["ALL"]
-unfixable = []
-
-[tool.ruff.lint.mccabe]
-max-complexity = 15  # SonarQube compatibility
-
-[tool.ruff.lint.isort]
-known-first-party = ["the_alchemiser"]
-
-[tool.mypy]
-python_version = "3.12"
-strict = true
-plugins = ["pydantic.mypy"]
-files = ["the_alchemiser"]
-show_error_codes = true
-pretty = true
-color_output = true
-cache_dir = ".mypy_cache"
-
-# Progressive type checking for migration
-# Focus on new modular structure with strict enforcement
-# Legacy code excluded until migration complete
-exclude = [
-    # Legacy DDD structure - exclude until migration complete
-    "the_alchemiser/application/",
-    "the_alchemiser/domain/",
-    "the_alchemiser/infrastructure/config/execution_config.py",
-    "the_alchemiser/services/",
-    "the_alchemiser/utils/",
-    # Exclude problematic legacy files
-    "the_alchemiser/.*_backup/",
-    "the_alchemiser/.*/.*original.*",
-    # Duplicate module issue - re-export compatibility shim conflicts with package
-    "the_alchemiser/execution_v2/core/smart_execution_strategy.py",
-    # Exclude tests from type checking
-    "tests/",
-]
-
-# Retain targeted ignores for third-party libs lacking type hints
-[[tool.mypy.overrides]]
-module = [
-    "alpaca.*",
-    "boto3.*",
-    "botocore.*",
-    "pandas.*",
-    "numpy.*",
-    "tqdm.*",
-    "yaml.*"
-]
-ignore_missing_imports = true
-
-[tool.importlinter]
-root_package = "the_alchemiser"
-
-# Progressive enforcement: Start with basic rules and add stricter ones as migration progresses
-[[tool.importlinter.contracts]]
-name = "Shared module isolation - prevent upward dependencies"
-type = "forbidden"
-source_modules = [
-    "the_alchemiser.shared"
-]
-forbidden_modules = [
-    "the_alchemiser.strategy_v2",
-    "the_alchemiser.portfolio_v2",
-    "the_alchemiser.execution_v2",
-    "the_alchemiser.orchestration"
-]
-
-# Business module isolation - prevent cross-imports between business domains
-[[tool.importlinter.contracts]]
-name = "Strategy module isolation"
-type = "forbidden"
-source_modules = [
-    "the_alchemiser.strategy_v2"
-]
-forbidden_modules = [
-    "the_alchemiser.portfolio_v2",
-    "the_alchemiser.execution_v2",
-    "the_alchemiser.orchestration"
-]
-
-[[tool.importlinter.contracts]]
-name = "Portfolio module isolation"
-type = "forbidden"
-source_modules = [
-    "the_alchemiser.portfolio_v2"
-]
-forbidden_modules = [
-    "the_alchemiser.strategy_v2",
-    "the_alchemiser.execution_v2",
-    "the_alchemiser.orchestration"
-]
-
-[[tool.importlinter.contracts]]
-name = "Execution module isolation"
-type = "forbidden"
-source_modules = [
-    "the_alchemiser.execution_v2"
-]
-forbidden_modules = [
-    "the_alchemiser.strategy_v2",
-    "the_alchemiser.portfolio_v2",
-    "the_alchemiser.orchestration"
-]
-
-# Layered architecture: each layer can only import from layers below it
-# Layer 1 (bottom): shared - no dependencies on application modules
-# Layer 2 (middle): business modules - can import shared only
-# Layer 3 (top): orchestration - can import business modules + shared
-[[tool.importlinter.contracts]]
-name = "Event-driven layered architecture enforcement"
-type = "layers"
-layers = [
-    "the_alchemiser.orchestration",
-    "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2",
-    "the_alchemiser.shared"
-]
-
-# Forbid deprecated DTO imports - use shared.schemas instead
-[[tool.importlinter.contracts]]
-name = "Deprecated DTO module forbidden"
-type = "forbidden"
-source_modules = [
-    "the_alchemiser"
-]
-forbidden_modules = [
-    "the_alchemiser.shared.dto"
-]
-
-[tool.pytest.ini_options]
-addopts = "-n auto --dist=loadscope -q --durations=10"
-testpaths = ["tests"]
-markers = [
-  "serial: cannot be run in parallel (uses shared state, real network/broker, or depends on order)"
-]
-
-[tool.bandit]
-# Security linting configuration
-# Focuses on production code; supplements Ruff's "S" rules
-exclude_dirs = [
-    "tests/",
-    ".venv/",
-    "build/",
-    "dist/",
-]
-skips = [
-    "B101",  # assert_used - acceptable in type narrowing and invariant checks
-    "B311",  # random - acceptable for non-cryptographic jitter/backoff (use secrets.SystemRandom for crypto)
-    "B601",  # paramiko_calls - not using paramiko
-    "B602",  # subprocess_popen_with_shell_equals_true - validated use
-]
-# Confidence levels: LOW, MEDIUM, HIGH
-# Report HIGH and MEDIUM only (reduce noise from LOW confidence findings)
-severity_level = "LOW"
-confidence_level = "MEDIUM"
