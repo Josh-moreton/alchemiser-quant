@@ -65,7 +65,7 @@ def __getattr__(name: str) -> object:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = [
+__all__: list[str] = [
     "PortfolioServiceV2",
     "RebalancePlanCalculator",
     "register_portfolio_handlers",
