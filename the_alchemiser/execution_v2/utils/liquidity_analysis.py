@@ -80,7 +80,7 @@ class LiquidityAnalyzer:
                 f"This indicates a data quality issue upstream that must be investigated."
             )
             # Continue processing but flag the issue prominently
-        
+
         # Additional validation: ensure prices are reasonable
         if quote.bid_price == 0 or quote.ask_price == 0:
             logger.warning(
@@ -88,7 +88,7 @@ class LiquidityAnalyzer:
                 f"bid={quote.bid_price}, ask={quote.ask_price}. "
                 f"Quote data may be stale or incomplete."
             )
-        
+
         # Log full quote details for debugging when prices look suspicious
         if quote.bid_price <= 0 or quote.ask_price <= 0 or quote.bid_price > quote.ask_price:
             logger.error(
@@ -190,7 +190,7 @@ class LiquidityAnalyzer:
             # Return minimum valid prices as emergency fallback
             min_price = Decimal("0.01")
             return {"bid": float(min_price), "ask": float(min_price)}
-        
+
         # Analyze volume sufficiency at current levels
         bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
         ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
@@ -237,7 +237,9 @@ class LiquidityAnalyzer:
                 aggressive_bid_limit = ask_price - self.tick_size
                 if aggressive_bid_limit > 0:
                     recommended_bid = min(recommended_bid + self.tick_size, aggressive_bid_limit)
-                    logger.debug(f"Heavy bid side detected, adjusting buy price to {recommended_bid}")
+                    logger.debug(
+                        f"Heavy bid side detected, adjusting buy price to {recommended_bid}"
+                    )
                 else:
                     logger.warning(
                         f"Cannot apply heavy bid side adjustment for {quote.symbol}: "
@@ -250,7 +252,9 @@ class LiquidityAnalyzer:
                 aggressive_ask_floor = bid_price + self.tick_size
                 if aggressive_ask_floor > 0:
                     recommended_ask = max(recommended_ask - self.tick_size, aggressive_ask_floor)
-                    logger.debug(f"Heavy ask side detected, adjusting sell price to {recommended_ask}")
+                    logger.debug(
+                        f"Heavy ask side detected, adjusting sell price to {recommended_ask}"
+                    )
                 else:
                     logger.warning(
                         f"Cannot apply heavy ask side adjustment for {quote.symbol}: "
