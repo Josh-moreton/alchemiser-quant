@@ -5,8 +5,7 @@ Business Unit: shared/config | Status: current.
 
 from __future__ import annotations
 
-import os
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -31,7 +30,7 @@ class TestConfigProviders:
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
         monkeypatch.setenv("ALPACA_ENDPOINT", "https://paper-api.alpaca.markets")
-        
+
         container = ConfigProviders()
         paper_trading = container.paper_trading()
 
@@ -42,7 +41,7 @@ class TestConfigProviders:
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
         monkeypatch.setenv("ALPACA_ENDPOINT", "https://api.alpaca.markets")
-        
+
         container = ConfigProviders()
         paper_trading = container.paper_trading()
 
@@ -54,7 +53,7 @@ class TestConfigProviders:
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
         # Don't set ALPACA_ENDPOINT - it should default
         monkeypatch.delenv("ALPACA_ENDPOINT", raising=False)
-        
+
         container = ConfigProviders()
         paper_trading = container.paper_trading()
 
@@ -65,7 +64,7 @@ class TestConfigProviders:
         monkeypatch.setenv("ALPACA_KEY", "test_api_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
         monkeypatch.setenv("ALPACA_ENDPOINT", "https://paper-api.alpaca.markets")
-        
+
         container = ConfigProviders()
         api_key = container.alpaca_api_key()
 
@@ -76,7 +75,7 @@ class TestConfigProviders:
         monkeypatch.setenv("ALPACA_KEY", "test_api_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret_key")
         monkeypatch.setenv("ALPACA_ENDPOINT", "https://paper-api.alpaca.markets")
-        
+
         container = ConfigProviders()
         secret_key = container.alpaca_secret_key()
 
@@ -90,7 +89,7 @@ class TestConfigProviders:
         monkeypatch.setenv("ALPACA_KEY", "test_api_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
         monkeypatch.setenv("ALPACA_ENDPOINT", test_endpoint)
-        
+
         container = ConfigProviders()
         endpoint = container.alpaca_endpoint()
 
@@ -105,7 +104,7 @@ class TestConfigProviders:
         monkeypatch.delenv("ALPACA__SECRET", raising=False)
         monkeypatch.delenv("ALPACA_ENDPOINT", raising=False)
         monkeypatch.delenv("ALPACA__ENDPOINT", raising=False)
-        
+
         container = ConfigProviders()
         api_key = container.alpaca_api_key()
         secret_key = container.alpaca_secret_key()
@@ -122,7 +121,7 @@ class TestConfigProviders:
         # Create a mock settings object with nested email attribute
         mock_email = Mock()
         mock_email.to_email = "test@example.com"
-        
+
         mock_settings = Mock(spec=Settings)
         mock_settings.email = mock_email
 
@@ -158,7 +157,7 @@ class TestConfigProviders:
             monkeypatch.setenv("ALPACA_KEY", "test_key")
             monkeypatch.setenv("ALPACA_SECRET", "test_secret")
             monkeypatch.setenv("ALPACA_ENDPOINT", endpoint)
-            
+
             container = ConfigProviders()
             paper_trading = container.paper_trading()
 
