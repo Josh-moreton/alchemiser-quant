@@ -30,18 +30,18 @@ class TestConfigModuleInterface:
         }
         actual_exports = set(config.__all__)
 
-        assert (
-            actual_exports == expected_exports
-        ), f"__all__ mismatch. Expected: {expected_exports}, Got: {actual_exports}"
+        assert actual_exports == expected_exports, (
+            f"__all__ mismatch. Expected: {expected_exports}, Got: {actual_exports}"
+        )
 
     def test_all_exports_are_importable(self) -> None:
         """Test that all items in __all__ can be imported."""
         from the_alchemiser.shared import config
 
         for export_name in config.__all__:
-            assert hasattr(
-                config, export_name
-            ), f"Export '{export_name}' in __all__ but not found in module"
+            assert hasattr(config, export_name), (
+                f"Export '{export_name}' in __all__ but not found in module"
+            )
 
     def test_settings_export(self) -> None:
         """Test Settings class is correctly exported."""
@@ -49,9 +49,9 @@ class TestConfigModuleInterface:
 
         assert Settings is not None
         # Settings is a Pydantic BaseSettings class
-        assert hasattr(Settings, "model_config") or hasattr(
-            Settings, "__init__"
-        ), "Settings should be a Pydantic model"
+        assert hasattr(Settings, "model_config") or hasattr(Settings, "__init__"), (
+            "Settings should be a Pydantic model"
+        )
 
     def test_config_alias(self) -> None:
         """Test Config is an alias for Settings (backward compatibility)."""
@@ -70,9 +70,7 @@ class TestConfigModuleInterface:
         settings = load_settings()
         from the_alchemiser.shared.config import Settings
 
-        assert isinstance(
-            settings, Settings
-        ), "load_settings should return Settings instance"
+        assert isinstance(settings, Settings), "load_settings should return Settings instance"
 
     def test_classify_symbol_export(self) -> None:
         """Test classify_symbol function is correctly exported."""
@@ -151,9 +149,7 @@ class TestConfigModuleInterface:
         exec("from the_alchemiser.shared.config import *", namespace)
 
         # Remove builtins
-        imported_names = {
-            name for name in namespace.keys() if not name.startswith("__")
-        }
+        imported_names = {name for name in namespace.keys() if not name.startswith("__")}
 
         expected_names = {
             "Config",
@@ -164,21 +160,19 @@ class TestConfigModuleInterface:
             "load_settings",
         }
 
-        assert (
-            imported_names == expected_names
-        ), f"Star import should only import __all__ items. Got: {imported_names}, Expected: {expected_names}"
+        assert imported_names == expected_names, (
+            f"Star import should only import __all__ items. Got: {imported_names}, Expected: {expected_names}"
+        )
 
     def test_module_has_docstring(self) -> None:
         """Test module has proper docstring with business unit marker."""
         from the_alchemiser.shared import config
 
         assert config.__doc__ is not None, "Module must have docstring"
-        assert (
-            "Business Unit: shared" in config.__doc__
-        ), "Docstring must contain business unit marker"
-        assert (
-            "Status: current" in config.__doc__
-        ), "Docstring must contain status marker"
+        assert "Business Unit: shared" in config.__doc__, (
+            "Docstring must contain business unit marker"
+        )
+        assert "Status: current" in config.__doc__, "Docstring must contain status marker"
 
     def test_backward_compatibility_config_alias(self) -> None:
         """Test that Config alias works in practice for backward compatibility."""
@@ -189,9 +183,7 @@ class TestConfigModuleInterface:
 
         # Should have same attributes as Settings
         assert hasattr(config_instance, "alpaca"), "Config should have alpaca settings"
-        assert hasattr(
-            config_instance, "strategy"
-        ), "Config should have strategy settings"
+        assert hasattr(config_instance, "strategy"), "Config should have strategy settings"
         assert hasattr(config_instance, "aws"), "Config should have aws settings"
 
     def test_settings_structure(self) -> None:
@@ -209,12 +201,8 @@ class TestConfigModuleInterface:
         assert hasattr(settings, "email"), "Settings should have email config"
         assert hasattr(settings, "data"), "Settings should have data config"
         assert hasattr(settings, "tracking"), "Settings should have tracking config"
-        assert hasattr(
-            settings, "trade_ledger"
-        ), "Settings should have trade_ledger config"
-        assert hasattr(
-            settings, "execution"
-        ), "Settings should have execution config"
+        assert hasattr(settings, "trade_ledger"), "Settings should have trade_ledger config"
+        assert hasattr(settings, "execution"), "Settings should have execution config"
 
     def test_symbol_classification_integration(self) -> None:
         """Test symbol classification functions work correctly."""
@@ -246,9 +234,9 @@ class TestConfigModuleInterface:
 
         # Should be a package (has __path__ or __file__ points to __init__.py)
         assert hasattr(config, "__file__"), "Module should have __file__ attribute"
-        assert config.__file__.endswith(
-            "__init__.py"
-        ), "Module __file__ should point to __init__.py"
+        assert config.__file__.endswith("__init__.py"), (
+            "Module __file__ should point to __init__.py"
+        )
 
     def test_repeated_import_returns_same_object(self) -> None:
         """Test that repeated imports return the same objects (singleton behavior)."""
@@ -260,9 +248,7 @@ class TestConfigModuleInterface:
         from the_alchemiser.shared.config import load_settings as load_settings1
         from the_alchemiser.shared.config import load_settings as load_settings2
 
-        assert (
-            load_settings1 is load_settings2
-        ), "Repeated imports should return same function"
+        assert load_settings1 is load_settings2, "Repeated imports should return same function"
 
     def test_invalid_attribute_access_raises_error(self) -> None:
         """Test that accessing non-existent attributes raises AttributeError."""
