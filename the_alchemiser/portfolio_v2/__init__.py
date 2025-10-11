@@ -55,11 +55,11 @@ def register_portfolio_handlers(container: ApplicationContainer) -> None:
 
 def __getattr__(name: str) -> object:
     if name == "PortfolioServiceV2":
-        from .core.portfolio_service import PortfolioServiceV2 as _PortfolioServiceV2
+        from .core import PortfolioServiceV2 as _PortfolioServiceV2
 
         return _PortfolioServiceV2
     if name == "RebalancePlanCalculator":
-        from .core.planner import RebalancePlanCalculator as _RebalancePlanCalculator
+        from .core import RebalancePlanCalculator as _RebalancePlanCalculator
 
         return _RebalancePlanCalculator
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
