@@ -80,7 +80,7 @@ class LiquidityAnalyzer:
                 f"This indicates a data quality issue upstream that must be investigated."
             )
             # Continue processing but flag the issue prominently
-        
+
         # Additional validation: ensure prices are reasonable
         if quote.bid_price == 0 or quote.ask_price == 0:
             logger.warning(
@@ -88,7 +88,7 @@ class LiquidityAnalyzer:
                 f"bid={quote.bid_price}, ask={quote.ask_price}. "
                 f"Quote data may be stale or incomplete."
             )
-        
+
         # Log full quote details for debugging when prices look suspicious
         if quote.bid_price <= 0 or quote.ask_price <= 0 or quote.bid_price > quote.ask_price:
             logger.error(
@@ -154,8 +154,16 @@ class LiquidityAnalyzer:
         volume_score = min(total_volume / 1000.0, 50.0)  # Up to 50 points for volume
 
         # Spread score (tighter spreads = higher score)
-        spread_pct = (quote.spread / quote.mid_price) * 100
-        spread_score = max(0, 30 - float(spread_pct) * 10)  # Up to 30 points for spread
+        # Guard against zero mid_price to prevent division by zero
+        if quote.mid_price <= 0:
+            logger.warning(
+                f"Invalid mid_price for liquidity score calculation: {quote.mid_price}",
+                extra={"symbol": quote.symbol}
+            )
+            spread_score = 0.0  # Worst score for invalid data
+        else:
+            spread_pct = (quote.spread / quote.mid_price) * 100
+            spread_score = max(0, 30 - float(spread_pct) * 10)  # Up to 30 points for spread
 
         # Balance score (balanced book = higher score)
         if total_volume > 0:
@@ -190,7 +198,7 @@ class LiquidityAnalyzer:
             # Return minimum valid prices as emergency fallback
             min_price = Decimal("0.01")
             return {"bid": float(min_price), "ask": float(min_price)}
-        
+
         # Analyze volume sufficiency at current levels
         bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
         ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
@@ -311,10 +319,19 @@ class LiquidityAnalyzer:
             confidence *= 1.0 - volume_penalty * 0.5  # Up to 50% penalty
 
         # Reduce confidence if spread is very wide
-        spread_pct = float((quote.spread / quote.mid_price) * 100)
-        if spread_pct > 1.0:  # > 1% spread
-            spread_penalty = min(spread_pct / 5.0, 0.4)  # Up to 40% penalty
-            confidence *= 1.0 - spread_penalty
+        # Guard against zero mid_price to prevent division by zero
+        if quote.mid_price <= 0:
+            logger.warning(
+                f"Invalid mid_price for confidence calculation: {quote.mid_price}",
+                extra={"symbol": quote.symbol}
+            )
+            # Apply maximum spread penalty for invalid data
+            confidence *= 0.6  # 40% penalty for invalid price
+        else:
+            spread_pct = float((quote.spread / quote.mid_price) * 100)
+            if spread_pct > 1.0:  # > 1% spread
+                spread_penalty = min(spread_pct / 5.0, 0.4)  # Up to 40% penalty
+                confidence *= 1.0 - spread_penalty
 
         # Reduce confidence if order is very large relative to liquidity
         available_volume = float(max(total_volume, 1.0))
