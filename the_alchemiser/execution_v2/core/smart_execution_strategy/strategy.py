@@ -85,8 +85,16 @@ class SmartExecutionStrategy:
 
         """
         logger.info(
-            f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
-            f"(urgency: {request.urgency})"
+            "Placing smart order",
+            extra={
+                "module": "smart_execution_strategy",
+                "action": "place_smart_order",
+                "symbol": request.symbol,
+                "side": request.side,
+                "quantity": str(request.quantity),
+                "urgency": request.urgency,
+                "correlation_id": request.correlation_id,
+            },
         )
 
         # Preflight validation for non-fractionable assets
@@ -100,7 +108,15 @@ class SmartExecutionStrategy:
 
         if not validation_result.is_valid:
             error_msg = validation_result.error_message or f"Validation failed for {request.symbol}"
-            logger.error(f"❌ Preflight validation failed for {request.symbol}: {error_msg}")
+            logger.error(
+                "Preflight validation failed",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "error_message": error_msg,
+                    "correlation_id": request.correlation_id,
+                },
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=error_msg,
@@ -113,12 +129,27 @@ class SmartExecutionStrategy:
             original_quantity = request.quantity
             request = replace(request, quantity=validation_result.adjusted_quantity)
             logger.info(
-                f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}"
+                "Adjusted order quantity",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "original_quantity": str(original_quantity),
+                    "adjusted_quantity": str(request.quantity),
+                    "correlation_id": request.correlation_id,
+                },
             )
 
         # Log any warnings from validation
         for warning in validation_result.warnings:
-            logger.warning(f"⚠️ Smart order validation: {warning}")
+            logger.warning(
+                "Smart order validation warning",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "warning": warning,
+                    "correlation_id": request.correlation_id,
+                },
+            )
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
@@ -149,7 +180,17 @@ class SmartExecutionStrategy:
             )
 
         except Exception as e:
-            logger.error(f"Error in smart order placement for {request.symbol}: {e}")
+            logger.error(
+                "Error in smart order placement",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "correlation_id": request.correlation_id,
+                },
+                exc_info=True,
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=str(e),
@@ -199,7 +240,13 @@ class SmartExecutionStrategy:
         # Fallback to market order for high urgency
         if request.urgency == "HIGH":
             logger.warning(
-                f"Quote validation failed for {request.symbol}, using market order fallback"
+                "Quote validation failed, using market order fallback",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "urgency": request.urgency,
+                    "correlation_id": request.correlation_id,
+                },
             )
             # Return a task that can be awaited by the caller
             return self._create_market_fallback_result(request)
@@ -274,8 +321,14 @@ class SmartExecutionStrategy:
         # Validate optimal price before proceeding
         if optimal_price <= 0:
             logger.error(
-                f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
-                f"This should not happen after validation - falling back to market order."
+                "Invalid optimal price calculated",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "side": request.side,
+                    "optimal_price": str(optimal_price),
+                    "correlation_id": request.correlation_id,
+                },
             )
             return await self._handle_invalid_price_fallback(request)
 
@@ -330,8 +383,14 @@ class SmartExecutionStrategy:
         # Final validation before placing order
         if quantized_price <= 0:
             logger.error(
-                f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
-                f"This should not happen after validation - falling back to market order."
+                "Quantized price is invalid",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "symbol": request.symbol,
+                    "quantized_price": str(quantized_price),
+                    "optimal_price": str(optimal_price),
+                    "correlation_id": request.correlation_id,
+                },
             )
 
         return quantized_price
@@ -382,6 +441,16 @@ class SmartExecutionStrategy:
                 quote,
                 used_fallback=used_fallback,
             )
+
+        logger.error(
+            "Limit order placement failed",
+            extra={
+                "module": "smart_execution_strategy",
+                "symbol": request.symbol,
+                "error": result.error or "Unknown error",
+                "correlation_id": request.correlation_id,
+            },
+        )
         return SmartOrderResult(
             success=False,
             error_message=result.error or "Limit order placement failed",
@@ -419,16 +488,30 @@ class SmartExecutionStrategy:
         self.order_tracker.add_order(result.order_id, request, placement_time, optimal_price)
 
         logger.info(
-            f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
-            f"(strategy: {analysis_metadata['strategy_recommendation']}, "
-            f"confidence: {analysis_metadata['confidence']:.2f})"
+            "Smart liquidity-aware order placed",
+            extra={
+                "module": "smart_execution_strategy",
+                "order_id": result.order_id,
+                "symbol": request.symbol,
+                "side": request.side,
+                "price": str(optimal_price),
+                "quantity": str(request.quantity),
+                "strategy_recommendation": analysis_metadata["strategy_recommendation"],
+                "confidence": analysis_metadata["confidence"],
+                "correlation_id": request.correlation_id,
+            },
         )
 
         # Schedule re-pegging monitoring for this order
         if self.config.fill_wait_seconds > 0:
             logger.info(
-                f"⏰ Will monitor order {result.order_id} for re-pegging "
-                f"after {self.config.fill_wait_seconds}s"
+                "Order monitoring scheduled for re-pegging",
+                extra={
+                    "module": "smart_execution_strategy",
+                    "order_id": result.order_id,
+                    "fill_wait_seconds": self.config.fill_wait_seconds,
+                    "correlation_id": request.correlation_id,
+                },
             )
 
         metadata_dict: LiquidityMetadata = {
@@ -462,7 +545,15 @@ class SmartExecutionStrategy:
             SmartOrderResult using market order execution
 
         """
-        logger.info(f"📈 Using market order fallback for {request.symbol}")
+        logger.info(
+            "Using market order fallback",
+            extra={
+                "module": "smart_execution_strategy",
+                "symbol": request.symbol,
+                "urgency": request.urgency,
+                "correlation_id": request.correlation_id,
+            },
+        )
 
         # Use asyncio.to_thread to make blocking I/O async
         executed_order = await asyncio.to_thread(
