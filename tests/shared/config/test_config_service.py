@@ -1,11 +1,15 @@
-"""Tests for ConfigService."""  # noqa: S101
+"""Tests for ConfigService."""
 
 from __future__ import annotations
 
 import pytest
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.config.config_service import ConfigService
+from the_alchemiser.shared.config.config_service import (
+    DEFAULT_CACHE_DURATION_SECONDS,
+    ConfigService,
+)
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 
 
 class TestConfigServiceInitialization:
@@ -296,3 +300,127 @@ class TestConfigServiceIntegration:
         _ = service.live_endpoint
         _ = service.get_endpoint(paper_trading=True)
         _ = service.get_endpoint(paper_trading=False)
+
+
+class TestConfigServiceValidation:
+    """Test ConfigService validation and error handling."""
+
+    def test_cache_duration_validates_negative_value(self) -> None:
+        """Test cache_duration raises ConfigurationError for negative values."""
+        # Arrange
+        settings = Settings()
+        settings.data.cache_duration = -100
+        service = ConfigService(config=settings)
+
+        # Act & Assert
+        with pytest.raises(ConfigurationError) as exc_info:
+            _ = service.cache_duration
+
+        assert "cache_duration must be positive" in str(exc_info.value)
+        assert exc_info.value.config_key == "data.cache_duration"
+
+    def test_cache_duration_uses_default_constant(self) -> None:
+        """Test cache_duration uses DEFAULT_CACHE_DURATION_SECONDS constant."""
+        # Arrange
+        settings = Settings()
+        settings.data.cache_duration = None  # type: ignore[assignment]
+        service = ConfigService(config=settings)
+
+        # Act
+        result = service.cache_duration
+
+        # Assert
+        assert result == DEFAULT_CACHE_DURATION_SECONDS
+        assert result == 3600
+
+    def test_paper_endpoint_validates_url_format(self) -> None:
+        """Test paper_endpoint raises ConfigurationError for invalid URLs."""
+        # Arrange
+        settings = Settings()
+        settings.alpaca.paper_endpoint = "invalid-url"
+        service = ConfigService(config=settings)
+
+        # Act & Assert
+        with pytest.raises(ConfigurationError) as exc_info:
+            _ = service.paper_endpoint
+
+        assert "Invalid paper endpoint URL" in str(exc_info.value)
+        assert "http" in str(exc_info.value).lower()
+
+    def test_live_endpoint_validates_url_format(self) -> None:
+        """Test live_endpoint raises ConfigurationError for invalid URLs."""
+        # Arrange
+        settings = Settings()
+        settings.alpaca.endpoint = "not-a-url"
+        service = ConfigService(config=settings)
+
+        # Act & Assert
+        with pytest.raises(ConfigurationError) as exc_info:
+            _ = service.live_endpoint
+
+        assert "Invalid live endpoint URL" in str(exc_info.value)
+        assert "http" in str(exc_info.value).lower()
+
+    def test_paper_endpoint_validates_empty_string(self) -> None:
+        """Test paper_endpoint raises ConfigurationError for empty string."""
+        # Arrange
+        settings = Settings()
+        settings.alpaca.paper_endpoint = ""
+        service = ConfigService(config=settings)
+
+        # Act & Assert
+        with pytest.raises(ConfigurationError) as exc_info:
+            _ = service.paper_endpoint
+
+        assert "Invalid paper endpoint URL" in str(exc_info.value)
+
+    def test_live_endpoint_validates_empty_string(self) -> None:
+        """Test live_endpoint raises ConfigurationError for empty string."""
+        # Arrange
+        settings = Settings()
+        settings.alpaca.endpoint = ""
+        service = ConfigService(config=settings)
+
+        # Act & Assert
+        with pytest.raises(ConfigurationError) as exc_info:
+            _ = service.live_endpoint
+
+        assert "Invalid live endpoint URL" in str(exc_info.value)
+
+    def test_paper_endpoint_accepts_valid_http_url(self) -> None:
+        """Test paper_endpoint accepts valid HTTP URL."""
+        # Arrange
+        settings = Settings()
+        settings.alpaca.paper_endpoint = "http://paper-api.alpaca.markets"
+        service = ConfigService(config=settings)
+
+        # Act
+        result = service.paper_endpoint
+
+        # Assert
+        assert result == "http://paper-api.alpaca.markets"
+
+    def test_live_endpoint_accepts_valid_https_url(self) -> None:
+        """Test live_endpoint accepts valid HTTPS URL."""
+        # Arrange
+        settings = Settings()
+        settings.alpaca.endpoint = "https://api.alpaca.markets"
+        service = ConfigService(config=settings)
+
+        # Act
+        result = service.live_endpoint
+
+        # Assert
+        assert result == "https://api.alpaca.markets"
+
+
+class TestConfigServiceConstants:
+    """Test ConfigService constants are properly defined."""
+
+    def test_default_cache_duration_constant_exists(self) -> None:
+        """Test DEFAULT_CACHE_DURATION_SECONDS constant is defined."""
+        assert DEFAULT_CACHE_DURATION_SECONDS == 3600
+
+    def test_default_cache_duration_is_positive(self) -> None:
+        """Test DEFAULT_CACHE_DURATION_SECONDS is a positive value."""
+        assert DEFAULT_CACHE_DURATION_SECONDS > 0

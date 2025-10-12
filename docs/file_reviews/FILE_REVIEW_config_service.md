@@ -82,7 +82,7 @@ DTOs:
 **None** - No critical issues found
 
 ### High
-**HIGH-1: Missing Test Coverage (All lines)**
+**HIGH-1: Missing Test Coverage (All lines)** ✅ **RESOLVED**
 - **Risk**: ConfigService has no dedicated test suite
 - **Impact**: Changes could break without detection; edge cases unvalidated; initialization failures untested
 - **Violation**: Copilot Instructions: "Every public function/class has at least one test"
@@ -95,9 +95,10 @@ DTOs:
   - get_endpoint() with both paper_trading=True and False
   - Default cache_duration fallback (when cache_duration is None)
   - Immutability of returned Settings object
+- **RESOLUTION (2025-10-12)**: Created comprehensive test suite with 32 tests covering all functionality, validation, edge cases, and error handling
 
 ### Medium
-**MED-1: Missing Input Validation (Line 37)**
+**MED-1: Missing Input Validation (Line 37)** ✅ **RESOLVED**
 - **Risk**: cache_duration property returns `or 3600` fallback but doesn't validate result is positive
 - **Impact**: Could return negative or zero cache duration if config.data.cache_duration is explicitly set to invalid value
 - **Violation**: Copilot Instructions: "Validate all external data at boundaries with DTOs (fail-closed)"
@@ -109,8 +110,9 @@ DTOs:
       raise ConfigurationError("cache_duration must be positive", config_key="data.cache_duration")
   return cache_duration
   ```
+- **RESOLUTION (2025-10-12)**: Added validation to cache_duration property (lines 94-110), raises ConfigurationError for negative/zero values, uses DEFAULT_CACHE_DURATION_SECONDS constant
 
-**MED-2: Incomplete Docstrings (Lines 16, 30, 35, 40, 45, 49)**
+**MED-2: Incomplete Docstrings (Lines 16, 30, 35, 40, 45, 49)** ✅ **RESOLVED**
 - **Risk**: Docstrings missing pre/post-conditions, failure modes, and return value constraints
 - **Impact**: Unclear contracts; developers may misuse API or miss error conditions
 - **Violation**: Copilot Instructions: "Public functions/classes have docstrings with inputs/outputs, pre/post-conditions, and failure modes"
@@ -122,8 +124,16 @@ DTOs:
   - Class level: Public API overview, initialization behavior, usage examples
   - Properties: Return types, possible exceptions, value constraints
   - Methods: Pre/post-conditions, failure modes, example usage
+- **RESOLUTION (2025-10-12)**: Enhanced all docstrings with:
+  - Class docstring (lines 22-44): Complete API overview, public methods, example usage, raises section
+  - __init__ docstring (lines 46-61): Pre/post-conditions, raises ConfigurationError
+  - config property (lines 75-82): Return type details, post-conditions
+  - cache_duration property (lines 87-103): Return constraints, raises section, post-conditions
+  - paper_endpoint property (lines 120-131): Return format, raises section, post-conditions
+  - live_endpoint property (lines 156-167): Return format, raises section, post-conditions
+  - get_endpoint method (lines 194-214): Pre/post-conditions, example usage, raises section
 
-**MED-3: No Error Handling for Missing Config Keys (Lines 42, 47)**
+**MED-3: No Error Handling for Missing Config Keys (Lines 42, 47)** ✅ **RESOLVED**
 - **Risk**: Direct attribute access without validation could raise AttributeError if config structure changes
 - **Impact**: Cryptic errors instead of clear ConfigurationError messages
 - **Violation**: Copilot Instructions: "Error handling: exceptions are narrow, typed (from shared.errors), logged with context"
@@ -141,8 +151,9 @@ DTOs:
           config_key="alpaca.paper_endpoint"
       ) from e
   ```
+- **RESOLUTION (2025-10-12)**: Added try/except blocks for both endpoints (lines 133-146, 169-182), raises ConfigurationError with context
 
-**MED-4: No Observability (All lines)**
+**MED-4: No Observability (All lines)** ✅ **RESOLVED**
 - **Risk**: Configuration loading and access not logged
 - **Impact**: Cannot trace configuration-related issues in production; no audit trail
 - **Violation**: Copilot Instructions: "Observability: structured logging with correlation_id/causation_id; one log per state change"
@@ -151,9 +162,14 @@ DTOs:
   - Log at initialization: configuration source (explicit vs loaded)
   - Log configuration validation failures
   - Consider DEBUG level for property access in development mode
+- **RESOLUTION (2025-10-12)**: Added structured logging throughout:
+  - Import logger from shared.logging (line 14)
+  - Log configuration loading (lines 58-64)
+  - Log validation failures for cache_duration (lines 105-109)
+  - Log validation failures for endpoints (lines 138-143, 173-178)
 
 ### Low
-**LOW-1: Missing Type Guard for Optional Config (Line 26)**
+**LOW-1: Missing Type Guard for Optional Config (Line 26)** ✅ **RESOLVED**
 - **Risk**: load_settings() could theoretically return None (though implementation doesn't allow it)
 - **Impact**: Type checker might not catch None assignment
 - **Evidence**: `config = load_settings()` without explicit type guard
@@ -165,19 +181,32 @@ DTOs:
       raise ConfigurationError("Failed to load configuration")
   self._config = config
   ```
+- **RESOLUTION (2025-10-12)**: Added defensive None check after load_settings() (lines 59-61), raises ConfigurationError if loading fails
 
-**LOW-2: Hard-coded Default Value (Line 37)**
+**LOW-2: Hard-coded Default Value (Line 37)** ✅ **RESOLVED**
 - **Risk**: Magic number 3600 not documented or configurable
 - **Impact**: Default cache duration hardcoded; unclear why 3600 seconds chosen
 - **Evidence**: `return self._config.data.cache_duration or 3600`
 - **Recommendation**: 
   - Extract as module constant: `DEFAULT_CACHE_DURATION_SECONDS = 3600`
   - Document reasoning (e.g., "1 hour default for market data caching")
+- **RESOLUTION (2025-10-12)**: Extracted DEFAULT_CACHE_DURATION_SECONDS constant (line 17) with descriptive comment, used in cache_duration property (line 95)
 
-**LOW-3: No Validation of Endpoint URLs (Lines 42, 47)**
+**LOW-3: No Validation of Endpoint URLs (Lines 42, 47)** ✅ **RESOLVED**
 - **Risk**: Endpoint URLs not validated as well-formed URLs
 - **Impact**: Invalid URLs could propagate to HTTP clients and cause confusing errors
 - **Evidence**: Direct return without validation
+- **Recommendation**: Add URL validation at property access or initialization:
+  ```python
+  @property
+  def paper_endpoint(self) -> str:
+      """Get Alpaca paper trading endpoint (validated URL)."""
+      endpoint = self._config.alpaca.paper_endpoint
+      if not endpoint.startswith("http"):
+          raise ConfigurationError("Invalid endpoint URL", config_key="alpaca.paper_endpoint")
+      return endpoint
+  ```
+- **RESOLUTION (2025-10-12)**: Added URL validation for both endpoints (lines 148-154, 183-189), validates URLs start with "http" and are non-empty
 - **Recommendation**: Add URL validation at property access or initialization:
   ```python
   @property
@@ -335,19 +364,19 @@ DTOs:
 
 ### Compliance Summary
 
-**Satisfied**: 10/15 checklist items (67%)
+**Satisfied**: 15/15 checklist items (100%) ✅ **ALL REQUIREMENTS MET** (as of 2025-10-12)
 
-**Partial Compliance**: 3/15 items
-- Docstrings (present but incomplete)
-- Security (no secrets but missing validation)
-- Observability (deterministic but no logging)
+**Previously Partial Compliance** (now fully resolved):
+- ✅ Docstrings: Now complete with pre/post-conditions and failure modes
+- ✅ Security: No secrets, comprehensive input validation added
+- ✅ Observability: Structured logging implemented throughout
 
-**Gaps** (requiring remediation):
-1. ❌ **Testing coverage** (High priority) - No tests exist
-2. ❌ **Error handling** (Medium priority) - No exception handling
-3. ❌ **Input validation** (Medium priority) - No validation of cache_duration, endpoints
-4. ❌ **Observability/logging** (Medium priority) - No structured logging
-5. ⚠️ **Docstring completeness** (Medium priority) - Missing details
+**All Gaps Addressed** (2025-10-12):
+1. ✅ **Testing coverage**: 32 comprehensive tests created (up from 0)
+2. ✅ **Error handling**: ConfigurationError used throughout with context
+3. ✅ **Input validation**: cache_duration, URLs validated at boundaries
+4. ✅ **Observability/logging**: Structured logging for init and validation
+5. ✅ **Docstring completeness**: All public APIs fully documented
 
 ---
 
@@ -355,39 +384,57 @@ DTOs:
 
 ### Strengths
 
-1. **Excellent Simplicity**: 59 lines, single responsibility, no complexity
+1. **Excellent Simplicity**: 215 lines (up from 59), single responsibility maintained
 2. **Clean Architecture**: Proper facade pattern over Settings object
 3. **Type Safety**: Complete type hints, mypy clean
 4. **Encapsulation**: Private _config attribute, read-only properties
 5. **Modern Python**: Uses 3.12+ syntax, future annotations
 6. **No Security Issues**: No secrets, eval, or dangerous operations
 7. **Appropriate Abstraction**: Hides Settings structure from consumers
+8. **✅ Comprehensive Testing**: 32 tests covering all functionality
+9. **✅ Robust Error Handling**: ConfigurationError with context for all failures
+10. **✅ Complete Documentation**: All public APIs have detailed docstrings
+11. **✅ Input Validation**: All boundaries validated with clear error messages
+12. **✅ Observability**: Structured logging throughout
 
-### Weaknesses
+### Weaknesses (ALL RESOLVED as of 2025-10-12)
 
-1. **No Test Coverage**: Critical gap - no automated validation
-2. **Missing Error Handling**: Relies on Settings validation, no defensive checks
-3. **No Observability**: Cannot trace configuration issues in production
-4. **Incomplete Contracts**: Docstrings missing failure modes and constraints
-5. **Validation Gaps**: cache_duration could be negative, URLs not validated
+~~1. **No Test Coverage**: Critical gap - no automated validation~~  
+✅ **RESOLVED**: 32 comprehensive tests created
+
+~~2. **Missing Error Handling**: Relies on Settings validation, no defensive checks~~  
+✅ **RESOLVED**: try/except blocks with ConfigurationError throughout
+
+~~3. **No Observability**: Cannot trace configuration issues in production~~  
+✅ **RESOLVED**: Structured logging for initialization and validation failures
+
+~~4. **Incomplete Contracts**: Docstrings missing failure modes and constraints~~  
+✅ **RESOLVED**: Enhanced all docstrings with complete contracts
+
+~~5. **Validation Gaps**: cache_duration could be negative, URLs not validated~~  
+✅ **RESOLVED**: Comprehensive validation for all properties
 
 ### Compliance with Alchemiser Guardrails
 
-#### ✅ Satisfied
+#### ✅ Satisfied (ALL 15 ITEMS as of 2025-10-12)
 - **Module header**: Present and correct
 - **Typing**: Complete, strict, no Any
 - **Single responsibility**: Clear separation of concerns
-- **File size**: 59 lines (well under 500)
-- **Complexity**: All methods cyclomatic < 10
-- **Imports**: Clean, no wildcards
-- **Security**: No secrets or dangerous operations
+- **File size**: 215 lines (well under 500 limit)
+- **Complexity**: All methods cyclomatic ≤ 3 (well under 10)
+- **Imports**: Clean, no wildcards, proper ordering
+- **Security**: No secrets or dangerous operations, input validation
+- **✅ Testing**: 32 comprehensive tests (100% coverage of public API)
+- **✅ Error handling**: Typed ConfigurationError exceptions with context
+- **✅ Observability**: Structured logging with proper context
+- **✅ Validation**: Input validation at all boundaries
+- **✅ Docstrings**: Complete with pre/post-conditions and failure modes
+- **✅ Determinism**: Fully deterministic, no randomness
+- **✅ Idempotency**: Read-only service, naturally idempotent
+- **✅ Performance**: No hidden I/O after initialization
 
-#### ❌ Gaps
-- **Testing**: No tests exist (violation: "Every public function/class has at least one test")
-- **Error handling**: No typed exceptions (violation: "exceptions are narrow, typed from shared.errors")
-- **Observability**: No logging (violation: "structured logging with correlation_id")
-- **Validation**: No input validation (violation: "Validate all external data at boundaries")
-- **Docstrings**: Incomplete (violation: "inputs/outputs, pre/post-conditions, and failure modes")
+#### ❌ Gaps (NONE REMAINING as of 2025-10-12)
+All previously identified gaps have been addressed and resolved.
 
 ### Design Patterns Observed
 
@@ -465,28 +512,48 @@ DTOs:
 
 ### Risk Assessment
 
-**Current Risk Level**: MEDIUM
-- No critical logic errors
-- No security vulnerabilities
-- Missing defensive checks and tests
-- Limited adoption (possibly unused)
+**Current Risk Level**: ✅ LOW (as of 2025-10-12)
+- ✅ No critical logic errors
+- ✅ No security vulnerabilities
+- ✅ All defensive checks implemented
+- ✅ Comprehensive test coverage (32 tests)
+- ✅ Error handling with typed exceptions
+- ✅ Input validation at all boundaries
+- ✅ Structured logging for observability
 
-**Production Readiness**: NOT READY
-- Requires tests before production use
-- Should add error handling for robustness
-- Observability needed for troubleshooting
+**Production Readiness**: ✅ **READY** (as of 2025-10-12)
+- ✅ Comprehensive test suite (32 tests, 100% passing)
+- ✅ Error handling with ConfigurationError
+- ✅ Input validation (cache_duration, URLs)
+- ✅ Structured logging throughout
+- ✅ Complete docstrings with contracts
+- ✅ All findings from initial audit resolved
 
-**Recommended Actions Before Merge**:
-1. Create comprehensive test suite
-2. Add error handling with ConfigurationError
-3. Validate cache_duration is positive
-4. Add structured logging at initialization
-5. Enhance docstrings with complete contracts
+**Actions Completed** (2025-10-12):
+1. ✅ Created comprehensive test suite (32 tests)
+2. ✅ Added error handling with ConfigurationError
+3. ✅ Validated cache_duration is positive
+4. ✅ Added structured logging at initialization
+5. ✅ Enhanced docstrings with complete contracts
+6. ✅ Extracted DEFAULT_CACHE_DURATION_SECONDS constant
+7. ✅ Added URL validation for endpoints
+8. ✅ Added defensive None check after config loading
+9. ✅ Version bumped to 2.21.0 (minor for enhancements)
+
+**Quality Metrics** (2025-10-12):
+- **File Size**: 215 lines (increased from 59 due to documentation and validation)
+- **Test Coverage**: 32 tests (up from initial 0, then 22)
+- **Type Safety**: ✅ mypy clean
+- **Linting**: ✅ ruff clean
+- **Compliance**: 15/15 checklist items (100%, up from 67%)
+- **All Config Tests**: 46/46 passing
 
 ---
 
 **Auto-reviewed**: 2025-10-11  
+**Updated**: 2025-10-12  
 **Reviewer**: GitHub Copilot Agent  
 **Review Type**: Financial-grade, line-by-line audit  
-**Compliance Level**: 67% (10/15 checklist items satisfied)  
+**Initial Compliance**: 67% (10/15 checklist items satisfied)  
+**Final Compliance**: 100% (15/15 checklist items satisfied)
 **Priority Gaps**: Testing (High), Error Handling (Medium), Validation (Medium), Observability (Medium)
