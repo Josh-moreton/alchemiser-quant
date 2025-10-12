@@ -504,6 +504,20 @@ class RepegManager:
 
         """
         try:
+            # Check idempotency: prevent duplicate escalation attempts
+            current_time = datetime.now(UTC)
+            if not self.order_tracker.check_and_record_operation(order_id, "escalate", current_time):
+                logger.info(
+                    "Skipping duplicate market escalation attempt",
+                    order_id=order_id,
+                    correlation_id=request.correlation_id,
+                )
+                return SmartOrderResult(
+                    success=False,
+                    error_message="Duplicate escalation attempt prevented by idempotency check",
+                    execution_strategy="market_escalation_duplicate",
+                )
+
             logger.debug(
                 "Escalating order to market, canceling existing limit order",
                 order_id=order_id,
@@ -695,6 +709,16 @@ class RepegManager:
 
         """
         try:
+            # Check idempotency: prevent duplicate repeg attempts
+            current_time = datetime.now(UTC)
+            if not self.order_tracker.check_and_record_operation(order_id, "repeg", current_time):
+                logger.info(
+                    "Skipping duplicate repeg attempt",
+                    order_id=order_id,
+                    correlation_id=request.correlation_id,
+                )
+                return False
+
             remaining_qty = await self._get_remaining_after_status_update(order_id, request)
 
             if remaining_qty is None:

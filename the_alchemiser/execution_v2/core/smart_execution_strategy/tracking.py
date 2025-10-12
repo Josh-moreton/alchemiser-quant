@@ -32,6 +32,8 @@ class OrderTracker:
         self._price_history: dict[str, list[Decimal]] = {}
         # Track filled quantities for partial fill handling
         self._filled_quantities: dict[str, Decimal] = {}
+        # Track idempotency keys for order operations to prevent duplicates
+        self._operation_keys: set[str] = set()
 
     def add_order(
         self,
@@ -255,5 +257,61 @@ class OrderTracker:
         self._order_anchor_prices.clear()
         self._price_history.clear()
         self._filled_quantities.clear()
+        self._operation_keys.clear()
 
         logger.info("📊 Cleared all order tracking data")
+
+    def generate_idempotency_key(
+        self, order_id: str, operation: str, timestamp: datetime
+    ) -> str:
+        """Generate an idempotency key for an order operation.
+
+        Args:
+            order_id: Order ID
+            operation: Operation type (e.g., 'repeg', 'escalate')
+            timestamp: Timestamp of the operation (ISO format)
+
+        Returns:
+            Idempotency key string
+
+        """
+        import hashlib
+
+        repeg_count = self.get_repeg_count(order_id)
+        # Create a deterministic key from order_id, operation, repeg_count, and timestamp
+        key_parts = f"{order_id}:{operation}:{repeg_count}:{timestamp.isoformat()}"
+        return hashlib.sha256(key_parts.encode()).hexdigest()[:16]
+
+    def check_and_record_operation(
+        self, order_id: str, operation: str, timestamp: datetime
+    ) -> bool:
+        """Check if operation has been performed and record it if not.
+
+        Args:
+            order_id: Order ID
+            operation: Operation type (e.g., 'repeg', 'escalate')
+            timestamp: Timestamp of the operation
+
+        Returns:
+            True if operation is new (not duplicate), False if duplicate
+
+        """
+        idempotency_key = self.generate_idempotency_key(order_id, operation, timestamp)
+
+        if idempotency_key in self._operation_keys:
+            logger.warning(
+                "Duplicate operation detected, skipping",
+                order_id=order_id,
+                operation=operation,
+                idempotency_key=idempotency_key,
+            )
+            return False
+
+        self._operation_keys.add(idempotency_key)
+        logger.debug(
+            "Recorded new operation",
+            order_id=order_id,
+            operation=operation,
+            idempotency_key=idempotency_key,
+        )
+        return True
