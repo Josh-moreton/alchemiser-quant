@@ -25,20 +25,21 @@ class OrderTrackerError(AlchemiserError):
 
 class OrderTracker:
     """Manages tracking state for active orders during smart execution.
-    
+
     Provides in-memory tracking of orders being managed by the smart execution
     strategy, including re-pegging history, partial fills, and timing information.
-    
+
     Thread-safety: This class is NOT thread-safe. If concurrent access is required,
     external synchronization must be used.
-    
+
     Raises:
         OrderTrackerError: For invalid inputs or operational errors.
+
     """
 
     def __init__(self) -> None:
         """Initialize order tracker with empty state.
-        
+
         Post-conditions:
             - All tracking dictionaries are empty
             - Instance is ready to track orders
@@ -52,7 +53,7 @@ class OrderTracker:
         self._price_history: dict[str, list[Decimal]] = {}
         # Track filled quantities for partial fill handling
         self._filled_quantities: dict[str, Decimal] = {}
-        
+
         logger.debug("OrderTracker initialized")
 
     def add_order(
@@ -69,11 +70,11 @@ class OrderTracker:
             request: Original order request containing symbol, side, quantity, correlation_id.
             placement_time: When the order was placed. Must be timezone-aware (UTC).
             anchor_price: Price at which order was anchored. Must be positive.
-        
+
         Raises:
-            OrderTrackerError: If order_id is empty, anchor_price is invalid, 
+            OrderTrackerError: If order_id is empty, anchor_price is invalid,
                              or placement_time is not timezone-aware.
-        
+
         Post-conditions:
             - Order is tracked in all internal dictionaries
             - Repeg count initialized to 0
@@ -86,7 +87,7 @@ class OrderTracker:
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
             logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
             raise OrderTrackerError(msg)
-        
+
         if anchor_price <= Decimal("0"):
             msg = f"anchor_price must be positive, got: {anchor_price}"
             logger.error(
@@ -96,7 +97,7 @@ class OrderTracker:
                 correlation_id=getattr(request, "correlation_id", None),
             )
             raise OrderTrackerError(msg)
-        
+
         if placement_time.tzinfo is None:
             msg = "placement_time must be timezone-aware (UTC)"
             logger.error(
@@ -105,7 +106,7 @@ class OrderTracker:
                 correlation_id=getattr(request, "correlation_id", None),
             )
             raise OrderTrackerError(msg)
-        
+
         self._active_orders[order_id] = request
         self._repeg_counts[order_id] = 0
         self._order_placement_times[order_id] = placement_time
@@ -139,11 +140,11 @@ class OrderTracker:
             new_order_id: New order ID to track. Must be non-empty string.
             new_anchor_price: New anchor price. Must be positive.
             placement_time: When the new order was placed. Must be timezone-aware (UTC).
-        
+
         Raises:
             OrderTrackerError: If old_order_id doesn't exist, new_order_id is invalid,
                              new_anchor_price is invalid, or placement_time is not timezone-aware.
-        
+
         Post-conditions:
             - Old order removed from all tracking
             - New order added with incremented repeg count
@@ -156,17 +157,17 @@ class OrderTracker:
             msg = f"new_order_id must be non-empty string, got: {type(new_order_id).__name__}"
             logger.error(msg, new_order_id=new_order_id if isinstance(new_order_id, str) else "invalid")
             raise OrderTrackerError(msg)
-        
+
         if new_anchor_price <= Decimal("0"):
             msg = f"new_anchor_price must be positive, got: {new_anchor_price}"
             logger.error(msg, old_order_id=old_order_id, new_order_id=new_order_id, new_anchor_price=str(new_anchor_price))
             raise OrderTrackerError(msg)
-        
+
         if placement_time.tzinfo is None:
             msg = "placement_time must be timezone-aware (UTC)"
             logger.error(msg, old_order_id=old_order_id, new_order_id=new_order_id)
             raise OrderTrackerError(msg)
-        
+
         # Preserve the request and increment repeg count
         request = self._active_orders.get(old_order_id)
         if not request:
@@ -177,7 +178,7 @@ class OrderTracker:
                 new_order_id=new_order_id,
             )
             raise OrderTrackerError(msg)
-        
+
         old_repeg_count = self._repeg_counts.get(old_order_id, 0)
         # Preserve price history to prevent re-pegging at same prices
         price_history = self._price_history.get(old_order_id, [])
@@ -213,10 +214,10 @@ class OrderTracker:
 
         Args:
             order_id: Order ID to remove. Must be non-empty string.
-        
+
         Raises:
             OrderTrackerError: If order_id is empty or invalid.
-        
+
         Note:
             This method is idempotent - removing a non-existent order_id succeeds
             silently without error. This allows safe cleanup even if order was
@@ -228,10 +229,10 @@ class OrderTracker:
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
             logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
             raise OrderTrackerError(msg)
-        
+
         # Check if order exists before removal for logging purposes
         request = self._active_orders.get(order_id)
-        
+
         self._active_orders.pop(order_id, None)
         self._repeg_counts.pop(order_id, None)
         self._order_placement_times.pop(order_id, None)
@@ -324,11 +325,11 @@ class OrderTracker:
         Args:
             order_id: Order ID to update. Must be non-empty string.
             filled_quantity: New filled quantity. Must be non-negative.
-        
+
         Raises:
             OrderTrackerError: If order_id is invalid, filled_quantity is negative,
                              or order_id doesn't exist in tracking.
-        
+
         Note:
             This method should be called when partial fills are detected to maintain
             accurate remaining quantity calculations across re-pegs.
@@ -339,17 +340,17 @@ class OrderTracker:
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
             logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
             raise OrderTrackerError(msg)
-        
+
         if filled_quantity < Decimal("0"):
             msg = f"filled_quantity must be non-negative, got: {filled_quantity}"
             logger.error(msg, order_id=order_id, filled_quantity=str(filled_quantity))
             raise OrderTrackerError(msg)
-        
+
         if order_id not in self._active_orders:
             msg = f"Cannot update filled quantity: order_id '{order_id}' not found in tracking"
             logger.error(msg, order_id=order_id, filled_quantity=str(filled_quantity))
             raise OrderTrackerError(msg)
-        
+
         request = self._active_orders[order_id]
         old_filled = self._filled_quantities.get(order_id, Decimal("0"))
         self._filled_quantities[order_id] = filled_quantity
@@ -373,7 +374,7 @@ class OrderTracker:
 
         Returns:
             Remaining quantity to be filled (Decimal("0") if order not found)
-        
+
         Note:
             Return value is always non-negative, even if filled > original
             (which could happen due to broker reporting issues).
@@ -409,18 +410,18 @@ class OrderTracker:
 
     def clear_completed_orders(self) -> None:
         """Clear tracking for all orders.
-        
+
         Post-conditions:
             - All internal tracking dictionaries are empty
             - Instance is ready to track new orders
-        
+
         Note:
             This is typically called at the end of an execution cycle to prepare
             for the next batch of orders.
 
         """
         count = len(self._active_orders)
-        
+
         self._active_orders.clear()
         self._repeg_counts.clear()
         self._order_placement_times.clear()
