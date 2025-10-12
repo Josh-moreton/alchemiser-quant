@@ -86,7 +86,11 @@ def _is_strategy_execution_error(err: Exception) -> bool:
 
 
 class ErrorDetails:
-    """Detailed error information for reporting."""
+    """Detailed error information for reporting.
+
+    This class now supports event-driven architecture requirements by tracking
+    correlation_id and causation_id for distributed tracing across the system.
+    """
 
     def __init__(
         self,
@@ -97,8 +101,23 @@ class ErrorDetails:
         additional_data: dict[str, Any] | None = None,
         suggested_action: str | None = None,
         error_code: str | None = None,
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
     ) -> None:
-        """Store detailed error information."""
+        """Store detailed error information.
+
+        Args:
+            error: The exception that occurred
+            category: Error category (from ErrorCategory)
+            context: Context description
+            component: Component/module name
+            additional_data: Additional context data (optional)
+            suggested_action: Recommended remediation (optional)
+            error_code: Error code from catalog (optional)
+            correlation_id: Request/workflow correlation ID for tracing (optional)
+            causation_id: Triggering event ID for event chains (optional)
+
+        """
         self.error = error
         self.category = category
         self.context = context
@@ -109,9 +128,14 @@ class ErrorDetails:
         self.timestamp = datetime.now(UTC)
         self.traceback = traceback.format_exc()
 
+        # Event tracing support for event-driven architecture
+        # Extract from additional_data if not explicitly provided
+        self.correlation_id = correlation_id or self.additional_data.get("correlation_id")
+        self.causation_id = causation_id or self.additional_data.get("causation_id")
+
     def to_dict(self) -> dict[str, Any]:
         """Convert error details to dictionary for serialization."""
-        return {
+        result = {
             "error_type": type(self.error).__name__,
             "error_message": str(self.error),
             "category": self.category,
@@ -123,6 +147,14 @@ class ErrorDetails:
             "suggested_action": self.suggested_action,
             "error_code": self.error_code,
         }
+
+        # Include event tracing fields if available
+        if self.correlation_id:
+            result["correlation_id"] = self.correlation_id
+        if self.causation_id:
+            result["causation_id"] = self.causation_id
+
+        return result
 
 
 def categorize_by_exception_type(error: Exception) -> str | None:
