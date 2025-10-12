@@ -80,25 +80,25 @@ Produced:
 **None identified** - No critical issues that would cause financial loss or system failure.
 
 ### High
-1. **Line 157**: Broad exception catch `except Exception as e` catches all exceptions including system errors
-2. **Lines 202-204**: Cash reserve calculation uses float (1.0) before converting to Decimal - potential precision loss
-3. **Missing**: No idempotency protection - running same allocation multiple times creates duplicate plans with different plan_ids
+1. ~~**Line 157**: Broad exception catch `except Exception as e` catches all exceptions including system errors~~ ✅ **FIXED** - Narrowed to specific exceptions
+2. ~~**Lines 202-204**: Cash reserve calculation uses float (1.0) before converting to Decimal - potential precision loss~~ ✅ **FIXED** - Now uses pure Decimal arithmetic
+3. **Missing**: No idempotency protection - running same allocation multiple times creates duplicate plans with different plan_ids ⚠️ **DEFERRED** - This is an orchestrator-level concern
 
 ### Medium
-4. **Line 87**: f-string logging evaluated before conditional check
-5. **Line 123**: Non-deterministic timestamp in plan_id could make testing/debugging harder
-6. **Lines 86-89**: Missing structured logging - uses f-string instead of extra={} dict
-7. **Line 203**: Hard-coded magic value `1.0 - settings.alpaca.cash_reserve_pct` mixes float and Decimal precision
-8. **Lines 127, 128**: Hard-coded default values ("0.05" tolerance, "NORMAL" urgency) not configurable
-9. **Line 337**: Debug log in micro-trade suppression uses f-string with symbol access
+4. ~~**Line 87**: f-string logging evaluated before conditional check~~ ✅ **FIXED** - Converted to structured logging
+5. **Line 123**: Non-deterministic timestamp in plan_id could make testing/debugging harder ⚠️ **ACCEPTABLE** - Unique plan IDs needed for traceability
+6. ~~**Lines 86-89**: Missing structured logging - uses f-string instead of extra={} dict~~ ✅ **FIXED** - Converted to structured logging
+7. ~~**Line 203**: Hard-coded magic value `1.0 - settings.alpaca.cash_reserve_pct` mixes float and Decimal precision~~ ✅ **FIXED** - Fixed in item #2 above
+8. **Lines 127, 128**: Hard-coded default values ("0.05" tolerance, "NORMAL" urgency) not configurable ℹ️ **LOW PRIORITY** - Reasonable defaults, can be enhanced later
+9. ~~**Line 337**: Debug log in micro-trade suppression uses f-string with symbol access~~ ✅ **FIXED** - Converted to structured logging
 
 ### Low
-10. **Line 27**: Logger lacks type hint (`Logger` type from shared.logging)
-11. **Line 40**: Empty `__init__` method could be omitted (implicit default works)
-12. **Lines 92-111**: Dummy HOLD item creation is complex - could be simplified
-13. **Line 352**: Generic exception catch in micro-trade suppression with debug logging only
-14. **Lines 367-375**: `_calculate_priority` uses magic numbers without named constants
-15. **Missing**: No docstring examples in class/method documentation
+10. ~~**Line 27**: Logger lacks type hint (`Logger` type from shared.logging)~~ ✅ **FIXED** - Added type hint
+11. ~~**Line 40**: Empty `__init__` method could be omitted (implicit default works)~~ ✅ **FIXED** - Removed empty init
+12. **Lines 92-111**: Dummy HOLD item creation is complex - could be simplified ℹ️ **ACCEPTABLE** - Handles edge case properly
+13. **Line 352**: Generic exception catch in micro-trade suppression with debug logging only ℹ️ **ACCEPTABLE** - Defensive programming
+14. ~~**Lines 367-375**: `_calculate_priority` uses magic numbers without named constants~~ ✅ **FIXED** - Extracted to module constants
+15. **Missing**: No docstring examples in class/method documentation ℹ️ **ENHANCEMENT** - Future improvement
 
 ### Info/Nits
 16. **Line 1**: Module header correct per standards ✅
