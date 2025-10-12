@@ -16,9 +16,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
+from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResult,
     ExecutionStatus,
+    OrderResult,
 )
 from the_alchemiser.shared.constants import DECIMAL_ZERO, EXECUTION_HANDLERS_MODULE
 from the_alchemiser.shared.events import (
@@ -38,6 +41,9 @@ class TradingExecutionHandler:
 
     Listens for RebalancePlanned events and executes trades,
     emitting TradeExecuted events and WorkflowCompleted events.
+
+    This handler implements idempotency to prevent duplicate trade execution
+    on event replay, which is critical for financial safety.
     """
 
     def __init__(self, container: ApplicationContainer) -> None:
@@ -52,6 +58,9 @@ class TradingExecutionHandler:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
+
+        # In-memory idempotency tracking (should be Redis/DB in production)
+        self._processed_events: set[str] = set()
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle events for trade execution.
@@ -94,6 +103,59 @@ class TradingExecutionHandler:
             "RebalancePlanned",
         ]
 
+    def _is_event_processed(self, event_id: str) -> bool:
+        """Check if event has already been processed.
+
+        Args:
+            event_id: The event ID to check
+
+        Returns:
+            True if event was already processed
+
+        Note:
+            In production, this should check Redis or a database for distributed idempotency.
+            Current in-memory implementation is only safe for single-instance deployments.
+
+        """
+        return event_id in self._processed_events
+
+    def _mark_event_processed(self, event_id: str) -> None:
+        """Mark event as processed for idempotency.
+
+        Args:
+            event_id: The event ID to mark as processed
+
+        Note:
+            In production, this should write to Redis or a database for distributed idempotency.
+            Current in-memory implementation is only safe for single-instance deployments.
+
+        """
+        self._processed_events.add(event_id)
+
+    def _get_failed_orders(self, execution_result: ExecutionResult) -> list[OrderResult]:
+        """Extract failed orders from execution result.
+
+        Args:
+            execution_result: The execution result containing order results
+
+        Returns:
+            List of failed order results
+
+        """
+        return [order for order in execution_result.orders if not order.success]
+
+    def _get_failed_symbols(self, failed_orders: list[OrderResult]) -> list[str]:
+        """Extract symbols from failed orders.
+
+        Args:
+            failed_orders: List of failed order results
+
+        Returns:
+            List of symbols from failed orders
+
+        """
+        return [order.symbol for order in failed_orders]
+
     def _handle_rebalance_planned(self, event: RebalancePlanned) -> None:
         """Handle RebalancePlanned event by executing trades.
 
@@ -101,7 +163,24 @@ class TradingExecutionHandler:
             event: The RebalancePlanned event
 
         """
-        self.logger.info("🔄 Starting trade execution from RebalancePlanned event")
+        # Idempotency check - prevent duplicate trade execution on event replay
+        if self._is_event_processed(event.event_id):
+            self.logger.info(
+                f"Event {event.event_id} already processed, skipping to prevent duplicate trades",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                },
+            )
+            return
+
+        self.logger.info(
+            "🔄 Starting trade execution from RebalancePlanned event",
+            extra={
+                "event_id": event.event_id,
+                "correlation_id": event.correlation_id,
+            },
+        )
 
         try:
             # Reconstruct RebalancePlan from event data
@@ -125,11 +204,14 @@ class TradingExecutionHandler:
                     metadata={"scenario": "no_trades_needed"},
                 )
 
-                # Emit successful trade executed event
-                self._emit_trade_executed_event(execution_result, success=True)
+                # Emit successful trade executed event (passing parent event for causation)
+                self._emit_trade_executed_event(execution_result, event, success=True)
 
                 # Emit workflow completed event
                 self._emit_workflow_completed_event(event.correlation_id, execution_result)
+
+                # Mark as processed after successful completion
+                self._mark_event_processed(event.event_id)
 
                 return
 
@@ -137,18 +219,17 @@ class TradingExecutionHandler:
             rebalance_plan = RebalancePlan.model_validate(rebalance_plan_data)
 
             # Execute the rebalance plan
-            self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")
+            self.logger.info(
+                f"🚀 Executing trades: {len(rebalance_plan.items)} items",
+                extra={
+                    "item_count": len(rebalance_plan.items),
+                    "correlation_id": event.correlation_id,
+                },
+            )
 
             execution_settings = self.container.config.execution()
 
-            # Create execution manager directly from infrastructure (like other handlers)
-            from the_alchemiser.execution_v2.core.execution_manager import (
-                ExecutionManager,
-            )
-            from the_alchemiser.execution_v2.core.smart_execution_strategy import (
-                ExecutionConfig,
-            )
-
+            # Create execution manager from infrastructure
             execution_manager = ExecutionManager(
                 alpaca_manager=self.container.infrastructure.alpaca_manager(),
                 execution_config=ExecutionConfig(),
@@ -158,15 +239,24 @@ class TradingExecutionHandler:
                 execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
             finally:
                 # Always cleanup execution resources, including WebSocket connections
-                execution_manager.shutdown()
-
-            # Note: ExecutionResult.metadata is read-only (frozen), so strategy attribution
-            # needs to be handled in the ExecutionManager itself via rebalance plan metadata
+                try:
+                    execution_manager.shutdown()
+                except Exception as shutdown_error:
+                    self.logger.warning(
+                        f"Error during ExecutionManager shutdown: {shutdown_error}",
+                        extra={"correlation_id": event.correlation_id},
+                    )
 
             # Log execution results
             self.logger.info(
                 f"✅ Trade execution completed: {execution_result.orders_succeeded}/"
-                f"{execution_result.orders_placed} orders succeeded (status: {execution_result.status.value})"
+                f"{execution_result.orders_placed} orders succeeded (status: {execution_result.status.value})",
+                extra={
+                    "orders_placed": execution_result.orders_placed,
+                    "orders_succeeded": execution_result.orders_succeeded,
+                    "status": execution_result.status.value,
+                    "correlation_id": event.correlation_id,
+                },
             )
 
             # Determine workflow success based on execution status
@@ -184,28 +274,39 @@ class TradingExecutionHandler:
             else:  # ExecutionStatus.FAILURE
                 execution_success = False
 
-            # Emit TradeExecuted event with execution status information
-            self._emit_trade_executed_event(execution_result, success=execution_success)
+            # Emit TradeExecuted event with execution status information (passing parent event for causation)
+            self._emit_trade_executed_event(execution_result, event, success=execution_success)
 
             # Emit WorkflowCompleted event if successful
             if execution_success:
                 self._emit_workflow_completed_event(event.correlation_id, execution_result)
+                # Mark as processed only after successful completion
+                self._mark_event_processed(event.event_id)
             else:
                 # Emit failure with detailed status information
                 failure_reason = self._build_failure_reason(execution_result)
                 self._emit_workflow_failure(event, failure_reason)
+                # Don't mark as processed on failure to allow retry
 
         except Exception as e:
-            self.logger.error(f"Trade execution failed: {e}")
+            self.logger.error(
+                f"Trade execution failed: {e}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                },
+            )
             self._emit_workflow_failure(event, str(e))
+            # Don't mark as processed on exception to allow retry
 
     def _emit_trade_executed_event(
-        self, execution_result: ExecutionResult, *, success: bool
+        self, execution_result: ExecutionResult, parent_event: RebalancePlanned, *, success: bool
     ) -> None:
         """Emit TradeExecuted event.
 
         Args:
             execution_result: Execution result data
+            parent_event: The parent RebalancePlanned event (for causation chain)
             success: Whether the execution was successful
 
         """
@@ -215,12 +316,12 @@ class TradingExecutionHandler:
             failed_symbols: list[str] = []
             if not success:
                 failure_reason = self._build_failure_reason(execution_result)
-                failed_orders = [order for order in execution_result.orders if not order.success]
-                failed_symbols = [order.symbol for order in failed_orders]
+                failed_orders = self._get_failed_orders(execution_result)
+                failed_symbols = self._get_failed_symbols(failed_orders)
 
             event = TradeExecuted(
                 correlation_id=execution_result.correlation_id,
-                causation_id=execution_result.correlation_id,  # This is the continuation of the workflow
+                causation_id=parent_event.event_id,  # Fixed: use parent event's ID for causation chain
                 event_id=f"trade-executed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
                 source_module=EXECUTION_HANDLERS_MODULE,
@@ -238,7 +339,6 @@ class TradingExecutionHandler:
                 orders_placed=execution_result.orders_placed,
                 orders_succeeded=execution_result.orders_succeeded,
                 metadata={
-                    "execution_timestamp": datetime.now(UTC).isoformat(),
                     "source": "event_driven_handler",
                 },
                 failure_reason=failure_reason,
@@ -248,11 +348,20 @@ class TradingExecutionHandler:
             self.event_bus.publish(event)
             self.logger.info(
                 f"📡 Emitted TradeExecuted event - "
-                f"{execution_result.orders_succeeded}/{execution_result.orders_placed} orders"
+                f"{execution_result.orders_succeeded}/{execution_result.orders_placed} orders",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "orders_placed": execution_result.orders_placed,
+                    "orders_succeeded": execution_result.orders_succeeded,
+                },
             )
 
         except Exception as e:
-            self.logger.error(f"Failed to emit TradeExecuted event: {e}")
+            self.logger.error(
+                f"Failed to emit TradeExecuted event: {e}",
+                extra={"correlation_id": execution_result.correlation_id},
+            )
             raise
 
     def _emit_workflow_completed_event(
@@ -266,15 +375,9 @@ class TradingExecutionHandler:
 
         """
         try:
-            # Calculate workflow duration using workflow start timestamp from execution_result
-            if (
-                hasattr(execution_result, "workflow_start_timestamp")
-                and execution_result.workflow_start_timestamp
-            ):
-                workflow_start = execution_result.workflow_start_timestamp
-            else:
-                # Fallback: use execution_timestamp if workflow_start_timestamp is not available
-                workflow_start = execution_result.execution_timestamp
+            # Calculate workflow duration from execution_timestamp
+            # Fixed: ExecutionResult has execution_timestamp, not workflow_start_timestamp
+            workflow_start = execution_result.execution_timestamp
             workflow_end = datetime.now(UTC)
             workflow_duration_ms = int((workflow_end - workflow_start).total_seconds() * 1000)
 
@@ -298,11 +401,19 @@ class TradingExecutionHandler:
 
             self.event_bus.publish(event)
             self.logger.info(
-                "📡 Emitted WorkflowCompleted event - trading workflow finished successfully"
+                "📡 Emitted WorkflowCompleted event - trading workflow finished successfully",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": correlation_id,
+                    "workflow_duration_ms": workflow_duration_ms,
+                },
             )
 
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowCompleted event: {e}")
+            self.logger.error(
+                f"Failed to emit WorkflowCompleted event: {e}",
+                extra={"correlation_id": correlation_id},
+            )
             raise
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
@@ -331,10 +442,22 @@ class TradingExecutionHandler:
             )
 
             self.event_bus.publish(failure_event)
-            self.logger.error(f"📡 Emitted WorkflowFailed event: {error_message}")
+            self.logger.error(
+                f"📡 Emitted WorkflowFailed event: {error_message}",
+                extra={
+                    "event_id": failure_event.event_id,
+                    "correlation_id": original_event.correlation_id,
+                    "failure_reason": error_message,
+                },
+            )
 
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event: {e}",
+                extra={"correlation_id": original_event.correlation_id},
+            )
+            # Re-raise to propagate critical failure
+            raise
 
     def _build_failure_reason(self, execution_result: ExecutionResult) -> str:
         """Build detailed failure reason based on execution status.
@@ -347,8 +470,8 @@ class TradingExecutionHandler:
 
         """
         if execution_result.status == ExecutionStatus.PARTIAL_SUCCESS:
-            failed_orders = [order for order in execution_result.orders if not order.success]
-            failed_symbols = [order.symbol for order in failed_orders]
+            failed_orders = self._get_failed_orders(execution_result)
+            failed_symbols = self._get_failed_symbols(failed_orders)
             return (
                 f"Trade execution partially failed: {execution_result.orders_succeeded}/"
                 f"{execution_result.orders_placed} orders succeeded. "
