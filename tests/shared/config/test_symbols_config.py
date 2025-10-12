@@ -7,6 +7,7 @@ Comprehensive tests for symbol classification, ETF detection, and symbol univers
 
 from __future__ import annotations
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -14,6 +15,7 @@ from the_alchemiser.shared.config.symbols_config import (
     KNOWN_CRYPTO,
     KNOWN_ETFS,
     AssetType,
+    add_etf_symbol,
     classify_symbol,
     get_etf_symbols,
     get_symbol_universe,
@@ -112,32 +114,28 @@ class TestClassifySymbol:
     def test_classify_option_ending_with_c(self):
         """Test option detection with C suffix.
         
-        Note: Current implementation incorrectly classifies real option symbols
-        as FUTURE because they end with digits. This is a known issue documented
-        in FILE_REVIEW_symbols_config_2025_10_10.md (HIGH-3).
+        Note: Real option symbols like "AAPL240315C00150000" exceed the 10-character
+        limit and will raise ValueError during Symbol validation. This is expected
+        since the Symbol value object enforces a maximum length of 10 characters.
         
-        Real option symbol: AAPL240315C00150000
-        Expected: OPTION
-        Actual: FUTURE (because > 5 chars and ends with digits)
+        The simplified option detection logic (checking for C/P suffix) is documented
+        as having limitations in the module docstring.
         """
-        result = classify_symbol("AAPL240315C00150000")
-        # Current behavior: classified as FUTURE (bug)
-        assert result == "FUTURE"
+        with pytest.raises(ValueError, match="Symbol cannot exceed 10 characters"):
+            classify_symbol("AAPL240315C00150000")
 
     def test_classify_option_ending_with_p(self):
         """Test option detection with P suffix.
         
-        Note: Current implementation incorrectly classifies real option symbols
-        as FUTURE because they end with digits. This is a known issue documented
-        in FILE_REVIEW_symbols_config_2025_10_10.md (HIGH-3).
+        Note: Real option symbols like "AAPL240315P00150000" exceed the 10-character
+        limit and will raise ValueError during Symbol validation. This is expected
+        since the Symbol value object enforces a maximum length of 10 characters.
         
-        Real option symbol: AAPL240315P00150000
-        Expected: OPTION
-        Actual: FUTURE (because > 5 chars and ends with digits)
+        The simplified option detection logic (checking for C/P suffix) is documented
+        as having limitations in the module docstring.
         """
-        result = classify_symbol("AAPL240315P00150000")
-        # Current behavior: classified as FUTURE (bug)
-        assert result == "FUTURE"
+        with pytest.raises(ValueError, match="Symbol cannot exceed 10 characters"):
+            classify_symbol("AAPL240315P00150000")
 
     def test_classify_future_with_numeric_suffix(self):
         """Test that symbol > 5 chars ending with digits is classified as FUTURE.
@@ -163,20 +161,20 @@ class TestClassifySymbol:
         assert result == "STOCK"
 
     def test_classify_empty_string_returns_stock(self):
-        """Test that empty string after strip returns STOCK.
+        """Test that empty string raises ValueError after Symbol validation.
         
-        Note: This is current behavior, but should raise ValueError per audit.
+        Previously returned 'STOCK', but now validates input using Symbol value object.
         """
-        result = classify_symbol("")
-        assert result == "STOCK"
+        with pytest.raises(ValueError, match="Symbol must not be empty"):
+            classify_symbol("")
 
     def test_classify_whitespace_only_returns_stock(self):
-        """Test that whitespace-only string returns STOCK.
+        """Test that whitespace-only string raises ValueError after Symbol validation.
         
-        Note: This is current behavior, but should raise ValueError per audit.
+        Previously returned 'STOCK', but now validates input using Symbol value object.
         """
-        result = classify_symbol("   ")
-        assert result == "STOCK"
+        with pytest.raises(ValueError, match="Symbol must not be empty"):
+            classify_symbol("   ")
 
 
 class TestIsETF:
@@ -219,21 +217,23 @@ class TestIsETF:
         assert is_etf("SPY  ") is True
 
     def test_is_etf_empty_string_returns_false(self):
-        """Test that empty string returns False."""
-        assert is_etf("") is False
+        """Test that empty string raises ValueError after Symbol validation."""
+        with pytest.raises(ValueError, match="Symbol must not be empty"):
+            is_etf("")
 
     def test_is_etf_whitespace_only_returns_false(self):
-        """Test that whitespace-only string returns False."""
-        assert is_etf("   ") is False
+        """Test that whitespace-only string raises ValueError after Symbol validation."""
+        with pytest.raises(ValueError, match="Symbol must not be empty"):
+            is_etf("   ")
 
 
 class TestGetETFSymbols:
     """Test get_etf_symbols function."""
 
-    def test_get_etf_symbols_returns_set(self):
-        """Test that function returns a set."""
+    def test_get_etf_symbols_returns_frozenset(self):
+        """Test that function returns a frozenset (immutable)."""
         result = get_etf_symbols()
-        assert isinstance(result, set)
+        assert isinstance(result, frozenset)
 
     def test_get_etf_symbols_contains_spy(self):
         """Test that returned set contains SPY."""
@@ -265,12 +265,12 @@ class TestGetETFSymbols:
         result = get_etf_symbols()
         assert len(result) > 0
 
-    def test_get_etf_symbols_returns_copy(self):
-        """Test that function returns a copy, not a reference."""
+    def test_get_etf_symbols_returns_same_reference(self):
+        """Test that function returns the same immutable frozenset reference."""
         result1 = get_etf_symbols()
         result2 = get_etf_symbols()
         assert result1 == result2
-        assert result1 is not result2
+        assert result1 is result2  # Same object since it's immutable
 
     def test_get_etf_symbols_matches_known_etfs(self):
         """Test that returned set matches KNOWN_ETFS."""
@@ -296,15 +296,15 @@ class TestGetSymbolUniverse:
         result = get_symbol_universe()
         assert "CRYPTO" in result
 
-    def test_get_symbol_universe_etf_is_set(self):
-        """Test that 'ETF' value is a set."""
+    def test_get_symbol_universe_etf_is_frozenset(self):
+        """Test that 'ETF' value is a frozenset (immutable)."""
         result = get_symbol_universe()
-        assert isinstance(result["ETF"], set)
+        assert isinstance(result["ETF"], frozenset)
 
-    def test_get_symbol_universe_crypto_is_set(self):
-        """Test that 'CRYPTO' value is a set."""
+    def test_get_symbol_universe_crypto_is_frozenset(self):
+        """Test that 'CRYPTO' value is a frozenset (immutable)."""
         result = get_symbol_universe()
-        assert isinstance(result["CRYPTO"], set)
+        assert isinstance(result["CRYPTO"], frozenset)
 
     def test_get_symbol_universe_etf_contains_spy(self):
         """Test that ETF set contains SPY."""
@@ -316,14 +316,13 @@ class TestGetSymbolUniverse:
         result = get_symbol_universe()
         assert "BTC" in result["CRYPTO"]
 
-    def test_get_symbol_universe_returns_copies(self):
-        """Test that function returns copies of sets, not references."""
+    def test_get_symbol_universe_returns_same_references(self):
+        """Test that function returns same immutable frozenset references."""
         result1 = get_symbol_universe()
         result2 = get_symbol_universe()
         assert result1 == result2
-        assert result1 is not result2
-        assert result1["ETF"] is not result2["ETF"]
-        assert result1["CRYPTO"] is not result2["CRYPTO"]
+        assert result1["ETF"] is result2["ETF"]  # Same immutable object
+        assert result1["CRYPTO"] is result2["CRYPTO"]  # Same immutable object
 
     def test_get_symbol_universe_etf_matches_known_etfs(self):
         """Test that ETF set matches KNOWN_ETFS."""
@@ -363,6 +362,31 @@ class TestAssetType:
         """Test that 'FUTURE' is a valid AssetType."""
         asset_type: AssetType = "FUTURE"
         assert asset_type == "FUTURE"
+
+
+class TestAddETFSymbol:
+    """Test add_etf_symbol function (deprecated)."""
+
+    def test_add_etf_symbol_raises_not_implemented_error(self):
+        """Test that add_etf_symbol raises NotImplementedError.
+        
+        This function is deprecated to ensure thread-safety and immutability.
+        Symbol universes should be loaded from external configuration, not
+        modified at runtime.
+        """
+        with pytest.raises(NotImplementedError, match="Runtime symbol addition is not supported"):
+            add_etf_symbol("TEST")
+
+    def test_add_etf_symbol_provides_clear_error_message(self):
+        """Test that error message explains why function is deprecated."""
+        try:
+            add_etf_symbol("TEST")
+            assert False, "Should have raised NotImplementedError"
+        except NotImplementedError as e:
+            error_msg = str(e)
+            assert "immutable" in error_msg.lower()
+            assert "thread-safety" in error_msg.lower()
+            assert "configuration" in error_msg.lower()
 
 
 class TestEdgeCases:
@@ -413,29 +437,49 @@ class TestPropertyBased:
 
     @given(st.text(min_size=1, max_size=10))
     def test_classify_always_returns_valid_asset_type(self, symbol: str):
-        """Test that classify_symbol always returns a valid AssetType."""
-        result = classify_symbol(symbol)
-        assert result in ["STOCK", "ETF", "CRYPTO", "OPTION", "FUTURE"]
+        """Test that classify_symbol always returns a valid AssetType or raises ValueError.
+        
+        Since we now use Symbol value object for validation, invalid symbols
+        will raise ValueError instead of being classified.
+        """
+        try:
+            result = classify_symbol(symbol)
+            assert result in ["STOCK", "ETF", "CRYPTO", "OPTION", "FUTURE"]
+        except ValueError:
+            # Invalid symbols raise ValueError, which is expected
+            pass
 
     @given(st.text(min_size=1, max_size=10))
     def test_classify_is_idempotent(self, symbol: str):
-        """Test that classify_symbol is idempotent."""
-        result1 = classify_symbol(symbol)
-        result2 = classify_symbol(symbol)
-        assert result1 == result2
+        """Test that classify_symbol is idempotent for valid symbols."""
+        try:
+            result1 = classify_symbol(symbol)
+            result2 = classify_symbol(symbol)
+            assert result1 == result2
+        except ValueError:
+            # Invalid symbols consistently raise ValueError, which is idempotent
+            pass
 
     @given(st.text(min_size=1, max_size=10))
     def test_is_etf_returns_boolean(self, symbol: str):
-        """Test that is_etf always returns a boolean."""
-        result = is_etf(symbol)
-        assert isinstance(result, bool)
+        """Test that is_etf always returns a boolean or raises ValueError for invalid symbols."""
+        try:
+            result = is_etf(symbol)
+            assert isinstance(result, bool)
+        except ValueError:
+            # Invalid symbols raise ValueError, which is expected
+            pass
 
     @given(st.text(min_size=1, max_size=10))
     def test_is_etf_is_idempotent(self, symbol: str):
-        """Test that is_etf is idempotent."""
-        result1 = is_etf(symbol)
-        result2 = is_etf(symbol)
-        assert result1 == result2
+        """Test that is_etf is idempotent for valid symbols."""
+        try:
+            result1 = is_etf(symbol)
+            result2 = is_etf(symbol)
+            assert result1 == result2
+        except ValueError:
+            # Invalid symbols consistently raise ValueError, which is idempotent
+            pass
 
 
 class TestBusinessRules:
