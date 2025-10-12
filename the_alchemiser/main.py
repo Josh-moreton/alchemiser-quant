@@ -7,9 +7,13 @@ This module handles bootstrap concerns (logging, request correlation)
 and delegates business logic to orchestration. Supports programmatic
 usage via main() function and minimal backward compatibility for
 legacy argument-based calls.
+
+All monetary values in downstream modules use Decimal per copilot instructions.
 """
 
 from __future__ import annotations
+
+__all__ = ["main"]
 
 import sys
 from contextlib import suppress
@@ -62,34 +66,72 @@ def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
     Returns:
         Parsed argument configuration
 
+    Examples:
+        >>> _parse_arguments(["trade"])
+        _ArgumentParsing(mode="trade", show_tracking=False, ...)
+        >>> _parse_arguments(["trade", "--show-tracking"])
+        _ArgumentParsing(mode="trade", show_tracking=True, ...)
+        >>> _parse_arguments(["pnl", "--weekly", "--periods", "3"])
+        _ArgumentParsing(mode="pnl", pnl_type="weekly", pnl_periods=3, ...)
+
     """
     if not argv:
         return _ArgumentParsing()
 
-    mode = argv[0] if argv else "trade"
+    # Initialize with defaults
+    mode = argv[0]
     show_tracking = False
-    export_tracking_json = None
-    pnl_type = None
+    export_tracking_json: str | None = None
+    pnl_type: str | None = None
     pnl_periods = 1
     pnl_detailed = False
-    pnl_period = None
+    pnl_period: str | None = None
 
-    for i, arg in enumerate(argv):
-        if arg == "--show-tracking":
-            show_tracking = True
+    # Define flag handlers
+    def set_show_tracking() -> None:
+        nonlocal show_tracking
+        show_tracking = True
+
+    def set_detailed() -> None:
+        nonlocal pnl_detailed
+        pnl_detailed = True
+
+    def set_weekly() -> None:
+        nonlocal pnl_type
+        pnl_type = "weekly"
+
+    def set_monthly() -> None:
+        nonlocal pnl_type
+        pnl_type = "monthly"
+
+    flag_handlers = {
+        "--show-tracking": set_show_tracking,
+        "--detailed": set_detailed,
+        "--weekly": set_weekly,
+        "--monthly": set_monthly,
+    }
+
+    # Process arguments
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+
+        # Handle simple flags
+        if arg in flag_handlers:
+            flag_handlers[arg]()
+        # Handle arguments with values
         elif arg == "--export-tracking-json" and i + 1 < len(argv):
             export_tracking_json = argv[i + 1]
-        elif arg == "--weekly":
-            pnl_type = "weekly"
-        elif arg == "--monthly":
-            pnl_type = "monthly"
+            i += 1
         elif arg == "--periods" and i + 1 < len(argv):
             with suppress(ValueError):
                 pnl_periods = int(argv[i + 1])
-        elif arg == "--detailed":
-            pnl_detailed = True
+            i += 1
         elif arg == "--period" and i + 1 < len(argv):
             pnl_period = argv[i + 1]
+            i += 1
+
+        i += 1
 
     return _ArgumentParsing(
         mode,
@@ -201,6 +243,18 @@ def main(argv: list[str] | None = None) -> TradeRunResult | bool:
 
     # Parse arguments for backward compatibility
     args = _parse_arguments(argv)
+
+    # Log parsed arguments and mode for observability
+    logger = get_logger(__name__)
+    logger.info(
+        "Application invoked",
+        mode=args.mode,
+        request_id=request_id,
+        show_tracking=args.show_tracking if args.mode == "trade" else None,
+        pnl_type=args.pnl_type if args.mode == "pnl" else None,
+        pnl_periods=args.pnl_periods if args.mode == "pnl" else None,
+        pnl_detailed=args.pnl_detailed if args.mode == "pnl" else None,
+    )
 
     # Execute operation with proper error boundary
     try:
