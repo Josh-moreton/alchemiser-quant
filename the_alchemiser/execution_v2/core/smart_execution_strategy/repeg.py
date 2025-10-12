@@ -36,6 +36,13 @@ from .utils import fetch_price_for_notional_check, is_remaining_quantity_too_sma
 
 logger = get_logger(__name__)
 
+# Module constants for polling and timeouts
+DEFAULT_CANCELLATION_TIMEOUT_SECONDS = 10.0
+CANCELLATION_CHECK_INTERVAL_SECONDS = 0.1
+MIN_QUANTITY_THRESHOLD = Decimal("0.01")
+MIN_VALID_PRICE = Decimal("0.01")
+PRICE_QUANTIZATION = Decimal("0.01")  # 2 decimal places (cents)
+
 
 class _RemoveFromTracking(Exception):
     """Internal control-flow to signal that order should be removed from tracking."""
@@ -320,7 +327,7 @@ class RepegManager:
             order_id=order_id,
         )
         cancellation_confirmed = await asyncio.to_thread(
-            self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+            self._wait_for_order_cancellation, order_id
         )
 
         if not cancellation_confirmed:
@@ -745,7 +752,7 @@ class RepegManager:
             )
 
             # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = new_price.quantize(Decimal("0.01"))
+            quantized_price = new_price.quantize(PRICE_QUANTIZATION)
 
             if quantized_price <= 0:
                 logger.error(
@@ -889,7 +896,7 @@ class RepegManager:
             and getattr(asset_info, "fractionable", False)
             and price is not None
         ):
-            remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
+            remaining_notional = (remaining_qty * price).quantize(PRICE_QUANTIZATION)
             logger.info(
                 "Order remaining notional below minimum, considering complete",
                 order_id=order_id,
@@ -944,7 +951,7 @@ class RepegManager:
             correlation_id=request.correlation_id,
         )
         cancellation_confirmed = await asyncio.to_thread(
-            self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+            self._wait_for_order_cancellation, order_id
         )
         if not cancellation_confirmed:
             logger.warning(
@@ -994,7 +1001,7 @@ class RepegManager:
             )
             return None, original_anchor, quote
 
-        if new_price <= Decimal("0.01"):
+        if new_price <= MIN_VALID_PRICE:
             logger.error(
                 "Invalid re-peg price, must be > $0.01, skipping re-peg",
                 symbol=request.symbol,
@@ -1083,9 +1090,7 @@ class RepegManager:
         original_error: str,
     ) -> OrderExecutionResult:
         """Retry order placement with the available quantity."""
-        min_qty_threshold = Decimal("0.01")
-
-        if available_qty <= min_qty_threshold:
+        if available_qty <= MIN_QUANTITY_THRESHOLD:
             logger.info(
                 "Available quantity too small, considering order complete",
                 available_qty=available_qty,
@@ -1133,7 +1138,9 @@ class RepegManager:
         except (ValueError, AttributeError):
             return False
 
-    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
+    def _wait_for_order_cancellation(
+        self, order_id: str, timeout_seconds: float = DEFAULT_CANCELLATION_TIMEOUT_SECONDS
+    ) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
 
         This prevents the race condition where we try to place a replacement order
@@ -1150,7 +1157,6 @@ class RepegManager:
         import time
 
         start_time = time.time()
-        check_interval = 0.1  # Check every 100ms
 
         while time.time() - start_time < timeout_seconds:
             try:
@@ -1170,7 +1176,7 @@ class RepegManager:
                     return True
 
                 # Small delay to avoid hammering the API
-                time.sleep(check_interval)
+                time.sleep(CANCELLATION_CHECK_INTERVAL_SECONDS)
 
             except Exception as e:
                 logger.warning(
@@ -1179,7 +1185,7 @@ class RepegManager:
                     error=str(e),
                 )
                 # Continue trying until timeout
-                time.sleep(check_interval)
+                time.sleep(CANCELLATION_CHECK_INTERVAL_SECONDS)
 
         logger.warning(
             "Timeout waiting for order cancellation",
