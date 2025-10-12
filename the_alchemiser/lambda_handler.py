@@ -17,7 +17,6 @@ import json
 from typing import Any
 
 from the_alchemiser.main import main
-from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
@@ -39,6 +38,19 @@ from the_alchemiser.shared.schemas import LambdaEvent
 # Set up logging
 logger = get_logger(__name__)
 
+# Constants for trading modes and execution modes
+TRADING_MODE_PAPER = "paper"
+TRADING_MODE_LIVE = "live"
+TRADING_MODE_NA = "n/a"
+
+EXECUTION_MODE_TRADE = "trade"
+EXECUTION_MODE_BOT = "bot"
+
+RESPONSE_STATUS_SUCCESS = "success"
+RESPONSE_STATUS_FAILED = "failed"
+
+MODE_UNKNOWN = "unknown"
+
 
 def _determine_trading_mode(mode: str) -> str:
     """Determine trading mode based on endpoint configuration.
@@ -50,11 +62,11 @@ def _determine_trading_mode(mode: str) -> str:
         Trading mode string (paper or live). Returns 'n/a' for unsupported modes.
 
     """
-    if mode != "trade":
-        return "n/a"
+    if mode != EXECUTION_MODE_TRADE:
+        return TRADING_MODE_NA
 
     _, _, endpoint = get_alpaca_keys()
-    return "paper" if endpoint and "paper" in endpoint.lower() else "live"
+    return TRADING_MODE_PAPER if endpoint and "paper" in endpoint.lower() else TRADING_MODE_LIVE
 
 
 def _build_response_message(trading_mode: str, *, result: bool) -> str:
@@ -127,18 +139,21 @@ def _handle_error(
             )
 
     except NotificationError as notification_error:
-        logger.warning("Failed to send error notification: %s", notification_error)
-    except (
-        ImportError,
-        AttributeError,
-        ValueError,
-        KeyError,
-        TypeError,
-    ) as notification_error:
-        if is_critical:
-            logger.warning("Failed to send error notification: %s", notification_error)
-        else:
-            # Re-raise for non-critical errors if notification system itself fails
+        # Notification system explicitly failed - always log and continue
+        logger.warning(
+            "Failed to send error notification",
+            error=str(notification_error),
+            is_critical=is_critical,
+        )
+    except (ImportError, AttributeError) as setup_error:
+        # Container or event bus setup failed - expected during initialization issues
+        logger.warning(
+            "Failed to setup notification system",
+            error=str(setup_error),
+            is_critical=is_critical,
+        )
+        if not is_critical:
+            # Re-raise for non-critical errors to surface configuration issues
             raise
 
 
@@ -178,6 +193,60 @@ def _handle_critical_error(
     _handle_error(error, event, request_id, " - unexpected error", command_args, is_critical=True)
 
 
+def _validate_no_deprecated_actions(event_obj: LambdaEvent) -> None:
+    """Validate event doesn't use deprecated actions.
+    
+    Args:
+        event_obj: The Lambda event object to validate
+        
+    Raises:
+        ValueError: If a deprecated action is detected
+    """
+    if (
+        isinstance(event_obj, LambdaEvent)
+        and getattr(event_obj, "action", None) == "monthly_summary"
+    ):
+        raise ValueError(
+            "Unsupported action 'monthly_summary' via Lambda. "
+            "Use the CLI script 'scripts/send_monthly_summary.py' instead."
+        )
+
+
+def _parse_pnl_event(event_obj: LambdaEvent) -> list[str]:
+    """Parse P&L analysis event into command arguments.
+    
+    Args:
+        event_obj: The Lambda event object containing P&L configuration
+        
+    Returns:
+        List of command arguments for P&L analysis
+    """
+    logger.info("Parsed event to action: pnl_analysis")
+    command_args = ["pnl"]
+
+    # Add type flag
+    pnl_type = getattr(event_obj, "pnl_type", None)
+    if pnl_type == "weekly":
+        command_args.append("--weekly")
+    elif pnl_type == "monthly":
+        command_args.append("--monthly")
+
+    # Add period
+    if getattr(event_obj, "pnl_period", None):
+        command_args.extend(["--period", str(event_obj.pnl_period)])
+
+    # Add periods count (only if > 1)
+    pnl_periods_val = getattr(event_obj, "pnl_periods", None)
+    if isinstance(pnl_periods_val, int) and pnl_periods_val > 1:
+        command_args.extend(["--periods", str(event_obj.pnl_periods)])
+
+    # Add detailed flag
+    if getattr(event_obj, "pnl_detailed", None):
+        command_args.append("--detailed")
+
+    return command_args
+
+
 def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
     """Parse the Lambda event.
 
@@ -195,37 +264,13 @@ def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
     # Validate event shape
     event_obj = LambdaEvent(**event) if isinstance(event, dict) else event
 
-    # Monthly summary action is no longer supported via Lambda
-    if (
-        isinstance(event_obj, LambdaEvent)
-        and getattr(event_obj, "action", None) == "monthly_summary"
-    ):
-        raise ValueError(
-            "Unsupported action 'monthly_summary' via Lambda. Use the CLI script 'scripts/send_monthly_summary.py' instead."
-        )
+    # Check for deprecated actions
+    _validate_no_deprecated_actions(event_obj)
 
-    # P&L analysis action
-    if isinstance(event_obj, LambdaEvent) and getattr(event_obj, "action", None) == "pnl_analysis":
-        logger.info("Parsed event to action: pnl_analysis")
-        command_args = ["pnl"]
-
-        # Add P&L-specific arguments
-        if getattr(event_obj, "pnl_type", None) == "weekly":
-            command_args.append("--weekly")
-        elif getattr(event_obj, "pnl_type", None) == "monthly":
-            command_args.append("--monthly")
-
-        if getattr(event_obj, "pnl_period", None):
-            command_args.extend(["--period", str(event_obj.pnl_period)])
-
-        pnl_periods_val = getattr(event_obj, "pnl_periods", None)
-        if isinstance(pnl_periods_val, int) and pnl_periods_val > 1:
-            command_args.extend(["--periods", str(event_obj.pnl_periods)])
-
-        if getattr(event_obj, "pnl_detailed", None):
-            command_args.append("--detailed")
-
-        return command_args
+    # Route to appropriate parser
+    action = getattr(event_obj, "action", None) if isinstance(event_obj, LambdaEvent) else None
+    if action == "pnl_analysis":
+        return _parse_pnl_event(event_obj)
 
     logger.info("Parsed event to command: trade")
     return ["trade"]
@@ -302,9 +347,22 @@ def lambda_handler(
     # Extract request ID for tracking
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
 
-    # Generate and set correlation request ID for all downstream logs
-    correlation_id = generate_request_id()
+    # Initialize variables for error handling
+    mode: str = MODE_UNKNOWN
+    trading_mode: str = MODE_UNKNOWN
+    command_args: list[str] | None = None
+
+    # Extract or generate correlation ID for request tracing
+    event_obj = LambdaEvent(**event) if isinstance(event, dict) and event else LambdaEvent()
+    correlation_id = event_obj.correlation_id or generate_request_id()
     set_request_id(correlation_id)
+
+    logger.info(
+        "Request tracking initialized",
+        correlation_id=correlation_id,
+        aws_request_id=request_id,
+        has_event_correlation_id=bool(event_obj.correlation_id),
+    )
 
     try:
         # Log the incoming event for debugging
@@ -315,15 +373,14 @@ def lambda_handler(
         command_args = parse_event_mode(event or {})
 
         # Extract mode information for response (trade-only)
-        mode = "trade"
+        mode = EXECUTION_MODE_TRADE
 
         # Determine trading mode based on endpoint URL
         trading_mode = _determine_trading_mode(mode)
 
         logger.info("Executing command", command=" ".join(command_args))
 
-        _settings = load_settings()
-        # main() loads settings internally; do not pass unsupported kwargs
+        # main() loads settings internally
         result = main(command_args)
 
         # Normalize result for response formatting
@@ -333,7 +390,7 @@ def lambda_handler(
         message = _build_response_message(trading_mode, result=result_ok)
 
         response = {
-            "status": "success" if result_ok else "failed",
+            "status": RESPONSE_STATUS_SUCCESS if result_ok else RESPONSE_STATUS_FAILED,
             "mode": mode,
             "trading_mode": trading_mode,
             "message": message,
@@ -344,11 +401,7 @@ def lambda_handler(
         return response
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        # Safely get variables that might not be defined
-        mode = locals().get("mode", "unknown")
-        trading_mode = locals().get("trading_mode", "unknown")
-        parsed_command_args = locals().get("command_args")  # type: list[str] | None
-
+        # Variables are already initialized at function start
         error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
         logger.error(
             "Lambda execution error",
@@ -363,18 +416,17 @@ def lambda_handler(
         )
 
         # Enhanced error handling with detailed reporting
-        _handle_trading_error(e, event, request_id, parsed_command_args)
+        _handle_trading_error(e, event, request_id, command_args)
 
         return {
-            "status": "failed",
+            "status": RESPONSE_STATUS_FAILED,
             "mode": mode,
             "trading_mode": trading_mode,
             "message": error_message,
             "request_id": request_id,
         }
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        critical_command_args = locals().get("command_args")  # type: list[str] | None
-
+        # Variables are already initialized at function start
         error_message = f"Lambda execution critical error: {e!s}"
         logger.error(
             "Lambda execution critical error",
@@ -389,12 +441,12 @@ def lambda_handler(
         logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
-        _handle_critical_error(e, event, request_id, critical_command_args)
+        _handle_critical_error(e, event, request_id, command_args)
 
         return {
-            "status": "failed",
-            "mode": "unknown",
-            "trading_mode": "unknown",
+            "status": RESPONSE_STATUS_FAILED,
+            "mode": MODE_UNKNOWN,
+            "trading_mode": MODE_UNKNOWN,
             "message": error_message,
             "request_id": request_id,
         }
