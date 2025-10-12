@@ -16,10 +16,16 @@ Key Features:
 from __future__ import annotations
 
 import asyncio
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+from the_alchemiser.shared.errors.exceptions import (
+    DataProviderError,
+    OrderExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.shared.events import (
     BulkSettlementCompleted,
     OrderSettlementCompleted,
@@ -49,10 +55,26 @@ class SettlementMonitor:
         Args:
             alpaca_manager: Alpaca broker manager for order status checking
             event_bus: Event bus for emitting settlement events (optional)
-            polling_interval_seconds: How often to check order status
-            max_wait_seconds: Maximum time to wait for settlement
+            polling_interval_seconds: How often to check order status (must be positive)
+            max_wait_seconds: Maximum time to wait for settlement (must be positive)
+
+        Raises:
+            ValueError: If timeout parameters are invalid
 
         """
+        # Validate timeout parameters
+        if polling_interval_seconds <= 0:
+            raise ValueError(
+                f"polling_interval_seconds must be positive, got {polling_interval_seconds}"
+            )
+        if max_wait_seconds <= 0:
+            raise ValueError(f"max_wait_seconds must be positive, got {max_wait_seconds}")
+        if polling_interval_seconds >= max_wait_seconds:
+            raise ValueError(
+                f"polling_interval_seconds ({polling_interval_seconds}) must be less than "
+                f"max_wait_seconds ({max_wait_seconds})"
+            )
+
         self.alpaca_manager = alpaca_manager
         self.event_bus = event_bus
         self.polling_interval = polling_interval_seconds
@@ -63,7 +85,6 @@ class SettlementMonitor:
 
         # Track monitoring sessions
         self._active_monitors: dict[str, asyncio.Task[None]] = {}
-        self._settlement_results: dict[str, dict[str, Any]] = {}
 
     async def monitor_sell_orders_settlement(
         self,
@@ -110,11 +131,19 @@ class SettlementMonitor:
 
                         logger.info(
                             f"✅ Sell order {order_id} settled: ${settled_value} "
-                            "buying power released"
+                            "buying power released",
+                            correlation_id=correlation_id,
+                            order_id=order_id,
+                            settled_value=str(settled_value),
                         )
 
-        except Exception as e:
-            logger.error(f"❌ Error monitoring settlement: {e}")
+        except (DataProviderError, TradingClientError, OrderExecutionError) as e:
+            logger.error(
+                "❌ Error monitoring settlement",
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
 
         # Create and emit bulk settlement event
         settlement_event = BulkSettlementCompleted(
@@ -261,8 +290,14 @@ class SettlementMonitor:
                 # Wait before next check
                 await asyncio.sleep(self.polling_interval)
 
-            except Exception as e:
-                logger.warning(f"Error checking order {order_id} status: {e}")
+            except (DataProviderError, TradingClientError, OrderExecutionError) as e:
+                logger.warning(
+                    "Error checking order status, retrying",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    order_id=order_id,
+                    correlation_id=correlation_id,
+                )
                 await asyncio.sleep(self.polling_interval)
 
         logger.warning(f"⏰ Settlement monitoring timeout for order {order_id}")
@@ -307,14 +342,17 @@ class SettlementMonitor:
                 "order_id": order_id,
             }
 
-        except Exception as e:
-            logger.error(f"Error getting order details for {order_id}: {e}")
+        except (DataProviderError, TradingClientError) as e:
+            logger.error(
+                "Error getting order details",
+                error=str(e),
+                error_type=type(e).__name__,
+                order_id=order_id,
+            )
             return None
 
     def _generate_event_id(self) -> str:
         """Generate a unique event ID."""
-        import uuid
-
         return str(uuid.uuid4())
 
     async def wait_for_settlement_threshold(
@@ -341,14 +379,20 @@ class SettlementMonitor:
 
         start_time = datetime.now(UTC)
         accumulated_buying_power = Decimal("0")
+        seen_orders: set[str] = set()  # Track processed orders to avoid double-counting
 
         while (datetime.now(UTC) - start_time).total_seconds() < self.max_wait_seconds:
             for order_id in sell_order_ids:
+                # Skip if already counted
+                if order_id in seen_orders:
+                    continue
+
                 settlement_details = await self._get_order_settlement_details(order_id)
 
                 if settlement_details and settlement_details.get("side") == "SELL":
                     settled_value = settlement_details.get("settled_value", Decimal("0"))
                     accumulated_buying_power += settled_value
+                    seen_orders.add(order_id)  # Mark as processed
 
             if accumulated_buying_power >= target_buying_power:
                 logger.info(f"✅ Buying power threshold reached: ${accumulated_buying_power}")
