@@ -272,7 +272,15 @@ class OrderTracker:
             timestamp: Timestamp of the operation (ISO format)
 
         Returns:
-            Idempotency key string
+            Idempotency key string (SHA-256 hash, truncated to 16 chars)
+
+        Example:
+            >>> from datetime import datetime, UTC
+            >>> tracker = OrderTracker()
+            >>> timestamp = datetime.now(UTC)
+            >>> key = tracker.generate_idempotency_key("order-123", "repeg", timestamp)
+            >>> print(len(key))  # 16 characters
+            16
 
         """
         import hashlib
@@ -287,6 +295,10 @@ class OrderTracker:
     ) -> bool:
         """Check if operation has been performed and record it if not.
 
+        This method provides idempotency protection by tracking which operations
+        have been attempted. If an operation has already been recorded, it returns
+        False to indicate a duplicate.
+
         Args:
             order_id: Order ID
             operation: Operation type (e.g., 'repeg', 'escalate')
@@ -294,6 +306,19 @@ class OrderTracker:
 
         Returns:
             True if operation is new (not duplicate), False if duplicate
+
+        Example:
+            >>> from datetime import datetime, UTC
+            >>> tracker = OrderTracker()
+            >>> timestamp = datetime.now(UTC)
+            >>> # First attempt - should succeed
+            >>> result1 = tracker.check_and_record_operation("order-123", "repeg", timestamp)
+            >>> print(result1)
+            True
+            >>> # Second attempt with same parameters - should be blocked
+            >>> result2 = tracker.check_and_record_operation("order-123", "repeg", timestamp)
+            >>> print(result2)
+            False
 
         """
         idempotency_key = self.generate_idempotency_key(order_id, operation, timestamp)

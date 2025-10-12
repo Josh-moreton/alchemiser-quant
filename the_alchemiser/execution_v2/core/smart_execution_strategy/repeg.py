@@ -55,6 +55,22 @@ class RepegContext:
     
     This dataclass groups related parameters needed for repeg success result building,
     reducing the parameter count from 8 to 2 in affected methods.
+    
+    Example:
+        >>> from decimal import Decimal
+        >>> from datetime import datetime, UTC
+        >>> context = RepegContext(
+        ...     order_id="order-123",
+        ...     executed_order=OrderExecutionResult(...),
+        ...     request=SmartOrderRequest(symbol="AAPL", ...),
+        ...     new_price=Decimal("150.50"),
+        ...     original_anchor=Decimal("150.00"),
+        ...     quote=QuoteModel(...),
+        ...     remaining_qty=Decimal("10"),
+        ...     new_repeg_count=1
+        ... )
+        >>> # Pass to methods requiring multiple repeg parameters
+        >>> result = repeg_mgr._build_repeg_success_result(context)
     """
     
     order_id: str
@@ -86,6 +102,14 @@ class RepegManager:
             pricing_calculator: Pricing calculator for repeg prices
             order_tracker: Order tracker for state management
             config: Execution configuration
+
+        Example:
+            >>> alpaca_mgr = AlpacaManager(...)
+            >>> quote_provider = QuoteProvider(...)
+            >>> pricing_calc = PricingCalculator(...)
+            >>> tracker = OrderTracker()
+            >>> config = ExecutionConfig(max_repegs_per_order=2)
+            >>> repeg_mgr = RepegManager(alpaca_mgr, quote_provider, pricing_calc, tracker, config)
 
         """
         self.alpaca_manager = alpaca_manager
@@ -120,8 +144,21 @@ class RepegManager:
     async def check_and_repeg_orders(self) -> list[SmartOrderResult]:
         """Check active orders and repeg if they haven't filled after the wait period.
 
+        This is the main entry point for the repeg management cycle. It should be called
+        periodically to check all active orders and take appropriate action (repeg or escalate).
+
         Returns:
-            List of re-pegging results
+            List of re-pegging results for orders that were acted upon
+
+        Example:
+            >>> repeg_mgr = RepegManager(...)
+            >>> # Call periodically in a loop
+            >>> results = await repeg_mgr.check_and_repeg_orders()
+            >>> for result in results:
+            ...     if result.success:
+            ...         print(f"Successfully repoged order {result.order_id}")
+            ...     else:
+            ...         print(f"Repeg failed: {result.error_message}")
 
         """
         active_orders = self.order_tracker.get_active_orders()
