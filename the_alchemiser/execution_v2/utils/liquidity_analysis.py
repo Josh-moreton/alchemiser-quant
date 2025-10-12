@@ -74,12 +74,29 @@ class LiquidityAnalyzer:
 
         # Early validation of quote prices to prevent downstream negative price calculations
         if quote.bid_price < 0 or quote.ask_price < 0:
-            logger.warning(
-                f"Negative prices detected in quote for {quote.symbol}: "
-                f"bid={quote.bid_price}, ask={quote.ask_price}. This should have been caught earlier."
+            logger.error(
+                f"CRITICAL: Negative prices detected in quote for {quote.symbol}: "
+                f"bid={quote.bid_price}, ask={quote.ask_price}. "
+                f"This indicates a data quality issue upstream that must be investigated."
             )
-            # Don't fail here - let the existing validation handle it downstream
-            # but log the issue for debugging
+            # Continue processing but flag the issue prominently
+        
+        # Additional validation: ensure prices are reasonable
+        if quote.bid_price == 0 or quote.ask_price == 0:
+            logger.warning(
+                f"Zero prices detected in quote for {quote.symbol}: "
+                f"bid={quote.bid_price}, ask={quote.ask_price}. "
+                f"Quote data may be stale or incomplete."
+            )
+        
+        # Log full quote details for debugging when prices look suspicious
+        if quote.bid_price <= 0 or quote.ask_price <= 0 or quote.bid_price > quote.ask_price:
+            logger.error(
+                f"Suspicious quote detected for {quote.symbol}: "
+                f"bid_price={quote.bid_price}, ask_price={quote.ask_price}, "
+                f"bid_size={quote.bid_size}, ask_size={quote.ask_size}, "
+                f"timestamp={quote.timestamp}"
+            )
 
         # Calculate volume metrics
         total_bid_volume = quote.bid_size
@@ -162,6 +179,18 @@ class LiquidityAnalyzer:
             Dictionary with recommended bid and ask prices
 
         """
+        # Early validation: Ensure quote prices are positive before any calculations
+        # This prevents downstream arithmetic from producing negative recommended prices
+        if quote.bid_price <= 0 or quote.ask_price <= 0:
+            logger.error(
+                f"Invalid quote prices for {quote.symbol}: "
+                f"bid_price={quote.bid_price}, ask_price={quote.ask_price}. "
+                f"Cannot calculate volume-aware prices with non-positive values."
+            )
+            # Return minimum valid prices as emergency fallback
+            min_price = Decimal("0.01")
+            return {"bid": float(min_price), "ask": float(min_price)}
+        
         # Analyze volume sufficiency at current levels
         bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
         ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
@@ -204,13 +233,29 @@ class LiquidityAnalyzer:
 
             # If heavy bid side (imbalance < -0.2), be more aggressive on buys
             if imbalance < -0.2:
-                recommended_bid = min(recommended_bid + self.tick_size, ask_price - self.tick_size)
-                logger.debug(f"Heavy bid side detected, adjusting buy price to {recommended_bid}")
+                # Ensure we don't create negative prices by validating ask_price - tick_size > 0
+                aggressive_bid_limit = ask_price - self.tick_size
+                if aggressive_bid_limit > 0:
+                    recommended_bid = min(recommended_bid + self.tick_size, aggressive_bid_limit)
+                    logger.debug(f"Heavy bid side detected, adjusting buy price to {recommended_bid}")
+                else:
+                    logger.warning(
+                        f"Cannot apply heavy bid side adjustment for {quote.symbol}: "
+                        f"ask_price ({ask_price}) too small for tick adjustment"
+                    )
 
             # If heavy ask side (imbalance > 0.2), be more aggressive on sells
             elif imbalance > 0.2:
-                recommended_ask = max(recommended_ask - self.tick_size, bid_price + self.tick_size)
-                logger.debug(f"Heavy ask side detected, adjusting sell price to {recommended_ask}")
+                # Ensure we don't create negative prices by validating bid_price + tick_size is reasonable
+                aggressive_ask_floor = bid_price + self.tick_size
+                if aggressive_ask_floor > 0:
+                    recommended_ask = max(recommended_ask - self.tick_size, aggressive_ask_floor)
+                    logger.debug(f"Heavy ask side detected, adjusting sell price to {recommended_ask}")
+                else:
+                    logger.warning(
+                        f"Cannot apply heavy ask side adjustment for {quote.symbol}: "
+                        f"bid_price ({bid_price}) invalid for tick adjustment"
+                    )
 
         # Quantize prices to tick_size precision to avoid floating point errors
         recommended_bid = recommended_bid.quantize(self.tick_size)
