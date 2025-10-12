@@ -9,6 +9,7 @@ orders when maximum re-peg attempts are reached.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -46,6 +47,24 @@ PRICE_QUANTIZATION = Decimal("0.01")  # 2 decimal places (cents)
 
 class _RemoveFromTracking(Exception):
     """Internal control-flow to signal that order should be removed from tracking."""
+
+
+@dataclass(frozen=True)
+class RepegContext:
+    """Context data for repeg operation to reduce parameter count.
+    
+    This dataclass groups related parameters needed for repeg success result building,
+    reducing the parameter count from 8 to 2 in affected methods.
+    """
+    
+    order_id: str
+    executed_order: OrderExecutionResult
+    request: SmartOrderRequest
+    new_price: Decimal
+    original_anchor: Decimal | None
+    quote: QuoteModel | None
+    remaining_qty: Decimal
+    new_repeg_count: int
 
 
 class RepegManager:
@@ -574,87 +593,55 @@ class RepegManager:
             "ask_size": float(q.ask_size),
         }
 
-    def _build_repeg_success_result(
-        self,
-        order_id: str,
-        executed_order: OrderExecutionResult,
-        request: SmartOrderRequest,
-        new_price: Decimal,
-        original_anchor: Decimal | None,
-        quote: QuoteModel | None,
-        remaining_qty: Decimal,
-        new_repeg_count: int,
-    ) -> SmartOrderResult:
+    def _build_repeg_success_result(self, context: RepegContext) -> SmartOrderResult:
         """Build success result for a successful repeg operation.
 
         Args:
-            order_id: Original order ID
-            executed_order: Result from placing the new order
-            request: Original order request
-            new_price: New limit price
-            original_anchor: Original anchor price
-            quote: Quote data used for pricing
-            remaining_qty: Remaining quantity
-            new_repeg_count: Current repeg count
+            context: RepegContext containing all required parameters
 
         Returns:
             SmartOrderResult indicating success
 
         """
         self.order_tracker.update_order(
-            order_id, executed_order.order_id, new_price, datetime.now(UTC)
+            context.order_id, context.executed_order.order_id, context.new_price, datetime.now(UTC)
         )
 
         # Use structured logging for repeg operation
         log_repeg_operation(
             logger,
             operation="replace_order",
-            symbol=request.symbol,
-            old_price=original_anchor,
-            new_price=new_price,
-            quantity=remaining_qty,
+            symbol=context.request.symbol,
+            old_price=context.original_anchor,
+            new_price=context.new_price,
+            quantity=context.remaining_qty,
             reason="unfilled_order",
-            new_order_id=str(executed_order.order_id),
-            original_order_id=order_id,
-            repeg_attempt=new_repeg_count,
+            new_order_id=str(context.executed_order.order_id),
+            original_order_id=context.order_id,
+            repeg_attempt=context.new_repeg_count,
             max_repegs=self.config.max_repegs_per_order,
         )
 
-        metadata_dict = self._create_repeg_metadata(order_id, original_anchor, new_price, quote)
+        metadata_dict = self._create_repeg_metadata(
+            context.order_id, context.original_anchor, context.new_price, context.quote
+        )
 
         return SmartOrderResult(
             success=True,
-            order_id=executed_order.order_id,
-            final_price=new_price,
-            anchor_price=original_anchor,
-            repegs_used=new_repeg_count,
-            execution_strategy=f"smart_repeg_{new_repeg_count}",
+            order_id=context.executed_order.order_id,
+            final_price=context.new_price,
+            anchor_price=context.original_anchor,
+            repegs_used=context.new_repeg_count,
+            execution_strategy=f"smart_repeg_{context.new_repeg_count}",
             placement_timestamp=datetime.now(UTC),
             metadata=metadata_dict,
         )
 
-    def _handle_repeg_order_result(
-        self,
-        executed_order: OrderExecutionResult,
-        order_id: str,
-        request: SmartOrderRequest,
-        new_price: Decimal,
-        original_anchor: Decimal | None,
-        quote: QuoteModel | None,
-        remaining_qty: Decimal,
-        new_repeg_count: int,
-    ) -> SmartOrderResult:
+    def _handle_repeg_order_result(self, context: RepegContext) -> SmartOrderResult:
         """Handle the result of a repeg order placement.
 
         Args:
-            executed_order: Result from placing the new order
-            order_id: Original order ID
-            request: Original order request
-            new_price: New limit price
-            original_anchor: Original anchor price
-            quote: Quote data used for pricing
-            remaining_qty: Remaining quantity
-            new_repeg_count: Current repeg count
+            context: RepegContext containing all required parameters
 
         Returns:
             SmartOrderResult with success or failure status
@@ -662,43 +649,35 @@ class RepegManager:
         """
         # Check if placement succeeded and order_id looks valid (UUID)
         if not (
-            getattr(executed_order, "success", False) and getattr(executed_order, "order_id", None)
+            getattr(context.executed_order, "success", False)
+            and getattr(context.executed_order, "order_id", None)
         ):
             logger.error(
                 "Re-peg failed, no valid order ID returned",
-                symbol=request.symbol,
-                correlation_id=request.correlation_id,
+                symbol=context.request.symbol,
+                correlation_id=context.request.correlation_id,
             )
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg order placement failed",
                 execution_strategy="smart_repeg_failed",
-                repegs_used=new_repeg_count,
+                repegs_used=context.new_repeg_count,
             )
 
-        if not self._is_valid_uuid_str(str(executed_order.order_id)):
+        if not self._is_valid_uuid_str(str(context.executed_order.order_id)):
             logger.warning(
                 "Re-peg placement returned non-UUID order_id, skipping tracking update",
-                order_id=str(executed_order.order_id),
-                correlation_id=request.correlation_id,
+                order_id=str(context.executed_order.order_id),
+                correlation_id=context.request.correlation_id,
             )
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg returned invalid order ID",
                 execution_strategy="smart_repeg_failed",
-                repegs_used=new_repeg_count,
+                repegs_used=context.new_repeg_count,
             )
 
-        return self._build_repeg_success_result(
-            order_id,
-            executed_order,
-            request,
-            new_price,
-            original_anchor,
-            quote,
-            remaining_qty,
-            new_repeg_count,
-        )
+        return self._build_repeg_success_result(context)
 
     async def _attempt_repeg(
         self, order_id: str, request: SmartOrderRequest
@@ -771,16 +750,17 @@ class RepegManager:
             except _RemoveFromTracking:
                 return None
 
-            return self._handle_repeg_order_result(
-                executed_order,
-                order_id,
-                request,
-                quantized_price,
-                original_anchor,
-                quote,
-                remaining_qty,
-                new_repeg_count,
+            context = RepegContext(
+                order_id=order_id,
+                executed_order=executed_order,
+                request=request,
+                new_price=quantized_price,
+                original_anchor=original_anchor,
+                quote=quote,
+                remaining_qty=remaining_qty,
+                new_repeg_count=new_repeg_count,
             )
+            return self._handle_repeg_order_result(context)
 
         except (OrderExecutionError, asyncio.TimeoutError) as e:
             logger.error(
