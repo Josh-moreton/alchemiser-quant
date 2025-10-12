@@ -61,12 +61,33 @@ logger = get_logger(__name__)
 
 
 def _is_strategy_execution_error(err: Exception) -> bool:
-    """Detect strategy execution errors without cross-module imports."""
+    """Detect strategy execution errors without cross-module imports.
+    
+    Uses string-based class name comparison to avoid circular import issues
+    when importing from strategy_v2.errors.
+    
+    Args:
+        err: Exception to check
+        
+    Returns:
+        bool: True if exception is a StrategyExecutionError
+    """
     return err.__class__.__name__ == "StrategyExecutionError"
 
 
 def _calculate_jitter_factor(attempt: int) -> float:
-    """Calculate jitter factor for retry delay."""
+    """Calculate jitter factor for retry delay.
+    
+    Note: Uses time.time() for non-deterministic jitter in production.
+    This is intentional to prevent thundering herd problems in distributed systems.
+    Tests should freeze time with freezegun for reproducibility.
+    
+    Args:
+        attempt: Current retry attempt number
+        
+    Returns:
+        float: Jitter multiplier between 0.5 and 1.0
+    """
     return 0.5 + (hash(str(attempt) + str(int(time.time() * 1000))) % 500) / 1000
 
 
@@ -78,7 +99,18 @@ def _calculate_retry_delay(
     *,
     jitter: bool,
 ) -> float:
-    """Calculate retry delay with exponential backoff and optional jitter."""
+    """Calculate retry delay with exponential backoff and optional jitter.
+    
+    Args:
+        attempt: Current retry attempt number (0-indexed)
+        base_delay: Base delay in seconds before first retry
+        backoff_factor: Multiplier for exponential backoff (typically 2.0)
+        max_delay: Maximum delay cap in seconds
+        jitter: Whether to apply random jitter to prevent thundering herd
+        
+    Returns:
+        float: Calculated delay in seconds to wait before next retry
+    """
     delay = min(base_delay * (backoff_factor**attempt), max_delay)
     if jitter:
         delay *= _calculate_jitter_factor(attempt)
@@ -86,7 +118,16 @@ def _calculate_retry_delay(
 
 
 def _handle_final_retry_attempt(exception: Exception, max_retries: int, func_name: str) -> None:
-    """Handle the final retry attempt by adding context and logging."""
+    """Handle the final retry attempt by adding context and logging.
+    
+    Mutates the exception object if it has a retry_count attribute to track
+    the number of retries attempted before final failure.
+    
+    Args:
+        exception: Exception that occurred on final attempt
+        max_retries: Maximum number of retries configured
+        func_name: Name of the function that failed for logging
+    """
     if hasattr(exception, "retry_count"):
         exception.retry_count = max_retries
     logger.error(f"Function {func_name} failed after {max_retries} retries: {exception}")
@@ -119,14 +160,10 @@ def retry_with_backoff(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-            last_exception = None
-
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    last_exception = e
-
                     if attempt == max_retries:
                         _handle_final_retry_attempt(e, max_retries, func.__name__)
                         raise
@@ -140,11 +177,6 @@ def retry_with_backoff(
                         f"Retrying in {delay:.2f}s..."
                     )
                     time.sleep(delay)
-
-            # This should never be reached, but just in case
-            if last_exception:
-                raise last_exception
-            return None
 
         return wrapper
 
@@ -170,11 +202,19 @@ class CircuitBreaker:
         """Initialize circuit breaker.
 
         Args:
-            failure_threshold: Number of failures before opening circuit
-            timeout: Time in seconds before trying to close circuit
+            failure_threshold: Number of failures before opening circuit (must be > 0)
+            timeout: Time in seconds before trying to close circuit (must be > 0)
             expected_exception: Exception type that counts as failure
 
+        Raises:
+            ValueError: If failure_threshold or timeout are not positive
+
         """
+        if failure_threshold <= 0:
+            raise ValueError(f"failure_threshold must be positive, got {failure_threshold}")
+        if timeout <= 0:
+            raise ValueError(f"timeout must be positive, got {timeout}")
+            
         self.failure_threshold = failure_threshold
         self.timeout = timeout
         self.expected_exception = expected_exception
@@ -185,7 +225,16 @@ class CircuitBreaker:
     def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Apply circuit breaker pattern to a function.
 
-        Returns a wrapper that tracks failures and prevents calls when threshold is exceeded.
+        Args:
+            func: Function to wrap with circuit breaker logic
+
+        Returns:
+            Callable: Wrapped function that implements circuit breaker pattern
+
+        Raises:
+            CircuitBreakerOpenError: When circuit is open and timeout has not elapsed
+            Exception: Original exception when circuit allows call through
+
         """
 
         @wraps(func)
@@ -223,10 +272,22 @@ class CircuitBreaker:
 
 
 def categorize_error_severity(error: Exception) -> str:
-    """Categorize error severity for monitoring."""
-    if isinstance(error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)):
+    """Categorize error severity for monitoring.
+    
+    Args:
+        error: Exception to categorize
+        
+    Returns:
+        str: Severity level (LOW, MEDIUM, HIGH, CRITICAL)
+        
+    Note:
+        Checks specific error types before base AlchemiserError to ensure
+        proper severity classification for all exception subtypes.
+    """
+    # Check specific high-severity errors first
+    if isinstance(error, (InsufficientFundsError, OrderExecutionError, PositionValidationError)):
         return ErrorSeverity.HIGH
-    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(
+    if isinstance(error, (MarketDataError, DataProviderError)) or _is_strategy_execution_error(
         error
     ):
         return ErrorSeverity.MEDIUM
@@ -234,6 +295,8 @@ def categorize_error_severity(error: Exception) -> str:
         return ErrorSeverity.HIGH
     if isinstance(error, NotificationError):
         return ErrorSeverity.LOW
+    # Fallback for base AlchemiserError (after specific subtypes)
     if isinstance(error, AlchemiserError):
         return ErrorSeverity.CRITICAL
+    # Default for unknown exceptions
     return ErrorSeverity.MEDIUM

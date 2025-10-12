@@ -9,6 +9,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from the_alchemiser.shared.errors.error_reporter import (
+    ERROR_COUNTS_CLEANUP_WINDOW_SECONDS,
+    ERROR_RATE_THRESHOLD_PER_MIN,
+    ERROR_RATE_WINDOW_SECONDS,
+    SENSITIVE_KEYS,
     EnhancedErrorReporter,
     get_enhanced_error_reporter,
     get_global_error_reporter,
@@ -381,3 +385,352 @@ class TestEnhancedErrorReporterIntegration:
         # Only recent error should remain
         assert len(reporter.recent_errors) == 1
         assert reporter.recent_errors[0]["error_type"] == "ValueError"
+
+
+class TestEnhancedErrorReporterSensitiveDataRedaction:
+    """Test sensitive data redaction functionality."""
+
+    def test_redact_sensitive_keys(self):
+        """Test that sensitive keys are redacted."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test error")
+        context = {
+            "operation": "login",
+            "password": "secret123",
+            "api_key": "key-abc-123",
+            "username": "testuser",
+        }
+
+        reporter.report_error_with_context(
+            error=error,
+            context=context,
+            operation="auth",
+        )
+
+        recent = reporter.recent_errors[0]
+        assert recent["context"]["password"] == "[REDACTED]"
+        assert recent["context"]["api_key"] == "[REDACTED]"
+        assert recent["context"]["username"] == "testuser"
+
+    def test_redact_nested_sensitive_data(self):
+        """Test that nested sensitive data is redacted."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test error")
+        context = {
+            "operation": "api_call",
+            "request": {
+                "url": "https://api.example.com",
+                "headers": {"authorization": "Bearer token123"},
+            },
+        }
+
+        reporter.report_error_with_context(error=error, context=context, operation="api")
+
+        recent = reporter.recent_errors[0]
+        assert recent["context"]["request"]["headers"]["authorization"] == "[REDACTED]"
+        assert recent["context"]["request"]["url"] == "https://api.example.com"
+
+    def test_all_sensitive_keys_redacted(self):
+        """Test that all SENSITIVE_KEYS are redacted."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test")
+
+        # Create context with all sensitive keys
+        context = {key: f"secret-{key}" for key in SENSITIVE_KEYS}
+        context["safe_field"] = "safe_value"
+
+        reporter.report_error_with_context(error=error, context=context, operation="test")
+
+        recent = reporter.recent_errors[0]
+        # All sensitive keys should be redacted
+        for key in SENSITIVE_KEYS:
+            assert recent["context"][key] == "[REDACTED]"
+        # Safe field should remain
+        assert recent["context"]["safe_field"] == "safe_value"
+
+
+class TestEnhancedErrorReporterCorrelationTracking:
+    """Test correlation ID and causation ID tracking."""
+
+    def test_extract_correlation_id(self):
+        """Test that correlation_id is extracted to top level."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test error")
+        context = {
+            "correlation_id": "req-abc-123",
+            "module": "execution_v2",
+        }
+
+        reporter.report_error_with_context(
+            error=error,
+            context=context,
+            operation="order_processing",
+        )
+
+        recent = reporter.recent_errors[0]
+        assert recent["correlation_id"] == "req-abc-123"
+        assert recent["context"]["correlation_id"] == "req-abc-123"
+
+    def test_extract_causation_id(self):
+        """Test that causation_id is extracted to top level."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test error")
+        context = {
+            "correlation_id": "req-abc-123",
+            "causation_id": "evt-xyz-456",
+        }
+
+        reporter.report_error_with_context(
+            error=error,
+            context=context,
+            operation="event_processing",
+        )
+
+        recent = reporter.recent_errors[0]
+        assert recent["correlation_id"] == "req-abc-123"
+        assert recent["causation_id"] == "evt-xyz-456"
+
+    def test_missing_correlation_ids(self):
+        """Test handling when correlation IDs are missing."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test error")
+        context = {"module": "test"}
+
+        reporter.report_error_with_context(
+            error=error,
+            context=context,
+            operation="test_op",
+        )
+
+        recent = reporter.recent_errors[0]
+        assert recent["correlation_id"] is None
+        assert recent["causation_id"] is None
+
+    @patch("the_alchemiser.shared.errors.error_reporter.logger")
+    def test_correlation_ids_in_warning_log(self, mock_logger):
+        """Test that correlation IDs are included in high rate warnings."""
+        reporter = EnhancedErrorReporter()
+
+        # Add many errors with correlation IDs
+        for i in range(60):
+            reporter.report_error_with_context(
+                ValueError(f"Error {i}"),
+                context={"correlation_id": f"req-{i}"},
+                operation="test",
+            )
+
+        # Should have logged warning with correlation IDs
+        mock_logger.warning.assert_called()
+        warning_call = mock_logger.warning.call_args
+        assert "High error rate detected" in warning_call[0][0]
+        assert "recent_correlation_ids" in warning_call[1]["extra"]
+
+
+class TestEnhancedErrorReporterErrorCountsCleanup:
+    """Test error_counts cleanup to prevent memory leak."""
+
+    def test_error_counts_timestamp_tracking(self):
+        """Test that error counts track timestamps."""
+        reporter = EnhancedErrorReporter()
+        error = ValueError("Test")
+
+        reporter.report_error_with_context(error=error, operation="test")
+
+        assert "ValueError:test" in reporter.error_counts
+        assert "ValueError:test" in reporter.error_counts_timestamps
+        assert reporter.error_counts_timestamps["ValueError:test"] > 0
+
+    def test_cleanup_old_error_counts(self):
+        """Test that old error counts are cleaned up."""
+        reporter = EnhancedErrorReporter()
+
+        # Add an old error count
+        old_time = datetime.now(UTC).timestamp() - ERROR_COUNTS_CLEANUP_WINDOW_SECONDS - 100
+        reporter.error_counts["OldError:test"] = 5
+        reporter.error_counts_timestamps["OldError:test"] = old_time
+
+        # Add a recent error
+        reporter.report_error_with_context(ValueError("Recent"), operation="test")
+
+        # Old count should be cleaned up
+        assert "OldError:test" not in reporter.error_counts
+        assert "OldError:test" not in reporter.error_counts_timestamps
+        assert "ValueError:test" in reporter.error_counts
+
+    def test_error_counts_summary_reflects_cleanup(self):
+        """Test that summary reflects cleaned up counts."""
+        reporter = EnhancedErrorReporter()
+
+        # Add old error count
+        old_time = datetime.now(UTC).timestamp() - ERROR_COUNTS_CLEANUP_WINDOW_SECONDS - 100
+        reporter.error_counts["OldError:old"] = 10
+        reporter.error_counts_timestamps["OldError:old"] = old_time
+
+        # Add recent errors
+        for i in range(3):
+            reporter.report_error_with_context(ValueError(f"Error {i}"), operation="recent")
+
+        summary = reporter.get_error_summary()
+        assert "OldError:old" not in summary["error_counts"]
+        assert "ValueError:recent" in summary["error_counts"]
+
+
+class TestEnhancedErrorReporterCriticalErrorsTracking:
+    """Test critical errors tracking."""
+
+    @patch("the_alchemiser.shared.errors.error_handler.get_error_handler")
+    def test_critical_errors_list_populated(self, mock_get_handler):
+        """Test that critical errors are added to critical_errors list."""
+        mock_handler = Mock()
+        mock_get_handler.return_value = mock_handler
+
+        reporter = EnhancedErrorReporter()
+        error = Exception("Critical error")
+
+        reporter.report_error_with_context(
+            error=error,
+            is_critical=True,
+            operation="critical_op",
+        )
+
+        # Should have added to critical_errors list
+        assert len(reporter.critical_errors) == 1
+        assert reporter.critical_errors[0]["is_critical"] is True
+        assert reporter.critical_errors[0]["operation"] == "critical_op"
+
+    def test_critical_errors_in_summary(self):
+        """Test that critical errors count appears in summary."""
+        reporter = EnhancedErrorReporter()
+
+        # Add mix of critical and non-critical errors
+        reporter.report_error_with_context(
+            ValueError("Normal error"),
+            operation="normal",
+        )
+
+        # Manually add critical error to list (without triggering handler)
+        reporter.critical_errors.append({
+            "timestamp": datetime.now(UTC).isoformat(),
+            "is_critical": True,
+        })
+
+        summary = reporter.get_error_summary()
+        assert summary["critical_errors_count"] == 1
+
+    def test_critical_errors_cleanup(self):
+        """Test that old critical errors are cleaned up."""
+        reporter = EnhancedErrorReporter()
+
+        # Add old critical error
+        old_time = datetime.now(UTC) - timedelta(hours=2)
+        reporter.critical_errors.append({
+            "timestamp": old_time.isoformat(),
+            "is_critical": True,
+        })
+
+        # Add recent error (triggers cleanup)
+        reporter.report_error_with_context(ValueError("Test"), operation="test")
+
+        # Old critical error should be removed
+        assert len(reporter.critical_errors) == 0
+
+
+class TestEnhancedErrorReporterAlertDeduplication:
+    """Test alert deduplication functionality."""
+
+    @patch("the_alchemiser.shared.errors.error_reporter.logger")
+    def test_alert_deduplication(self, mock_logger):
+        """Test that alerts are deduplicated."""
+        reporter = EnhancedErrorReporter()
+
+        # Add many errors to trigger rate warning
+        for i in range(60):
+            reporter.report_error_with_context(ValueError(f"Error {i}"), operation="test")
+
+        # Should have logged warning once
+        assert mock_logger.warning.call_count == 1
+
+    @patch("the_alchemiser.shared.errors.error_reporter.logger")
+    def test_alert_cooldown(self, mock_logger):
+        """Test that alerts respect cooldown period."""
+        reporter = EnhancedErrorReporter()
+
+        # Trigger first alert
+        for i in range(60):
+            reporter.report_error_with_context(ValueError(f"Error {i}"), operation="test")
+
+        first_call_count = mock_logger.warning.call_count
+
+        # Add more errors immediately
+        for i in range(20):
+            reporter.report_error_with_context(ValueError(f"More {i}"), operation="test")
+
+        # Should not have logged additional warning (cooldown active)
+        assert mock_logger.warning.call_count == first_call_count
+
+    @patch("the_alchemiser.shared.errors.error_reporter.logger")
+    def test_structured_logging_in_alert(self, mock_logger):
+        """Test that alerts use structured logging with extras."""
+        reporter = EnhancedErrorReporter()
+
+        # Add many errors
+        for i in range(60):
+            reporter.report_error_with_context(ValueError(f"Error {i}"), operation="test")
+
+        # Verify structured logging
+        warning_call = mock_logger.warning.call_args
+        assert "extra" in warning_call[1]
+        extras = warning_call[1]["extra"]
+        assert "error_rate_per_minute" in extras
+        assert "threshold" in extras
+        assert "recent_errors_count" in extras
+        assert extras["threshold"] == ERROR_RATE_THRESHOLD_PER_MIN
+
+
+class TestEnhancedErrorReporterTimestampParsing:
+    """Test timestamp parsing error handling."""
+
+    def test_malformed_timestamp_handling(self):
+        """Test that malformed timestamps don't crash cleanup."""
+        reporter = EnhancedErrorReporter()
+
+        # Add error with malformed timestamp
+        reporter.recent_errors.append({
+            "timestamp": "not-a-timestamp",
+            "error_type": "TestError",
+        })
+
+        # Should not crash when cleaning up
+        reporter.report_error_with_context(ValueError("Test"), operation="test")
+
+        # Should still have the recent error
+        assert len(reporter.recent_errors) >= 1
+
+    def test_missing_timestamp_handling(self):
+        """Test that missing timestamps don't crash cleanup."""
+        reporter = EnhancedErrorReporter()
+
+        # Add error without timestamp
+        reporter.recent_errors.append({
+            "error_type": "TestError",
+        })
+
+        # Should not crash
+        reporter.report_error_with_context(ValueError("Test"), operation="test")
+
+
+class TestEnhancedErrorReporterConstants:
+    """Test that constants are properly defined and used."""
+
+    def test_constants_defined(self):
+        """Test that all expected constants are defined."""
+        assert ERROR_RATE_WINDOW_SECONDS == 300
+        assert ERROR_RATE_THRESHOLD_PER_MIN == 10
+        assert ERROR_COUNTS_CLEANUP_WINDOW_SECONDS == 3600
+        assert SENSITIVE_KEYS is not None
+        assert len(SENSITIVE_KEYS) > 0
+
+    def test_error_rate_window_used(self):
+        """Test that ERROR_RATE_WINDOW_SECONDS is used in initialization."""
+        reporter = EnhancedErrorReporter()
+        assert reporter.error_rate_window == ERROR_RATE_WINDOW_SECONDS
