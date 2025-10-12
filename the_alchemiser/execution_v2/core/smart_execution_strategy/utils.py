@@ -199,7 +199,8 @@ def fetch_price_for_notional_check(
             current_price = alpaca_manager.get_current_price(symbol)
             if current_price is not None and current_price > 0:
                 price = Decimal(str(current_price))
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to fetch price for {symbol}: {e}")
         price = None
 
     return price

@@ -309,8 +309,11 @@ class PricingCalculator:
             # Final validation and quantization
             return self._finalize_repeg_price(new_price, original_price)
 
+        except (ValueError, AttributeError, KeyError) as e:
+            logger.warning(f"Configuration or calculation error in re-peg price: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error calculating re-peg price: {e}")
+            logger.exception(f"Unexpected error calculating re-peg price: {e}")
             return None
 
     def _calculate_aggressive_price(

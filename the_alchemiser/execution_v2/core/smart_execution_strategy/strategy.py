@@ -16,6 +16,11 @@ from typing import Any
 
 from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors.exceptions import (
+    MarketDataError,
+    OrderExecutionError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -148,11 +153,24 @@ class SmartExecutionStrategy:
                 used_fallback=used_fallback,
             )
 
-        except Exception as e:
-            logger.error(f"Error in smart order placement for {request.symbol}: {e}")
+        except (OrderExecutionError, MarketDataError, ValidationError) as e:
+            logger.error(
+                f"Expected error in smart order placement for {request.symbol}: {e}",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=str(e),
+                execution_strategy="smart_limit_error",
+            )
+        except Exception as e:
+            logger.exception(
+                f"Unexpected error in smart order placement for {request.symbol}: {e}",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Unexpected error: {str(e)}",
                 execution_strategy="smart_limit_error",
             )
         finally:

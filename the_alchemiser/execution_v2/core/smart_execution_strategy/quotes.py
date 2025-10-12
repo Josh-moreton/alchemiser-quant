@@ -411,8 +411,11 @@ class QuoteProvider:
 
             return True
 
+        except (TypeError, ValueError, AttributeError, KeyError) as e:
+            logger.warning(f"Quote validation error for {symbol}: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Error validating quote for {symbol}: {e}")
+            logger.exception(f"Unexpected error validating quote for {symbol}: {e}")
             return False
 
     def get_latest_quote(self, symbol: str) -> dict[str, float | int] | None:

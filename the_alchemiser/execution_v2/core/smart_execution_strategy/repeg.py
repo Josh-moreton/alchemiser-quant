@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.errors.exceptions import OrderExecutionError
+from the_alchemiser.shared.errors.exceptions import MarketDataError, OrderExecutionError
 from the_alchemiser.shared.logging import get_logger, log_repeg_operation
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
@@ -155,7 +155,8 @@ class RepegManager:
             # Example: max=2 -> allow at most 1 re-peg; on the second consideration, escalate to market.
             try:
                 max_repegs_allowed = int(getattr(self.config, "max_repegs_per_order", 0))
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to get max_repegs_per_order config, using default 0: {e}")
                 max_repegs_allowed = 0
 
             if current_repeg_count + 1 >= max_repegs_allowed:
@@ -175,8 +176,17 @@ class RepegManager:
                 )
             return await self._attempt_repeg(order_id, request)
 
+        except (OrderExecutionError, MarketDataError) as e:
+            logger.error(
+                f"Expected error checking order {order_id} for re-pegging: {e}",
+                extra={"order_id": order_id},
+            )
+            return False  # Keep tracking on expected errors
         except Exception as e:
-            logger.error(f"Error checking order {order_id} for re-pegging: {e}")
+            logger.exception(
+                f"Unexpected error checking order {order_id} for re-pegging: {e}",
+                extra={"order_id": order_id},
+            )
             return False  # Keep tracking on transient errors
 
     def _is_order_completed(self, order_id: str) -> bool:
@@ -478,11 +488,24 @@ class RepegManager:
                 order_id, executed_order, original_anchor, request
             )
 
-        except Exception as exc:
-            logger.error(f"❌ Error during market escalation for {order_id}: {exc}")
+        except (OrderExecutionError, MarketDataError) as exc:
+            logger.error(
+                f"❌ Expected error during market escalation for {order_id}: {exc}",
+                extra={"order_id": order_id},
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=str(exc),
+                execution_strategy="market_escalation_error",
+            )
+        except Exception as exc:
+            logger.exception(
+                f"❌ Unexpected error during market escalation for {order_id}: {exc}",
+                extra={"order_id": order_id},
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Unexpected error: {str(exc)}",
                 execution_strategy="market_escalation_error",
             )
 
@@ -924,7 +947,8 @@ class RepegManager:
         if available_match:
             try:
                 return Decimal(available_match.group(1))
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to parse available quantity from error message: {e}")
                 return None
         return None
 
@@ -998,7 +1022,8 @@ class RepegManager:
 
             _uuid.UUID(value)
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Invalid UUID format for value '{value}': {e}")
             return False
 
     def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
