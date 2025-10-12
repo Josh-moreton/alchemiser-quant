@@ -736,11 +736,24 @@ class RepegManager:
                 new_repeg_count,
             )
 
-        except Exception as e:
-            logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
+        except (OrderExecutionError, MarketDataError) as e:
+            logger.error(
+                f"❌ Expected error during re-peg attempt for {order_id}: {e}",
+                extra={"order_id": order_id},
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=str(e),
+                execution_strategy="smart_repeg_error",
+            )
+        except Exception as e:
+            logger.exception(
+                f"❌ Unexpected error during re-peg attempt for {order_id}: {e}",
+                extra={"order_id": order_id},
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Unexpected error: {str(e)}",
                 execution_strategy="smart_repeg_error",
             )
 
@@ -801,8 +814,16 @@ class RepegManager:
                     order_id, request, remaining_qty, asset_info, price, min_notional
                 )
                 return True
+        except (MarketDataError, AttributeError) as _small_e:
+            logger.debug(
+                f"Minimal-remaining evaluation fallback due to expected error: {_small_e}",
+                extra={"order_id": order_id, "symbol": request.symbol},
+            )
         except Exception as _small_e:
-            logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
+            logger.warning(
+                f"Minimal-remaining evaluation fallback due to unexpected error: {_small_e}",
+                extra={"order_id": order_id, "symbol": request.symbol},
+            )
 
         return False
 
@@ -1005,14 +1026,30 @@ class RepegManager:
                 limit_price=float(limit_price),
                 time_in_force="day",
             )
-        except Exception as retry_e:
-            logger.error(f"❌ Retry with available quantity failed: {retry_e}")
+        except (OrderExecutionError, MarketDataError) as retry_e:
+            logger.error(
+                f"❌ Expected error on retry with available quantity: {retry_e}",
+                extra={"symbol": request.symbol},
+            )
             raise OrderExecutionError(
                 f"Retry with available quantity failed after insufficient quantity error: {original_error}",
                 symbol=request.symbol,
                 order_type="limit",
                 quantity=float(available_qty),
                 price=float(limit_price),
+            ) from retry_e
+        except Exception as retry_e:
+            logger.exception(
+                f"❌ Unexpected error on retry with available quantity: {retry_e}",
+                extra={"symbol": request.symbol},
+            )
+            raise OrderExecutionError(
+                f"Unexpected error during retry: {original_error}",
+                symbol=request.symbol,
+                order_type="limit",
+                quantity=float(available_qty),
+                price=float(limit_price),
+            ) from retry_e
             )
 
     def _is_valid_uuid_str(self, value: str) -> bool:
@@ -1063,8 +1100,15 @@ class RepegManager:
                 # Small delay to avoid hammering the API
                 time.sleep(check_interval)
 
+            except (OrderExecutionError, AttributeError, KeyError) as e:
+                logger.debug(f"Error checking cancellation status for {order_id}: {e}")
+                # Continue trying until timeout
+                time.sleep(check_interval)
             except Exception as e:
-                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
+                logger.warning(
+                    f"Unexpected error checking cancellation status for {order_id}: {e}",
+                    extra={"order_id": order_id},
+                )
                 # Continue trying until timeout
                 time.sleep(check_interval)
 

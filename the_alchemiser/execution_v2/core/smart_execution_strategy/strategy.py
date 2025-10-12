@@ -91,7 +91,8 @@ class SmartExecutionStrategy:
         """
         logger.info(
             f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
-            f"(urgency: {request.urgency})"
+            f"(urgency: {request.urgency})",
+            extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
         )
 
         # Preflight validation for non-fractionable assets
@@ -105,7 +106,10 @@ class SmartExecutionStrategy:
 
         if not validation_result.is_valid:
             error_msg = validation_result.error_message or f"Validation failed for {request.symbol}"
-            logger.error(f"❌ Preflight validation failed for {request.symbol}: {error_msg}")
+            logger.error(
+                f"❌ Preflight validation failed for {request.symbol}: {error_msg}",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=error_msg,
@@ -118,12 +122,16 @@ class SmartExecutionStrategy:
             original_quantity = request.quantity
             request = replace(request, quantity=validation_result.adjusted_quantity)
             logger.info(
-                f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}"
+                f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
             )
 
         # Log any warnings from validation
         for warning in validation_result.warnings:
-            logger.warning(f"⚠️ Smart order validation: {warning}")
+            logger.warning(
+                f"⚠️ Smart order validation: {warning}",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
+            )
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
@@ -217,7 +225,8 @@ class SmartExecutionStrategy:
         # Fallback to market order for high urgency
         if request.urgency == "HIGH":
             logger.warning(
-                f"Quote validation failed for {request.symbol}, using market order fallback"
+                f"Quote validation failed for {request.symbol}, using market order fallback",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
             )
             # Return a task that can be awaited by the caller
             return self._create_market_fallback_result(request)
@@ -293,7 +302,8 @@ class SmartExecutionStrategy:
         if optimal_price <= 0:
             logger.error(
                 f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
-                f"This should not happen after validation - falling back to market order."
+                f"This should not happen after validation - falling back to market order.",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
             )
             return await self._handle_invalid_price_fallback(request)
 
@@ -349,7 +359,8 @@ class SmartExecutionStrategy:
         if quantized_price <= 0:
             logger.error(
                 f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
-                f"This should not happen after validation - falling back to market order."
+                f"This should not happen after validation - falling back to market order.",
+                extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
             )
 
         return quantized_price
@@ -439,14 +450,16 @@ class SmartExecutionStrategy:
         logger.info(
             f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
             f"(strategy: {analysis_metadata['strategy_recommendation']}, "
-            f"confidence: {analysis_metadata['confidence']:.2f})"
+            f"confidence: {analysis_metadata['confidence']:.2f})",
+            extra={"correlation_id": request.correlation_id, "symbol": request.symbol, "order_id": result.order_id},
         )
 
         # Schedule re-pegging monitoring for this order
         if self.config.fill_wait_seconds > 0:
             logger.info(
                 f"⏰ Will monitor order {result.order_id} for re-pegging "
-                f"after {self.config.fill_wait_seconds}s"
+                f"after {self.config.fill_wait_seconds}s",
+                extra={"correlation_id": request.correlation_id, "order_id": result.order_id},
             )
 
         metadata_dict: LiquidityMetadata = {
@@ -480,7 +493,10 @@ class SmartExecutionStrategy:
             SmartOrderResult using market order execution
 
         """
-        logger.info(f"📈 Using market order fallback for {request.symbol}")
+        logger.info(
+            f"📈 Using market order fallback for {request.symbol}",
+            extra={"correlation_id": request.correlation_id, "symbol": request.symbol},
+        )
 
         # Use asyncio.to_thread to make blocking I/O async
         executed_order = await asyncio.to_thread(
