@@ -358,14 +358,42 @@ class RealTimePricingService:
                 # Event loop executor has shut down - gracefully ignore
                 return
 
-            if quote_values.bid_price is not None and quote_values.ask_price is not None:
+            # Handle partial quotes: if one side is None, use the available side for both
+            # This matches the REST API fallback behavior in market_data_service.py
+            bid_price = quote_values.bid_price
+            ask_price = quote_values.ask_price
+            
+            if bid_price is not None and ask_price is not None:
+                # Both available - use as-is
+                pass
+            elif bid_price is not None:
+                # Only bid available - use bid for both sides
+                self.logger.debug(
+                    f"Partial quote for {symbol}: only bid available ({bid_price}), using for both sides"
+                )
+                ask_price = bid_price
+            elif ask_price is not None:
+                # Only ask available - use ask for both sides
+                self.logger.debug(
+                    f"Partial quote for {symbol}: only ask available ({ask_price}), using for both sides"
+                )
+                bid_price = ask_price
+            else:
+                # Both None - skip update, keep previously stored quote
+                self.logger.debug(
+                    f"Empty quote for {symbol}: both bid and ask are None, keeping previous quote"
+                )
+                return
+            
+            # Update quote data with validated bid and ask prices
+            if bid_price is not None and ask_price is not None:
                 try:
                     # Use asyncio.to_thread for potentially blocking lock operations
                     await asyncio.to_thread(
                         self._price_store.update_quote_data,
                         symbol,
-                        quote_values.bid_price,
-                        quote_values.ask_price,
+                        bid_price,
+                        ask_price,
                         quote_values.bid_size,
                         quote_values.ask_size,
                         timestamp,
