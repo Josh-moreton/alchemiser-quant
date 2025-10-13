@@ -48,6 +48,7 @@ class RebalancePlanCalculator:
         strategy: StrategyAllocation,
         snapshot: PortfolioSnapshot,
         correlation_id: str,
+        causation_id: str | None = None,
     ) -> RebalancePlan:
         """Build rebalance plan from strategy allocation and portfolio snapshot.
 
@@ -55,6 +56,7 @@ class RebalancePlanCalculator:
             strategy: Strategy allocation with target weights
             snapshot: Current portfolio snapshot
             correlation_id: Correlation ID for tracking
+            causation_id: Causation ID for event traceability (defaults to correlation_id)
 
         Returns:
             RebalancePlan with trade items and metadata
@@ -63,11 +65,16 @@ class RebalancePlanCalculator:
             PortfolioError: If plan cannot be calculated
 
         """
+        # Use correlation_id as causation_id if not provided
+        if causation_id is None:
+            causation_id = correlation_id
+
         logger.info(
             "Building rebalance plan",
             module=MODULE_NAME,
             action="build_plan",
             correlation_id=correlation_id,
+            causation_id=causation_id,
             target_symbols=sorted(strategy.target_weights.keys()),
             portfolio_value=str(snapshot.total_value),
         )
@@ -126,7 +133,7 @@ class RebalancePlanCalculator:
             # Step 5: Create rebalance plan
             plan = RebalancePlan(
                 correlation_id=correlation_id,
-                causation_id=correlation_id,  # Use same ID for causation tracking
+                causation_id=causation_id,  # Use provided causation_id for event traceability
                 timestamp=datetime.now(UTC),
                 plan_id=f"portfolio_v2_{correlation_id}_{int(datetime.now(UTC).timestamp())}",
                 items=trade_items,
@@ -148,6 +155,7 @@ class RebalancePlanCalculator:
                 module=MODULE_NAME,
                 action="build_plan",
                 correlation_id=correlation_id,
+                causation_id=causation_id,
                 item_count=len(trade_items),
                 total_trade_value=str(total_trade_value),
             )
@@ -160,6 +168,7 @@ class RebalancePlanCalculator:
                 module=MODULE_NAME,
                 action="build_plan",
                 correlation_id=correlation_id,
+                causation_id=causation_id,
                 error=str(e),
                 error_type=type(e).__name__,
                 exc_info=True,
