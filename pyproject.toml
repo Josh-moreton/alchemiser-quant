@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "2.20.9"
+version = "2.20.8"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
