@@ -16,10 +16,17 @@ Key Features:
 from __future__ import annotations
 
 import asyncio
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from the_alchemiser.execution_v2.models.settlement_details import SettlementDetails
+from the_alchemiser.shared.errors.exceptions import (
+    DataProviderError,
+    OrderExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.shared.events import (
     BulkSettlementCompleted,
     OrderSettlementCompleted,
@@ -49,10 +56,26 @@ class SettlementMonitor:
         Args:
             alpaca_manager: Alpaca broker manager for order status checking
             event_bus: Event bus for emitting settlement events (optional)
-            polling_interval_seconds: How often to check order status
-            max_wait_seconds: Maximum time to wait for settlement
+            polling_interval_seconds: How often to check order status (must be positive)
+            max_wait_seconds: Maximum time to wait for settlement (must be positive)
+
+        Raises:
+            ValueError: If timeout parameters are invalid
 
         """
+        # Validate timeout parameters
+        if polling_interval_seconds <= 0:
+            raise ValueError(
+                f"polling_interval_seconds must be positive, got {polling_interval_seconds}"
+            )
+        if max_wait_seconds <= 0:
+            raise ValueError(f"max_wait_seconds must be positive, got {max_wait_seconds}")
+        if polling_interval_seconds >= max_wait_seconds:
+            raise ValueError(
+                f"polling_interval_seconds ({polling_interval_seconds}) must be less than "
+                f"max_wait_seconds ({max_wait_seconds})"
+            )
+
         self.alpaca_manager = alpaca_manager
         self.event_bus = event_bus
         self.polling_interval = polling_interval_seconds
@@ -63,7 +86,6 @@ class SettlementMonitor:
 
         # Track monitoring sessions
         self._active_monitors: dict[str, asyncio.Task[None]] = {}
-        self._settlement_results: dict[str, dict[str, Any]] = {}
 
     async def monitor_sell_orders_settlement(
         self,
@@ -83,13 +105,15 @@ class SettlementMonitor:
 
         """
         logger.info(
-            f"🔍 Starting settlement monitoring for {len(sell_order_ids)} sell orders "
-            f"(correlation: {correlation_id})"
+            "🔍 Starting settlement monitoring for sell orders",
+            order_count=len(sell_order_ids),
+            correlation_id=correlation_id,
+            module="execution_v2.settlement_monitor",
         )
 
         settled_orders: list[str] = []
         total_buying_power_released = Decimal("0")
-        settlement_details: dict[str, dict[str, Any]] = {}
+        settlement_details: dict[str, SettlementDetails] = {}
         start_time = datetime.now(UTC)
 
         try:
@@ -104,19 +128,32 @@ class SettlementMonitor:
                     settlement_details[order_id] = settlement_result
 
                     # Calculate buying power released (for sell orders, this is the settled value)
-                    if settlement_result.get("side") == "SELL":
-                        settled_value = settlement_result.get("settled_value", Decimal("0"))
+                    if settlement_result.side == "SELL":
+                        settled_value = settlement_result.settled_value
                         total_buying_power_released += settled_value
 
                         logger.info(
-                            f"✅ Sell order {order_id} settled: ${settled_value} "
-                            "buying power released"
+                            "✅ Sell order settled: buying power released",
+                            order_id=order_id,
+                            settled_value=str(settled_value),
+                            correlation_id=correlation_id,
+                            module="execution_v2.settlement_monitor",
                         )
 
-        except Exception as e:
-            logger.error(f"❌ Error monitoring settlement: {e}")
+        except (DataProviderError, TradingClientError, OrderExecutionError) as e:
+            logger.error(
+                "❌ Error monitoring settlement",
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
 
         # Create and emit bulk settlement event
+        # Convert SettlementDetails to dict for event payload
+        settlement_details_dict = {
+            order_id: details.model_dump() for order_id, details in settlement_details.items()
+        }
+
         settlement_event = BulkSettlementCompleted(
             correlation_id=correlation_id,
             causation_id=correlation_id,
@@ -125,7 +162,7 @@ class SettlementMonitor:
             source_module="execution_v2.settlement_monitor",
             settled_order_ids=settled_orders,
             total_buying_power_released=total_buying_power_released,
-            settlement_details=settlement_details,
+            settlement_details=settlement_details_dict,
             execution_plan_id=plan_id,
         )
 
@@ -134,9 +171,13 @@ class SettlementMonitor:
 
         execution_time = (datetime.now(UTC) - start_time).total_seconds()
         logger.info(
-            f"🎯 Settlement monitoring complete: {len(settled_orders)}/{len(sell_order_ids)} "
-            f"orders settled, ${total_buying_power_released} buying power released "
-            f"in {execution_time:.1f}s"
+            "🎯 Settlement monitoring complete",
+            settled_count=len(settled_orders),
+            total_orders=len(sell_order_ids),
+            buying_power_released=str(total_buying_power_released),
+            execution_time_seconds=execution_time,
+            correlation_id=correlation_id,
+            module="execution_v2.settlement_monitor",
         )
 
         return settlement_event
@@ -166,8 +207,10 @@ class SettlementMonitor:
 
         """
         logger.info(
-            f"💰 Verifying ${expected_buying_power} buying power availability after settlement "
-            f"(correlation: {settlement_correlation_id})"
+            "💰 Verifying buying power availability after settlement",
+            expected_buying_power=str(expected_buying_power),
+            correlation_id=settlement_correlation_id,
+            module="execution_v2.settlement_monitor",
         )
 
         # Calculate retry parameters based on max_wait_seconds with explicit
@@ -198,21 +241,26 @@ class SettlementMonitor:
 
         if is_available:
             logger.info(
-                f"✅ Post-settlement buying power verified: ${actual_buying_power} available "
-                f"(correlation: {settlement_correlation_id})"
+                "✅ Post-settlement buying power verified",
+                actual_buying_power=str(actual_buying_power),
+                expected_buying_power=str(expected_buying_power),
+                correlation_id=settlement_correlation_id,
+                module="execution_v2.settlement_monitor",
             )
         else:
             logger.error(
-                f"❌ Post-settlement buying power verification failed: "
-                f"${actual_buying_power} available, needed ${expected_buying_power} "
-                f"(correlation: {settlement_correlation_id})"
+                "❌ Post-settlement buying power verification failed",
+                actual_buying_power=str(actual_buying_power),
+                expected_buying_power=str(expected_buying_power),
+                correlation_id=settlement_correlation_id,
+                module="execution_v2.settlement_monitor",
             )
 
         return is_available, actual_buying_power
 
     async def _monitor_single_order_settlement(
         self, order_id: str, correlation_id: str
-    ) -> dict[str, Any] | None:
+    ) -> SettlementDetails | None:
         """Monitor a single order for settlement completion.
 
         Args:
@@ -242,14 +290,14 @@ class SettlementMonitor:
                             timestamp=datetime.now(UTC),
                             source_module="execution_v2.settlement_monitor",
                             order_id=order_id,
-                            symbol=order_details["symbol"],
-                            side=order_details["side"],
-                            settled_quantity=order_details["settled_quantity"],
-                            settlement_price=order_details["settlement_price"],
-                            settled_value=order_details["settled_value"],
+                            symbol=order_details.symbol,
+                            side=order_details.side,
+                            settled_quantity=order_details.settled_quantity,
+                            settlement_price=order_details.settlement_price,
+                            settled_value=order_details.settled_value,
                             buying_power_released=(
-                                order_details["settled_value"]
-                                if order_details["side"] == "SELL"
+                                order_details.settled_value
+                                if order_details.side == "SELL"
                                 else Decimal("0")
                             ),
                             original_correlation_id=correlation_id,
@@ -261,21 +309,33 @@ class SettlementMonitor:
                 # Wait before next check
                 await asyncio.sleep(self.polling_interval)
 
-            except Exception as e:
-                logger.warning(f"Error checking order {order_id} status: {e}")
+            except (DataProviderError, TradingClientError, OrderExecutionError) as e:
+                logger.warning(
+                    "Error checking order status, retrying",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    order_id=order_id,
+                    correlation_id=correlation_id,
+                    module="execution_v2.settlement_monitor",
+                )
                 await asyncio.sleep(self.polling_interval)
 
-        logger.warning(f"⏰ Settlement monitoring timeout for order {order_id}")
+        logger.warning(
+            "⏰ Settlement monitoring timeout",
+            order_id=order_id,
+            correlation_id=correlation_id,
+            module="execution_v2.settlement_monitor",
+        )
         return None
 
-    async def _get_order_settlement_details(self, order_id: str) -> dict[str, Any] | None:
+    async def _get_order_settlement_details(self, order_id: str) -> SettlementDetails | None:
         """Get detailed settlement information for a completed order.
 
         Args:
             order_id: Order ID to get details for
 
         Returns:
-            Dictionary with settlement details or None if error
+            SettlementDetails model or None if error
 
         """
         try:
@@ -297,24 +357,28 @@ class SettlementMonitor:
             settlement_price = Decimal(str(filled_avg_price)) if filled_avg_price else Decimal("0")
             settled_value = settled_quantity * settlement_price
 
-            return {
-                "symbol": symbol,
-                "side": side,
-                "settled_quantity": settled_quantity,
-                "settlement_price": settlement_price,
-                "settled_value": settled_value,
-                "status": getattr(order, "status", ""),
-                "order_id": order_id,
-            }
+            return SettlementDetails(
+                symbol=symbol,
+                side=side,  # type: ignore[arg-type]
+                settled_quantity=settled_quantity,
+                settlement_price=settlement_price,
+                settled_value=settled_value,
+                status=getattr(order, "status", ""),
+                order_id=order_id,
+            )
 
-        except Exception as e:
-            logger.error(f"Error getting order details for {order_id}: {e}")
+        except (DataProviderError, TradingClientError) as e:
+            logger.error(
+                "Error getting order details",
+                error=str(e),
+                error_type=type(e).__name__,
+                order_id=order_id,
+                module="execution_v2.settlement_monitor",
+            )
             return None
 
     def _generate_event_id(self) -> str:
         """Generate a unique event ID."""
-        import uuid
-
         return str(uuid.uuid4())
 
     async def wait_for_settlement_threshold(
@@ -335,29 +399,48 @@ class SettlementMonitor:
 
         """
         logger.info(
-            f"💰 Waiting for ${target_buying_power} buying power release from "
-            f"{len(sell_order_ids)} sell orders (correlation: {correlation_id})"
+            "💰 Waiting for buying power release from sell orders",
+            target_buying_power=str(target_buying_power),
+            order_count=len(sell_order_ids),
+            correlation_id=correlation_id,
+            module="execution_v2.settlement_monitor",
         )
 
         start_time = datetime.now(UTC)
         accumulated_buying_power = Decimal("0")
+        seen_orders: set[str] = set()  # Track processed orders to avoid double-counting
 
         while (datetime.now(UTC) - start_time).total_seconds() < self.max_wait_seconds:
             for order_id in sell_order_ids:
+                # Skip if already counted
+                if order_id in seen_orders:
+                    continue
+
                 settlement_details = await self._get_order_settlement_details(order_id)
 
-                if settlement_details and settlement_details.get("side") == "SELL":
-                    settled_value = settlement_details.get("settled_value", Decimal("0"))
+                if settlement_details and settlement_details.side == "SELL":
+                    settled_value = settlement_details.settled_value
                     accumulated_buying_power += settled_value
+                    seen_orders.add(order_id)  # Mark as processed
 
             if accumulated_buying_power >= target_buying_power:
-                logger.info(f"✅ Buying power threshold reached: ${accumulated_buying_power}")
+                logger.info(
+                    "✅ Buying power threshold reached",
+                    accumulated_buying_power=str(accumulated_buying_power),
+                    target_buying_power=str(target_buying_power),
+                    correlation_id=correlation_id,
+                    module="execution_v2.settlement_monitor",
+                )
                 return True
 
             await asyncio.sleep(self.polling_interval)
 
         logger.warning(
-            f"⏰ Buying power threshold timeout: ${accumulated_buying_power}/${target_buying_power}"
+            "⏰ Buying power threshold timeout",
+            accumulated_buying_power=str(accumulated_buying_power),
+            target_buying_power=str(target_buying_power),
+            correlation_id=correlation_id,
+            module="execution_v2.settlement_monitor",
         )
         return False
 
