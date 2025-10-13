@@ -39,7 +39,13 @@ from the_alchemiser.shared.schemas import LambdaEvent
 logger = get_logger(__name__)
 
 # Public API
-__all__ = ["lambda_handler", "parse_event_mode"]
+__all__ = [
+    "_build_error_response",
+    "_extract_correlation_id",
+    "_has_correlation_id",
+    "lambda_handler",
+    "parse_event_mode",
+]
 
 
 def _sanitize_event_for_logging(event: LambdaEvent | dict[str, Any] | None) -> dict[str, Any]:
@@ -207,6 +213,67 @@ def _handle_critical_error(
     _handle_error(error, event, request_id, " - unexpected error", command_args, is_critical=True)
 
 
+def _extract_correlation_id(event: LambdaEvent | dict[str, Any] | None) -> str:
+    """Extract or generate correlation ID from event.
+
+    Args:
+        event: Lambda event that may contain a correlation_id
+
+    Returns:
+        Correlation ID string (extracted from event or newly generated)
+
+    """
+    if event and isinstance(event, dict) and event.get("correlation_id"):
+        return str(event["correlation_id"])
+    if event and hasattr(event, "correlation_id") and event.correlation_id:
+        return str(event.correlation_id)
+    return generate_request_id()
+
+
+def _has_correlation_id(event: LambdaEvent | dict[str, Any] | None) -> bool:
+    """Check if event has a correlation ID.
+
+    Args:
+        event: Lambda event to check
+
+    Returns:
+        True if event contains a correlation_id, False otherwise
+
+    """
+    if not event:
+        return False
+    if isinstance(event, dict):
+        return bool(event.get("correlation_id"))
+    return bool(hasattr(event, "correlation_id") and event.correlation_id)
+
+
+def _build_error_response(
+    mode: str,
+    trading_mode: str,
+    error_message: str,
+    request_id: str,
+) -> dict[str, Any]:
+    """Build error response dictionary.
+
+    Args:
+        mode: Execution mode
+        trading_mode: Trading mode (paper/live/n/a)
+        error_message: Error message to include
+        request_id: Request correlation ID
+
+    Returns:
+        Error response dictionary
+
+    """
+    return {
+        "status": "failed",
+        "mode": mode,
+        "trading_mode": trading_mode,
+        "message": error_message,
+        "request_id": request_id,
+    }
+
+
 def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
     """Parse the Lambda event.
 
@@ -333,25 +400,14 @@ def lambda_handler(
 
     # Generate and set correlation request ID for all downstream logs
     # Use event correlation_id if provided (for idempotency)
-    if event and isinstance(event, dict) and event.get("correlation_id"):
-        correlation_id = event["correlation_id"]
-    elif event and hasattr(event, "correlation_id") and event.correlation_id:
-        correlation_id = event.correlation_id
-    else:
-        correlation_id = generate_request_id()
+    correlation_id = _extract_correlation_id(event)
     set_request_id(correlation_id)
 
     logger.info(
         "Lambda invoked",
         aws_request_id=request_id,
         correlation_id=correlation_id,
-        event_has_correlation_id=bool(
-            event
-            and (
-                (isinstance(event, dict) and event.get("correlation_id"))
-                or (hasattr(event, "correlation_id") and event.correlation_id)
-            )
-        ),
+        event_has_correlation_id=_has_correlation_id(event),
     )
 
     # TODO: Add idempotency check using DynamoDB or EventBridge event deduplication
@@ -421,13 +477,7 @@ def lambda_handler(
         # Enhanced error handling with detailed reporting
         _handle_trading_error(e, event, request_id, parsed_command_args)
 
-        return {
-            "status": "failed",
-            "mode": mode,
-            "trading_mode": trading_mode,
-            "message": error_message,
-            "request_id": request_id,
-        }
+        return _build_error_response(mode, trading_mode, error_message, request_id)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         critical_command_args = locals().get("command_args")  # type: list[str] | None
 
@@ -446,10 +496,4 @@ def lambda_handler(
         # Enhanced error handling with detailed reporting
         _handle_critical_error(e, event, request_id, critical_command_args)
 
-        return {
-            "status": "failed",
-            "mode": "unknown",
-            "trading_mode": "unknown",
-            "message": error_message,
-            "request_id": request_id,
-        }
+        return _build_error_response("unknown", "unknown", error_message, request_id)
