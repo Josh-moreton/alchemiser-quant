@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [2.23.1] - 2025-10-13
+
+### Changed
+- **Refactored PhaseExecutor to reduce cognitive complexity**: Addressed SonarQube CRITICAL issue
+  - Extracted common phase execution logic into `_execute_phase()` helper method
+  - Extracted order execution logic into `_execute_order()` helper method
+  - Reduced `execute_buy_phase` cognitive complexity from 16 to 0 (below limit of 15)
+  - Reduced `execute_sell_phase` cognitive complexity from 10 to 0
+  - Applied DRY principle - eliminated code duplication between sell and buy phases
+  - Maintained backward compatibility - no API changes
+  - Preserved all existing behavior including idempotency, micro-order checks, and logging
+  - File: `the_alchemiser/execution_v2/core/phase_executor.py`
+
 ## [2.21.0] - 2025-10-13
 
 ### Added
