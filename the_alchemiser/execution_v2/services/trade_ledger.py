@@ -148,7 +148,7 @@ class TradeLedgerService:
                 order_id=order_result.order_id,
                 correlation_id=correlation_id,
                 symbol=order_result.symbol,
-                direction=order_result.action,  # type: ignore[arg-type]  # Validated above as BUY or SELL
+                direction=order_result.action,
                 filled_qty=order_result.shares,
                 fill_price=order_result.price,
                 bid_at_fill=bid_at_fill,
