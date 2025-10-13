@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.errors.exceptions import PortfolioError
-from the_alchemiser.shared.logging import Logger, get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 
-logger: Logger = get_logger(__name__)
+logger = get_logger(__name__)
 
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.planner"

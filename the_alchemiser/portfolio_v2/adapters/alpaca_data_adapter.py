@@ -205,7 +205,9 @@ class AlpacaDataAdapter:
         if not symbols:
             return {}
 
-        valid_symbols = [s.strip().upper() for s in symbols if s and isinstance(s, str) and s.strip()]
+        valid_symbols = [
+            s.strip().upper() for s in symbols if s and isinstance(s, str) and s.strip()
+        ]
         if not valid_symbols:
             logger.warning(
                 "No valid symbols after filtering",
