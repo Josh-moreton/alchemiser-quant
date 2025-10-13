@@ -240,6 +240,121 @@ class PhaseExecutor:
         """
         self._execution_cache.clear()
 
+    async def _execute_phase(
+        self,
+        phase_type: str,
+        items: list[RebalancePlanItem],
+        correlation_id: str | None,
+        execute_order_callback: OrderExecutionCallback | None,
+        monitor_orders_callback: OrderMonitorCallback | None,
+        finalize_orders_callback: OrderFinalizerCallback | None,
+        check_micro_orders: bool,
+    ) -> tuple[list[OrderResult], ExecutionStats]:
+        """Execute a phase with common orchestration logic.
+
+        This method consolidates the shared execution logic between sell and buy phases,
+        reducing code duplication and cognitive complexity.
+
+        Args:
+            phase_type: Type of phase ("SELL" or "BUY")
+            items: List of rebalance plan items to execute
+            correlation_id: Optional correlation ID for tracking
+            execute_order_callback: Callback to execute individual orders
+            monitor_orders_callback: Callback to monitor and repeg orders
+            finalize_orders_callback: Callback to finalize orders
+            check_micro_orders: Whether to check for micro orders (BUY phase only)
+
+        Returns:
+            Tuple of (order results, execution statistics)
+
+        """
+        # Bind correlation_id to logger context for observability
+        bound_logger = logger.bind(correlation_id=correlation_id) if correlation_id else logger
+
+        orders = []
+        placed = 0
+        succeeded = 0
+
+        # Execute all orders first (placement only)
+        for item in items:
+            order_result, was_placed = await self._execute_order(
+                item, bound_logger, check_micro_orders, execute_order_callback
+            )
+            
+            orders.append(order_result)
+            if was_placed:
+                placed += 1
+
+        # Monitor and re-peg orders that haven't filled and await completion
+        if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
+            bound_logger.info(f"🔄 Monitoring {phase_type} orders for re-pegging opportunities...")
+            orders = await monitor_orders_callback(phase_type, orders, correlation_id)
+
+        # Await completion and finalize statuses
+        if finalize_orders_callback:
+            orders, succeeded, trade_value = finalize_orders_callback(
+                phase_type=phase_type, orders=orders, items=items
+            )
+
+        return orders, {
+            "placed": placed,
+            "succeeded": succeeded,
+            "trade_value": trade_value if finalize_orders_callback else Decimal("0"),
+        }
+
+    async def _execute_order(
+        self,
+        item: RebalancePlanItem,
+        bound_logger: structlog.stdlib.BoundLogger,
+        check_micro_orders: bool,
+        execute_order_callback: OrderExecutionCallback | None,
+    ) -> tuple[OrderResult, bool]:
+        """Execute a single order with idempotency and validation checks.
+
+        Args:
+            item: RebalancePlanItem to execute
+            bound_logger: Logger instance with bound context
+            check_micro_orders: Whether to check for micro orders
+            execute_order_callback: Callback to execute the order
+
+        Returns:
+            Tuple of (OrderResult, was_placed) where was_placed indicates if this was a new placement
+
+        """
+        # Check for duplicate execution (idempotency)
+        duplicate_result = self._check_duplicate_execution(item, bound_logger)
+        if duplicate_result:
+            return duplicate_result, False
+
+        # Pre-check for micro orders (BUY phase only)
+        if check_micro_orders:
+            skip_result = self._check_micro_order_skip(item, bound_logger)
+            if skip_result:
+                self._cache_execution_result(item, skip_result)
+                return skip_result, False
+
+        # Execute the order
+        if execute_order_callback:
+            order_result = await execute_order_callback(item)
+        else:
+            order_result = await self._execute_single_item(item, bound_logger)
+
+        # Cache result for idempotency
+        self._cache_execution_result(item, order_result)
+
+        # Log the result
+        phase_type = item.action.upper()
+        if order_result.order_id:
+            bound_logger.info(
+                f"🧾 {phase_type} {item.symbol} order placed (ID: {order_result.order_id})"
+            )
+        elif not order_result.success:
+            bound_logger.error(
+                f"❌ {phase_type} {item.symbol} placement failed: {order_result.error_message}"
+            )
+
+        return order_result, True
+
     async def execute_sell_phase(
         self,
         sell_items: list[RebalancePlanItem],
@@ -261,57 +376,15 @@ class PhaseExecutor:
             Tuple of (order results, execution statistics)
 
         """
-        # Bind correlation_id to logger context for observability
-        bound_logger = logger.bind(correlation_id=correlation_id) if correlation_id else logger
-
-        orders = []
-        placed = 0
-        succeeded = 0
-
-        # Execute all sell orders first (placement only)
-        for item in sell_items:
-            # Check for duplicate execution (idempotency)
-            duplicate_result = self._check_duplicate_execution(item, bound_logger)
-            if duplicate_result:
-                orders.append(duplicate_result)
-                continue  # Skip execution, use cached result
-
-            if execute_order_callback:
-                order_result = await execute_order_callback(item)
-            else:
-                order_result = await self._execute_single_item(item, bound_logger)
-
-            # Cache result for idempotency
-            self._cache_execution_result(item, order_result)
-
-            orders.append(order_result)
-            placed += 1
-
-            if order_result.order_id:
-                bound_logger.info(
-                    f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})"
-                )
-            elif not order_result.success:
-                bound_logger.error(
-                    f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
-                )
-
-        # Monitor and re-peg sell orders that haven't filled and await completion
-        if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
-            bound_logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
-            orders = await monitor_orders_callback("SELL", orders, correlation_id)
-
-        # Await completion and finalize statuses
-        if finalize_orders_callback:
-            orders, succeeded, trade_value = finalize_orders_callback(
-                phase_type="SELL", orders=orders, items=sell_items
-            )
-
-        return orders, {
-            "placed": placed,
-            "succeeded": succeeded,
-            "trade_value": trade_value if finalize_orders_callback else Decimal("0"),
-        }
+        return await self._execute_phase(
+            phase_type="SELL",
+            items=sell_items,
+            correlation_id=correlation_id,
+            execute_order_callback=execute_order_callback,
+            monitor_orders_callback=monitor_orders_callback,
+            finalize_orders_callback=finalize_orders_callback,
+            check_micro_orders=False,
+        )
 
     async def execute_buy_phase(
         self,
@@ -334,64 +407,15 @@ class PhaseExecutor:
             Tuple of (order results, execution statistics)
 
         """
-        # Bind correlation_id to logger context for observability
-        bound_logger = logger.bind(correlation_id=correlation_id) if correlation_id else logger
-
-        orders = []
-        placed = 0
-        succeeded = 0
-
-        # Execute all buy orders first (placement only)
-        for item in buy_items:
-            # Check for duplicate execution (idempotency)
-            duplicate_result = self._check_duplicate_execution(item, bound_logger)
-            if duplicate_result:
-                orders.append(duplicate_result)
-                continue  # Skip execution, use cached result
-
-            # Pre-check for micro orders that will be rejected by broker constraints
-            skip_result = self._check_micro_order_skip(item, bound_logger)
-            if skip_result:
-                self._cache_execution_result(item, skip_result)  # Cache skip results too
-                orders.append(skip_result)
-                continue
-
-            if execute_order_callback:
-                order_result = await execute_order_callback(item)
-            else:
-                order_result = await self._execute_single_item(item, bound_logger)
-
-            # Cache result for idempotency
-            self._cache_execution_result(item, order_result)
-
-            orders.append(order_result)
-            placed += 1
-
-            if order_result.order_id:
-                bound_logger.info(
-                    f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})"
-                )
-            elif not order_result.success:
-                bound_logger.error(
-                    f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
-                )
-
-        # Monitor and re-peg buy orders that haven't filled and await completion
-        if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
-            bound_logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
-            orders = await monitor_orders_callback("BUY", orders, correlation_id)
-
-        # Await completion and finalize statuses
-        if finalize_orders_callback:
-            orders, succeeded, trade_value = finalize_orders_callback(
-                phase_type="BUY", orders=orders, items=buy_items
-            )
-
-        return orders, {
-            "placed": placed,
-            "succeeded": succeeded,
-            "trade_value": trade_value if finalize_orders_callback else Decimal("0"),
-        }
+        return await self._execute_phase(
+            phase_type="BUY",
+            items=buy_items,
+            correlation_id=correlation_id,
+            execute_order_callback=execute_order_callback,
+            monitor_orders_callback=monitor_orders_callback,
+            finalize_orders_callback=finalize_orders_callback,
+            check_micro_orders=True,
+        )
 
     def _check_micro_order_skip(
         self, item: RebalancePlanItem, bound_logger: structlog.stdlib.BoundLogger
