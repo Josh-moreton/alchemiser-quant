@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderResult
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
@@ -45,7 +45,7 @@ class RepegMonitoringError(AlchemiserError):
             correlation_id: Correlation ID for tracing
 
         """
-        context = {}
+        context: dict[str, Any] = {}
         if phase_type:
             context["phase_type"] = phase_type
         if order_count is not None:
@@ -290,9 +290,7 @@ class RepegMonitoringService:
 
         # If no active orders, use a short grace window instead of full 2x wait
         if active_order_count == 0:
-            return self._check_termination_no_active_orders(
-                time_since_last_action, correlation_id
-            )
+            return self._check_termination_no_active_orders(time_since_last_action, correlation_id)
 
         # Active orders present, use extended window
         return self._check_termination_with_active_orders(

@@ -20,7 +20,7 @@ Example:
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
+from typing import Any
 
 from dependency_injector import containers, providers
 
@@ -29,20 +29,13 @@ from the_alchemiser.shared.config.infrastructure_providers import (
     InfrastructureProviders,
 )
 from the_alchemiser.shared.config.service_providers import ServiceProviders
-from the_alchemiser.shared.errors import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
-
-if TYPE_CHECKING:
-    from the_alchemiser.execution_v2.config import ExecutionProviders
 
 logger = get_logger(__name__)
 
 # Test credentials constants
 TEST_API_KEY = "test_api_key_valid_for_testing"
-TEST_SECRET_KEY = "test_secret_key_valid_for_testing"  # noqa: S105
-
-# Avoid importing execution_v2 at module level to prevent circular imports
-# (execution_v2 -> shared.utils -> shared.config.container -> execution_v2)
+TEST_SECRET_KEY = "test_secret_key_valid_for_testing"  # noqa: S105  # nosec B105
 
 
 class ApplicationContainer(containers.DeclarativeContainer):
@@ -56,75 +49,25 @@ class ApplicationContainer(containers.DeclarativeContainer):
         ]
     )
 
-    # Sub-containers
+    # Sub-containers (logical layers)
     config = providers.Container(ConfigProviders)
     infrastructure = providers.Container(InfrastructureProviders, config=config)
     services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
 
-    # Execution providers (initialized lazily to avoid circular imports)
-    # Type hint uses TYPE_CHECKING import to avoid runtime circular dependency
-    execution: ExecutionProviders | None = None
+    # Business module providers (registered by wiring functions)
+    # Execution module
+    execution_manager: Any = None
 
-    @staticmethod
-    def initialize_execution_providers(container: ApplicationContainer) -> None:
-        """Attach execution providers using late binding.
+    # Strategy module
+    strategy_registry: Any = None
+    strategy_market_data_adapter: Any = None
+    strategy_orchestrator: Any = None
 
-        This method uses dynamic import to avoid circular dependencies between
-        shared.config and execution_v2 modules. It is idempotent and safe to
-        call multiple times.
-
-        Args:
-            container: The ApplicationContainer instance to initialize
-
-        Raises:
-            ConfigurationError: If execution_v2 module cannot be imported
-
-        Example:
-            >>> container = ApplicationContainer()
-            >>> ApplicationContainer.initialize_execution_providers(container)
-
-        """
-        # Idempotency guard - skip if already initialized
-        if getattr(container, "execution", None) is not None:
-            logger.debug("Execution providers already initialized, skipping")
-            return
-
-        try:
-            logger.info("Initializing execution providers with late binding")
-            execution_config_module = importlib.import_module("the_alchemiser.execution_v2.config")
-            execution_providers = execution_config_module.ExecutionProviders
-
-            execution_container = execution_providers()
-            execution_container.infrastructure.alpaca_manager.override(
-                container.infrastructure.alpaca_manager
-            )
-            execution_container.config.execution.override(container.config.execution)
-            container.execution = execution_container
-
-            logger.info("Successfully initialized execution providers")
-        except (ImportError, ModuleNotFoundError) as e:
-            logger.error(
-                "Failed to import execution_v2 module",
-                extra={
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                    "module": "the_alchemiser.execution_v2.config",
-                },
-            )
-            raise ConfigurationError(
-                f"Failed to load execution_v2 module for late binding: {e}"
-            ) from e
-        except Exception as e:
-            logger.error(
-                "Unexpected error initializing execution providers",
-                extra={
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
-            raise ConfigurationError(
-                f"Unexpected error during execution providers initialization: {e}"
-            ) from e
+    # Portfolio module
+    portfolio_data_adapter: Any = None
+    portfolio_state_reader: Any = None
+    portfolio_planner: Any = None
+    portfolio_service: Any = None
 
     @classmethod
     def create_for_environment(cls, env: str = "development") -> ApplicationContainer:
@@ -171,8 +114,17 @@ class ApplicationContainer(containers.DeclarativeContainer):
                 },
             )
 
+        # Register business module dependencies using wiring functions (dynamic import)
+        # Import dynamically to avoid circular dependencies and maintain architecture boundaries
+        exec_wiring = importlib.import_module("the_alchemiser.execution_v2.wiring")
+        strategy_wiring = importlib.import_module("the_alchemiser.strategy_v2.wiring")
+        portfolio_wiring = importlib.import_module("the_alchemiser.portfolio_v2.wiring")
+
+        exec_wiring.register_execution(container)
+        strategy_wiring.register_strategy(container)
+        portfolio_wiring.register_portfolio(container)
+
         logger.info("ApplicationContainer created successfully", extra={"environment": env})
-        # Execution providers will be initialized when needed
         return container
 
     @classmethod

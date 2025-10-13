@@ -158,7 +158,7 @@ class LiquidityAnalyzer:
         if quote.mid_price <= 0:
             logger.warning(
                 f"Invalid mid_price for liquidity score calculation: {quote.mid_price}",
-                extra={"symbol": quote.symbol}
+                extra={"symbol": quote.symbol},
             )
             spread_score = 0.0  # Worst score for invalid data
         else:
@@ -245,7 +245,9 @@ class LiquidityAnalyzer:
                 aggressive_bid_limit = ask_price - self.tick_size
                 if aggressive_bid_limit > 0:
                     recommended_bid = min(recommended_bid + self.tick_size, aggressive_bid_limit)
-                    logger.debug(f"Heavy bid side detected, adjusting buy price to {recommended_bid}")
+                    logger.debug(
+                        f"Heavy bid side detected, adjusting buy price to {recommended_bid}"
+                    )
                 else:
                     logger.warning(
                         f"Cannot apply heavy bid side adjustment for {quote.symbol}: "
@@ -258,7 +260,9 @@ class LiquidityAnalyzer:
                 aggressive_ask_floor = bid_price + self.tick_size
                 if aggressive_ask_floor > 0:
                     recommended_ask = max(recommended_ask - self.tick_size, aggressive_ask_floor)
-                    logger.debug(f"Heavy ask side detected, adjusting sell price to {recommended_ask}")
+                    logger.debug(
+                        f"Heavy ask side detected, adjusting sell price to {recommended_ask}"
+                    )
                 else:
                     logger.warning(
                         f"Cannot apply heavy ask side adjustment for {quote.symbol}: "
@@ -323,7 +327,7 @@ class LiquidityAnalyzer:
         if quote.mid_price <= 0:
             logger.warning(
                 f"Invalid mid_price for confidence calculation: {quote.mid_price}",
-                extra={"symbol": quote.symbol}
+                extra={"symbol": quote.symbol},
             )
             # Apply maximum spread penalty for invalid data
             confidence *= 0.6  # 40% penalty for invalid price

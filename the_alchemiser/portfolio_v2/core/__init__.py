@@ -3,7 +3,7 @@
 
 Core portfolio state management and rebalancing logic.
 
-Provides portfolio state reading, rebalance plan calculation, and 
+Provides portfolio state reading, rebalance plan calculation, and
 orchestration services for the portfolio_v2 module.
 
 Components:
@@ -23,6 +23,6 @@ from .state_reader import PortfolioStateReader
 
 __all__ = [
     "PortfolioServiceV2",
-    "RebalancePlanCalculator",
     "PortfolioStateReader",
+    "RebalancePlanCalculator",
 ]

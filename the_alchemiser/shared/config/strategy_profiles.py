@@ -80,18 +80,18 @@ PROD_DSL_ALLOCATIONS: dict[str, float] = {
 
 # Public API
 __all__ = [
+    # Development configuration
+    "DEV_DSL_ALLOCATIONS",
+    "DEV_DSL_FILES",
+    # Production configuration
+    "PROD_DSL_ALLOCATIONS",
+    "PROD_DSL_FILES",
     # Strategy name constants
+    "STRATEGY_COIN",
     "STRATEGY_KMLM",
     "STRATEGY_NUCLEAR",
-    "STRATEGY_STARBURST",
-    "STRATEGY_WHAT",
-    "STRATEGY_COIN",
-    "STRATEGY_TQQQ_FLT",
     "STRATEGY_PHOENIX",
-    # Development configuration
-    "DEV_DSL_FILES",
-    "DEV_DSL_ALLOCATIONS",
-    # Production configuration
-    "PROD_DSL_FILES",
-    "PROD_DSL_ALLOCATIONS",
+    "STRATEGY_STARBURST",
+    "STRATEGY_TQQQ_FLT",
+    "STRATEGY_WHAT",
 ]

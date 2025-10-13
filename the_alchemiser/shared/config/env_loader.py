@@ -134,8 +134,7 @@ except ImportError:
         except Exception:
             # Last resort: print to stderr if logging fails
             print(
-                f"WARNING: {__name__}: python-dotenv not available, "
-                "skipping .env file loading",
+                f"WARNING: {__name__}: python-dotenv not available, skipping .env file loading",
                 file=sys.stderr,
             )
 
