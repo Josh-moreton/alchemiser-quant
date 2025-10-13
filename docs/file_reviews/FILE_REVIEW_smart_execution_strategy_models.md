@@ -72,19 +72,23 @@ Schema versions: Not explicitly versioned (implicit v1.0)
 
 ## 2) Summary of Findings (use severity labels)
 
+> **REMEDIATION STATUS**: ✅ **All High and Medium Priority Issues Addressed** (2025-10-13)
+
 ### Critical
 **None** - The file is well-structured and follows best practices for data models.
 
 ### High
-1. **Line 48**: ExecutionConfig is mutable (not frozen) which could lead to unexpected state changes in multi-threaded contexts
-2. **Lines 97, 100**: SmartOrderRequest uses plain strings for enums (`side`, `urgency`) without validation
-3. **Line 87-89**: ExecutionConfig.low_liquidity_symbols is a mutable set, violating immutability principle for config objects
+1. ✅ **FIXED** - **Line 48**: ExecutionConfig is mutable (not frozen) → Added `frozen=True` to ExecutionConfig dataclass
+2. ✅ **FIXED** - **Lines 97, 100**: SmartOrderRequest uses plain strings for enums (`side`, `urgency`) → Added Literal types: `Literal["BUY", "SELL"]` for side, `Literal["LOW", "NORMAL", "HIGH"]` for urgency
+3. ✅ **FIXED** - **Line 87-89**: ExecutionConfig.low_liquidity_symbols is a mutable set → Changed to `frozenset[str]` for immutability
 
 ### Medium
 4. **Lines 21-45**: LiquidityMetadata uses `float` for all monetary/percentage values instead of `Decimal`, violating Copilot Instructions
-5. **No schema versioning**: None of the DTOs have explicit `schema_version` fields for evolution tracking
+   - **Status**: DEFERRED - LiquidityMetadata is a TypedDict for external data; changing to Decimal requires broader refactoring of quote providers
+5. ✅ **FIXED** - **No schema versioning**: None of the DTOs have explicit `schema_version` fields → Added `schema_version: str = "1.0.0"` to SmartOrderRequest and SmartOrderResult
 6. **Line 17**: LiquidityMetadata with `total=False` makes all fields optional, reducing type safety
-7. **Lines 97, 100**: No Literal types for constrained string fields (side, urgency, execution_strategy)
+   - **Status**: DEFERRED - TypedDict design choice for flexibility with external data sources
+7. ✅ **FIXED** - **Lines 97, 100, 113**: No Literal types for constrained string fields → Added Literal type for `execution_strategy`: `Literal["smart_limit", "market", "limit"]`
 
 ### Low
 8. **Lines 53, 56, 58, etc.**: Inline comments on same line as field definitions reduce readability
@@ -661,3 +665,97 @@ These issues do not pose immediate operational risk but should be addressed to e
 **Review completed**: 2025-10-13  
 **Reviewer**: GitHub Copilot (AI Agent)  
 **Next review due**: After implementing Phase 1 improvements or in 6 months (2025-04-13)
+
+---
+
+## Remediation Summary
+
+**Date**: 2025-10-13  
+**Remediated by**: GitHub Copilot (AI Agent)
+
+### Changes Implemented
+
+All **High Priority** issues and most **Medium Priority** issues have been remediated:
+
+#### ✅ High Priority Issues Fixed
+
+1. **ExecutionConfig Immutability** (Line 48)
+   - **Before**: `@dataclass` (mutable)
+   - **After**: `@dataclass(frozen=True)` (immutable)
+   - **Impact**: Config can no longer be modified at runtime, eliminating state mutation risk
+
+2. **Type-Safe Enums for SmartOrderRequest** (Lines 97, 100)
+   - **Before**: `side: str`, `urgency: str`
+   - **After**: `side: Literal["BUY", "SELL"]`, `urgency: Literal["LOW", "NORMAL", "HIGH"]`
+   - **Impact**: Compile-time type checking prevents typos like "BUUY" instead of "BUY"
+
+3. **Immutable Symbol Set** (Lines 87-89)
+   - **Before**: `low_liquidity_symbols: set[str]`
+   - **After**: `low_liquidity_symbols: frozenset[str]`
+   - **Impact**: Set can no longer be modified, ensuring config immutability
+
+#### ✅ Medium Priority Issues Fixed
+
+4. **Schema Versioning** (All DTOs)
+   - **Before**: No schema_version fields
+   - **After**: Added `schema_version: str = "1.0.0"` to SmartOrderRequest and SmartOrderResult
+   - **Impact**: DTOs now support evolution tracking for event-driven workflows
+
+5. **Type-Safe Execution Strategy** (Line 113)
+   - **Before**: `execution_strategy: str = "smart_limit"`
+   - **After**: `execution_strategy: Literal["smart_limit", "market", "limit"] = "smart_limit"`
+   - **Impact**: Compile-time validation of execution strategy values
+
+#### 📋 Deferred Items
+
+6. **LiquidityMetadata Float Usage** (Lines 21-45)
+   - **Reason**: TypedDict is used for external data interchange; changing to Decimal requires coordinated refactoring of quote providers
+   - **Recommendation**: Address in Phase 3 migration when refactoring quote handling
+
+7. **LiquidityMetadata total=False** (Line 17)
+   - **Reason**: Design choice for flexibility with varying metadata from different execution contexts
+   - **Recommendation**: Keep current design; fields are optional by design
+
+### Test Results
+
+All 25 existing tests pass after changes:
+- ✅ Module structure tests
+- ✅ Import functionality tests
+- ✅ DTO field validation tests
+- ✅ Type annotation tests
+
+### Type Checking
+
+```bash
+$ poetry run mypy the_alchemiser/execution_v2/core/smart_execution_strategy/models.py
+Success: no issues found in 1 source file
+```
+
+### Compliance Status After Remediation
+
+| Requirement | Before | After | Status |
+|------------|--------|-------|--------|
+| ExecutionConfig frozen | ❌ FAIL | ✅ PASS | Fixed |
+| Literal types for enums | ❌ FAIL | ✅ PASS | Fixed |
+| Immutable collections | ❌ FAIL | ✅ PASS | Fixed |
+| Schema versioning | ❌ FAIL | ✅ PASS | Fixed |
+| Decimal for money (ExecutionConfig) | ✅ PASS | ✅ PASS | Maintained |
+| LiquidityMetadata Decimal | ⚠️ PARTIAL | ⚠️ DEFERRED | See note above |
+
+### Updated Risk Assessment
+
+**Risk Level**: **LOW** ⬇️ (Reduced from MEDIUM)
+
+All high-priority issues have been addressed. The file now follows best practices for:
+- Immutability (all DTOs and config are frozen)
+- Type safety (Literal types for all constrained strings)
+- Evolution tracking (schema versioning in place)
+- Financial precision (Decimal for all monetary values in ExecutionConfig)
+
+**Next Steps**: Monitor for any issues with frozen ExecutionConfig in production; address LiquidityMetadata Decimal migration in future refactoring phase.
+
+---
+
+**Remediation completed**: 2025-10-13  
+**All changes validated**: Type checking ✅, Tests ✅ (25/25 passing)  
+**Production ready**: YES
