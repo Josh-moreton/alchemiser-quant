@@ -14,10 +14,10 @@ fi
 echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
 echo "================================================"
 
-# Usage: ./scripts/deploy.sh [dev|prod]
+# Usage: ./scripts/deploy.sh [dev|prod|test]
 ENVIRONMENT="${1:-prod}"
-if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
-    echo "❌ Invalid environment: $ENVIRONMENT (use 'dev' or 'prod')"
+if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ] && [ "$ENVIRONMENT" != "test" ]; then
+    echo "❌ Invalid environment: $ENVIRONMENT (use 'dev', 'prod', or 'test')"
     exit 1
 fi
 echo "Environment: $ENVIRONMENT"
@@ -142,6 +142,40 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
     fi
 
+    sam deploy \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --config-env "$ENVIRONMENT" \
+        --parameter-overrides ${PARAMS[@]}
+elif [ "$ENVIRONMENT" = "test" ]; then
+    # Test environment: similar to dev but with separate stack
+    # Credentials optional for test - can use empty values for validation without real API calls
+    TEST_ALPACA_KEY=${ALPACA_KEY:-""}
+    TEST_ALPACA_SECRET=${ALPACA_SECRET:-""}
+    TEST_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
+    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
+
+    PARAMS=(
+        "Stage=test"
+        "LoggingLevel=${LOGGING__LEVEL:-INFO}"
+        "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
+    )
+    
+    if [[ -n "$TEST_ALPACA_KEY" ]]; then
+        PARAMS+=("TestAlpacaKey=$TEST_ALPACA_KEY")
+    fi
+    if [[ -n "$TEST_ALPACA_SECRET" ]]; then
+        PARAMS+=("TestAlpacaSecret=$TEST_ALPACA_SECRET")
+    fi
+    if [[ -n "$TEST_ALPACA_ENDPOINT_PARAM" ]]; then
+        PARAMS+=("TestAlpacaEndpoint=$TEST_ALPACA_ENDPOINT_PARAM")
+    fi
+    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
+        PARAMS+=("TestEmailPassword=$EMAIL_PASSWORD_PARAM")
+    fi
+
+    echo "ℹ️  Test environment: No EventBridge schedule will be created"
+    
     sam deploy \
         --no-fail-on-empty-changeset \
         --resolve-s3 \

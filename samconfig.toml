@@ -40,3 +40,16 @@ resolve_s3 = true
 parameter_overrides = [
 	"Stage=prod",
 ]
+
+[test.deploy.parameters]
+stack_name = "the-alchemiser-v2-test"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+# Test parameters - no EventBridge schedule created for this environment
+parameter_overrides = [
+	"Stage=test",
+]

@@ -14,7 +14,8 @@ Parameters:
     AllowedValues:
       - dev
       - prod
-    Description: Deployment stage (dev or prod)
+      - test
+    Description: Deployment stage (dev, prod, or test)
 
   AlpacaKey:
     Type: String
@@ -75,10 +76,36 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
+  # Test environment parameters (similar to dev, but with separate stack)
+  TestAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for test environment (optional)
+
+  TestAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for test environment (optional)
+
+  TestAlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint for test environment (defaults to paper)
+
+  TestEmailPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Email SMTP password for test environment (optional)
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Conditions:
-  IsDev: !Equals [ !Ref Stage, dev ]
+  IsTest: !Equals [ !Ref Stage, test ]
+  IsProd: !Equals [ !Ref Stage, prod ]
+  ShouldCreateSchedule: !Or [ !Equals [ !Ref Stage, dev ], !Equals [ !Ref Stage, prod ] ]
 
 Globals:
   Function:
@@ -89,18 +116,30 @@ Globals:
         # Logging
         LOGGING__LEVEL: !Ref LoggingLevel
         # Stage awareness for code-level profiles
-        APP__STAGE: !If [ IsDev, "dev", "prod" ]
-        # Alpaca Configuration
-        ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-        ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-        ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+        APP__STAGE: !If [ IsProd, "prod", !If [ IsTest, "test", "dev" ] ]
+        # Alpaca Configuration - use appropriate credentials based on stage
+        ALPACA__KEY: !If 
+          - IsProd
+          - !Ref ProdAlpacaKey
+          - !If [ IsTest, !Ref TestAlpacaKey, !Ref AlpacaKey ]
+        ALPACA__SECRET: !If 
+          - IsProd
+          - !Ref ProdAlpacaSecret
+          - !If [ IsTest, !Ref TestAlpacaSecret, !Ref AlpacaSecret ]
+        ALPACA__ENDPOINT: !If 
+          - IsProd
+          - !Ref ProdAlpacaEndpoint
+          - !If [ IsTest, !Ref TestAlpacaEndpoint, !Ref AlpacaEndpoint ]
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        EMAIL__PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
+        EMAIL__PASSWORD: !If 
+          - IsProd
+          - !Ref ProdEmailPassword
+          - !If [ IsTest, !Ref TestEmailPassword, !Ref EmailPassword ]
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
@@ -188,8 +227,10 @@ Resources:
       VisibilityTimeout: 60
 
   # EventBridge Scheduler with proper timezone support and reduced retry policy
+  # Note: Only created for dev and prod environments, not for test
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
+    Condition: ShouldCreateSchedule
     Properties:
       Name: !Sub "the-alchemiser-daily-trading-${Stage}"
       Description: "Execute quantitative trading system daily at 9:35 AM New York time"
@@ -211,8 +252,10 @@ Resources:
       State: "ENABLED"
 
   # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC
+  # Note: Only created for dev and prod environments, not for test
   MonthlySummarySchedule:
     Type: AWS::Scheduler::Schedule
+    Condition: ShouldCreateSchedule
     Properties:
       Name: !Sub "the-alchemiser-monthly-summary-${Stage}"
       Description: "Send monthly financial summary on the 1st (previous month)"
@@ -234,8 +277,10 @@ Resources:
       State: "ENABLED"
 
   # IAM Role for EventBridge Scheduler to invoke Lambda
+  # Note: Only created for dev and prod environments, not for test
   SchedulerExecutionRole:
     Type: AWS::IAM::Role
+    Condition: ShouldCreateSchedule
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -246,8 +291,10 @@ Resources:
             Action: sts:AssumeRole
 
   # Separate policy for Scheduler role to avoid constant updates
+  # Note: Only created for dev and prod environments, not for test
   SchedulerExecutionRolePolicy:
     Type: AWS::IAM::Policy
+    Condition: ShouldCreateSchedule
     Properties:
       PolicyName: SchedulerLambdaInvokePolicy
       Roles:

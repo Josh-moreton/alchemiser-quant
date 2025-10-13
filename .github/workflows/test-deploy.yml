@@ -1,0 +1,109 @@
+name: Test Environment Deployment
+
+on:
+  # Trigger on pushes to feat/* or copilot/* branches
+  push:
+    branches:
+      - 'feat/**'
+      - 'copilot/**'
+  # Allow manual deploys for test environment
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_PAGER: ""
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    environment: test
+    # Ensure only one test deploy runs at a time per branch
+    concurrency:
+      group: test-deploy-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Build (test env)
+        run: sam build --use-container --parallel --config-env test
+
+      - name: Prepare environment variables (test)
+        env:
+          # Test environment uses same secrets as dev (paper trading)
+          # But credentials are optional for test deployments
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
+          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
+          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
+          ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
+        run: |
+          echo "Exporting test environment variables for deploy.sh"
+          # Optional credentials for test environment
+          if [ -n "$ALPACA_KEY" ]; then echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV; fi
+          if [ -n "$ALPACA_SECRET" ]; then echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV; fi
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          # Non-secret runtime config
+          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
+          if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
+
+      - name: Deploy to test environment
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh test
+
+      - name: Report deployment success
+        run: |
+          echo "✅ Test deployment successful!"
+          echo "📍 Stack: the-alchemiser-v2-test"
+          echo "🔗 Lambda: the-alchemiser-v2-lambda-test"
+          echo "⚠️  No EventBridge schedule created for test environment"
+          echo ""
+          echo "📊 To invoke manually:"
+          echo "   aws lambda invoke --function-name the-alchemiser-v2-lambda-test --payload '{}' response.json"
+          echo ""
+          echo "🧹 To clean up this test deployment:"
+          echo "   sam delete --stack-name the-alchemiser-v2-test --region us-east-1 --no-prompts"
