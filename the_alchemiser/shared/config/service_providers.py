@@ -46,8 +46,8 @@ class ServiceProviders(containers.DeclarativeContainer):
     - infrastructure: Injected infrastructure dependencies (AlpacaManager, etc.)
     - config: Injected configuration dependencies (settings, credentials, etc.)
 
-    Execution providers are late-bound via ApplicationContainer to avoid circular imports.
-    See ApplicationContainer.initialize_execution_providers() for details.
+    Business module providers (execution, strategy, portfolio) are registered
+    via wiring functions in the ApplicationContainer.
 
     Example:
         services = ServiceProviders()
@@ -63,8 +63,3 @@ class ServiceProviders(containers.DeclarativeContainer):
 
     # Event bus (singleton for the application)
     event_bus = providers.Singleton(EventBus)
-
-    # Execution providers will be injected from execution_v2 module
-    # This maintains the layered architecture by preventing shared -> execution_v2 imports
-    # See ApplicationContainer.initialize_execution_providers() for late-binding mechanism
-    # These will be replaced with v2 equivalents as they are migrated

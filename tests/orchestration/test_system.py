@@ -116,25 +116,6 @@ class TestTradingSystemDIInitialization:
                         mock_container_class.assert_called_once()
                         assert system.container == mock_container_instance
 
-    def test_initialize_di_initializes_execution_providers(self):
-        """Test that _initialize_di calls initialize_execution_providers."""
-        with patch("the_alchemiser.orchestration.system.load_settings"):
-            with patch(
-                "the_alchemiser.orchestration.system.ApplicationContainer"
-            ) as mock_container_class:
-                mock_container_instance = Mock()
-                mock_container_class.return_value = mock_container_instance
-                mock_container_class.initialize_execution_providers = Mock()
-
-                with patch("the_alchemiser.orchestration.system.ServiceFactory") as mock_sf:
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
-                        system = TradingSystem()
-
-                        # Verify initialize_execution_providers was called
-                        mock_container_class.initialize_execution_providers.assert_called_once_with(
-                            mock_container_instance
-                        )
-
     def test_initialize_di_initializes_service_factory(self):
         """Test that _initialize_di calls ServiceFactory.initialize."""
         with patch("the_alchemiser.orchestration.system.load_settings"):

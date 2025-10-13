@@ -106,63 +106,49 @@ class TestServiceFactoryCreateExecutionManagerViaDI:
 
     def test_create_execution_manager_via_di_success(self):
         """Test successful ExecutionManager creation via DI container."""
-        # Setup mock container with execution providers
+        # Setup mock container with execution_manager provider
         mock_container = Mock()
-        mock_execution_container = Mock()
         mock_execution_manager = Mock()
-        mock_execution_container.execution_manager.return_value = mock_execution_manager
-        mock_container.execution = mock_execution_container
+        mock_container.execution_manager.return_value = mock_execution_manager
+
+        ServiceFactory.initialize(mock_container)
 
         with patch(
-            "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
-        ) as mock_ac:
-            mock_ac.initialize_execution_providers = Mock()
+            "the_alchemiser.shared.utils.service_factory.logger"
+        ) as mock_logger:
+            # Create without credentials (should use DI)
+            result = ServiceFactory.create_execution_manager()
 
-            ServiceFactory.initialize(mock_container)
+            # Verify result
+            assert result == mock_execution_manager
 
-            with patch(
-                "the_alchemiser.shared.utils.service_factory.logger"
-            ) as mock_logger:
-                # Create without credentials (should use DI)
-                result = ServiceFactory.create_execution_manager()
+            # Verify DI container provider was called
+            mock_container.execution_manager.assert_called_once()
 
-                # Verify result
-                assert result == mock_execution_manager
+            # Verify logging
+            mock_logger.info.assert_any_call(
+                "Creating ExecutionManager",
+                extra={
+                    "use_di": True,
+                    "has_api_key": False,
+                    "has_secret_key": False,
+                    "paper_mode": True,
+                },
+            )
 
-                # Verify DI container was used
-                mock_ac.initialize_execution_providers.assert_called_once_with(
-                    mock_container
-                )
-
-                # Verify logging
-                mock_logger.info.assert_any_call(
-                    "Creating ExecutionManager",
-                    extra={
-                        "use_di": True,
-                        "has_api_key": False,
-                        "has_secret_key": False,
-                        "paper_mode": True,
-                    },
-                )
-
-    def test_create_execution_manager_via_di_fails_when_execution_container_none(self):
-        """Test that proper error is raised when execution container is None."""
+    def test_create_execution_manager_via_di_fails_when_execution_manager_none(self):
+        """Test that proper error is raised when execution_manager provider is None."""
         mock_container = Mock()
-        mock_container.execution = None
+        mock_container.execution_manager = None
 
-        with patch(
-            "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
-        ) as mock_ac:
-            mock_ac.initialize_execution_providers = Mock()
+        ServiceFactory.initialize(mock_container)
 
-            ServiceFactory.initialize(mock_container)
-
-            with patch("the_alchemiser.shared.utils.service_factory.logger"):
-                with pytest.raises(
-                    ConfigurationError,
-                    match="Failed to initialize execution providers.*execution container is None",
-                ):
-                    ServiceFactory.create_execution_manager()
+        with patch("the_alchemiser.shared.utils.service_factory.logger"):
+            with pytest.raises(
+                ConfigurationError,
+                match="Failed to get execution_manager provider.*execution_manager is None",
+            ):
+                ServiceFactory.create_execution_manager()
 
 
 class TestServiceFactoryCreateExecutionManagerDirect:
