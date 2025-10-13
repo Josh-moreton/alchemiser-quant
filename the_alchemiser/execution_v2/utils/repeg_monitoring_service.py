@@ -311,7 +311,19 @@ class RepegMonitoringService:
             True if should terminate early.
 
         """
-        return time_since_last_action > fill_wait_seconds * EXTENDED_WAIT_MULTIPLIER
+        extended_wait = fill_wait_seconds * EXTENDED_WAIT_MULTIPLIER
+        terminate_early = time_since_last_action > extended_wait
+        if terminate_early:
+            logger.debug(
+                f"🔄 Terminating: No smart strategy available, "
+                f"{time_since_last_action:.1f}s since last action (max: {extended_wait}s)",
+                extra={
+                    "time_since_last_action": time_since_last_action,
+                    "extended_wait": extended_wait,
+                    "correlation_id": correlation_id,
+                },
+            )
+        return terminate_early
 
     def _check_termination_no_active_orders(
         self, time_since_last_action: float, correlation_id: str = ""

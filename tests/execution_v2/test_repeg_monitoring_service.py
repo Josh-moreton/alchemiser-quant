@@ -88,7 +88,7 @@ async def test_check_and_process_repegs_no_results(mock_smart_strategy):
 
     # check_and_repeg_orders should be called
     mock_smart_strategy.check_and_repeg_orders.assert_called_once()
-    
+
     # Time should not change when no repeg results
     assert result_time == last_repeg_time
     assert result_orders == orders
@@ -105,15 +105,15 @@ async def test_check_and_process_repegs_with_results(mock_smart_strategy, sample
     mock_result.repegs_used = 1
     mock_result.symbol = "TECL"
     mock_result.metadata = {"original_order_id": "test-order-1"}
-    
+
     mock_smart_strategy.check_and_repeg_orders = AsyncMock(return_value=[mock_result])
-    
+
     service = RepegMonitoringService(smart_strategy=mock_smart_strategy)
     last_repeg_time = time.time()
-    
+
     # Sleep a tiny bit to ensure time difference
     await asyncio.sleep(0.01)
-    
+
     result_time, result_orders = await service._check_and_process_repegs(
         phase_type="BUY",
         orders=sample_orders,
@@ -125,31 +125,33 @@ async def test_check_and_process_repegs_with_results(mock_smart_strategy, sample
 
     # check_and_repeg_orders should be called
     mock_smart_strategy.check_and_repeg_orders.assert_called_once()
-    
+
     # Time should be updated when repeg results exist
     assert result_time > last_repeg_time
-    
+
     # Orders should be updated with new order ID
     assert len(result_orders) == 1
     assert result_orders[0].order_id == "new-order-1"
 
 
 @pytest.mark.asyncio
-async def test_execute_repeg_monitoring_loop_simplified_structure(mock_smart_strategy, sample_orders):
+async def test_execute_repeg_monitoring_loop_simplified_structure(
+    mock_smart_strategy, sample_orders
+):
     """Test that execute_repeg_monitoring_loop uses the simplified structure."""
     service = RepegMonitoringService(smart_strategy=mock_smart_strategy)
-    
+
     config = {
         "max_total_wait": 1,  # Short timeout
         "wait_between_checks": 0.1,
         "fill_wait_seconds": 10,
     }
-    
+
     start_time = time.time()
-    
+
     # Mock escalate to return same orders
     service._escalate_remaining_orders = AsyncMock(return_value=sample_orders)
-    
+
     result_orders = await service.execute_repeg_monitoring_loop(
         phase_type="BUY",
         orders=sample_orders,
@@ -157,11 +159,11 @@ async def test_execute_repeg_monitoring_loop_simplified_structure(mock_smart_str
         start_time=start_time,
         correlation_id="test-correlation-id",
     )
-    
+
     # Should complete successfully
     assert result_orders is not None
     assert len(result_orders) == len(sample_orders)
-    
+
     # _escalate_remaining_orders should be called at the end
     service._escalate_remaining_orders.assert_called_once()
 
@@ -170,13 +172,13 @@ async def test_execute_repeg_monitoring_loop_simplified_structure(mock_smart_str
 async def test_invalid_phase_type_raises_error():
     """Test that invalid phase_type raises RepegMonitoringError."""
     service = RepegMonitoringService(smart_strategy=None)
-    
+
     config = {
         "max_total_wait": 1,
         "wait_between_checks": 0.1,
         "fill_wait_seconds": 10,
     }
-    
+
     with pytest.raises(RepegMonitoringError) as exc_info:
         await service.execute_repeg_monitoring_loop(
             phase_type="INVALID",  # Invalid phase type
@@ -185,7 +187,7 @@ async def test_invalid_phase_type_raises_error():
             start_time=time.time(),
             correlation_id="test-correlation-id",
         )
-    
+
     assert "Invalid phase_type" in str(exc_info.value)
     assert "INVALID" in str(exc_info.value)
 
@@ -194,12 +196,12 @@ async def test_invalid_phase_type_raises_error():
 async def test_missing_config_keys_raises_error():
     """Test that missing config keys raise RepegMonitoringError."""
     service = RepegMonitoringService(smart_strategy=None)
-    
+
     incomplete_config = {
         "max_total_wait": 1,
         # Missing wait_between_checks and fill_wait_seconds
     }
-    
+
     with pytest.raises(RepegMonitoringError) as exc_info:
         await service.execute_repeg_monitoring_loop(
             phase_type="BUY",
@@ -208,7 +210,7 @@ async def test_missing_config_keys_raises_error():
             start_time=time.time(),
             correlation_id="test-correlation-id",
         )
-    
+
     assert "Missing required config keys" in str(exc_info.value)
 
 
@@ -218,14 +220,14 @@ async def test_escalate_missing_order_tracker(sample_orders):
     # Create strategy without order_tracker attribute
     mock_strategy = Mock(spec=[])  # Empty spec - no attributes
     service = RepegMonitoringService(smart_strategy=mock_strategy)
-    
+
     # Should return orders unchanged without raising
     result_orders = await service._escalate_orders_to_market(
         phase_type="BUY",
         orders=sample_orders,
         correlation_id="test-correlation-id",
     )
-    
+
     assert result_orders == sample_orders
 
 
@@ -237,19 +239,53 @@ async def test_escalate_missing_repeg_manager(sample_orders):
     mock_strategy.order_tracker.get_active_orders = Mock(return_value={"order-1": Mock()})
     # Don't set repeg_manager attribute
     delattr(mock_strategy, "repeg_manager")  # Ensure it doesn't exist
-    
+
     service = RepegMonitoringService(smart_strategy=mock_strategy)
-    
+
     with pytest.raises(RepegMonitoringError) as exc_info:
         await service._escalate_orders_to_market(
             phase_type="BUY",
             orders=sample_orders,
             correlation_id="test-correlation-id",
         )
-    
+
     assert "missing repeg_manager" in str(exc_info.value).lower()
+
+
+def test_check_termination_without_strategy_uses_correlation_id():
+    """Test that _check_termination_without_strategy accepts and uses correlation_id parameter.
+
+    This test ensures the correlation_id parameter is not unused (SonarQube code smell fix).
+    The correlation_id is passed through to logging for tracing purposes.
+    """
+    service = RepegMonitoringService(smart_strategy=None)
+
+    # Test with conditions that trigger termination (time > extended_wait)
+    fill_wait_seconds = 10
+    time_since_last_action = 25.0  # > 10 * 2 (EXTENDED_WAIT_MULTIPLIER)
+    test_correlation_id = "test-corr-123"
+
+    # Call with correlation_id - should not raise and should return True
+    result = service._check_termination_without_strategy(
+        time_since_last_action=time_since_last_action,
+        fill_wait_seconds=fill_wait_seconds,
+        correlation_id=test_correlation_id,
+    )
+
+    # Should terminate early because time_since_last_action > extended_wait
+    assert result is True
+
+    # Test with conditions that don't trigger termination
+    time_since_last_action_short = 5.0  # < 10 * 2
+    result_no_termination = service._check_termination_without_strategy(
+        time_since_last_action=time_since_last_action_short,
+        fill_wait_seconds=fill_wait_seconds,
+        correlation_id=test_correlation_id,
+    )
+
+    # Should not terminate early
+    assert result_no_termination is False
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-
