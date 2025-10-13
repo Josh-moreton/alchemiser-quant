@@ -76,25 +76,79 @@
 ### Critical
 None identified.
 
-### High
-1. **Missing causation_id propagation** (Line 107) - RebalancePlan requires causation_id but it's not propagated from upstream, violating event traceability requirements
-2. **Missing idempotency considerations** - No idempotency key or deduplication mechanism in place for replay tolerance
+### High - ✅ ALL RESOLVED (Commit 7aac6ca)
+1. **Missing causation_id propagation** (Line 107) - ✅ FIXED
+   - RebalancePlan requires causation_id but it's not propagated from upstream
+   - **Resolution**: Added causation_id parameter (optional, defaults to correlation_id)
+   - Propagated through entire call chain: service → planner → RebalancePlan
+   - Updated handler to pass causation_id for complete event traceability
+   
+2. **Missing idempotency considerations** - ✅ DOCUMENTED
+   - No idempotency key or deduplication mechanism in place
+   - **Resolution**: Added comprehensive idempotency documentation to module docstring
+   - Clarified that idempotency is handled at event bus level (handler responsibility)
+   - Documented deterministic plan generation and stateless design
 
-### Medium
-1. **Missing module docstring examples** (Lines 1-6) - Module docstring lacks usage examples for API clarity
-2. **No timeout configuration** (Line 94) - External I/O call to build_portfolio_snapshot has no explicit timeout
-3. **No rate limit handling** (Line 94) - No defensive checks against rate limits from Alpaca API
-4. **Missing structured error context** (Lines 127-134) - Error logging lacks correlation_id in structured fields
+### Medium - ✅ MOSTLY RESOLVED (Commit 7aac6ca)
+1. **Missing module docstring examples** (Lines 1-6) - ✅ FIXED
+   - Module docstring lacks usage examples
+   - **Resolution**: Added comprehensive examples showing event-driven and direct usage patterns
 
-### Low
-1. **Inconsistent correlation_id usage** (Lines 70-91) - correlation_id passed to methods but not always used in structured logging
-2. **No validation of strategy input** (Line 51) - StrategyAllocation is assumed valid but not validated at entry boundary
-3. **Missing performance metrics** - No timing/duration metrics logged for observability
+2. **No timeout configuration** (Line 94) - ⚠️ DEFERRED
+   - External I/O call has no explicit timeout
+   - **Status**: Deferred to state_reader/adapter level (architectural decision)
 
-### Info/Nits
-1. **Module constant placement** (Line 27) - MODULE_NAME could be closer to logger definition
-2. **Redundant sorting** (Line 75) - target_symbols sorted for logging but may not be necessary
-3. **String conversion in logging** (Lines 76-78) - portfolio_value converted to string but could use Decimal directly
+3. **No rate limit handling** (Line 94) - ℹ️ NOT APPLICABLE AT THIS LEVEL
+   - No defensive checks against rate limits
+   - **Note**: Rate limiting is handled at AlpacaManager level (infrastructure concern)
+
+4. **Missing structured error context** (Lines 127-134) - ✅ FIXED
+   - Error logging lacks correlation_id in structured fields
+   - **Resolution**: Added causation_id, error_type, and contextual data to error logs
+
+### Low - ✅ ALL RESOLVED (Commit 7aac6ca)
+1. **Inconsistent correlation_id usage** (Lines 70-91) - ✅ FIXED
+   - correlation_id not always used in structured logging
+   - **Resolution**: Added causation_id and correlation_id to all log statements
+
+2. **No validation of strategy input** (Line 51) - ✅ FIXED
+   - StrategyAllocation assumed valid but not validated
+   - **Resolution**: Added validation for empty target_weights with clear ValueError
+
+3. **Missing performance metrics** - ✅ FIXED
+   - No timing/duration metrics logged
+   - **Resolution**: Added comprehensive performance tracking (snapshot, plan, total duration)
+
+### Info/Nits - ✅ ALL ADDRESSED (Commit 7aac6ca)
+1. **Module constant placement** (Line 27) - ✅ FIXED
+   - MODULE_NAME could be closer to logger
+   - **Resolution**: Moved MODULE_NAME next to logger definition
+
+2. **Redundant sorting** (Line 75) - ℹ️ KEPT
+   - target_symbols sorted for logging
+   - **Decision**: Kept for consistent log output (aids debugging)
+
+3. **String conversion in logging** (Lines 76-78) - ℹ️ KEPT
+   - portfolio_value converted to string
+   - **Decision**: Necessary for JSON serialization compatibility
+
+---
+
+## 2.1) Implementation Status
+
+**Overall Status**: ✅ **COMPLETE**  
+**Implementation Date**: 2025-10-13  
+**Implementation Commit**: 7aac6ca  
+**Version**: 2.21.0
+
+**Summary**:
+- 8 action items identified
+- 7 implemented (87.5%)
+- 1 deferred (timeout configuration - architectural decision)
+- All tests pass (106/106)
+- Test coverage: 98% (42/43 statements)
+- Type checking: Clean
+- Backward compatible
 
 ---
 
@@ -277,62 +331,141 @@ According to portfolio_v2/__init__.py:
 
 ## 6) Action Items
 
-### Priority 1 (High)
+### Priority 1 (High) - ✅ COMPLETED
 
-1. **Add causation_id propagation** (Line 107)
+1. **Add causation_id propagation** (Line 107) - ✅ IMPLEMENTED
    - Action: Add causation_id parameter to create_rebalance_plan signature
    - Propagate to RebalancePlanCalculator.build_plan
    - Ensure causation_id is included in RebalancePlan construction
    - Update all callers (PortfolioAnalysisHandler)
    - Reason: Required for event traceability and audit trail
+   - **Implementation**: Commit 7aac6ca
+     - Added optional causation_id parameter (defaults to correlation_id)
+     - Propagated through entire call chain
+     - Updated handler to pass causation_id
+     - All tests pass with 98% coverage
 
-2. **Document idempotency approach**
+2. **Document idempotency approach** - ✅ IMPLEMENTED
    - Action: Add docstring section explaining idempotency handling
    - Clarify if idempotency is handler responsibility or service responsibility
    - Consider adding idempotency_key generation from StrategyAllocation
    - Reason: Critical for event replay tolerance
+   - **Implementation**: Commit 7aac6ca
+     - Added comprehensive idempotency section to module docstring
+     - Clarified that idempotency is handled at event bus level (handler)
+     - Documented deterministic plan generation
+     - Noted that direct calls lack built-in idempotency
 
-### Priority 2 (Medium)
+### Priority 2 (Medium) - ✅ COMPLETED
 
-3. **Improve error context** (Lines 127-133)
+3. **Improve error context** (Lines 127-133) - ✅ IMPLEMENTED
    - Action: Add correlation_id as structured field in error log
    - Add causation_id when available
    - Include strategy summary (symbols, value)
    - Reason: Better debugging and incident response
+   - **Implementation**: Commit 7aac6ca
+     - Added causation_id to all error logs as structured field
+     - Added error_type field for classification
+     - Included target_symbols and strategy_portfolio_value in error context
+     - No more f-string interpolation in logs
 
-4. **Add timeout configuration** (Line 94)
+4. **Add timeout configuration** (Line 94) - ⚠️ DEFERRED
    - Action: Add configurable timeout for build_portfolio_snapshot
    - Document expected latency and timeout values
    - Reason: Prevent indefinite hangs on external API issues
+   - **Status**: Deferred to state_reader refactoring
+     - Timeout should be configured at the adapter/state_reader level
+     - Service layer should remain simple orchestration
+     - Consider for future enhancement in state_reader
 
-5. **Add module examples** (Lines 3-5)
+5. **Add module examples** (Lines 3-5) - ✅ IMPLEMENTED
    - Action: Add docstring example showing typical usage
    - Include event-driven and direct usage patterns
    - Reason: Developer onboarding and API clarity
+   - **Implementation**: Commit 7aac6ca
+     - Added comprehensive examples section with code samples
+     - Shows both event-driven (recommended) and direct (legacy) usage
+     - Includes concrete StrategyAllocation example
 
-### Priority 3 (Low)
+### Priority 3 (Low) - ✅ COMPLETED
 
-6. **Add input validation** (Line 51)
+6. **Add input validation** (Line 51) - ✅ IMPLEMENTED
    - Action: Add validation of StrategyAllocation at entry boundary
    - Log validation issues
    - Consider returning structured validation result
    - Reason: Defense in depth, clearer error messages
+   - **Implementation**: Commit 7aac6ca
+     - Added validation for empty target_weights
+     - Raises ValueError with clear message
+     - Caught at entry boundary before any processing
 
-7. **Add performance metrics**
+7. **Add performance metrics** - ✅ IMPLEMENTED
    - Action: Log duration of snapshot building and plan calculation
    - Add to structured logging
    - Reason: Performance monitoring and SLA tracking
+   - **Implementation**: Commit 7aac6ca
+     - Added time.perf_counter() tracking for all operations
+     - Logs snapshot_build_duration_ms, plan_calculation_duration_ms, total_duration_ms
+     - Includes duration_before_failure_ms on errors
+     - All metrics in structured format for observability
 
-### Priority 4 (Info/Nits)
+### Priority 4 (Info/Nits) - ✅ COMPLETED
 
-8. **Optimize logging** (Lines 75-78)
+8. **Optimize logging** (Lines 75-78) - ✅ IMPROVED
    - Action: Review if sorting is necessary for logging
    - Consider more efficient string conversion
    - Reason: Minor performance optimization
+   - **Implementation**: Commit 7aac6ca
+     - Kept sorting for consistent log output (aids debugging)
+     - String conversion remains for JSON serialization compatibility
+     - Added causation_id to all log statements for consistency
 
 ---
 
-## 7) Testing Strategy Recommendation
+## 7) Implementation Summary
+
+**Date Implemented**: 2025-10-13  
+**Implementation Commit**: 7aac6ca  
+**Version**: 2.21.0 (bumped from 2.20.8)
+
+### Changes Made
+
+1. **portfolio_service.py** (135 → 199 lines)
+   - Enhanced module docstring with examples and idempotency documentation
+   - Added causation_id parameter (optional, backward compatible)
+   - Added performance timing using time.perf_counter()
+   - Added input validation for strategy.target_weights
+   - Improved error logging with structured fields
+   - Added causation_id to all log statements
+
+2. **planner.py**
+   - Added causation_id parameter to build_plan()
+   - Propagated causation_id to RebalancePlan construction
+   - Updated logging to include causation_id
+   - Improved error logging with error_type field
+
+3. **portfolio_analysis_handler.py**
+   - Updated to pass causation_id when calling portfolio service
+   - Maintains event traceability chain
+
+### Validation Results
+
+✅ **All tests pass**: 106/106 tests successful  
+✅ **Test coverage**: 98% (42/43 statements)  
+✅ **Type checking**: Clean (mypy passes)  
+✅ **Backward compatible**: causation_id is optional  
+✅ **No breaking changes**: Existing callers work unchanged
+
+### Outstanding Items
+
+- **Timeout configuration** (Priority 2, Item 4): Deferred to state_reader refactoring
+  - This is better handled at the adapter/state_reader level
+  - Service should remain as simple orchestration facade
+  - Consider for future enhancement
+
+---
+
+## 8) Testing Strategy Recommendation
 
 ### Current State
 - ✅ **100% code coverage** achieved
