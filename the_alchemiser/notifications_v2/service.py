@@ -43,11 +43,23 @@ class _ExecutionResultAdapter:
             event: Trading notification event to adapt
 
         """
-        self.success = True
-        self.orders_executed: list[dict[str, object]] = []
-        self.strategy_signals: dict[str, dict[str, object]] = {}
+        self.success = event.trading_success
         self.correlation_id = event.correlation_id
-        self._execution_data = event.execution_data
+        self._execution_data = event.execution_data or {}
+
+        # Extract data from execution_data for template consumption
+        self.orders_executed: list[dict[str, object]] = self._execution_data.get(
+            "orders_executed", []
+        )
+        self.strategy_signals: dict[str, dict[str, object]] = self._execution_data.get(
+            "strategy_signals", {}
+        )
+        self.consolidated_portfolio: dict[str, object] = self._execution_data.get(
+            "consolidated_portfolio", {}
+        )
+        self.execution_summary: dict[str, object] = self._execution_data.get(
+            "execution_summary", {}
+        )
 
     def get_execution_data(self, key: str) -> object:
         """Get execution data by key.

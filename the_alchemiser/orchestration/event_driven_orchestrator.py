@@ -498,14 +498,14 @@ class EventDrivenOrchestrator:
             self._trigger_recovery_workflow(event)
 
     def _prepare_execution_data(self, event: TradeExecuted, *, success: bool) -> dict[str, Any]:
-        """Prepare execution data with failure details.
+        """Prepare execution data with failure details and workflow context.
 
         Args:
             event: The TradeExecuted event
             success: Whether the trading was successful
 
         Returns:
-            Dictionary containing execution data with failure details if applicable
+            Dictionary containing execution data with failure details and workflow context
 
         """
         execution_data = event.execution_data.copy() if event.execution_data else {}
@@ -513,6 +513,45 @@ class EventDrivenOrchestrator:
         # Add failed symbols to execution data for notification service
         if not success and event.failed_symbols:
             execution_data["failed_symbols"] = event.failed_symbols
+
+        # Enrich execution_data with workflow context for comprehensive email notifications
+        workflow_results = self.workflow_results.get(event.correlation_id, {})
+
+        # Add strategy signals from workflow context
+        if "strategy_signals" in workflow_results:
+            execution_data["strategy_signals"] = workflow_results["strategy_signals"]
+
+        # Add rebalance plan data for consolidated portfolio display
+        if "rebalance_plan" in workflow_results:
+            rebalance_plan = workflow_results["rebalance_plan"]
+            # Extract consolidated portfolio from rebalance plan metadata
+            if hasattr(rebalance_plan, "metadata") and isinstance(rebalance_plan.metadata, dict):
+                consolidated_portfolio = rebalance_plan.metadata.get("consolidated_portfolio", {})
+            else:
+                # Build consolidated portfolio from rebalance plan items
+                consolidated_portfolio = {}
+                if hasattr(rebalance_plan, "items") and rebalance_plan.items:
+                    for item in rebalance_plan.items:
+                        symbol = getattr(item, "symbol", None)
+                        target_weight = getattr(item, "target_weight", None)
+                        if symbol and target_weight is not None:
+                            consolidated_portfolio[symbol] = float(target_weight)
+
+            if consolidated_portfolio:
+                execution_data["consolidated_portfolio"] = consolidated_portfolio
+
+        # Add execution summary with consolidated portfolio for template compatibility
+        if "execution_summary" in workflow_results:
+            execution_data["execution_summary"] = workflow_results["execution_summary"]
+            # Ensure execution_summary has consolidated_portfolio for template lookup
+            if "consolidated_portfolio" in execution_data:
+                execution_data["execution_summary"]["consolidated_portfolio"] = execution_data[
+                    "consolidated_portfolio"
+                ]
+
+        # Add orders_executed list for order detail display
+        if "orders_executed" in workflow_results:
+            execution_data["orders_executed"] = workflow_results["orders_executed"]
 
         return execution_data
 
