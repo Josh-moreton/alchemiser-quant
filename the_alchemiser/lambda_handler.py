@@ -40,9 +40,6 @@ logger = get_logger(__name__)
 
 # Public API
 __all__ = [
-    "_build_error_response",
-    "_extract_correlation_id",
-    "_has_correlation_id",
     "lambda_handler",
     "parse_event_mode",
 ]
