@@ -47,15 +47,15 @@ class TestServiceFactoryInitialization:
             "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
         ) as mock_ac:
             mock_container_instance = Mock()
-            mock_ac.return_value = mock_container_instance
+            mock_ac.create_for_environment.return_value = mock_container_instance
 
             with patch(
                 "the_alchemiser.shared.utils.service_factory.logger"
             ) as mock_logger:
                 ServiceFactory.initialize(None)
 
-                # Verify container was created
-                mock_ac.assert_called_once()
+                # Verify container was created via create_for_environment
+                mock_ac.create_for_environment.assert_called_once_with("development")
                 assert ServiceFactory.get_container() == mock_container_instance
 
                 # Verify logging occurred (both creation and initialization)
@@ -69,7 +69,7 @@ class TestServiceFactoryInitialization:
         with patch(
             "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
         ) as mock_ac:
-            mock_ac.side_effect = RuntimeError("Container creation failed")
+            mock_ac.create_for_environment.side_effect = RuntimeError("Container creation failed")
 
             with patch(
                 "the_alchemiser.shared.utils.service_factory.logger"
