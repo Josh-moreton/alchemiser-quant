@@ -112,9 +112,7 @@ class OrderFinalizer:
         max_wait = self._derive_max_wait_seconds()
 
         # Get final status for all orders
-        final_status_map = self._get_final_status_map(
-            orders, max_wait, phase_type, correlation_id
-        )
+        final_status_map = self._get_final_status_map(orders, max_wait, phase_type, correlation_id)
 
         # Rebuild orders with final status and compute statistics
         return self._rebuild_orders_with_final_status(orders, items, final_status_map)
@@ -164,15 +162,11 @@ class OrderFinalizer:
 
         """
         # Validate order IDs and separate valid from invalid
-        valid_order_ids, invalid_order_ids = self._validate_order_ids(
-            orders, correlation_id
-        )
+        valid_order_ids, invalid_order_ids = self._validate_order_ids(orders, correlation_id)
 
         # Poll for completion if we have valid order IDs
         if valid_order_ids:
-            self._poll_order_completion(
-                valid_order_ids, max_wait, phase_type, correlation_id
-            )
+            self._poll_order_completion(valid_order_ids, max_wait, phase_type, correlation_id)
 
         # Build final status map
         return self._build_final_status_map(valid_order_ids, invalid_order_ids)

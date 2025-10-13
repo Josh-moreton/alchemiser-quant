@@ -10,7 +10,7 @@
   - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring, test additions
   - **MINOR** (`make bump-minor`): New features, new modules, significant refactoring, API additions (backward compatible)
   - **MAJOR** (`make bump-major`): Breaking changes, API changes, architectural overhauls, removed features
-  - Always run the appropriate bump command BEFORE creating commits. No exceptions.
+  - **Workflow:** Stage your code changes first (`git add <files>`), then run the appropriate bump command. The bump will commit both your staged changes AND the version bump together.
 
 ## Python Coding Rules for AI Agents
 
@@ -101,10 +101,12 @@
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
 - Local trading: `poetry run python -m the_alchemiser` (paper/live via config).
 - Deploy (AWS Lambda): `make deploy` → `scripts/deploy.sh`.
-- **Version management**: Always bump version before committing code changes:
-  - `make bump-patch` for bug fixes and minor changes
-  - `make bump-minor` for new features and enhancements
-  - `make bump-major` for breaking changes
+- **Version management (recommended workflow):**
+  1. Make your code changes
+  2. Run `make format && make type-check` to verify changes
+  3. Stage your changes: `git add <files>`
+  4. Run appropriate bump command: `make bump-patch` / `make bump-minor` / `make bump-major`
+  5. The bump command commits both your staged changes and the version bump together
 - **Releases**: Create releases with `make release` (auto-version) or `make release v=x.y.z` (custom version).
 
 ## Observability
