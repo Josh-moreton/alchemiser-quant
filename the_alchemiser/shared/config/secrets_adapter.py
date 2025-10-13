@@ -77,13 +77,9 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
         return None, None, None
 
     # Validate and sanitize credentials
-    try:
-        api_key = _validate_and_sanitize_key(api_key, "ALPACA_KEY")
-        secret_key = _validate_and_sanitize_key(secret_key, "ALPACA_SECRET")
-        endpoint = _validate_and_sanitize_endpoint(endpoint)
-    except ConfigurationError:
-        # Re-raise validation errors
-        raise
+    api_key = _validate_and_sanitize_key(api_key, "ALPACA_KEY")
+    secret_key = _validate_and_sanitize_key(secret_key, "ALPACA_SECRET")
+    endpoint = _validate_and_sanitize_endpoint(endpoint)
 
     # Log successful loading (safe - no credentials in logs)
     logger.debug(
@@ -209,8 +205,16 @@ def _get_email_password_from_env() -> str | None:
                     },
                 )
                 return password
-    except ConfigurationError:
-        # Re-raise configuration errors (don't catch and suppress)
+    except ConfigurationError as e:
+        # Re-raise configuration errors immediately (don't fallback for config errors)
+        logger.debug(
+            "Configuration error loading email password, re-raising without fallback",
+            extra={
+                "component": COMPONENT,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
         raise
     except Exception as e:
         # Log other exceptions but continue to fallback
