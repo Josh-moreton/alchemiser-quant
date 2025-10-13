@@ -5,6 +5,7 @@ Order status finalization functionality extracted from the main executor.
 
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -17,6 +18,9 @@ if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 
 logger = get_logger(__name__)
+
+# Default timeout for order completion polling
+DEFAULT_ORDER_COMPLETION_TIMEOUT_SECONDS = 30
 
 
 class OrderFinalizer:
@@ -74,15 +78,21 @@ class OrderFinalizer:
             Maximum wait time in seconds
 
         """
-        default_wait = 30
         try:
             if self.execution_config is not None:
                 return int(
-                    getattr(self.execution_config, "order_placement_timeout_seconds", default_wait)
+                    getattr(
+                        self.execution_config,
+                        "order_placement_timeout_seconds",
+                        DEFAULT_ORDER_COMPLETION_TIMEOUT_SECONDS,
+                    )
                 )
         except Exception as exc:
-            logger.debug(f"Error deriving max wait seconds: {exc}")
-        return default_wait
+            logger.debug(
+                f"Error deriving max wait seconds: {exc}",
+                extra={"error_type": type(exc).__name__},
+            )
+        return DEFAULT_ORDER_COMPLETION_TIMEOUT_SECONDS
 
     def _get_final_status_map(
         self, orders: list[OrderResult], max_wait: int, phase_type: str
@@ -118,22 +128,11 @@ class OrderFinalizer:
             Tuple of (valid_order_ids, invalid_order_ids)
 
         """
-
-        def _is_valid_uuid(val: str) -> bool:
-            """Check if a string is a valid UUID."""
-            try:
-                import uuid
-
-                uuid.UUID(val)
-                return True
-            except (ValueError, TypeError):
-                return False
-
         valid_order_ids = []
         invalid_order_ids = []
 
         for order in orders:
-            if order.order_id and _is_valid_uuid(order.order_id):
+            if order.order_id and self._is_valid_uuid(order.order_id):
                 valid_order_ids.append(order.order_id)
             elif order.order_id:
                 invalid_order_ids.append(order.order_id)
@@ -144,6 +143,23 @@ class OrderFinalizer:
         )
 
         return valid_order_ids, invalid_order_ids
+
+    @staticmethod
+    def _is_valid_uuid(val: str) -> bool:
+        """Check if a string is a valid UUID.
+
+        Args:
+            val: String to validate as UUID
+
+        Returns:
+            True if valid UUID, False otherwise
+
+        """
+        try:
+            uuid.UUID(val)
+            return True
+        except (ValueError, TypeError):
+            return False
 
     def _poll_order_completion(
         self, valid_order_ids: list[str], max_wait: int, phase_type: str
