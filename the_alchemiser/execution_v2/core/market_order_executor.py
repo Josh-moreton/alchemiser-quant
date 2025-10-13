@@ -98,9 +98,12 @@ class MarketOrderExecutor:
         """Construct execution result for validation failure."""
         error_msg = validation_result.error_message or f"Validation failed for {symbol}"
         logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
+        side_upper = side.upper()
+        if side_upper not in ("BUY", "SELL"):
+            side_upper = "BUY"  # Fallback to BUY if invalid
         return OrderResult(
             symbol=symbol,
-            action=side.upper(),
+            action=side_upper,  # type: ignore[arg-type]
             trade_amount=Decimal("0"),  # No trade executed
             shares=quantity,
             price=None,
@@ -208,9 +211,12 @@ class MarketOrderExecutor:
             side=side.upper(),
         )
 
+        side_upper = side.upper()
+        if side_upper not in ("BUY", "SELL"):
+            side_upper = "BUY"  # Fallback to BUY if invalid
         return OrderResult(
             symbol=symbol,
-            action=side.upper(),
+            action=side_upper,  # type: ignore[arg-type]
             trade_amount=trade_amount,
             shares=quantity,
             price=avg_fill_price,
@@ -240,9 +246,12 @@ class MarketOrderExecutor:
         error_msg = f"Market order execution failed: {exc}"
         logger.error(f"❌ Market order failed for {symbol}: {error_msg}")
 
+        side_upper = side.upper()
+        if side_upper not in ("BUY", "SELL"):
+            side_upper = "BUY"  # Fallback to BUY if invalid
         return OrderResult(
             symbol=symbol,
-            action=side.upper(),
+            action=side_upper,  # type: ignore[arg-type]
             trade_amount=Decimal("0"),
             shares=quantity,
             price=None,
