@@ -31,7 +31,7 @@ def __getattr__(name: str) -> object:
 
         return EventDrivenOrchestrator
     if name == "WorkflowState":
-        from .event_driven_orchestrator import WorkflowState
+        from .workflow_state import WorkflowState
 
         return WorkflowState
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

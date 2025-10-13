@@ -90,7 +90,7 @@ class ServiceFactory:
         if container is None:
             logger.info("Creating new ApplicationContainer for ServiceFactory")
             try:
-                container = ApplicationContainer()
+                container = ApplicationContainer.create_for_environment("development")
             except Exception as e:
                 logger.error(
                     "Failed to create ApplicationContainer",
@@ -174,18 +174,16 @@ class ServiceFactory:
                     # Should never happen due to use_di logic, but satisfy type checker
                     raise ConfigurationError("Container is None despite use_di check")
 
-                ApplicationContainer.initialize_execution_providers(container)
-
-                execution_container = getattr(container, "execution", None)
-                if execution_container is None:
+                execution_manager_provider = getattr(container, "execution_manager", None)
+                if execution_manager_provider is None:
                     raise ConfigurationError(
-                        "Failed to initialize execution providers: "
-                        "execution container is None after initialization"
+                        "Failed to get execution_manager provider: "
+                        "execution_manager is None in container (wiring not called?)"
                     )
 
                 logger.info("Using DI container for ExecutionManager creation")
                 # The provider returns Any due to dependency injector limitation
-                return cast(ExecutionManagerType, execution_container.execution_manager())
+                return cast(ExecutionManagerType, execution_manager_provider())
 
             # Direct instantiation for backward compatibility
             logger.debug("Using direct instantiation for ExecutionManager")

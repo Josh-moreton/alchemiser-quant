@@ -17,7 +17,6 @@ import json
 from typing import Any
 
 from the_alchemiser.main import main
-from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
@@ -38,6 +37,36 @@ from the_alchemiser.shared.schemas import LambdaEvent
 
 # Set up logging
 logger = get_logger(__name__)
+
+# Public API
+__all__ = ["lambda_handler", "parse_event_mode"]
+
+
+def _sanitize_event_for_logging(event: LambdaEvent | dict[str, Any] | None) -> dict[str, Any]:
+    """Sanitize event for logging by removing sensitive fields.
+
+    Args:
+        event: Lambda event to sanitize
+
+    Returns:
+        Sanitized event dict safe for logging
+
+    """
+    if not event:
+        return {}
+
+    if isinstance(event, dict):
+        event_dict = event.copy()
+    else:
+        event_dict = event.model_dump() if hasattr(event, "model_dump") else {}
+
+    # Remove sensitive fields if present
+    sensitive_keys = ["api_key", "secret_key", "password", "token", "credentials"]
+    for key in sensitive_keys:
+        if key in event_dict:
+            event_dict[key] = "***REDACTED***"
+
+    return event_dict
 
 
 def _determine_trading_mode(mode: str) -> str:
@@ -73,7 +102,7 @@ def _build_response_message(trading_mode: str, *, result: bool) -> str:
 
 
 ## Monthly summary path removed intentionally. Use CLI scripts/send_monthly_summary.py for any
-## ad-hoc reporting outside Lambda.
+# ad-hoc reporting outside Lambda.
 
 
 def _handle_error(
@@ -281,15 +310,15 @@ def lambda_handler(
             "request_id": "12345-abcde"
         }
 
-        Signals only event:
-        >>> event = {"mode": "bot"}
+        P&L analysis event:
+        >>> event = {"action": "pnl_analysis", "pnl_type": "weekly"}
         >>> result = lambda_handler(event, context)
         >>> print(result)
         {
             "status": "success",
-            "mode": "bot",
+            "mode": "pnl",
             "trading_mode": "n/a",
-            "message": "Signal analysis completed successfully",
+            "message": "N/A trading completed successfully",
             "request_id": "12345-abcde"
         }
 
@@ -303,26 +332,53 @@ def lambda_handler(
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
 
     # Generate and set correlation request ID for all downstream logs
-    correlation_id = generate_request_id()
+    # Use event correlation_id if provided (for idempotency)
+    if event and isinstance(event, dict) and event.get("correlation_id"):
+        correlation_id = event["correlation_id"]
+    elif event and hasattr(event, "correlation_id") and event.correlation_id:
+        correlation_id = event.correlation_id
+    else:
+        correlation_id = generate_request_id()
     set_request_id(correlation_id)
 
+    logger.info(
+        "Lambda invoked",
+        aws_request_id=request_id,
+        correlation_id=correlation_id,
+        event_has_correlation_id=bool(
+            event
+            and (
+                (isinstance(event, dict) and event.get("correlation_id"))
+                or (hasattr(event, "correlation_id") and event.correlation_id)
+            )
+        ),
+    )
+
+    # TODO: Add idempotency check using DynamoDB or EventBridge event deduplication
+    # if _is_duplicate_request(correlation_id):
+    #     logger.warning("Duplicate request detected; skipping execution", correlation_id=correlation_id)
+    #     return {"status": "skipped", "message": "Duplicate request", "request_id": request_id}
+
     try:
-        # Log the incoming event for debugging
-        event_json = json.dumps(event) if event else "None"
-        logger.info("Lambda invoked with event", event_data=event_json)
+        # Log the incoming event for debugging (sanitize secrets)
+        event_for_logging = _sanitize_event_for_logging(event) if event else None
+        event_json = json.dumps(event_for_logging) if event_for_logging else "None"
+        logger.info(
+            "Lambda invoked with event", event_data=event_json, correlation_id=correlation_id
+        )
 
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})
 
-        # Extract mode information for response (trade-only)
-        mode = "trade"
+        # Extract mode information for response
+        # Determine from command_args: first arg is mode (trade/pnl/bot)
+        mode = command_args[0] if command_args else "trade"
 
         # Determine trading mode based on endpoint URL
         trading_mode = _determine_trading_mode(mode)
 
         logger.info("Executing command", command=" ".join(command_args))
 
-        _settings = load_settings()
         # main() loads settings internally; do not pass unsupported kwargs
         result = main(command_args)
 
@@ -386,7 +442,6 @@ def lambda_handler(
             request_id=request_id,
             exc_info=True,
         )
-        logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
         _handle_critical_error(e, event, request_id, critical_command_args)
