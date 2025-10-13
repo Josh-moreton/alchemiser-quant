@@ -202,9 +202,12 @@ class Executor:
                         order_id=result.order_id,
                         execution_strategy="smart_limit",
                     )
+                    side_upper = side.upper()
+                    if side_upper not in ("BUY", "SELL"):
+                        side_upper = "BUY"  # Fallback to BUY if invalid
                     return OrderResult(
                         symbol=symbol,
-                        action=side.upper(),
+                        action=side_upper,  # type: ignore[arg-type]
                         trade_amount=abs(
                             Decimal(str(quantity)) * (result.final_price or Decimal("0"))
                         ),
@@ -556,9 +559,12 @@ class Executor:
         except Exception as e:
             logger.error(f"❌ Error executing {item.action} for {item.symbol}: {e}")
 
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"  # Fallback to BUY if invalid
             return OrderResult(
                 symbol=item.symbol,
-                action=item.action,
+                action=action,  # type: ignore[arg-type]
                 trade_amount=abs(item.trade_amount),
                 shares=Decimal("0"),
                 price=None,

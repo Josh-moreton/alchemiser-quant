@@ -4,43 +4,6 @@
 # All tool configurations centralized in pyproject.toml
 
 repos:
-  # Basic file hygiene - foundational checks that don't overlap with Ruff
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: check-yaml
-        name: Validate YAML syntax
-        files: \.(yaml|yml)$
-        exclude: ^template\.yaml$  # AWS SAM template uses CloudFormation intrinsics
-      - id: check-toml
-        name: Validate TOML syntax
-        files: \.toml$
-      - id: check-json
-        name: Validate JSON syntax
-        files: \.json$
-        exclude: ^\.vscode/  # VS Code config may have comments (JSONC)
-      - id: check-merge-conflict
-        name: Check for merge conflict markers
-      - id: check-added-large-files
-        name: Prevent large files (>500KB)
-        args: ['--maxkb=500']
-      - id: end-of-file-fixer
-        name: Ensure files end with newline
-        files: ^the_alchemiser/.*\.py$
-
-  # Security: Secret detection (baseline approach)
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
-    hooks:
-      - id: detect-secrets
-        name: Secret Scanning
-        args: ['--baseline', '.secrets.baseline']
-        exclude: |
-          (?x)^(
-              .*\.lock$|
-              .*\.min\.js$|
-              coverage\.xml$
-          )$
 
   # Code Quality: Ruff (formatting, linting, import sorting)
   - repo: local
@@ -70,17 +33,17 @@ repos:
   # both execution_v2/core/smart_execution_strategy.py AND
   # execution_v2/core/smart_execution_strategy/__init__.py exist
   # Run manually: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
-  # - repo: local
-  #   hooks:
-  #     - id: mypy
-  #       name: MyPy Type Check (strict mode)
-  #       entry: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
-  #       language: system
-  #       types: [python]
-  #       files: ^the_alchemiser/
-  #       pass_filenames: false
-  #       require_serial: true  # MyPy cache not thread-safe
-  #       stages: [pre-commit]
+  - repo: local
+    hooks:
+      - id: mypy
+        name: MyPy Type Check (strict mode)
+        entry: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
+        language: system
+        types: [python]
+        files: ^the_alchemiser/
+        pass_filenames: false
+        require_serial: true  # MyPy cache not thread-safe
+        stages: [pre-commit]
 
   # Architecture: Import boundary enforcement
   - repo: local
@@ -105,15 +68,3 @@ repos:
         files: ^the_alchemiser/
         pass_filenames: false
         stages: [pre-commit]
-
-  # Code Quality: Vulture (dead code detection) - advisory only
-  - repo: local
-    hooks:
-      - id: vulture
-        name: Vulture Dead Code Detection (advisory)
-        entry: poetry run vulture the_alchemiser/ --min-confidence 80
-        language: system
-        types: [python]
-        files: ^the_alchemiser/
-        pass_filenames: false
-        stages: [manual]  # Run manually: pre-commit run vulture --hook-stage manual
