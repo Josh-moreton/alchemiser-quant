@@ -172,8 +172,9 @@ class Executor:
             # Initialize helper modules for cleaner separation of concerns
             self._initialize_helper_modules()
 
-        except (ConnectionError, TimeoutError, OSError) as e:
+        except OSError as e:
             # Network-related errors that shouldn't stop execution
+            # OSError covers ConnectionError and TimeoutError
             logger.warning(
                 "Smart execution initialization failed (non-critical network error)",
                 extra={
@@ -250,8 +251,9 @@ class Executor:
         if hasattr(self, "websocket_manager") and self.websocket_manager is not None:
             try:
                 self.websocket_manager.release_pricing_service()
-            except (ConnectionError, TimeoutError) as e:
+            except OSError as e:
                 # Expected cleanup errors - log at debug level
+                # OSError covers ConnectionError and TimeoutError
                 logger.debug(
                     "WebSocket manager cleanup encountered network error (expected)",
                     extra={"error": str(e), "error_type": type(e).__name__},
@@ -661,6 +663,98 @@ class Executor:
         """Clean up pricing subscriptions after execution."""
         self._position_utils.cleanup_subscriptions(symbols)
 
+    def _calculate_shares_for_item(self, item: RebalancePlanItem) -> Decimal:
+        """Calculate shares to trade for a rebalance plan item.
+
+        Args:
+            item: RebalancePlanItem to calculate shares for
+
+        Returns:
+            Number of shares to trade (adjusted for fractionability)
+
+        """
+        MIN_PRICE_THRESHOLD = Decimal("0.001")  # $0.001 minimum price threshold
+
+        # For liquidation (0% target), use actual position quantity
+        action = item.action.upper()
+        if action == "SELL" and item.target_weight == Decimal("0.0"):
+            raw_shares = self._position_utils.get_position_quantity(item.symbol)
+            shares = self._position_utils.adjust_quantity_for_fractionability(
+                item.symbol, raw_shares
+            )
+            logger.info(
+                "📊 Liquidating symbol: selling shares (full position)",
+                extra={
+                    "symbol": item.symbol,
+                    "shares": str(shares),
+                    "action": item.action,
+                },
+            )
+            return shares
+
+        # Estimate shares from trade amount using best available price
+        price = self._position_utils.get_price_for_estimation(item.symbol)
+        if price is None or price <= MIN_PRICE_THRESHOLD:
+            # Safety fallback to 1 share if price discovery fails
+            logger.warning(
+                "⚠️ Price below minimum threshold for symbol; defaulting to 1 share",
+                extra={
+                    "symbol": item.symbol,
+                    "price": str(price) if price else None,
+                    "min_threshold": str(MIN_PRICE_THRESHOLD),
+                    "default_shares": "1",
+                },
+            )
+            return Decimal("1")
+
+        # Normal case: calculate shares from trade amount
+        raw_shares = abs(item.trade_amount) / price
+        shares = self._position_utils.adjust_quantity_for_fractionability(
+            item.symbol, raw_shares
+        )
+
+        amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
+        logger.info(
+            "📊 Executing action for symbol",
+            extra={
+                "action": item.action,
+                "symbol": item.symbol,
+                "trade_amount": str(amount_fmt),
+                "estimated_shares": str(shares),
+            },
+        )
+        return shares
+
+    def _create_error_order_result(self, item: RebalancePlanItem, error: Exception) -> OrderResult:
+        """Create an OrderResult for a failed order.
+
+        Args:
+            item: RebalancePlanItem that failed
+            error: Exception that occurred
+
+        Returns:
+            OrderResult representing the failure
+
+        """
+        action = item.action.upper()
+        if action not in ("BUY", "SELL"):
+            action = "BUY"  # Fallback to BUY if invalid
+
+        return OrderResult(
+            symbol=item.symbol,
+            action=action,  # type: ignore[arg-type]
+            trade_amount=abs(item.trade_amount),
+            shares=Decimal("0"),
+            price=None,
+            order_id=None,
+            success=False,
+            error_message=str(error),
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for error cases
+            filled_at=None,  # Not filled due to error
+        )
+
+
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
 
@@ -678,58 +772,11 @@ class Executor:
         if not item.symbol or not item.symbol.strip():
             raise ValueError(f"Invalid symbol in rebalance plan item: {item.symbol!r}")
 
-        # Minimum price threshold for division by zero protection
-        MIN_PRICE_THRESHOLD = Decimal("0.001")  # $0.001 minimum price threshold
-
         try:
             side = "buy" if item.action == "BUY" else "sell"
 
-            # Determine quantity (shares) to trade
-            if item.action == "SELL" and item.target_weight == Decimal("0.0"):
-                # For liquidation (0% target), use actual position quantity
-                raw_shares = self._position_utils.get_position_quantity(item.symbol)
-                shares = self._position_utils.adjust_quantity_for_fractionability(
-                    item.symbol, raw_shares
-                )
-                logger.info(
-                    "📊 Liquidating symbol: selling shares (full position)",
-                    extra={
-                        "symbol": item.symbol,
-                        "shares": str(shares),
-                        "action": item.action,
-                    },
-                )
-            else:
-                # Estimate shares from trade amount using best available price
-                price = self._position_utils.get_price_for_estimation(item.symbol)
-                if price is None or price <= MIN_PRICE_THRESHOLD:
-                    # Safety fallback to 1 share if price discovery fails
-                    shares = Decimal("1")
-                    logger.warning(
-                        "⚠️ Price below minimum threshold for symbol; defaulting to 1 share",
-                        extra={
-                            "symbol": item.symbol,
-                            "price": str(price) if price else None,
-                            "min_threshold": str(MIN_PRICE_THRESHOLD),
-                            "default_shares": "1",
-                        },
-                    )
-                else:
-                    raw_shares = abs(item.trade_amount) / price
-                    shares = self._position_utils.adjust_quantity_for_fractionability(
-                        item.symbol, raw_shares
-                    )
-
-                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
-                logger.info(
-                    "📊 Executing action for symbol",
-                    extra={
-                        "action": item.action,
-                        "symbol": item.symbol,
-                        "trade_amount": str(amount_fmt),
-                        "estimated_shares": str(shares),
-                    },
-                )
+            # Calculate shares to trade
+            shares = self._calculate_shares_for_item(item)
 
             # Construct correlation_id safely (symbol already validated)
             correlation_id = f"rebalance-{item.symbol.strip()}"
@@ -742,6 +789,7 @@ class Executor:
                 correlation_id=correlation_id,
             )
 
+            # Log result
             if order_result.success:
                 logger.info(
                     "✅ Order placed successfully",
@@ -774,23 +822,7 @@ class Executor:
                 },
                 exc_info=True,
             )
-
-            action = item.action.upper()
-            if action not in ("BUY", "SELL"):
-                action = "BUY"  # Fallback to BUY if invalid
-            return OrderResult(
-                symbol=item.symbol,
-                action=action,  # type: ignore[arg-type]
-                trade_amount=abs(item.trade_amount),
-                shares=Decimal("0"),
-                price=None,
-                order_id=None,
-                success=False,
-                error_message=str(e),
-                timestamp=datetime.now(UTC),
-                order_type="MARKET",  # Default to MARKET for error cases
-                filled_at=None,  # Not filled due to error
-            )
+            return self._create_error_order_result(item, e)
 
     def _finalize_phase_orders(
         self,
