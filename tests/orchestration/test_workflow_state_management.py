@@ -14,8 +14,10 @@ import pytest
 
 from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
-    WorkflowState,
+)
+from the_alchemiser.orchestration.workflow_state import (
     StateCheckingHandlerWrapper,
+    WorkflowState,
 )
 from the_alchemiser.shared.events import (
     SignalGenerated,

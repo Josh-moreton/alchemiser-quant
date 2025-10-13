@@ -43,27 +43,6 @@ class PortfolioStateReader:
         """
         self._data_adapter = data_adapter
 
-    def _liquidate_and_recheck(self) -> tuple[Decimal, dict[str, Decimal]]:
-        """Liquidate positions and re-check account state.
-
-        Returns:
-            Tuple of (updated_cash, updated_positions) after liquidation
-
-        """
-        logger.info(
-            "Liquidation completed. Re-checking cash balance and positions...",
-            module=MODULE_NAME,
-            action="build_snapshot",
-        )
-
-        # Re-fetch positions (should be empty after liquidation)
-        positions = self._data_adapter.get_positions()
-
-        # Re-check cash balance after liquidation
-        cash = self._data_adapter.get_account_cash()
-
-        return cash, positions
-
     def _wait_for_settlement(
         self, max_wait_seconds: int = 30
     ) -> tuple[Decimal, dict[str, Decimal]]:
@@ -162,7 +141,7 @@ class PortfolioStateReader:
             )
 
         # Re-check account state after liquidation with settlement waiting
-        cash, positions = self._wait_for_settlement(max_wait_seconds=30)
+        cash, positions = self._wait_for_settlement()
 
         if cash > Decimal("0"):
             logger.info(
