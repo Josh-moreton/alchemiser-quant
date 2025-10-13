@@ -130,7 +130,7 @@ class TradingSystemErrorHandler:
             category=category,
             context=context,
             component=component,
-            additional_data=additional_data,
+            additional_data=additional_data or {},
             suggested_action=suggested_action,
             error_code=error_code,
         )
