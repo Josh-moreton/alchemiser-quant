@@ -395,6 +395,11 @@ class EventDrivenOrchestrator:
         # Use the signals_data directly from the event
         self.workflow_results[event.correlation_id]["strategy_signals"] = event.signals_data
 
+        # Store consolidated_portfolio for notification enrichment
+        self.workflow_results[event.correlation_id]["consolidated_portfolio"] = (
+            event.consolidated_portfolio
+        )
+
         # Track successful signal processing
         self.workflow_state["last_successful_workflow"] = "signal_generation"
 
@@ -521,24 +526,32 @@ class EventDrivenOrchestrator:
         if "strategy_signals" in workflow_results:
             execution_data["strategy_signals"] = workflow_results["strategy_signals"]
 
-        # Add rebalance plan data for consolidated portfolio display
-        if "rebalance_plan" in workflow_results:
+        # Add consolidated portfolio from workflow context
+        # Try to get from SignalGenerated event first, then fall back to rebalance plan
+        consolidated_portfolio = workflow_results.get("consolidated_portfolio", {})
+        if not consolidated_portfolio and "rebalance_plan" in workflow_results:
+            # Extract consolidated portfolio from rebalance plan metadata as fallback
             rebalance_plan = workflow_results["rebalance_plan"]
-            # Extract consolidated portfolio from rebalance plan metadata
-            if hasattr(rebalance_plan, "metadata") and isinstance(rebalance_plan.metadata, dict):
-                consolidated_portfolio = rebalance_plan.metadata.get("consolidated_portfolio", {})
-            else:
-                # Build consolidated portfolio from rebalance plan items
-                consolidated_portfolio = {}
-                if hasattr(rebalance_plan, "items") and rebalance_plan.items:
-                    for item in rebalance_plan.items:
-                        symbol = getattr(item, "symbol", None)
-                        target_weight = getattr(item, "target_weight", None)
-                        if symbol and target_weight is not None:
-                            consolidated_portfolio[symbol] = float(target_weight)
+            if hasattr(rebalance_plan, "metadata") and isinstance(
+                rebalance_plan.metadata, dict
+            ):
+                consolidated_portfolio = rebalance_plan.metadata.get(
+                    "consolidated_portfolio", {}
+                )
+            # Build consolidated portfolio from rebalance plan items as last resort
+            if (
+                not consolidated_portfolio
+                and hasattr(rebalance_plan, "items")
+                and rebalance_plan.items
+            ):
+                for item in rebalance_plan.items:
+                    symbol = getattr(item, "symbol", None)
+                    target_weight = getattr(item, "target_weight", None)
+                    if symbol and target_weight is not None:
+                        consolidated_portfolio[symbol] = float(target_weight)
 
-            if consolidated_portfolio:
-                execution_data["consolidated_portfolio"] = consolidated_portfolio
+        if consolidated_portfolio:
+            execution_data["consolidated_portfolio"] = consolidated_portfolio
 
         # Add execution summary with consolidated portfolio for template compatibility
         if "execution_summary" in workflow_results:
