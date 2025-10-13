@@ -353,8 +353,8 @@ class TestMonitorSingleOrderSettlement:
         )
 
         assert result is not None
-        assert result["symbol"] == "MSFT"
-        assert result["settled_value"] == Decimal("6000.00")
+        assert result.symbol == "MSFT"
+        assert result.settled_value == Decimal("6000.00")
 
     @pytest.mark.asyncio
     async def test_order_timeout(
@@ -397,7 +397,7 @@ class TestMonitorSingleOrderSettlement:
         )
 
         assert result is not None
-        assert result["settled_value"] == Decimal("3500.00")
+        assert result.settled_value == Decimal("3500.00")
 
 
 class TestGetOrderSettlementDetails:
@@ -421,11 +421,11 @@ class TestGetOrderSettlementDetails:
         result = await settlement_monitor._get_order_settlement_details(order_id)
 
         assert result is not None
-        assert result["symbol"] == "AMZN"
-        assert result["side"] == "SELL"
-        assert result["settled_quantity"] == Decimal("8")
-        assert result["settlement_price"] == Decimal("3200.00")
-        assert result["settled_value"] == Decimal("25600.00")
+        assert result.symbol == "AMZN"
+        assert result.side == "SELL"
+        assert result.settled_quantity == Decimal("8")
+        assert result.settlement_price == Decimal("3200.00")
+        assert result.settled_value == Decimal("25600.00")
 
     @pytest.mark.asyncio
     async def test_get_details_api_error(
