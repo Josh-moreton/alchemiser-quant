@@ -307,6 +307,7 @@ class MarketOrderExecutor:
             order_id=order_id,
             execution_strategy="market",
             side=side.upper(),
+            correlation_id=correlation_id,
         )
 
         side_upper = self._normalize_side(side)
