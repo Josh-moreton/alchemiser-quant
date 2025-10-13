@@ -216,9 +216,7 @@ class PhaseExecutor:
 
         return None
 
-    def _cache_execution_result(
-        self, item: RebalancePlanItem, result: OrderResult
-    ) -> None:
+    def _cache_execution_result(self, item: RebalancePlanItem, result: OrderResult) -> None:
         """Cache execution result for idempotency tracking.
 
         Stores the result in the execution cache to prevent duplicate
@@ -290,7 +288,9 @@ class PhaseExecutor:
             placed += 1
 
             if order_result.order_id:
-                bound_logger.info(f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})")
+                bound_logger.info(
+                    f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})"
+                )
             elif not order_result.success:
                 bound_logger.error(
                     f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
@@ -368,9 +368,13 @@ class PhaseExecutor:
             placed += 1
 
             if order_result.order_id:
-                bound_logger.info(f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})")
+                bound_logger.info(
+                    f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})"
+                )
             elif not order_result.success:
-                bound_logger.error(f"❌ BUY {item.symbol} placement failed: {order_result.error_message}")
+                bound_logger.error(
+                    f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
+                )
 
         # Monitor and re-peg buy orders that haven't filled and await completion
         if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
@@ -477,6 +481,11 @@ class PhaseExecutor:
 
     def _create_skipped_order_result(self, item: RebalancePlanItem) -> OrderResult:
         """Create an OrderResult for a skipped order."""
+        # Validate and normalize action to ensure it's a valid value
+        action = item.action.upper()
+        if action not in ("BUY", "SELL"):
+            action = "BUY"  # Fallback to BUY if invalid
+
         return OrderResult(
             symbol=item.symbol,
             action=action,  # type: ignore[arg-type]
@@ -591,6 +600,11 @@ class PhaseExecutor:
                     "reason": "missing_callback",
                 },
             )
+            # Validate and normalize action to ensure it's a valid value
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"  # Fallback to BUY if invalid
+
             return OrderResult(
                 symbol=item.symbol,
                 action=action,  # type: ignore[arg-type]
@@ -616,9 +630,14 @@ class PhaseExecutor:
                     "error_type": "value_error",
                 },
             )
+            # Validate and normalize action to ensure it's a valid value
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"  # Fallback to BUY if invalid
+
             return OrderResult(
                 symbol=item.symbol,
-                action=item.action,
+                action=action,  # type: ignore[arg-type]
                 trade_amount=abs(item.trade_amount),
                 shares=Decimal("0"),
                 price=None,
@@ -640,6 +659,11 @@ class PhaseExecutor:
                     "error_type": type(e).__name__,
                 },
             )
+            # Validate and normalize action to ensure it's a valid value
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"  # Fallback to BUY if invalid
+
             return OrderResult(
                 symbol=item.symbol,
                 action=action,  # type: ignore[arg-type]
