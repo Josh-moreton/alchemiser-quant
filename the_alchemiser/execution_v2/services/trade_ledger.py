@@ -24,7 +24,7 @@ import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from pydantic import ValidationError
 
@@ -47,10 +47,10 @@ class S3ClientProtocol(Protocol):
 
     def put_object(
         self,
-        Bucket: str,
-        Key: str,
-        Body: str,
-        ContentType: str,
+        bucket: str,
+        key: str,
+        body: str,
+        content_type: str,
     ) -> dict[str, Any]: ...
 
 
@@ -93,6 +93,45 @@ class TradeLedgerService:
             TradeLedgerEntry if order was filled and recorded, None otherwise
 
         """
+        # Validate order is recordable
+        if not self._is_order_recordable(order_result, correlation_id):
+            return None
+
+        # Extract strategy attribution
+        strategy_names, strategy_weights = self._extract_strategy_attribution(
+            order_result.symbol, rebalance_plan
+        )
+
+        # Extract and validate quote data
+        bid_at_fill, ask_at_fill = self._process_quote_data(quote_at_fill, order_result)
+
+        # Extract order metadata
+        order_type = order_result.order_type
+        fill_timestamp = order_result.filled_at or order_result.timestamp
+
+        # Create and record ledger entry
+        return self._create_and_record_entry(
+            order_result=order_result,
+            correlation_id=correlation_id,
+            bid_at_fill=bid_at_fill,
+            ask_at_fill=ask_at_fill,
+            fill_timestamp=fill_timestamp,
+            order_type=order_type,
+            strategy_names=strategy_names,
+            strategy_weights=strategy_weights,
+        )
+
+    def _is_order_recordable(self, order_result: OrderResult, correlation_id: str) -> bool:
+        """Check if order meets criteria for ledger recording.
+
+        Args:
+            order_result: The order execution result
+            correlation_id: Correlation ID for traceability
+
+        Returns:
+            True if order should be recorded, False otherwise
+
+        """
         # Only record successful fills
         if not order_result.success or not order_result.order_id:
             logger.debug(
@@ -101,7 +140,7 @@ class TradeLedgerService:
                 success=order_result.success,
                 correlation_id=correlation_id,
             )
-            return None
+            return False
 
         # Only record if we have a fill price
         if order_result.price is None or order_result.price <= 0:
@@ -111,7 +150,7 @@ class TradeLedgerService:
                 order_id=order_result.order_id,
                 correlation_id=correlation_id,
             )
-            return None
+            return False
 
         # Only record if we have valid quantity
         if order_result.shares <= 0:
@@ -122,18 +161,39 @@ class TradeLedgerService:
                 shares=str(order_result.shares),
                 correlation_id=correlation_id,
             )
-            return None
+            return False
 
-        # Extract strategy attribution from rebalance plan metadata
-        strategy_names, strategy_weights = self._extract_strategy_attribution(
-            order_result.symbol, rebalance_plan
-        )
+        # Validate action is BUY or SELL
+        if order_result.action not in ("BUY", "SELL"):
+            logger.warning(
+                "Invalid order action, skipping ledger recording",
+                action=order_result.action,
+                symbol=order_result.symbol,
+                order_id=order_result.order_id,
+                correlation_id=correlation_id,
+            )
+            return False
 
-        # Extract bid/ask from quote if available and valid (> 0)
-        # Filter out zero or negative prices which fail validation
+        return True
+
+    def _process_quote_data(
+        self, quote_at_fill: QuoteModel | None, order_result: OrderResult
+    ) -> tuple[Decimal | None, Decimal | None]:
+        """Extract and validate bid/ask prices from quote.
+
+        Args:
+            quote_at_fill: Optional market quote at time of fill
+            order_result: The order execution result
+
+        Returns:
+            Tuple of (bid_at_fill, ask_at_fill), both may be None
+
+        """
         bid_at_fill = None
         ask_at_fill = None
+
         if quote_at_fill:
+            # Filter out zero or negative prices which fail validation
             if quote_at_fill.bid_price > 0:
                 bid_at_fill = quote_at_fill.bid_price
             if quote_at_fill.ask_price > 0:
@@ -149,24 +209,40 @@ class TradeLedgerService:
                     order_id=order_result.order_id,
                 )
 
-        # Extract order type from OrderResult
-        order_type = order_result.order_type
+        return bid_at_fill, ask_at_fill
 
-        # Use filled_at timestamp if available, otherwise fall back to order timestamp
-        fill_timestamp = order_result.filled_at or order_result.timestamp
+    def _create_and_record_entry(
+        self,
+        order_result: OrderResult,
+        correlation_id: str,
+        bid_at_fill: Decimal | None,
+        ask_at_fill: Decimal | None,
+        fill_timestamp: datetime,
+        order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"],
+        strategy_names: list[str],
+        strategy_weights: dict[str, Decimal] | None,
+    ) -> TradeLedgerEntry | None:
+        """Create TradeLedgerEntry and append to ledger.
 
-        # Validate action is BUY or SELL
-        if order_result.action not in ("BUY", "SELL"):
-            logger.warning(
-                "Invalid order action, skipping ledger recording",
-                action=order_result.action,
-                symbol=order_result.symbol,
-                order_id=order_result.order_id,
-                correlation_id=correlation_id,
-            )
-            return None
+        Args:
+            order_result: The order execution result
+            correlation_id: Correlation ID for traceability
+            bid_at_fill: Bid price at fill time
+            ask_at_fill: Ask price at fill time
+            fill_timestamp: Timestamp of the fill
+            order_type: Type of order (MARKET, LIMIT, etc.)
+            strategy_names: List of strategy names
+            strategy_weights: Strategy weight attribution
 
+        Returns:
+            TradeLedgerEntry if successful, None if validation fails
+
+        """
         try:
+            # Type assertions: validated by _is_order_recordable
+            assert order_result.order_id is not None  # noqa: S101
+            assert order_result.price is not None  # noqa: S101
+
             entry = TradeLedgerEntry(
                 order_id=order_result.order_id,
                 correlation_id=correlation_id,
@@ -352,10 +428,10 @@ class TradeLedgerService:
 
             # Upload to S3
             s3_client.put_object(
-                Bucket=self._settings.trade_ledger.bucket_name,
-                Key=s3_key,
-                Body=json.dumps(ledger_data, indent=2),
-                ContentType="application/json",
+                bucket=self._settings.trade_ledger.bucket_name,
+                key=s3_key,
+                body=json.dumps(ledger_data, indent=2),
+                content_type="application/json",
             )
 
             # Mark as persisted
