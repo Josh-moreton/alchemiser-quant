@@ -24,7 +24,7 @@ import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import ValidationError
 
@@ -51,7 +51,7 @@ class S3ClientProtocol(Protocol):
         Key: str,
         Body: str,
         ContentType: str,
-    ) -> dict: ...  # noqa: E704
+    ) -> dict[str, Any]: ...
 
 
 class TradeLedgerService:
@@ -290,7 +290,7 @@ class TradeLedgerService:
             try:
                 import boto3
 
-                self._s3_client = boto3.client("s3")  # type: ignore[assignment]
+                self._s3_client = boto3.client("s3")
             except Exception as e:
                 logger.error("Failed to initialize S3 client", error=str(e))
                 self._s3_init_failed = True

@@ -224,17 +224,17 @@ def _get_email_password_from_env() -> str | None:
         )
 
     # Fallback to direct environment variable access for backward compatibility
-    password = (
+    fallback_password: str | None = (
         os.getenv("EMAIL__PASSWORD")
         or os.getenv("EMAIL_PASSWORD")
         or os.getenv("EMAIL__SMTP_PASSWORD")
         or os.getenv("SMTP_PASSWORD")
     )
 
-    if password:
-        password = password.strip()
+    if fallback_password:
+        fallback_password = fallback_password.strip()
 
-    if not password:
+    if not fallback_password:
         logger.warning(
             "Email password not found in environment variables",
             extra={
@@ -253,4 +253,4 @@ def _get_email_password_from_env() -> str | None:
         "Successfully loaded email password from environment variables",
         extra={"component": COMPONENT, "source": "direct_env_vars"},
     )
-    return password
+    return fallback_password

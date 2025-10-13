@@ -100,10 +100,19 @@ class SmartExecutionStrategy:
         )
 
         # Preflight validation for non-fractionable assets
+        side_normalized = request.side.lower()
+        if side_normalized not in ("buy", "sell"):
+            logger.error(f"❌ Invalid side for {request.symbol}: {request.side}")
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Invalid side: {request.side}. Must be 'buy' or 'sell'",
+                execution_strategy="validation_failed",
+            )
+
         validation_result = self.validator.validate_order(
             symbol=request.symbol,
             quantity=request.quantity,
-            side=request.side,
+            side=side_normalized,  # type: ignore[arg-type]
             correlation_id=request.correlation_id,
             auto_adjust=True,
         )
