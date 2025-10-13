@@ -148,38 +148,36 @@ Resources:
       FunctionName: !Sub "the-alchemiser-v2-lambda-${Stage}"
       PackageType: Zip
       Runtime: python3.12
-      CodeUri: the_alchemiser/
-      Handler: lambda_handler.lambda_handler
+      CodeUri: ./
+      Handler: the_alchemiser.lambda_handler.lambda_handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
-        # Include strategy DSL files and configuration
+        # Include only the the_alchemiser package
         Include:
-          - '**/*.clj'
-          - 'config/*.json'
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
         Exclude:
           # Sensitive files (security)
           - '.env*'
-          - .aws/**
+          - 'the_alchemiser/.env*'
 
           # Python cache and build artifacts
           - '**/__pycache__/**'
           - '**/*.pyc'
           - '**/*.pyo'
           - '**/*.egg-info/**'
-          - .pytest_cache/**
-          - .mypy_cache/**
-          - .ruff_cache/**
 
           # IDE and editor files
-          - .vscode/**
-          - .editorconfig
+          - 'the_alchemiser/.editorconfig'
 
           # Documentation within the_alchemiser
-          - '**/*.md'
+          - 'the_alchemiser/**/*.md'
 
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
