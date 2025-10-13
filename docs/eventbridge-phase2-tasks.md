@@ -1,8 +1,8 @@
-# Phase 2: EventBridge Adapter Implementation
+# Phase 2: EventBridge Implementation
 
 ## Overview
 
-Phase 2 implements the `EventBridgeBus` class and enables dual-publish mode for testing and validation before full migration.
+Phase 2 implements the complete `EventBridgeBus` class and enables EventBridge event routing for thorough testing before production deployment. No dual-publish mode - clean implementation and testing.
 
 ## Implementation Tasks
 
@@ -13,7 +13,6 @@ Phase 2 implements the `EventBridgeBus` class and enables dual-publish mode for 
 **Requirements:**
 - Implement `EventBus` interface for compatibility
 - Use `boto3` EventBridge client for event publishing
-- Support dual-publish mode (publish to both in-memory and EventBridge)
 - Handle errors gracefully (log and continue)
 - Add correlation/causation IDs to event resources for tracing
 
@@ -24,7 +23,6 @@ class EventBridgeBus(EventBus):
         self,
         event_bus_name: str,
         source_prefix: str,
-        enable_local_handlers: bool = False,
     ) -> None:
         """Initialize EventBridge client and settings."""
         
@@ -57,8 +55,7 @@ def eventbridge_handler(event: dict, context: object) -> dict:
 
 **Requirements:**
 - Add factory method for `EventBridgeBus`
-- Support dual-publish mode via configuration
-- Allow switching between in-memory and EventBridge bus
+- Simple switch from in-memory to EventBridge bus
 
 ### 4. Add CloudFormation Targets to Event Rules
 
@@ -117,7 +114,7 @@ EventBridgeInvokeLambdaPermission:
 - Event routing to correct handlers
 - Event replay from archive
 - DLQ behavior with failed events
-- Dual-publish comparison (in-memory vs EventBridge)
+- Full workflow testing in dev environment
 
 ### 7. Create Helper Scripts
 
@@ -141,21 +138,10 @@ make test
 ENVIRONMENT=dev bash scripts/deploy.sh
 ```
 
-### 2. Enable Dual-Publish Mode
+### 2. Enable Event Rules
 
 ```bash
-# Update Lambda environment variables
-aws lambda update-function-configuration \
-  --function-name the-alchemiser-v2-lambda-dev \
-  --environment Variables='{
-    "EVENTBRIDGE__ENABLE_DUAL_PUBLISH": "true"
-  }'
-```
-
-### 3. Enable Event Rules
-
-```bash
-# Enable all event rules
+# Enable all event rules for testing in dev
 for rule in signal-generated rebalance-planned trade-executed all-events-monitor; do
   aws events enable-rule \
     --event-bus-name alchemiser-trading-events-dev \
@@ -163,7 +149,7 @@ for rule in signal-generated rebalance-planned trade-executed all-events-monitor
 done
 ```
 
-### 4. Monitor and Validate
+### 3. Monitor and Validate
 
 **Check CloudWatch Metrics:**
 ```bash
@@ -224,8 +210,8 @@ aws sqs get-queue-attributes \
 - [ ] Full workflow through EventBridge (signal → execution)
 - [ ] Event replay from archive
 - [ ] DLQ behavior with intentional failures
-- [ ] Dual-publish comparison
 - [ ] Correlation/causation ID propagation
+- [ ] Multiple concurrent workflows
 
 ### Manual Testing
 - [ ] Publish test event to EventBridge
@@ -239,14 +225,7 @@ aws sqs get-queue-attributes \
 
 If issues are found during validation:
 
-1. **Disable Dual-Publish:**
-   ```bash
-   aws lambda update-function-configuration \
-     --function-name the-alchemiser-v2-lambda-dev \
-     --environment Variables='{"EVENTBRIDGE__ENABLE_DUAL_PUBLISH": "false"}'
-   ```
-
-2. **Disable Event Rules:**
+1. **Disable Event Rules:**
    ```bash
    for rule in signal-generated rebalance-planned trade-executed all-events-monitor; do
      aws events disable-rule \
@@ -267,16 +246,16 @@ If issues are found during validation:
 - **Latency Impact:** < 100ms overhead for EventBridge publish
 - **Error Rate:** Zero events in DLQ (excluding test failures)
 - **Replay Success:** Successfully replay events from archive
-- **Dual-Publish Consistency:** 100% match between in-memory and EventBridge events
+- **Test Coverage:** All integration tests passing
 
 ## Next Phase
 
 After successful validation of Phase 2:
 
-**Phase 3: Full Migration**
-1. Set `EVENTBRIDGE__USE_EVENTBRIDGE=true` in production
-2. Disable in-memory bus
-3. Remove in-memory bus code (after 1 month buffer)
+**Phase 3: Production Deployment**
+1. Deploy EventBridge implementation to production
+2. Switch orchestration to use `EventBridgeBus`
+3. Remove in-memory bus code (clean, no tech debt)
 4. Consider splitting Lambda into separate functions per handler (optional)
 
 See [eventbridge-migration.md](./eventbridge-migration.md) for full migration guide.

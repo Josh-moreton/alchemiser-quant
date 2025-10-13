@@ -392,18 +392,9 @@ class ExecutionSettings(BaseModel):
 class EventBridgeSettings(BaseModel):
     """Amazon EventBridge configuration for event-driven architecture.
 
-    Controls migration from in-memory EventBus to durable EventBridge.
+    Simple configuration for EventBridge event bus naming and behavior.
+    No feature flags - clean switch when implementation is ready.
     """
-
-    # Feature flags for gradual migration
-    use_eventbridge: bool = Field(
-        default=False,
-        description="Use EventBridge instead of in-memory bus (Phase 3 migration)",
-    )
-    enable_dual_publish: bool = Field(
-        default=False,
-        description="Publish to both in-memory and EventBridge for testing (Phase 2 hybrid mode)",
-    )
 
     # EventBridge configuration
     event_bus_name: str = Field(

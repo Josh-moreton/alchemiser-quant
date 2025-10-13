@@ -336,7 +336,8 @@ Resources:
   # EventBridge Resources for Event-Driven Architecture (Phase 1)
   # =========================================================================
 
-  # Custom EventBridge Bus for Alchemiser trading events
+  # Named EventBridge Bus for Alchemiser trading events
+  # Note: This is a standard EventBridge bus with a custom name, not the default bus
   AlchemiserEventBus:
     Type: AWS::Events::EventBus
     Properties:

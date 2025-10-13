@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the migration from the in-memory `EventBus` to Amazon EventBridge for the Alchemiser trading system. The migration is planned in three phases to ensure zero-downtime and minimal risk.
+This document describes the migration from the in-memory `EventBus` to Amazon EventBridge for the Alchemiser trading system. The approach is simple: build the EventBridge implementation, test it thoroughly, then switch completely with no tech debt.
 
 ## Architecture
 
@@ -46,74 +46,73 @@ EventBridge Bus
 - **Scalability**: Horizontal scaling with multiple Lambda instances
 - **Error handling**: Automatic retries, DLQ for failed events
 
-## Migration Phases
+## Migration Approach
 
 ### Phase 1: Infrastructure Setup ✅ (Current)
 
 **Goal**: Deploy EventBridge infrastructure without changing code behavior.
 
 **Changes:**
-- Added `EventBridgeSettings` to configuration
+- Added `EventBridgeSettings` to configuration (simple, no feature flags)
 - Created CloudFormation resources:
-  - `AlchemiserEventBus`: Custom event bus
+  - `AlchemiserEventBus`: Named event bus (standard EventBridge, not default bus)
   - `EventBusPolicy`: IAM policy for event publishing
   - `EventArchive`: S3 archive with 365-day retention
   - `EventDLQ`: Dead-letter queue for failed events
   - Event routing rules (disabled)
 - Updated Lambda IAM permissions for EventBridge
-- Added feature flags for gradual migration
 
 **Status**: Infrastructure deployed but disabled. No runtime changes.
 
 **Risk**: None - infrastructure only.
 
-### Phase 2: Dual-Publish Mode (Next)
+### Phase 2: EventBridge Implementation (Next)
 
-**Goal**: Enable hybrid mode to publish events to both buses for testing.
+**Goal**: Implement EventBridge event publishing and handling, test thoroughly.
 
 **Planned Changes:**
 1. Create `EventBridgeBus` class implementing `EventBus` interface
-2. Add dual-publishing logic to event publishers
-3. Create Lambda handler for EventBridge events
-4. Enable event routing rules (still invoking same Lambda)
-5. Add integration tests comparing both buses
+2. Create Lambda handler for EventBridge events
+3. Enable event routing rules
+4. Add comprehensive integration tests
+5. Test in dev environment with real workflows
 
-**Configuration:**
-```bash
-EVENTBRIDGE__ENABLE_DUAL_PUBLISH=true
-```
+**No Dual-Publishing**: We build the complete implementation and test it, then switch cleanly.
 
 **Validation:**
-- Compare event delivery between in-memory and EventBridge
-- Verify event replay capability
+- Integration tests verify event delivery and processing
+- Test event replay capability from archive
 - Test DLQ behavior with intentional failures
-- Monitor CloudWatch metrics
+- Monitor CloudWatch metrics during testing
+- Run full trading workflow tests in dev
 
-**Risk**: Low - in-memory bus remains primary. EventBridge is shadow mode.
+**Risk**: Low - thoroughly tested before production deployment.
 
-### Phase 3: Full Migration (Future)
+### Phase 3: Production Switch (Future)
 
-**Goal**: Switch to EventBridge as primary event bus.
+**Goal**: Switch production to EventBridge completely.
 
 **Planned Changes:**
-1. Set `EVENTBRIDGE__USE_EVENTBRIDGE=true`
-2. Disable in-memory bus
+1. Deploy EventBridge implementation to production
+2. Update orchestration to use `EventBridgeBus` instead of in-memory bus
+3. Remove in-memory bus code (clean, no tech debt)
+
+**Configuration:**
+Simple switch in code - no environment variables or feature flags needed.
 3. Split Lambda into separate functions per handler (optional)
 4. Enable all event routing rules
 5. Remove in-memory bus code (after 1 month buffer)
 
-**Risk**: Medium - primary event delivery mechanism changes. Mitigated by Phase 2 validation.
+**Risk**: Medium - primary event delivery mechanism changes. Mitigated by thorough Phase 2 testing.
 
 ## Configuration
 
 ### EventBridge Settings
 
-The `EventBridgeSettings` class provides the following configuration options:
+The `EventBridgeSettings` class provides simple configuration options:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `use_eventbridge` | bool | `false` | Use EventBridge instead of in-memory bus (Phase 3) |
-| `enable_dual_publish` | bool | `false` | Publish to both buses for testing (Phase 2) |
 | `event_bus_name` | str | `"alchemiser-trading-events"` | Name of the EventBridge event bus |
 | `source_prefix` | str | `"alchemiser"` | Prefix for event sources |
 | `max_retry_attempts` | int | `3` | Maximum retry attempts for failed events |
@@ -125,14 +124,12 @@ The `EventBridgeSettings` class provides the following configuration options:
 Settings can be overridden using environment variables with the pattern `EVENTBRIDGE__<SETTING>`:
 
 ```bash
-# Enable dual-publish mode for testing
-EVENTBRIDGE__ENABLE_DUAL_PUBLISH=true
-
 # Use custom event bus name
 EVENTBRIDGE__EVENT_BUS_NAME=my-custom-bus
 
-# Enable EventBridge (Phase 3)
-EVENTBRIDGE__USE_EVENTBRIDGE=true
+# Adjust retry behavior
+EVENTBRIDGE__MAX_RETRY_ATTEMPTS=5
+EVENTBRIDGE__MAX_EVENT_AGE_SECONDS=7200
 ```
 
 ### CloudFormation Parameters
@@ -140,7 +137,7 @@ EVENTBRIDGE__USE_EVENTBRIDGE=true
 The template creates the following resources per stage:
 
 **Resources:**
-- `AlchemiserEventBus`: `alchemiser-trading-events-${Stage}`
+- `AlchemiserEventBus`: `alchemiser-trading-events-${Stage}` (named event bus, not default)
 - `EventArchive`: `alchemiser-event-archive-${Stage}`
 - `EventDLQ`: `alchemiser-event-dlq-${Stage}`
 
