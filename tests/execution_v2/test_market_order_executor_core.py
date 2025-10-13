@@ -52,7 +52,7 @@ class TestMarketOrderExecutor:
         mock = Mock()
         # Default to valid
         mock.validate_order.return_value = OrderValidationResult(
-            is_valid=True, adjusted_quantity=None, error_message=None, warnings=[]
+            is_valid=True, adjusted_quantity=None, error_message=None, warnings=()
         )
         return mock
 
@@ -126,7 +126,7 @@ class TestMarketOrderExecutor:
             is_valid=False,
             adjusted_quantity=None,
             error_message="Insufficient shares for sell",
-            warnings=[],
+            warnings=(),
         )
 
         result = executor.execute_market_order("AAPL", "sell", Decimal("100"))
@@ -145,7 +145,7 @@ class TestMarketOrderExecutor:
             is_valid=True,
             adjusted_quantity=Decimal("10"),
             error_message=None,
-            warnings=["Quantity adjusted to whole shares"],
+            warnings=("Quantity adjusted to whole shares",),
         )
         executed_order = _make_executed_order(
             "AAPL", filled_qty=Decimal("10"), filled_avg_price=Decimal("150.00")
@@ -214,7 +214,7 @@ class TestMarketOrderExecutor:
             is_valid=False,
             adjusted_quantity=None,
             error_message="Quantity must be greater than zero",
-            warnings=[],
+            warnings=(),
         )
 
         result = executor.execute_market_order("AAPL", "buy", Decimal("0"))
@@ -228,7 +228,7 @@ class TestMarketOrderExecutor:
             is_valid=False,
             adjusted_quantity=None,
             error_message="Quantity cannot be negative",
-            warnings=[],
+            warnings=(),
         )
 
         result = executor.execute_market_order("AAPL", "buy", Decimal("-5"))
@@ -272,10 +272,10 @@ class TestMarketOrderExecutor:
             is_valid=True,
             adjusted_quantity=None,
             error_message=None,
-            warnings=[
+            warnings=(
                 "Market volatility detected",
                 "Large order size relative to volume",
-            ],
+            ),
         )
         executed_order = _make_executed_order("AAPL")
         mock_alpaca_manager.place_market_order.return_value = executed_order
@@ -346,3 +346,23 @@ class TestMarketOrderExecutor:
             result = executor.execute_market_order("AAPL", side_input, Decimal("10"))
             assert result.success is True
             assert result.action == "SELL"  # Normalized to uppercase
+
+    def test_execute_market_order_with_correlation_id(
+        self, executor, mock_alpaca_manager
+    ):
+        """Test that correlation_id is propagated through order execution."""
+        executed_order = _make_executed_order("AAPL")
+        mock_alpaca_manager.place_market_order.return_value = executed_order
+
+        with patch(
+            "the_alchemiser.execution_v2.core.market_order_executor.log_order_flow"
+        ) as mock_log_order_flow:
+            result = executor.execute_market_order(
+                "AAPL", "buy", Decimal("10"), correlation_id="test-correlation-123"
+            )
+
+            assert result.success is True
+            # Verify log_order_flow was called with correlation_id
+            mock_log_order_flow.assert_called_once()
+            call_kwargs = mock_log_order_flow.call_args[1]
+            assert call_kwargs.get("correlation_id") == "test-correlation-123"
