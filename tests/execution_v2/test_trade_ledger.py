@@ -352,9 +352,9 @@ class TestTradeLedgerService:
         assert result is True
         mock_s3_client.put_object.assert_called_once()
         call_kwargs = mock_s3_client.put_object.call_args[1]
-        assert call_kwargs["Bucket"] == "test-bucket"
-        assert "trade-ledgers/" in call_kwargs["Key"]
-        assert call_kwargs["ContentType"] == "application/json"
+        assert call_kwargs["bucket"] == "test-bucket"
+        assert "trade-ledgers/" in call_kwargs["key"]
+        assert call_kwargs["content_type"] == "application/json"
 
     def test_persist_to_s3_disabled(self):
         """Test that S3 persistence can be disabled."""
@@ -420,7 +420,6 @@ class TestTradeLedgerService:
         result3 = service.persist_to_s3(correlation_id="test-corr-789")
         assert result3 is True
         assert mock_s3_client.put_object.call_count == 2  # Now 2 calls
-
 
     def test_skip_recording_zero_quantity_order(self):
         """Test that orders with zero quantity are not recorded."""
@@ -996,4 +995,3 @@ class TestTradeLedgerInvalidQuoteHandling:
         assert entry is not None
         assert entry.bid_at_fill is None  # Negative filtered out
         assert entry.ask_at_fill is None  # Negative filtered out
-
