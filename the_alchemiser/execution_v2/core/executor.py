@@ -9,10 +9,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, TypedDict
 
+import structlog
+
 from the_alchemiser.execution_v2.core.market_order_executor import MarketOrderExecutor
 from the_alchemiser.execution_v2.core.order_finalizer import OrderFinalizer
 from the_alchemiser.execution_v2.core.order_monitor import OrderMonitor
 from the_alchemiser.execution_v2.core.phase_executor import PhaseExecutor
+from the_alchemiser.execution_v2.core.settlement_monitor import SettlementMonitor
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
     SmartOrderRequest,
@@ -42,7 +45,7 @@ if TYPE_CHECKING:
         ExecutionConfig,
     )
 
-logger = get_logger(__name__)
+logger: structlog.stdlib.BoundLogger = get_logger(__name__)
 
 
 class ExecutionStats(TypedDict):
@@ -54,7 +57,46 @@ class ExecutionStats(TypedDict):
 
 
 class Executor:
-    """Core executor for order placement."""
+    """Core executor for order placement and smart execution.
+
+    This class provides the core execution engine for placing orders with:
+    - Smart execution using real-time pricing and limit orders
+    - Graceful fallback to market orders if smart execution fails
+    - Settlement-aware sell-first, buy-second workflow
+    - Comprehensive order monitoring and re-pegging
+    - Trade ledger recording with S3 persistence
+
+    Attributes:
+        alpaca_manager: Alpaca broker manager for API access
+        execution_config: Optional smart execution configuration
+        validator: Execution validator for preflight checks
+        buying_power_service: Service for buying power verification
+        pricing_service: Real-time pricing service (via WebSocket)
+        smart_strategy: Smart execution strategy (if enabled)
+        websocket_manager: WebSocket connection manager
+        enable_smart_execution: Flag indicating smart execution availability
+        trade_ledger: Trade ledger service for audit trail
+
+    Smart Execution:
+        When enabled, orders use real-time pricing and limit orders with:
+        - Best bid/ask price discovery
+        - Automatic order re-pegging if not filled
+        - Configurable urgency levels
+        - Fallback to market orders if smart execution fails
+
+    Settlement Monitoring:
+        For rebalance plans with sells followed by buys:
+        - Monitors sell order settlement
+        - Tracks buying power release
+        - Verifies sufficient funds before executing buys
+
+    Failure Modes:
+        - Smart execution initialization failure: Falls back to market orders
+        - Order placement failure: Returns OrderResult with success=False
+        - Settlement timeout: Proceeds with buy phase after warning
+        - Resource cleanup failure: Logged but not raised (in __del__)
+
+    """
 
     def __init__(
         self,
@@ -67,7 +109,13 @@ class Executor:
             alpaca_manager: Alpaca broker manager
             execution_config: Execution configuration
 
+        Raises:
+            ValueError: If alpaca_manager is None
+
         """
+        if alpaca_manager is None:
+            raise ValueError("alpaca_manager cannot be None")
+
         self.alpaca_manager = alpaca_manager
         self.execution_config = execution_config
 
@@ -84,18 +132,23 @@ class Executor:
         self.enable_smart_execution = True
 
         # Initialize extracted helper modules (will be set in _initialize_helper_modules)
-        self._market_order_executor: MarketOrderExecutor
-        self._order_monitor: OrderMonitor
-        self._order_finalizer: OrderFinalizer
-        self._position_utils: PositionUtils
-        self._phase_executor: PhaseExecutor
+        # These are assigned in _initialize_helper_modules() before first use
 
         # Initialize trade ledger service
         self.trade_ledger = TradeLedgerService()
 
+        # Initialize idempotency cache for duplicate execution protection
+        self._execution_cache: dict[str, ExecutionResult] = {}
+
         # Initialize smart execution if enabled
         try:
-            logger.info("🚀 Initializing smart execution with shared WebSocket connection...")
+            logger.info(
+                "🚀 Initializing smart execution with shared WebSocket connection",
+                extra={
+                    "api_key_present": bool(alpaca_manager.api_key),
+                    "paper_trading": alpaca_manager.is_paper_trading,
+                },
+            )
 
             # Use shared WebSocket connection manager to prevent connection limits
             self.websocket_manager = WebSocketConnectionManager(
@@ -119,8 +172,47 @@ class Executor:
             # Initialize helper modules for cleaner separation of concerns
             self._initialize_helper_modules()
 
+        except (ConnectionError, TimeoutError, OSError) as e:
+            # Network-related errors that shouldn't stop execution
+            logger.warning(
+                "Smart execution initialization failed (non-critical network error)",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            self.enable_smart_execution = False
+            self.pricing_service = None
+            self.smart_strategy = None
+            self.websocket_manager = None
+            # Initialize fallback modules
+            self._initialize_helper_modules()
+        except ValueError as e:
+            # Configuration errors
+            logger.error(
+                "Smart execution initialization failed due to configuration error",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
+            self.enable_smart_execution = False
+            self.pricing_service = None
+            self.smart_strategy = None
+            self.websocket_manager = None
+            # Initialize fallback modules
+            self._initialize_helper_modules()
         except Exception as e:
-            logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
+            # Unexpected errors - log with full stack trace
+            logger.error(
+                "Unexpected error in smart execution initialization",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
             self.enable_smart_execution = False
             self.pricing_service = None
             self.smart_strategy = None
@@ -150,12 +242,26 @@ class Executor:
         logger.debug("✅ Helper modules initialized")
 
     def __del__(self) -> None:
-        """Clean up WebSocket connection when executor is destroyed."""
+        """Clean up WebSocket connection when executor is destroyed.
+
+        Note: Best-effort cleanup. Errors are logged but not raised since
+        finalizers cannot propagate exceptions.
+        """
         if hasattr(self, "websocket_manager") and self.websocket_manager is not None:
             try:
                 self.websocket_manager.release_pricing_service()
+            except (ConnectionError, TimeoutError) as e:
+                # Expected cleanup errors - log at debug level
+                logger.debug(
+                    "WebSocket manager cleanup encountered network error (expected)",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
             except Exception as e:
-                logger.debug(f"Error releasing WebSocket manager: {e}")
+                # Unexpected errors - log at warning level
+                logger.warning(
+                    "Unexpected error releasing WebSocket manager during cleanup",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
 
     async def execute_order(
         self,
@@ -173,13 +279,21 @@ class Executor:
             correlation_id: Correlation ID for tracking
 
         Returns:
-            ExecutionResult with order details
+            OrderResult with order details. Falls back to market order if smart execution fails.
 
         """
         # Try smart execution first if enabled
         if self.enable_smart_execution and self.smart_strategy:
             try:
-                logger.info(f"🎯 Attempting smart execution for {symbol}")
+                logger.info(
+                    "🎯 Attempting smart execution for symbol",
+                    extra={
+                        "symbol": symbol,
+                        "side": side,
+                        "quantity": str(quantity),
+                        "correlation_id": correlation_id,
+                    },
+                )
 
                 request = SmartOrderRequest(
                     symbol=symbol,
@@ -217,13 +331,27 @@ class Executor:
                         order_type="LIMIT",  # Smart execution uses LIMIT orders
                         filled_at=result.placement_timestamp,  # Use placement timestamp from smart result
                     )
-                logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
+                logger.warning(
+                    "⚠️ Smart execution failed for symbol",
+                    extra={
+                        "symbol": symbol,
+                        "error": result.error_message,
+                    },
+                )
 
             except Exception as e:
-                logger.error(f"❌ Smart execution failed for {symbol}: {e}")
+                logger.error(
+                    "❌ Smart execution failed for symbol",
+                    extra={
+                        "symbol": symbol,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                    exc_info=True,
+                )
 
         # Fallback to regular market order
-        logger.info(f"📈 Using standard market order for {symbol}")
+        logger.info("📈 Using standard market order for symbol", extra={"symbol": symbol})
         return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
     def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
@@ -243,6 +371,9 @@ class Executor:
     async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
+        This method is idempotent - repeated calls with the same plan_id will return
+        the cached result without re-executing orders.
+
         Enhanced execution flow:
         1. Extract and bulk-subscribe to all symbols upfront
         2. Execute SELL orders in parallel where possible
@@ -255,10 +386,33 @@ class Executor:
         Returns:
             ExecutionResult with execution results
 
+        Raises:
+            ValueError: If plan is None
+            asyncio.TimeoutError: If execution exceeds timeout (default 900 seconds)
+
         """
+        if plan is None:
+            raise ValueError("plan cannot be None")
+
+        # Idempotency check
+        if plan.plan_id in self._execution_cache:
+            logger.info(
+                "⏭️ Skipping duplicate execution of plan (idempotent)",
+                extra={
+                    "plan_id": plan.plan_id,
+                    "correlation_id": plan.correlation_id,
+                    "cached": True,
+                },
+            )
+            return self._execution_cache[plan.plan_id]
+
         logger.info(
-            f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items "
-            "(enhanced settlement-aware)"
+            "🚀 Executing rebalance plan with items (enhanced settlement-aware)",
+            extra={
+                "plan_id": plan.plan_id,
+                "num_items": len(plan.items),
+                "correlation_id": plan.correlation_id,
+            },
         )
 
         # Cancel all orders to ensure clean order book at start
@@ -383,6 +537,9 @@ class Executor:
         # Persist trade ledger to S3
         self.trade_ledger.persist_to_s3(correlation_id=plan.correlation_id)
 
+        # Cache result for idempotency
+        self._execution_cache[plan.plan_id] = execution_result
+
         return execution_result
 
     def _extract_all_symbols(self, plan: RebalancePlan) -> list[str]:
@@ -425,8 +582,6 @@ class Executor:
 
         """
         # Initialize settlement monitor
-        from .settlement_monitor import SettlementMonitor
-
         settlement_monitor = SettlementMonitor(
             alpaca_manager=self.alpaca_manager,
             event_bus=None,  # Could integrate with event bus later
@@ -435,14 +590,23 @@ class Executor:
         )
 
         # Monitor sell order settlements
-        logger.info(f"👀 Monitoring settlement of {len(sell_order_ids)} sell orders...")
+        logger.info(
+            "👀 Monitoring settlement of sell orders",
+            extra={
+                "num_orders": len(sell_order_ids),
+                "correlation_id": correlation_id,
+            },
+        )
         settlement_result = await settlement_monitor.monitor_sell_orders_settlement(
             sell_order_ids, correlation_id, plan_id
         )
 
         logger.info(
-            f"💰 Settlement complete: ${settlement_result.total_buying_power_released} "
-            "buying power released"
+            "💰 Settlement complete with buying power released",
+            extra={
+                "buying_power_released": str(settlement_result.total_buying_power_released),
+                "correlation_id": correlation_id,
+            },
         )
 
         # Verify buying power is actually available before proceeding with BUY orders
@@ -503,7 +667,17 @@ class Executor:
         Returns:
             OrderResult with execution results
 
+        Raises:
+            ValueError: If item.symbol is None or empty
+
         """
+        # Validate symbol
+        if not item.symbol or not item.symbol.strip():
+            raise ValueError(f"Invalid symbol in rebalance plan item: {item.symbol!r}")
+
+        # Minimum price threshold for division by zero protection
+        MIN_PRICE_THRESHOLD = Decimal("0.001")  # $0.001 minimum price threshold
+
         try:
             side = "buy" if item.action == "BUY" else "sell"
 
@@ -515,15 +689,28 @@ class Executor:
                     item.symbol, raw_shares
                 )
                 logger.info(
-                    f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
+                    "📊 Liquidating symbol: selling shares (full position)",
+                    extra={
+                        "symbol": item.symbol,
+                        "shares": str(shares),
+                        "action": item.action,
+                    },
                 )
             else:
                 # Estimate shares from trade amount using best available price
                 price = self._position_utils.get_price_for_estimation(item.symbol)
-                if price is None or price <= Decimal("0"):
+                if price is None or price <= MIN_PRICE_THRESHOLD:
                     # Safety fallback to 1 share if price discovery fails
                     shares = Decimal("1")
-                    logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
+                    logger.warning(
+                        "⚠️ Price below minimum threshold for symbol; defaulting to 1 share",
+                        extra={
+                            "symbol": item.symbol,
+                            "price": str(price) if price else None,
+                            "min_threshold": str(MIN_PRICE_THRESHOLD),
+                            "default_shares": "1",
+                        },
+                    )
                 else:
                     raw_shares = abs(item.trade_amount) / price
                     shares = self._position_utils.adjust_quantity_for_fractionability(
@@ -532,29 +719,58 @@ class Executor:
 
                 amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
-                    f"📊 Executing {item.action} for {item.symbol}: "
-                    f"${amount_fmt} (estimated {shares} shares)"
+                    "📊 Executing action for symbol",
+                    extra={
+                        "action": item.action,
+                        "symbol": item.symbol,
+                        "trade_amount": str(amount_fmt),
+                        "estimated_shares": str(shares),
+                    },
                 )
+
+            # Construct correlation_id safely (symbol already validated)
+            correlation_id = f"rebalance-{item.symbol.strip()}"
 
             # Use smart execution with async context
             order_result = await self.execute_order(
                 symbol=item.symbol,
                 side=side,
                 quantity=shares,
-                correlation_id=f"rebalance-{item.symbol}",
+                correlation_id=correlation_id,
             )
 
             if order_result.success:
                 logger.info(
-                    f"✅ {item.action} {item.symbol} order placed (ID: {order_result.order_id})"
+                    "✅ Order placed successfully",
+                    extra={
+                        "action": item.action,
+                        "symbol": item.symbol,
+                        "order_id": order_result.order_id,
+                    },
                 )
             else:
-                logger.error(f"❌ Failed to place {item.action} for {item.symbol}")
+                logger.error(
+                    "❌ Failed to place order",
+                    extra={
+                        "action": item.action,
+                        "symbol": item.symbol,
+                        "error": order_result.error_message,
+                    },
+                )
 
             return order_result
 
         except Exception as e:
-            logger.error(f"❌ Error executing {item.action} for {item.symbol}: {e}")
+            logger.error(
+                "❌ Error executing order for symbol",
+                extra={
+                    "action": item.action,
+                    "symbol": item.symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
 
             return OrderResult(
                 symbol=item.symbol,
@@ -599,7 +815,14 @@ class Executor:
                             # Enhanced QuoteModel is already in the correct format
                             quote_at_fill = market_quote
                     except Exception as e:
-                        logger.debug(f"Could not fetch quote for {order.symbol}: {e}")
+                        logger.debug(
+                            "Could not fetch quote for symbol",
+                            extra={
+                                "symbol": order.symbol,
+                                "error": str(e),
+                                "error_type": type(e).__name__,
+                            },
+                        )
 
                 # Record order to ledger with quote data when available
                 self.trade_ledger.record_filled_order(
@@ -610,10 +833,22 @@ class Executor:
                 )
 
     def shutdown(self) -> None:
-        """Shutdown the executor and cleanup resources."""
+        """Shutdown the executor and cleanup resources.
+
+        Note: Pricing service cleanup is handled by WebSocketConnectionManager
+        when release_pricing_service() is called in __del__. The pricing service
+        stop() method is async and cannot be called from this sync method.
+        """
+        # Pricing service is managed by WebSocketConnectionManager
+        # Cleanup happens via websocket_manager.release_pricing_service() in __del__
         if self.pricing_service:
-            try:
-                self.pricing_service.stop()  # type: ignore[unused-coroutine]
-                logger.info("✅ Pricing service stopped")
-            except Exception as e:
-                logger.debug(f"Error stopping pricing service: {e}")
+            logger.debug(
+                "Pricing service will be cleaned up by WebSocketConnectionManager",
+                extra={"pricing_service_active": True},
+            )
+
+        # Clear execution cache to free memory
+        if hasattr(self, "_execution_cache"):
+            cache_size = len(self._execution_cache)
+            self._execution_cache.clear()
+            logger.debug("Execution cache cleared", extra={"cache_entries_cleared": cache_size})
