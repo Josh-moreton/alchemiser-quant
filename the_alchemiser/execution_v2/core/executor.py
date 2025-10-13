@@ -676,7 +676,8 @@ class Executor:
         MIN_PRICE_THRESHOLD = Decimal("0.001")  # $0.001 minimum price threshold
 
         # For liquidation (0% target), use actual position quantity
-        if item.action == "SELL" and item.target_weight == Decimal("0.0"):
+        action = item.action.upper()
+        if action == "SELL" and item.target_weight == Decimal("0.0"):
             raw_shares = self._position_utils.get_position_quantity(item.symbol)
             shares = self._position_utils.adjust_quantity_for_fractionability(
                 item.symbol, raw_shares
