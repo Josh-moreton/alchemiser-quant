@@ -43,6 +43,9 @@ from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ..core.portfolio_service import PortfolioServiceV2
 
+# Module name constant for consistent logging and error reporting
+MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
+
 
 def _to_decimal_safe(value: object) -> Decimal:
     """Convert a value to Decimal safely, returning 0 for invalid values.
@@ -96,7 +99,7 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
         raise NegativeCashBalanceError(
             f"Invalid cash balance: {result['cash']}. Cannot proceed with portfolio analysis.",
             cash_balance=str(result["cash"]),
-            module="portfolio_v2.handlers.portfolio_analysis_handler",
+            module=MODULE_NAME,
         )
 
     return result
@@ -176,7 +179,7 @@ class PortfolioAnalysisHandler:
                     f"PortfolioAnalysisHandler ignoring event type: {event.event_type}"
                 )
 
-        except (PortfolioError, DataProviderError, NegativeCashBalanceError) as e:
+        except (PortfolioError, DataProviderError) as e:
             # Re-raise specific errors after logging
             self.logger.error(
                 f"Portfolio analysis failed with known error for {event.event_type}",
@@ -201,7 +204,7 @@ class PortfolioAnalysisHandler:
             self._emit_workflow_failure(event, str(e))
             raise PortfolioError(
                 f"Unexpected error in portfolio analysis: {e}",
-                module="portfolio_v2.handlers.portfolio_analysis_handler",
+                module=MODULE_NAME,
                 operation="handle_event",
                 correlation_id=event.correlation_id,
             ) from e
@@ -259,7 +262,7 @@ class PortfolioAnalysisHandler:
             if not allocation_comparison:
                 raise PortfolioError(
                     "Failed to generate allocation comparison",
-                    module="portfolio_v2.handlers.portfolio_analysis_handler",
+                    module=MODULE_NAME,
                     operation="_handle_signal_generated",
                     correlation_id=event.correlation_id,
                 )
@@ -279,7 +282,7 @@ class PortfolioAnalysisHandler:
             if rebalance_plan is None:
                 raise PortfolioError(
                     "Rebalance plan could not be created",
-                    module="portfolio_v2.handlers.portfolio_analysis_handler",
+                    module=MODULE_NAME,
                     operation="_handle_signal_generated",
                     correlation_id=event.correlation_id,
                 )
@@ -296,7 +299,7 @@ class PortfolioAnalysisHandler:
                 extra={"correlation_id": event.correlation_id},
             )
 
-        except (PortfolioError, DataProviderError, NegativeCashBalanceError):
+        except (PortfolioError, DataProviderError):
             # Re-raise specific errors
             raise
         except Exception as e:
@@ -308,7 +311,7 @@ class PortfolioAnalysisHandler:
             self._emit_workflow_failure(event, str(e))
             raise PortfolioError(
                 f"Unexpected error in portfolio analysis: {e}",
-                module="portfolio_v2.handlers.portfolio_analysis_handler",
+                module=MODULE_NAME,
                 operation="_handle_signal_generated",
                 correlation_id=event.correlation_id,
             ) from e
@@ -477,7 +480,7 @@ class PortfolioAnalysisHandler:
         except Exception as e:
             raise PortfolioError(
                 f"Allocation comparison analysis failed: {e}",
-                module="portfolio_v2.handlers.portfolio_analysis_handler",
+                module=MODULE_NAME,
                 operation="_analyze_allocation_comparison",
             ) from e
 
@@ -606,7 +609,7 @@ class PortfolioAnalysisHandler:
         except Exception as e:
             raise PortfolioError(
                 f"Failed to create rebalance plan: {e}",
-                module="portfolio_v2.handlers.portfolio_analysis_handler",
+                module=MODULE_NAME,
                 operation="_create_rebalance_plan_from_allocation",
                 correlation_id=correlation_id,
             ) from e
