@@ -389,6 +389,49 @@ class ExecutionSettings(BaseModel):
     treat_partial_execution_as_failure: bool = True
 
 
+class EventBridgeSettings(BaseModel):
+    """Amazon EventBridge configuration for event-driven architecture.
+
+    Controls migration from in-memory EventBus to durable EventBridge.
+    """
+
+    # Feature flags for gradual migration
+    use_eventbridge: bool = Field(
+        default=False,
+        description="Use EventBridge instead of in-memory bus (Phase 3 migration)",
+    )
+    enable_dual_publish: bool = Field(
+        default=False,
+        description="Publish to both in-memory and EventBridge for testing (Phase 2 hybrid mode)",
+    )
+
+    # EventBridge configuration
+    event_bus_name: str = Field(
+        default="alchemiser-trading-events",
+        description="Name of the EventBridge event bus",
+    )
+    source_prefix: str = Field(
+        default="alchemiser",
+        description="Prefix for event sources (e.g., 'alchemiser.strategy')",
+    )
+
+    # Retry and error handling
+    max_retry_attempts: int = Field(
+        default=3,
+        description="Maximum retry attempts for failed event delivery",
+    )
+    max_event_age_seconds: int = Field(
+        default=3600,
+        description="Maximum age of an event in seconds before retry expires",
+    )
+
+    # Archive configuration
+    archive_retention_days: int = Field(
+        default=365,
+        description="Event archive retention period in days",
+    )
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables and .env file."""
 
@@ -402,6 +445,7 @@ class Settings(BaseSettings):
     tracking: TrackingSettings = TrackingSettings()
     trade_ledger: TradeLedgerSettings = TradeLedgerSettings()
     execution: ExecutionSettings = ExecutionSettings()
+    eventbridge: EventBridgeSettings = EventBridgeSettings()
 
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",
