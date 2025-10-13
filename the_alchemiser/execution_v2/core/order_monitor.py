@@ -15,6 +15,8 @@ from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartOrderResult,
 )
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
+from the_alchemiser.shared.errors.exceptions import OrderExecutionError
+from the_alchemiser.shared.errors.trading_errors import OrderError
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
@@ -25,9 +27,46 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Default monitoring configuration constants
+DEFAULT_MAX_REPEGS = 3
+DEFAULT_FILL_WAIT_SECONDS = 10
+DEFAULT_WAIT_BETWEEN_CHECKS = 1
+DEFAULT_MAX_TOTAL_WAIT_SECONDS = 60
+DEFAULT_PLACEMENT_TIMEOUT_SECONDS = 30
+SAFETY_MARGIN_SECONDS = 30
+MIN_TOTAL_WAIT_SECONDS = 60
+MAX_TOTAL_WAIT_SECONDS = 600  # 10 minutes
+CHECK_FREQUENCY_DIVISOR = 5  # Check 5x per fill_wait period
+MAX_WAIT_BETWEEN_CHECKS = 5
+
 
 class OrderMonitor:
-    """Handles order monitoring and re-pegging operations."""
+    """Handles order monitoring and re-pegging operations.
+
+    This class provides sophisticated order monitoring capabilities including:
+    - Periodic checking of order fill status
+    - Intelligent re-pegging of limit orders
+    - Escalation of unfilled orders to market execution
+    - Tracking of cancelled/expired orders with partial fills
+
+    Thread Safety:
+        This class is NOT thread-safe. It is designed to be used by a single
+        async execution context. The smart_strategy.order_tracker that this class
+        queries may have its own thread-safety guarantees (see SmartExecutionStrategy
+        documentation), but OrderMonitor itself makes no guarantees about concurrent
+        access to its methods.
+
+        For concurrent monitoring of multiple phases, instantiate separate OrderMonitor
+        instances with independent smart_strategy objects, or use async locking if
+        sharing a single instance.
+
+    Typical Usage:
+        >>> monitor = OrderMonitor(smart_strategy, config)
+        >>> updated_orders = await monitor.monitor_and_repeg_phase_orders(
+        ...     "BUY", initial_orders, correlation_id="trade-123"
+        ... )
+
+    """
 
     def __init__(
         self,
@@ -37,8 +76,15 @@ class OrderMonitor:
         """Initialize the order monitor.
 
         Args:
-            smart_strategy: Smart execution strategy instance
-            execution_config: Execution configuration
+            smart_strategy: Smart execution strategy instance providing order tracking
+                          and re-peg capabilities. If None, monitoring is disabled.
+            execution_config: Execution configuration with monitoring parameters.
+                            If None, falls back to module-level defaults.
+
+        Note:
+            Both arguments are optional to support testing and degraded operation modes.
+            When smart_strategy is None, monitoring operations return immediately without
+            performing any order tracking or escalation.
 
         """
         self.smart_strategy = smart_strategy
@@ -82,48 +128,109 @@ class OrderMonitor:
         Returns:
             Dictionary containing monitoring configuration parameters.
 
+        Raises:
+            No exceptions are raised; configuration errors are logged and defaults are used.
+
+        Note:
+            The configuration is derived from ExecutionConfig when available,
+            otherwise falls back to module-level constants. The wait_between_checks
+            is calculated dynamically to check ~5 times per fill_wait period.
+
         """
         config = {
-            "max_repegs": 3,
-            "fill_wait_seconds": 10,
-            "wait_between_checks": 1,
-            "max_total_wait": 60,
+            "max_repegs": DEFAULT_MAX_REPEGS,
+            "fill_wait_seconds": DEFAULT_FILL_WAIT_SECONDS,
+            "wait_between_checks": DEFAULT_WAIT_BETWEEN_CHECKS,
+            "max_total_wait": DEFAULT_MAX_TOTAL_WAIT_SECONDS,
         }
 
         try:
             if self.execution_config is not None:
-                config["max_repegs"] = getattr(self.execution_config, "max_repegs_per_order", 3)
+                config["max_repegs"] = getattr(
+                    self.execution_config, "max_repegs_per_order", DEFAULT_MAX_REPEGS
+                )
                 config["fill_wait_seconds"] = int(
-                    getattr(self.execution_config, "fill_wait_seconds", 10)
+                    getattr(self.execution_config, "fill_wait_seconds", DEFAULT_FILL_WAIT_SECONDS)
                 )
-                config["wait_between_checks"] = max(
-                    1, min(config["fill_wait_seconds"] // 5, 5)
-                )  # Check 5x per fill_wait period
+                config["wait_between_checks"] = self._calculate_check_interval(
+                    config["fill_wait_seconds"]
+                )
                 placement_timeout = int(
-                    getattr(self.execution_config, "order_placement_timeout_seconds", 30)
+                    getattr(
+                        self.execution_config,
+                        "order_placement_timeout_seconds",
+                        DEFAULT_PLACEMENT_TIMEOUT_SECONDS,
+                    )
                 )
-                # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
+                # Calculate total wait time: placement timeout + fill waits per re-peg + safety margin
                 config["max_total_wait"] = int(
                     placement_timeout
                     + config["fill_wait_seconds"] * (config["max_repegs"] + 1)
-                    + 30  # +30s safety margin
+                    + SAFETY_MARGIN_SECONDS
                 )
+                # Clamp to reasonable bounds
                 config["max_total_wait"] = max(
-                    60, min(config["max_total_wait"], 600)
-                )  # Increased max to 10 minutes
+                    MIN_TOTAL_WAIT_SECONDS, min(config["max_total_wait"], MAX_TOTAL_WAIT_SECONDS)
+                )
+        except (AttributeError, ValueError, TypeError) as exc:
+            logger.warning(
+                "Error deriving re-peg loop configuration, using defaults",
+                extra={"error": str(exc), "defaults": config},
+            )
         except Exception as exc:
-            logger.debug(f"Error deriving re-peg loop bounds: {exc}")
+            logger.error(
+                "Unexpected error deriving re-peg loop configuration",
+                extra={"error": str(exc), "defaults": config},
+                exc_info=True,
+            )
+            raise OrderError(
+                f"Failed to derive monitoring configuration: {exc}",
+                context={"config_attempted": config},
+            ) from exc
 
         return config
+
+    def _calculate_check_interval(self, fill_wait_seconds: int) -> int:
+        """Calculate optimal interval between order status checks.
+
+        Args:
+            fill_wait_seconds: Time to wait for order fills
+
+        Returns:
+            Optimal check interval in seconds (1-5 seconds)
+
+        Note:
+            Aims to check approximately 5 times per fill_wait period for
+            responsive monitoring without excessive API calls.
+
+        """
+        return max(
+            DEFAULT_WAIT_BETWEEN_CHECKS,
+            min(fill_wait_seconds // CHECK_FREQUENCY_DIVISOR, MAX_WAIT_BETWEEN_CHECKS),
+        )
 
     def _log_monitoring_config(
         self, phase_type: str, config: dict[str, int], correlation_id: str | None = None
     ) -> None:
-        """Log the monitoring configuration parameters."""
+        """Log the monitoring configuration parameters.
+
+        Args:
+            phase_type: Type of phase being monitored
+            config: Configuration dictionary with monitoring parameters
+            correlation_id: Optional correlation ID for tracking
+
+        """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.debug(
-            f"{log_prefix} {phase_type} re-peg monitoring: max_repegs={config['max_repegs']}, "
-            f"fill_wait_seconds={config['fill_wait_seconds']}, max_total_wait={config['max_total_wait']}s"
+            f"{log_prefix} {phase_type} re-peg monitoring configuration",
+            extra={
+                "correlation_id": correlation_id,
+                "phase_type": phase_type,
+                "max_repegs": config["max_repegs"],
+                "fill_wait_seconds": config["fill_wait_seconds"],
+                "max_total_wait": config["max_total_wait"],
+                "wait_between_checks": config["wait_between_checks"],
+            },
         )
 
     async def _execute_repeg_monitoring_loop(
@@ -177,10 +284,51 @@ class OrderMonitor:
                 # Wait for fills after re-pegging
                 await asyncio.sleep(config["fill_wait_seconds"])
 
-            except Exception as exc:
+            except OrderExecutionError as exc:
                 logger.warning(
-                    f"{log_prefix} ⚠️ {phase_type} phase re-peg attempt {attempts} failed: {exc}"
+                    f"{log_prefix} ⚠️ {phase_type} phase re-peg attempt {attempts} failed (order execution error)",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "phase_type": phase_type,
+                        "attempt": attempts,
+                        "error_type": "order_execution",
+                        "error": str(exc),
+                        "context": getattr(exc, "context", {}),
+                    },
                 )
+            except OrderError as exc:
+                logger.warning(
+                    f"{log_prefix} ⚠️ {phase_type} phase re-peg attempt {attempts} failed (order error)",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "phase_type": phase_type,
+                        "attempt": attempts,
+                        "error_type": "order",
+                        "error": str(exc),
+                        "order_id": getattr(exc, "order_id", None),
+                    },
+                )
+            except Exception as exc:
+                logger.error(
+                    f"{log_prefix} ❌ {phase_type} phase re-peg attempt {attempts} failed (unexpected error)",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "phase_type": phase_type,
+                        "attempt": attempts,
+                        "error_type": "unexpected",
+                        "error": str(exc),
+                    },
+                    exc_info=True,
+                )
+                # Re-raise unexpected errors as OrderError for proper handling upstream
+                raise OrderError(
+                    f"Unexpected error during {phase_type} re-peg monitoring attempt {attempts}: {exc}",
+                    context={
+                        "phase_type": phase_type,
+                        "attempt": attempts,
+                        "correlation_id": correlation_id,
+                    },
+                ) from exc
 
         self._log_monitoring_completion(
             phase_type, attempts, time.time() - start_time, correlation_id
@@ -241,11 +389,48 @@ class OrderMonitor:
             return await self._execute_escalation_and_build_replacement_map(
                 orders_to_escalate, log_prefix
             )
-        except Exception as exc:
-            logger.exception(
-                f"{log_prefix} Error during final escalation to market in {phase_type} repeg monitoring: {exc}"
+        except OrderExecutionError as exc:
+            logger.error(
+                f"{log_prefix} Order execution error during final escalation in {phase_type} phase",
+                extra={
+                    "correlation_id": correlation_id,
+                    "phase_type": phase_type,
+                    "error_type": "order_execution",
+                    "error": str(exc),
+                    "context": getattr(exc, "context", {}),
+                },
+                exc_info=True,
             )
             return {}
+        except OrderError as exc:
+            logger.error(
+                f"{log_prefix} Order error during final escalation in {phase_type} phase",
+                extra={
+                    "correlation_id": correlation_id,
+                    "phase_type": phase_type,
+                    "error_type": "order",
+                    "error": str(exc),
+                    "order_id": getattr(exc, "order_id", None),
+                },
+                exc_info=True,
+            )
+            return {}
+        except Exception as exc:
+            logger.error(
+                f"{log_prefix} Unexpected error during final escalation in {phase_type} phase",
+                extra={
+                    "correlation_id": correlation_id,
+                    "phase_type": phase_type,
+                    "error_type": "unexpected",
+                    "error": str(exc),
+                },
+                exc_info=True,
+            )
+            # Re-raise unexpected errors
+            raise OrderError(
+                f"Unexpected error during final escalation in {phase_type} phase: {exc}",
+                context={"phase_type": phase_type, "correlation_id": correlation_id},
+            ) from exc
 
     def _collect_orders_for_escalation(
         self,
@@ -370,29 +555,84 @@ class OrderMonitor:
             )
 
     def _should_skip_order(self, order: OrderResult, active: dict[str, SmartOrderRequest]) -> bool:
-        """Check if order should be skipped for escalation.
+        """Check if order should be skipped for escalation checks.
+
+        This method determines whether an order needs further escalation processing.
+        Orders are skipped if they lack valid order IDs, failed at placement, or are
+        still being actively monitored by the re-peg system.
 
         Args:
-            order: Order to check
-            active: Dictionary of active orders
+            order: Order result to evaluate
+            active: Dictionary of currently active orders being tracked for re-pegging
 
         Returns:
-            True if order should be skipped.
+            True if order should be skipped (no escalation needed), False otherwise
+
+        Pre-conditions:
+            - order must be a valid OrderResult instance
+            - active must be a dict mapping order IDs to SmartOrderRequest objects
+
+        Post-conditions:
+            - Returns boolean; no state modification
+
+        Examples:
+            >>> order = OrderResult(order_id=None, success=True, ...)
+            >>> monitor._should_skip_order(order, {})
+            True  # No order ID means skip
+
+            >>> order = OrderResult(order_id="abc-123", success=True, ...)
+            >>> active = {"abc-123": SmartOrderRequest(...)}
+            >>> monitor._should_skip_order(order, active)
+            True  # Still active, being handled by re-peg system
+
+            >>> order = OrderResult(order_id="xyz-789", success=True, ...)
+            >>> monitor._should_skip_order(order, {})
+            False  # Has ID, not active, needs escalation check
 
         """
         if not order.order_id or not order.success:
             return True
-        # Skip if order is still in active tracking (already handled)
+        # Skip if order is still in active tracking (already handled by re-peg system)
         return order.order_id in active
 
     def _get_order_status(self, order_id: str) -> str | None:
-        """Get order status from broker.
+        """Get current order status from broker API.
+
+        Queries the Alpaca broker API to retrieve the current completion status
+        of an order. This is used to detect cancelled, expired, or rejected orders
+        that may have unfilled quantities requiring market order escalation.
 
         Args:
-            order_id: Order ID to check
+            order_id: Broker order identifier (UUID string)
 
         Returns:
-            Order status or None if not available.
+            Order status string (e.g., "FILLED", "CANCELED", "EXPIRED", "REJECTED")
+            or None if status cannot be determined or smart_strategy is unavailable
+
+        Pre-conditions:
+            - order_id must be a valid non-empty string
+            - smart_strategy must be initialized (if None, returns None)
+
+        Post-conditions:
+            - Makes external API call to broker
+            - Returns status or None; no state modification
+
+        Raises:
+            No exceptions raised directly. Broker API errors are handled by
+            AlpacaManager and return None.
+
+        Examples:
+            >>> status = monitor._get_order_status("abc-123-uuid")
+            >>> print(status)
+            'FILLED'
+
+            >>> status = monitor._get_order_status("cancelled-order-id")
+            >>> print(status)
+            'CANCELED'
+
+        Note:
+            This method makes an external API call and should be used judiciously
+            to avoid rate limits. It's called once per order during escalation checks.
 
         """
         if not self.smart_strategy:
@@ -423,13 +663,48 @@ class OrderMonitor:
     ) -> None:
         """Check for unfilled quantity and add to escalation list if needed.
 
+        Verifies if an order with a terminal status (CANCELED, EXPIRED, REJECTED)
+        has unfilled shares that require market order escalation. This prevents
+        partial fills or zero fills from leaving positions unexecuted.
+
         Args:
-            order: Order to check
-            order_id: Order ID (guaranteed non-None)
-            order_status: Current order status
-            orders_to_escalate: Dictionary to populate with orders needing escalation
-            log_prefix: Logging prefix for correlation
-            correlation_id: Optional correlation ID
+            order: Original order result to check
+            order_id: Broker order identifier (guaranteed non-None by caller)
+            order_status: Current terminal status (CANCELED/EXPIRED/REJECTED)
+            orders_to_escalate: Dictionary to populate with orders requiring escalation.
+                               Maps order_id to (SmartOrderRequest, reason) tuples.
+            log_prefix: Logging prefix including correlation ID
+            correlation_id: Optional correlation ID for tracking
+
+        Pre-conditions:
+            - order_id is a non-empty valid broker order ID
+            - order_status is one of: CANCELED, EXPIRED, or REJECTED
+            - smart_strategy must be initialized
+            - orders_to_escalate dict exists and is mutable
+
+        Post-conditions:
+            - If unfilled quantity exists, adds entry to orders_to_escalate dict
+            - Logs warning when unfilled quantity detected
+            - No modification if order fully filled or errors occur
+
+        Side effects:
+            - Queries broker API for filled quantity (via _get_filled_quantity)
+            - Modifies orders_to_escalate dict if unfilled quantity found
+            - Writes log messages for unfilled orders and errors
+
+        Raises:
+            No exceptions propagated. Handles AttributeError, ValueError, TypeError
+            for data access errors, and logs unexpected exceptions.
+
+        Examples:
+            >>> # Order with 10 shares requested, 3 filled, 7 unfilled
+            >>> order = OrderResult(symbol="AAPL", shares=Decimal("10"), ...)
+            >>> orders_to_escalate = {}
+            >>> monitor._check_and_add_unfilled_order(
+            ...     order, "abc-123", "CANCELED", orders_to_escalate, "[corr-1]", "corr-1"
+            ... )
+            >>> print(orders_to_escalate)
+            {'abc-123': (SmartOrderRequest(symbol='AAPL', quantity=Decimal('7'), ...), 'canceled_unfilled')}
 
         """
         if not self.smart_strategy:
@@ -438,6 +713,14 @@ class OrderMonitor:
         try:
             filled_qty = self._get_filled_quantity(order_id)
             if filled_qty is None:
+                logger.debug(
+                    f"{log_prefix} Could not determine filled quantity for order {order_id}",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "order_id": order_id,
+                        "order_status": order_status,
+                    },
+                )
                 return
 
             # Use Decimal comparison to avoid float precision issues
@@ -451,10 +734,32 @@ class OrderMonitor:
                     log_prefix,
                     correlation_id,
                 )
-        except (AttributeError, ValueError, TypeError) as e:
-            logger.debug(f"Could not check order {order_id}: {e}")
-        except Exception as e:
-            logger.warning(f"Unexpected error checking order {order_id}: {e}", exc_info=True)
+        except (AttributeError, ValueError, TypeError) as exc:
+            logger.debug(
+                f"{log_prefix} Data access error checking order {order_id}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "order_id": order_id,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                f"{log_prefix} Unexpected error checking order {order_id}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "order_id": order_id,
+                    "error": str(exc),
+                },
+                exc_info=True,
+            )
+            # Re-raise unexpected errors as OrderError
+            raise OrderError(
+                f"Unexpected error checking unfilled quantity for order {order_id}: {exc}",
+                order_id=order_id,
+                context={"correlation_id": correlation_id, "order_status": order_status},
+            ) from exc
 
     def _get_filled_quantity(self, order_id: str) -> Decimal | None:
         """Get filled quantity for an order.
@@ -497,8 +802,17 @@ class OrderMonitor:
         """
         remaining_qty = order.shares - filled_qty
         logger.warning(
-            f"{log_prefix} 🚨 Order {order_id} was {order_status} with "
-            f"{remaining_qty} unfilled ({order.symbol} {order.action}); escalating to market"
+            f"{log_prefix} 🚨 Order escalation triggered - {order_status} with unfilled quantity",
+            extra={
+                "correlation_id": correlation_id,
+                "order_id": order_id,
+                "order_status": order_status,
+                "symbol": order.symbol,
+                "action": order.action,
+                "requested_shares": str(order.shares),
+                "filled_shares": str(filled_qty),
+                "remaining_shares": str(remaining_qty),
+            },
         )
         # Create request for the remaining quantity
         request = SmartOrderRequest(
@@ -553,11 +867,24 @@ class OrderMonitor:
         elapsed_total: float,
         correlation_id: str | None = None,
     ) -> None:
-        """Log when no re-pegging activity occurred."""
+        """Log when no re-pegging activity occurred.
+
+        Args:
+            phase_type: Type of phase being monitored
+            attempts: Current attempt number
+            elapsed_total: Total elapsed time in seconds
+            correlation_id: Optional correlation ID for tracking
+
+        """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.debug(
-            f"{log_prefix} 🔄 {phase_type} phase re-peg check #{attempts}: no unfilled orders "
-            f"(elapsed: {elapsed_total:.1f}s)"
+            f"{log_prefix} 🔄 {phase_type} phase re-peg check - no unfilled orders",
+            extra={
+                "correlation_id": correlation_id,
+                "phase_type": phase_type,
+                "attempt": attempts,
+                "elapsed_seconds": round(elapsed_total, 1),
+            },
         )
 
     def _should_terminate_early(
@@ -570,20 +897,25 @@ class OrderMonitor:
         """Check if monitoring should terminate early.
 
         Args:
-            elapsed_total: Total elapsed time
-            max_total_wait: Maximum wait time
-            phase_type: Type of phase
+            elapsed_total: Total elapsed time in seconds
+            max_total_wait: Maximum wait time in seconds
+            phase_type: Type of phase being monitored
             correlation_id: Optional correlation ID for tracking
 
         Returns:
-            True if should terminate early
+            True if should terminate early (time limit exceeded), False otherwise
 
         """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
         if elapsed_total > max_total_wait:
             logger.info(
-                f"{log_prefix} ⏰ {phase_type} phase: Terminating re-peg loop after {elapsed_total:.1f}s "
-                f"(max: {max_total_wait}s)"
+                f"{log_prefix} ⏰ {phase_type} phase: Terminating re-peg loop - time limit exceeded",
+                extra={
+                    "correlation_id": correlation_id,
+                    "phase_type": phase_type,
+                    "elapsed_seconds": round(elapsed_total, 1),
+                    "max_wait_seconds": max_total_wait,
+                },
             )
             return True
         return False
@@ -598,22 +930,34 @@ class OrderMonitor:
         """Log completion of monitoring phase.
 
         Args:
-            phase_type: Type of phase
-            attempts: Number of attempts made
-            total_elapsed: Total elapsed time
+            phase_type: Type of phase being monitored
+            attempts: Number of monitoring attempts made
+            total_elapsed: Total elapsed time in seconds
             correlation_id: Optional correlation ID for tracking
 
         """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.info(
-            f"{log_prefix} ✅ {phase_type} phase re-peg monitoring complete: "
-            f"{attempts} attempts in {total_elapsed:.1f}s"
+            f"{log_prefix} ✅ {phase_type} phase re-peg monitoring complete",
+            extra={
+                "correlation_id": correlation_id,
+                "phase_type": phase_type,
+                "attempts": attempts,
+                "elapsed_seconds": round(total_elapsed, 1),
+            },
         )
 
     def _log_repeg_status(
         self, phase_type: str, repeg_result: SmartOrderResult, correlation_id: str | None = None
     ) -> None:
-        """Log the status of a re-pegging operation."""
+        """Log the status of a re-pegging operation.
+
+        Args:
+            phase_type: Type of phase being monitored
+            repeg_result: Result of re-peg operation
+            correlation_id: Optional correlation ID for tracking
+
+        """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")
@@ -621,16 +965,31 @@ class OrderMonitor:
 
         if "escalation" in strategy:
             logger.warning(
-                f"{log_prefix} 🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} (after {repegs_used} re-pegs)"
+                f"{log_prefix} 🚨 {phase_type} ESCALATED_TO_MARKET",
+                extra={
+                    "correlation_id": correlation_id,
+                    "phase_type": phase_type,
+                    "order_id": order_id,
+                    "repegs_used": repegs_used,
+                    "execution_strategy": strategy,
+                },
             )
         else:
             max_repegs = (
-                getattr(self.execution_config, "max_repegs_per_order", 3)
+                getattr(self.execution_config, "max_repegs_per_order", DEFAULT_MAX_REPEGS)
                 if self.execution_config
-                else 3
+                else DEFAULT_MAX_REPEGS
             )
             logger.debug(
-                f"{log_prefix} ✅ {phase_type} REPEG {repegs_used}/{max_repegs}: {order_id}"
+                f"{log_prefix} ✅ {phase_type} REPEG",
+                extra={
+                    "correlation_id": correlation_id,
+                    "phase_type": phase_type,
+                    "order_id": order_id,
+                    "repegs_used": repegs_used,
+                    "max_repegs": max_repegs,
+                    "execution_strategy": strategy,
+                },
             )
 
     def _extract_order_ids(self, repeg_result: SmartOrderResult) -> tuple[str, str]:
@@ -643,10 +1002,23 @@ class OrderMonitor:
     def _handle_failed_repeg(
         self, phase_type: str, repeg_result: SmartOrderResult, correlation_id: str | None = None
     ) -> None:
-        """Handle failed re-pegging attempts."""
+        """Handle failed re-pegging attempts.
+
+        Args:
+            phase_type: Type of phase being monitored
+            repeg_result: Failed repeg result
+            correlation_id: Optional correlation ID for tracking
+
+        """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.warning(
-            f"{log_prefix} ⚠️ {phase_type} phase re-peg failed: {repeg_result.error_message}"
+            f"{log_prefix} ⚠️ {phase_type} phase re-peg failed",
+            extra={
+                "correlation_id": correlation_id,
+                "phase_type": phase_type,
+                "error_message": repeg_result.error_message,
+                "execution_strategy": getattr(repeg_result, "execution_strategy", ""),
+            },
         )
 
     def _build_replacement_map_from_repeg_result(

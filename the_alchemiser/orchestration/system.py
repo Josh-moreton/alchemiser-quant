@@ -76,9 +76,7 @@ class TradingSystem:
 
     def _initialize_di(self) -> None:
         """Initialize dependency injection system."""
-        self.container = ApplicationContainer()
-        # Initialize execution providers with late binding to avoid circular imports
-        ApplicationContainer.initialize_execution_providers(self.container)
+        self.container = ApplicationContainer.create_for_environment("development")
         ServiceFactory.initialize(self.container)
         self.logger.debug("Dependency injection initialized")
 
