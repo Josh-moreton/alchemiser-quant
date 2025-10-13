@@ -6,6 +6,8 @@ import pytest
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.config.config_service import (
+    CONFIG_KEY_ALPACA_ENDPOINT,
+    CONFIG_KEY_ALPACA_PAPER_ENDPOINT,
     DEFAULT_CACHE_DURATION_SECONDS,
     ConfigService,
 )
@@ -424,3 +426,13 @@ class TestConfigServiceConstants:
     def test_default_cache_duration_is_positive(self) -> None:
         """Test DEFAULT_CACHE_DURATION_SECONDS is a positive value."""
         assert DEFAULT_CACHE_DURATION_SECONDS > 0
+
+    def test_config_key_alpaca_paper_endpoint_constant(self) -> None:
+        """Test CONFIG_KEY_ALPACA_PAPER_ENDPOINT constant is defined correctly."""
+        assert CONFIG_KEY_ALPACA_PAPER_ENDPOINT == "alpaca.paper_endpoint"
+        assert isinstance(CONFIG_KEY_ALPACA_PAPER_ENDPOINT, str)
+
+    def test_config_key_alpaca_endpoint_constant(self) -> None:
+        """Test CONFIG_KEY_ALPACA_ENDPOINT constant is defined correctly."""
+        assert CONFIG_KEY_ALPACA_ENDPOINT == "alpaca.endpoint"
+        assert isinstance(CONFIG_KEY_ALPACA_ENDPOINT, str)

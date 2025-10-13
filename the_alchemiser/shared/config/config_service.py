@@ -16,6 +16,10 @@ from the_alchemiser.shared.logging import get_logger
 # Default cache duration for market data (1 hour)
 DEFAULT_CACHE_DURATION_SECONDS = 3600
 
+# Configuration key constants to avoid duplication
+CONFIG_KEY_ALPACA_PAPER_ENDPOINT = "alpaca.paper_endpoint"
+CONFIG_KEY_ALPACA_ENDPOINT = "alpaca.endpoint"
+
 logger = get_logger(__name__)
 
 
@@ -64,8 +68,6 @@ class ConfigService:
         if config is None:
             logger.info("Loading configuration from environment")
             config = load_settings()
-            if config is None:  # Should never happen but defensive check
-                raise ConfigurationError("Failed to load configuration from environment")
             logger.info("Configuration loaded successfully from environment")
         else:
             logger.debug("Using explicitly provided configuration")
@@ -139,18 +141,18 @@ class ConfigService:
             logger.error("Missing Alpaca paper endpoint configuration", exc_info=True)
             raise ConfigurationError(
                 "Missing Alpaca configuration: paper_endpoint",
-                config_key="alpaca.paper_endpoint",
+                config_key=CONFIG_KEY_ALPACA_PAPER_ENDPOINT,
             ) from e
 
         if not endpoint or not endpoint.startswith("http"):
             logger.error(
                 "Invalid paper endpoint URL",
                 endpoint=endpoint,
-                config_key="alpaca.paper_endpoint",
+                config_key=CONFIG_KEY_ALPACA_PAPER_ENDPOINT,
             )
             raise ConfigurationError(
                 "Invalid paper endpoint URL: must start with http:// or https://",
-                config_key="alpaca.paper_endpoint",
+                config_key=CONFIG_KEY_ALPACA_PAPER_ENDPOINT,
                 config_value=endpoint,
             )
 
@@ -176,18 +178,18 @@ class ConfigService:
             logger.error("Missing Alpaca live endpoint configuration", exc_info=True)
             raise ConfigurationError(
                 "Missing Alpaca configuration: endpoint",
-                config_key="alpaca.endpoint",
+                config_key=CONFIG_KEY_ALPACA_ENDPOINT,
             ) from e
 
         if not endpoint or not endpoint.startswith("http"):
             logger.error(
                 "Invalid live endpoint URL",
                 endpoint=endpoint,
-                config_key="alpaca.endpoint",
+                config_key=CONFIG_KEY_ALPACA_ENDPOINT,
             )
             raise ConfigurationError(
                 "Invalid live endpoint URL: must start with http:// or https://",
-                config_key="alpaca.endpoint",
+                config_key=CONFIG_KEY_ALPACA_ENDPOINT,
                 config_value=endpoint,
             )
 
