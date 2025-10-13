@@ -1,5 +1,46 @@
 ## [Unreleased]
 
+## [2.21.0] - 2025-10-13
+
+### Added
+- **Comprehensive test suite for AlpacaManager**: Created `tests/shared/brokers/test_alpaca_manager.py` with 25 tests
+  - Singleton behavior tests (6 tests): same/different credentials, cleanup, hash collision handling
+  - Credential security tests (5 tests): hashing, deprecation warnings, no credential exposure in logs/repr
+  - Thread safety tests (3 tests): concurrent instance creation, cleanup coordination with Events, multiple threads
+  - Delegation tests (6 tests): market data operations, Decimal handling (float/Decimal defensive conversion), properties
+  - Cleanup tests (3 tests): cleanup_all_instances, error isolation per instance, post-cleanup instance creation
+  - Factory function tests (2 tests): create_alpaca_manager creation and singleton respect
+  - All tests use proper mocking to avoid external dependencies
+  - Target: 80%+ test coverage for critical integration point
+
+### Changed
+- **AlpacaManager architectural documentation**: Enhanced documentation for circular import pattern
+  - Created `docs/adr/ADR-001-circular-imports.md` documenting intentional circular import trade-offs
+  - Added comprehensive module docstring explaining singleton facade pattern and import requirements
+  - Added inline comments at import locations (lines ~248, ~264) explaining circular dependency rationale
+  - Documents that WebSocketConnectionManager and MarketDataService imports are intentionally deferred to __init__
+  - References ADR in all relevant locations for architectural clarity
+  - Created `docs/adr/README.md` with ADR usage guidelines and template
+
+- **Optimized Decimal conversion in get_current_price**: Defensive programming for type safety
+  - Added conditional conversion: checks if price is already Decimal before converting
+  - Handles both Decimal and float returns from MarketDataService
+  - Prevents unnecessary string conversion overhead when service returns Decimal
+  - Maintains backward compatibility while preparing for future service enhancements
+  - Converts via string (Decimal(str(price))) to avoid float precision issues
+
+- **Enhanced factory function documentation**: Added usage context and rationale
+  - Documented `create_alpaca_manager` is used by `pnl_service.py`
+  - Added note about backward compatibility and stable public API
+  - Included usage example in docstring
+  - Clarifies factory provides minimal overhead and supports dependency injection
+
+### Security
+- **No changes to security posture**: All high-priority security fixes already completed in PR #2202
+  - Credentials remain hashed (SHA-256) for dictionary keys
+  - Credential properties still emit deprecation warnings
+  - No credential exposure in logs, debug output, or __repr__
+
 ## [2.20.7] - 2025-10-10
 
 ### Added

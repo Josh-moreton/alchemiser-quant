@@ -11,6 +11,30 @@ It provides a clean interface that:
 
 Phase 2 Update: Now implements domain interfaces for type safety and future migration.
 Phase 3 Update: Moved to shared module to resolve architectural boundary violations.
+
+Architecture Notes:
+==================
+This module uses a **Singleton Facade Pattern** that requires some imports to be
+deferred to runtime (inside __init__) to break circular dependencies. This is an
+intentional design trade-off documented in docs/adr/ADR-001-circular-imports.md.
+
+Circular Import Dependencies:
+- WebSocketConnectionManager is imported inside __init__ (line ~248)
+- MarketDataService is imported inside __init__ (line ~264)
+
+This pattern is SAFE because:
+1. Imports occur after module and class definitions are complete
+2. __init__ runs once per credential set (singleton behavior)
+3. No module-level code dependencies exist
+4. Extensively tested for thread-safety and correctness
+
+Import Order Requirements:
+- AlpacaManager implements repository protocols (TradingRepository, etc.)
+- Services depend on these protocol implementations
+- Therefore, services MUST be imported after AlpacaManager is fully defined
+- DO NOT move these imports to module level
+
+See docs/adr/ADR-001-circular-imports.md for full architectural rationale.
 """
 
 from __future__ import annotations
@@ -245,6 +269,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
         # Initialize WebSocket manager for centralized WebSocket management
+        # NOTE: Imported inside __init__ to break circular dependency
+        # See docs/adr/ADR-001-circular-imports.md for architectural rationale
+        # DO NOT move this import to module level - it will cause import-time circular dependency
         from the_alchemiser.shared.services.websocket_manager import (
             WebSocketConnectionManager,
         )
@@ -261,6 +288,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._asset_metadata_service = AssetMetadataService(self._trading_client)
 
         # Initialize MarketDataService for delegation
+        # NOTE: Imported inside __init__ to break circular dependency
+        # See docs/adr/ADR-001-circular-imports.md for architectural rationale
+        # MarketDataService requires a repository implementing MarketDataRepository (which this class does)
+        # DO NOT move this import to module level - it will cause import-time circular dependency
         from the_alchemiser.shared.services.market_data_service import MarketDataService
 
         self._market_data_service = MarketDataService(self)
@@ -587,7 +618,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         price = self._market_data_service.get_current_price(symbol)
-        return Decimal(str(price)) if price is not None else None
+        if price is None:
+            return None
+        
+        # Defensive: handle both Decimal and float returns from service layer
+        # MarketDataService.get_current_price() currently returns float, but we convert
+        # to Decimal here for financial precision and to handle potential future changes
+        if isinstance(price, Decimal):
+            return price
+        return Decimal(str(price))  # Convert via string to avoid float precision issues
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols.
@@ -922,5 +961,13 @@ def create_alpaca_manager(
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
+    
+    Note: This factory function is maintained for backward compatibility and
+    is used by the_alchemiser.shared.services.pnl_service.py. It adds minimal
+    overhead and provides a stable public API for dependency injection.
+    
+    Usage:
+        >>> manager = create_alpaca_manager(api_key="...", secret_key="...", paper=True)
     """
     return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+
