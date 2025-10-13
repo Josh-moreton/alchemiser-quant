@@ -1,4 +1,4 @@
-"""Business Unit: execution; Status: current.
+"""Business Unit: execution | Status: current.
 
 Execution Validation Service.
 
@@ -9,16 +9,25 @@ and quantity adjustments for non-fractionable assets.
 from __future__ import annotations
 
 from decimal import ROUND_DOWN, Decimal
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors import AlchemiserError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.asset_info import AssetInfo
 
 logger = get_logger(__name__)
 
 
-class ExecutionValidationError(Exception):
-    """Exception raised when execution validation fails."""
+class ExecutionValidationError(AlchemiserError):
+    """Exception raised when execution validation fails.
+    
+    This exception is raised during pre-flight order validation when an order
+    cannot be placed due to validation constraints (e.g., non-tradable asset,
+    invalid quantity, non-fractionable asset with fractional quantity).
+    """
 
     def __init__(self, message: str, *, symbol: str, code: str | None = None) -> None:
         """Initialize with error details.
@@ -34,33 +43,40 @@ class ExecutionValidationError(Exception):
         self.code = code
 
 
-class OrderValidationResult:
-    """Result of order validation including any adjustments."""
+class OrderValidationResult(BaseModel):
+    """Result of order validation including any adjustments.
+    
+    This frozen DTO represents the outcome of order validation, including
+    whether the order is valid, any quantity adjustments made, warnings,
+    and error details if validation failed.
+    """
 
-    def __init__(
-        self,
-        *,
-        is_valid: bool,
-        adjusted_quantity: Decimal | None = None,
-        warnings: list[str] | None = None,
-        error_message: str | None = None,
-        error_code: str | None = None,
-    ) -> None:
-        """Initialize validation result.
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        extra="forbid",
+    )
 
-        Args:
-            is_valid: Whether order is valid and can proceed
-            adjusted_quantity: Adjusted quantity if changes were made
-            warnings: List of warnings about adjustments
-            error_message: Error message if validation failed
-            error_code: Error code if validation failed
-
-        """
-        self.is_valid = is_valid
-        self.adjusted_quantity = adjusted_quantity
-        self.warnings = warnings or []
-        self.error_message = error_message
-        self.error_code = error_code
+    is_valid: bool = Field(..., description="Whether order is valid and can proceed")
+    adjusted_quantity: Decimal | None = Field(
+        default=None, description="Adjusted quantity if changes were made"
+    )
+    warnings: tuple[str, ...] = Field(
+        default_factory=tuple, description="Warnings about adjustments"
+    )
+    error_message: str | None = Field(
+        default=None, description="Error message if validation failed"
+    )
+    error_code: str | None = Field(
+        default=None, description="Error code if validation failed"
+    )
+    schema_version: str = Field(
+        default="1.0", description="Schema version for evolution tracking"
+    )
+    correlation_id: str | None = Field(
+        default=None, description="Request correlation ID for tracing"
+    )
 
 
 class ExecutionValidator:
@@ -79,7 +95,7 @@ class ExecutionValidator:
         self,
         symbol: str,
         quantity: Decimal,
-        side: str,
+        side: Literal["buy", "sell"],
         *,
         correlation_id: str | None = None,
         auto_adjust: bool = True,
@@ -88,22 +104,34 @@ class ExecutionValidator:
 
         Args:
             symbol: Asset symbol
-            quantity: Order quantity
+            quantity: Order quantity (must be positive)
             side: "buy" or "sell"
             correlation_id: Optional correlation ID for tracing
             auto_adjust: Whether to auto-adjust non-fractionable quantities
 
         Returns:
             OrderValidationResult with validation outcome
+            
+        Raises:
+            ExecutionValidationError: If validation encounters an unexpected error
 
         """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
+
+        # Validate quantity is positive (early validation)
+        if quantity <= 0:
+            return OrderValidationResult(
+                is_valid=False,
+                error_message=f"Invalid quantity {quantity} for {symbol} (must be positive)",
+                error_code="INVALID_QUANTITY",
+                correlation_id=correlation_id,
+            )
 
         # Get asset info
         asset_info = self.alpaca_manager.get_asset_info(symbol)
         if asset_info is None:
             logger.warning(f"{log_prefix} Could not get asset info for {symbol}, allowing order")
-            return OrderValidationResult(is_valid=True)
+            return OrderValidationResult(is_valid=True, correlation_id=correlation_id)
 
         # Check if asset is tradable
         if not asset_info.tradable:
@@ -111,6 +139,7 @@ class ExecutionValidator:
                 is_valid=False,
                 error_message=f"Asset {symbol} is not tradable",
                 error_code="NOT_TRADABLE",
+                correlation_id=correlation_id,
             )
 
         # Check fractionability
@@ -118,28 +147,17 @@ class ExecutionValidator:
             return self._validate_non_fractionable_order(
                 symbol,
                 quantity,
-                side,
-                asset_info,
                 correlation_id,
                 auto_adjust=auto_adjust,
             )
 
-        # Asset is fractionable, allow any positive quantity
-        if quantity <= 0:
-            return OrderValidationResult(
-                is_valid=False,
-                error_message=f"Invalid quantity {quantity} for {symbol}",
-                error_code="INVALID_QUANTITY",
-            )
-
-        return OrderValidationResult(is_valid=True)
+        # Asset is fractionable, quantity already validated above
+        return OrderValidationResult(is_valid=True, correlation_id=correlation_id)
 
     def _validate_non_fractionable_order(
         self,
         symbol: str,
         quantity: Decimal,
-        _side: str,
-        _asset_info: AssetInfo,
         correlation_id: str | None,
         *,
         auto_adjust: bool,
@@ -148,14 +166,16 @@ class ExecutionValidator:
 
         Args:
             symbol: Asset symbol
-            quantity: Order quantity
-            _side: "buy" or "sell" (reserved for future use)
-            _asset_info: Asset information (reserved for future use)
+            quantity: Order quantity (already validated as positive)
             correlation_id: Optional correlation ID for tracing
             auto_adjust: Whether to auto-adjust quantities
 
         Returns:
             OrderValidationResult with validation outcome
+            
+        Note:
+            Uses default Decimal context for rounding (precision=28 digits).
+            For whole share rounding with ROUND_DOWN, default context is sufficient.
 
         """
         log_prefix = f"[{correlation_id}]" if correlation_id else ""
@@ -165,7 +185,7 @@ class ExecutionValidator:
             logger.debug(
                 f"{log_prefix} Non-fractionable {symbol}: quantity {quantity} is already whole"
             )
-            return OrderValidationResult(is_valid=True)
+            return OrderValidationResult(is_valid=True, correlation_id=correlation_id)
 
         # Quantity is fractional for non-fractionable asset
         if not auto_adjust:
@@ -173,9 +193,11 @@ class ExecutionValidator:
                 is_valid=False,
                 error_message=f"Asset {symbol} is not fractionable but quantity {quantity} is fractional",
                 error_code="40310000",  # Alpaca error code for non-fractionable
+                correlation_id=correlation_id,
             )
 
         # Auto-adjust by rounding down to whole shares
+        # Uses default Decimal context (precision=28, rounding inherited)
         adjusted_quantity = quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
 
         # Check if rounding resulted in zero quantity
@@ -187,6 +209,7 @@ class ExecutionValidator:
                 is_valid=False,
                 error_message=f"Non-fractionable asset {symbol} quantity {quantity} rounds to zero",
                 error_code="ZERO_QUANTITY_AFTER_ROUNDING",
+                correlation_id=correlation_id,
             )
 
         # Successfully adjusted
@@ -198,5 +221,6 @@ class ExecutionValidator:
         return OrderValidationResult(
             is_valid=True,
             adjusted_quantity=adjusted_quantity,
-            warnings=[warning_msg],
+            warnings=(warning_msg,),  # Use tuple for immutable Pydantic model
+            correlation_id=correlation_id,
         )

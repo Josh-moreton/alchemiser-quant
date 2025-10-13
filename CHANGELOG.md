@@ -1,3 +1,29 @@
+## [Unreleased]
+
+## [2.20.7] - 2025-10-10
+
+### Added
+- **File review documentation**: Completed institutional-grade review of `enhanced_exceptions.py`
+  - Created `docs/file_reviews/FILE_REVIEW_enhanced_exceptions.md` documenting file removal
+  - Confirmed file was correctly removed in v2.10.1 (never used in production)
+  - Documented current exception system architecture (`shared/errors/exceptions.py`)
+  - Provided recommendations for review process improvements (file existence validation)
+  - References existing exception documentation (`EXCEPTIONS_ANALYSIS.md`, `EXCEPTIONS_QUICK_REFERENCE.md`)
+## 2.21.0 - 2025-10-10
+
+### Enhanced
+- **RepegMonitoringService audit and improvements**: Institution-grade improvements to repeg monitoring
+  - **Added typed error handling** - Created `RepegMonitoringError` extending `AlchemiserError` with context
+  - **Added input validation** - phase_type now uses `Literal["SELL", "BUY"]`, config structure validated
+  - **Added correlation tracking** - All methods now accept and propagate `correlation_id` for traceability
+  - **Extracted magic numbers** - Created module constants (GRACE_WINDOW_SECONDS, EXTENDED_WAIT_MULTIPLIER, DEFAULT_MAX_REPEGS)
+  - **Enhanced observability** - All log statements now include structured context with correlation_id
+  - **Improved error handling** - Replaced generic Exception catches with specific typed exceptions
+  - **Added safe attribute access** - Added guards for order_tracker and repeg_manager access
+  - **Enhanced docstrings** - Added detailed documentation including Raises sections and usage examples
+  - **Updated tests** - Added test coverage for new validation logic and error cases
+  - **Created comprehensive audit report** - Full line-by-line review in `docs/file_reviews/FILE_REVIEW_repeg_monitoring_service.md`
+
 ## 2.16.5 - 2025-10-08
 
 ### Changed

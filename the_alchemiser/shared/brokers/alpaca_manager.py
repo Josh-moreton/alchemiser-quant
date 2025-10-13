@@ -30,6 +30,10 @@ from alpaca.trading.requests import (
     ReplaceOrderRequest,
 )
 
+from the_alchemiser.shared.brokers.alpaca_utils import (
+    create_data_client,
+    create_trading_client,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
@@ -147,14 +151,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._paper = paper
         self._base_url = base_url
 
-        # Initialize clients
+        # Initialize clients using factory functions from alpaca_utils
         try:
-            # Note: TradingClient type stubs may not accept base_url as kwarg; avoid passing extras for mypy
-            self._trading_client = TradingClient(
-                api_key=api_key, secret_key=secret_key, paper=paper
+            # Use factory functions for consistent error handling and logging
+            self._trading_client = create_trading_client(
+                api_key=api_key,
+                secret_key=secret_key,
+                paper=paper,
             )
 
-            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+            self._data_client = create_data_client(
+                api_key=api_key,
+                secret_key=secret_key,
+            )
 
             logger.debug("AlpacaManager initialized - Paper", paper=paper)
 
