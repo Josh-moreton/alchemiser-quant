@@ -362,7 +362,7 @@ class RealTimePricingService:
             # This matches the REST API fallback behavior in market_data_service.py
             bid_price = quote_values.bid_price
             ask_price = quote_values.ask_price
-            
+
             if bid_price is not None and ask_price is not None:
                 # Both available - use as-is
                 pass
@@ -384,7 +384,7 @@ class RealTimePricingService:
                     f"Empty quote for {symbol}: both bid and ask are None, keeping previous quote"
                 )
                 return
-            
+
             # Update quote data with validated bid and ask prices
             if bid_price is not None and ask_price is not None:
                 try:
