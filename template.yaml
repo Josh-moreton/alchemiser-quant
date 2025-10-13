@@ -156,74 +156,28 @@ Resources:
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
+        # Include only the the_alchemiser package
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
         Exclude:
-          # Version control and CI/CD
-          - .git/**
-          - .git*
-          - .github/**
-          - .aws-sam/**
-
-          # Python environments
-          - .venv/**
-          - venv/**
-          - env/**
-          - .env*
-
-          # IDE and editor files
-          - .vscode/**
-          - .idea/**
-          - .editorconfig
+          # Sensitive files (security)
+          - '.env*'
+          - 'the_alchemiser/.env*'
 
           # Python cache and build artifacts
-          - .cache/**
-          - .pytest_cache/**
-          - .mypy_cache/**
-          - .ruff_cache/**
           - '**/__pycache__/**'
           - '**/*.pyc'
           - '**/*.pyo'
-          - dist/**
-          - build/**
           - '**/*.egg-info/**'
 
-          # Development and testing
-          - tests/**
-          - .pre-commit-config.yaml
-          - pytest.ini
+          # IDE and editor files
+          - 'the_alchemiser/.editorconfig'
 
-          # Documentation
-          - docs/**
-          - CHANGELOG.md
-          - README.md
-          - '**/*.md'
-
-          # Data and logs (not needed in Lambda)
-          - logs/**
-          - data/**
-          - '**/*.csv'
-          - '**/*.parquet'
-
-          # Scripts directory (backtest, stress_test, etc - dev only)
-          - scripts/**
-
-          # Dependencies layer is separate
-          - dependencies/**
-
-          # Media files
-          - '**/*.ipynb'
-          - '**/*.png'
-          - '**/*.jpg'
-          - '**/*.svg'
-          - '**/*.gif'
-          - '**/*.pdf'
-          - logo.png
-
-          # Configuration files (not needed at runtime)
-          - Makefile
-          - poetry.lock
-          - pyproject.toml
-          - sonar-project.properties
-          - samconfig.toml
+          # Documentation within the_alchemiser
+          - 'the_alchemiser/**/*.md'
 
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
