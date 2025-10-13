@@ -443,3 +443,64 @@ class StrategyExecutionError(AlchemiserError):
 
 class StrategyValidationError(StrategyExecutionError):
     """Raised when strategy validation fails."""
+
+
+class EventBusError(AlchemiserError):
+    """Raised when event bus operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        event_type: str | None = None,
+        handler_name: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize event bus error with context.
+        
+        Args:
+            message: Error message
+            event_type: Type of event being processed
+            handler_name: Name of handler that failed
+            correlation_id: Correlation ID for tracing
+        
+        """
+        context: dict[str, Any] = {}
+        if event_type:
+            context["event_type"] = event_type
+        if handler_name:
+            context["handler_name"] = handler_name
+        if correlation_id:
+            context["correlation_id"] = correlation_id
+
+        super().__init__(message, context)
+        self.event_type = event_type
+        self.handler_name = handler_name
+        self.correlation_id = correlation_id
+
+
+class HandlerInvocationError(EventBusError):
+    """Raised when handler invocation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        event_type: str | None = None,
+        handler_name: str | None = None,
+        correlation_id: str | None = None,
+        original_error: Exception | None = None,
+    ) -> None:
+        """Initialize handler invocation error with context.
+        
+        Args:
+            message: Error message
+            event_type: Type of event being processed
+            handler_name: Name of handler that failed
+            correlation_id: Correlation ID for tracing
+            original_error: Original exception that caused the failure
+        
+        """
+        super().__init__(message, event_type, handler_name, correlation_id)
+        self.original_error = original_error
+        if original_error:
+            self.context["original_error"] = str(original_error)
+            self.context["original_error_type"] = type(original_error).__name__
