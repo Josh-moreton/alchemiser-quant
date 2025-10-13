@@ -19,18 +19,23 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 
 logger = get_logger(__name__)
 
+# Threshold for determining if fractional part of quantity is significant
+FRACTIONAL_SIGNIFICANCE_THRESHOLD = 0.1
+
 
 class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
     """Adapter implementing AssetMetadataProvider using AlpacaManager."""
 
-    def __init__(self, alpaca_manager: AlpacaManager) -> None:
+    def __init__(self, alpaca_manager: AlpacaManager, correlation_id: str | None = None) -> None:
         """Initialize with AlpacaManager instance.
 
         Args:
             alpaca_manager: AlpacaManager instance for broker API access
+            correlation_id: Optional correlation ID for request tracing
 
         """
         self._alpaca_manager = alpaca_manager
+        self._correlation_id = correlation_id
 
     def is_fractionable(self, symbol: Symbol) -> bool:
         """Check if an asset supports fractional shares.
@@ -50,11 +55,19 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
             return self._alpaca_manager.is_fractionable(str(symbol))
         except RateLimitError:
             # Re-raise rate limit errors for upstream retry logic
-            logger.warning("Rate limit checking fractionability", symbol=str(symbol))
+            logger.warning(
+                "Rate limit checking fractionability",
+                symbol=str(symbol),
+                correlation_id=self._correlation_id,
+            )
             raise
         except DataProviderError:
             # Re-raise data provider errors (asset not found, etc.)
-            logger.error("Asset not found for fractionability check", symbol=str(symbol))
+            logger.error(
+                "Asset not found for fractionability check",
+                symbol=str(symbol),
+                correlation_id=self._correlation_id,
+            )
             raise
 
     def get_asset_class(self, symbol: Symbol) -> AssetClass:
@@ -67,11 +80,43 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
             Asset class: 'us_equity' for stocks/ETFs, 'crypto' for cryptocurrencies,
             'unknown' if classification unavailable
 
+        Raises:
+            RateLimitError: If rate limit exceeded (should be retried)
+            DataProviderError: If asset lookup fails critically
+
         """
-        asset_info = self._alpaca_manager.get_asset_info(str(symbol))
-        if asset_info and asset_info.asset_class:
-            return asset_info.asset_class  # type: ignore[return-value]
-        return "unknown"
+        try:
+            asset_info = self._alpaca_manager.get_asset_info(str(symbol))
+            if asset_info and asset_info.asset_class:
+                # Type ignore: AlpacaManager returns string asset_class that matches our Literal type
+                return asset_info.asset_class  # type: ignore[return-value]
+            return "unknown"
+        except RateLimitError:
+            # Re-raise rate limit errors for upstream retry logic
+            logger.warning(
+                "Rate limit checking asset class",
+                symbol=str(symbol),
+                correlation_id=self._correlation_id,
+            )
+            raise
+        except DataProviderError:
+            # For data provider errors, log and return unknown as safe default
+            logger.warning(
+                "Asset not found, returning unknown class",
+                symbol=str(symbol),
+                correlation_id=self._correlation_id,
+            )
+            return "unknown"
+        except Exception as e:
+            # Unexpected errors: log and return safe default
+            logger.error(
+                "Unexpected error getting asset class",
+                symbol=str(symbol),
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=self._correlation_id,
+            )
+            return "unknown"
 
     def should_use_notional_order(self, symbol: Symbol, quantity: float) -> bool:
         """Determine if notional (dollar) orders should be used.
@@ -83,7 +128,12 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
         Returns:
             True if notional orders should be used
 
+        Raises:
+            ValueError: If quantity <= 0
+
         """
+        if quantity <= 0:
+            raise ValueError(f"quantity must be > 0, got {quantity}")
         try:
             # Use notional orders for non-fractionable assets
             if not self.is_fractionable(symbol):
@@ -94,6 +144,7 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
                 "Could not determine fractionability, using notional order",
                 symbol=str(symbol),
                 error=str(e),
+                correlation_id=self._correlation_id,
             )
             return True
 
@@ -101,5 +152,5 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
         if quantity < 1.0:
             return True
 
-        # Use notional if the fractional part is significant (> 0.1)
-        return quantity % 1.0 > 0.1
+        # Use notional if the fractional part is significant
+        return quantity % 1.0 > FRACTIONAL_SIGNIFICANCE_THRESHOLD

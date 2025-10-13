@@ -90,9 +90,7 @@ class PricingCalculator:
 
         """
         if side.upper() not in ("BUY", "SELL"):
-            raise ValidationError(
-                f"Invalid side parameter: {side}. Must be 'BUY' or 'SELL'"
-            )
+            raise ValidationError(f"Invalid side parameter: {side}. Must be 'BUY' or 'SELL'")
 
     def _validate_quote_data(self, quote: QuoteModel, correlation_id: str | None = None) -> None:
         """Validate quote data quality (H3).
@@ -125,9 +123,7 @@ class PricingCalculator:
                 f"Both bid and ask prices are zero for {quote.symbol}",
                 extra=log_extra,
             )
-            raise ValidationError(
-                f"Quote for {quote.symbol} has zero bid and ask prices"
-            )
+            raise ValidationError(f"Quote for {quote.symbol} has zero bid and ask prices")
 
         if quote.bid_price > quote.ask_price:
             logger.warning(
@@ -140,7 +136,7 @@ class PricingCalculator:
         self,
         quote: QuoteModel,
         side: str,
-        order_size: float,
+        order_size: Decimal,
         correlation_id: str | None = None,
     ) -> tuple[Decimal, LiquidityMetadata]:
         """Calculate optimal price using advanced liquidity analysis.
@@ -148,7 +144,7 @@ class PricingCalculator:
         Args:
             quote: Valid quote data
             side: "BUY" or "SELL"
-            order_size: Size of order in shares
+            order_size: Size of order in shares (as Decimal for precision)
             correlation_id: Optional correlation ID for request tracing (M2)
 
         Returns:
@@ -162,21 +158,21 @@ class PricingCalculator:
         self._validate_side_parameter(side)
         self._validate_quote_data(quote, correlation_id)
 
-        # Perform comprehensive liquidity analysis
-        analysis = self.liquidity_analyzer.analyze_liquidity(quote, order_size)
+        # Perform comprehensive liquidity analysis (convert to float only for analysis)
+        analysis = self.liquidity_analyzer.analyze_liquidity(quote, float(order_size))
 
         # Get volume-aware pricing recommendation
         if side.upper() == "BUY":
             optimal_price = Decimal(str(analysis.recommended_bid_price))
             volume_available = analysis.volume_at_recommended_bid
             strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
-                analysis, side.lower(), order_size
+                analysis, side.lower(), float(order_size)
             )
         else:
             optimal_price = Decimal(str(analysis.recommended_ask_price))
             volume_available = analysis.volume_at_recommended_ask
             strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
-                analysis, side.lower(), order_size
+                analysis, side.lower(), float(order_size)
             )
 
         # Check for zero volume to avoid misleading ratios (M3)
@@ -188,7 +184,7 @@ class PricingCalculator:
             )
             volume_ratio = 0.0
         else:
-            volume_ratio = order_size / volume_available
+            volume_ratio = float(order_size) / volume_available
 
         # Create metadata for logging and monitoring
         metadata: LiquidityMetadata = {

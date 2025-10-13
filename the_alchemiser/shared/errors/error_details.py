@@ -9,11 +9,17 @@ and categorization logic for different error types.
 
 from __future__ import annotations
 
+import sys
 import traceback
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from the_alchemiser.shared.logging import get_logger
+
 from .error_types import ErrorCategory
+
+logger = get_logger(__name__)
 
 # Import exceptions
 try:
@@ -28,8 +34,19 @@ try:
         PositionValidationError,
         TradingClientError,
     )
-except ImportError:
+except ImportError as e:
     # Minimal fallback stubs (to avoid circular imports)
+    # This is intentional: error_details.py is imported by exceptions.py
+    # during exception class definitions, creating a circular dependency.
+    # We use fallback stubs that match the interface for categorization.
+    if "pytest" not in sys.modules:  # Only log in non-test environments
+        logger.debug(
+            "using_fallback_exception_stubs",
+            reason="circular_import",
+            error=str(e),
+            module="error_details",
+        )
+
     class AlchemiserError(Exception):  # type: ignore[no-redef]
         """Fallback AlchemiserError."""
 
@@ -81,37 +98,105 @@ def _is_strategy_execution_error(err: Exception) -> bool:
 
     We avoid importing from `strategy_v2` inside `shared` to respect
     module boundaries. Instead, we detect by class name to categorize.
+
+    Args:
+        err: Exception instance to check
+
+    Returns:
+        True if the exception is a StrategyExecutionError, False otherwise
+
     """
     return err.__class__.__name__ == "StrategyExecutionError"
 
 
+@dataclass(frozen=True)
 class ErrorDetails:
-    """Detailed error information for reporting."""
+    """Detailed error information for reporting.
 
-    def __init__(
-        self,
-        error: Exception,
-        category: str,
-        context: str,
-        component: str,
-        additional_data: dict[str, Any] | None = None,
-        suggested_action: str | None = None,
-        error_code: str | None = None,
-    ) -> None:
-        """Store detailed error information."""
-        self.error = error
-        self.category = category
-        self.context = context
-        self.component = component
-        self.additional_data = additional_data or {}
-        self.suggested_action = suggested_action
-        self.error_code = error_code
-        self.timestamp = datetime.now(UTC)
-        self.traceback = traceback.format_exc()
+    This class captures comprehensive error metadata for structured reporting,
+    categorization, and incident response. All instances are immutable to ensure
+    error details cannot be modified after creation.
+
+    This class now supports event-driven architecture requirements by tracking
+    correlation_id and causation_id for distributed tracing across the system.
+
+    Attributes:
+        error: The exception instance
+        category: Error category (from ErrorCategory constants)
+        context: Contextual description (e.g., "order placement", "data fetch")
+        component: Component where error occurred (e.g., "execution_v2", "strategy")
+        additional_data: Extra metadata (symbol, quantity, etc.)
+        suggested_action: Recommended remediation action
+        error_code: Machine-readable error code (e.g., "TRD_INSUFFICIENT_FUNDS")
+        correlation_id: Request/workflow correlation ID for tracing (optional)
+        causation_id: Triggering event ID for event chains (optional)
+        timestamp: UTC timestamp when error was captured
+        traceback: Python traceback string
+
+    Examples:
+        Basic error::
+
+            details = ErrorDetails(
+                error=ValueError("Invalid quantity"),
+                category=ErrorCategory.TRADING,
+                context="order_validation",
+                component="execution_v2",
+            )
+
+        With additional data and tracing::
+
+            details = ErrorDetails(
+                error=InsufficientFundsError("Balance too low"),
+                category=ErrorCategory.TRADING,
+                context="order_placement",
+                component="execution_v2",
+                additional_data={"symbol": "AAPL", "required": 1000, "available": 500},
+                suggested_action="Deposit funds or reduce order size",
+                error_code="TRD_INSUFFICIENT_FUNDS",
+                correlation_id="req-123",
+                causation_id="event-456",
+            )
+
+    """
+
+    error: Exception
+    category: str
+    context: str
+    component: str
+    additional_data: dict[str, Any] = field(default_factory=dict)
+    suggested_action: str | None = None
+    error_code: str | None = None
+    correlation_id: str | None = None
+    causation_id: str | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    traceback: str = field(default_factory=traceback.format_exc)
+
+    def __post_init__(self) -> None:
+        """Post-initialization to extract tracing IDs from additional_data.
+
+        If correlation_id or causation_id are not explicitly provided,
+        attempt to extract them from additional_data for convenience.
+        """
+        # Note: Since this is a frozen dataclass, we need to use object.__setattr__
+        if self.correlation_id is None and "correlation_id" in self.additional_data:
+            object.__setattr__(self, "correlation_id", self.additional_data.get("correlation_id"))
+        if self.causation_id is None and "causation_id" in self.additional_data:
+            object.__setattr__(self, "causation_id", self.additional_data.get("causation_id"))
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert error details to dictionary for serialization."""
-        return {
+        """Convert error details to dictionary for serialization.
+
+        Returns:
+            Dictionary with error details, including schema_version for compatibility
+            and optional correlation_id/causation_id for distributed tracing.
+
+        Examples:
+            >>> details = ErrorDetails(...)
+            >>> result = details.to_dict()
+            >>> assert result["schema_version"] == "1.0"
+
+        """
+        result = {
             "error_type": type(self.error).__name__,
             "error_message": str(self.error),
             "category": self.category,
@@ -122,11 +207,42 @@ class ErrorDetails:
             "additional_data": self.additional_data,
             "suggested_action": self.suggested_action,
             "error_code": self.error_code,
+            "schema_version": "1.0",
         }
+
+        # Include event tracing fields if available
+        if self.correlation_id:
+            result["correlation_id"] = self.correlation_id
+        if self.causation_id:
+            result["causation_id"] = self.causation_id
+
+        return result
 
 
 def categorize_by_exception_type(error: Exception) -> str | None:
-    """Categorize error based purely on exception type."""
+    """Categorize error based purely on exception type.
+
+    This function examines the exception type and maps it to an error category.
+    It checks specific exception types first, then falls back to base classes.
+
+    Args:
+        error: Exception instance to categorize
+
+    Returns:
+        Error category string if type is recognized, None otherwise.
+        Returns None for unknown exceptions to allow context-based categorization.
+
+    Examples:
+        >>> categorize_by_exception_type(InsufficientFundsError("low balance"))
+        'trading'
+
+        >>> categorize_by_exception_type(MarketDataError("API down"))
+        'data'
+
+        >>> categorize_by_exception_type(ValueError("unknown"))
+        None
+
+    """
     if isinstance(
         error,
         InsufficientFundsError | OrderExecutionError | PositionValidationError,
@@ -146,7 +262,34 @@ def categorize_by_exception_type(error: Exception) -> str | None:
 
 
 def categorize_by_context(context: str) -> str:
-    """Categorize error based on context keywords."""
+    """Categorize error based on context keywords.
+
+    This function provides fallback categorization when exception type is unknown.
+    It searches for keywords in the context string to infer the error category.
+
+    Args:
+        context: Contextual string describing where the error occurred
+                 (e.g., "order placement", "data fetch", "strategy calculation")
+
+    Returns:
+        Error category string. Defaults to CRITICAL for unknown contexts
+        as a fail-safe approach.
+
+    Notes:
+        - Keyword matching is case-insensitive
+        - Priority order: trading/order → data/price → strategy/signal → config/auth → critical
+
+    Examples:
+        >>> categorize_by_context("trading operation failed")
+        'trading'
+
+        >>> categorize_by_context("data fetch failed")
+        'data'
+
+        >>> categorize_by_context("unknown operation")
+        'critical'
+
+    """
     context_lower = context.lower()
     if "trading" in context_lower or "order" in context_lower:
         return ErrorCategory.TRADING
@@ -160,25 +303,79 @@ def categorize_by_context(context: str) -> str:
 
 
 def categorize_error(error: Exception, context: str = "") -> str:
-    """Categorize error based on type and context."""
+    """Categorize error based on type and context.
+
+    This is the main entry point for error categorization. It applies a priority-based
+    approach: exception type takes precedence over context-based categorization.
+
+    Args:
+        error: Exception instance to categorize
+        context: Optional contextual string for fallback categorization
+
+    Returns:
+        Error category string from ErrorCategory constants
+
+    Notes:
+        - Exception type categorization is attempted first
+        - TradingClientError is an AlchemiserError subclass and gets CRITICAL by default
+        - For unknown exceptions, falls back to context-based categorization
+        - Always returns a valid category (never None)
+
+    Examples:
+        >>> categorize_error(InsufficientFundsError("low funds"), "data fetch")
+        'trading'  # Exception type wins over context
+
+        >>> categorize_error(ValueError("error"), "strategy calculation")
+        'strategy'  # Falls back to context
+
+        >>> categorize_error(ValueError("error"), "")
+        'critical'  # Default for unknown context
+
+    """
     # First try categorization by exception type
     category = categorize_by_exception_type(error)
     if category:
+        logger.debug(
+            "error_categorized_by_type",
+            error_type=type(error).__name__,
+            category=category,
+            context=context,
+        )
         return category
 
-    # Handle TradingClientError with context dependency
-    if isinstance(error, TradingClientError):
-        context_lower = context.lower()
-        if "order" in context_lower or "position" in context_lower:
-            return ErrorCategory.TRADING
-        return ErrorCategory.DATA
-
     # For non-Alchemiser exceptions, categorize by context
-    return categorize_by_context(context)
+    result = categorize_by_context(context)
+    logger.debug(
+        "error_categorized_by_context",
+        error_type=type(error).__name__,
+        category=result,
+        context=context,
+    )
+    return result
 
 
 def get_suggested_action(error: Exception, category: str) -> str:
-    """Get suggested action based on error type and category."""
+    """Get suggested action based on error type and category.
+
+    This function provides human-readable remediation guidance for different
+    error types and categories. It checks specific exception types first,
+    then falls back to category-based suggestions.
+
+    Args:
+        error: Exception instance that occurred
+        category: Error category from ErrorCategory constants
+
+    Returns:
+        Human-readable suggested action string for remediation
+
+    Examples:
+        >>> get_suggested_action(InsufficientFundsError("low"), ErrorCategory.TRADING)
+        'Check account balance and reduce position sizes or add funds'
+
+        >>> get_suggested_action(ValueError("unknown"), ErrorCategory.DATA)
+        'Check market data sources, API limits, and network connectivity'
+
+    """
     if isinstance(error, InsufficientFundsError):
         return "Check account balance and reduce position sizes or add funds"
     if isinstance(error, OrderExecutionError):
