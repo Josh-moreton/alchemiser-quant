@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 
 class LiquidityMetadata(TypedDict, total=False):
@@ -45,7 +45,7 @@ class LiquidityMetadata(TypedDict, total=False):
     new_price: float
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExecutionConfig:
     """Configuration for smart execution strategy."""
 
@@ -84,8 +84,8 @@ class ExecutionConfig:
     ask_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at ask - $0.01 for sells
 
     # Symbol-specific overrides for low-liquidity ETFs
-    low_liquidity_symbols: set[str] = field(
-        default_factory=lambda: {"BTAL", "UVXY", "TECL", "KMLM"}
+    low_liquidity_symbols: frozenset[str] = field(
+        default_factory=lambda: frozenset({"BTAL", "UVXY", "TECL", "KMLM"})
     )
 
 
@@ -94,10 +94,11 @@ class SmartOrderRequest:
     """Request for smart order placement."""
 
     symbol: str
-    side: str  # "BUY" or "SELL"
+    side: Literal["BUY", "SELL"]
     quantity: Decimal
     correlation_id: str
-    urgency: str = "NORMAL"  # "LOW", "NORMAL", "HIGH"
+    schema_version: str = "1.0.0"
+    urgency: Literal["LOW", "NORMAL", "HIGH"] = "NORMAL"
     is_complete_exit: bool = False
 
 
@@ -106,11 +107,12 @@ class SmartOrderResult:
     """Result of smart order placement attempt."""
 
     success: bool
+    schema_version: str = "1.0.0"
     order_id: str | None = None
     final_price: Decimal | None = None
     anchor_price: Decimal | None = None
     repegs_used: int = 0
-    execution_strategy: str = "smart_limit"
+    execution_strategy: Literal["smart_limit", "market", "limit"] = "smart_limit"
     error_message: str | None = None
     placement_timestamp: datetime | None = None
     metadata: LiquidityMetadata | None = None
