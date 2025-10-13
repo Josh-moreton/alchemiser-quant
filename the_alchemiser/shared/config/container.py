@@ -9,11 +9,9 @@ Example:
     >>> # Create container for specific environment
     >>> container = ApplicationContainer.create_for_environment("production")
     >>>
-    >>> # Initialize execution providers with late binding
-    >>> ApplicationContainer.initialize_execution_providers(container)
-    >>>
     >>> # Access services
     >>> event_bus = container.services.event_bus()
+    >>> execution_manager = container.execution_manager()
 
 """
 
