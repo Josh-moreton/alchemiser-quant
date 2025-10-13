@@ -18,17 +18,20 @@ from unittest.mock import Mock, patch
 import pytest
 
 from the_alchemiser.lambda_handler import (
+    _build_error_response,
     _build_response_message,
     _determine_trading_mode,
+    _extract_correlation_id,
+    _has_correlation_id,
     lambda_handler,
     parse_event_mode,
 )
-from the_alchemiser.shared.schemas import LambdaEvent
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.shared.schemas import LambdaEvent
 
 
 class TestEventParsing:
@@ -145,9 +148,7 @@ class TestTradingModeDetection:
         mock_get_alpaca_keys.assert_not_called()
 
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
-    def test_determine_mode_with_none_endpoint(
-        self, mock_get_alpaca_keys: Mock
-    ) -> None:
+    def test_determine_mode_with_none_endpoint(self, mock_get_alpaca_keys: Mock) -> None:
         """Test determining mode when endpoint is None."""
         mock_get_alpaca_keys.return_value = ("test_key", "test_secret", None)
         mode = _determine_trading_mode("trade")
@@ -192,6 +193,87 @@ class TestResponseMessage:
         """Test building message for n/a mode."""
         message = _build_response_message("n/a", result=True)
         assert message == "N/A trading completed successfully"
+
+
+class TestHelperFunctions:
+    """Test helper functions for complexity reduction."""
+
+    def test_extract_correlation_id_from_dict_event(self) -> None:
+        """Test extracting correlation ID from dict event."""
+        event = {"correlation_id": "test-correlation-123"}
+        correlation_id = _extract_correlation_id(event)
+        assert correlation_id == "test-correlation-123"
+
+    def test_extract_correlation_id_from_lambda_event(self) -> None:
+        """Test extracting correlation ID from LambdaEvent object."""
+        event = LambdaEvent(correlation_id="test-correlation-456")
+        correlation_id = _extract_correlation_id(event)
+        assert correlation_id == "test-correlation-456"
+
+    def test_extract_correlation_id_generates_new_id(self) -> None:
+        """Test generating new correlation ID when event has none."""
+        event = {"mode": "trade"}
+        correlation_id = _extract_correlation_id(event)
+        assert correlation_id is not None
+        assert len(correlation_id) > 0
+
+    def test_extract_correlation_id_from_none_event(self) -> None:
+        """Test generating correlation ID when event is None."""
+        correlation_id = _extract_correlation_id(None)
+        assert correlation_id is not None
+        assert len(correlation_id) > 0
+
+    def test_has_correlation_id_dict_with_id(self) -> None:
+        """Test checking correlation ID in dict event."""
+        event = {"correlation_id": "test-123"}
+        assert _has_correlation_id(event) is True
+
+    def test_has_correlation_id_dict_without_id(self) -> None:
+        """Test checking correlation ID in dict event without ID."""
+        event = {"mode": "trade"}
+        assert _has_correlation_id(event) is False
+
+    def test_has_correlation_id_lambda_event_with_id(self) -> None:
+        """Test checking correlation ID in LambdaEvent object."""
+        event = LambdaEvent(correlation_id="test-456")
+        assert _has_correlation_id(event) is True
+
+    def test_has_correlation_id_lambda_event_without_id(self) -> None:
+        """Test checking correlation ID in LambdaEvent object without ID."""
+        event = LambdaEvent()
+        assert _has_correlation_id(event) is False
+
+    def test_has_correlation_id_none_event(self) -> None:
+        """Test checking correlation ID when event is None."""
+        assert _has_correlation_id(None) is False
+
+    def test_build_error_response_with_all_fields(self) -> None:
+        """Test building error response with all fields."""
+        response = _build_error_response(
+            mode="trade",
+            trading_mode="paper",
+            error_message="Test error occurred",
+            request_id="req-123",
+        )
+        assert response["status"] == "failed"
+        assert response["mode"] == "trade"
+        assert response["trading_mode"] == "paper"
+        assert response["message"] == "Test error occurred"
+        assert response["request_id"] == "req-123"
+
+    def test_build_error_response_with_unknown_mode(self) -> None:
+        """Test building error response with unknown mode."""
+        response = _build_error_response(
+            mode="unknown",
+            trading_mode="unknown",
+            error_message="Critical error",
+            request_id="req-456",
+        )
+        assert response["status"] == "failed"
+        assert response["mode"] == "unknown"
+        assert response["trading_mode"] == "unknown"
+        assert response["message"] == "Critical error"
+        assert response["request_id"] == "req-456"
 
 
 class TestLambdaHandler:
@@ -573,9 +655,7 @@ class TestErrorHandling:
         mock_send_notification.assert_called_once_with(mock_event_bus)
 
     @patch("the_alchemiser.lambda_handler.handle_trading_error")
-    def test_handle_error_notification_failure(
-        self, mock_handle_trading_error: Mock
-    ) -> None:
+    def test_handle_error_notification_failure(self, mock_handle_trading_error: Mock) -> None:
         """Test _handle_error when notification setup fails."""
         from the_alchemiser.lambda_handler import _handle_error
 
