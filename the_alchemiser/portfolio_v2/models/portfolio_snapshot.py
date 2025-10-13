@@ -12,6 +12,9 @@ from decimal import Decimal
 
 from the_alchemiser.shared.errors.exceptions import PortfolioError
 
+# Module identifier constant for error reporting
+_MODULE_ID: str = "portfolio_v2.models.portfolio_snapshot"
+
 
 @dataclass(frozen=True)
 class PortfolioSnapshot:
@@ -33,7 +36,7 @@ class PortfolioSnapshot:
         if missing_prices:
             raise PortfolioError(
                 f"Missing prices for positions: {sorted(missing_prices)}",
-                module="portfolio_v2.models.portfolio_snapshot",
+                module=_MODULE_ID,
                 operation="validation",
             )
 
@@ -41,7 +44,7 @@ class PortfolioSnapshot:
         if self.total_value < 0:
             raise PortfolioError(
                 f"Total value cannot be negative: {self.total_value}",
-                module="portfolio_v2.models.portfolio_snapshot",
+                module=_MODULE_ID,
                 operation="validation",
             )
 
@@ -50,7 +53,7 @@ class PortfolioSnapshot:
             if quantity < 0:
                 raise PortfolioError(
                     f"Position quantity cannot be negative for {symbol}: {quantity}",
-                    module="portfolio_v2.models.portfolio_snapshot",
+                    module=_MODULE_ID,
                     operation="validation",
                 )
 
@@ -59,7 +62,7 @@ class PortfolioSnapshot:
             if price <= 0:
                 raise PortfolioError(
                     f"Price must be positive for {symbol}: {price}",
-                    module="portfolio_v2.models.portfolio_snapshot",
+                    module=_MODULE_ID,
                     operation="validation",
                 )
 
