@@ -43,14 +43,14 @@ VALID_DATA_FEEDS = ["iex", "sip"]
 
 def _validate_credentials(api_key: str, secret_key: str) -> None:
     """Validate API credentials are non-empty.
-    
+
     Args:
         api_key: Alpaca API key
         secret_key: Alpaca secret key
-    
+
     Raises:
         ConfigurationError: If credentials are empty, None, or contain only whitespace
-    
+
     """
     if not api_key or not api_key.strip():
         raise ConfigurationError(
@@ -67,23 +67,23 @@ def _validate_credentials(api_key: str, secret_key: str) -> None:
 # Alpaca data request helpers
 def create_stock_bars_request(**kwargs: str | int | bool | None) -> StockBarsRequest:
     """Create an Alpaca StockBarsRequest with the given parameters.
-    
+
     Args:
         **kwargs: Parameters to pass to StockBarsRequest (e.g., symbol_or_symbols, timeframe, start, end)
-    
+
     Returns:
         Configured StockBarsRequest instance
-    
+
     Raises:
         ConfigurationError: If request creation fails due to invalid parameters
-    
+
     Example:
         >>> request = create_stock_bars_request(
         ...     symbol_or_symbols=["AAPL", "GOOGL"],
         ...     timeframe=TimeFrame.Day,
         ...     start="2023-01-01"
         ... )
-    
+
     """
     try:
         return StockBarsRequest(**kwargs)
@@ -103,21 +103,21 @@ def create_stock_latest_quote_request(
     **kwargs: str | int | bool | None,
 ) -> StockLatestQuoteRequest:
     """Create an Alpaca StockLatestQuoteRequest with the given parameters.
-    
+
     Args:
         **kwargs: Parameters to pass to StockLatestQuoteRequest (e.g., symbol_or_symbols)
-    
+
     Returns:
         Configured StockLatestQuoteRequest instance
-    
+
     Raises:
         ConfigurationError: If request creation fails due to invalid parameters
-    
+
     Example:
         >>> request = create_stock_latest_quote_request(
         ...     symbol_or_symbols=["AAPL", "GOOGL"]
         ... )
-    
+
     """
     try:
         return StockLatestQuoteRequest(**kwargs)
@@ -135,21 +135,21 @@ def create_stock_latest_quote_request(
 
 def create_timeframe(amount: int, unit: str) -> TimeFrame:
     """Create an Alpaca TimeFrame object.
-    
+
     Args:
         amount: Number of time units (must be positive)
         unit: Time unit ('minute', 'hour', 'day', 'week', 'month') - case insensitive
-    
+
     Returns:
         Configured TimeFrame instance
-    
+
     Raises:
         ConfigurationError: If amount is not positive or unit is invalid
-    
+
     Example:
         >>> tf = create_timeframe(1, "day")
         >>> tf = create_timeframe(5, "minute")
-    
+
     """
     # Validate amount
     if amount <= 0:
@@ -158,7 +158,7 @@ def create_timeframe(amount: int, unit: str) -> TimeFrame:
             config_key="timeframe_amount",
             config_value=amount,
         )
-    
+
     # Map string units to Alpaca TimeFrameUnit
     unit_mapping = {
         "minute": TimeFrameUnit.Minute,
@@ -176,7 +176,7 @@ def create_timeframe(amount: int, unit: str) -> TimeFrame:
             config_key="timeframe_unit",
             config_value=unit,
         )
-    
+
     try:
         return TimeFrame(amount, unit_mapping[unit_lower])
     except Exception as e:
@@ -200,24 +200,24 @@ def create_trading_client(
     paper: bool = DEFAULT_PAPER_TRADING,
 ) -> TradingClient:
     """Create an Alpaca TradingClient with validated credentials.
-    
+
     Args:
         api_key: Alpaca API key (will be redacted in logs)
         secret_key: Alpaca secret key (will be redacted in logs)
         paper: Whether to use paper trading (default True)
-    
+
     Returns:
         Configured TradingClient instance
-    
+
     Raises:
         ConfigurationError: If credentials are invalid or client creation fails
-    
+
     Example:
         >>> client = create_trading_client(api_key, secret_key, paper=True)
-    
+
     """
     _validate_credentials(api_key, secret_key)
-    
+
     try:
         logger.debug(
             "Creating TradingClient",
@@ -239,23 +239,23 @@ def create_trading_client(
 
 def create_data_client(api_key: str, secret_key: str) -> StockHistoricalDataClient:
     """Create an Alpaca StockHistoricalDataClient with validated credentials.
-    
+
     Args:
         api_key: Alpaca API key (will be redacted in logs)
         secret_key: Alpaca secret key (will be redacted in logs)
-    
+
     Returns:
         Configured StockHistoricalDataClient instance
-    
+
     Raises:
         ConfigurationError: If credentials are invalid or client creation fails
-    
+
     Example:
         >>> client = create_data_client(api_key, secret_key)
-    
+
     """
     _validate_credentials(api_key, secret_key)
-    
+
     try:
         logger.debug("Creating StockHistoricalDataClient")
         return StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
@@ -277,24 +277,24 @@ def create_trading_stream(
     paper: bool = DEFAULT_PAPER_TRADING,
 ) -> TradingStream:
     """Create an Alpaca TradingStream with validated credentials.
-    
+
     Args:
         api_key: Alpaca API key (will be redacted in logs)
         secret_key: Alpaca secret key (will be redacted in logs)
         paper: Whether to use paper trading (default True)
-    
+
     Returns:
         Configured TradingStream instance
-    
+
     Raises:
         ConfigurationError: If credentials are invalid or stream creation fails
-    
+
     Example:
         >>> stream = create_trading_stream(api_key, secret_key, paper=True)
-    
+
     """
     _validate_credentials(api_key, secret_key)
-    
+
     try:
         logger.debug(
             "Creating TradingStream",
@@ -319,24 +319,24 @@ def create_stock_data_stream(
     feed: str = DEFAULT_DATA_FEED,
 ) -> StockDataStream:
     """Create an Alpaca StockDataStream with validated credentials.
-    
+
     Args:
         api_key: Alpaca API key (will be redacted in logs)
         secret_key: Alpaca secret key (will be redacted in logs)
         feed: Data feed to use ('iex' or 'sip', default 'iex') - case insensitive
-    
+
     Returns:
         Configured StockDataStream instance
-    
+
     Raises:
         ConfigurationError: If credentials are invalid or stream creation fails
-    
+
     Example:
         >>> stream = create_stock_data_stream(api_key, secret_key, feed="iex")
-    
+
     """
     _validate_credentials(api_key, secret_key)
-    
+
     # Map string feed to DataFeed enum
     feed_mapping = {
         "iex": DataFeed.IEX,
@@ -351,9 +351,9 @@ def create_stock_data_stream(
             valid_feeds=VALID_DATA_FEEDS,
         )
         feed_lower = "iex"
-    
+
     data_feed = feed_mapping[feed_lower]
-    
+
     try:
         logger.debug(
             "Creating StockDataStream",
@@ -375,16 +375,16 @@ def create_stock_data_stream(
 # Alpaca model imports (for type hints and instance checks)
 def get_alpaca_quote_type() -> type:
     """Get the Alpaca Quote type for isinstance checks.
-    
+
     Returns:
         The Alpaca Quote class for runtime type checking
-    
+
     Example:
         >>> Quote = get_alpaca_quote_type()
         >>> if isinstance(obj, Quote):
         ...     # Handle quote object
         ...     pass
-    
+
     """
     from alpaca.data.models import Quote
 
@@ -393,16 +393,16 @@ def get_alpaca_quote_type() -> type:
 
 def get_alpaca_trade_type() -> type:
     """Get the Alpaca Trade type for isinstance checks.
-    
+
     Returns:
         The Alpaca Trade class for runtime type checking
-    
+
     Example:
         >>> Trade = get_alpaca_trade_type()
         >>> if isinstance(obj, Trade):
         ...     # Handle trade object
         ...     pass
-    
+
     """
     from alpaca.data.models import Trade
 

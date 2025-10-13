@@ -35,6 +35,7 @@ Idempotency:
 
     Direct service calls (legacy) do not have built-in idempotency and should
     use the event-driven API for production workflows.
+
 """
 
 from __future__ import annotations
@@ -191,8 +192,12 @@ class PortfolioServiceV2:
                 causation_id=causation_id,
                 error=str(e),
                 error_type=type(e).__name__,
-                target_symbols=sorted(strategy.target_weights.keys()) if strategy.target_weights else [],
-                strategy_portfolio_value=str(strategy.portfolio_value) if strategy.portfolio_value else None,
+                target_symbols=sorted(strategy.target_weights.keys())
+                if strategy.target_weights
+                else [],
+                strategy_portfolio_value=str(strategy.portfolio_value)
+                if strategy.portfolio_value
+                else None,
                 duration_before_failure_ms=round(total_duration * 1000, 2),
             )
             raise PortfolioError(f"Failed to create rebalance plan: {e}") from e

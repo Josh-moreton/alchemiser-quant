@@ -14,10 +14,8 @@ import uuid
 from collections.abc import Callable as TypingCallable
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
-from logging import Logger
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -39,7 +37,6 @@ from the_alchemiser.shared.logging import get_logger
 
 # Import workflow state management
 from .workflow_state import (
-    EventHandlerProtocol,
     StateCheckingHandlerWrapper,
     WorkflowState,
 )
@@ -500,9 +497,7 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
-    def _prepare_execution_data(
-        self, event: TradeExecuted, success: bool
-    ) -> dict[str, Any]:
+    def _prepare_execution_data(self, event: TradeExecuted, *, success: bool) -> dict[str, Any]:
         """Prepare execution data with failure details.
 
         Args:
@@ -538,7 +533,7 @@ class EventDrivenOrchestrator:
             return Decimal("0")
 
     def _extract_error_details(
-        self, event: TradeExecuted, success: bool
+        self, event: TradeExecuted, *, success: bool
     ) -> tuple[str | None, str | None]:
         """Extract error message and code from failed trade event.
 
@@ -552,17 +547,15 @@ class EventDrivenOrchestrator:
         """
         if not success:
             error_message = (
-                event.failure_reason 
-                or event.metadata.get("error_message") 
-                or "Unknown error"
+                event.failure_reason or event.metadata.get("error_message") or "Unknown error"
             )
             error_code = getattr(event, "error_code", None)
             return error_message, error_code
         return None, None
 
     def _build_trading_notification(
-        self, event: TradeExecuted, success: bool
-    ) -> Any:  # TradingNotificationRequested type
+        self, event: TradeExecuted, *, success: bool
+    ) -> BaseEvent:  # Returns TradingNotificationRequested which inherits from BaseEvent
         """Build trading notification event from trade execution event.
 
         Args:
@@ -576,9 +569,9 @@ class EventDrivenOrchestrator:
         from the_alchemiser.shared.events.schemas import TradingNotificationRequested
 
         mode_str = "LIVE" if not self.container.config.paper_trading() else "PAPER"
-        execution_data = self._prepare_execution_data(event, success)
+        execution_data = self._prepare_execution_data(event, success=success)
         total_trade_value = self._extract_trade_value(execution_data)
-        error_message, error_code = self._extract_error_details(event, success)
+        error_message, error_code = self._extract_error_details(event, success=success)
 
         return TradingNotificationRequested(
             correlation_id=event.correlation_id,
@@ -606,19 +599,19 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            trading_event = self._build_trading_notification(event, success)
+            trading_event = self._build_trading_notification(event, success=success)
             self.event_bus.publish(trading_event)
 
             self.logger.info(
                 f"Trading notification event published successfully (success={success})",
-                extra={"correlation_id": event.correlation_id}
+                extra={"correlation_id": event.correlation_id},
             )
 
         except Exception as e:
             # Don't let notification failure break the workflow
             self.logger.error(
                 f"Failed to publish trading notification event: {e}",
-                extra={"correlation_id": event.correlation_id}
+                extra={"correlation_id": event.correlation_id},
             )
 
     def _perform_reconciliation(self) -> None:

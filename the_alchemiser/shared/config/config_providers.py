@@ -122,9 +122,7 @@ class ConfigProviders(containers.DeclarativeContainer):
     )
 
     # Email configuration
-    email_recipient = providers.Factory(
-        lambda settings: settings.email.to_email, settings=settings
-    )
+    email_recipient = providers.Factory(lambda settings: settings.email.to_email, settings=settings)
 
     # Execution configuration
     execution = providers.Factory(lambda settings: settings.execution, settings=settings)

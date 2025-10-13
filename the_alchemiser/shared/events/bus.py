@@ -45,12 +45,12 @@ class EventBus:
 
     Provides event publishing and subscription capabilities with handler registration
     and event routing based on event types.
-    
+
     Thread Safety:
         This implementation is NOT thread-safe. Designed for single-threaded usage
-        (e.g., AWS Lambda). If using in multi-threaded contexts, external 
+        (e.g., AWS Lambda). If using in multi-threaded contexts, external
         synchronization is required.
-    
+
     Error Handling:
         Handler exceptions are caught, logged, and wrapped in HandlerInvocationError.
         One handler failure does not prevent other handlers from receiving events.
@@ -58,15 +58,13 @@ class EventBus:
         ValueError immediately.
     """
 
-    def __init__(
-        self, workflow_state_checker: WorkflowStateChecker | None = None
-    ) -> None:
+    def __init__(self, workflow_state_checker: WorkflowStateChecker | None = None) -> None:
         """Initialize the event bus.
-        
+
         Args:
             workflow_state_checker: Optional workflow state checker for integration
                 with orchestrator. Can also be set later via set_workflow_state_checker.
-        
+
         """
         self.logger = get_logger(__name__)
         self._handlers: dict[str, list[HandlerType]] = defaultdict(list)
@@ -74,9 +72,7 @@ class EventBus:
         self._event_count = 0
         self._workflow_state_checker: WorkflowStateChecker | None = workflow_state_checker
 
-    def subscribe(
-        self, event_type: str, handler: HandlerType
-    ) -> None:
+    def subscribe(self, event_type: str, handler: HandlerType) -> None:
         """Subscribe a handler to a specific event type.
 
         Args:
@@ -94,7 +90,7 @@ class EventBus:
         # Accept either an EventHandler implementation or a plain callable(event)
         if not (isinstance(handler, EventHandler) or callable(handler)):
             raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
-        
+
         # Validate callable signature if it's a plain callable
         if callable(handler) and not isinstance(handler, EventHandler):
             self._validate_callable_signature(handler)
@@ -121,7 +117,7 @@ class EventBus:
         """
         if not (isinstance(handler, EventHandler) or callable(handler)):
             raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
-        
+
         # Validate callable signature if it's a plain callable
         if callable(handler) and not isinstance(handler, EventHandler):
             self._validate_callable_signature(handler)
@@ -178,9 +174,7 @@ class EventBus:
                 extra={"handler": type(handler).__name__},
             )
 
-    def _collect_handlers(
-        self, event_type: str
-    ) -> list[HandlerType]:
+    def _collect_handlers(self, event_type: str) -> list[HandlerType]:
         """Collect all handlers that should receive an event.
 
         Args:
@@ -201,9 +195,7 @@ class EventBus:
 
         return handlers_to_notify
 
-    def _invoke_handler(
-        self, handler: HandlerType, event: BaseEvent
-    ) -> tuple[bool, bool]:
+    def _invoke_handler(self, handler: HandlerType, event: BaseEvent) -> tuple[bool, bool]:
         """Invoke a single handler with an event.
 
         Args:
@@ -214,7 +206,7 @@ class EventBus:
             Tuple of (was_invoked, had_error) where:
             - was_invoked: True if handler was called, False if skipped (e.g., can_handle=False)
             - had_error: True if handler raised an exception, False otherwise
-        
+
         Raises:
             HandlerInvocationError: Wraps any exception from handler execution
 
@@ -258,7 +250,7 @@ class EventBus:
 
         Returns:
             True if handler can handle the event, False otherwise
-        
+
         Raises:
             HandlerInvocationError: If can_handle raises an unexpected exception
 
@@ -272,7 +264,8 @@ class EventBus:
         except Exception as exc:
             # Wrap in typed error and log warning, but proceed to handle
             # (some handlers may have buggy can_handle but working handle_event)
-            handler_error = HandlerInvocationError(
+            # Note: We create the error for type safety but don't raise it
+            _ = HandlerInvocationError(
                 message=f"Handler {type(handler).__name__} can_handle() raised exception for event type {event_type}",
                 event_type=event_type,
                 handler_name=type(handler).__name__,
@@ -317,9 +310,9 @@ class EventBus:
 
     def publish(self, event: BaseEvent) -> None:
         """Publish an event to all relevant handlers.
-        
+
         Handler exceptions are caught, logged, and do not prevent other handlers
-        from receiving the event. Each handler failure is wrapped in 
+        from receiving the event. Each handler failure is wrapped in
         HandlerInvocationError for proper error tracking.
 
         Args:
@@ -411,7 +404,7 @@ class EventBus:
 
     def get_stats(self) -> dict[str, int | list[str] | dict[str, int]]:
         """Get event bus statistics.
-        
+
         Returns a point-in-time snapshot of current statistics. Stats are
         returned as copies, not live references.
 
@@ -436,9 +429,9 @@ class EventBus:
 
     def set_workflow_state_checker(self, state_checker: WorkflowStateChecker | None) -> None:
         """Set the workflow state checker (orchestrator).
-        
+
         Note: This setter exists for backward compatibility with code that constructs
-        EventBus without the state checker and sets it later. Consider using 
+        EventBus without the state checker and sets it later. Consider using
         constructor injection via __init__ for new code.
 
         Args:
@@ -559,25 +552,25 @@ class EventBus:
 
     def _validate_callable_signature(self, handler: Callable[[BaseEvent], None]) -> None:
         """Validate that a callable has the correct signature to handle events.
-        
+
         Args:
             handler: The callable to validate
-        
+
         Raises:
             EventBusError: If signature validation fails
-        
+
         """
         try:
             sig = signature(handler)
             params = list(sig.parameters.values())
-            
+
             # Should have exactly one parameter (the event)
             if len(params) != 1:
                 raise EventBusError(
                     f"Handler callable must accept exactly 1 parameter (event), "
                     f"but {handler.__name__ if hasattr(handler, '__name__') else 'callable'} "
                     f"has {len(params)} parameters",
-                    handler_name=getattr(handler, '__name__', 'callable'),
+                    handler_name=getattr(handler, "__name__", "callable"),
                 )
         except (ValueError, TypeError) as e:
             # If we can't inspect signature, log warning but allow it
@@ -585,7 +578,7 @@ class EventBus:
             self.logger.warning(
                 f"Could not validate callable signature: {e}",
                 extra={
-                    "handler": getattr(handler, '__name__', 'callable'),
+                    "handler": getattr(handler, "__name__", "callable"),
                     "error": str(e),
                 },
             )

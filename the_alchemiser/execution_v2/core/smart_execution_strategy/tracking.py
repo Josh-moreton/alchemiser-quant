@@ -429,8 +429,6 @@ class OrderTracker:
             for the next batch of orders.
 
         """
-        count = len(self._active_orders)
-
         self._active_orders.clear()
         self._repeg_counts.clear()
         self._order_placement_times.clear()
@@ -441,9 +439,7 @@ class OrderTracker:
 
         logger.info("📊 Cleared all order tracking data")
 
-    def generate_idempotency_key(
-        self, order_id: str, operation: str, timestamp: datetime
-    ) -> str:
+    def generate_idempotency_key(self, order_id: str, operation: str, timestamp: datetime) -> str:
         """Generate an idempotency key for an order operation.
 
         Args:

@@ -456,13 +456,13 @@ class EventBusError(AlchemiserError):
         correlation_id: str | None = None,
     ) -> None:
         """Initialize event bus error with context.
-        
+
         Args:
             message: Error message
             event_type: Type of event being processed
             handler_name: Name of handler that failed
             correlation_id: Correlation ID for tracing
-        
+
         """
         context: dict[str, Any] = {}
         if event_type:
@@ -490,14 +490,14 @@ class HandlerInvocationError(EventBusError):
         original_error: Exception | None = None,
     ) -> None:
         """Initialize handler invocation error with context.
-        
+
         Args:
             message: Error message
             event_type: Type of event being processed
             handler_name: Name of handler that failed
             correlation_id: Correlation ID for tracing
             original_error: Original exception that caused the failure
-        
+
         """
         super().__init__(message, event_type, handler_name, correlation_id)
         self.original_error = original_error

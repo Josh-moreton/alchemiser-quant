@@ -102,7 +102,7 @@ class StateCheckingHandlerWrapper:
 
 
 __all__ = [
-    "WorkflowState",
     "EventHandlerProtocol",
     "StateCheckingHandlerWrapper",
+    "WorkflowState",
 ]

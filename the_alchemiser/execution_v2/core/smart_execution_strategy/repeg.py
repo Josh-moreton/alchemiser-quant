@@ -52,10 +52,10 @@ class _RemoveFromTracking(Exception):
 @dataclass(frozen=True)
 class RepegContext:
     """Context data for repeg operation to reduce parameter count.
-    
+
     This dataclass groups related parameters needed for repeg success result building,
     reducing the parameter count from 8 to 2 in affected methods.
-    
+
     Example:
         >>> from decimal import Decimal
         >>> from datetime import datetime, UTC
@@ -71,8 +71,9 @@ class RepegContext:
         ... )
         >>> # Pass to methods requiring multiple repeg parameters
         >>> result = repeg_mgr._build_repeg_success_result(context)
+
     """
-    
+
     order_id: str
     executed_order: OrderExecutionResult
     request: SmartOrderRequest
@@ -247,7 +248,7 @@ class RepegManager:
                 )
             return await self._attempt_repeg(order_id, request)
 
-        except (ValueError, AttributeError, OrderExecutionError, asyncio.TimeoutError) as e:
+        except (TimeoutError, ValueError, AttributeError, OrderExecutionError) as e:
             logger.error(
                 "Error checking order for re-pegging",
                 order_id=order_id,
@@ -543,7 +544,9 @@ class RepegManager:
         try:
             # Check idempotency: prevent duplicate escalation attempts
             current_time = datetime.now(UTC)
-            if not self.order_tracker.check_and_record_operation(order_id, "escalate", current_time):
+            if not self.order_tracker.check_and_record_operation(
+                order_id, "escalate", current_time
+            ):
                 logger.info(
                     "Skipping duplicate market escalation attempt",
                     order_id=order_id,
@@ -596,7 +599,7 @@ class RepegManager:
                 order_id, executed_order, original_anchor, request
             )
 
-        except (OrderExecutionError, asyncio.TimeoutError) as exc:
+        except (TimeoutError, OrderExecutionError) as exc:
             logger.error(
                 "Error during market escalation",
                 order_id=order_id,
@@ -823,7 +826,7 @@ class RepegManager:
             )
             return self._handle_repeg_order_result(context)
 
-        except (OrderExecutionError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OrderExecutionError) as e:
             logger.error(
                 "Error during re-peg attempt",
                 order_id=order_id,
@@ -1154,7 +1157,7 @@ class RepegManager:
                 limit_price=float(limit_price),
                 time_in_force="day",
             )
-        except (OrderExecutionError, asyncio.TimeoutError) as retry_e:
+        except (TimeoutError, OrderExecutionError) as retry_e:
             logger.error(
                 "Retry with available quantity failed",
                 correlation_id=request.correlation_id,

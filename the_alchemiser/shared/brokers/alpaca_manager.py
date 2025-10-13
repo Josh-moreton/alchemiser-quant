@@ -165,9 +165,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             polling for better performance and responsiveness.
 
         """
-        credentials_key = cls._hash_credentials(
-            api_key, secret_key, paper=paper, base_url=base_url
-        )
+        credentials_key = cls._hash_credentials(api_key, secret_key, paper=paper, base_url=base_url)
 
         with cls._lock:
             # Wait for cleanup to complete using Event (non-busy wait)
@@ -445,7 +443,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         *,
         is_complete_exit: bool,
     ) -> ExecutedOrder:
-        """Internal market order placement logic (extracted for testability).
+        """Place internal market order with testable logic.
 
         Args:
             symbol: Stock symbol
@@ -887,9 +885,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                         logger.error(
                             "Error cleaning up AlpacaManager instance",
                             error=str(e),
-                            credentials_hash=getattr(instance, "_credentials_hash", "unknown")[
-                                :16
-                            ],
+                            credentials_hash=getattr(instance, "_credentials_hash", "unknown")[:16],
                         )
                 cls._instances.clear()
                 logger.info("All AlpacaManager instances cleaned up")

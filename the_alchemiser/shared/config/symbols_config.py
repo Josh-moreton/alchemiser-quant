@@ -23,45 +23,51 @@ from ..value_objects.symbol import Symbol
 # runtime modifications that could cause race conditions.
 # Inclusion criteria: Major ETFs with significant trading volume used in
 # system strategies (market indices, leveraged, sector, international, bonds).
-KNOWN_ETFS: frozenset[str] = frozenset({
-    # Market Indices
-    "SPY",  # SPDR S&P 500 ETF
-    "QQQ",  # Invesco QQQ (NASDAQ-100)
-    "IWM",  # iShares Russell 2000 ETF
-    # Leveraged ETFs
-    "TECL",  # Direxion Daily Technology Bull 3X Shares
-    "TQQQ",  # ProShares UltraPro QQQ
-    "SOXL",  # Direxion Daily Semiconductor Bull 3X Shares
-    # Sector ETFs
-    "XLK",  # Technology Select Sector SPDR Fund
-    "SMH",  # VanEck Semiconductor ETF
-    "SOXX",  # iShares Semiconductor ETF
-    # International
-    "EFA",  # iShares MSCI EAFE ETF
-    "EEM",  # iShares MSCI Emerging Markets ETF
-    # Bonds
-    "TLT",  # iShares 20+ Year Treasury Bond ETF
-    "HYG",  # iShares iBoxx $ High Yield Corporate Bond ETF
-})
+KNOWN_ETFS: frozenset[str] = frozenset(
+    {
+        # Market Indices
+        "SPY",  # SPDR S&P 500 ETF
+        "QQQ",  # Invesco QQQ (NASDAQ-100)
+        "IWM",  # iShares Russell 2000 ETF
+        # Leveraged ETFs
+        "TECL",  # Direxion Daily Technology Bull 3X Shares
+        "TQQQ",  # ProShares UltraPro QQQ
+        "SOXL",  # Direxion Daily Semiconductor Bull 3X Shares
+        # Sector ETFs
+        "XLK",  # Technology Select Sector SPDR Fund
+        "SMH",  # VanEck Semiconductor ETF
+        "SOXX",  # iShares Semiconductor ETF
+        # International
+        "EFA",  # iShares MSCI EAFE ETF
+        "EEM",  # iShares MSCI Emerging Markets ETF
+        # Bonds
+        "TLT",  # iShares 20+ Year Treasury Bond ETF
+        "HYG",  # iShares iBoxx $ High Yield Corporate Bond ETF
+    }
+)
 
 # Cryptocurrency Symbols (if supported in future)
 # This is an immutable frozenset to ensure thread-safety.
 # Inclusion criteria: Major cryptocurrencies with Alpaca support.
-KNOWN_CRYPTO: frozenset[str] = frozenset({
-    "BTC",  # Bitcoin
-    "ETH",  # Ethereum
-    "BTCUSD",
-    "ETHUSD",
-})
+KNOWN_CRYPTO: frozenset[str] = frozenset(
+    {
+        "BTC",  # Bitcoin
+        "ETH",  # Ethereum
+        "BTCUSD",
+        "ETHUSD",
+    }
+)
 
 # Option Suffixes (basic patterns)
 # Note: This is a simplified pattern. Real option symbols have complex formats
 # like "AAPL240315C00150000". This may cause false positives for stocks
 # ending in C or P. Consider removing or improving if accuracy is critical.
-OPTION_PATTERNS: frozenset[str] = frozenset({
-    "C",  # Call options
-    "P",  # Put options
-})
+OPTION_PATTERNS: frozenset[str] = frozenset(
+    {
+        "C",  # Call options
+        "P",  # Put options
+    }
+)
 
 AssetType = Literal["STOCK", "ETF", "CRYPTO", "OPTION", "FUTURE"]
 

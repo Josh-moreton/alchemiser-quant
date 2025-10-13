@@ -16,14 +16,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors import AlchemiserError
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.asset_info import AssetInfo
 
 logger = get_logger(__name__)
 
 
 class ExecutionValidationError(AlchemiserError):
     """Exception raised when execution validation fails.
-    
+
     This exception is raised during pre-flight order validation when an order
     cannot be placed due to validation constraints (e.g., non-tradable asset,
     invalid quantity, non-fractionable asset with fractional quantity).
@@ -45,7 +44,7 @@ class ExecutionValidationError(AlchemiserError):
 
 class OrderValidationResult(BaseModel):
     """Result of order validation including any adjustments.
-    
+
     This frozen DTO represents the outcome of order validation, including
     whether the order is valid, any quantity adjustments made, warnings,
     and error details if validation failed.
@@ -68,12 +67,8 @@ class OrderValidationResult(BaseModel):
     error_message: str | None = Field(
         default=None, description="Error message if validation failed"
     )
-    error_code: str | None = Field(
-        default=None, description="Error code if validation failed"
-    )
-    schema_version: str = Field(
-        default="1.0", description="Schema version for evolution tracking"
-    )
+    error_code: str | None = Field(default=None, description="Error code if validation failed")
+    schema_version: str = Field(default="1.0", description="Schema version for evolution tracking")
     correlation_id: str | None = Field(
         default=None, description="Request correlation ID for tracing"
     )
@@ -111,7 +106,7 @@ class ExecutionValidator:
 
         Returns:
             OrderValidationResult with validation outcome
-            
+
         Raises:
             ExecutionValidationError: If validation encounters an unexpected error
 
@@ -172,7 +167,7 @@ class ExecutionValidator:
 
         Returns:
             OrderValidationResult with validation outcome
-            
+
         Note:
             Uses default Decimal context for rounding (precision=28 digits).
             For whole share rounding with ROUND_DOWN, default context is sufficient.
