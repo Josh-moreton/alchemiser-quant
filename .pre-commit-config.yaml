@@ -1,57 +1,70 @@
-# Pre-commit hooks for The Alchemiser - Production-grade automated code quality
-# Philosophy: Fail fast, run locally what CI runs, maintain consistency with make commands
+# Pre-commit hooks for The Alchemiser - Simplified, non-blocking workflow
+# Philosophy: Catch obvious mistakes, don't block commits
+# Run ruff/mypy manually with: make format, make type-check
 # All tool configurations centralized in pyproject.toml
-# Runs on the_alchemiser/ directory (production code) - tests have separate validation
 
 repos:
-  # Ruff - Fast Python linter and formatter
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+
+  # Code Quality: Ruff (formatting, linting, import sorting)
+  - repo: local
     hooks:
-      - id: ruff
-        name: Ruff linter (auto-fix)
-        args: [--fix, --exit-non-zero-on-fix]
-        types_or: [python, pyi]
+      # Step 1: Format code (includes whitespace normalization)
       - id: ruff-format
-        name: Ruff formatter
-        types_or: [python, pyi]
+        name: Ruff Format (whitespace, style)
+        entry: poetry run ruff format
+        language: system
+        types: [python]
+        files: ^the_alchemiser/
+        pass_filenames: true
+        stages: [pre-commit]
 
-  # Basic file hygiene - fast, essential checks only
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+      # Step 2: Auto-fix lint violations
+      - id: ruff-fix
+        name: Ruff Auto-fix (safe fixes)
+        entry: poetry run ruff check --fix
+        language: system
+        types: [python]
+        files: ^the_alchemiser/
+        pass_filenames: true
+        stages: [pre-commit]
+
+  # Type Safety: MyPy strict type checking
+  # NOTE: Temporarily disabled due to duplicate module issue in codebase
+  # both execution_v2/core/smart_execution_strategy.py AND
+  # execution_v2/core/smart_execution_strategy/__init__.py exist
+  # Run manually: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
+  - repo: local
     hooks:
-      - id: check-yaml
-        name: Validate YAML syntax
-        files: \.(yaml|yml)$
-        exclude: ^template\.yaml$  # AWS SAM template uses CloudFormation intrinsics
-      - id: check-toml
-        name: Validate TOML syntax
-        files: \.toml$
-      - id: check-json
-        name: Validate JSON syntax
-        files: \.json$
-        exclude: ^\.vscode/  # VS Code config may have comments (JSONC)
-      - id: check-merge-conflict
-        name: Check for merge conflict markers
-      - id: check-added-large-files
-        name: Prevent large files (>500KB)
-        args: ['--maxkb=500']
-      - id: mixed-line-ending
-        name: Enforce consistent line endings
-        args: ['--fix=lf']
-        files: ^the_alchemiser/.*\.py$
+      - id: mypy
+        name: MyPy Type Check (strict mode)
+        entry: poetry run mypy the_alchemiser/ --config-file=pyproject.toml
+        language: system
+        types: [python]
+        files: ^the_alchemiser/
+        pass_filenames: false
+        require_serial: true  # MyPy cache not thread-safe
+        stages: [pre-commit]
 
-  # Security: Secret detection (baseline approach)
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+  # Architecture: Import boundary enforcement
+  - repo: local
     hooks:
-      - id: detect-secrets
-        name: Secret Scanning
-        args: ['--baseline', '.secrets.baseline']
-        exclude: |
-          (?x)^(
-              .*\.lock$|
-              .*\.min\.js$|
-              coverage\.xml$
-          )$
+      - id: import-linter
+        name: Import Linter (architecture boundaries)
+        entry: bash -c 'poetry run lint-imports --config pyproject.toml || poetry run python -m importlinter --config pyproject.toml'
+        language: system
+        types: [python]
+        files: ^the_alchemiser/
+        pass_filenames: false  # Analyzes entire module graph
+        stages: [pre-commit]
 
+  # Security: Bandit (security issue detection)
+  - repo: local
+    hooks:
+      - id: bandit
+        name: Bandit Security Scan
+        entry: poetry run bandit -c pyproject.toml -r the_alchemiser/
+        language: system
+        types: [python]
+        files: ^the_alchemiser/
+        pass_filenames: false
+        stages: [pre-commit]

@@ -9,12 +9,14 @@ across the trading workflow. Focused on cross-cutting concerns rather than domai
 
 from __future__ import annotations
 
+import time
+import uuid
 from collections.abc import Callable as TypingCallable
 from datetime import UTC, datetime
-from enum import Enum
-from logging import Logger
+from decimal import Decimal
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -33,84 +35,11 @@ from the_alchemiser.shared.events import (
 from the_alchemiser.shared.events.handlers import EventHandler as SharedEventHandler
 from the_alchemiser.shared.logging import get_logger
 
-
-class WorkflowState(Enum):
-    """Workflow execution state for tracking and preventing post-failure processing."""
-
-    RUNNING = "running"
-    FAILED = "failed"
-    COMPLETED = "completed"
-
-
-class EventHandlerProtocol(Protocol):
-    """Structural type for event handlers registered on the EventBus."""
-
-    def handle_event(self, event: BaseEvent) -> None:
-        """Process a single event."""
-
-    def can_handle(self, event_type: str) -> bool:
-        """Return True if this handler supports the given event type."""
-
-
-class StateCheckingHandlerWrapper:
-    """Wrapper that checks workflow state before delegating to actual handler.
-
-    This prevents handlers from processing events for failed workflows without
-    requiring changes to the handlers themselves.
-    """
-
-    def __init__(
-        self,
-        wrapped_handler: SharedEventHandler,
-        orchestrator: EventDrivenOrchestrator,
-        event_type: str,
-        logger: Logger,
-    ) -> None:
-        """Initialize the wrapper.
-
-        Args:
-            wrapped_handler: The actual handler to wrap
-            orchestrator: The orchestrator to check workflow state
-            event_type: The event type this wrapper handles
-            logger: Logger instance
-
-        """
-        self.wrapped_handler: SharedEventHandler = wrapped_handler
-        self.orchestrator: EventDrivenOrchestrator = orchestrator
-        self.event_type: str = event_type
-        self.logger: Logger = logger
-
-    def handle_event(self, event: BaseEvent) -> None:
-        """Handle event with workflow state checking.
-
-        Args:
-            event: The event to handle
-
-        """
-        # Check if workflow has failed before processing
-        if self.orchestrator.is_workflow_failed(event.correlation_id):
-            handler_name = type(self.wrapped_handler).__name__
-            self.logger.info(
-                f"🚫 Skipping {handler_name} - workflow {event.correlation_id} already failed"
-            )
-            return
-
-        # Delegate to actual handler
-        self.wrapped_handler.handle_event(event)
-
-    def can_handle(self, event_type: str) -> bool:
-        """Check if wrapped handler can handle event type.
-
-        Args:
-            event_type: The event type to check
-
-        Returns:
-            True if the wrapped handler can handle this event type
-
-        """
-        if hasattr(self.wrapped_handler, "can_handle"):
-            return self.wrapped_handler.can_handle(event_type)
-        return True
+# Import workflow state management
+from .workflow_state import (
+    StateCheckingHandlerWrapper,
+    WorkflowState,
+)
 
 
 class EventDrivenOrchestrator:
@@ -246,8 +175,6 @@ class EventDrivenOrchestrator:
             The correlation ID for tracking the workflow
 
         """
-        import uuid
-
         workflow_correlation_id = correlation_id or str(uuid.uuid4())
 
         self.logger.info(f"🚀 Starting event-driven trading workflow: {workflow_correlation_id}")
@@ -290,8 +217,6 @@ class EventDrivenOrchestrator:
             Dictionary containing workflow results
 
         """
-        import time
-
         start_time = time.time()
 
         self.logger.info(f"⏳ Waiting for workflow completion: {correlation_id}")
@@ -572,6 +497,99 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
+    def _prepare_execution_data(self, event: TradeExecuted, *, success: bool) -> dict[str, Any]:
+        """Prepare execution data with failure details.
+
+        Args:
+            event: The TradeExecuted event
+            success: Whether the trading was successful
+
+        Returns:
+            Dictionary containing execution data with failure details if applicable
+
+        """
+        execution_data = event.execution_data.copy() if event.execution_data else {}
+
+        # Add failed symbols to execution data for notification service
+        if not success and event.failed_symbols:
+            execution_data["failed_symbols"] = event.failed_symbols
+
+        return execution_data
+
+    def _extract_trade_value(self, execution_data: dict[str, Any]) -> Decimal:
+        """Extract and normalize total trade value to Decimal.
+
+        Args:
+            execution_data: Dictionary containing execution data
+
+        Returns:
+            Total trade value as Decimal, or Decimal("0") if conversion fails
+
+        """
+        raw_total_value = execution_data.get("total_trade_value", 0)
+        try:
+            return Decimal(str(raw_total_value))
+        except (TypeError, ValueError):
+            return Decimal("0")
+
+    def _extract_error_details(
+        self, event: TradeExecuted, *, success: bool
+    ) -> tuple[str | None, str | None]:
+        """Extract error message and code from failed trade event.
+
+        Args:
+            event: The TradeExecuted event
+            success: Whether the trading was successful
+
+        Returns:
+            Tuple of (error_message, error_code), both None if successful
+
+        """
+        if not success:
+            error_message = (
+                event.failure_reason or event.metadata.get("error_message") or "Unknown error"
+            )
+            error_code = getattr(event, "error_code", None)
+            return error_message, error_code
+        return None, None
+
+    def _build_trading_notification(
+        self, event: TradeExecuted, *, success: bool
+    ) -> BaseEvent:  # Returns TradingNotificationRequested which inherits from BaseEvent
+        """Build trading notification event from trade execution event.
+
+        Args:
+            event: The TradeExecuted event
+            success: Whether the trading was successful
+
+        Returns:
+            TradingNotificationRequested event ready to publish
+
+        """
+        from the_alchemiser.shared.events.schemas import TradingNotificationRequested
+
+        mode_str = "LIVE" if not self.container.config.paper_trading() else "PAPER"
+        execution_data = self._prepare_execution_data(event, success=success)
+        total_trade_value = self._extract_trade_value(execution_data)
+        error_message, error_code = self._extract_error_details(event, success=success)
+
+        return TradingNotificationRequested(
+            correlation_id=event.correlation_id,
+            causation_id=event.event_id,
+            event_id=f"trading-notification-{uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="orchestration.event_driven_orchestrator",
+            source_component="EventDrivenOrchestrator",
+            trading_success=success,
+            trading_mode=mode_str,
+            orders_placed=event.orders_placed,
+            orders_succeeded=event.orders_succeeded,
+            total_trade_value=total_trade_value,
+            execution_data=execution_data,
+            error_message=error_message,
+            error_code=error_code,
+        )
+
     def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
         """Send trading completion notification via event bus.
 
@@ -581,72 +599,20 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            from datetime import UTC, datetime
-            from uuid import uuid4
-
-            from the_alchemiser.shared.events.schemas import (
-                TradingNotificationRequested,
-            )
-
-            # Determine trading mode from container
-            is_live = not self.container.config.paper_trading()
-            mode_str = "LIVE" if is_live else "PAPER"
-
-            # Extract execution data and enhance with failure details
-            execution_data = event.execution_data.copy() if event.execution_data else {}
-
-            # Add failed symbols to execution data for notification service
-            if not success and event.failed_symbols:
-                execution_data["failed_symbols"] = event.failed_symbols
-
-            orders_placed = event.orders_placed
-            orders_succeeded = event.orders_succeeded
-            # total_trade_value may be Decimal, float, or string; normalize for formatting
-            raw_total_value = execution_data.get("total_trade_value", 0)
-            try:
-                total_trade_value_float = float(raw_total_value)
-            except (TypeError, ValueError):
-                total_trade_value_float = 0.0
-
-            # Get error details if trading failed
-            error_message = None
-            error_code = None
-            if not success:
-                # Use failure_reason from TradeExecuted event if available
-                error_message = (
-                    event.failure_reason or event.metadata.get("error_message") or "Unknown error"
-                )
-                if hasattr(event, "error_code"):
-                    error_code = event.error_code
-
-            # Create and emit trading notification event
-            trading_event = TradingNotificationRequested(
-                correlation_id=event.correlation_id,
-                causation_id=event.event_id,
-                event_id=f"trading-notification-{uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="orchestration.event_driven_orchestrator",
-                source_component="EventDrivenOrchestrator",
-                trading_success=success,
-                trading_mode=mode_str,
-                orders_placed=orders_placed,
-                orders_succeeded=orders_succeeded,
-                total_trade_value=total_trade_value_float,
-                execution_data=execution_data,
-                error_message=error_message,
-                error_code=error_code,
-            )
-
-            # Emit the event
+            trading_event = self._build_trading_notification(event, success=success)
             self.event_bus.publish(trading_event)
 
             self.logger.info(
-                f"Trading notification event published successfully (success={success})"
+                f"Trading notification event published successfully (success={success})",
+                extra={"correlation_id": event.correlation_id},
             )
 
         except Exception as e:
             # Don't let notification failure break the workflow
-            self.logger.error(f"Failed to publish trading notification event: {e}")
+            self.logger.error(
+                f"Failed to publish trading notification event: {e}",
+                extra={"correlation_id": event.correlation_id},
+            )
 
     def _perform_reconciliation(self) -> None:
         """Perform post-trade reconciliation workflow."""

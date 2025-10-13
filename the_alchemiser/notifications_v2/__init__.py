@@ -25,7 +25,15 @@ def register_notification_handlers(container: ApplicationContainer) -> None:
     """Register notification event handlers with the event bus.
 
     Args:
-        container: Application container for dependency injection
+        container: Application container for dependency injection.
+            Must be fully initialized with services.event_bus available.
+
+    Returns:
+        None
+
+    Raises:
+        AttributeError: If container is not properly initialized
+        Exception: If service initialization or handler registration fails
 
     """
     notification_service = NotificationService(container)
@@ -37,3 +45,6 @@ __all__ = [
     "NotificationService",
     "register_notification_handlers",
 ]
+
+# Version for compatibility tracking
+__version__ = "2.0.0"

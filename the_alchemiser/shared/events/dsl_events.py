@@ -14,9 +14,12 @@ Provides specific event classes for DSL strategy evaluation workflow:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
+
+if TYPE_CHECKING:
+    from pydantic import ValidationInfo
 
 from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
 from ..schemas.ast_node import ASTNode
@@ -100,7 +103,9 @@ class IndicatorComputed(BaseEvent):
     # Indicator fields
     request_id: str = Field(..., min_length=1, description="Original request identifier")
     indicator: TechnicalIndicator = Field(..., description="Computed indicator data")
-    computation_time_ms: float = Field(ge=0, description="Computation time in milliseconds")
+    computation_time_ms: float = Field(
+        ge=0, le=300000, description="Computation time in milliseconds (max 5 minutes)"
+    )
 
     # Optional metadata
     computation_metadata: dict[str, Any] = Field(
@@ -125,8 +130,8 @@ class PortfolioAllocationProduced(BaseEvent):
     # Allocation fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that produced allocation")
     allocation: StrategyAllocation = Field(..., description="Portfolio allocation result")
-    allocation_type: str = Field(
-        ..., min_length=1, description="Type of allocation (final, intermediate)"
+    allocation_type: Literal["final", "intermediate"] = Field(
+        ..., description="Type of allocation (final or intermediate)"
     )
 
     # Metadata
@@ -193,6 +198,29 @@ class TopNSelected(BaseEvent):
         default_factory=dict, description="Additional selection metadata"
     )
 
+    @field_validator("n_selected")
+    @classmethod
+    def validate_n_selected(cls, v: int, info: ValidationInfo) -> int:
+        """Validate n_selected matches length of selected_symbols.
+
+        Args:
+            v: The n_selected value
+            info: Validation info containing other field values
+
+        Returns:
+            The validated n_selected value
+
+        Raises:
+            ValueError: If n_selected doesn't match length of selected_symbols
+
+        """
+        if hasattr(info, "data") and "selected_symbols" in info.data:
+            selected = info.data["selected_symbols"]
+            if v != len(selected):
+                msg = f"n_selected ({v}) must match length of selected_symbols ({len(selected)})"
+                raise ValueError(msg)
+        return v
+
 
 class DecisionEvaluated(BaseEvent):
     """Event emitted when a decision branch is evaluated.
@@ -209,7 +237,7 @@ class DecisionEvaluated(BaseEvent):
     # Decision fields
     decision_expression: ASTNode = Field(..., description="Decision expression that was evaluated")
     condition_result: bool = Field(..., description="Result of condition evaluation")
-    branch_taken: str = Field(..., min_length=1, description="Branch taken (then/else)")
+    branch_taken: Literal["then", "else"] = Field(..., description="Branch taken (then or else)")
     branch_result: PortfolioFragment | None = Field(
         default=None, description="Result of branch evaluation"
     )

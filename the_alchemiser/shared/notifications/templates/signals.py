@@ -1,43 +1,161 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
 Signals content builder for email templates.
 
 This module handles building HTML content for technical indicators,
 strategy signals, and trading signal analysis.
+
+Note:
+    This module is display-only and does not perform financial calculations.
+    Float comparisons use threshold values appropriate for display purposes.
+
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol, TypedDict
 
+from ...errors.exceptions import TemplateGenerationError
+from ...logging import get_logger
 from .base import BaseEmailTemplate
+
+# Module logger
+logger = get_logger(__name__)
 
 # Constants
 _STRATEGY_TYPE_PREFIX = "StrategyType."
 
+# RSI Thresholds (industry standard)
+# RSI > 80: Critically overbought - likely reversal
+# RSI 70-80: Overbought warning - caution
+# RSI < 20: Oversold - potential buy opportunity
+RSI_OVERBOUGHT_CRITICAL = 80.0
+RSI_OVERBOUGHT_WARNING = 70.0
+RSI_OVERSOLD = 20.0
+
+# String truncation limits
+MAX_REASON_LENGTH_DETAILED = 300  # For detailed signal view with full context
+MAX_REASON_LENGTH_SUMMARY = 100  # For summary tables where space is limited
+
+# Action color mappings for consistent UI
+ACTION_COLORS = {
+    "BUY": {
+        "text": "#10B981",
+        "background": "#D1FAE5",
+        "label": "BUY",
+    },
+    "SELL": {
+        "text": "#EF4444",
+        "background": "#FEE2E2",
+        "label": "SELL",
+    },
+    "HOLD": {
+        "text": "#6B7280",
+        "background": "#F3F4F6",
+        "label": "HOLD",
+    },
+}
+
+
+# Type definitions for better type safety
+class TechnicalIndicators(TypedDict, total=False):
+    """Technical indicator data structure."""
+
+    rsi_10: float
+    rsi_20: float
+    current_price: float
+    ma_200: float
+
+
+class SignalData(TypedDict, total=False):
+    """Signal data structure for strategy signals."""
+
+    action: str
+    symbol: str
+    reason: str
+    timestamp: str
+    technical_indicators: dict[str, TechnicalIndicators]
+
+
+class SignalProtocol(Protocol):
+    """Protocol for signal objects."""
+
+    action: str
+    symbol: str
+    reason: str | None
+
 
 class SignalsBuilder:
-    """Builds signals-related HTML content for emails."""
+    """Builds signals-related HTML content for emails.
+
+    This class provides static methods for generating HTML sections
+    for trading signals, technical indicators, and market analysis
+    that are embedded in email notifications.
+
+    All methods are pure functions that take signal/indicator data
+    and return formatted HTML strings. No I/O or side effects.
+    """
 
     @staticmethod
     def _get_rsi_color(rsi_value: float) -> str:
-        """Get color for RSI value based on thresholds."""
-        if rsi_value > 80:
+        """Get color for RSI value based on overbought/oversold thresholds.
+
+        Uses industry-standard RSI thresholds:
+        - Above 80: Critically overbought - Red (#EF4444)
+        - 70-80: Overbought warning - Orange (#F59E0B)
+        - Below 70: Normal range - Green (#10B981)
+
+        Args:
+            rsi_value: RSI indicator value (typically 0-100)
+
+        Returns:
+            Hex color code string for visual display
+
+        """
+        if rsi_value > RSI_OVERBOUGHT_CRITICAL:
             return "#EF4444"  # Red - Overbought
-        if rsi_value > 70:
+        if rsi_value > RSI_OVERBOUGHT_WARNING:
             return "#F59E0B"  # Orange - Warning
         return "#10B981"  # Green - Normal
 
     @staticmethod
     def _get_price_vs_ma_info(current_price: float, ma_200: float) -> tuple[str, str]:
-        """Get price vs moving average comparison info."""
+        """Get price vs moving average comparison info.
+
+        Compares current price to 200-day moving average to determine
+        trend direction (bullish if above, bearish if below).
+
+        Args:
+            current_price: Current asset price
+            ma_200: 200-day moving average
+
+        Returns:
+            Tuple of (label, color) where:
+            - label: "Above" or "Below"
+            - color: Green for above, Red for below
+
+        """
         if current_price > ma_200:
             return "Above", "#10B981"
         return "Below", "#EF4444"
 
     @staticmethod
-    def _format_indicator_row(symbol: str, indicators: dict[str, Any]) -> str:
-        """Format a single indicator row for technical indicators table."""
+    def _format_indicator_row(symbol: str, indicators: TechnicalIndicators) -> str:
+        """Format a single indicator row for technical indicators table.
+
+        Args:
+            symbol: Stock symbol (e.g., "SPY", "QQQ")
+            indicators: Dictionary containing technical indicator values
+
+        Returns:
+            HTML table row string
+
+        Note:
+            Missing indicators default to 0 for display purposes.
+            This is acceptable for HTML display but should not be
+            used for trading calculations.
+
+        """
         rsi_10 = indicators.get("rsi_10", 0)
         rsi_20 = indicators.get("rsi_20", 0)
         current_price = indicators.get("current_price", 0)
@@ -67,41 +185,99 @@ class SignalsBuilder:
         """
 
     @staticmethod
-    def build_signal_information(signal: Any) -> str:  # noqa: ANN401
+    def _truncate_reason(reason: str, max_length: int) -> str:
+        """Truncate reason string to maximum length.
+
+        Args:
+            reason: The reason text to truncate
+            max_length: Maximum length before truncation
+
+        Returns:
+            Truncated string with ellipsis if longer than max_length,
+            original string otherwise
+
+        """
+        if len(reason) > max_length:
+            return reason[:max_length] + "..."
+        return reason
+
+    @staticmethod
+    def build_signal_information(signal: SignalProtocol | Any) -> str:  # noqa: ANN401
         """Build HTML for signal information section.
 
         Args:
-            signal: Signal object (Alert or StrategySignal) to display
+            signal: Signal object (Alert or StrategySignal) with action,
+                   symbol, and optional reason attributes
 
         Returns:
-            HTML string for signal information
+            HTML string for signal information box, or empty string if no signal
+
+        Raises:
+            TemplateGenerationError: If signal processing fails
+
+        Note:
+            Still accepts Any for backwards compatibility with existing callers.
+            Will be fully typed once all signal objects implement SignalProtocol.
 
         """
         if not signal:
+            logger.debug("build_signal_information_skipped", reason="no_signal")
             return ""
 
         try:
+            action = getattr(signal, "action", "UNKNOWN")
+            symbol = getattr(signal, "symbol", "UNKNOWN")
+            reason = getattr(signal, "reason", None)
+
+            logger.debug(
+                "building_signal_information",
+                action=action,
+                symbol=symbol,
+                has_reason=reason is not None,
+            )
+
             return f"""
             <div style="margin: 24px 0; padding: 16px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
                 <h3 style="margin: 0 0 8px 0; color: #92400E; font-size: 15px; font-weight: 600; letter-spacing: 0.3px;">Signal Information</h3>
                 <p style="margin: 0; color: #92400E; line-height: 1.6;">
-                    <strong>{signal.action} {signal.symbol}</strong>
-                    {f" - {signal.reason}" if hasattr(signal, "reason") and signal.reason else ""}
+                    <strong>{action} {symbol}</strong>
+                    {f" - {reason}" if reason else ""}
                 </p>
             </div>
             """
-        except Exception:
-            return """
-            <div style="margin: 24px 0; padding: 16px; background-color: #FEE2E2; border-left: 4px solid #EF4444; border-radius: 8px;">
-                <p style="margin: 0; color: #DC2626; font-style: italic;">Error reading signal data</p>
-            </div>
-            """
+        except Exception as e:
+            logger.error(
+                "signal_information_generation_failed",
+                error=str(e),
+                signal_type=type(signal).__name__,
+                module="signals",
+            )
+            raise TemplateGenerationError(
+                f"Failed to generate signal information HTML: {e}",
+                template_type="signals",
+                data_type="signal",
+            ) from e
 
     @staticmethod
-    def build_technical_indicators(strategy_signals: dict[Any, Any]) -> str:
-        """Build technical indicators HTML section."""
+    def build_technical_indicators(strategy_signals: dict[Any, SignalData]) -> str:
+        """Build technical indicators HTML section.
+
+        Args:
+            strategy_signals: Dictionary mapping strategy types to signal data
+
+        Returns:
+            HTML string containing technical indicators table(s)
+
+        Note:
+            Still accepts Any keys for backwards compatibility.
+            Strategy types may be enums or strings.
+
+        """
         if not strategy_signals:
+            logger.debug("build_technical_indicators_skipped", reason="no_signals")
             return BaseEmailTemplate.create_alert_box("No technical indicators available", "info")
+
+        logger.debug("building_technical_indicators", strategy_count=len(strategy_signals))
 
         indicators_html = ""
 
@@ -142,6 +318,7 @@ class SignalsBuilder:
                 """
 
         if not indicators_html:
+            logger.debug("build_technical_indicators_no_data")
             return BaseEmailTemplate.create_alert_box("No technical indicators data found", "info")
 
         return f"""
@@ -153,11 +330,31 @@ class SignalsBuilder:
 
     @staticmethod
     def build_detailed_strategy_signals(
-        strategy_signals: dict[Any, Any], strategy_summary: dict[str, Any]
+        strategy_signals: dict[Any, SignalData],
+        strategy_summary: dict[str, Any],
     ) -> str:
-        """Build detailed strategy signals HTML section."""
+        """Build detailed strategy signals HTML section.
+
+        Args:
+            strategy_signals: Dictionary mapping strategy types to signal data
+            strategy_summary: Dictionary containing strategy allocation summaries
+
+        Returns:
+            HTML string containing detailed signal cards
+
+        Note:
+            Uses ACTION_COLORS constant for consistent styling.
+            Reason text is truncated to MAX_REASON_LENGTH_DETAILED (300 chars).
+
+        """
         if not strategy_signals:
+            logger.debug("build_detailed_strategy_signals_skipped", reason="no_signals")
             return BaseEmailTemplate.create_alert_box("No strategy signals available", "info")
+
+        logger.debug(
+            "building_detailed_strategy_signals",
+            signal_count=len(strategy_signals),
+        )
 
         signals_html = ""
 
@@ -173,22 +370,14 @@ class SignalsBuilder:
             reason = signal_data.get("reason", "No reason provided")
             timestamp = signal_data.get("timestamp", "")
 
-            # Determine signal styling
-            if action == "BUY":
-                action_color = "#10B981"
-                action_bg = "#D1FAE5"
-                action_label = "BUY"
-            elif action == "SELL":
-                action_color = "#EF4444"
-                action_bg = "#FEE2E2"
-                action_label = "SELL"
-            else:
-                action_color = "#6B7280"
-                action_bg = "#F3F4F6"
-                action_label = "HOLD"
+            # Get colors from constant mapping
+            colors = ACTION_COLORS.get(action, ACTION_COLORS["HOLD"])
+            action_color = colors["text"]
+            action_bg = colors["background"]
+            action_label = colors["label"]
 
-            # Format reason text (truncate if too long)
-            formatted_reason = reason[:300] + "..." if len(reason) > 300 else reason
+            # Truncate reason text using helper method
+            formatted_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_DETAILED)
             formatted_reason = formatted_reason.replace("\n", "<br>")
 
             signals_html += f"""
@@ -226,9 +415,27 @@ class SignalsBuilder:
         """
 
     @staticmethod
-    def build_market_regime_analysis(strategy_signals: dict[Any, Any]) -> str:
-        """Build market regime analysis section."""
+    def build_market_regime_analysis(strategy_signals: dict[Any, SignalData]) -> str:
+        """Build market regime analysis section.
+
+        Analyzes SPY (S&P 500 ETF) technical indicators to determine
+        overall market regime (bullish/bearish) based on price vs 200MA
+        and RSI levels.
+
+        Args:
+            strategy_signals: Dictionary mapping strategy types to signal data
+
+        Returns:
+            HTML string containing market regime analysis, or empty string
+            if SPY data is not available
+
+        Note:
+            Uses RSI_OVERBOUGHT_CRITICAL and RSI_OVERSOLD constants
+            for threshold comparisons.
+
+        """
         if not strategy_signals:
+            logger.debug("build_market_regime_analysis_skipped", reason="no_signals")
             return ""
 
         # Extract SPY data if available
@@ -240,6 +447,7 @@ class SignalsBuilder:
                 break
 
         if not spy_data:
+            logger.debug("build_market_regime_analysis_skipped", reason="no_spy_data")
             return ""
 
         current_price = spy_data.get("current_price", 0)
@@ -247,7 +455,14 @@ class SignalsBuilder:
         rsi_10 = spy_data.get("rsi_10", 0)
         rsi_20 = spy_data.get("rsi_20", 0)
 
-        # Determine market regime
+        logger.debug(
+            "building_market_regime_analysis",
+            current_price=current_price,
+            ma_200=ma_200,
+            rsi_10=rsi_10,
+        )
+
+        # Determine market regime based on price vs 200MA
         if current_price > ma_200:
             regime = "Bullish Trend"
             regime_color = "#10B981"
@@ -257,12 +472,11 @@ class SignalsBuilder:
             regime_color = "#EF4444"
             regime_bg = "#FEE2E2"
 
-        # RSI analysis
-        rsi_status = ""
-        if rsi_10 > 80:
+        # RSI analysis using defined thresholds
+        if rsi_10 > RSI_OVERBOUGHT_CRITICAL:
             rsi_status = "Overbought"
             rsi_color = "#EF4444"
-        elif rsi_10 < 20:
+        elif rsi_10 < RSI_OVERSOLD:
             rsi_status = "Oversold"
             rsi_color = "#10B981"
         else:
@@ -311,21 +525,50 @@ class SignalsBuilder:
 
     @staticmethod
     def build_strategy_signals_neutral(strategy_signals: dict[Any, Any]) -> str:
-        """Build strategy signals section for neutral mode (no financial data)."""
+        """Build strategy signals section for neutral mode (no financial data).
+
+        Creates a summary table of strategy signals without detailed
+        financial metrics. Used for quick overview emails.
+
+        Args:
+            strategy_signals: Dictionary mapping strategy names/types to signal data
+
+        Returns:
+            HTML string containing strategy signals table, or empty string
+            if no signals available
+
+        Note:
+            - Handles both StrategyType enum and string keys
+            - Reason text truncated to MAX_REASON_LENGTH_SUMMARY (100 chars)
+            - Uses ACTION_COLORS constant for consistent styling
+
+        """
         if not strategy_signals:
+            logger.debug("build_strategy_signals_neutral_skipped", reason="no_signals")
             return ""
+
+        logger.debug(
+            "building_strategy_signals_neutral",
+            signal_count=len(strategy_signals),
+        )
 
         signal_rows = []
 
         for strategy_name, signal_data in strategy_signals.items():
             if not isinstance(signal_data, dict):
+                logger.warning(
+                    "invalid_signal_data_type",
+                    strategy=str(strategy_name),
+                    data_type=type(signal_data).__name__,
+                )
                 continue
 
             action = signal_data.get("action", "UNKNOWN")
             symbol = signal_data.get("symbol", "UNKNOWN")
             reason = signal_data.get("reason", "No reason provided")
 
-            # Convert strategy_name to string and format (handle both StrategyType enum and string)
+            # Convert strategy_name to string and format
+            # Handle both StrategyType enum and string
             if hasattr(strategy_name, "name"):
                 # It's a StrategyType enum
                 strategy_display_name = strategy_name.name.upper()
@@ -335,19 +578,13 @@ class SignalsBuilder:
                     str(strategy_name).replace(_STRATEGY_TYPE_PREFIX, "").upper()
                 )
 
-            # Color coding for actions
-            if action == "BUY":
-                action_color = "#10B981"
-                action_label = "BUY"
-            elif action == "SELL":
-                action_color = "#EF4444"
-                action_label = "SELL"
-            else:
-                action_color = "#6B7280"
-                action_label = "HOLD"
+            # Get colors from constant mapping
+            colors = ACTION_COLORS.get(action, ACTION_COLORS["HOLD"])
+            action_color = colors["text"]
+            action_label = colors["label"]
 
-            # Truncate reason for display
-            display_reason = reason[:100] + "..." if len(reason) > 100 else reason
+            # Truncate reason for summary display
+            display_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
 
             signal_rows.append(
                 f"""
