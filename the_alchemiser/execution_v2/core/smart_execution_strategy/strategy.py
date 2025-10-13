@@ -132,7 +132,9 @@ class SmartExecutionStrategy:
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
-        await asyncio.sleep(self.config.quote_wait_milliseconds / 1000.0)  # Configurable wait for quote data
+        await asyncio.sleep(
+            self.config.quote_wait_milliseconds / 1000.0
+        )  # Configurable wait for quote data
 
         try:
             # Get validated quote with retry logic
@@ -158,7 +160,7 @@ class SmartExecutionStrategy:
                 used_fallback=used_fallback,
             )
 
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             logger.error(
                 "Smart order placement timeout",
                 extra={
@@ -229,7 +231,11 @@ class SmartExecutionStrategy:
                 break
 
             if attempt < 2:  # Don't wait on last attempt
-                wait_ms = retry_intervals[attempt] if attempt < len(retry_intervals) else retry_intervals[-1]
+                wait_ms = (
+                    retry_intervals[attempt]
+                    if attempt < len(retry_intervals)
+                    else retry_intervals[-1]
+                )
                 await asyncio.sleep(wait_ms / 1000.0)
 
         return quote, used_fallback
@@ -427,7 +433,7 @@ class SmartExecutionStrategy:
                 ),
                 timeout=self.config.order_placement_timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(
                 "Order placement timeout",
                 extra={
@@ -496,8 +502,8 @@ class SmartExecutionStrategy:
             extra={
                 "order_id": result.order_id,
                 "price": str(optimal_price),
-                "strategy": analysis_metadata['strategy_recommendation'],
-                "confidence": analysis_metadata['confidence'],
+                "strategy": analysis_metadata["strategy_recommendation"],
+                "confidence": analysis_metadata["confidence"],
                 "correlation_id": request.correlation_id,
             },
         )
@@ -603,7 +609,7 @@ class SmartExecutionStrategy:
     ) -> dict[str, float | int] | None:
         """Wait for real-time quote data to be available.
 
-        .. deprecated:: 
+        .. deprecated::
             This method is deprecated and will be removed in a future version.
             Use the internal quote provider directly or place_smart_order instead.
 
@@ -615,7 +621,6 @@ class SmartExecutionStrategy:
             Quote data or None if timeout
 
         """
-        import warnings
         warnings.warn(
             "wait_for_quote_data is deprecated and will be removed in a future version",
             DeprecationWarning,
@@ -626,7 +631,7 @@ class SmartExecutionStrategy:
     def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
         """Validate that the quote has sufficient liquidity.
 
-        .. deprecated:: 
+        .. deprecated::
             This method is deprecated and will be removed in a future version.
             Use the internal quote provider directly or place_smart_order instead.
 
@@ -638,7 +643,6 @@ class SmartExecutionStrategy:
             True if quote passes validation
 
         """
-        import warnings
         warnings.warn(
             "validate_quote_liquidity is deprecated and will be removed in a future version",
             DeprecationWarning,
@@ -649,7 +653,7 @@ class SmartExecutionStrategy:
     def get_latest_quote(self, symbol: str) -> dict[str, float | int] | None:
         """Get the latest quote from the pricing service.
 
-        .. deprecated:: 
+        .. deprecated::
             This method is deprecated and will be removed in a future version.
             Use the internal quote provider directly or place_smart_order instead.
 
@@ -660,7 +664,6 @@ class SmartExecutionStrategy:
             Quote data or None if not available
 
         """
-        import warnings
         warnings.warn(
             "get_latest_quote is deprecated and will be removed in a future version",
             DeprecationWarning,

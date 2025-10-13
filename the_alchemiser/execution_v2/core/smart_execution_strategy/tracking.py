@@ -155,12 +155,19 @@ class OrderTracker:
         # Input validation
         if not new_order_id or not isinstance(new_order_id, str):
             msg = f"new_order_id must be non-empty string, got: {type(new_order_id).__name__}"
-            logger.error(msg, new_order_id=new_order_id if isinstance(new_order_id, str) else "invalid")
+            logger.error(
+                msg, new_order_id=new_order_id if isinstance(new_order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         if new_anchor_price <= Decimal("0"):
             msg = f"new_anchor_price must be positive, got: {new_anchor_price}"
-            logger.error(msg, old_order_id=old_order_id, new_order_id=new_order_id, new_anchor_price=str(new_anchor_price))
+            logger.error(
+                msg,
+                old_order_id=old_order_id,
+                new_order_id=new_order_id,
+                new_anchor_price=str(new_anchor_price),
+            )
             raise OrderTrackerError(msg)
 
         if placement_time.tzinfo is None:

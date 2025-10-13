@@ -68,7 +68,11 @@ class ExecutionConfig:
     fill_wait_seconds: int = 10  # Wait time before attempting re-peg
     max_wait_time_seconds: int = 30  # Maximum wait time for quote data
     quote_wait_milliseconds: int = 100  # Initial wait for quote data after subscription
-    quote_retry_intervals_ms: tuple[int, int, int] = (300, 600, 900)  # Retry intervals for quote fetching
+    quote_retry_intervals_ms: tuple[int, int, int] = (
+        300,
+        600,
+        900,
+    )  # Retry intervals for quote fetching
 
     # Fractional trading safeguards
     # Minimum notional for fractional orders (e.g., Alpaca requires >= $1 for fractional)

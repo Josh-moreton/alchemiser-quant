@@ -58,13 +58,13 @@ class PricingCalculator:
             optimal_price = Decimal(str(analysis.recommended_bid_price))
             volume_available = analysis.volume_at_recommended_bid
             strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
-                analysis, side.lower(), order_size
+                analysis, side.lower(), float(order_size)
             )
         else:
             optimal_price = Decimal(str(analysis.recommended_ask_price))
             volume_available = analysis.volume_at_recommended_ask
             strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
-                analysis, side.lower(), order_size
+                analysis, side.lower(), float(order_size)
             )
 
         # Create metadata for logging and monitoring

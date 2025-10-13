@@ -46,12 +46,13 @@ from ..core.portfolio_service import PortfolioServiceV2
 
 def _to_decimal_safe(value: object) -> Decimal:
     """Convert a value to Decimal safely, returning 0 for invalid values.
-    
+
     Args:
         value: Value to convert (can be int, float, str, or object with .value attribute)
-        
+
     Returns:
         Decimal representation of the value, or Decimal("0") if conversion fails
+
     """
     try:
         if hasattr(value, "value"):
@@ -65,15 +66,16 @@ def _to_decimal_safe(value: object) -> Decimal:
 
 def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, Decimal]:
     """Normalize account info to a consistent dict format with Decimal values.
-    
+
     Args:
         account_info: Account information as dict or SDK object
-        
+
     Returns:
         Dictionary with cash, buying_power, and portfolio_value as Decimal
-        
+
     Raises:
         NegativeCashBalanceError: If cash balance is negative or zero
+
     """
     if isinstance(account_info, dict):
         result = {
@@ -88,7 +90,7 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
             "buying_power": _to_decimal_safe(getattr(account_info, "buying_power", 0)),
             "portfolio_value": _to_decimal_safe(getattr(account_info, "portfolio_value", 0)),
         }
-    
+
     # Validate cash balance is not negative
     if result["cash"] <= Decimal("0"):
         raise NegativeCashBalanceError(
@@ -96,18 +98,19 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
             cash_balance=str(result["cash"]),
             module="portfolio_v2.handlers.portfolio_analysis_handler",
         )
-    
+
     return result
 
 
 def _build_positions_dict(current_positions: list[Any]) -> dict[str, Decimal]:
     """Build positions dictionary from position list with Decimal values.
-    
+
     Args:
         current_positions: List of position objects from broker
-        
+
     Returns:
         Dictionary mapping symbol to market value as Decimal
+
     """
     positions_dict = {}
     for position in current_positions:
@@ -123,7 +126,7 @@ class PortfolioAnalysisHandler:
 
     Listens for SignalGenerated events and performs portfolio analysis,
     emitting RebalancePlanned events for downstream execution.
-    
+
     This handler is idempotent - duplicate event_ids are skipped to prevent
     duplicate rebalance plan creation.
     """
@@ -140,7 +143,7 @@ class PortfolioAnalysisHandler:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
-        
+
         # Track processed events for idempotency
         self._processed_events: set[str] = set()
 
@@ -162,7 +165,7 @@ class PortfolioAnalysisHandler:
                 },
             )
             return
-        
+
         try:
             if isinstance(event, SignalGenerated):
                 self._handle_signal_generated(event)
@@ -222,7 +225,7 @@ class PortfolioAnalysisHandler:
 
         Args:
             event: The SignalGenerated event
-            
+
         Raises:
             PortfolioError: If portfolio analysis fails
             DataProviderError: If account data cannot be retrieved
@@ -249,9 +252,7 @@ class PortfolioAnalysisHandler:
             # Get current account and position data
             account_data = self._get_comprehensive_account_data()
             if not account_data or not account_data.get("account_info"):
-                raise DataProviderError(
-                    "Could not retrieve account data for portfolio analysis"
-                )
+                raise DataProviderError("Could not retrieve account data for portfolio analysis")
 
             # Analyze allocation comparison
             allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
@@ -391,7 +392,7 @@ class PortfolioAnalysisHandler:
 
         Returns:
             Dictionary containing account_info, current_positions, and open_orders
-            
+
         Raises:
             DataProviderError: If account data cannot be retrieved
 
@@ -402,9 +403,7 @@ class PortfolioAnalysisHandler:
             # Get account information
             account_info = alpaca_manager.get_account()
             if not account_info:
-                raise DataProviderError(
-                    "Account information unavailable from Alpaca"
-                )
+                raise DataProviderError("Account information unavailable from Alpaca")
 
             # Get current positions
             current_positions = alpaca_manager.get_positions()
@@ -433,9 +432,7 @@ class PortfolioAnalysisHandler:
         except NegativeCashBalanceError:
             raise
         except Exception as e:
-            raise DataProviderError(
-                f"Failed to retrieve account data: {e}"
-            ) from e
+            raise DataProviderError(f"Failed to retrieve account data: {e}") from e
 
     def _analyze_allocation_comparison(
         self, consolidated_portfolio: ConsolidatedPortfolio
@@ -447,7 +444,7 @@ class PortfolioAnalysisHandler:
 
         Returns:
             AllocationComparison with target, current, and delta values
-            
+
         Raises:
             DataProviderError: If account data cannot be retrieved
             PortfolioError: If allocation comparison cannot be built
@@ -460,9 +457,7 @@ class PortfolioAnalysisHandler:
             # Get account information
             account_info = alpaca_manager.get_account()
             if not account_info:
-                raise DataProviderError(
-                    "Account information unavailable for allocation comparison"
-                )
+                raise DataProviderError("Account information unavailable for allocation comparison")
 
             # Get current positions and normalize account info
             current_positions = alpaca_manager.get_positions()
@@ -493,14 +488,15 @@ class PortfolioAnalysisHandler:
         positions_dict: dict[str, Decimal],
     ) -> dict[str, Any]:
         """Build allocation comparison data structure with Decimal precision.
-        
+
         Args:
             consolidated_portfolio: Consolidated portfolio with target allocations
             account_dict: Account information with Decimal values
             positions_dict: Current positions with Decimal market values
-            
+
         Returns:
             Dictionary with target_values, current_values, and deltas as Decimal
+
         """
         portfolio_value = account_dict.get("portfolio_value", Decimal("0"))
 
@@ -527,7 +523,7 @@ class PortfolioAnalysisHandler:
             target_value = target_allocations.get(symbol, Decimal("0"))
             if not isinstance(target_value, Decimal):
                 target_value = Decimal(str(target_value))
-            
+
             current_value = current_allocations.get(symbol, Decimal("0"))
 
             target_values[symbol] = target_value
@@ -557,7 +553,7 @@ class PortfolioAnalysisHandler:
 
         Returns:
             RebalancePlan with trade items
-            
+
         Raises:
             PortfolioError: If rebalance plan cannot be created
 
@@ -600,9 +596,7 @@ class PortfolioAnalysisHandler:
             else:
                 # Update existing metadata with strategy attribution
                 updated_metadata = {**rebalance_plan.metadata, "strategy_name": strategy_name}
-                rebalance_plan = rebalance_plan.model_copy(
-                    update={"metadata": updated_metadata}
-                )
+                rebalance_plan = rebalance_plan.model_copy(update={"metadata": updated_metadata})
 
             return rebalance_plan
 
@@ -670,9 +664,7 @@ class PortfolioAnalysisHandler:
             self._log_final_rebalance_plan_summary(rebalance_plan)
 
             # Determine if actual trades (BUY/SELL) are required, not just HOLDs
-            trades_required = any(
-                item.action in ["BUY", "SELL"] for item in rebalance_plan.items
-            )
+            trades_required = any(item.action in ["BUY", "SELL"] for item in rebalance_plan.items)
 
             event = RebalancePlanned(
                 correlation_id=original_event.correlation_id,

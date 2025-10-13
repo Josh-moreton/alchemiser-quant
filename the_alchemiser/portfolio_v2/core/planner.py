@@ -29,6 +29,12 @@ logger = get_logger(__name__)
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.planner"
 
+# Priority calculation thresholds (in dollars)
+PRIORITY_THRESHOLD_10K = Decimal("10000")
+PRIORITY_THRESHOLD_1K = Decimal("1000")
+PRIORITY_THRESHOLD_100 = Decimal("100")
+PRIORITY_THRESHOLD_50 = Decimal("50")
+
 
 class RebalancePlanCalculator:
     """Core calculator for rebalance plans.
@@ -36,9 +42,6 @@ class RebalancePlanCalculator:
     Translates strategy allocation weights into concrete trade plans
     using current portfolio snapshot.
     """
-
-    def __init__(self) -> None:
-        """Initialize calculator."""
 
     def build_plan(
         self,
@@ -84,7 +87,12 @@ class RebalancePlanCalculator:
             # Step 3.5: Suppress micro trades below 1% of total portfolio value
             min_trade_threshold = self._min_trade_threshold(portfolio_value)
             logger.info(
-                f"Applying minimum trade threshold ${min_trade_threshold} (1% of portfolio)"
+                "Applying minimum trade threshold",
+                module=MODULE_NAME,
+                action="build_plan",
+                correlation_id=correlation_id,
+                threshold=str(min_trade_threshold),
+                percentage="1%",
             )
             trade_items = self._suppress_small_trades(trade_items, min_trade_threshold)
 
@@ -146,13 +154,15 @@ class RebalancePlanCalculator:
 
             return plan
 
-        except Exception as e:
+        except (ValueError, KeyError, TypeError, AttributeError, PortfolioError) as e:
             logger.error(
-                f"Failed to build rebalance plan: {e}",
+                "Failed to build rebalance plan",
                 module=MODULE_NAME,
                 action="build_plan",
                 correlation_id=correlation_id,
                 error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
             )
             raise PortfolioError(f"Failed to build rebalance plan: {e}") from e
 
@@ -200,7 +210,7 @@ class RebalancePlanCalculator:
         # This ensures we don't try to use 100% of portfolio value which can
         # exceed available buying power
         settings = load_settings()
-        usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
+        usage_multiplier = Decimal("1") - Decimal(str(settings.alpaca.cash_reserve_pct))
         effective_portfolio_value = portfolio_value * usage_multiplier
 
         for symbol in all_symbols:
@@ -334,7 +344,13 @@ class RebalancePlanCalculator:
             try:
                 if item.action in ("BUY", "SELL") and abs(item.trade_amount) < min_threshold:
                     logger.debug(
-                        f"Suppressing micro trade for {item.symbol}: ${item.trade_amount} < ${min_threshold} → HOLD"
+                        "Suppressing micro trade",
+                        module=MODULE_NAME,
+                        action="suppress_small_trades",
+                        symbol=item.symbol,
+                        trade_amount=str(item.trade_amount),
+                        threshold=str(min_threshold),
+                        new_action="HOLD",
                     )
                     suppressed.append(
                         item.model_copy(
@@ -364,12 +380,12 @@ class RebalancePlanCalculator:
             Priority level (1=highest, 5=lowest)
 
         """
-        if trade_amount >= Decimal("10000"):  # $10k+
+        if trade_amount >= PRIORITY_THRESHOLD_10K:
             return 1
-        if trade_amount >= Decimal("1000"):  # $1k+
+        if trade_amount >= PRIORITY_THRESHOLD_1K:
             return 2
-        if trade_amount >= Decimal("100"):  # $100+
+        if trade_amount >= PRIORITY_THRESHOLD_100:
             return 3
-        if trade_amount >= Decimal("50"):  # $50+
+        if trade_amount >= PRIORITY_THRESHOLD_50:
             return 4
         return 5
