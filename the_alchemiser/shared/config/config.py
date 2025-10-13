@@ -1,4 +1,10 @@
-"""Business Unit: utilities; Status: current."""
+"""Business Unit: utilities; Status: current.
+
+Typed configuration loader for The Alchemiser.
+
+This module provides centralized configuration management via Pydantic BaseSettings,
+supporting environment variables, .env files, and per-stage profiles.
+"""
 
 from __future__ import annotations
 
@@ -22,8 +28,6 @@ from .strategy_profiles import (
     PROD_DSL_FILES,
 )
 
-"""Typed configuration loader for The Alchemiser."""
-
 
 class LoggingSettings(BaseModel):
     """Logging configuration options."""
@@ -41,6 +45,8 @@ class AlpacaSettings(BaseModel):
     endpoint: str = "https://api.alpaca.markets"
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     paper_trading: bool = True
+    # Float is acceptable for percentage reserves (1% = 0.01) as precision of ~0.01% is sufficient
+    # for cash reserve buffers. Decimal would be overkill for this use case.
     cash_reserve_pct: float = (
         0.01  # Default is 1% cash reserve; adjust as needed to avoid buying power issues
     )
@@ -100,13 +106,11 @@ class StrategySettings(BaseModel):
         if not (s.startswith("[") and s.endswith("]")):
             return None
 
-        import json
-
         try:
             parsed = json.loads(s)
             if isinstance(parsed, list):
                 return [str(x) for x in parsed]
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except (json.JSONDecodeError, ValueError) as exc:  # pragma: no cover - defensive logging
             logging.debug("Failed to parse DSL files as JSON: %s", exc)
 
         return None
@@ -162,13 +166,15 @@ class StrategySettings(BaseModel):
         if not (s.startswith("{") and s.endswith("}")):
             return None
 
-        import json
-
         try:
             parsed = json.loads(s)
             if isinstance(parsed, dict):
                 return {str(k): float(vv) for k, vv in parsed.items()}
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except (
+            json.JSONDecodeError,
+            ValueError,
+            TypeError,
+        ) as exc:  # pragma: no cover - defensive logging
             logging.debug("Failed to parse DSL allocations as JSON: %s", exc)
 
         return None
@@ -225,6 +231,45 @@ class StrategySettings(BaseModel):
         return v
 
     @staticmethod
+    def _load_packaged_strategy_config(
+        package: str, filename: str
+    ) -> tuple[list[str], dict[str, float]] | None:
+        """Load strategy configuration from packaged JSON file.
+
+        Args:
+            package: Package name (e.g., 'the_alchemiser.config')
+            filename: Config filename (e.g., 'strategy.dev.json')
+
+        Returns:
+            Tuple of (files, allocations) or None if loading fails
+
+        """
+        try:
+            cfg_path = importlib_resources.files(package).joinpath(filename)
+            with cfg_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            files_raw = data.get("files", [])
+            allocs_raw = data.get("allocations", {})
+            files = [str(x) for x in files_raw] if isinstance(files_raw, list) else []
+            allocs = (
+                {str(k): float(v) for k, v in allocs_raw.items()}
+                if isinstance(allocs_raw, dict)
+                else {}
+            )
+
+            if files and allocs:
+                return files, allocs
+            return None
+        except (
+            FileNotFoundError,
+            json.JSONDecodeError,
+            OSError,
+        ) as exc:  # pragma: no cover - defensive logging
+            logging.debug("Strategy config file load failed (%s): %s", filename, exc)
+            return None
+
+    @staticmethod
     def _get_stage_profile() -> tuple[list[str], dict[str, float]]:
         """Get DSL files and allocations for the current stage.
 
@@ -242,22 +287,9 @@ class StrategySettings(BaseModel):
         package = "the_alchemiser.config"
 
         # Try packaged JSON config first
-        try:
-            cfg_path = importlib_resources.files(package).joinpath(filename)
-            with cfg_path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-            files_raw = data.get("files", [])
-            allocs_raw = data.get("allocations", {})
-            files = [str(x) for x in files_raw] if isinstance(files_raw, list) else []
-            allocs = (
-                {str(k): float(v) for k, v in allocs_raw.items()}
-                if isinstance(allocs_raw, dict)
-                else {}
-            )
-            if files and allocs:
-                return files, allocs
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logging.debug("Strategy config file load failed (%s): %s", filename, exc)
+        result = StrategySettings._load_packaged_strategy_config(package, filename)
+        if result is not None:
+            return result
 
         # Fallback to existing in-code profiles
         if stage == "prod":
@@ -293,7 +325,11 @@ class StrategySettings(BaseModel):
 
 
 class EmailSettings(BaseModel):
-    """SMTP configuration for notification delivery."""
+    """SMTP configuration for notification delivery.
+
+    Note: Password should be loaded from environment variables in production.
+    Store in .env file or AWS Secrets Manager, never commit to source control.
+    """
 
     smtp_server: str = "smtp.mail.me.com"
     smtp_port: int = 587
@@ -311,9 +347,13 @@ class DataSettings(BaseModel):
 
 
 class TrackingSettings(BaseModel):
-    """Locations and limits for strategy tracking artefacts."""
+    """Locations and limits for strategy tracking artefacts.
 
-    s3_bucket: str = "the-alchemiser-s3"
+    Note: Default S3 bucket is 'the-alchemiser-s3' but can be overridden via
+    environment variables (TRACKING__S3_BUCKET) for different deployments.
+    """
+
+    s3_bucket: str = "the-alchemiser-s3"  # Overrideable via env vars
     strategy_orders_path: str = "strategy_orders/"
     strategy_positions_path: str = "strategy_positions/"
     strategy_pnl_history_path: str = "strategy_pnl_history/"
@@ -328,7 +368,11 @@ class TradeLedgerSettings(BaseModel):
 
 
 class ExecutionSettings(BaseModel):
-    """Trading execution parameters and safe defaults."""
+    """Trading execution parameters and safe defaults.
+
+    Note: Slippage uses float for basis points as sub-bp precision is sufficient
+    for execution tolerances. Decimal would be excessive for this use case.
+    """
 
     max_slippage_bps: float = 20.0
     aggressive_timeout_seconds: float = 2.5
