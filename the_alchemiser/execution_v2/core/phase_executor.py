@@ -123,6 +123,12 @@ class PhaseExecutor:
         - All monetary values use Decimal for precision
         - Order execution is idempotent within a single phase invocation
 
+    Idempotency:
+        - Each phase invocation maintains an execution context
+        - Duplicate items within same phase are detected and skipped
+        - Cross-invocation idempotency relies on correlation_id uniqueness
+        - Callers should use unique correlation_id per rebalance cycle
+
     Thread-safety: Not thread-safe - designed for single-thread async execution
     """
 
@@ -150,6 +156,91 @@ class PhaseExecutor:
         self.smart_strategy = smart_strategy
         self.execution_config = execution_config
         self.enable_smart_execution = enable_smart_execution
+
+        # Idempotency tracking: tracks executed items within current session
+        # Key: (symbol, action, trade_amount_str)
+        # Value: OrderResult
+        self._execution_cache: dict[tuple[str, str, str], OrderResult] = {}
+
+    def _get_idempotency_key(self, item: RebalancePlanItem) -> tuple[str, str, str]:
+        """Generate idempotency key for a rebalance item.
+
+        Creates a unique key based on symbol, action, and trade amount to detect
+        duplicate execution requests within the same phase.
+
+        Args:
+            item: RebalancePlanItem to generate key for
+
+        Returns:
+            Tuple of (symbol, action, trade_amount_str) as idempotency key
+
+        """
+        # Use string representation of Decimal to ensure exact matching
+        return (item.symbol, item.action, str(item.trade_amount))
+
+    def _check_duplicate_execution(
+        self,
+        item: RebalancePlanItem,
+        bound_logger: structlog.stdlib.BoundLogger,
+    ) -> OrderResult | None:
+        """Check if item has already been executed in this phase.
+
+        Implements idempotency protection by tracking executed items.
+        If a duplicate is detected, returns the cached result instead
+        of re-executing.
+
+        Args:
+            item: RebalancePlanItem to check
+            bound_logger: Logger instance with bound context
+
+        Returns:
+            Cached OrderResult if duplicate detected, None otherwise
+
+        """
+        idempotency_key = self._get_idempotency_key(item)
+
+        if idempotency_key in self._execution_cache:
+            cached_result = self._execution_cache[idempotency_key]
+            bound_logger.warning(
+                f"🔁 Duplicate execution detected for {item.symbol} {item.action}, "
+                f"returning cached result",
+                extra={
+                    "symbol": item.symbol,
+                    "action": item.action,
+                    "trade_amount": float(item.trade_amount),
+                    "cached_order_id": cached_result.order_id,
+                    "reason": "duplicate_execution_prevented",
+                },
+            )
+            return cached_result
+
+        return None
+
+    def _cache_execution_result(
+        self, item: RebalancePlanItem, result: OrderResult
+    ) -> None:
+        """Cache execution result for idempotency tracking.
+
+        Stores the result in the execution cache to prevent duplicate
+        execution of the same item within this phase.
+
+        Args:
+            item: RebalancePlanItem that was executed
+            result: OrderResult from execution
+
+        """
+        idempotency_key = self._get_idempotency_key(item)
+        self._execution_cache[idempotency_key] = result
+
+    def clear_execution_cache(self) -> None:
+        """Clear the execution cache.
+
+        Should be called between different rebalance cycles to allow
+        the same items to be executed again in a new context.
+        Typically called by the parent Executor between plan executions.
+
+        """
+        self._execution_cache.clear()
 
     async def execute_sell_phase(
         self,
@@ -181,10 +272,20 @@ class PhaseExecutor:
 
         # Execute all sell orders first (placement only)
         for item in sell_items:
+            # Check for duplicate execution (idempotency)
+            duplicate_result = self._check_duplicate_execution(item, bound_logger)
+            if duplicate_result:
+                orders.append(duplicate_result)
+                continue  # Skip execution, use cached result
+
             if execute_order_callback:
                 order_result = await execute_order_callback(item)
             else:
                 order_result = await self._execute_single_item(item, bound_logger)
+
+            # Cache result for idempotency
+            self._cache_execution_result(item, order_result)
+
             orders.append(order_result)
             placed += 1
 
@@ -242,9 +343,16 @@ class PhaseExecutor:
 
         # Execute all buy orders first (placement only)
         for item in buy_items:
+            # Check for duplicate execution (idempotency)
+            duplicate_result = self._check_duplicate_execution(item, bound_logger)
+            if duplicate_result:
+                orders.append(duplicate_result)
+                continue  # Skip execution, use cached result
+
             # Pre-check for micro orders that will be rejected by broker constraints
             skip_result = self._check_micro_order_skip(item, bound_logger)
             if skip_result:
+                self._cache_execution_result(item, skip_result)  # Cache skip results too
                 orders.append(skip_result)
                 continue
 
@@ -252,6 +360,10 @@ class PhaseExecutor:
                 order_result = await execute_order_callback(item)
             else:
                 order_result = await self._execute_single_item(item, bound_logger)
+
+            # Cache result for idempotency
+            self._cache_execution_result(item, order_result)
+
             orders.append(order_result)
             placed += 1
 

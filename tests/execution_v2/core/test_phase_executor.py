@@ -544,10 +544,172 @@ class TestHelperMethod:
         # This is a helper method we added for testing
         # In actual code, logger binding happens inline
         # For tests, we need a way to pass bound_logger
-        
+
         # Create a simple method to get bound logger for tests
         bound_logger = phase_executor._logger_bound()
         assert bound_logger is not None
+
+
+class TestIdempotency:
+    """Test idempotency protection mechanisms."""
+
+    def test_get_idempotency_key(self, phase_executor):
+        """Test idempotency key generation."""
+        item = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("1000"))
+
+        key = phase_executor._get_idempotency_key(item)
+
+        assert key == ("AAPL", "BUY", "1000")
+
+    def test_check_duplicate_execution_no_duplicate(self, phase_executor):
+        """Test that first execution is not detected as duplicate."""
+        item = _make_rebalance_item("AAPL")
+
+        result = phase_executor._check_duplicate_execution(item, phase_executor._logger_bound())
+
+        assert result is None  # Not a duplicate
+
+    def test_check_duplicate_execution_with_duplicate(self, phase_executor):
+        """Test that duplicate execution is detected."""
+        item = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("1000"))
+        original_result = _make_order_result("AAPL", action="BUY")
+
+        # Cache the first result
+        phase_executor._cache_execution_result(item, original_result)
+
+        # Check for duplicate
+        duplicate_result = phase_executor._check_duplicate_execution(
+            item, phase_executor._logger_bound()
+        )
+
+        assert duplicate_result is not None
+        assert duplicate_result == original_result
+
+    def test_cache_execution_result(self, phase_executor):
+        """Test that execution results are cached correctly."""
+        item = _make_rebalance_item("AAPL")
+        result = _make_order_result("AAPL")
+
+        phase_executor._cache_execution_result(item, result)
+
+        key = phase_executor._get_idempotency_key(item)
+        assert key in phase_executor._execution_cache
+        assert phase_executor._execution_cache[key] == result
+
+    def test_clear_execution_cache(self, phase_executor):
+        """Test that execution cache can be cleared."""
+        item1 = _make_rebalance_item("AAPL")
+        item2 = _make_rebalance_item("GOOGL")
+
+        phase_executor._cache_execution_result(item1, _make_order_result("AAPL"))
+        phase_executor._cache_execution_result(item2, _make_order_result("GOOGL"))
+
+        assert len(phase_executor._execution_cache) == 2
+
+        phase_executor.clear_execution_cache()
+
+        assert len(phase_executor._execution_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_execute_sell_phase_prevents_duplicates(self, phase_executor):
+        """Test that sell phase prevents duplicate execution."""
+        # Create duplicate items
+        item1 = _make_rebalance_item("AAPL", action="SELL", trade_amount=Decimal("-500"))
+        item2 = _make_rebalance_item("AAPL", action="SELL", trade_amount=Decimal("-500"))
+        sell_items = [item1, item2]
+
+        call_count = 0
+
+        async def mock_execute_callback(item):
+            nonlocal call_count
+            call_count += 1
+            return _make_order_result(item.symbol, action="SELL", order_id=f"order-{call_count}")
+
+        orders, stats = await phase_executor.execute_sell_phase(
+            sell_items=sell_items,
+            execute_order_callback=mock_execute_callback,
+        )
+
+        # Should have 2 orders but only 1 actual execution (1 duplicate)
+        assert len(orders) == 2
+        assert call_count == 1  # Only called once
+        assert orders[0].order_id == "order-1"
+        assert orders[1].order_id == "order-1"  # Same as first (cached)
+        assert stats["placed"] == 1  # Only 1 placed, 1 was duplicate
+
+    @pytest.mark.asyncio
+    async def test_execute_buy_phase_prevents_duplicates(self, phase_executor):
+        """Test that buy phase prevents duplicate execution."""
+        # Create duplicate items
+        item1 = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("1000"))
+        item2 = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("1000"))
+        buy_items = [item1, item2]
+
+        call_count = 0
+
+        async def mock_execute_callback(item):
+            nonlocal call_count
+            call_count += 1
+            return _make_order_result(item.symbol, action="BUY", order_id=f"order-{call_count}")
+
+        orders, stats = await phase_executor.execute_buy_phase(
+            buy_items=buy_items,
+            execute_order_callback=mock_execute_callback,
+        )
+
+        # Should have 2 orders but only 1 actual execution
+        assert len(orders) == 2
+        assert call_count == 1  # Only called once
+        assert orders[0].order_id == "order-1"
+        assert orders[1].order_id == "order-1"  # Same as first (cached)
+
+    @pytest.mark.asyncio
+    async def test_idempotency_across_phases(self, phase_executor):
+        """Test that idempotency tracking works across sell and buy phases."""
+        item = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("1000"))
+
+        async def mock_execute_callback(item):
+            return _make_order_result(item.symbol, action="BUY")
+
+        # Execute in buy phase
+        await phase_executor.execute_buy_phase(
+            buy_items=[item],
+            execute_order_callback=mock_execute_callback,
+        )
+
+        # Try to execute same item again in another buy phase
+        orders2, stats2 = await phase_executor.execute_buy_phase(
+            buy_items=[item],
+            execute_order_callback=mock_execute_callback,
+        )
+
+        # Should detect duplicate and use cached result
+        assert len(orders2) == 1
+        assert stats2["placed"] == 0  # Duplicate, not placed again
+
+    @pytest.mark.asyncio
+    async def test_idempotency_with_different_amounts(self, phase_executor):
+        """Test that different amounts for same symbol are not considered duplicates."""
+        item1 = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("1000"))
+        item2 = _make_rebalance_item("AAPL", action="BUY", trade_amount=Decimal("2000"))
+
+        async def mock_execute_callback(item):
+            return _make_order_result(
+                item.symbol,
+                action="BUY",
+                trade_amount=item.trade_amount,
+            )
+
+        orders, stats = await phase_executor.execute_buy_phase(
+            buy_items=[item1, item2],
+            execute_order_callback=mock_execute_callback,
+        )
+
+        # Should execute both (different amounts)
+        assert len(orders) == 2
+        assert stats["placed"] == 2
+        assert orders[0].trade_amount == Decimal("1000")
+        assert orders[1].trade_amount == Decimal("2000")
 
 
 # Add helper method to PhaseExecutor for testing
