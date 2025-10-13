@@ -98,7 +98,9 @@ def create_failure_result(
         ),
         orders=[],
         warnings=[*warnings, error_message],
-        trading_mode=TRADING_MODE_UNKNOWN,  # type: ignore[arg-type]
+        trading_mode=cast(
+            TradingMode, TRADING_MODE_PAPER
+        ),  # Default to PAPER when trading mode unknown
         started_at=started_at,
         completed_at=completed_at,
         correlation_id=correlation_id,
@@ -273,13 +275,14 @@ def _create_single_order_result(
     order_id = order.get("order_id", "")
     if not isinstance(order_id, str):
         order_id = str(order_id) if order_id else ""
-    order_id_redacted = f"...{order_id[-6:]}" if len(order_id) > 6 else order_id
+    # Extract ONLY last 6 chars (no prefix) to match schema validation (exactly 6 chars)
+    order_id_redacted = order_id[-6:] if len(order_id) >= 6 else None
 
     # Validate and convert qty
     qty_raw = order.get("qty", 0)
     try:
         qty = Decimal(str(qty_raw))
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, Exception) as e:
         raise ValueError(f"Invalid qty in order: {qty_raw}") from e
 
     # Validate filled_price if present

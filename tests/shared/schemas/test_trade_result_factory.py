@@ -48,7 +48,7 @@ class TestCreateFailureResult:
         assert result.status == "FAILURE"
         assert result.success is False
         assert result.correlation_id == "test-123"
-        assert result.trading_mode == TRADING_MODE_UNKNOWN
+        assert result.trading_mode == TRADING_MODE_PAPER  # Defaults to PAPER for failures
         assert result.execution_summary.orders_total == 0
         assert "Test error" in result.warnings
         assert "warning1" in result.warnings
@@ -376,7 +376,7 @@ class TestCreateSingleOrderResult:
 
         result = _create_single_order_result(order, completed_at)
 
-        assert result.order_id_redacted == "...hi789"  # Last 6 chars
+        assert result.order_id_redacted == "ghi789"  # Last 6 chars only
         assert result.order_id_full == "abc123def456ghi789"
 
     def test_handles_short_order_id(self):
@@ -392,7 +392,7 @@ class TestCreateSingleOrderResult:
 
         result = _create_single_order_result(order, completed_at)
 
-        assert result.order_id_redacted == "abc"  # No redaction for short IDs
+        assert result.order_id_redacted is None  # Too short, set to None
 
     def test_converts_decimals_correctly(self):
         """Test Decimal conversion from string and float."""
@@ -525,7 +525,7 @@ class TestCalculateExecutionSummary:
                 trade_amount=Decimal("1000"),
                 shares=Decimal("10"),
                 price=Decimal("100"),
-                order_id_redacted="...123456",
+                order_id_redacted="123456",
                 order_id_full="abc123def456",
                 success=True,
                 error_message=None,
@@ -537,7 +537,7 @@ class TestCalculateExecutionSummary:
                 trade_amount=Decimal("2000"),
                 shares=Decimal("20"),
                 price=Decimal("100"),
-                order_id_redacted="...789012",
+                order_id_redacted="789012",
                 order_id_full="ghi789jkl012",
                 success=True,
                 error_message=None,
@@ -568,7 +568,7 @@ class TestCalculateExecutionSummary:
                 trade_amount=Decimal("1000"),
                 shares=Decimal("10"),
                 price=Decimal("100"),
-                order_id_redacted="...123456",
+                order_id_redacted="123456",
                 order_id_full="abc123",
                 success=True,
                 error_message=None,
@@ -580,7 +580,7 @@ class TestCalculateExecutionSummary:
                 trade_amount=Decimal("0"),
                 shares=Decimal("0"),
                 price=None,
-                order_id_redacted="...789012",
+                order_id_redacted="789012",
                 order_id_full="def456",
                 success=False,
                 error_message="Insufficient funds",
