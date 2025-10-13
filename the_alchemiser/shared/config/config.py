@@ -110,7 +110,7 @@ class StrategySettings(BaseModel):
             parsed = json.loads(s)
             if isinstance(parsed, list):
                 return [str(x) for x in parsed]
-        except (json.JSONDecodeError, ValueError) as exc:  # pragma: no cover - defensive logging
+        except ValueError as exc:  # pragma: no cover - defensive logging
             logging.debug("Failed to parse DSL files as JSON: %s", exc)
 
         return None
@@ -171,7 +171,6 @@ class StrategySettings(BaseModel):
             if isinstance(parsed, dict):
                 return {str(k): float(vv) for k, vv in parsed.items()}
         except (
-            json.JSONDecodeError,
             ValueError,
             TypeError,
         ) as exc:  # pragma: no cover - defensive logging
@@ -262,7 +261,6 @@ class StrategySettings(BaseModel):
                 return files, allocs
             return None
         except (
-            FileNotFoundError,
             json.JSONDecodeError,
             OSError,
         ) as exc:  # pragma: no cover - defensive logging
