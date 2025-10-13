@@ -30,14 +30,17 @@ class OrderResult(BaseModel):
         validate_assignment=True,
     )
 
-    symbol: str = Field(..., description="Trading symbol")
-    action: str = Field(..., description="BUY or SELL action")
-    trade_amount: Decimal = Field(..., description="Dollar amount traded")
-    shares: Decimal = Field(..., description="Number of shares ordered")
-    price: Decimal | None = Field(default=None, description="Execution price")
-    order_id: str | None = Field(default=None, description="Broker order ID")
+    schema_version: str = Field(default="1.0", description="Schema version")
+    symbol: str = Field(..., max_length=10, description="Trading symbol")
+    action: Literal["BUY", "SELL"] = Field(..., description="BUY or SELL action")
+    trade_amount: Decimal = Field(..., ge=Decimal("0"), description="Dollar amount traded")
+    shares: Decimal = Field(..., ge=Decimal("0"), description="Number of shares ordered")
+    price: Decimal | None = Field(default=None, gt=Decimal("0"), description="Execution price")
+    order_id: str | None = Field(default=None, max_length=100, description="Broker order ID")
     success: bool = Field(..., description="Order success flag")
-    error_message: str | None = Field(default=None, description="Error message if failed")
+    error_message: str | None = Field(
+        default=None, max_length=1000, description="Error message if failed"
+    )
     timestamp: datetime = Field(..., description="Order execution timestamp")
     order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"] = Field(
         default="MARKET", description="Order type"
@@ -54,14 +57,20 @@ class ExecutionResult(BaseModel):
         validate_assignment=True,
     )
 
+    schema_version: str = Field(default="1.0", description="Schema version")
     success: bool = Field(..., description="Overall execution success")
     status: ExecutionStatus = Field(..., description="Detailed execution status classification")
-    plan_id: str = Field(..., description="Rebalance plan ID")
-    correlation_id: str = Field(..., description="Correlation ID for traceability")
+    plan_id: str = Field(..., max_length=100, description="Rebalance plan ID")
+    correlation_id: str = Field(..., max_length=100, description="Correlation ID for traceability")
+    causation_id: str | None = Field(
+        default=None, max_length=100, description="Causation ID for event sourcing"
+    )
     orders: list[OrderResult] = Field(default_factory=list, description="Individual order results")
-    orders_placed: int = Field(..., description="Number of orders placed")
-    orders_succeeded: int = Field(..., description="Number of successful orders")
-    total_trade_value: Decimal = Field(..., description="Total dollar value traded")
+    orders_placed: int = Field(..., ge=0, description="Number of orders placed")
+    orders_succeeded: int = Field(..., ge=0, description="Number of successful orders")
+    total_trade_value: Decimal = Field(
+        ..., ge=Decimal("0"), description="Total dollar value traded"
+    )
     execution_timestamp: datetime = Field(..., description="Execution completion timestamp")
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata only"
