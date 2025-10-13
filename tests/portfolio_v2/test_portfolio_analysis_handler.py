@@ -17,7 +17,12 @@ from the_alchemiser.portfolio_v2.handlers.portfolio_analysis_handler import (
     PortfolioAnalysisHandler,
     _build_positions_dict,
     _normalize_account_info,
-    _to_float_safe,
+    _to_decimal_safe,
+)
+from the_alchemiser.shared.errors.exceptions import (
+    DataProviderError,
+    NegativeCashBalanceError,
+    PortfolioError,
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -34,23 +39,23 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
 class TestHelperFunctions:
     """Test helper functions used in portfolio analysis."""
 
-    def test_to_float_safe_with_number(self):
-        """Test converting numeric values to float."""
-        assert _to_float_safe(42) == 42.0
-        assert _to_float_safe(3.14) == 3.14
-        assert _to_float_safe("123.45") == 123.45
+    def test_to_decimal_safe_with_number(self):
+        """Test converting numeric values to Decimal."""
+        assert _to_decimal_safe(42) == Decimal("42")
+        assert _to_decimal_safe(3.14) == Decimal("3.14")
+        assert _to_decimal_safe("123.45") == Decimal("123.45")
 
-    def test_to_float_safe_with_object_value_attribute(self):
+    def test_to_decimal_safe_with_object_value_attribute(self):
         """Test converting object with value attribute."""
         obj = Mock()
         obj.value = 99.9
-        assert _to_float_safe(obj) == 99.9
+        assert _to_decimal_safe(obj) == Decimal("99.9")
 
-    def test_to_float_safe_with_invalid_value(self):
-        """Test converting invalid values returns 0.0."""
-        assert _to_float_safe(None) == 0.0
-        assert _to_float_safe("invalid") == 0.0
-        assert _to_float_safe({}) == 0.0
+    def test_to_decimal_safe_with_invalid_value(self):
+        """Test converting invalid values returns Decimal 0."""
+        assert _to_decimal_safe(None) == Decimal("0")
+        assert _to_decimal_safe("invalid") == Decimal("0")
+        assert _to_decimal_safe({}) == Decimal("0")
 
     def test_normalize_account_info_from_dict(self):
         """Test normalizing account info from dictionary."""
@@ -60,9 +65,9 @@ class TestHelperFunctions:
             "portfolio_value": "5000.25",
         }
         result = _normalize_account_info(account_dict)
-        assert result["cash"] == 1000.50
-        assert result["buying_power"] == 2000.75
-        assert result["portfolio_value"] == 5000.25
+        assert result["cash"] == Decimal("1000.50")
+        assert result["buying_power"] == Decimal("2000.75")
+        assert result["portfolio_value"] == Decimal("5000.25")
 
     def test_normalize_account_info_from_object(self):
         """Test normalizing account info from SDK object."""
@@ -72,17 +77,19 @@ class TestHelperFunctions:
         account_obj.portfolio_value = 7500.0
         
         result = _normalize_account_info(account_obj)
-        assert result["cash"] == 1500.0
-        assert result["buying_power"] == 3000.0
-        assert result["portfolio_value"] == 7500.0
+        assert result["cash"] == Decimal("1500.0")
+        assert result["buying_power"] == Decimal("3000.0")
+        assert result["portfolio_value"] == Decimal("7500.0")
 
-    def test_normalize_account_info_with_missing_fields(self):
-        """Test normalizing account info with missing fields returns 0.0."""
-        account_dict = {}
-        result = _normalize_account_info(account_dict)
-        assert result["cash"] == 0.0
-        assert result["buying_power"] == 0.0
-        assert result["portfolio_value"] == 0.0
+    def test_normalize_account_info_raises_on_zero_cash(self):
+        """Test normalizing account info raises error for zero or negative cash."""
+        account_dict = {"cash": 0, "buying_power": 1000, "portfolio_value": 1000}
+        with pytest.raises(NegativeCashBalanceError):
+            _normalize_account_info(account_dict)
+        
+        account_dict_negative = {"cash": -100, "buying_power": 1000, "portfolio_value": 1000}
+        with pytest.raises(NegativeCashBalanceError):
+            _normalize_account_info(account_dict_negative)
 
     def test_build_positions_dict(self):
         """Test building positions dictionary from position list."""
@@ -97,8 +104,8 @@ class TestHelperFunctions:
         positions = [pos1, pos2]
         result = _build_positions_dict(positions)
         
-        assert result["AAPL"] == 5000.0
-        assert result["GOOGL"] == 3000.0
+        assert result["AAPL"] == Decimal("5000.0")
+        assert result["GOOGL"] == Decimal("3000.0")
 
     def test_build_positions_dict_empty_list(self):
         """Test building positions dict from empty list."""
@@ -335,8 +342,8 @@ class TestPortfolioAnalysisHandler:
         result = handler._get_comprehensive_account_data()
         
         assert result is not None
-        assert result["account_info"]["cash"] == 10000.0
-        assert result["current_positions"]["AAPL"] == 5000.0
+        assert result["account_info"]["cash"] == Decimal("10000.0")
+        assert result["current_positions"]["AAPL"] == Decimal("5000.0")
         assert len(result["open_orders"]) == 1
         assert result["open_orders"][0]["symbol"] == "GOOGL"
 
@@ -345,18 +352,16 @@ class TestPortfolioAnalysisHandler:
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
         mock_alpaca.get_account.return_value = None
         
-        result = handler._get_comprehensive_account_data()
-        
-        assert result is None
+        with pytest.raises(DataProviderError):
+            handler._get_comprehensive_account_data()
 
     def test_get_comprehensive_account_data_exception(self, handler, mock_container):
         """Test handling exceptions during account data retrieval."""
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
         mock_alpaca.get_account.side_effect = Exception("API error")
         
-        result = handler._get_comprehensive_account_data()
-        
-        assert result is None
+        with pytest.raises(DataProviderError):
+            handler._get_comprehensive_account_data()
 
     def test_handle_event_with_exception_calls_emit_failure(self, handler, mock_container):
         """Test that exceptions during event handling trigger failure emission logic."""
@@ -389,14 +394,14 @@ class TestPortfolioAnalysisHandler:
         emitted_events = []
         handler.event_bus.publish = lambda event: emitted_events.append(event)
         
-        # Handle event
-        handler.handle_event(event)
+        # Handle event - should raise PortfolioError
+        with pytest.raises(PortfolioError):
+            handler.handle_event(event)
         
         # Verify WorkflowFailed was emitted
         assert len(emitted_events) == 1
         assert isinstance(emitted_events[0], WorkflowFailed)
-        # The actual error comes from somewhere in the process
-        assert emitted_events[0].failure_reason  # Just verify it's not empty
+        assert emitted_events[0].failure_reason  # Verify it's not empty
 
 
 class TestPortfolioAnalysisHandlerErrorPaths:
@@ -449,12 +454,13 @@ class TestPortfolioAnalysisHandlerErrorPaths:
         emitted_events = []
         handler.event_bus.publish = lambda event: emitted_events.append(event)
         
-        handler.handle_event(event)
+        # Should raise DataProviderError
+        with pytest.raises(DataProviderError):
+            handler.handle_event(event)
         
         # Should emit WorkflowFailed
         assert len(emitted_events) == 1
         assert isinstance(emitted_events[0], WorkflowFailed)
-        # Failure reason should mention the issue
         assert emitted_events[0].failure_reason
 
     def test_handle_signal_validates_consolidated_portfolio_schema(self, handler, mock_container):
@@ -494,8 +500,72 @@ class TestPortfolioAnalysisHandlerErrorPaths:
         emitted_events = []
         handler.event_bus.publish = lambda event: emitted_events.append(event)
         
-        handler.handle_event(event)
+        # Should raise PortfolioError due to validation error
+        with pytest.raises(PortfolioError):
+            handler.handle_event(event)
         
-        # Should emit WorkflowFailed due to validation error
+        # Should emit WorkflowFailed
         assert len(emitted_events) == 1
         assert isinstance(emitted_events[0], WorkflowFailed)
+
+    def test_idempotency_duplicate_events_skipped(self, handler, mock_container):
+        """Test that duplicate events are skipped for idempotency."""
+        # Setup valid account data
+        mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
+        mock_account = Mock()
+        mock_account.cash = 10000.0
+        mock_account.buying_power = 20000.0
+        mock_account.portfolio_value = 30000.0
+        mock_alpaca.get_account.return_value = mock_account
+        mock_alpaca.get_positions.return_value = []
+        mock_alpaca.get_orders.return_value = []
+        
+        # Mock is_workflow_failed to return False so emission isn't skipped
+        mock_event_bus = mock_container.services.event_bus.return_value
+        mock_event_bus.is_workflow_failed.return_value = False
+        
+        # Create an event with a consistent event_id
+        event_id = "test-event-123"
+        event = SignalGenerated(
+            event_id=event_id,
+            correlation_id=str(uuid4()),
+            causation_id=str(uuid4()),
+            timestamp=datetime.now(UTC),
+            source_module="test",
+            signals_data={"signals": []},
+            consolidated_portfolio={
+                "target_allocations": {
+                    "AAPL": Decimal("0.5"),
+                    "GOOGL": Decimal("0.5"),
+                },
+                "correlation_id": str(uuid4()),
+                "timestamp": datetime.now(UTC),
+                "strategy_count": 1,
+            },
+            signal_count=0,
+        )
+        
+        # Track how many times _handle_signal_generated is called
+        original_handler = handler._handle_signal_generated
+        call_count = 0
+        
+        def counting_handler(event):
+            nonlocal call_count
+            call_count += 1
+            return original_handler(event)
+        
+        handler._handle_signal_generated = counting_handler
+        
+        # Process the same event twice
+        try:
+            handler.handle_event(event)
+        except Exception:
+            pass  # First event may fail, but should still be marked as processed
+        
+        first_call_count = call_count
+        
+        # Process the same event again - should be skipped
+        handler.handle_event(event)
+        
+        # Second call should NOT increment call_count (event was already processed)
+        assert call_count == first_call_count, "Duplicate event should be skipped"
