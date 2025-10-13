@@ -37,21 +37,21 @@ class PricingCalculator:
         )
 
     def calculate_liquidity_aware_price(
-        self, quote: QuoteModel, side: str, order_size: float
+        self, quote: QuoteModel, side: str, order_size: Decimal
     ) -> tuple[Decimal, LiquidityMetadata]:
         """Calculate optimal price using advanced liquidity analysis.
 
         Args:
             quote: Valid quote data
             side: "BUY" or "SELL"
-            order_size: Size of order in shares
+            order_size: Size of order in shares (as Decimal for precision)
 
         Returns:
             Tuple of (optimal_price, analysis_metadata)
 
         """
-        # Perform comprehensive liquidity analysis
-        analysis = self.liquidity_analyzer.analyze_liquidity(quote, order_size)
+        # Perform comprehensive liquidity analysis (convert to float only for analysis)
+        analysis = self.liquidity_analyzer.analyze_liquidity(quote, float(order_size))
 
         # Get volume-aware pricing recommendation
         if side.upper() == "BUY":
@@ -68,12 +68,13 @@ class PricingCalculator:
             )
 
         # Create metadata for logging and monitoring
+        order_size_float = float(order_size)
         metadata: LiquidityMetadata = {
             "liquidity_score": analysis.liquidity_score,
             "volume_imbalance": analysis.volume_imbalance,
             "confidence": analysis.confidence,
             "volume_available": volume_available,
-            "volume_ratio": order_size / max(volume_available, 1.0),
+            "volume_ratio": order_size_float / max(volume_available, 1.0),
             "strategy_recommendation": strategy_rec,
             "bid_volume": analysis.total_bid_volume,
             "ask_volume": analysis.total_ask_volume,
@@ -89,7 +90,7 @@ class PricingCalculator:
         logger.debug(
             f"Volume analysis {quote.symbol}: bid_vol={analysis.total_bid_volume}, "
             f"ask_vol={analysis.total_ask_volume}, imbalance={analysis.volume_imbalance:.3f}, "
-            f"order_vol_ratio={order_size / max(volume_available, 1.0):.2f}"
+            f"order_vol_ratio={order_size_float / max(volume_available, 1.0):.2f}"
         )
 
         return optimal_price, metadata
