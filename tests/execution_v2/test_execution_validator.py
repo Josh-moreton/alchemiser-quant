@@ -234,9 +234,11 @@ class TestOrderValidationResult:
         
         assert result.is_valid is True
         assert result.adjusted_quantity is None
-        assert result.warnings == []
+        assert result.warnings == ()
         assert result.error_message is None
         assert result.error_code is None
+        assert result.schema_version == "1.0"
+        assert result.correlation_id is None
 
     def test_order_validation_result_invalid_with_error(self):
         """Test creation of invalid order validation result with error."""
@@ -249,16 +251,36 @@ class TestOrderValidationResult:
         assert result.is_valid is False
         assert result.error_message == "Invalid order"
         assert result.error_code == "INVALID_ORDER"
+        assert result.schema_version == "1.0"
 
     def test_order_validation_result_with_adjustment(self):
         """Test creation of validation result with quantity adjustment."""
         result = OrderValidationResult(
             is_valid=True,
             adjusted_quantity=Decimal("5"),
-            warnings=["Quantity adjusted from 5.7 to 5 shares"]
+            warnings=("Quantity adjusted from 5.7 to 5 shares",)
         )
         
         assert result.is_valid is True
         assert result.adjusted_quantity == Decimal("5")
         assert len(result.warnings) == 1
         assert "adjusted" in result.warnings[0]
+        assert result.schema_version == "1.0"
+
+    def test_order_validation_result_is_immutable(self):
+        """Test that OrderValidationResult is frozen and immutable."""
+        result = OrderValidationResult(is_valid=True)
+        
+        # Attempt to modify should raise an error
+        with pytest.raises(Exception):  # Pydantic raises ValidationError or AttributeError
+            result.is_valid = False
+
+    def test_order_validation_result_with_correlation_id(self):
+        """Test that correlation_id is captured in result."""
+        result = OrderValidationResult(
+            is_valid=True,
+            correlation_id="test-correlation-123"
+        )
+        
+        assert result.correlation_id == "test-correlation-123"
+        assert result.schema_version == "1.0"

@@ -13,6 +13,11 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
+from the_alchemiser.shared.errors.exceptions import (
+    AlchemiserError,
+    DataProviderError,
+    TradingClientError,
+)
 from the_alchemiser.shared.logging import get_logger
 
 
@@ -98,7 +103,7 @@ class TradingOrchestrator:
             execution_orchestrator=execution_orchestrator,
             notification_service=notification_service,
         )
-        self.live_trading: bool = bool(live_trading)
+        self.live_trading: bool = live_trading
         self.logger = get_logger(__name__)
 
         # Workflow state tracking for tests
@@ -110,19 +115,29 @@ class TradingOrchestrator:
             "last_correlation_id": None,
         }
 
-    def execute_strategy_signals(self) -> dict[str, Any] | None:
+    def execute_strategy_signals(self, correlation_id: str | None = None) -> dict[str, Any] | None:
         """Analyze strategy signals and update workflow state.
+
+        Args:
+            correlation_id: Optional correlation ID for tracing. Generated if not provided.
 
         Returns:
             Dict with analysis results if successful; None on failure
 
         """
-        correlation_id = str(uuid.uuid4())
+        correlation_id = correlation_id or str(uuid.uuid4())
         self.workflow_state["last_correlation_id"] = correlation_id
         self.workflow_state["signal_generation_in_progress"] = True
         try:
             result = self.deps.signal_orchestrator.analyze_signals()
             if not result or not result.get("success"):
+                self.logger.warning(
+                    "Signal analysis returned no result or unsuccessful",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "component": "TradingOrchestrator.execute_strategy_signals",
+                    },
+                )
                 return None
             self.workflow_state["last_successful_step"] = "signal_generation"
             return {
@@ -131,21 +146,66 @@ class TradingOrchestrator:
                 "strategy_signals": result.get("strategy_signals", []),
                 "consolidated_portfolio_dto": result.get("consolidated_portfolio_dto"),
             }
+        except (DataProviderError, TradingClientError) as exc:
+            self.logger.error(
+                "Signal analysis failed with specific error",
+                exc_info=exc,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "component": "TradingOrchestrator.execute_strategy_signals",
+                },
+            )
+            return None
+        except AlchemiserError as exc:
+            self.logger.error(
+                "Signal analysis failed with system error",
+                exc_info=exc,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "component": "TradingOrchestrator.execute_strategy_signals",
+                },
+            )
+            return None
         except Exception as exc:
-            self.logger.error(f"Signal analysis failed: {exc}")
+            self.logger.error(
+                "Signal analysis failed with unexpected error",
+                exc_info=exc,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "component": "TradingOrchestrator.execute_strategy_signals",
+                },
+            )
             return None
         finally:
             self.workflow_state["signal_generation_in_progress"] = False
 
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
-        """Run full workflow: analyze signals, analyze portfolio, and execute if needed."""
+        """Run full workflow: analyze signals, analyze portfolio, and execute if needed.
+
+        Returns:
+            Dict with complete workflow results if successful; None on failure.
+            Includes strategy_signals, account_data, rebalance_plan, and execution_result.
+
+        """
         base = self.execute_strategy_signals()
         if not base:
             return None
 
+        correlation_id = base.get("correlation_id", str(uuid.uuid4()))
+
         try:
             account_data = self.deps.portfolio_orchestrator.get_comprehensive_account_data()
             if not account_data:
+                self.logger.warning(
+                    "Failed to retrieve account data",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                    },
+                )
                 return None
 
             comparison = self.deps.portfolio_orchestrator.analyze_allocation_comparison(
@@ -193,8 +253,38 @@ class TradingOrchestrator:
                 "rebalance_plan": plan,
                 "execution_result": exec_result,
             }
+        except (DataProviderError, TradingClientError) as exc:
+            self.logger.error(
+                "Trading workflow failed with specific error",
+                exc_info=exc,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                },
+            )
+            return None
+        except AlchemiserError as exc:
+            self.logger.error(
+                "Trading workflow failed with system error",
+                exc_info=exc,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                },
+            )
+            return None
         except Exception as exc:
-            self.logger.error(f"Trading workflow failed: {exc}")
+            self.logger.error(
+                "Trading workflow failed with unexpected error",
+                exc_info=exc,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                },
+            )
             return None
         finally:
             self.workflow_state["rebalancing_in_progress"] = False

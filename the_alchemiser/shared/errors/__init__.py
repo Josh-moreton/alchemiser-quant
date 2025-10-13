@@ -41,6 +41,8 @@ try:
         AlchemiserError,
         ConfigurationError,
         DataProviderError,
+        EventBusError,
+        HandlerInvocationError,
         MarketDataError,
         OrderExecutionError,
     )
@@ -61,6 +63,12 @@ except ImportError:
     class OrderExecutionError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback OrderExecutionError."""
 
+    class EventBusError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback EventBusError."""
+
+    class HandlerInvocationError(EventBusError):  # type: ignore[no-redef]
+        """Fallback HandlerInvocationError."""
+
 
 __all__ = [
     "AlchemiserError",
@@ -73,6 +81,8 @@ __all__ = [
     "ErrorDetails",
     "ErrorNotificationData",
     "ErrorSeverity",
+    "EventBusError",
+    "HandlerInvocationError",
     "MarketDataError",
     "OrderExecutionError",
     "TradingSystemErrorHandler",
