@@ -15,8 +15,9 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 
 from __future__ import annotations
 
+import hashlib
 import threading
-import time
+import warnings
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -30,6 +31,10 @@ from alpaca.trading.requests import (
     ReplaceOrderRequest,
 )
 
+from the_alchemiser.shared.brokers.alpaca_utils import (
+    create_data_client,
+    create_trading_client,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
@@ -100,12 +105,40 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     - AccountRepository: For account information and portfolio data
 
     Uses singleton behavior per credentials to prevent multiple WebSocket connections.
+
+    Security Note:
+        Credentials are stored internally for SDK usage but are hashed (SHA-256)
+        when used as dictionary keys. Raw credentials are never logged or exposed
+        in debug output.
     """
 
     _instances: ClassVar[dict[str, AlpacaManager]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
+    _cleanup_event: ClassVar[threading.Event] = threading.Event()
     _cleanup_in_progress: ClassVar[bool] = False
     _initialized: bool
+
+    @staticmethod
+    def _hash_credentials(
+        api_key: str, secret_key: str, *, paper: bool, base_url: str | None = None
+    ) -> str:
+        """Hash credentials for secure storage in dictionary keys.
+
+        Args:
+            api_key: API key (will be hashed)
+            secret_key: Secret key (will be hashed)
+            paper: Paper trading flag
+            base_url: Optional base URL
+
+        Returns:
+            SHA-256 hash of credentials
+
+        Security:
+            This prevents credential exposure in memory dumps, logs, and debug output.
+
+        """
+        credentials_str = f"{api_key}:{secret_key}:{paper}:{base_url}"
+        return hashlib.sha256(credentials_str.encode()).hexdigest()
 
     def __new__(
         cls,
@@ -115,18 +148,40 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         paper: bool = True,
         base_url: str | None = None,
     ) -> AlpacaManager:
-        """Create or return existing instance for the given credentials."""
-        credentials_key = f"{api_key}:{secret_key}:{paper}:{base_url}"
+        """Create or return existing instance for the given credentials.
+
+        Args:
+            api_key: Alpaca API key
+            secret_key: Alpaca secret key
+            paper: Whether to use paper trading (default: True)
+            base_url: Optional base URL
+
+        Returns:
+            Singleton instance for the credential set
+
+        Note:
+            Credentials are hashed before being used as dictionary keys
+            for security. The cleanup event is used instead of busy-wait
+            polling for better performance and responsiveness.
+
+        """
+        credentials_key = cls._hash_credentials(api_key, secret_key, paper=paper, base_url=base_url)
 
         with cls._lock:
-            # Wait for any cleanup to complete
-            while cls._cleanup_in_progress:
-                time.sleep(0.001)  # Brief wait for cleanup to finish
+            # Wait for cleanup to complete using Event (non-busy wait)
+            if cls._cleanup_in_progress:
+                cls._cleanup_event.clear()
+            # Release lock while waiting
+            if cls._cleanup_in_progress:
+                cls._lock.release()
+                cls._cleanup_event.wait(timeout=5.0)
+                cls._lock.acquire()
 
             if credentials_key not in cls._instances:
                 instance = super().__new__(cls)
                 cls._instances[credentials_key] = instance
                 instance._initialized = False
+                instance._credentials_hash = credentials_key
             return cls._instances[credentials_key]
 
     def __init__(
@@ -137,26 +192,53 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
-        """Initialize Alpaca clients (only once per credentials)."""
+        """Initialize Alpaca clients (only once per credentials).
+
+        Args:
+            api_key: Alpaca API key (stored internally, not logged)
+            secret_key: Alpaca secret key (stored internally, not logged)
+            paper: Whether to use paper trading (default: True)
+            base_url: Optional base URL for Alpaca API
+
+        Note:
+            Credentials are stored for SDK usage but never logged.
+            Only credential hashes are used for identification and logging.
+
+        Security Warning:
+            Credentials are stored in memory for the lifetime of this instance.
+            Ensure proper cleanup using cleanup_all_instances() when shutting down.
+
+        """
         # Skip initialization if already initialized (singleton pattern)
         if hasattr(self, "_initialized") and self._initialized:
             return
 
+        # Store credentials securely (not logged) - hash is set in __new__
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper = paper
         self._base_url = base_url
+        self._credentials_hash: str  # Set in __new__, type annotation for mypy
 
-        # Initialize clients
+        # Initialize clients using factory functions from alpaca_utils
         try:
-            # Note: TradingClient type stubs may not accept base_url as kwarg; avoid passing extras for mypy
-            self._trading_client = TradingClient(
-                api_key=api_key, secret_key=secret_key, paper=paper
+            # Use factory functions for consistent error handling and logging
+            self._trading_client = create_trading_client(
+                api_key=api_key,
+                secret_key=secret_key,
+                paper=paper,
             )
 
-            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+            self._data_client = create_data_client(
+                api_key=api_key,
+                secret_key=secret_key,
+            )
 
-            logger.debug("AlpacaManager initialized - Paper", paper=paper)
+            logger.debug(
+                "AlpacaManager initialized",
+                paper=paper,
+                credentials_hash=self._credentials_hash[:16],  # Only log first 16 chars
+            )
 
         except Exception as e:
             logger.error("Failed to initialize Alpaca clients", error=str(e))
@@ -194,12 +276,52 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # Public, read-only accessors for credentials and mode (for factories/streams)
     @property
     def api_key(self) -> str:
-        """Return the API key (read-only)."""
+        """Return the API key (read-only).
+
+        Deprecated:
+            Direct credential access is discouraged. This property is maintained
+            for backward compatibility but will be removed in a future version.
+            Use service injection or dependency injection patterns instead.
+
+        Security Warning:
+            Accessing credentials directly increases attack surface. Prefer
+            using the higher-level service methods that don't require raw credentials.
+
+        Returns:
+            API key string
+
+        """
+        warnings.warn(
+            "Direct access to api_key property is deprecated and will be removed. "
+            "Use dependency injection or service patterns instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._api_key
 
     @property
     def secret_key(self) -> str:
-        """Return the secret key (read-only)."""
+        """Return the secret key (read-only).
+
+        Deprecated:
+            Direct credential access is discouraged. This property is maintained
+            for backward compatibility but will be removed in a future version.
+            Use service injection or dependency injection patterns instead.
+
+        Security Warning:
+            Accessing credentials directly increases attack surface. Prefer
+            using the higher-level service methods that don't require raw credentials.
+
+        Returns:
+            Secret key string
+
+        """
+        warnings.warn(
+            "Direct access to secret_key property is deprecated and will be removed. "
+            "Use dependency injection or service patterns instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._secret_key
 
     @property
@@ -312,6 +434,54 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         return qty
 
+    def _place_market_order_internal(
+        self,
+        symbol: str,
+        side: str,
+        qty: Decimal | None,
+        notional: Decimal | None,
+        *,
+        is_complete_exit: bool,
+    ) -> ExecutedOrder:
+        """Place internal market order with testable logic.
+
+        Args:
+            symbol: Stock symbol
+            side: "buy" or "sell"
+            qty: Quantity to trade as Decimal
+            notional: Dollar amount to trade as Decimal
+            is_complete_exit: If True and side is 'sell', use actual available quantity
+
+        Returns:
+            ExecutedOrder with execution details and status
+
+        """
+        # Convert Decimal to float for internal processing
+        qty_float = float(qty) if qty is not None else None
+        notional_float = float(notional) if notional is not None else None
+
+        # Validation
+        normalized_symbol, side_normalized = self._validate_market_order_params(
+            symbol, side, qty_float, notional_float
+        )
+
+        # Adjust quantity for complete exits
+        final_qty = self._adjust_quantity_for_complete_exit(
+            normalized_symbol,
+            side_normalized,
+            qty_float,
+            is_complete_exit=is_complete_exit,
+        )
+
+        # Use trading service to place the order
+        return self._get_trading_service().place_market_order(
+            normalized_symbol,
+            side_normalized,
+            final_qty,
+            notional_float,
+            is_complete_exit=is_complete_exit,
+        )
+
     def place_market_order(
         self,
         symbol: str,
@@ -334,36 +504,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             ExecutedOrder with execution details and status.
 
         """
-
-        def _place_order() -> ExecutedOrder:
-            # Convert Decimal to float for internal processing
-            qty_float = float(qty) if qty is not None else None
-            notional_float = float(notional) if notional is not None else None
-
-            # Validation
-            normalized_symbol, side_normalized = self._validate_market_order_params(
-                symbol, side, qty_float, notional_float
-            )
-
-            # Adjust quantity for complete exits
-            final_qty = self._adjust_quantity_for_complete_exit(
-                normalized_symbol,
-                side_normalized,
-                qty_float,
-                is_complete_exit=is_complete_exit,
-            )
-
-            # Use trading service to place the order
-            return self._get_trading_service().place_market_order(
-                normalized_symbol,
-                side_normalized,
-                final_qty,
-                notional_float,
-                is_complete_exit=is_complete_exit,
-            )
-
         return AlpacaErrorHandler.handle_market_order_errors(
-            symbol, side, float(qty) if qty is not None else None, _place_order
+            symbol,
+            side,
+            float(qty) if qty is not None else None,
+            lambda: self._place_market_order_internal(
+                symbol, side, qty, notional, is_complete_exit=is_complete_exit
+            ),
         )
 
     def place_limit_order(
@@ -682,20 +829,51 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         Returns:
             Order status if in final state, None otherwise
 
+        Deprecated:
+            This method exposes internal implementation details and should not be
+            used outside of this class. It is maintained for backward compatibility
+            with existing tests but will be removed in a future version.
+
         """
+        warnings.warn(
+            "_check_order_completion_status is an internal method and will be removed. "
+            "Use public API methods instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._get_trading_service()._check_order_completion_status(order_id)
 
     def _ensure_trading_stream(self) -> None:
-        """Ensure trading stream is active (delegates to TradingService)."""
+        """Ensure trading stream is active (delegates to TradingService).
+
+        Deprecated:
+            This method exposes internal implementation details and should not be
+            used outside of this class. It is maintained for backward compatibility
+            but will be removed in a future version.
+
+        """
+        warnings.warn(
+            "_ensure_trading_stream is an internal method and will be removed. "
+            "Use public API methods instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._get_trading_service()._ensure_trading_stream()
 
     # ---- TradingStream helpers ----
 
     @classmethod
     def cleanup_all_instances(cls) -> None:
-        """Clean up all AlpacaManager instances and their WebSocket connections."""
+        """Clean up all AlpacaManager instances and their WebSocket connections.
+
+        Thread Safety:
+            Uses Event-based signaling to prevent race conditions during cleanup.
+            Other threads waiting in __new__ will be notified when cleanup completes.
+
+        """
         with cls._lock:
             cls._cleanup_in_progress = True
+            cls._cleanup_event.clear()
             try:
                 for instance in cls._instances.values():
                     try:
@@ -704,11 +882,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                         if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
                             instance._websocket_manager.release_trading_service()
                     except Exception as e:
-                        logger.error("Error cleaning up AlpacaManager instance", error=str(e))
+                        logger.error(
+                            "Error cleaning up AlpacaManager instance",
+                            error=str(e),
+                            credentials_hash=getattr(instance, "_credentials_hash", "unknown")[:16],
+                        )
                 cls._instances.clear()
                 logger.info("All AlpacaManager instances cleaned up")
             finally:
                 cls._cleanup_in_progress = False
+                cls._cleanup_event.set()  # Signal waiting threads
 
     @classmethod
     def get_connection_health(cls) -> dict[str, Any]:

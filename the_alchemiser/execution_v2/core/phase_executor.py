@@ -479,7 +479,7 @@ class PhaseExecutor:
         """Create an OrderResult for a skipped order."""
         return OrderResult(
             symbol=item.symbol,
-            action=item.action,
+            action=action,  # type: ignore[arg-type]
             trade_amount=Decimal("0"),
             shares=Decimal("0"),
             price=None,
@@ -593,7 +593,7 @@ class PhaseExecutor:
             )
             return OrderResult(
                 symbol=item.symbol,
-                action=item.action,
+                action=action,  # type: ignore[arg-type]
                 trade_amount=abs(item.trade_amount),
                 shares=shares,
                 price=None,
@@ -642,7 +642,7 @@ class PhaseExecutor:
             )
             return OrderResult(
                 symbol=item.symbol,
-                action=item.action,
+                action=action,  # type: ignore[arg-type]
                 trade_amount=abs(item.trade_amount),
                 shares=Decimal("0"),
                 price=None,
