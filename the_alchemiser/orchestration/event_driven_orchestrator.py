@@ -532,12 +532,8 @@ class EventDrivenOrchestrator:
         if not consolidated_portfolio and "rebalance_plan" in workflow_results:
             # Extract consolidated portfolio from rebalance plan metadata as fallback
             rebalance_plan = workflow_results["rebalance_plan"]
-            if hasattr(rebalance_plan, "metadata") and isinstance(
-                rebalance_plan.metadata, dict
-            ):
-                consolidated_portfolio = rebalance_plan.metadata.get(
-                    "consolidated_portfolio", {}
-                )
+            if hasattr(rebalance_plan, "metadata") and isinstance(rebalance_plan.metadata, dict):
+                consolidated_portfolio = rebalance_plan.metadata.get("consolidated_portfolio", {})
             # Build consolidated portfolio from rebalance plan items as last resort
             if (
                 not consolidated_portfolio

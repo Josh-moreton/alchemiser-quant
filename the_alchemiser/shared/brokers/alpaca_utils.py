@@ -14,8 +14,6 @@ All factory functions include:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from alpaca.data.enums import DataFeed
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.live import StockDataStream
@@ -26,9 +24,6 @@ from alpaca.trading.stream import TradingStream
 
 from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
