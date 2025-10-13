@@ -243,13 +243,27 @@ PAPER_TRADING=true  # Default for local runs
 
 ### AWS Deployment
 
-```bash
-# Deploy to Lambda
-make deploy
+The Alchemiser supports three deployment environments:
 
-# Production credentials are passed via environment variables
-# Set PROD_ALPACA_KEY, PROD_ALPACA_SECRET before deploying to prod
+- **Test**: Feature branch testing (no schedules, manual invocation only)
+- **Dev**: Integration testing with scheduled execution
+- **Prod**: Live trading with real capital
+
+```bash
+# Deploy to test environment (feat/* or copilot/* branches auto-deploy)
+./scripts/deploy.sh test
+
+# Deploy to dev environment
+make deploy  # or ./scripts/deploy.sh dev
+
+# Deploy to production (via release)
+make release
 ```
+
+For detailed information on deployment environments, see:
+- [Deployment Environments Quick Reference](docs/DEPLOYMENT_ENVIRONMENTS.md)
+- [Test Deployment Guide](docs/TEST_DEPLOYMENT_GUIDE.md)
+- [Test Deployment Implementation Summary](docs/TEST_DEPLOYMENT_SUMMARY.md)
 
 ## Observability
 
