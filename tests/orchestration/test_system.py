@@ -106,14 +106,14 @@ class TestTradingSystemDIInitialization:
                 "the_alchemiser.orchestration.system.ApplicationContainer"
             ) as mock_container_class:
                 mock_container_instance = Mock()
-                mock_container_class.return_value = mock_container_instance
+                mock_container_class.create_for_environment.return_value = mock_container_instance
 
                 with patch("the_alchemiser.orchestration.system.ServiceFactory") as mock_sf:
                     with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
                         system = TradingSystem()
 
-                        # Verify container was created
-                        mock_container_class.assert_called_once()
+                        # Verify container was created via create_for_environment
+                        mock_container_class.create_for_environment.assert_called_once_with("development")
                         assert system.container == mock_container_instance
 
     def test_initialize_di_initializes_service_factory(self):
