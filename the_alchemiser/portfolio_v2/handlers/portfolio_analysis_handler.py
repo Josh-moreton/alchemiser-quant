@@ -583,6 +583,7 @@ class PortfolioAnalysisHandler:
             rebalance_plan = portfolio_service.create_rebalance_plan(
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
+                causation_id=correlation_id,  # In handler context, caused by signal generation workflow
             )
 
             # Add strategy attribution to metadata using model_copy
