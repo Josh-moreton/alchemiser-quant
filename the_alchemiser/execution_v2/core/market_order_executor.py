@@ -14,6 +14,11 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
     OrderValidationResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors import (
+    BuyingPowerError,
+    DataProviderError,
+    OrderExecutionError,
+)
 from the_alchemiser.shared.logging import get_logger, log_order_flow
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
@@ -42,22 +47,33 @@ class MarketOrderExecutor:
         self.validator = validator
         self.buying_power_service = buying_power_service
 
-    def execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+    def execute_market_order(
+        self, symbol: str, side: str, quantity: Decimal, *, correlation_id: str | None = None
+    ) -> OrderResult:
         """Execute a standard market order with preflight validation.
 
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
+            correlation_id: Optional correlation ID for traceability
 
         Returns:
             OrderResult with order details
 
+        Raises:
+            OrderExecutionError: If order execution fails
+            BuyingPowerError: If insufficient buying power for purchase
+
         """
-        validation_result = self._preflight_validation(symbol, quantity, side)
+        validation_result = self._preflight_validation(
+            symbol, quantity, side, correlation_id=correlation_id
+        )
 
         if not validation_result.is_valid:
-            return self._build_validation_failure_result(symbol, side, quantity, validation_result)
+            return self._build_validation_failure_result(
+                symbol, side, quantity, validation_result, correlation_id=correlation_id
+            )
 
         final_quantity = validation_result.adjusted_quantity or quantity
 
@@ -65,22 +81,39 @@ class MarketOrderExecutor:
 
         try:
             if side.lower() == "buy":
-                self._ensure_buying_power(symbol, final_quantity)
+                self._ensure_buying_power(symbol, final_quantity, correlation_id=correlation_id)
 
             broker_result = self._place_market_order_with_broker(symbol, side, final_quantity)
             return self._build_market_order_execution_result(
-                symbol, side, final_quantity, broker_result
+                symbol, side, final_quantity, broker_result, correlation_id=correlation_id
             )
+        except (BuyingPowerError, OrderExecutionError):
+            # Re-raise typed execution errors without wrapping
+            raise
         except Exception as exc:
-            return self._handle_market_order_exception(symbol, side, final_quantity, exc)
+            return self._handle_market_order_exception(
+                symbol, side, final_quantity, exc, correlation_id=correlation_id
+            )
 
     def _preflight_validation(
         self,
         symbol: str,
         quantity: Decimal,
         side: str,
+        *,
+        correlation_id: str | None = None,
     ) -> OrderValidationResult:
-        """Run preflight validation for the market order."""
+        """Run preflight validation for the market order.
+        
+        Args:
+            symbol: Stock symbol
+            quantity: Number of shares
+            side: "buy" or "sell"
+            correlation_id: Optional correlation ID for traceability
+            
+        Returns:
+            OrderValidationResult with validation outcome
+        """
         # Ensure side is lowercase for validator
         side_normalized = side.lower()
         if side_normalized not in ("buy", "sell"):
@@ -88,6 +121,7 @@ class MarketOrderExecutor:
                 is_valid=False,
                 error_message=f"Invalid side: {side}. Must be 'buy' or 'sell'",
                 error_code="INVALID_SIDE",
+                correlation_id=correlation_id,
             )
 
         return self.validator.validate_order(
@@ -95,6 +129,7 @@ class MarketOrderExecutor:
             quantity=quantity,
             side=side_normalized,  # type: ignore[arg-type]
             auto_adjust=True,
+            correlation_id=correlation_id,
         )
 
     def _build_validation_failure_result(
@@ -103,13 +138,30 @@ class MarketOrderExecutor:
         side: str,
         quantity: Decimal,
         validation_result: OrderValidationResult,
+        *,
+        correlation_id: str | None = None,
     ) -> OrderResult:
-        """Construct execution result for validation failure."""
+        """Construct execution result for validation failure.
+        
+        Args:
+            symbol: Stock symbol
+            side: "buy" or "sell"
+            quantity: Number of shares
+            validation_result: Validation result with error details
+            correlation_id: Optional correlation ID for traceability
+            
+        Returns:
+            OrderResult indicating validation failure
+        """
         error_msg = validation_result.error_message or f"Validation failed for {symbol}"
-        logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
-        side_upper = side.upper()
-        if side_upper not in ("BUY", "SELL"):
-            side_upper = "BUY"  # Fallback to BUY if invalid
+        logger.error(
+            "Preflight validation failed",
+            symbol=symbol,
+            side=side,
+            error=error_msg,
+            correlation_id=correlation_id,
+        )
+        side_upper = self._normalize_side(side)
         return OrderResult(
             symbol=symbol,
             action=side_upper,  # type: ignore[arg-type]
@@ -125,51 +177,76 @@ class MarketOrderExecutor:
         )
 
     def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
-        """Log any warnings produced during validation."""
+        """Log any warnings produced during validation.
+        
+        Args:
+            validation_result: Validation result containing warnings
+        """
         for warning in validation_result.warnings:
-            logger.warning(f"⚠️ {warning}")
+            logger.warning("Validation warning", warning=warning)
 
-    def _ensure_buying_power(self, symbol: str, quantity: Decimal) -> None:
+    def _normalize_side(self, side: str) -> str:
+        """Normalize and validate order side.
+        
+        Args:
+            side: Order side ("buy" or "sell", case-insensitive)
+            
+        Returns:
+            Normalized side as "BUY" or "SELL"
+            
+        Raises:
+            ValueError: If side is not "buy" or "sell"
+        """
+        side_upper = side.upper()
+        if side_upper not in ("BUY", "SELL"):
+            raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
+        return side_upper
+
+    def _ensure_buying_power(
+        self, symbol: str, quantity: Decimal, *, correlation_id: str | None = None
+    ) -> None:
         """Verify sufficient buying power for a purchase.
 
         Args:
             symbol: Stock symbol
             quantity: Number of shares to buy
+            correlation_id: Optional correlation ID for traceability
 
         Raises:
-            ValueError: If insufficient buying power
+            BuyingPowerError: If insufficient buying power
+            DataProviderError: If unable to get price data for validation
 
         """
         try:
-            # Get current price to estimate required buying power
-            try:
-                price = self.alpaca_manager.get_current_price(symbol)
-                if not price or price <= 0:
-                    logger.warning(f"⚠️ Could not get price for {symbol} buying power check")
-                    return  # Skip buying power check if no price available
-
-                estimated_cost = quantity * Decimal(str(price))
-            except Exception as exc:
-                logger.warning(f"⚠️ Could not estimate cost for {symbol}: {exc}")
-                return  # Skip buying power check if price unavailable
-
-            buying_power_check = self.buying_power_service.verify_buying_power_available(
-                estimated_cost
-            )
-            if not buying_power_check[0]:
-                error_msg = (
-                    f"Insufficient buying power for {symbol}: "
-                    f"estimated cost=${estimated_cost:.2f}, "
-                    f"available=${buying_power_check[1]:.2f}"
-                )
-                logger.error(f"💰 {error_msg}")
-                raise ValueError(error_msg)
+            price = self.alpaca_manager.get_current_price(symbol)
         except Exception as exc:
-            if "Insufficient buying power" in str(exc):
-                raise  # Re-raise buying power errors
-            logger.warning(f"⚠️ Could not verify buying power for {symbol}: {exc}")
-            # Skip buying power validation - broker will reject if insufficient funds
-            return
+            raise DataProviderError(
+                f"Could not get price for {symbol} buying power check: {exc}",
+                context={"symbol": symbol, "correlation_id": correlation_id},
+            ) from exc
+
+        if not price or price <= 0:
+            raise DataProviderError(
+                f"Invalid price for {symbol}: {price}",
+                context={"symbol": symbol, "price": price, "correlation_id": correlation_id},
+            )
+
+        estimated_cost = quantity * Decimal(str(price))
+
+        buying_power_check = self.buying_power_service.verify_buying_power_available(
+            estimated_cost, correlation_id=correlation_id
+        )
+        
+        if not buying_power_check[0]:
+            available = buying_power_check[1]
+            shortfall = estimated_cost - available
+            raise BuyingPowerError(
+                f"Insufficient buying power for {symbol}",
+                symbol=symbol,
+                required_amount=float(estimated_cost),
+                available_amount=float(available),
+                shortfall=float(shortfall),
+            )
 
     def _place_market_order_with_broker(
         self, symbol: str, side: str, quantity: Decimal
@@ -188,7 +265,13 @@ class MarketOrderExecutor:
         return self.alpaca_manager.place_market_order(symbol, side, quantity)
 
     def _build_market_order_execution_result(
-        self, symbol: str, side: str, quantity: Decimal, broker_result: ExecutedOrder
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        broker_result: ExecutedOrder,
+        *,
+        correlation_id: str | None = None,
     ) -> OrderResult:
         """Build execution result from broker response.
 
@@ -197,6 +280,7 @@ class MarketOrderExecutor:
             side: "buy" or "sell"
             quantity: Number of shares
             broker_result: Broker order response
+            correlation_id: Optional correlation ID for traceability
 
         Returns:
             OrderResult with execution details
@@ -207,7 +291,8 @@ class MarketOrderExecutor:
         filled_qty = getattr(broker_result, "filled_qty", Decimal("0"))
         avg_fill_price = getattr(broker_result, "filled_avg_price", None)
 
-        trade_amount = filled_qty * avg_fill_price if avg_fill_price else Decimal("0")
+        # Fix: Add parentheses to ensure correct operator precedence
+        trade_amount = (filled_qty * avg_fill_price) if avg_fill_price else Decimal("0")
 
         log_order_flow(
             logger,
@@ -220,9 +305,7 @@ class MarketOrderExecutor:
             side=side.upper(),
         )
 
-        side_upper = side.upper()
-        if side_upper not in ("BUY", "SELL"):
-            side_upper = "BUY"  # Fallback to BUY if invalid
+        side_upper = self._normalize_side(side)
         return OrderResult(
             symbol=symbol,
             action=side_upper,  # type: ignore[arg-type]
@@ -238,7 +321,13 @@ class MarketOrderExecutor:
         )
 
     def _handle_market_order_exception(
-        self, symbol: str, side: str, quantity: Decimal, exc: Exception
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        exc: Exception,
+        *,
+        correlation_id: str | None = None,
     ) -> OrderResult:
         """Handle exceptions during market order execution.
 
@@ -247,17 +336,24 @@ class MarketOrderExecutor:
             side: "buy" or "sell"
             quantity: Number of shares
             exc: Exception that occurred
+            correlation_id: Optional correlation ID for traceability
 
         Returns:
             OrderResult with error details
 
         """
         error_msg = f"Market order execution failed: {exc}"
-        logger.error(f"❌ Market order failed for {symbol}: {error_msg}")
+        logger.error(
+            "Market order failed",
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
 
-        side_upper = side.upper()
-        if side_upper not in ("BUY", "SELL"):
-            side_upper = "BUY"  # Fallback to BUY if invalid
+        side_upper = self._normalize_side(side)
         return OrderResult(
             symbol=symbol,
             action=side_upper,  # type: ignore[arg-type]
