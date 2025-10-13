@@ -205,15 +205,19 @@ def get_error_spec(error_code: ErrorCode) -> ErrorSpec:
     """Get the error specification for a given error code.
 
     Args:
-        error_code: The error code to look up
+        error_code: The error code to look up (must be valid ErrorCode enum)
 
     Returns:
         The ErrorSpec for the given code
 
     Raises:
         KeyError: If the error code is not found in the catalogue
+        TypeError: If error_code is not an ErrorCode instance
 
     """
+    if not isinstance(error_code, ErrorCode):
+        msg = f"Expected ErrorCode enum, got {type(error_code).__name__}"
+        raise TypeError(msg)
     return ERROR_CATALOG[error_code]
 
 
@@ -221,10 +225,16 @@ def get_suggested_action(error_code: ErrorCode) -> str:
     """Get the suggested remediation action for an error code.
 
     Args:
-        error_code: The error code to get action for
+        error_code: The error code to get action for (must be valid ErrorCode enum)
 
     Returns:
         Suggested action string
 
+    Raises:
+        TypeError: If error_code is not an ErrorCode instance
+
     """
+    if not isinstance(error_code, ErrorCode):
+        msg = f"Expected ErrorCode enum, got {type(error_code).__name__}"
+        raise TypeError(msg)
     return ERROR_CATALOG[error_code].suggested_action

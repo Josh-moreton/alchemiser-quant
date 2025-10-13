@@ -9,11 +9,13 @@ This handler is stateless and focuses on trade execution logic without orchestra
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.execution_v2.models.execution_result import (
@@ -31,6 +33,9 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
+
+# Constants
+MS_PER_SECOND = 1000  # Milliseconds per second for duration calculations
 
 
 class TradingExecutionHandler:
@@ -52,6 +57,11 @@ class TradingExecutionHandler:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
+
+        # Track processed idempotency keys for replay protection
+        # Note: In production, this should be backed by a distributed cache (Redis/DynamoDB)
+        # For now, using in-memory set for stateless Lambda invocations
+        self._processed_keys: set[str] = set()
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle events for trade execution.
@@ -94,6 +104,85 @@ class TradingExecutionHandler:
             "RebalancePlanned",
         ]
 
+    def _create_execution_manager(self) -> ExecutionManager:
+        """Create and configure execution manager.
+
+        This method encapsulates execution manager creation for better testability
+        and to avoid circular import issues at module level.
+
+        Returns:
+            Configured ExecutionManager instance
+
+        Raises:
+            RuntimeError: If execution manager creation fails
+
+        """
+        # Import here to avoid circular imports
+        from the_alchemiser.execution_v2.core.execution_manager import (
+            ExecutionManager,
+        )
+        from the_alchemiser.execution_v2.core.smart_execution_strategy import (
+            ExecutionConfig,
+        )
+
+        return ExecutionManager(
+            alpaca_manager=self.container.infrastructure.alpaca_manager(),
+            execution_config=ExecutionConfig(),
+        )
+
+    def _generate_idempotency_key(self, event: RebalancePlanned) -> str:
+        """Generate deterministic idempotency key for event deduplication.
+
+        Creates a hash from event_id, correlation_id, and plan_id to enable
+        idempotent event processing and protect against duplicate trade execution
+        on event replay.
+
+        Args:
+            event: The RebalancePlanned event
+
+        Returns:
+            16-character hex string hash for deduplication
+
+        Examples:
+            >>> # Event with same parameters produces same key
+            >>> event1 = RebalancePlanned(...)
+            >>> event2 = RebalancePlanned(...)  # Same data
+            >>> key1 = handler._generate_idempotency_key(event1)
+            >>> key2 = handler._generate_idempotency_key(event2)
+            >>> assert key1 == key2
+
+        """
+        key_material = f"{event.event_id}:{event.correlation_id}:{event.rebalance_plan.plan_id}"
+        return hashlib.sha256(key_material.encode()).hexdigest()[:16]
+
+    def _is_duplicate_event(self, idempotency_key: str) -> bool:
+        """Check if event has already been processed.
+
+        Args:
+            idempotency_key: The idempotency key to check
+
+        Returns:
+            True if event has been processed before, False otherwise
+
+        Note:
+            In production, this should query a distributed cache (Redis/DynamoDB)
+            for persistent deduplication across Lambda invocations.
+
+        """
+        return idempotency_key in self._processed_keys
+
+    def _mark_event_processed(self, idempotency_key: str) -> None:
+        """Mark event as processed.
+
+        Args:
+            idempotency_key: The idempotency key to mark as processed
+
+        Note:
+            In production, this should store in a distributed cache with TTL.
+
+        """
+        self._processed_keys.add(idempotency_key)
+
     def _handle_rebalance_planned(self, event: RebalancePlanned) -> None:
         """Handle RebalancePlanned event by executing trades.
 
@@ -102,6 +191,22 @@ class TradingExecutionHandler:
 
         """
         self.logger.info("🔄 Starting trade execution from RebalancePlanned event")
+
+        # Check for duplicate event using idempotency key
+        idempotency_key = self._generate_idempotency_key(event)
+        if self._is_duplicate_event(idempotency_key):
+            self.logger.warning(
+                f"⚠️ Duplicate event detected (idempotency_key: {idempotency_key}) - skipping execution",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "idempotency_key": idempotency_key,
+                },
+            )
+            return
+
+        # Mark event as being processed
+        self._mark_event_processed(idempotency_key)
 
         try:
             # Reconstruct RebalancePlan from event data
@@ -141,18 +246,8 @@ class TradingExecutionHandler:
 
             execution_settings = self.container.config.execution()
 
-            # Create execution manager directly from infrastructure (like other handlers)
-            from the_alchemiser.execution_v2.core.execution_manager import (
-                ExecutionManager,
-            )
-            from the_alchemiser.execution_v2.core.smart_execution_strategy import (
-                ExecutionConfig,
-            )
-
-            execution_manager = ExecutionManager(
-                alpaca_manager=self.container.infrastructure.alpaca_manager(),
-                execution_config=ExecutionConfig(),
-            )
+            # Create execution manager
+            execution_manager = self._create_execution_manager()
 
             try:
                 execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
@@ -215,8 +310,7 @@ class TradingExecutionHandler:
             failed_symbols: list[str] = []
             if not success:
                 failure_reason = self._build_failure_reason(execution_result)
-                failed_orders = [order for order in execution_result.orders if not order.success]
-                failed_symbols = [order.symbol for order in failed_orders]
+                failed_symbols = self._extract_failed_symbols(execution_result)
 
             event = TradeExecuted(
                 correlation_id=execution_result.correlation_id,
@@ -276,7 +370,9 @@ class TradingExecutionHandler:
                 # Fallback: use execution_timestamp if workflow_start_timestamp is not available
                 workflow_start = execution_result.execution_timestamp
             workflow_end = datetime.now(UTC)
-            workflow_duration_ms = int((workflow_end - workflow_start).total_seconds() * 1000)
+            workflow_duration_ms = int(
+                (workflow_end - workflow_start).total_seconds() * MS_PER_SECOND
+            )
 
             event = WorkflowCompleted(
                 correlation_id=correlation_id,
@@ -336,6 +432,19 @@ class TradingExecutionHandler:
         except Exception as e:
             self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
 
+    def _extract_failed_symbols(self, execution_result: ExecutionResult) -> list[str]:
+        """Extract list of failed symbols from execution result.
+
+        Args:
+            execution_result: The execution result
+
+        Returns:
+            List of symbols that failed execution
+
+        """
+        failed_orders = [order for order in execution_result.orders if not order.success]
+        return [order.symbol for order in failed_orders]
+
     def _build_failure_reason(self, execution_result: ExecutionResult) -> str:
         """Build detailed failure reason based on execution status.
 
@@ -347,8 +456,7 @@ class TradingExecutionHandler:
 
         """
         if execution_result.status == ExecutionStatus.PARTIAL_SUCCESS:
-            failed_orders = [order for order in execution_result.orders if not order.success]
-            failed_symbols = [order.symbol for order in failed_orders]
+            failed_symbols = self._extract_failed_symbols(execution_result)
             return (
                 f"Trade execution partially failed: {execution_result.orders_succeeded}/"
                 f"{execution_result.orders_placed} orders succeeded. "
