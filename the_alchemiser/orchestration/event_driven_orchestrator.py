@@ -9,6 +9,8 @@ across the trading workflow. Focused on cross-cutting concerns rather than domai
 
 from __future__ import annotations
 
+import time
+import uuid
 from collections.abc import Callable as TypingCallable
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -16,6 +18,7 @@ from enum import Enum
 from logging import Logger
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Protocol, cast
+from uuid import uuid4
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -247,8 +250,6 @@ class EventDrivenOrchestrator:
             The correlation ID for tracking the workflow
 
         """
-        import uuid
-
         workflow_correlation_id = correlation_id or str(uuid.uuid4())
 
         self.logger.info(f"🚀 Starting event-driven trading workflow: {workflow_correlation_id}")
@@ -291,8 +292,6 @@ class EventDrivenOrchestrator:
             Dictionary containing workflow results
 
         """
-        import time
-
         start_time = time.time()
 
         self.logger.info(f"⏳ Waiting for workflow completion: {correlation_id}")
@@ -582,9 +581,6 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            from datetime import UTC, datetime
-            from uuid import uuid4
-
             from the_alchemiser.shared.events.schemas import (
                 TradingNotificationRequested,
             )
@@ -606,7 +602,7 @@ class EventDrivenOrchestrator:
             raw_total_value = execution_data.get("total_trade_value", 0)
             try:
                 total_trade_value_decimal = Decimal(str(raw_total_value))
-            except (TypeError, ValueError, Exception):
+            except (TypeError, ValueError):
                 total_trade_value_decimal = Decimal("0")
 
             # Get error details if trading failed
