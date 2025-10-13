@@ -9,10 +9,14 @@ all the extracted components to provide intelligent order placement and executio
 from __future__ import annotations
 
 import asyncio
+import warnings
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from structlog.stdlib import BoundLogger
 
 from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -31,7 +35,7 @@ from .quotes import QuoteProvider
 from .repeg import RepegManager
 from .tracking import OrderTracker
 
-logger = get_logger(__name__)
+logger: BoundLogger = get_logger(__name__)
 
 
 class SmartExecutionStrategy:
@@ -85,16 +89,22 @@ class SmartExecutionStrategy:
 
         """
         logger.info(
-            f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
-            f"(urgency: {request.urgency})"
+            "Placing smart order",
+            extra={
+                "symbol": request.symbol,
+                "side": request.side,
+                "quantity": str(request.quantity),
+                "urgency": request.urgency,
+                "correlation_id": request.correlation_id,
+            },
         )
 
         # Preflight validation for non-fractionable assets
         validation_result = self.validator.validate_order(
             symbol=request.symbol,
-            quantity=Decimal(str(request.quantity)),
+            quantity=request.quantity,
             side=request.side,
-            correlation_id=getattr(request, "correlation_id", None),
+            correlation_id=request.correlation_id,
             auto_adjust=True,
         )
 
@@ -122,7 +132,9 @@ class SmartExecutionStrategy:
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
-        await asyncio.sleep(0.1)  # 100ms wait for quote data to flow
+        await asyncio.sleep(
+            self.config.quote_wait_milliseconds / 1000.0
+        )  # Configurable wait for quote data
 
         try:
             # Get validated quote with retry logic
@@ -148,8 +160,44 @@ class SmartExecutionStrategy:
                 used_fallback=used_fallback,
             )
 
+        except TimeoutError as e:
+            logger.error(
+                "Smart order placement timeout",
+                extra={
+                    "symbol": request.symbol,
+                    "error": str(e),
+                    "correlation_id": request.correlation_id,
+                },
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Order placement timed out: {e}",
+                execution_strategy="smart_limit_timeout",
+            )
+        except ValueError as e:
+            logger.error(
+                "Smart order placement validation error",
+                extra={
+                    "symbol": request.symbol,
+                    "error": str(e),
+                    "correlation_id": request.correlation_id,
+                },
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Validation error: {e}",
+                execution_strategy="smart_limit_validation_error",
+            )
         except Exception as e:
-            logger.error(f"Error in smart order placement for {request.symbol}: {e}")
+            logger.error(
+                "Smart order placement error",
+                extra={
+                    "symbol": request.symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "correlation_id": request.correlation_id,
+                },
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=str(e),
@@ -174,7 +222,8 @@ class SmartExecutionStrategy:
         quote = None
         used_fallback = False
 
-        # Retry up to 3 times with increasing waits
+        # Retry up to 3 times with configurable waits
+        retry_intervals = self.config.quote_retry_intervals_ms
         for attempt in range(3):
             validated = self.quote_provider.get_quote_with_validation(request.symbol)
             if validated:
@@ -182,7 +231,12 @@ class SmartExecutionStrategy:
                 break
 
             if attempt < 2:  # Don't wait on last attempt
-                await asyncio.sleep(0.3 * (attempt + 1))  # 300ms, 600ms waits
+                wait_ms = (
+                    retry_intervals[attempt]
+                    if attempt < len(retry_intervals)
+                    else retry_intervals[-1]
+                )
+                await asyncio.sleep(wait_ms / 1000.0)
 
         return quote, used_fallback
 
@@ -240,7 +294,8 @@ class SmartExecutionStrategy:
             Tuple of (optimal_price, analysis_metadata)
 
         """
-        order_size = float(request.quantity)
+        # Keep quantity as Decimal for precision
+        order_size = request.quantity
 
         # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
         if not used_fallback:
@@ -324,14 +379,19 @@ class SmartExecutionStrategy:
             Quantized and validated price
 
         """
-        # Ensure price is properly quantized to avoid sub-penny precision errors
-        quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
+        # Quantize directly without float conversion to maintain precision
+        quantized_price = optimal_price.quantize(Decimal("0.01"))
 
         # Final validation before placing order
         if quantized_price <= 0:
             logger.error(
-                f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
-                f"This should not happen after validation - falling back to market order."
+                "Invalid quantized price",
+                extra={
+                    "symbol": request.symbol,
+                    "quantized_price": str(quantized_price),
+                    "original_price": str(optimal_price),
+                    "correlation_id": request.correlation_id,
+                },
             )
 
         return quantized_price
@@ -360,15 +420,34 @@ class SmartExecutionStrategy:
             SmartOrderResult with placement details
 
         """
-        # Use asyncio.to_thread to make blocking I/O async
-        result = await asyncio.to_thread(
-            self.alpaca_manager.place_limit_order,
-            symbol=request.symbol,
-            side=request.side.lower(),
-            quantity=float(request.quantity),
-            limit_price=float(quantized_price),
-            time_in_force="day",
-        )
+        # Use asyncio.to_thread to make blocking I/O async with timeout
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.alpaca_manager.place_limit_order,
+                    symbol=request.symbol,
+                    side=request.side.lower(),
+                    quantity=float(request.quantity),
+                    limit_price=float(quantized_price),
+                    time_in_force="day",
+                ),
+                timeout=self.config.order_placement_timeout_seconds,
+            )
+        except TimeoutError:
+            logger.error(
+                "Order placement timeout",
+                extra={
+                    "symbol": request.symbol,
+                    "timeout_seconds": self.config.order_placement_timeout_seconds,
+                    "correlation_id": request.correlation_id,
+                },
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Order placement timed out after {self.config.order_placement_timeout_seconds}s",
+                execution_strategy="smart_limit_timeout",
+                placement_timestamp=datetime.now(UTC),
+            )
 
         placement_time = datetime.now(UTC)
 
@@ -419,23 +498,37 @@ class SmartExecutionStrategy:
         self.order_tracker.add_order(result.order_id, request, placement_time, optimal_price)
 
         logger.info(
-            f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
-            f"(strategy: {analysis_metadata['strategy_recommendation']}, "
-            f"confidence: {analysis_metadata['confidence']:.2f})"
+            "Smart order placed successfully",
+            extra={
+                "order_id": result.order_id,
+                "price": str(optimal_price),
+                "strategy": analysis_metadata["strategy_recommendation"],
+                "confidence": analysis_metadata["confidence"],
+                "correlation_id": request.correlation_id,
+            },
         )
 
         # Schedule re-pegging monitoring for this order
         if self.config.fill_wait_seconds > 0:
             logger.info(
-                f"⏰ Will monitor order {result.order_id} for re-pegging "
-                f"after {self.config.fill_wait_seconds}s"
+                "Monitoring order for re-pegging",
+                extra={
+                    "order_id": result.order_id,
+                    "fill_wait_seconds": self.config.fill_wait_seconds,
+                    "correlation_id": request.correlation_id,
+                },
             )
+
+        # Calculate spread percent with zero-check
+        spread_percent = 0.0
+        if quote.bid_price > 0:
+            spread_percent = float((quote.ask_price - quote.bid_price) / quote.bid_price * 100)
 
         metadata_dict: LiquidityMetadata = {
             **analysis_metadata,
             "bid_price": float(quote.bid_price),
             "ask_price": float(quote.ask_price),
-            "spread_percent": float((quote.ask_price - quote.bid_price) / quote.bid_price * 100),
+            "spread_percent": spread_percent,
             "bid_size": float(quote.bid_size),
             "ask_size": float(quote.ask_size),
             "used_fallback": used_fallback,
@@ -516,6 +609,10 @@ class SmartExecutionStrategy:
     ) -> dict[str, float | int] | None:
         """Wait for real-time quote data to be available.
 
+        .. deprecated::
+            This method is deprecated and will be removed in a future version.
+            Use the internal quote provider directly or place_smart_order instead.
+
         Args:
             symbol: Symbol to get quote for
             timeout: Maximum time to wait in seconds
@@ -524,10 +621,19 @@ class SmartExecutionStrategy:
             Quote data or None if timeout
 
         """
+        warnings.warn(
+            "wait_for_quote_data is deprecated and will be removed in a future version",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.quote_provider.wait_for_quote_data(symbol, timeout)
 
     def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
         """Validate that the quote has sufficient liquidity.
+
+        .. deprecated::
+            This method is deprecated and will be removed in a future version.
+            Use the internal quote provider directly or place_smart_order instead.
 
         Args:
             symbol: Symbol being validated
@@ -537,10 +643,19 @@ class SmartExecutionStrategy:
             True if quote passes validation
 
         """
+        warnings.warn(
+            "validate_quote_liquidity is deprecated and will be removed in a future version",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.quote_provider.validate_quote_liquidity(symbol, quote)
 
     def get_latest_quote(self, symbol: str) -> dict[str, float | int] | None:
         """Get the latest quote from the pricing service.
+
+        .. deprecated::
+            This method is deprecated and will be removed in a future version.
+            Use the internal quote provider directly or place_smart_order instead.
 
         Args:
             symbol: Symbol to get quote for
@@ -549,4 +664,9 @@ class SmartExecutionStrategy:
             Quote data or None if not available
 
         """
+        warnings.warn(
+            "get_latest_quote is deprecated and will be removed in a future version",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.quote_provider.get_latest_quote(symbol)

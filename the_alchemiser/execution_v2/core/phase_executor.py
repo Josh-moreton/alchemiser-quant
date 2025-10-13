@@ -219,9 +219,12 @@ class PhaseExecutor:
         """Create an OrderResult for a skipped order."""
         from datetime import UTC, datetime
 
+        action = item.action.upper()
+        if action not in ("BUY", "SELL"):
+            action = "BUY"  # Fallback to BUY if invalid
         return OrderResult(
             symbol=item.symbol,
-            action=item.action,
+            action=action,  # type: ignore[arg-type]
             trade_amount=Decimal("0"),
             shares=Decimal("0"),
             price=None,
@@ -325,9 +328,12 @@ class PhaseExecutor:
             # This would need to be passed in as a callback in real usage
             # For now, create a simple fallback result
             logger.warning(f"⚠️ No order execution callback provided for {item.symbol}")
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"  # Fallback to BUY if invalid
             return OrderResult(
                 symbol=item.symbol,
-                action=item.action,
+                action=action,  # type: ignore[arg-type]
                 trade_amount=abs(item.trade_amount),
                 shares=shares,
                 price=None,
@@ -342,9 +348,12 @@ class PhaseExecutor:
         except Exception as e:
             logger.error(f"❌ Error executing {item.action} for {item.symbol}: {e}")
 
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"  # Fallback to BUY if invalid
             return OrderResult(
                 symbol=item.symbol,
-                action=item.action,
+                action=action,  # type: ignore[arg-type]
                 trade_amount=abs(item.trade_amount),
                 shares=Decimal("0"),
                 price=None,
