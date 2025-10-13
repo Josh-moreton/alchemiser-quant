@@ -67,6 +67,8 @@ class ExecutionConfig:
     order_placement_timeout_seconds: int = 30  # Timeout for order placement
     fill_wait_seconds: int = 10  # Wait time before attempting re-peg
     max_wait_time_seconds: int = 30  # Maximum wait time for quote data
+    quote_wait_milliseconds: int = 100  # Initial wait for quote data after subscription
+    quote_retry_intervals_ms: tuple[int, int, int] = (300, 600, 900)  # Retry intervals for quote fetching
 
     # Fractional trading safeguards
     # Minimum notional for fractional orders (e.g., Alpaca requires >= $1 for fractional)
@@ -83,7 +85,7 @@ class ExecutionConfig:
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class SmartOrderRequest:
     """Request for smart order placement."""
 
@@ -95,7 +97,7 @@ class SmartOrderRequest:
     is_complete_exit: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class SmartOrderResult:
     """Result of smart order placement attempt."""
 
