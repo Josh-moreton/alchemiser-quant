@@ -373,6 +373,55 @@ class TestTradeLedgerService:
         result = service.persist_to_s3(correlation_id="test-corr")
         assert result is True  # Returns True but doesn't actually persist
 
+    def test_persist_to_s3_idempotency(self):
+        """Test S3 persistence idempotency - same correlation_id only persists once."""
+        service = TradeLedgerService()
+
+        # Mock S3 client directly on the service instance
+        mock_s3_client = MagicMock()
+        service._s3_client = mock_s3_client
+
+        # Override settings for test
+        service._settings.trade_ledger.enabled = True
+        service._settings.trade_ledger.bucket_name = "test-bucket"
+
+        # Record an order
+        order_result = OrderResult(
+            symbol="TEST",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-123",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+        service.record_filled_order(
+            order_result=order_result,
+            correlation_id="test-corr-456",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        # First persist should succeed
+        result1 = service.persist_to_s3(correlation_id="test-corr-456")
+        assert result1 is True
+        assert mock_s3_client.put_object.call_count == 1
+
+        # Second persist with same correlation_id should be idempotent (no second S3 call)
+        result2 = service.persist_to_s3(correlation_id="test-corr-456")
+        assert result2 is True
+        assert mock_s3_client.put_object.call_count == 1  # Still only 1 call
+
+        # Third persist with different correlation_id should make new S3 call
+        result3 = service.persist_to_s3(correlation_id="test-corr-789")
+        assert result3 is True
+        assert mock_s3_client.put_object.call_count == 2  # Now 2 calls
+
+
     def test_skip_recording_zero_quantity_order(self):
         """Test that orders with zero quantity are not recorded."""
         service = TradeLedgerService()

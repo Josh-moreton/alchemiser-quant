@@ -152,6 +152,60 @@ class TestErrorDetailsToDict:
         parsed = datetime.fromisoformat(result["timestamp"])
         assert isinstance(parsed, datetime)
 
+    def test_to_dict_includes_schema_version(self):
+        """Test that to_dict includes schema_version field."""
+        error = ValueError("Test error")
+        details = ErrorDetails(
+            error=error,
+            category=ErrorCategory.DATA,
+            context="test",
+            component="test",
+        )
+        result = details.to_dict()
+        assert "schema_version" in result
+        assert result["schema_version"] == "1.0"
+
+
+class TestErrorDetailsImmutability:
+    """Test ErrorDetails immutability (frozen dataclass)."""
+
+    def test_error_details_is_immutable(self):
+        """Test that ErrorDetails instances cannot be modified after creation."""
+        error = ValueError("Test error")
+        details = ErrorDetails(
+            error=error,
+            category=ErrorCategory.CRITICAL,
+            context="test",
+            component="test",
+        )
+        # Attempting to modify should raise FrozenInstanceError
+        with pytest.raises(Exception):  # dataclasses.FrozenInstanceError
+            details.category = "new_category"  # type: ignore[misc]
+
+    def test_error_details_additional_data_default_is_not_shared(self):
+        """Test that default additional_data is not shared between instances."""
+        error1 = ValueError("Error 1")
+        details1 = ErrorDetails(
+            error=error1,
+            category=ErrorCategory.DATA,
+            context="test1",
+            component="test",
+        )
+
+        error2 = ValueError("Error 2")
+        details2 = ErrorDetails(
+            error=error2,
+            category=ErrorCategory.DATA,
+            context="test2",
+            component="test",
+        )
+
+        # Both should have empty dicts, but they should be different instances
+        assert details1.additional_data == {}
+        assert details2.additional_data == {}
+        # Since ErrorDetails is frozen, we can't modify, but we can verify they're independent
+        assert details1.additional_data is not details2.additional_data
+
 
 class TestCategorizeByExceptionType:
     """Test categorize_by_exception_type function."""

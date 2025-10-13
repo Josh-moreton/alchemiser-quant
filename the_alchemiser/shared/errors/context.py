@@ -11,7 +11,7 @@ architecture.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -38,6 +38,12 @@ class ErrorContextData(BaseModel):
     Metadata:
         - additional_data: Flexible dict for extra context
         - timestamp: When the error occurred (ISO 8601)
+        - schema_version: Schema version for compatibility tracking
+
+    Note:
+        The timestamp field is auto-generated using datetime.now(UTC). For
+        deterministic testing, either provide an explicit timestamp or use
+        freezegun to freeze time during tests.
 
     Examples:
         >>> context = ErrorContextData(
@@ -100,6 +106,12 @@ class ErrorContextData(BaseModel):
     timestamp: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat(),
         description="ISO 8601 timestamp when error context was created",
+    )
+
+    # Schema version for compatibility tracking
+    schema_version: Literal["1.0"] = Field(
+        default="1.0",
+        description="Schema version for compatibility tracking",
     )
 
     def to_dict(self) -> dict[str, Any]:
