@@ -54,6 +54,7 @@ class ServiceProviders(containers.DeclarativeContainer):
         services.infrastructure.override(infrastructure_container)
         services.config.override(config_container)
         bus = services.event_bus()
+
     """
 
     # Dependencies

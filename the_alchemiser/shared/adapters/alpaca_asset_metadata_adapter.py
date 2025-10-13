@@ -26,9 +26,7 @@ FRACTIONAL_SIGNIFICANCE_THRESHOLD = 0.1
 class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
     """Adapter implementing AssetMetadataProvider using AlpacaManager."""
 
-    def __init__(
-        self, alpaca_manager: AlpacaManager, correlation_id: str | None = None
-    ) -> None:
+    def __init__(self, alpaca_manager: AlpacaManager, correlation_id: str | None = None) -> None:
         """Initialize with AlpacaManager instance.
 
         Args:

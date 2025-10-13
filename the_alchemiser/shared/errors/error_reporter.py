@@ -34,7 +34,7 @@ Architecture:
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.shared.logging import get_logger
@@ -104,6 +104,7 @@ class EnhancedErrorReporter:
     Thread Safety:
         This class is NOT thread-safe. Use separate instances per thread
         or the global singleton with appropriate locking.
+
     """
 
     def __init__(self) -> None:
@@ -113,7 +114,9 @@ class EnhancedErrorReporter:
         unbounded memory growth in long-running Lambda containers.
         """
         self.error_counts: dict[str, int] = defaultdict(int)
-        self.error_counts_timestamps: dict[str, float] = {}  # Track when each error type was last seen
+        self.error_counts_timestamps: dict[
+            str, float
+        ] = {}  # Track when each error type was last seen
         self.critical_errors: list[dict[str, Any]] = []
         self.error_rate_window = ERROR_RATE_WINDOW_SECONDS
         self.recent_errors: list[dict[str, Any]] = []
@@ -186,6 +189,7 @@ class EnhancedErrorReporter:
 
             Sensitive data in context is automatically redacted before storage
             and logging (password, token, api_key, secret, auth, credentials, account_id).
+
         """
         # Redact sensitive data first
         safe_context = self._redact_sensitive_data(context or {})
@@ -259,6 +263,7 @@ class EnhancedErrorReporter:
                 >>> safe = reporter._redact_sensitive_data(context)
                 >>> safe['request']['headers']['authorization']
                 '[REDACTED]'
+
         """
         redacted_context: dict[str, Any] = {}
         for key, value in context.items():
@@ -330,6 +335,7 @@ class EnhancedErrorReporter:
 
         Returns:
             Parsed datetime object, or current time if parsing fails
+
         """
         try:
             return datetime.fromisoformat(timestamp_str)
@@ -355,8 +361,9 @@ class EnhancedErrorReporter:
             current_time = datetime.now(UTC).timestamp()
 
             # Check if we've already alerted recently
-            if alert_key not in self._alerted_errors or current_time > self._alert_cooldown_until.get(
-                alert_key, 0
+            if (
+                alert_key not in self._alerted_errors
+                or current_time > self._alert_cooldown_until.get(alert_key, 0)
             ):
                 # Extract correlation context from recent errors
                 recent_correlation_ids = [
@@ -371,7 +378,9 @@ class EnhancedErrorReporter:
                         "error_rate_per_minute": error_rate,
                         "threshold": ERROR_RATE_THRESHOLD_PER_MIN,
                         "recent_errors_count": len(self.recent_errors),
-                        "recent_correlation_ids": recent_correlation_ids[:3],  # Sample of recent IDs
+                        "recent_correlation_ids": recent_correlation_ids[
+                            :3
+                        ],  # Sample of recent IDs
                     },
                 )
 
@@ -399,6 +408,7 @@ class EnhancedErrorReporter:
             >>> summary = reporter.get_error_summary()
             >>> print(f"Error rate: {summary['error_rate_per_minute']:.1f}/min")
             >>> print(f"Critical errors: {summary['critical_errors_count']}")
+
         """
         return {
             "total_error_types": len(self.error_counts),
@@ -435,6 +445,7 @@ def get_enhanced_error_reporter() -> EnhancedErrorReporter:
                 reporter = get_enhanced_error_reporter()
                 reporter.report_error_with_context(ValueError("test"), operation="test")
                 assert len(reporter.recent_errors) == 1
+
     """
     return EnhancedErrorReporter()
 
@@ -480,6 +491,7 @@ def get_global_error_reporter() -> EnhancedErrorReporter:
     Thread Safety:
         This function is NOT thread-safe. The singleton instance should only
         be accessed from a single thread, or external locking should be used.
+
     """
     global _global_enhanced_error_reporter
     if _global_enhanced_error_reporter is None:

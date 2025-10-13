@@ -346,7 +346,8 @@ def lambda_handler(
         aws_request_id=request_id,
         correlation_id=correlation_id,
         event_has_correlation_id=bool(
-            event and (
+            event
+            and (
                 (isinstance(event, dict) and event.get("correlation_id"))
                 or (hasattr(event, "correlation_id") and event.correlation_id)
             )
@@ -362,7 +363,9 @@ def lambda_handler(
         # Log the incoming event for debugging (sanitize secrets)
         event_for_logging = _sanitize_event_for_logging(event) if event else None
         event_json = json.dumps(event_for_logging) if event_for_logging else "None"
-        logger.info("Lambda invoked with event", event_data=event_json, correlation_id=correlation_id)
+        logger.info(
+            "Lambda invoked with event", event_data=event_json, correlation_id=correlation_id
+        )
 
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})

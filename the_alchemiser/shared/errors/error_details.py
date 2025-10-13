@@ -104,6 +104,7 @@ def _is_strategy_execution_error(err: Exception) -> bool:
 
     Returns:
         True if the exception is a StrategyExecutionError, False otherwise
+
     """
     return err.__class__.__name__ == "StrategyExecutionError"
 
@@ -148,6 +149,7 @@ class ErrorDetails:
                 suggested_action="Deposit funds or reduce order size",
                 error_code="TRD_INSUFFICIENT_FUNDS",
             )
+
     """
 
     error: Exception
@@ -170,6 +172,7 @@ class ErrorDetails:
             >>> details = ErrorDetails(...)
             >>> result = details.to_dict()
             >>> assert result["schema_version"] == "1.0"
+
         """
         return {
             "error_type": type(self.error).__name__,
@@ -208,6 +211,7 @@ def categorize_by_exception_type(error: Exception) -> str | None:
 
         >>> categorize_by_exception_type(ValueError("unknown"))
         None
+
     """
     if isinstance(
         error,
@@ -254,6 +258,7 @@ def categorize_by_context(context: str) -> str:
 
         >>> categorize_by_context("unknown operation")
         'critical'
+
     """
     context_lower = context.lower()
     if "trading" in context_lower or "order" in context_lower:
@@ -295,6 +300,7 @@ def categorize_error(error: Exception, context: str = "") -> str:
 
         >>> categorize_error(ValueError("error"), "")
         'critical'  # Default for unknown context
+
     """
     # First try categorization by exception type
     category = categorize_by_exception_type(error)
@@ -338,6 +344,7 @@ def get_suggested_action(error: Exception, category: str) -> str:
 
         >>> get_suggested_action(ValueError("unknown"), ErrorCategory.DATA)
         'Check market data sources, API limits, and network connectivity'
+
     """
     if isinstance(error, InsufficientFundsError):
         return "Check account balance and reduce position sizes or add funds"

@@ -90,7 +90,7 @@ def validate_repeg_price_with_history(
 
     """
     # Validate input for NaN/Infinity
-    if not (new_price.is_finite() and new_price.is_normal() or new_price == 0):
+    if not ((new_price.is_finite() and new_price.is_normal()) or new_price == 0):
         logger.warning(
             f"Invalid new_price value: {new_price}",
             extra={"correlation_id": correlation_id, "symbol": quote.symbol, "side": side},
@@ -295,7 +295,12 @@ def fetch_price_for_notional_check(
         # Catch conversion errors explicitly
         logger.warning(
             f"Failed to convert price to Decimal for {symbol}: {e}",
-            extra={"correlation_id": correlation_id, "symbol": symbol, "side": side, "error": str(e)},
+            extra={
+                "correlation_id": correlation_id,
+                "symbol": symbol,
+                "side": side,
+                "error": str(e),
+            },
         )
         price = None
     except Exception as e:

@@ -38,7 +38,9 @@ class OrderResult(BaseModel):
     price: Decimal | None = Field(default=None, gt=Decimal("0"), description="Execution price")
     order_id: str | None = Field(default=None, max_length=100, description="Broker order ID")
     success: bool = Field(..., description="Order success flag")
-    error_message: str | None = Field(default=None, max_length=1000, description="Error message if failed")
+    error_message: str | None = Field(
+        default=None, max_length=1000, description="Error message if failed"
+    )
     timestamp: datetime = Field(..., description="Order execution timestamp")
     order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"] = Field(
         default="MARKET", description="Order type"
@@ -60,11 +62,15 @@ class ExecutionResult(BaseModel):
     status: ExecutionStatus = Field(..., description="Detailed execution status classification")
     plan_id: str = Field(..., max_length=100, description="Rebalance plan ID")
     correlation_id: str = Field(..., max_length=100, description="Correlation ID for traceability")
-    causation_id: str | None = Field(default=None, max_length=100, description="Causation ID for event sourcing")
+    causation_id: str | None = Field(
+        default=None, max_length=100, description="Causation ID for event sourcing"
+    )
     orders: list[OrderResult] = Field(default_factory=list, description="Individual order results")
     orders_placed: int = Field(..., ge=0, description="Number of orders placed")
     orders_succeeded: int = Field(..., ge=0, description="Number of successful orders")
-    total_trade_value: Decimal = Field(..., ge=Decimal("0"), description="Total dollar value traded")
+    total_trade_value: Decimal = Field(
+        ..., ge=Decimal("0"), description="Total dollar value traded"
+    )
     execution_timestamp: datetime = Field(..., description="Execution completion timestamp")
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata only"

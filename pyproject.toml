@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "2.20.8"
+version = "2.21.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -42,6 +42,9 @@ ignore_missing_imports = true
 
 [tool.importlinter]
 root_package = "the_alchemiser"
+include_external_packages = false
+unmatched_ignore_imports_alerting = "warn"
+
 [[tool.importlinter.contracts]]
 name = "Shared module isolation - prevent upward dependencies"
 type = "forbidden"

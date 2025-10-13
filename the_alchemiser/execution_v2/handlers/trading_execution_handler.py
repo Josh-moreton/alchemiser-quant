@@ -152,9 +152,7 @@ class TradingExecutionHandler:
             >>> assert key1 == key2
 
         """
-        key_material = (
-            f"{event.event_id}:{event.correlation_id}:{event.rebalance_plan.plan_id}"
-        )
+        key_material = f"{event.event_id}:{event.correlation_id}:{event.rebalance_plan.plan_id}"
         return hashlib.sha256(key_material.encode()).hexdigest()[:16]
 
     def _is_duplicate_event(self, idempotency_key: str) -> bool:
@@ -372,7 +370,9 @@ class TradingExecutionHandler:
                 # Fallback: use execution_timestamp if workflow_start_timestamp is not available
                 workflow_start = execution_result.execution_timestamp
             workflow_end = datetime.now(UTC)
-            workflow_duration_ms = int((workflow_end - workflow_start).total_seconds() * MS_PER_SECOND)
+            workflow_duration_ms = int(
+                (workflow_end - workflow_start).total_seconds() * MS_PER_SECOND
+            )
 
             event = WorkflowCompleted(
                 correlation_id=correlation_id,

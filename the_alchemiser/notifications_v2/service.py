@@ -157,9 +157,7 @@ class NotificationService:
             "SystemNotificationRequested",
         ]
 
-    def _log_event_context(
-        self, event: BaseEvent, message: str, level: str = "info"
-    ) -> None:
+    def _log_event_context(self, event: BaseEvent, message: str, level: str = "info") -> None:
         """Log message with event context (correlation_id, causation_id).
 
         Args:
@@ -208,14 +206,10 @@ class NotificationService:
             if success:
                 self._log_event_context(event, "Error notification email sent successfully")
             else:
-                self._log_event_context(
-                    event, "Failed to send error notification email", "error"
-                )
+                self._log_event_context(event, "Failed to send error notification email", "error")
 
         except Exception as e:
-            self._log_event_context(
-                event, f"Failed to send error notification: {e}", "error"
-            )
+            self._log_event_context(event, f"Failed to send error notification: {e}", "error")
 
     def _handle_trading_notification(self, event: TradingNotificationRequested) -> None:
         """Handle trading notification event.
@@ -224,7 +218,9 @@ class NotificationService:
             event: The trading notification event
 
         """
-        self._log_event_context(event, f"Sending trading notification: success={event.trading_success}")
+        self._log_event_context(
+            event, f"Sending trading notification: success={event.trading_success}"
+        )
 
         try:
             # Build email content based on success/failure
@@ -246,12 +242,11 @@ class NotificationService:
 
             if success:
                 self._log_event_context(
-                    event, f"Trading notification sent successfully (success={event.trading_success})"
+                    event,
+                    f"Trading notification sent successfully (success={event.trading_success})",
                 )
             else:
-                self._log_event_context(
-                    event, "Failed to send trading notification email", "error"
-                )
+                self._log_event_context(event, "Failed to send trading notification email", "error")
 
         except Exception as e:
             self._log_event_context(event, f"Failed to send trading notification: {e}", "error")
@@ -369,9 +364,7 @@ class NotificationService:
             if success:
                 self._log_event_context(event, "System notification email sent successfully")
             else:
-                self._log_event_context(
-                    event, "Failed to send system notification email", "error"
-                )
+                self._log_event_context(event, "Failed to send system notification email", "error")
 
         except Exception as e:
             self._log_event_context(event, f"Failed to send system notification: {e}", "error")
