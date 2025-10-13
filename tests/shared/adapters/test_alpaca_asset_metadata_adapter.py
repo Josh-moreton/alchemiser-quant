@@ -10,8 +10,10 @@ from unittest.mock import Mock
 import pytest
 
 from the_alchemiser.shared.adapters.alpaca_asset_metadata_adapter import (
+    FRACTIONAL_SIGNIFICANCE_THRESHOLD,
     AlpacaAssetMetadataAdapter,
 )
+from the_alchemiser.shared.errors.exceptions import DataProviderError, RateLimitError
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
@@ -195,5 +197,70 @@ class TestAlpacaAssetMetadataAdapter:
         assert result1 is True
 
         # Just below threshold (<= 0.1)
-        result2 = adapter.should_use_notional_order(symbol, 10.10)
+        result2 = adapter.should_use_notional_order(
+            symbol, 10.0 + FRACTIONAL_SIGNIFICANCE_THRESHOLD
+        )
         assert result2 is False
+
+    def test_should_use_notional_order_negative_quantity(
+        self, adapter, mock_alpaca_manager
+    ):
+        """Test should_use_notional_order rejects negative quantity."""
+        symbol = Symbol("AAPL")
+
+        with pytest.raises(ValueError, match="quantity must be > 0"):
+            adapter.should_use_notional_order(symbol, -1.0)
+
+    def test_should_use_notional_order_zero_quantity(self, adapter, mock_alpaca_manager):
+        """Test should_use_notional_order rejects zero quantity."""
+        symbol = Symbol("AAPL")
+
+        with pytest.raises(ValueError, match="quantity must be > 0"):
+            adapter.should_use_notional_order(symbol, 0.0)
+
+    def test_get_asset_class_handles_rate_limit(self, adapter, mock_alpaca_manager):
+        """Test get_asset_class re-raises RateLimitError."""
+        mock_alpaca_manager.get_asset_info.side_effect = RateLimitError(
+            "Rate limit exceeded"
+        )
+        symbol = Symbol("AAPL")
+
+        with pytest.raises(RateLimitError):
+            adapter.get_asset_class(symbol)
+
+    def test_get_asset_class_handles_data_provider_error(
+        self, adapter, mock_alpaca_manager
+    ):
+        """Test get_asset_class returns unknown for DataProviderError."""
+        mock_alpaca_manager.get_asset_info.side_effect = DataProviderError(
+            "Asset not found"
+        )
+        symbol = Symbol("UNKN")
+
+        result = adapter.get_asset_class(symbol)
+
+        assert result == "unknown"
+
+    def test_get_asset_class_handles_unexpected_error(
+        self, adapter, mock_alpaca_manager
+    ):
+        """Test get_asset_class returns unknown for unexpected exceptions."""
+        mock_alpaca_manager.get_asset_info.side_effect = RuntimeError("Unexpected error")
+        symbol = Symbol("UNKN")
+
+        result = adapter.get_asset_class(symbol)
+
+        assert result == "unknown"
+
+    def test_correlation_id_passed_to_constructor(self, mock_alpaca_manager):
+        """Test correlation_id is stored when provided."""
+        correlation_id = "test-correlation-123"
+        adapter = AlpacaAssetMetadataAdapter(mock_alpaca_manager, correlation_id)
+
+        assert adapter._correlation_id == correlation_id
+
+    def test_correlation_id_optional(self, mock_alpaca_manager):
+        """Test correlation_id is optional."""
+        adapter = AlpacaAssetMetadataAdapter(mock_alpaca_manager)
+
+        assert adapter._correlation_id is None
