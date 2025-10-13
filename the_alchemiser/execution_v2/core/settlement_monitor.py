@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 from the_alchemiser.execution_v2.models.settlement_details import SettlementDetails
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
-    OrderExecutionError,
     TradingClientError,
 )
 from the_alchemiser.shared.events import (
@@ -39,6 +38,9 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = get_logger(__name__)
+
+# Module identifier used in logging and events
+MODULE_NAME: str = "execution_v2.settlement_monitor"
 
 
 class SettlementMonitor:
@@ -108,7 +110,7 @@ class SettlementMonitor:
             "🔍 Starting settlement monitoring for sell orders",
             order_count=len(sell_order_ids),
             correlation_id=correlation_id,
-            module="execution_v2.settlement_monitor",
+            module=MODULE_NAME,
         )
 
         settled_orders: list[str] = []
@@ -137,10 +139,10 @@ class SettlementMonitor:
                             order_id=order_id,
                             settled_value=str(settled_value),
                             correlation_id=correlation_id,
-                            module="execution_v2.settlement_monitor",
+                            module=MODULE_NAME,
                         )
 
-        except (DataProviderError, TradingClientError, OrderExecutionError) as e:
+        except (DataProviderError, TradingClientError) as e:
             logger.error(
                 "❌ Error monitoring settlement",
                 error=str(e),
@@ -159,7 +161,7 @@ class SettlementMonitor:
             causation_id=correlation_id,
             event_id=self._generate_event_id(),
             timestamp=datetime.now(UTC),
-            source_module="execution_v2.settlement_monitor",
+            source_module=MODULE_NAME,
             settled_order_ids=settled_orders,
             total_buying_power_released=total_buying_power_released,
             settlement_details=settlement_details_dict,
@@ -177,7 +179,7 @@ class SettlementMonitor:
             buying_power_released=str(total_buying_power_released),
             execution_time_seconds=execution_time,
             correlation_id=correlation_id,
-            module="execution_v2.settlement_monitor",
+            module=MODULE_NAME,
         )
 
         return settlement_event
@@ -210,7 +212,7 @@ class SettlementMonitor:
             "💰 Verifying buying power availability after settlement",
             expected_buying_power=str(expected_buying_power),
             correlation_id=settlement_correlation_id,
-            module="execution_v2.settlement_monitor",
+            module=MODULE_NAME,
         )
 
         # Calculate retry parameters based on max_wait_seconds with explicit
@@ -245,7 +247,7 @@ class SettlementMonitor:
                 actual_buying_power=str(actual_buying_power),
                 expected_buying_power=str(expected_buying_power),
                 correlation_id=settlement_correlation_id,
-                module="execution_v2.settlement_monitor",
+                module=MODULE_NAME,
             )
         else:
             logger.error(
@@ -253,7 +255,7 @@ class SettlementMonitor:
                 actual_buying_power=str(actual_buying_power),
                 expected_buying_power=str(expected_buying_power),
                 correlation_id=settlement_correlation_id,
-                module="execution_v2.settlement_monitor",
+                module=MODULE_NAME,
             )
 
         return is_available, actual_buying_power
@@ -288,7 +290,7 @@ class SettlementMonitor:
                             causation_id=correlation_id,
                             event_id=self._generate_event_id(),
                             timestamp=datetime.now(UTC),
-                            source_module="execution_v2.settlement_monitor",
+                            source_module=MODULE_NAME,
                             order_id=order_id,
                             symbol=order_details.symbol,
                             side=order_details.side,
@@ -309,14 +311,14 @@ class SettlementMonitor:
                 # Wait before next check
                 await asyncio.sleep(self.polling_interval)
 
-            except (DataProviderError, TradingClientError, OrderExecutionError) as e:
+            except (DataProviderError, TradingClientError) as e:
                 logger.warning(
                     "Error checking order status, retrying",
                     error=str(e),
                     error_type=type(e).__name__,
                     order_id=order_id,
                     correlation_id=correlation_id,
-                    module="execution_v2.settlement_monitor",
+                    module=MODULE_NAME,
                 )
                 await asyncio.sleep(self.polling_interval)
 
@@ -324,7 +326,7 @@ class SettlementMonitor:
             "⏰ Settlement monitoring timeout",
             order_id=order_id,
             correlation_id=correlation_id,
-            module="execution_v2.settlement_monitor",
+            module=MODULE_NAME,
         )
         return None
 
@@ -373,7 +375,7 @@ class SettlementMonitor:
                 error=str(e),
                 error_type=type(e).__name__,
                 order_id=order_id,
-                module="execution_v2.settlement_monitor",
+                module=MODULE_NAME,
             )
             return None
 
@@ -403,7 +405,7 @@ class SettlementMonitor:
             target_buying_power=str(target_buying_power),
             order_count=len(sell_order_ids),
             correlation_id=correlation_id,
-            module="execution_v2.settlement_monitor",
+            module=MODULE_NAME,
         )
 
         start_time = datetime.now(UTC)
@@ -429,7 +431,7 @@ class SettlementMonitor:
                     accumulated_buying_power=str(accumulated_buying_power),
                     target_buying_power=str(target_buying_power),
                     correlation_id=correlation_id,
-                    module="execution_v2.settlement_monitor",
+                    module=MODULE_NAME,
                 )
                 return True
 
@@ -440,7 +442,7 @@ class SettlementMonitor:
             accumulated_buying_power=str(accumulated_buying_power),
             target_buying_power=str(target_buying_power),
             correlation_id=correlation_id,
-            module="execution_v2.settlement_monitor",
+            module=MODULE_NAME,
         )
         return False
 
