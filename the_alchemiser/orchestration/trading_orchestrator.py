@@ -20,6 +20,13 @@ from the_alchemiser.shared.errors.exceptions import (
 )
 from the_alchemiser.shared.logging import get_logger
 
+# Component identifiers for structured logging
+_COMPONENT_EXECUTE_SIGNALS: str = "TradingOrchestrator.execute_strategy_signals"
+"""Component identifier for execute_strategy_signals method in structured logging."""
+
+_COMPONENT_EXECUTE_SIGNALS_WITH_TRADING: str = "TradingOrchestrator.execute_strategy_signals_with_trading"
+"""Component identifier for execute_strategy_signals_with_trading method in structured logging."""
+
 
 @runtime_checkable
 class SignalOrchestratorLike(Protocol):
@@ -135,7 +142,7 @@ class TradingOrchestrator:
                     "Signal analysis returned no result or unsuccessful",
                     extra={
                         "correlation_id": correlation_id,
-                        "component": "TradingOrchestrator.execute_strategy_signals",
+                        "component": _COMPONENT_EXECUTE_SIGNALS,
                     },
                 )
                 return None
@@ -153,7 +160,7 @@ class TradingOrchestrator:
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(exc).__name__,
-                    "component": "TradingOrchestrator.execute_strategy_signals",
+                    "component": _COMPONENT_EXECUTE_SIGNALS,
                 },
             )
             return None
@@ -164,7 +171,7 @@ class TradingOrchestrator:
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(exc).__name__,
-                    "component": "TradingOrchestrator.execute_strategy_signals",
+                    "component": _COMPONENT_EXECUTE_SIGNALS,
                 },
             )
             return None
@@ -175,7 +182,7 @@ class TradingOrchestrator:
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(exc).__name__,
-                    "component": "TradingOrchestrator.execute_strategy_signals",
+                    "component": _COMPONENT_EXECUTE_SIGNALS,
                 },
             )
             return None
@@ -203,7 +210,7 @@ class TradingOrchestrator:
                     "Failed to retrieve account data",
                     extra={
                         "correlation_id": correlation_id,
-                        "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                        "component": _COMPONENT_EXECUTE_SIGNALS_WITH_TRADING,
                     },
                 )
                 return None
@@ -260,7 +267,7 @@ class TradingOrchestrator:
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(exc).__name__,
-                    "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                    "component": _COMPONENT_EXECUTE_SIGNALS_WITH_TRADING,
                 },
             )
             return None
@@ -271,7 +278,7 @@ class TradingOrchestrator:
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(exc).__name__,
-                    "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                    "component": _COMPONENT_EXECUTE_SIGNALS_WITH_TRADING,
                 },
             )
             return None
@@ -282,7 +289,7 @@ class TradingOrchestrator:
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(exc).__name__,
-                    "component": "TradingOrchestrator.execute_strategy_signals_with_trading",
+                    "component": _COMPONENT_EXECUTE_SIGNALS_WITH_TRADING,
                 },
             )
             return None
