@@ -18,6 +18,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
 
+from the_alchemiser.execution_v2.errors import (
+    ExecutionTimeoutError,
+    ExecutionValidationError,
+    OrderPlacementError,
+    QuoteValidationError,
+)
 from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
@@ -102,7 +108,14 @@ class SmartExecutionStrategy:
         # Preflight validation for non-fractionable assets
         side_normalized = request.side.lower()
         if side_normalized not in ("buy", "sell"):
-            logger.error(f"❌ Invalid side for {request.symbol}: {request.side}")
+            logger.error(
+                "Invalid order side",
+                extra={
+                    "symbol": request.symbol,
+                    "side": request.side,
+                    "correlation_id": request.correlation_id,
+                },
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=f"Invalid side: {request.side}. Must be 'buy' or 'sell'",
@@ -112,14 +125,21 @@ class SmartExecutionStrategy:
         validation_result = self.validator.validate_order(
             symbol=request.symbol,
             quantity=request.quantity,
-            side=side_normalized,  # type: ignore[arg-type]
+            side=side_normalized,  # type: ignore[arg-type]  # side_normalized is guaranteed to be "buy" or "sell" by line 104 check
             correlation_id=request.correlation_id,
             auto_adjust=True,
         )
 
         if not validation_result.is_valid:
             error_msg = validation_result.error_message or f"Validation failed for {request.symbol}"
-            logger.error(f"❌ Preflight validation failed for {request.symbol}: {error_msg}")
+            logger.error(
+                "Preflight validation failed",
+                extra={
+                    "symbol": request.symbol,
+                    "error_message": error_msg,
+                    "correlation_id": request.correlation_id,
+                },
+            )
             return SmartOrderResult(
                 success=False,
                 error_message=error_msg,
@@ -132,12 +152,25 @@ class SmartExecutionStrategy:
             original_quantity = request.quantity
             request = replace(request, quantity=validation_result.adjusted_quantity)
             logger.info(
-                f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}"
+                "Adjusted order quantity",
+                extra={
+                    "symbol": request.symbol,
+                    "original_quantity": str(original_quantity),
+                    "adjusted_quantity": str(request.quantity),
+                    "correlation_id": request.correlation_id,
+                },
             )
 
         # Log any warnings from validation
         for warning in validation_result.warnings:
-            logger.warning(f"⚠️ Smart order validation: {warning}")
+            logger.warning(
+                "Order validation warning",
+                extra={
+                    "warning": warning,
+                    "symbol": request.symbol,
+                    "correlation_id": request.correlation_id,
+                },
+            )
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
@@ -169,7 +202,7 @@ class SmartExecutionStrategy:
                 used_fallback=used_fallback,
             )
 
-        except TimeoutError as e:
+        except ExecutionTimeoutError as e:
             logger.error(
                 "Smart order placement timeout",
                 extra={
@@ -183,21 +216,22 @@ class SmartExecutionStrategy:
                 error_message=f"Order placement timed out: {e}",
                 execution_strategy="smart_limit_timeout",
             )
-        except ValueError as e:
+        except (ExecutionValidationError, QuoteValidationError) as e:
             logger.error(
-                "Smart order placement validation error",
+                "Smart order validation error",
                 extra={
                     "symbol": request.symbol,
                     "error": str(e),
+                    "error_type": type(e).__name__,
                     "correlation_id": request.correlation_id,
                 },
             )
             return SmartOrderResult(
                 success=False,
-                error_message=f"Validation error: {e}",
+                error_message=str(e),
                 execution_strategy="smart_limit_validation_error",
             )
-        except Exception as e:
+        except OrderPlacementError as e:
             logger.error(
                 "Smart order placement error",
                 extra={
@@ -212,6 +246,23 @@ class SmartExecutionStrategy:
                 error_message=str(e),
                 execution_strategy="smart_limit_error",
             )
+        except Exception as e:
+            # Catch-all for unexpected errors - log with full context for debugging
+            logger.error(
+                "Unexpected error in smart order placement",
+                extra={
+                    "symbol": request.symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "correlation_id": request.correlation_id,
+                },
+            )
+            # Re-raise as OrderPlacementError for consistent error handling upstream
+            raise OrderPlacementError(
+                f"Unexpected error during order placement: {e}",
+                correlation_id=request.correlation_id,
+                context={"symbol": request.symbol, "original_error": str(e)},
+            ) from e
         finally:
             # Clean up subscription after order placement
             self.quote_provider.cleanup_subscription(request.symbol)
@@ -262,7 +313,12 @@ class SmartExecutionStrategy:
         # Fallback to market order for high urgency
         if request.urgency == "HIGH":
             logger.warning(
-                f"Quote validation failed for {request.symbol}, using market order fallback"
+                "Quote validation failed, using market order fallback",
+                extra={
+                    "symbol": request.symbol,
+                    "urgency": request.urgency,
+                    "correlation_id": request.correlation_id,
+                },
             )
             # Return a task that can be awaited by the caller
             return self._create_market_fallback_result(request)
@@ -338,8 +394,13 @@ class SmartExecutionStrategy:
         # Validate optimal price before proceeding
         if optimal_price <= 0:
             logger.error(
-                f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
-                f"This should not happen after validation - falling back to market order."
+                "Invalid optimal price calculated",
+                extra={
+                    "symbol": request.symbol,
+                    "side": request.side,
+                    "optimal_price": str(optimal_price),
+                    "correlation_id": request.correlation_id,
+                },
             )
             return await self._handle_invalid_price_fallback(request)
 
@@ -431,13 +492,18 @@ class SmartExecutionStrategy:
         """
         # Use asyncio.to_thread to make blocking I/O async with timeout
         try:
+            # NOTE: Float conversion required by broker API
+            # AlpacaManager.place_limit_order signature requires float for quantity and limit_price
+            # as per Alpaca SDK requirements (lines 520-521 in alpaca_manager.py).
+            # This is a known limitation of the broker API that cannot be changed.
+            # Precision loss is minimal for typical stock quantities (< 0.000001 shares).
             result = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.alpaca_manager.place_limit_order,
                     symbol=request.symbol,
                     side=request.side.lower(),
-                    quantity=float(request.quantity),
-                    limit_price=float(quantized_price),
+                    quantity=float(request.quantity),  # Broker API requires float
+                    limit_price=float(quantized_price),  # Broker API requires float
                     time_in_force="day",
                 ),
                 timeout=self.config.order_placement_timeout_seconds,
@@ -564,14 +630,21 @@ class SmartExecutionStrategy:
             SmartOrderResult using market order execution
 
         """
-        logger.info(f"📈 Using market order fallback for {request.symbol}")
+        logger.info(
+            "Using market order fallback",
+            extra={
+                "symbol": request.symbol,
+                "correlation_id": request.correlation_id,
+            },
+        )
 
         # Use asyncio.to_thread to make blocking I/O async
+        # NOTE: place_market_order accepts Decimal for qty (line 489 in alpaca_manager.py)
         executed_order = await asyncio.to_thread(
             self.alpaca_manager.place_market_order,
             symbol=request.symbol,
             side=request.side.lower(),
-            qty=request.quantity,
+            qty=request.quantity,  # Decimal is accepted by broker API
             is_complete_exit=request.is_complete_exit,
         )
 
