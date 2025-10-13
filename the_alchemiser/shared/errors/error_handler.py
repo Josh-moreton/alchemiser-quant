@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
 Main error handler for The Alchemiser Trading System.
 
@@ -36,9 +36,10 @@ from .error_utils import (
 if TYPE_CHECKING:
     from the_alchemiser.shared.events.bus import EventBus
 
-if TYPE_CHECKING:
-    # Forward reference type aliases for type checking
     from .context import ErrorContextData
+
+# Module-level logger (defined early for use in fallback exception imports)
+logger = get_logger(__name__)
 
 # Import additional error types
 try:
@@ -47,6 +48,11 @@ try:
         classify_exception,
     )
 except ImportError:
+    logger.warning(
+        "Failed to import trading_errors module, using fallback implementations. "
+        "This may indicate a circular import or missing dependency.",
+        extra={"module": "error_handler", "fallback": "OrderError"},
+    )
 
     class OrderError(Exception):  # type: ignore[no-redef]
         """Fallback OrderError."""
@@ -77,6 +83,11 @@ try:
         TradingClientError,
     )
 except ImportError:
+    logger.warning(
+        "Failed to import exceptions module, using fallback implementations. "
+        "This may indicate a circular import or missing dependency.",
+        extra={"module": "error_handler", "fallback": "AlchemiserError"},
+    )
 
     class AlchemiserError(Exception):  # type: ignore[no-redef]
         """Fallback AlchemiserError."""
@@ -88,17 +99,41 @@ except ImportError:
         """Fallback TradingClientError."""
 
 
-# Module-level logger
-logger = get_logger(__name__)
+# Sensitive keys that should be redacted from error reports
+SENSITIVE_KEYS = {
+    "password",
+    "token",
+    "api_key",
+    "secret",
+    "auth",
+    "authorization",
+    "credentials",
+    "account_id",
+}
+
+# Maximum number of errors to store to prevent unbounded memory growth
+MAX_ERRORS = 100
 
 
 class TradingSystemErrorHandler:
-    """Enhanced error handler for autonomous trading operations."""
+    """Enhanced error handler for autonomous trading operations.
+
+    Thread Safety:
+        This class maintains mutable state (self.errors list). For single-threaded
+        Lambda execution, this is safe. For multi-threaded use, external synchronization
+        is required.
+
+    Note:
+        The global _error_handler instance is suitable for Lambda functions where
+        each invocation gets a fresh process. For long-running processes, consider
+        using get_error_handler() to obtain a new instance periodically.
+
+    """
 
     def __init__(self) -> None:
         """Create a new error handler with empty history."""
         self.errors: list[ErrorDetails] = []
-        self.logger = get_logger(__name__)
+        # Use module-level logger instead of creating a duplicate instance
 
     def categorize_error(self, error: Exception, context: str = "") -> str:
         """Categorize error based on type and context."""
@@ -114,8 +149,31 @@ class TradingSystemErrorHandler:
         context: str,
         component: str,
         additional_data: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
     ) -> ErrorDetails:
-        """Handle an error with detailed logging and categorization."""
+        """Handle an error with detailed logging and categorization.
+
+        Args:
+            error: The exception that occurred
+            context: Context description (e.g., "order execution", "data fetch")
+            component: Component name (e.g., "execution_v2", "strategy_v2")
+            additional_data: Optional additional context data. Will be redacted for
+                sensitive information before logging.
+            correlation_id: Request/workflow correlation ID for tracing (optional)
+            causation_id: Triggering event ID for event chains (optional)
+
+        Returns:
+            ErrorDetails instance with categorization and suggested action
+
+        Note:
+            Errors are accumulated in self.errors list up to MAX_ERRORS (100).
+            Older errors are dropped when the limit is reached.
+
+            correlation_id and causation_id are extracted from additional_data
+            if not explicitly provided, following event-driven architecture patterns.
+
+        """
         from .catalog import map_exception_to_error_code
 
         category = self.categorize_error(error, context)
@@ -133,15 +191,31 @@ class TradingSystemErrorHandler:
             additional_data=additional_data or {},
             suggested_action=suggested_action,
             error_code=error_code,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
         )
+
+        # Enforce maximum error count to prevent unbounded memory growth
+        if len(self.errors) >= MAX_ERRORS:
+            logger.warning(
+                f"Error list at maximum capacity ({MAX_ERRORS}), dropping oldest error",
+                extra={"extra_fields": {"error_count": len(self.errors)}},
+            )
+            self.errors.pop(0)  # Remove oldest error
 
         self.errors.append(error_details)
 
-        # Log with appropriate level and include error_code
-        log_extra = {"error_code": error_code} if error_code else {}
+        # Log with appropriate level and include error_code, correlation_id, causation_id
+        log_extra = {
+            "error_code": error_code,
+            "correlation_id": error_details.correlation_id,
+            "causation_id": error_details.causation_id,
+        }
+        # Remove None values from log_extra
+        log_extra = {k: v for k, v in log_extra.items() if v is not None}
 
         if category == ErrorCategory.CRITICAL:
-            self.logger.critical(
+            logger.critical(
                 f"CRITICAL ERROR in {component}: {error}",
                 exc_info=True,
                 extra={"extra_fields": log_extra},
@@ -151,19 +225,19 @@ class TradingSystemErrorHandler:
             ErrorCategory.DATA,
             ErrorCategory.STRATEGY,
         ]:
-            self.logger.error(
+            logger.error(
                 f"{category.upper()} ERROR in {component}: {error}",
                 exc_info=True,
                 extra={"extra_fields": log_extra},
             )
         elif category == ErrorCategory.CONFIGURATION:
-            self.logger.error(
+            logger.error(
                 f"CONFIGURATION ERROR in {component}: {error}",
                 exc_info=True,
                 extra={"extra_fields": log_extra},
             )
         else:
-            self.logger.warning(
+            logger.warning(
                 f"{category.upper()} in {component}: {error}",
                 extra={"extra_fields": log_extra},
             )
@@ -239,14 +313,43 @@ class TradingSystemErrorHandler:
         ]
         return len(non_notification_errors) > 0
 
+    def _redact_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Redact sensitive information from error context.
+
+        Args:
+            data: The data dictionary to redact
+
+        Returns:
+            New dictionary with sensitive keys redacted
+
+        """
+        redacted_data: dict[str, Any] = {}
+        for key, value in data.items():
+            if key.lower() in SENSITIVE_KEYS:
+                redacted_data[key] = "[REDACTED]"
+            elif isinstance(value, dict):
+                # Recursively redact nested dictionaries
+                redacted_data[key] = self._redact_sensitive_data(value)
+            else:
+                redacted_data[key] = value
+        return redacted_data
+
     def _format_error_entry(self, error: dict[str, Any]) -> str:
-        """Format a single error entry for the report."""
+        """Format a single error entry for the report.
+
+        Note:
+            Sensitive data in additional_data is redacted before formatting
+            to prevent leaking secrets, API keys, or account IDs in email notifications.
+
+        """
         entry = f"**Component:** {error['component']}\n"
         entry += f"**Context:** {error['context']}\n"
         entry += f"**Error:** {error['error_message']}\n"
         entry += f"**Action:** {error['suggested_action']}\n"
         if error["additional_data"]:
-            entry += f"**Additional Data:** {error['additional_data']}\n"
+            # Redact sensitive data before including in report
+            redacted_data = self._redact_sensitive_data(error["additional_data"])
+            entry += f"**Additional Data:** {redacted_data}\n"
         entry += "\n"
         return entry
 
@@ -323,7 +426,15 @@ class TradingSystemErrorHandler:
         if order_id:
             try:
                 typed_order_id = Identifier.from_string(order_id)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as conv_error:
+                # Log conversion failure for debugging
+                logger.warning(
+                    f"Failed to convert order_id to Identifier: {conv_error}",
+                    extra={
+                        "raw_order_id": order_id,
+                        "error_type": type(conv_error).__name__,
+                    },
+                )
                 # If conversion fails, keep as None and include in additional_context
                 if additional_context is None:
                     additional_context = {}
@@ -333,7 +444,7 @@ class TradingSystemErrorHandler:
         error_classification = classify_exception(error)
 
         # Log the classified error for monitoring
-        self.logger.info(
+        logger.info(
             f"Classified order error: {error_classification}",
             extra={
                 "order_error_category": error_classification,

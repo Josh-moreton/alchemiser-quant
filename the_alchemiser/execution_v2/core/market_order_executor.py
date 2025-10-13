@@ -54,7 +54,7 @@ class MarketOrderExecutor:
             OrderResult with order details
 
         """
-        validation_result = self._validate_market_order(symbol, quantity, side)
+        validation_result = self._preflight_validation(symbol, quantity, side)
 
         if not validation_result.is_valid:
             return self._build_validation_failure_result(symbol, side, quantity, validation_result)
@@ -74,17 +74,26 @@ class MarketOrderExecutor:
         except Exception as exc:
             return self._handle_market_order_exception(symbol, side, final_quantity, exc)
 
-    def _validate_market_order(
+    def _preflight_validation(
         self,
         symbol: str,
         quantity: Decimal,
         side: str,
     ) -> OrderValidationResult:
         """Run preflight validation for the market order."""
+        # Ensure side is lowercase for validator
+        side_normalized = side.lower()
+        if side_normalized not in ("buy", "sell"):
+            return OrderValidationResult(
+                is_valid=False,
+                error_message=f"Invalid side: {side}. Must be 'buy' or 'sell'",
+                error_code="INVALID_SIDE",
+            )
+
         return self.validator.validate_order(
             symbol=symbol,
             quantity=quantity,
-            side=side,
+            side=side_normalized,  # type: ignore[arg-type]
             auto_adjust=True,
         )
 

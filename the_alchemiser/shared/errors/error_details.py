@@ -117,6 +117,9 @@ class ErrorDetails:
     categorization, and incident response. All instances are immutable to ensure
     error details cannot be modified after creation.
 
+    This class now supports event-driven architecture requirements by tracking
+    correlation_id and causation_id for distributed tracing across the system.
+
     Attributes:
         error: The exception instance
         category: Error category (from ErrorCategory constants)
@@ -125,6 +128,8 @@ class ErrorDetails:
         additional_data: Extra metadata (symbol, quantity, etc.)
         suggested_action: Recommended remediation action
         error_code: Machine-readable error code (e.g., "TRD_INSUFFICIENT_FUNDS")
+        correlation_id: Request/workflow correlation ID for tracing (optional)
+        causation_id: Triggering event ID for event chains (optional)
         timestamp: UTC timestamp when error was captured
         traceback: Python traceback string
 
@@ -138,7 +143,7 @@ class ErrorDetails:
                 component="execution_v2",
             )
 
-        With additional data::
+        With additional data and tracing::
 
             details = ErrorDetails(
                 error=InsufficientFundsError("Balance too low"),
@@ -148,6 +153,8 @@ class ErrorDetails:
                 additional_data={"symbol": "AAPL", "required": 1000, "available": 500},
                 suggested_action="Deposit funds or reduce order size",
                 error_code="TRD_INSUFFICIENT_FUNDS",
+                correlation_id="req-123",
+                causation_id="event-456",
             )
 
     """
@@ -159,14 +166,29 @@ class ErrorDetails:
     additional_data: dict[str, Any] = field(default_factory=dict)
     suggested_action: str | None = None
     error_code: str | None = None
+    correlation_id: str | None = None
+    causation_id: str | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     traceback: str = field(default_factory=traceback.format_exc)
+
+    def __post_init__(self) -> None:
+        """Post-initialization to extract tracing IDs from additional_data.
+
+        If correlation_id or causation_id are not explicitly provided,
+        attempt to extract them from additional_data for convenience.
+        """
+        # Note: Since this is a frozen dataclass, we need to use object.__setattr__
+        if self.correlation_id is None and "correlation_id" in self.additional_data:
+            object.__setattr__(self, "correlation_id", self.additional_data.get("correlation_id"))
+        if self.causation_id is None and "causation_id" in self.additional_data:
+            object.__setattr__(self, "causation_id", self.additional_data.get("causation_id"))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert error details to dictionary for serialization.
 
         Returns:
-            Dictionary with error details, including schema_version for compatibility.
+            Dictionary with error details, including schema_version for compatibility
+            and optional correlation_id/causation_id for distributed tracing.
 
         Examples:
             >>> details = ErrorDetails(...)
@@ -174,7 +196,7 @@ class ErrorDetails:
             >>> assert result["schema_version"] == "1.0"
 
         """
-        return {
+        result = {
             "error_type": type(self.error).__name__,
             "error_message": str(self.error),
             "category": self.category,
@@ -187,6 +209,14 @@ class ErrorDetails:
             "error_code": self.error_code,
             "schema_version": "1.0",
         }
+
+        # Include event tracing fields if available
+        if self.correlation_id:
+            result["correlation_id"] = self.correlation_id
+        if self.causation_id:
+            result["causation_id"] = self.causation_id
+
+        return result
 
 
 def categorize_by_exception_type(error: Exception) -> str | None:
