@@ -620,7 +620,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         price = self._market_data_service.get_current_price(symbol)
         if price is None:
             return None
-        
+
         # Defensive: handle both Decimal and float returns from service layer
         # MarketDataService.get_current_price() currently returns float, but we convert
         # to Decimal here for financial precision and to handle potential future changes
@@ -961,13 +961,12 @@ def create_alpaca_manager(
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
-    
+
     Note: This factory function is maintained for backward compatibility and
     is used by the_alchemiser.shared.services.pnl_service.py. It adds minimal
     overhead and provides a stable public API for dependency injection.
-    
+
     Usage:
         >>> manager = create_alpaca_manager(api_key="...", secret_key="...", paper=True)
     """
     return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
-

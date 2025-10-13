@@ -260,27 +260,75 @@ version:
 
 bump-patch:
 	@echo "🔢 Bumping patch version..."
-	@OLD_VERSION=$$(poetry version -s); \
+	@# Check if there are unstaged changes
+	@if ! git diff --quiet; then \
+		echo ""; \
+		echo "⚠️  Warning: You have unstaged changes that won't be included in the version bump commit."; \
+		echo "💡 Stage them first with: git add <files>"; \
+		echo ""; \
+		read -p "Continue anyway? [y/N] " -n 1 -r; \
+		echo ""; \
+		if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+			exit 1; \
+		fi; \
+	fi; \
+	OLD_VERSION=$$(poetry version -s); \
 	poetry version patch; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
 	git add pyproject.toml; \
-	git commit -m "Bump version to $$NEW_VERSION"
+	if git diff --cached --quiet; then \
+		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
+	else \
+		git commit -m "Bump version to $$NEW_VERSION"; \
+	fi
 
 bump-minor:
 	@echo "🔢 Bumping minor version..."
-	@OLD_VERSION=$$(poetry version -s); \
+	@# Check if there are unstaged changes
+	@if ! git diff --quiet; then \
+		echo ""; \
+		echo "⚠️  Warning: You have unstaged changes that won't be included in the version bump commit."; \
+		echo "💡 Stage them first with: git add <files>"; \
+		echo ""; \
+		read -p "Continue anyway? [y/N] " -n 1 -r; \
+		echo ""; \
+		if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+			exit 1; \
+		fi; \
+	fi; \
+	OLD_VERSION=$$(poetry version -s); \
 	poetry version minor; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
 	git add pyproject.toml; \
-	git commit -m "Bump version to $$NEW_VERSION"
+	if git diff --cached --quiet; then \
+		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
+	else \
+		git commit -m "Bump version to $$NEW_VERSION"; \
+	fi
 
 bump-major:
 	@echo "🔢 Bumping major version..."
-	@OLD_VERSION=$$(poetry version -s); \
+	@# Check if there are unstaged changes
+	@if ! git diff --quiet; then \
+		echo ""; \
+		echo "⚠️  Warning: You have unstaged changes that won't be included in the version bump commit."; \
+		echo "💡 Stage them first with: git add <files>"; \
+		echo ""; \
+		read -p "Continue anyway? [y/N] " -n 1 -r; \
+		echo ""; \
+		if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+			exit 1; \
+		fi; \
+	fi; \
+	OLD_VERSION=$$(poetry version -s); \
 	poetry version major; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
 	git add pyproject.toml; \
-	git commit -m "Bump version to $$NEW_VERSION"
+	if git diff --cached --quiet; then \
+		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
+	else \
+		git commit -m "Bump version to $$NEW_VERSION"; \
+	fi

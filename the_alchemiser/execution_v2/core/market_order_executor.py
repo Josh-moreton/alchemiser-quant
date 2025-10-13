@@ -104,15 +104,16 @@ class MarketOrderExecutor:
         correlation_id: str | None = None,
     ) -> OrderValidationResult:
         """Run preflight validation for the market order.
-        
+
         Args:
             symbol: Stock symbol
             quantity: Number of shares
             side: "buy" or "sell"
             correlation_id: Optional correlation ID for traceability
-            
+
         Returns:
             OrderValidationResult with validation outcome
+
         """
         # Ensure side is lowercase for validator
         side_normalized = side.lower()
@@ -142,16 +143,17 @@ class MarketOrderExecutor:
         correlation_id: str | None = None,
     ) -> OrderResult:
         """Construct execution result for validation failure.
-        
+
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
             validation_result: Validation result with error details
             correlation_id: Optional correlation ID for traceability
-            
+
         Returns:
             OrderResult indicating validation failure
+
         """
         error_msg = validation_result.error_message or f"Validation failed for {symbol}"
         logger.error(
@@ -178,24 +180,26 @@ class MarketOrderExecutor:
 
     def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
         """Log any warnings produced during validation.
-        
+
         Args:
             validation_result: Validation result containing warnings
+
         """
         for warning in validation_result.warnings:
             logger.warning("Validation warning", warning=warning)
 
     def _normalize_side(self, side: str) -> str:
         """Normalize and validate order side.
-        
+
         Args:
             side: Order side ("buy" or "sell", case-insensitive)
-            
+
         Returns:
             Normalized side as "BUY" or "SELL"
-            
+
         Raises:
             ValueError: If side is not "buy" or "sell"
+
         """
         side_upper = side.upper()
         if side_upper not in ("BUY", "SELL"):
@@ -236,7 +240,7 @@ class MarketOrderExecutor:
         buying_power_check = self.buying_power_service.verify_buying_power_available(
             estimated_cost, correlation_id=correlation_id
         )
-        
+
         if not buying_power_check[0]:
             available = buying_power_check[1]
             shortfall = estimated_cost - available

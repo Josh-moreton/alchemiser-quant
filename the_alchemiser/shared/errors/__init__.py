@@ -39,6 +39,7 @@ from .error_utils import (
 try:
     from .exceptions import (
         AlchemiserError,
+        BuyingPowerError,
         ConfigurationError,
         DataProviderError,
         EventBusError,
@@ -63,6 +64,9 @@ except ImportError:
     class OrderExecutionError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback OrderExecutionError."""
 
+    class BuyingPowerError(OrderExecutionError):  # type: ignore[no-redef]
+        """Fallback BuyingPowerError."""
+
     class EventBusError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback EventBusError."""
 
@@ -72,6 +76,7 @@ except ImportError:
 
 __all__ = [
     "AlchemiserError",
+    "BuyingPowerError",
     "CircuitBreaker",
     "CircuitBreakerOpenError",
     "ConfigurationError",
