@@ -18,7 +18,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
@@ -27,6 +27,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     OrderDetails,
     StrategySignal,
 )
+
 from .types import DecimalStr
 
 
