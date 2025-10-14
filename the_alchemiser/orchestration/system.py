@@ -346,34 +346,31 @@ class TradingSystem:
                 self.logger.error("Event-driven orchestrator not available")
                 return None
 
-            # Start the event-driven workflow
+            # Start the event-driven workflow (EventBridge async flow)
             workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
                 correlation_id=correlation_id
             )
 
-            # Wait for workflow completion with configurable timeout
-            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
-                workflow_correlation_id, timeout_seconds=self.WORKFLOW_TIMEOUT_SECONDS
+            # EventBridge Architecture: Don't wait! The workflow continues asynchronously.
+            # WorkflowStarted → SignalGenerated → RebalancePlanned → TradeExecuted
+            # Each event triggers a NEW Lambda invocation via EventBridge Rules.
+            # Final notification sent by TradeExecuted handler.
+
+            self.logger.info(
+                "Event-driven workflow started (async via EventBridge)",
+                correlation_id=workflow_correlation_id,
+                note="Workflow continues asynchronously across multiple Lambda invocations",
             )
 
-            if not workflow_result.get("success"):
-                self.logger.error(
-                    "Event-driven workflow failed",
-                    workflow_result=workflow_result,
-                    correlation_id=correlation_id,
-                )
-                return None
-
-            # Collect results from workflow events
+            # Return immediate success - actual work happens asynchronously
             completed_at = datetime.now(UTC)
 
-            # Extract actual results from workflow_result
             trading_result = {
-                "success": workflow_result.get("success", True),
-                "strategy_signals": workflow_result.get("strategy_signals", {}),
-                "rebalance_plan": workflow_result.get("rebalance_plan", {}),
-                "orders_executed": workflow_result.get("orders_executed", []),
-                "execution_summary": workflow_result.get("execution_summary", {}),
+                "success": True,
+                "workflow_started": True,
+                "correlation_id": workflow_correlation_id,
+                "async_execution": True,
+                "message": "Workflow started successfully. Results will be delivered via email.",
             }
 
             # Create a minimal orchestrator-like object for trading mode determination
@@ -381,26 +378,14 @@ class TradingSystem:
                 paper_trading=self.settings.alpaca.paper_trading
             )
 
-            paper_trading_mode = self.settings.alpaca.paper_trading
-
-            if show_tracking:
-                self._display_post_execution_tracking(paper_trading=paper_trading_mode)
-
-            if export_tracking_json:
-                self._export_tracking_summary(
-                    trading_result,
-                    export_tracking_json,
-                    paper_trading=paper_trading_mode,
-                )
-
             return create_success_result(
                 trading_result=trading_result,
                 orchestrator=minimal_orchestrator,
                 started_at=started_at,
                 completed_at=completed_at,
                 correlation_id=correlation_id,
-                warnings=workflow_result.get("warnings", []),
-                success=workflow_result.get("success", True),
+                warnings=[],
+                success=True,
             )
 
         except (TradingClientError, StrategyExecutionError, ConfigurationError) as e:

@@ -113,6 +113,22 @@ def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any
         handler = _get_handler_for_event(container, detail_type)
 
         if not handler:
+            # Orchestrator-only events (TradeExecuted, WorkflowCompleted, WorkflowFailed)
+            # don't need handlers - they're published for monitoring/audit purposes only
+            orchestrator_only_events = {
+                "TradeExecuted",
+                "WorkflowCompleted",
+                "WorkflowFailed",
+            }
+            if detail_type in orchestrator_only_events:
+                logger.info(
+                    f"Orchestrator-only event received (no handler needed): {detail_type}",
+                    detail_type=detail_type,
+                    event_id=event_obj.event_id,
+                    correlation_id=event_obj.correlation_id,
+                )
+                return {"statusCode": 200, "body": f"Orchestrator-only event: {detail_type}"}
+
             logger.warning(f"No handler configured for event type: {detail_type}")
             return {"statusCode": 404, "body": f"No handler for: {detail_type}"}
 
@@ -198,11 +214,15 @@ def _get_handler_for_event(
     from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
     from the_alchemiser.notifications_v2.service import NotificationService
     from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
+    from the_alchemiser.strategy_v2.handlers.signal_generation_handler import (
+        SignalGenerationHandler,
+    )
 
     # Map event types to their handlers
     # Orchestrator-only events (TradeExecuted, WorkflowCompleted, WorkflowFailed)
     # are not included here and will return None
     handler_map: dict[str, Callable[[], EventHandler]] = {
+        "WorkflowStarted": lambda: SignalGenerationHandler(container),
         "SignalGenerated": lambda: PortfolioAnalysisHandler(container),
         "RebalancePlanned": lambda: TradingExecutionHandler(container),
         "TradingNotificationRequested": lambda: NotificationService(container),
