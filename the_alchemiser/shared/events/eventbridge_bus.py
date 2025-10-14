@@ -204,3 +204,16 @@ class EventBridgeBus(EventBus):
 
         """
         return self._eventbridge_count
+
+    def set_client_for_testing(self, mock_client: object) -> None:
+        """Set a mock EventBridge client for testing.
+
+        This method allows dependency injection of a mock boto3 client during tests,
+        avoiding actual AWS API calls. Intended for use in test fixtures only.
+
+        Args:
+            mock_client: Mock EventBridge client to use for testing
+
+        """
+        self._events_client = mock_client
+        logger.debug("EventBridge client replaced with mock for testing")

@@ -30,6 +30,10 @@ from dependency_injector import containers, providers
 
 from the_alchemiser.shared.events.eventbridge_bus import EventBridgeBus
 
+# Note: EventBus (in-memory implementation) is still available in
+# the_alchemiser.shared.events.bus for unit tests, but is not used here.
+# Production code uses EventBridgeBus for durable, distributed event routing.
+
 # Deprecated services migrated to v2 modules:
 # - AccountService → the_alchemiser.shared.brokers.AlpacaManager
 # - TradingServiceManager → the_alchemiser.execution_v2.core.ExecutionManager

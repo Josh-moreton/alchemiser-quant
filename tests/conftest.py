@@ -110,7 +110,8 @@ def eventbridge_bus_fixture():
             "FailedEntryCount": 0,
             "Entries": [{"EventId": "test-event-id"}]
         }
-        bus._events_client = mock_client
+        # Use the public method for dependency injection
+        bus.set_client_for_testing(mock_client)
         return bus
     except ImportError:
         return Mock()
