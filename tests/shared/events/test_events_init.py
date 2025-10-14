@@ -13,17 +13,18 @@ class TestEventsModuleInterface:
     """Test suite for events module public API."""
 
     def test_all_exports_defined(self) -> None:
-        """Test that __all__ contains expected 19 exports."""
+        """Test that __all__ contains expected 20 exports."""
         from the_alchemiser.shared import events
 
         # Check __all__ exists
         assert hasattr(events, "__all__"), "Module must define __all__"
 
-        # Expected exports: 3 infrastructure + 16 event schemas
+        # Expected exports: 4 infrastructure + 16 event schemas
         expected_exports = {
             # Infrastructure
             "BaseEvent",
             "EventBus",
+            "EventBridgeBus",
             "EventHandler",
             # Workflow lifecycle events
             "StartupEvent",
@@ -71,7 +72,12 @@ class TestEventsModuleInterface:
 
     def test_infrastructure_exports(self) -> None:
         """Test that infrastructure classes are properly exported."""
-        from the_alchemiser.shared.events import BaseEvent, EventBus, EventHandler
+        from the_alchemiser.shared.events import (
+            BaseEvent,
+            EventBridgeBus,
+            EventBus,
+            EventHandler,
+        )
 
         # Verify BaseEvent is a class
         assert isinstance(BaseEvent, type), "BaseEvent should be a class"
@@ -81,6 +87,11 @@ class TestEventsModuleInterface:
         assert isinstance(EventBus, type), "EventBus should be a class"
         assert hasattr(EventBus, "publish"), "EventBus should have publish method"
         assert hasattr(EventBus, "subscribe"), "EventBus should have subscribe method"
+
+        # Verify EventBridgeBus is a class
+        assert isinstance(EventBridgeBus, type), "EventBridgeBus should be a class"
+        assert hasattr(EventBridgeBus, "publish"), "EventBridgeBus should have publish method"
+        assert hasattr(EventBridgeBus, "subscribe"), "EventBridgeBus should have subscribe method"
 
         # EventHandler is a Protocol (runtime_checkable)
         assert hasattr(EventHandler, "handle_event"), (
@@ -207,6 +218,7 @@ class TestEventsModuleInterface:
             # Submodules (Python makes these visible even if not in __all__)
             "base",
             "bus",
+            "eventbridge_bus",
             "handlers",
             "schemas",
             "dsl_events",  # DSL events module (not exported in __all__)
@@ -283,7 +295,7 @@ class TestEventsModuleInterface:
         event_classes = [
             getattr(events, name)
             for name in events.__all__
-            if name not in {"BaseEvent", "EventBus", "EventHandler"}
+            if name not in {"BaseEvent", "EventBus", "EventBridgeBus", "EventHandler"}
         ]
 
         for event_class in event_classes:
@@ -307,7 +319,7 @@ class TestEventsModuleInterface:
         event_classes = [
             getattr(events, name)
             for name in events.__all__
-            if name not in {"BaseEvent", "EventBus", "EventHandler"}
+            if name not in {"BaseEvent", "EventBus", "EventBridgeBus", "EventHandler"}
         ]
 
         for event_class in event_classes:
