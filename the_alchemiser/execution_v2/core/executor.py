@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 import structlog
 
@@ -297,9 +297,12 @@ class Executor:
                     },
                 )
 
+                # Cast side to Literal type after uppercasing
+                side_upper = cast(Literal["BUY", "SELL"], side.upper())
+
                 request = SmartOrderRequest(
                     symbol=symbol,
-                    side=side.upper(),
+                    side=side_upper,
                     quantity=Decimal(str(quantity)),
                     correlation_id=correlation_id or "",
                     urgency="NORMAL",
@@ -318,12 +321,15 @@ class Executor:
                         order_id=result.order_id,
                         execution_strategy="smart_limit",
                     )
-                    side_upper = side.upper()
-                    if side_upper not in ("BUY", "SELL"):
-                        side_upper = "BUY"  # Fallback to BUY if invalid
+                    # Validate and cast side to proper type
+                    side_normalized = side.upper()
+                    if side_normalized not in ("BUY", "SELL"):
+                        side_normalized = "BUY"  # Fallback to BUY if invalid
+                    side_typed = cast(Literal["BUY", "SELL"], side_normalized)
+
                     return OrderResult(
                         symbol=symbol,
-                        action=side_upper,  # type: ignore[arg-type]
+                        action=side_typed,
                         trade_amount=abs(
                             Decimal(str(quantity)) * (result.final_price or Decimal("0"))
                         ),
@@ -709,9 +715,7 @@ class Executor:
 
         # Normal case: calculate shares from trade amount
         raw_shares = abs(item.trade_amount) / price
-        shares = self._position_utils.adjust_quantity_for_fractionability(
-            item.symbol, raw_shares
-        )
+        shares = self._position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
 
         amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
         logger.info(
@@ -753,7 +757,6 @@ class Executor:
             order_type="MARKET",  # Default to MARKET for error cases
             filled_at=None,  # Not filled due to error
         )
-
 
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.

@@ -248,6 +248,7 @@ class PhaseExecutor:
         execute_order_callback: OrderExecutionCallback | None,
         monitor_orders_callback: OrderMonitorCallback | None,
         finalize_orders_callback: OrderFinalizerCallback | None,
+        *,
         check_micro_orders: bool,
     ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute a phase with common orchestration logic.
@@ -278,9 +279,12 @@ class PhaseExecutor:
         # Execute all orders first (placement only)
         for item in items:
             order_result, was_placed = await self._execute_order(
-                item, bound_logger, check_micro_orders, execute_order_callback
+                item,
+                bound_logger,
+                check_micro_orders=check_micro_orders,
+                execute_order_callback=execute_order_callback,
             )
-            
+
             orders.append(order_result)
             if was_placed:
                 placed += 1
@@ -306,6 +310,7 @@ class PhaseExecutor:
         self,
         item: RebalancePlanItem,
         bound_logger: structlog.stdlib.BoundLogger,
+        *,
         check_micro_orders: bool,
         execute_order_callback: OrderExecutionCallback | None,
     ) -> tuple[OrderResult, bool]:
