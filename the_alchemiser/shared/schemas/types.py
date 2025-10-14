@@ -10,14 +10,15 @@ serialization (Decimal → str → Decimal) and proper timezone handling.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Annotated, Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Annotated
 
-from pydantic import BeforeValidator, PlainSerializer, field_serializer
+from pydantic import BeforeValidator, PlainSerializer
 
 
-def _coerce_decimal_from_json(v: Any) -> Decimal:
+def _coerce_decimal_from_json(v: str | int | float | Decimal) -> Decimal:
     """Coerce value from EventBridge JSON to Decimal.
 
     EventBridge serializes Decimal to JSON strings to preserve precision.
@@ -35,13 +36,12 @@ def _coerce_decimal_from_json(v: Any) -> Decimal:
     """
     if isinstance(v, str):
         return Decimal(v)
-    elif isinstance(v, (int, float)):
+    if isinstance(v, (int, float)):
         # Convert via string to avoid float precision issues
         return Decimal(str(v))
-    elif isinstance(v, Decimal):
+    if isinstance(v, Decimal):
         return v
-    else:
-        raise ValueError(f"Cannot convert {type(v).__name__} to Decimal")
+    raise ValueError(f"Cannot convert {type(v).__name__} to Decimal")
 
 
 def _serialize_decimal_to_json(v: Decimal) -> str:
@@ -57,7 +57,7 @@ def _serialize_decimal_to_json(v: Decimal) -> str:
     return str(v)
 
 
-def _coerce_datetime_from_json(v: Any) -> datetime:
+def _coerce_datetime_from_json(v: str | datetime) -> datetime:
     """Coerce value from EventBridge JSON to timezone-aware datetime.
 
     EventBridge serializes datetime to ISO 8601 strings. This validator handles
@@ -81,20 +81,19 @@ def _coerce_datetime_from_json(v: Any) -> datetime:
 
         # Ensure timezone-aware (convert to UTC if needed)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        elif dt.tzinfo != timezone.utc:
-            dt = dt.astimezone(timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
+        elif dt.tzinfo != UTC:
+            dt = dt.astimezone(UTC)
 
         return dt
-    elif isinstance(v, datetime):
+    if isinstance(v, datetime):
         # Ensure timezone-aware
         if v.tzinfo is None:
-            return v.replace(tzinfo=timezone.utc)
-        elif v.tzinfo != timezone.utc:
-            return v.astimezone(timezone.utc)
+            return v.replace(tzinfo=UTC)
+        if v.tzinfo != UTC:
+            return v.astimezone(UTC)
         return v
-    else:
-        raise ValueError(f"Cannot convert {type(v).__name__} to datetime")
+    raise ValueError(f"Cannot convert {type(v).__name__} to datetime")
 
 
 def _serialize_datetime_to_json(v: datetime) -> str:
@@ -108,8 +107,8 @@ def _serialize_datetime_to_json(v: datetime) -> str:
 
     """
     # Normalize to UTC and format with Z suffix
-    if v.tzinfo != timezone.utc:
-        v = v.astimezone(timezone.utc)
+    if v.tzinfo != UTC:
+        v = v.astimezone(UTC)
 
     # Use isoformat and replace +00:00 with Z
     return v.isoformat().replace("+00:00", "Z")
@@ -130,7 +129,9 @@ def _quantize_decimal(v: Decimal, decimal_places: int) -> Decimal:
     return v.quantize(quantizer, rounding=ROUND_HALF_UP)
 
 
-def _create_quantized_decimal_coercer(decimal_places: int) -> Callable[[Any], Decimal]:
+def _create_quantized_decimal_coercer(
+    decimal_places: int,
+) -> Callable[[str | int | float | Decimal], Decimal]:
     """Create a coercion function with quantization.
 
     Args:
@@ -141,7 +142,7 @@ def _create_quantized_decimal_coercer(decimal_places: int) -> Callable[[Any], De
 
     """
 
-    def coercer(v: Any) -> Decimal:
+    def coercer(v: str | int | float | Decimal) -> Decimal:
         decimal_value = _coerce_decimal_from_json(v)
         return _quantize_decimal(decimal_value, decimal_places)
 
@@ -189,7 +190,7 @@ UtcDatetime = Annotated[
 __all__ = [
     "DecimalStr",
     "MoneyDecimal",
-    "WeightDecimal",
     "PriceDecimal",
     "UtcDatetime",
+    "WeightDecimal",
 ]

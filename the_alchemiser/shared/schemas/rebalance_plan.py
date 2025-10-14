@@ -9,7 +9,6 @@ and serialization helpers for communication between portfolio and execution modu
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -20,8 +19,7 @@ from ..utils.data_conversion import (
     convert_decimal_fields_from_dict,
     convert_nested_rebalance_item_data,
 )
-from ..utils.timezone_utils import ensure_timezone_aware
-from .types import MoneyDecimal, WeightDecimal, UtcDatetime
+from .types import MoneyDecimal, UtcDatetime, WeightDecimal
 
 
 class RebalancePlanItem(BaseModel):

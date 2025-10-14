@@ -15,8 +15,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
-from ..utils.timezone_utils import ensure_timezone_aware
 from ..schemas.types import UtcDatetime
+from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class BaseEvent(BaseModel):
