@@ -8,25 +8,31 @@ After v2 migration, most service providers have been moved to their respective m
 - portfolio_v2: Position and portfolio management services
 - strategy_v2: Market data and signal generation services
 
-The EventBus remains here as shared infrastructure that coordinates events across modules.
+The EventBridgeBus is provided here as shared infrastructure that coordinates events
+across modules using Amazon EventBridge for durable, distributed event routing.
 
 Architecture:
 - Only imports from shared.* (no business module imports)
 - Receives infrastructure and config via DependenciesContainer
-- EventBus is singleton for application-wide event coordination
+- EventBridgeBus is singleton for application-wide event coordination
+- Events are routed via CloudFormation EventRules, not programmatic subscriptions
 
 Usage:
     container = ServiceProviders()
     container.infrastructure.override(infrastructure_container)
     container.config.override(config_container)
-    event_bus = container.event_bus()
+    bus = container.event_bus()
 """
 
 from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.events.eventbridge_bus import EventBridgeBus
+
+# Note: EventBus (in-memory implementation) is still available in
+# the_alchemiser.shared.events.bus for unit tests, but is not used here.
+# Production code uses EventBridgeBus for durable, distributed event routing.
 
 # Deprecated services migrated to v2 modules:
 # - AccountService → the_alchemiser.shared.brokers.AlpacaManager
@@ -38,11 +44,27 @@ from the_alchemiser.shared.events.bus import EventBus
 # See README.md "Module Boundaries" section for architecture details.
 
 
+def create_event_bus() -> EventBridgeBus:
+    """Create EventBridge bus for distributed event routing.
+
+    Returns EventBridgeBus for durable, async, distributed event routing with:
+    - Event persistence and replay
+    - Automatic retries with exponential backoff
+    - Dead-letter queue for failed events
+    - CloudWatch observability
+
+    Returns:
+        EventBridgeBus instance
+
+    """
+    return EventBridgeBus()
+
+
 class ServiceProviders(containers.DeclarativeContainer):
     """Providers for service layer components.
 
     This container provides:
-    - event_bus: Singleton EventBus for event-driven workflows
+    - event_bus: Singleton EventBridgeBus for distributed event-driven workflows
     - infrastructure: Injected infrastructure dependencies (AlpacaManager, etc.)
     - config: Injected configuration dependencies (settings, credentials, etc.)
 
@@ -62,4 +84,5 @@ class ServiceProviders(containers.DeclarativeContainer):
     config = providers.DependenciesContainer()
 
     # Event bus (singleton for the application)
-    event_bus = providers.Singleton(EventBus)
+    # Uses EventBridgeBus for durable, distributed event routing
+    event_bus = providers.Singleton(create_event_bus)

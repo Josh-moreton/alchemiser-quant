@@ -389,6 +389,62 @@ class ExecutionSettings(BaseModel):
     treat_partial_execution_as_failure: bool = True
 
 
+class EventBridgeSettings(BaseModel):
+    """Amazon EventBridge configuration for event-driven architecture migration.
+
+    This class centralizes configuration for Amazon EventBridge, which is used to
+    facilitate the migration from a monolithic or synchronous architecture to an
+    event-driven architecture within The Alchemiser platform. By defining event bus
+    naming, source prefixes, retry policies, and archive retention, it enables
+    seamless integration with AWS EventBridge for publishing and consuming trading
+    events.
+
+    The configuration is intentionally simple, with no feature flags, to allow a
+    clean switch to event-driven workflows when the implementation is ready. All
+    parameters are designed to be easily overridden via environment variables or
+    profile settings, supporting flexible deployment across development, staging,
+    and production environments.
+
+    Key configuration options:
+        - event_bus_name: Name of the EventBridge event bus for trading events.
+        - source_prefix: Prefix for event sources, enabling logical grouping.
+        - max_retry_attempts: Controls delivery reliability for failed events.
+        - max_event_age_seconds: Limits how long events are retried before expiring.
+        - archive_retention_days: Sets the retention period for archived events.
+
+    Usage:
+        Use this class as part of the main Settings object to configure event-driven
+        workflows. When migrating to EventBridge, update relevant services to publish
+        and consume events according to these settings.
+    """
+
+    # EventBridge configuration
+    event_bus_name: str = Field(
+        default="alchemiser-trading-events",
+        description="Name of the EventBridge event bus",
+    )
+    source_prefix: str = Field(
+        default="alchemiser",
+        description="Prefix for event sources (e.g., 'alchemiser.strategy')",
+    )
+
+    # Retry and error handling
+    max_retry_attempts: int = Field(
+        default=3,
+        description="Maximum retry attempts for failed event delivery",
+    )
+    max_event_age_seconds: int = Field(
+        default=3600,
+        description="Maximum age of an event in seconds before retry expires",
+    )
+
+    # Archive configuration
+    archive_retention_days: int = Field(
+        default=365,
+        description="Event archive retention period in days",
+    )
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables and .env file."""
 
@@ -402,6 +458,7 @@ class Settings(BaseSettings):
     tracking: TrackingSettings = TrackingSettings()
     trade_ledger: TradeLedgerSettings = TradeLedgerSettings()
     execution: ExecutionSettings = ExecutionSettings()
+    eventbridge: EventBridgeSettings = EventBridgeSettings()
 
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",

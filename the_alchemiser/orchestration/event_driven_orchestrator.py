@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.events import (
     BaseEvent,
-    EventBus,
+    EventBridgeBus,
     RebalancePlanned,
     SignalGenerated,
     StartupEvent,
@@ -61,7 +61,7 @@ class EventDrivenOrchestrator:
         self.logger = get_logger(__name__)
 
         # Get event bus from container
-        self.event_bus: EventBus = container.services.event_bus()
+        self.event_bus: EventBridgeBus = container.services.event_bus()
 
         # Register domain handlers using module registration functions
         self._register_domain_handlers()
