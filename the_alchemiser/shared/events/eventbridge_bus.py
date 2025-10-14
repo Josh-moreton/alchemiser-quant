@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
-from typing import Any
 
 from ..logging import get_logger
 from .base import BaseEvent
@@ -63,7 +62,10 @@ class EventBridgeBus(EventBus):
         self.enable_local_handlers = enable_local_handlers
 
         # Initialize EventBridge client (lazy import to avoid runtime dependency in tests)
-        self._events_client: Any = None
+        self._events_client: object | None = None
+
+        # Track EventBridge-specific events (not inherited from parent)
+        self._eventbridge_count: int = 0
 
         logger.info(
             "EventBridgeBus initialized",
@@ -73,7 +75,7 @@ class EventBridgeBus(EventBus):
         )
 
     @property
-    def events_client(self) -> Any:
+    def events_client(self) -> object:
         """Get or create EventBridge client (lazy initialization).
 
         Returns:
@@ -100,9 +102,6 @@ class EventBridgeBus(EventBus):
             event: Event to publish
 
         """
-        # Increment event count (matches EventBus behavior)
-        self._event_count += 1
-
         try:
             # Determine source based on module
             source = f"{self.source_prefix}.{event.source_module}"
@@ -117,7 +116,7 @@ class EventBridgeBus(EventBus):
             if event.causation_id:
                 resources.append(f"causation:{event.causation_id}")
 
-            entry: dict[str, Any] = {
+            entry: dict[str, object] = {
                 "Time": datetime.now(UTC),
                 "Source": source,
                 "DetailType": event.event_type,
@@ -127,7 +126,8 @@ class EventBridgeBus(EventBus):
             }
 
             # Publish to EventBridge
-            response = self.events_client.put_events(Entries=[entry])
+            # Type ignore needed because boto3 client returns untyped dict response
+            response = self.events_client.put_events(Entries=[entry])  # type: ignore[attr-defined]
 
             # Check for failures
             if response.get("FailedEntryCount", 0) > 0:
@@ -141,6 +141,8 @@ class EventBridgeBus(EventBus):
                     correlation_id=event.correlation_id,
                 )
             else:
+                # Only increment counter on successful publish
+                self._eventbridge_count += 1
                 logger.info(
                     "Event published to EventBridge",
                     event_type=event.event_type,
@@ -152,8 +154,7 @@ class EventBridgeBus(EventBus):
 
             # Also trigger local handlers if enabled (for testing/hybrid mode)
             if self.enable_local_handlers:
-                # Call parent publish but skip incrementing count since we already did
-                self._event_count -= 1  # Temporarily decrement
+                # Call parent publish to invoke local handlers
                 super().publish(event)
 
         except Exception as e:
@@ -193,3 +194,13 @@ class EventBridgeBus(EventBus):
                 event_type=event_type,
                 handler=type(handler).__name__,
             )
+
+    def get_event_count(self) -> int:
+        """Get total count of events published to EventBridge.
+
+        Returns:
+            Number of events successfully published to EventBridge.
+            Does not include local handler invocations.
+
+        """
+        return self._eventbridge_count

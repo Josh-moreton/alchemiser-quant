@@ -14,13 +14,13 @@ from collections.abc import Callable
 from typing import Any
 
 from the_alchemiser.shared.config.container import ApplicationContainer
-from the_alchemiser.shared.events import BaseEvent
+from the_alchemiser.shared.events import BaseEvent, EventHandler
 from the_alchemiser.shared.logging import get_logger, set_request_id
 
 logger = get_logger(__name__)
 
 
-def eventbridge_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle EventBridge event by routing to appropriate handler.
 
     This function is invoked by AWS Lambda when an EventBridge rule triggers.
@@ -63,10 +63,12 @@ def eventbridge_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             detail = json.loads(detail)
 
         # Parse timestamp if it's a string (EventBridge serializes as ISO string)
+        # Handle both ISO 8601 with 'Z' suffix and '+00:00' timezone format
         if "timestamp" in detail and isinstance(detail["timestamp"], str):
             from datetime import datetime
 
-            detail["timestamp"] = datetime.fromisoformat(detail["timestamp"])
+            # Replace 'Z' with '+00:00' to handle all ISO 8601 formats correctly
+            detail["timestamp"] = datetime.fromisoformat(detail["timestamp"].replace("Z", "+00:00"))
 
         # Reconstruct event from detail
         event_class = _get_event_class(detail_type)
@@ -137,7 +139,9 @@ def _get_event_class(detail_type: str) -> type[BaseEvent] | None:
     return event_map.get(detail_type)
 
 
-def _get_handler_for_event(container: ApplicationContainer, detail_type: str) -> Any | None:
+def _get_handler_for_event(
+    container: ApplicationContainer, detail_type: str
+) -> EventHandler | None:
     """Get appropriate handler for event type.
 
     Args:
@@ -145,20 +149,21 @@ def _get_handler_for_event(container: ApplicationContainer, detail_type: str) ->
         detail_type: EventBridge detail-type field
 
     Returns:
-        Handler instance or None if not found
+        Handler instance or None if not found.
+        Returns None for event types that are only handled by the orchestrator
+        (TradeExecuted, WorkflowCompleted, WorkflowFailed).
 
     """
     # Import handlers
     from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
     from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
 
-    handler_map: dict[str, Callable[[], Any]] = {
+    # Map event types to their handlers
+    # Orchestrator-only events (TradeExecuted, WorkflowCompleted, WorkflowFailed)
+    # are not included here and will return None
+    handler_map: dict[str, Callable[[], EventHandler]] = {
         "SignalGenerated": lambda: PortfolioAnalysisHandler(container),
         "RebalancePlanned": lambda: TradingExecutionHandler(container),
-        # Orchestrator handles all events for monitoring
-        "TradeExecuted": lambda: None,  # Orchestrator only
-        "WorkflowCompleted": lambda: None,  # Orchestrator only
-        "WorkflowFailed": lambda: None,  # Orchestrator only
     }
 
     factory = handler_map.get(detail_type)
