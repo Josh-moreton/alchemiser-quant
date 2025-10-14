@@ -308,6 +308,22 @@ Resources:
               - !GetAtt TradeLedgerBucket.Arn
               - !Sub "${TradeLedgerBucket.Arn}/*"
 
+          # EventBridge access for event publishing
+          - Effect: Allow
+            Action:
+              - events:PutEvents
+            Resource:
+              - !GetAtt AlchemiserEventBus.Arn
+
+          # CloudWatch metrics for EventBridge monitoring
+          - Effect: Allow
+            Action:
+              - cloudwatch:PutMetricData
+            Resource: "*"
+            Condition:
+              StringEquals:
+                cloudwatch:namespace: Alchemiser/EventBridge
+
 
   # CloudWatch Log Group with retention
   TradingSystemLogGroup:
@@ -315,6 +331,122 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
       RetentionInDays: 30
+
+  # =========================================================================
+  # EventBridge Resources for Event-Driven Architecture (Phase 1)
+  # =========================================================================
+
+  # Named EventBridge Bus for Alchemiser trading events
+  # Note: This is a standard EventBridge bus with a custom name, not the default bus
+  AlchemiserEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub "alchemiser-trading-events-${Stage}"
+      Description: Event bus for Alchemiser trading system event-driven architecture
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Project
+          Value: Alchemiser
+        - Key: Purpose
+          Value: Event-driven trading workflow
+
+  # EventBridge Bus Policy - allow same account to publish events
+  EventBusPolicy:
+    Type: AWS::Events::EventBusPolicy
+    Properties:
+      EventBusName: !Ref AlchemiserEventBus
+      StatementId: AllowSameAccountPublish
+      Statement:
+        Effect: Allow
+        Principal:
+          AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+        Action: events:PutEvents
+        Resource: !GetAtt AlchemiserEventBus.Arn
+
+  # Event Archive for replay and audit (365-day retention)
+  EventArchive:
+    Type: AWS::Events::Archive
+    Properties:
+      ArchiveName: !Sub "alchemiser-event-archive-${Stage}"
+      SourceArn: !GetAtt AlchemiserEventBus.Arn
+      Description: Archive for event replay and audit trail (365-day retention)
+      RetentionDays: 365
+      EventPattern:
+        source:
+          - prefix: "alchemiser."
+
+  # Dead Letter Queue for failed events
+  EventDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "alchemiser-event-dlq-${Stage}"
+      MessageRetentionPeriod: 1209600  # 14 days
+      VisibilityTimeout: 60
+      Tags:
+        - Key: Purpose
+          Value: EventBridge-DeadLetterQueue
+        - Key: Environment
+          Value: !Ref Stage
+
+  # Event Rule: Route SignalGenerated events to Portfolio Lambda
+  # Note: Targets to be added in Phase 2 when separate Lambdas exist
+  SignalGeneratedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "alchemiser-signal-generated-${Stage}"
+      Description: Route SignalGenerated events to portfolio handler
+      EventBusName: !Ref AlchemiserEventBus
+      State: DISABLED  # Disabled in Phase 1, enabled in Phase 2
+      EventPattern:
+        source:
+          - alchemiser.strategy
+        detail-type:
+          - SignalGenerated
+      # Targets will be added when Lambda handler architecture is split
+
+  # Event Rule: Route RebalancePlanned events to Execution Lambda
+  RebalancePlannedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "alchemiser-rebalance-planned-${Stage}"
+      Description: Route RebalancePlanned events to execution handler
+      EventBusName: !Ref AlchemiserEventBus
+      State: DISABLED  # Disabled in Phase 1, enabled in Phase 2
+      EventPattern:
+        source:
+          - alchemiser.portfolio
+        detail-type:
+          - RebalancePlanned
+      # Targets will be added when Lambda handler architecture is split
+
+  # Event Rule: Route TradeExecuted events to Orchestrator
+  TradeExecutedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "alchemiser-trade-executed-${Stage}"
+      Description: Route TradeExecuted events to orchestrator for monitoring
+      EventBusName: !Ref AlchemiserEventBus
+      State: DISABLED  # Disabled in Phase 1, enabled in Phase 2
+      EventPattern:
+        source:
+          - alchemiser.execution
+        detail-type:
+          - TradeExecuted
+      # Targets will be added when Lambda handler architecture is split
+
+  # Event Rule: Route all workflow events to orchestrator for monitoring
+  AllEventsToOrchestratorRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "alchemiser-all-events-monitor-${Stage}"
+      Description: Route all alchemiser events to orchestrator for monitoring
+      EventBusName: !Ref AlchemiserEventBus
+      State: DISABLED  # Disabled in Phase 1, enabled in Phase 2
+      EventPattern:
+        source:
+          - prefix: "alchemiser."
+      # Targets will be added when Lambda handler architecture is split
 
 Outputs:
   TradingSystemFunctionArn:
@@ -332,3 +464,24 @@ Outputs:
   DeploymentStage:
     Description: "Deployed stage"
     Value: !Ref Stage
+
+  # EventBridge Infrastructure Outputs
+  EventBusName:
+    Description: "EventBridge event bus name for trading events"
+    Value: !Ref AlchemiserEventBus
+
+  EventBusArn:
+    Description: "EventBridge event bus ARN"
+    Value: !GetAtt AlchemiserEventBus.Arn
+
+  EventArchiveName:
+    Description: "Event archive name for replay capability"
+    Value: !Ref EventArchive
+
+  EventDLQUrl:
+    Description: "Dead letter queue URL for failed events"
+    Value: !Ref EventDLQ
+
+  EventDLQArn:
+    Description: "Dead letter queue ARN for failed events"
+    Value: !GetAtt EventDLQ.Arn
