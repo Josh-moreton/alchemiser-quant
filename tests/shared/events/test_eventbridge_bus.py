@@ -174,10 +174,11 @@ class TestEventBridgeBusPublish:
             signal_count=0,
         )
 
-        # Should not raise, just log
-        eventbridge_bus.publish(event)
+        # Should now raise EventPublishError instead of silently swallowing
+        from the_alchemiser.shared.events.errors import EventPublishError
 
-        # Verify error was handled (didn't raise)
+        with pytest.raises(EventPublishError):
+            eventbridge_bus.publish(event)
 
     def test_publish_event_with_exception(
         self, eventbridge_bus: EventBridgeBus, mock_events_client: Mock
@@ -196,10 +197,11 @@ class TestEventBridgeBusPublish:
             signal_count=0,
         )
 
-        # Should not raise, just log
-        eventbridge_bus.publish(event)
+        # Should now raise EventPublishError wrapping the exception
+        from the_alchemiser.shared.events.errors import EventPublishError
 
-        # Verify error was handled (didn't raise)
+        with pytest.raises(EventPublishError):
+            eventbridge_bus.publish(event)
 
     def test_publish_with_local_handlers_enabled(self) -> None:
         """Test publishing with local handlers enabled triggers both."""
@@ -340,3 +342,134 @@ class TestEventBridgeBusInheritance:
 
         bus.publish(event)
         assert bus.get_event_count() == 2
+
+
+@pytest.mark.unit
+class TestEventBridgeBusErrorPropagation:
+    """Test error propagation in EventBridgeBus.publish()."""
+
+    def test_publish_raises_on_failed_entry(self) -> None:
+        """Test publish raises EventPublishError when EventBridge returns failure."""
+        from the_alchemiser.shared.events.errors import EventPublishError
+
+        bus = EventBridgeBus()
+        mock_client = Mock()
+        mock_client.put_events.return_value = {
+            "FailedEntryCount": 1,
+            "Entries": [
+                {
+                    "ErrorCode": "InternalException",
+                    "ErrorMessage": "Service unavailable",
+                }
+            ],
+        }
+        bus._events_client = mock_client
+
+        event = SignalGenerated(
+            correlation_id="corr-123",
+            causation_id="cause-123",
+            event_id="event-123",
+            timestamp=datetime.now(UTC),
+            source_module="strategy",
+            signals_data={},
+            consolidated_portfolio={},
+            signal_count=0,
+        )
+
+        with pytest.raises(EventPublishError) as exc_info:
+            bus.publish(event)
+
+        assert "InternalException" in str(exc_info.value)
+        assert "Service unavailable" in str(exc_info.value)
+        assert exc_info.value.event_id == "event-123"
+        assert exc_info.value.correlation_id == "corr-123"
+        assert exc_info.value.error_code == "InternalException"
+
+    def test_publish_wraps_unexpected_errors(self) -> None:
+        """Test publish wraps unexpected errors as EventPublishError."""
+        from the_alchemiser.shared.events.errors import EventPublishError
+
+        bus = EventBridgeBus()
+        mock_client = Mock()
+        mock_client.put_events.side_effect = RuntimeError("Unexpected error")
+        bus._events_client = mock_client
+
+        event = SignalGenerated(
+            correlation_id="corr-456",
+            causation_id="cause-456",
+            event_id="event-456",
+            timestamp=datetime.now(UTC),
+            source_module="strategy",
+            signals_data={},
+            consolidated_portfolio={},
+            signal_count=0,
+        )
+
+        with pytest.raises(EventPublishError) as exc_info:
+            bus.publish(event)
+
+        assert "Unexpected error" in str(exc_info.value)
+        assert exc_info.value.event_id == "event-456"
+        assert exc_info.value.correlation_id == "corr-456"
+
+    def test_publish_reraises_client_error(self) -> None:
+        """Test publish re-raises botocore ClientError for AWS retry logic."""
+        from unittest.mock import MagicMock
+
+        bus = EventBridgeBus()
+        mock_client = Mock()
+
+        # Create a mock ClientError
+        with patch("the_alchemiser.shared.events.eventbridge_bus.ClientError", create=True):
+            from botocore.exceptions import ClientError
+
+            error_response = {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}}
+            client_error = ClientError(error_response, "PutEvents")
+            mock_client.put_events.side_effect = client_error
+            bus._events_client = mock_client
+
+            event = SignalGenerated(
+                correlation_id="corr-789",
+                causation_id="cause-789",
+                event_id="event-789",
+                timestamp=datetime.now(UTC),
+                source_module="strategy",
+                signals_data={},
+                consolidated_portfolio={},
+                signal_count=0,
+            )
+
+            with pytest.raises(ClientError):
+                bus.publish(event)
+
+    def test_failed_publish_does_not_increment_counter(self) -> None:
+        """Test event counter is not incremented on publish failure."""
+        bus = EventBridgeBus()
+        mock_client = Mock()
+        mock_client.put_events.return_value = {
+            "FailedEntryCount": 1,
+            "Entries": [{"ErrorCode": "InternalException", "ErrorMessage": "Error"}],
+        }
+        bus._events_client = mock_client
+
+        event = SignalGenerated(
+            correlation_id="corr-999",
+            causation_id="cause-999",
+            event_id="event-999",
+            timestamp=datetime.now(UTC),
+            source_module="strategy",
+            signals_data={},
+            consolidated_portfolio={},
+            signal_count=0,
+        )
+
+        assert bus.get_event_count() == 0
+
+        try:
+            bus.publish(event)
+        except Exception:
+            pass
+
+        # Counter should not increment on failure
+        assert bus.get_event_count() == 0
+

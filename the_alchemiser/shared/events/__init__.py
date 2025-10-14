@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from .base import BaseEvent
 from .bus import EventBus
+from .errors import EventPublishError
 from .eventbridge_bus import EventBridgeBus
 from .handlers import EventHandler
 from .schemas import (
@@ -45,6 +46,7 @@ __all__ = [
     "EventBridgeBus",
     "EventBus",
     "EventHandler",
+    "EventPublishError",
     "ExecutionPhaseCompleted",
     "OrderSettlementCompleted",
     "PortfolioStateChanged",

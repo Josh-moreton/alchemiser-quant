@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from ..logging import get_logger
 from .base import BaseEvent
 from .bus import EventBus, HandlerType
+from .errors import EventPublishError
 
 logger = get_logger(__name__)
 
@@ -96,10 +97,13 @@ class EventBridgeBus(EventBus):
         - DetailType: event.event_type (e.g., "SignalGenerated")
         - Detail: JSON-serialized event data
 
-        Errors are logged but do not raise exceptions to avoid disrupting workflows.
+        Errors are raised to allow upstream retry/circuit breaker logic to handle failures.
 
         Args:
             event: Event to publish
+
+        Raises:
+            EventPublishError: When EventBridge publish fails or returns errors
 
         """
         try:
@@ -132,13 +136,23 @@ class EventBridgeBus(EventBus):
             # Check for failures
             if response.get("FailedEntryCount", 0) > 0:
                 failed = response["Entries"][0]
+                error_code = failed.get("ErrorCode", "Unknown")
+                error_message = failed.get("ErrorMessage", "No error message provided")
+                
                 logger.error(
                     "Failed to publish event to EventBridge",
                     event_type=event.event_type,
-                    error_code=failed.get("ErrorCode"),
-                    error_message=failed.get("ErrorMessage"),
+                    error_code=error_code,
+                    error_message=error_message,
                     event_id=event.event_id,
                     correlation_id=event.correlation_id,
+                )
+                
+                raise EventPublishError(
+                    f"{error_code}: {error_message}",
+                    event_id=event.event_id,
+                    correlation_id=event.correlation_id,
+                    error_code=error_code,
                 )
             else:
                 # Only increment counter on successful publish
@@ -157,8 +171,30 @@ class EventBridgeBus(EventBus):
                 # Call parent publish to invoke local handlers
                 super().publish(event)
 
+        except EventPublishError:
+            # Re-raise EventPublishError as-is
+            raise
         except Exception as e:
-            # Log error but don't raise to avoid disrupting workflows
+            # Import ClientError dynamically to avoid boto3 dependency at module level
+            try:
+                from botocore.exceptions import ClientError
+                
+                if isinstance(e, ClientError):
+                    logger.error(
+                        "EventBridge client error",
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        event_type=event.event_type,
+                        event_id=event.event_id,
+                        correlation_id=event.correlation_id,
+                        exc_info=True,
+                    )
+                    # Re-raise ClientError as-is for AWS SDK retry logic
+                    raise
+            except ImportError:
+                pass
+            
+            # Wrap unexpected errors as EventPublishError
             logger.error(
                 "Unexpected error publishing to EventBridge",
                 error=str(e),
@@ -168,6 +204,11 @@ class EventBridgeBus(EventBus):
                 correlation_id=event.correlation_id,
                 exc_info=True,
             )
+            raise EventPublishError(
+                f"Unexpected error: {str(e)}",
+                event_id=event.event_id,
+                correlation_id=event.correlation_id,
+            ) from e
 
     def subscribe(self, event_type: str, handler: HandlerType) -> None:
         """Subscribe handler to event type.
