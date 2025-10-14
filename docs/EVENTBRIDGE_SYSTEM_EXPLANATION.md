@@ -127,7 +127,6 @@ Your Lambda function has **ONE function** (`TradingSystemFunction`) but supports
 **Handles:**
 - ✅ EventBridge Scheduler cron jobs (daily trading)
 - ✅ Direct Lambda invocations (manual testing, AWS Console)
-- ✅ Monthly summary scheduler (1st of month)
 
 **Event Schema:** `LambdaEvent`
 ```python

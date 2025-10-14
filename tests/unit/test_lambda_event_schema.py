@@ -99,13 +99,6 @@ class TestLambdaEventLiteralTypeValidation:
         assert "action" in str(exc_info.value)
 
     @pytest.mark.unit
-    def test_monthly_summary_action_rejected(self) -> None:
-        """Test deprecated monthly_summary action is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            LambdaEvent(action="monthly_summary")
-        assert "action" in str(exc_info.value)
-
-    @pytest.mark.unit
     def test_invalid_pnl_type_rejected(self) -> None:
         """Test invalid pnl_type is rejected."""
         with pytest.raises(ValidationError) as exc_info:
@@ -237,7 +230,7 @@ class TestLambdaEventEmailValidation:
     @pytest.mark.unit
     def test_invalid_email_not_validated(self) -> None:
         """Test that invalid email is not validated at schema level.
-        
+
         Note: Email validation is intentionally NOT enforced in LambdaEvent schema.
         Validation happens at the notification service level where it's actually used.
         This design choice keeps the Lambda event schema lightweight and flexible.
@@ -365,13 +358,13 @@ class TestLambdaEventBackwardCompatibility:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             from the_alchemiser.shared.schemas.lambda_event import LambdaEventDTO
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             assert "LambdaEventDTO is deprecated" in str(w[0].message)
             assert "use LambdaEvent instead" in str(w[0].message)
             assert "3.0.0" in str(w[0].message)
-            
+
             # Verify the alias still works
             assert LambdaEventDTO is LambdaEvent
 

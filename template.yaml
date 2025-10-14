@@ -216,29 +216,6 @@ Resources:
           Arn: !GetAtt TradingSystemDLQ.Arn
       State: "ENABLED"
 
-  # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC
-  MonthlySummarySchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: !Sub "the-alchemiser-monthly-summary-${Stage}"
-      Description: "Send monthly financial summary on the 1st (previous month)"
-      ScheduleExpression: "cron(5 0 1 * ? *)"  # 00:05 UTC on day 1
-      ScheduleExpressionTimezone: "UTC"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt TradingSystemFunction.Arn
-        RoleArn: !GetAtt SchedulerExecutionRole.Arn
-        Input: |
-          {
-            "action": "monthly_summary"
-          }
-        RetryPolicy:
-          MaximumRetryAttempts: 1
-        DeadLetterConfig:
-          Arn: !GetAtt TradingSystemDLQ.Arn
-      State: "ENABLED"
-
   # IAM Role for EventBridge Scheduler to invoke Lambda
   SchedulerExecutionRole:
     Type: AWS::IAM::Role
