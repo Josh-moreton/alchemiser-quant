@@ -219,23 +219,7 @@ aws events list-rules --event-bus-name alchemiser-trading-events-dev
 aws sqs get-queue-attributes --queue-url <queue-url>
 ```
 
-### Enable Dual-Publish (Phase 2)
-
-```bash
-# Update Lambda environment variables
-aws lambda update-function-configuration \
-  --function-name the-alchemiser-v2-lambda-dev \
-  --environment Variables='{
-    "EVENTBRIDGE__ENABLE_DUAL_PUBLISH": "true",
-    ...
-  }'
-
-# Enable event routing rules
-aws events enable-rule \
-  --event-bus-name alchemiser-trading-events-dev \
-  --name alchemiser-signal-generated-dev
-```
-
+# (Section removed to align with clean migration strategy. No dual-publish or feature flags.)
 ## Monitoring & Observability
 
 ### CloudWatch Metrics
