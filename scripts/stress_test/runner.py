@@ -266,9 +266,7 @@ class StressTestRunner:
 
         if self.quick_mode:
             # In quick mode, sample every 3rd scenario plus all edge cases
-            regular_scenarios = [
-                c for c in conditions if not c.metadata.get("edge_case")
-            ]
+            regular_scenarios = [c for c in conditions if not c.metadata.get("edge_case")]
             edge_scenarios = [c for c in conditions if c.metadata.get("edge_case")]
             conditions = regular_scenarios[::3] + edge_scenarios
 
@@ -384,9 +382,7 @@ class StressTestRunner:
                 market_values[symbol] = market_value
 
                 if total_equity > 0:
-                    allocation_percentages[symbol] = float(
-                        (market_value / total_equity) * 100
-                    )
+                    allocation_percentages[symbol] = float((market_value / total_equity) * 100)
 
             cash_balance = Decimal(str(account.cash))
             total_value = Decimal(str(account.equity))
@@ -448,9 +444,7 @@ class StressTestRunner:
         # Calculate rebalance percentage (portfolio turnover)
         total_changed_value = Decimal("0")
         for symbol in symbols_removed:
-            total_changed_value += abs(
-                from_state.market_values.get(symbol, Decimal("0"))
-            )
+            total_changed_value += abs(from_state.market_values.get(symbol, Decimal("0")))
         for symbol in symbols_added:
             total_changed_value += abs(to_state.market_values.get(symbol, Decimal("0")))
         for symbol in symbols_adjusted:
@@ -460,9 +454,7 @@ class StressTestRunner:
 
         rebalance_percentage = 0.0
         if from_state.total_value > 0:
-            rebalance_percentage = float(
-                (total_changed_value / from_state.total_value) * 100
-            )
+            rebalance_percentage = float((total_changed_value / from_state.total_value) * 100)
 
         # Estimate turnover cost (simplified: 0.1% of changed value)
         turnover_cost = total_changed_value * Decimal("0.001")
@@ -596,7 +588,7 @@ class StressTestRunner:
             self.logger.info(
                 f"Progress: {i}/{total_scenarios} scenarios",
                 progress=f"{i}/{total_scenarios}",
-                percentage=f"{100*i/total_scenarios:.1f}%",
+                percentage=f"{100 * i / total_scenarios:.1f}%",
             )
 
             # In liquidation mode, liquidate positions before each scenario
@@ -608,9 +600,7 @@ class StressTestRunner:
 
             # Capture portfolio state before scenario (for stateful mode)
             if self.stateful_mode:
-                before_state = self.capture_portfolio_state(
-                    f"{condition.scenario_id}_before"
-                )
+                before_state = self.capture_portfolio_state(f"{condition.scenario_id}_before")
                 if previous_state is None:
                     # First scenario - store as initial state
                     previous_state = before_state

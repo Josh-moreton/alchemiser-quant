@@ -61,6 +61,35 @@ class RebalancePlanItem(BaseModel):
             raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
         return action_upper
 
+    @field_validator(
+        "current_weight",
+        "target_weight",
+        "weight_diff",
+        "target_value",
+        "current_value",
+        "trade_amount",
+        mode="before",
+    )
+    @classmethod
+    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
+        """Coerce Decimal fields from EventBridge JSON string to Decimal.
+
+        EventBridge serializes Decimal to JSON strings. This validator handles
+        deserialization by converting string values back to Decimal.
+
+        Args:
+            v: Value that may be Decimal, str, int, or float
+
+        Returns:
+            Decimal value
+
+        """
+        if isinstance(v, str):
+            return Decimal(v)
+        elif isinstance(v, (int, float)):
+            return Decimal(str(v))
+        return v
+
 
 class RebalancePlan(BaseModel):
     """DTO for complete rebalance plan data transfer.
@@ -122,14 +151,59 @@ class RebalancePlan(BaseModel):
             raise ValueError(f"Urgency must be one of {valid_urgencies}, got {urgency_upper}")
         return urgency_upper
 
-    @field_validator("timestamp")
+    @field_validator("timestamp", mode="before")
     @classmethod
-    def ensure_timezone_aware_timestamp(cls, v: datetime) -> datetime:
-        """Ensure timestamp is timezone-aware."""
+    def coerce_timestamp_from_eventbridge(cls, v: datetime | str) -> datetime:
+        """Coerce timestamp from EventBridge JSON string to datetime.
+
+        EventBridge serializes datetime to ISO 8601 strings. This validator handles
+        deserialization by parsing the string back to datetime, then ensures it's
+        timezone-aware.
+
+        Args:
+            v: Timestamp (may be str or datetime)
+
+        Returns:
+            datetime object (timezone-aware)
+
+        """
+        if isinstance(v, str):
+            # Parse ISO 8601 string from EventBridge
+            # Handle both 'Z' suffix and '+00:00' timezone format
+            v_normalized = v.replace("Z", "+00:00")
+            v = datetime.fromisoformat(v_normalized)
+
+        # Ensure timezone-aware
         result = ensure_timezone_aware(v)
         if result is None:
             raise ValueError("timestamp cannot be None")
         return result
+
+    @field_validator(
+        "total_portfolio_value",
+        "total_trade_value",
+        "max_drift_tolerance",
+        mode="before",
+    )
+    @classmethod
+    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
+        """Coerce Decimal fields from EventBridge JSON string to Decimal.
+
+        EventBridge serializes Decimal to JSON strings. This validator handles
+        deserialization by converting string values back to Decimal.
+
+        Args:
+            v: Value that may be Decimal, str, int, or float
+
+        Returns:
+            Decimal value
+
+        """
+        if isinstance(v, str):
+            return Decimal(v)
+        elif isinstance(v, (int, float)):
+            return Decimal(str(v))
+        return v
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.

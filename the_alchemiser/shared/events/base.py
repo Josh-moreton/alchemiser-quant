@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..constants import EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
 from ..utils.timezone_utils import ensure_timezone_aware
@@ -53,6 +53,34 @@ class BaseEvent(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional event-specific metadata"
     )
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def coerce_timestamp_from_eventbridge(cls, v: datetime | str) -> datetime:
+        """Coerce timestamp from EventBridge JSON string to datetime.
+
+        EventBridge serializes datetime to ISO 8601 strings. This validator handles
+        deserialization by parsing the string back to datetime, then ensures it's
+        timezone-aware.
+
+        Args:
+            v: Timestamp (may be str or datetime)
+
+        Returns:
+            datetime object (timezone-aware)
+
+        """
+        if isinstance(v, str):
+            # Parse ISO 8601 string from EventBridge
+            # Handle both 'Z' suffix and '+00:00' timezone format
+            v_normalized = v.replace("Z", "+00:00")
+            v = datetime.fromisoformat(v_normalized)
+
+        # Ensure timezone-aware
+        result = ensure_timezone_aware(v)
+        if result is None:
+            raise ValueError("timestamp cannot be None")
+        return result
 
     def __init__(self, **data: str | datetime | dict[str, Any] | None) -> None:
         """Initialize event with timezone-aware timestamp."""

@@ -62,9 +62,7 @@ class StressTestReporter:
         failures_by_type: dict[str, int] = {}
         for result in self.results:
             if not result.success and result.error_type:
-                failures_by_type[result.error_type] = (
-                    failures_by_type.get(result.error_type, 0) + 1
-                )
+                failures_by_type[result.error_type] = failures_by_type.get(result.error_type, 0) + 1
 
         # Find edge cases
         edge_case_results = [

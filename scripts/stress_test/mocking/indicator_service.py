@@ -194,9 +194,7 @@ class MockIndicatorService:
             base_volatility = (
                 15.0
                 if self.market_condition.volatility_regime == "high"
-                else (
-                    10.0 if self.market_condition.volatility_regime == "medium" else 5.0
-                )
+                else (10.0 if self.market_condition.volatility_regime == "medium" else 5.0)
             )
             volatility_variation = symbol_hash % 10  # 0-10% additional variation
             stdev_value = base_volatility + volatility_variation
@@ -220,11 +218,7 @@ class MockIndicatorService:
             base_drawdown = (
                 -20.0
                 if self.market_condition.volatility_regime == "high"
-                else (
-                    -10.0
-                    if self.market_condition.volatility_regime == "medium"
-                    else -5.0
-                )
+                else (-10.0 if self.market_condition.volatility_regime == "medium" else -5.0)
             )
             drawdown_variation = -(symbol_hash % 10)  # Additional 0-10% drawdown
             max_drawdown_value = base_drawdown + drawdown_variation

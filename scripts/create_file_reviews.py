@@ -253,9 +253,7 @@ def create_issue_via_gh_cli(
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR)
 
         # Extract issue URL from output
         issue_url = result.stdout.strip()
@@ -319,7 +317,9 @@ def create_master_issue(
         if module in by_module:
             issue_list += f"\n### {module}\n\n"
             for issue in by_module[module]:
-                issue_list += f"- [ ] #{issue['number']} - `{issue['title'].replace('[File Review] ', '')}`\n"
+                issue_list += (
+                    f"- [ ] #{issue['number']} - `{issue['title'].replace('[File Review] ', '')}`\n"
+                )
 
     body = f"""# Alchemiser Quant - Comprehensive File Review Tracking
 
@@ -419,9 +419,7 @@ Alerting and notification delivery.
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR)
 
         issue_url = result.stdout.strip()
         issue_number = issue_url.split("/")[-1] if issue_url else None

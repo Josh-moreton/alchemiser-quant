@@ -18,7 +18,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
@@ -91,6 +91,36 @@ class AllocationComparison(BaseModel):
     deltas: dict[str, Decimal] = Field(
         ..., description="Allocation deltas by symbol (current - target)"
     )
+
+    @field_validator("target_values", "current_values", "deltas", mode="before")
+    @classmethod
+    def coerce_dict_decimals_from_eventbridge(
+        cls, v: dict[str, Decimal] | dict[str, str]
+    ) -> dict[str, Decimal]:
+        """Coerce dict[str, Decimal] from EventBridge JSON.
+
+        EventBridge serializes Decimal values to strings. This validator converts
+        string values back to Decimal for all dict entries.
+
+        Args:
+            v: Dictionary with symbol keys and Decimal or string values
+
+        Returns:
+            Dictionary with Decimal values
+
+        """
+        if not isinstance(v, dict):
+            return v
+
+        result = {}
+        for symbol, value in v.items():
+            if isinstance(value, str):
+                result[symbol] = Decimal(value)
+            elif isinstance(value, (int, float)):
+                result[symbol] = Decimal(str(value))
+            else:
+                result[symbol] = value
+        return result
 
 
 class MultiStrategySummary(BaseModel):

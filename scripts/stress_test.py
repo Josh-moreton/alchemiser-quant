@@ -141,9 +141,7 @@ def main_cli() -> int:
     if used_stress_creds:
         print("Credentials: using STRESS_TEST_KEY/SECRET (paper endpoint forced)")
     else:
-        print(
-            "Credentials: using ALPACA_KEY/SECRET from environment (paper endpoint forced)"
-        )
+        print("Credentials: using ALPACA_KEY/SECRET from environment (paper endpoint forced)")
     print("\n" + "=" * 80 + "\n")
 
     if args.dry_run:
