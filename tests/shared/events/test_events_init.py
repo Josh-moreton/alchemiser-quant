@@ -19,13 +19,14 @@ class TestEventsModuleInterface:
         # Check __all__ exists
         assert hasattr(events, "__all__"), "Module must define __all__"
 
-        # Expected exports: 4 infrastructure + 16 event schemas
+        # Expected exports: 5 infrastructure + 16 event schemas
         expected_exports = {
             # Infrastructure
             "BaseEvent",
             "EventBus",
             "EventBridgeBus",
             "EventHandler",
+            "EventPublishError",  # Error class for event publishing failures
             # Workflow lifecycle events
             "StartupEvent",
             "WorkflowStarted",
@@ -222,6 +223,7 @@ class TestEventsModuleInterface:
             "handlers",
             "schemas",
             "dsl_events",  # DSL events module (not exported in __all__)
+            "errors",  # Event errors module (not exported in __all__)
         }
 
         unexpected_exports = extra_exports - allowed_extras
@@ -291,11 +293,11 @@ class TestEventsModuleInterface:
         """Test that all exported event schemas have schema_version field."""
         from the_alchemiser.shared import events
 
-        # Get all event classes (exclude infrastructure)
+        # Get all event classes (exclude infrastructure and errors)
         event_classes = [
             getattr(events, name)
             for name in events.__all__
-            if name not in {"BaseEvent", "EventBus", "EventBridgeBus", "EventHandler"}
+            if name not in {"BaseEvent", "EventBus", "EventBridgeBus", "EventHandler", "EventPublishError"}
         ]
 
         for event_class in event_classes:
@@ -315,11 +317,11 @@ class TestEventsModuleInterface:
 
         base_event = events.BaseEvent
 
-        # Get all event classes (exclude infrastructure)
+        # Get all event classes (exclude infrastructure and errors)
         event_classes = [
             getattr(events, name)
             for name in events.__all__
-            if name not in {"BaseEvent", "EventBus", "EventBridgeBus", "EventHandler"}
+            if name not in {"BaseEvent", "EventBus", "EventBridgeBus", "EventHandler", "EventPublishError"}
         ]
 
         for event_class in event_classes:
