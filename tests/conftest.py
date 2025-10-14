@@ -84,10 +84,34 @@ def sample_target_allocations() -> Dict[str, float]:
 
 @pytest.fixture
 def event_bus_fixture():
-    """Create an EventBus instance for testing."""
+    """Create an EventBus instance for testing.
+    
+    Note: Returns in-memory EventBus for unit tests that don't need EventBridge.
+    For integration tests requiring EventBridge behavior, use eventbridge_bus_fixture.
+    """
     try:
         from the_alchemiser.shared.events.bus import EventBus
         return EventBus()
+    except ImportError:
+        return Mock()
+
+
+@pytest.fixture
+def eventbridge_bus_fixture():
+    """Create an EventBridgeBus instance for testing with mocked boto3 client."""
+    try:
+        from unittest.mock import Mock
+        from the_alchemiser.shared.events.eventbridge_bus import EventBridgeBus
+        
+        bus = EventBridgeBus(event_bus_name="test-bus", enable_local_handlers=True)
+        # Mock the boto3 client to avoid actual AWS calls
+        mock_client = Mock()
+        mock_client.put_events.return_value = {
+            "FailedEntryCount": 0,
+            "Entries": [{"EventId": "test-event-id"}]
+        }
+        bus._events_client = mock_client
+        return bus
     except ImportError:
         return Mock()
 
