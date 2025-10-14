@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Create file review issues using GitHub REST API.
+"""Create file review issues using GitHub REST API.
 
 This script bypasses the limitation of gh CLI which cannot pre-fill
 YAML issue template form fields. Instead, it creates issues directly
@@ -11,7 +10,6 @@ Usage:
 """
 
 import json
-import os
 import subprocess
 import sys
 import time
@@ -56,18 +54,17 @@ def get_business_function(file_path: Path) -> str:
     path_str = str(file_path)
     if "/execution_v2/" in path_str:
         return "execution_v2"
-    elif "/portfolio_v2/" in path_str:
+    if "/portfolio_v2/" in path_str:
         return "portfolio_v2"
-    elif "/strategy_v2/" in path_str:
+    if "/strategy_v2/" in path_str:
         return "strategy_v2"
-    elif "/orchestration/" in path_str:
+    if "/orchestration/" in path_str:
         return "orchestration"
-    elif "/shared/" in path_str:
+    if "/shared/" in path_str:
         return "shared"
-    elif "/notifications_v2/" in path_str:
+    if "/notifications_v2/" in path_str:
         return "notifications_v2"
-    else:
-        return "other"
+    return "other"
 
 
 def get_criticality(file_path: Path) -> str:
@@ -75,10 +72,9 @@ def get_criticality(file_path: Path) -> str:
     path_str = str(file_path)
     if "/execution_v2/" in path_str or "/portfolio_v2/" in path_str:
         return "P0 (Critical)"
-    elif "/strategy_v2/" in path_str or "/orchestration/" in path_str:
+    if "/strategy_v2/" in path_str or "/orchestration/" in path_str:
         return "P1 (High)"
-    else:
-        return "P2 (Medium)"
+    return "P2 (Medium)"
 
 
 def create_issue_body(
@@ -90,7 +86,6 @@ def create_issue_body(
     criticality: str,
 ) -> str:
     """Create formatted issue body with all template fields."""
-
     return f"""# [File Review] Financial-grade, line-by-line audit
 
 > Purpose: Conduct a rigorous, line-by-line review of a single Python file in the trading system, to institution-grade standards (correctness, controls, auditability, and safety). One issue per file.
@@ -253,9 +248,7 @@ def create_issue_via_gh_cli(
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR)
 
         # Extract issue URL from output
         issue_url = result.stdout.strip()
@@ -319,7 +312,9 @@ def create_master_issue(
         if module in by_module:
             issue_list += f"\n### {module}\n\n"
             for issue in by_module[module]:
-                issue_list += f"- [ ] #{issue['number']} - `{issue['title'].replace('[File Review] ', '')}`\n"
+                issue_list += (
+                    f"- [ ] #{issue['number']} - `{issue['title'].replace('[File Review] ', '')}`\n"
+                )
 
     body = f"""# Alchemiser Quant - Comprehensive File Review Tracking
 
@@ -399,8 +394,8 @@ Alerting and notification delivery.
 """
 
     if dry_run:
-        print(f"\nDRY RUN: Would create master tracking issue")
-        print(f"  Title: [MASTER] Comprehensive File Review - the_alchemiser/")
+        print("\nDRY RUN: Would create master tracking issue")
+        print("  Title: [MASTER] Comprehensive File Review - the_alchemiser/")
         print(f"  References: {len(issues)} issues")
         return {"number": 0, "html_url": "dry-run"}
 
@@ -419,9 +414,7 @@ Alerting and notification delivery.
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=BASE_DIR)
 
         issue_url = result.stdout.strip()
         issue_number = issue_url.split("/")[-1] if issue_url else None
@@ -432,7 +425,7 @@ Alerting and notification delivery.
         return {"number": issue_number, "html_url": issue_url}
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create master issue", file=sys.stderr)
+        print("❌ Failed to create master issue", file=sys.stderr)
         print(f"   Error: {e.stderr}", file=sys.stderr)
         return None
 
@@ -546,13 +539,13 @@ def main() -> None:
     if args.dry_run:
         print(f"   - Would create {len(created_issues)} file review issues")
         if not args.skip_master:
-            print(f"   - Would create 1 master tracking issue")
+            print("   - Would create 1 master tracking issue")
     else:
         print(f"   - Created {len(created_issues)} file review issues")
         if not args.skip_master and master_issue:
             print(f"   - Created 1 master tracking issue (#{master_issue['number']})")
         print()
-        print(f"🔍 View all issues:")
+        print("🔍 View all issues:")
         print(
             f"   https://github.com/{REPO_OWNER}/{REPO_NAME}/issues?q=is%3Aissue+is%3Aopen+label%3Afile-review"
         )

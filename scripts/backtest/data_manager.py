@@ -106,7 +106,7 @@ class DataManager:
         """
         if not self.provider:
             logger.error("Cannot download data: provider not initialized")
-            return {symbol: False for symbol in symbols}
+            return dict.fromkeys(symbols, False)
 
         logger.info(
             f"Downloading data for {len(symbols)} symbols",

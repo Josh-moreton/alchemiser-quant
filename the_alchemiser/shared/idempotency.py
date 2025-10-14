@@ -25,8 +25,12 @@ from __future__ import annotations
 
 import os
 import time
+from typing import TYPE_CHECKING
 
 from .logging import get_logger
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.client import DynamoDBClient
 
 logger = get_logger(__name__)
 
@@ -34,7 +38,7 @@ logger = get_logger(__name__)
 DEFAULT_TTL_SECONDS = 86400
 
 
-def _get_dynamodb_client() -> object:
+def _get_dynamodb_client() -> DynamoDBClient:
     """Get DynamoDB client (lazy initialization).
 
     Returns:
@@ -94,7 +98,7 @@ def is_duplicate_event(
 
     try:
         client = _get_dynamodb_client()
-        response = client.get_item(  # type: ignore[attr-defined]
+        response = client.get_item(
             TableName=table_name,
             Key={"event_id": {"S": event_id}},
             ConsistentRead=True,
@@ -158,7 +162,7 @@ def mark_event_processed(
         client = _get_dynamodb_client()
         expiry_time = int(time.time()) + ttl_seconds
 
-        client.put_item(  # type: ignore[attr-defined]
+        client.put_item(
             TableName=table_name,
             Item={
                 "event_id": {"S": event_id},

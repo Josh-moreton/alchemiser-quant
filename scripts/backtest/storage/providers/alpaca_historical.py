@@ -8,11 +8,10 @@ Downloads historical market data from Alpaca API.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
@@ -72,9 +71,9 @@ class AlpacaHistoricalProvider:
         try:
             # Ensure dates are timezone-aware (UTC)
             if start_date.tzinfo is None:
-                start_date = start_date.replace(tzinfo=timezone.utc)
+                start_date = start_date.replace(tzinfo=UTC)
             if end_date.tzinfo is None:
-                end_date = end_date.replace(tzinfo=timezone.utc)
+                end_date = end_date.replace(tzinfo=UTC)
 
             # Create request for daily bars
             request = StockBarsRequest(
@@ -104,7 +103,7 @@ class AlpacaHistoricalProvider:
                 # Ensure timestamp is timezone-aware
                 timestamp = bar.timestamp
                 if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                    timestamp = timestamp.replace(tzinfo=UTC)
 
                 daily_bar = DailyBar(
                     date=timestamp,

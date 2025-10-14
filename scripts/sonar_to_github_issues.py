@@ -14,6 +14,7 @@ Environment variables:
 - GITHUB_REPOSITORY: owner/repo slug (provided by GitHub Actions)
 - COPILOT_ASSIGNEE: optional GitHub username to assign (e.g., github-copilot)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,9 +26,9 @@ import sys
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
 import requests
-from pathlib import Path
 
 # Optional .env support for local runs
 try:
@@ -119,11 +120,7 @@ def sonar_paginated(
     while fetched < limit:
         p = dict(params)
         p.update({"p": str(page), "ps": str(page_size)})
-        resp = (
-            SESSION.get(url, params=p, auth=(token, ""))
-            if token
-            else SESSION.get(url, params=p)
-        )
+        resp = SESSION.get(url, params=p, auth=(token, "")) if token else SESSION.get(url, params=p)
         resp.raise_for_status()
         data = resp.json()
         issues = data.get("issues", [])
@@ -197,21 +194,15 @@ def file_issue_title(component: str, issues: list[SonarIssue]) -> str:
     count = len(issues)
     severities = {s.severity for s in issues}
     max_sev_order = {"BLOCKER": 5, "CRITICAL": 4, "MAJOR": 3, "MINOR": 2, "INFO": 1}
-    max_sev = (
-        max(severities, key=lambda s: max_sev_order.get(s, 0)) if severities else "INFO"
-    )
+    max_sev = max(severities, key=lambda s: max_sev_order.get(s, 0)) if severities else "INFO"
     return f"[SonarQube] {rel} — {count} finding(s), top severity {max_sev}"
 
 
-def file_issue_body(
-    component: str, project: str, host: str, issues: list[SonarIssue]
-) -> str:
+def file_issue_body(component: str, project: str, host: str, issues: list[SonarIssue]) -> str:
     """Build a GitHub issue body listing all findings for a file, with links."""
     rel = component.split(":", 1)[-1]
     # Link to SonarQube filtered by component
-    file_link = (
-        f"{host}/project/issues?id={project}&componentKeys={component}&resolved=false"
-    )
+    file_link = f"{host}/project/issues?id={project}&componentKeys={component}&resolved=false"
     lines: list[str] = []
     lines.append("Source: SonarQube (aggregated per file)")
     lines.append(f"Project: {project}")
@@ -229,9 +220,7 @@ def file_issue_body(
     )
     for si in issues_sorted:
         loc = f":{si.line}" if si.line else ""
-        per_issue_link = (
-            f"{host}/project/issues?id={si.project}&issues={si.key}&open={si.key}"
-        )
+        per_issue_link = f"{host}/project/issues?id={si.project}&issues={si.key}&open={si.key}"
         lines.append(
             f"- [{si.severity}] {si.type} {si.rule}: {si.message} ({rel}{loc}) — Key: {si.key} — {per_issue_link}"
         )
@@ -358,9 +347,7 @@ def get_github_repo(owner_repo_env: str | None = None) -> tuple[str, str] | None
     return None
 
 
-def ensure_label(
-    owner: str, repo: str, name: str, color: str, description: str = ""
-) -> None:
+def ensure_label(owner: str, repo: str, name: str, color: str, description: str = "") -> None:
     """Ensure a label exists in the repository; create if missing.
 
     Strategy: attempt to create; if it already exists, ignore 409/422.
@@ -380,9 +367,7 @@ def ensure_label(
         if status in (409, 422):
             return
         # Permission or not found → warn and continue; labels are optional for issue creation
-        logging.warning(
-            "Label creation for '%s' skipped due to HTTP %s", name, status or "unknown"
-        )
+        logging.warning("Label creation for '%s' skipped due to HTTP %s", name, status or "unknown")
         return
 
 
@@ -550,9 +535,7 @@ def main() -> int:
                 # Map Sonar type/severity to GitHub labels
                 labels.append("bug" if si.type == "BUG" else "tech-debt")
                 labels = list(dict.fromkeys(labels))
-            create_or_update_issue(
-                owner, repo, si, labels, assignee, dry_run=args.dry_run
-            )
+            create_or_update_issue(owner, repo, si, labels, assignee, dry_run=args.dry_run)
             count += 1
     else:
         # Group by file/component and create 1 issue per file

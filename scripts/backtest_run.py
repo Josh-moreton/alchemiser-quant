@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -72,12 +72,10 @@ def main() -> None:
 
     # Parse dates
     if args.start_date and args.end_date:
-        start_date = datetime.fromisoformat(args.start_date).replace(
-            tzinfo=timezone.utc
-        )
-        end_date = datetime.fromisoformat(args.end_date).replace(tzinfo=timezone.utc)
+        start_date = datetime.fromisoformat(args.start_date).replace(tzinfo=UTC)
+        end_date = datetime.fromisoformat(args.end_date).replace(tzinfo=UTC)
     else:
-        end_date = datetime.now(timezone.utc)
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(days=args.days)
 
     logger.info(
@@ -107,18 +105,12 @@ def main() -> None:
     print(f"\nStrategy: {result.strategy_name}")
     print(f"Period: {result.start_date.date()} to {result.end_date.date()}")
     print(f"Initial Capital: ${result.initial_capital:,.2f}")
+    print(f"Final Value: ${result.final_value:,.2f}" if result.final_value else "Final Value: N/A")
     print(
-        f"Final Value: ${result.final_value:,.2f}"
-        if result.final_value
-        else "Final Value: N/A"
-    )
-    print(
-        f"Total Return: {result.total_return:.2f}%"
-        if result.total_return
-        else "Total Return: N/A"
+        f"Total Return: {result.total_return:.2f}%" if result.total_return else "Total Return: N/A"
     )
     print(f"Total Trades: {result.total_trades}")
-    print(f"\nPerformance Metrics:")
+    print("\nPerformance Metrics:")
     print(
         f"  Sharpe Ratio: {result.sharpe_ratio:.2f}"
         if result.sharpe_ratio
@@ -129,20 +121,16 @@ def main() -> None:
         if result.max_drawdown
         else "  Max Drawdown: N/A"
     )
-    print(
-        f"  Win Rate: {result.win_rate:.2f}%" if result.win_rate else "  Win Rate: N/A"
-    )
+    print(f"  Win Rate: {result.win_rate:.2f}%" if result.win_rate else "  Win Rate: N/A")
     print(f"\nPortfolio Snapshots: {len(result.portfolio_snapshots)}")
 
     if result.portfolio_snapshots:
         final_snapshot = result.portfolio_snapshots[-1]
-        print(f"\nFinal Portfolio:")
+        print("\nFinal Portfolio:")
         print(f"  Cash: ${final_snapshot.cash:,.2f}")
         print(f"  Positions: {len(final_snapshot.positions)}")
         for symbol, position in final_snapshot.positions.items():
-            print(
-                f"    {symbol}: {position.quantity:.2f} shares @ ${position.current_price:.2f}"
-            )
+            print(f"    {symbol}: {position.quantity:.2f} shares @ ${position.current_price:.2f}")
             print(f"      Market Value: ${position.market_value:,.2f}")
             print(f"      Unrealized P&L: ${position.unrealized_pnl:,.2f}")
 

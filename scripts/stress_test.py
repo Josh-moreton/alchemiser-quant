@@ -41,9 +41,6 @@ sys.path.insert(0, str(Path(__file__).parent))  # Add scripts dir to path
 # Import from modular stress_test package
 from stress_test.runner import StressTestRunner
 
-from the_alchemiser.shared.config import (
-    env_loader,
-)  # noqa: F401  # Load .env as side-effect
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.logging import configure_application_logging
 
@@ -141,9 +138,7 @@ def main_cli() -> int:
     if used_stress_creds:
         print("Credentials: using STRESS_TEST_KEY/SECRET (paper endpoint forced)")
     else:
-        print(
-            "Credentials: using ALPACA_KEY/SECRET from environment (paper endpoint forced)"
-        )
+        print("Credentials: using ALPACA_KEY/SECRET from environment (paper endpoint forced)")
     print("\n" + "=" * 80 + "\n")
 
     if args.dry_run:

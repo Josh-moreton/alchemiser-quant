@@ -149,3 +149,4 @@ hypothesis = "^6.140.3"
 pytest-xdist = "^3.8.0"
 pytest-randomly = "^4.0.1"
 pytest-timeout = "^2.4.0"
+boto3-stubs = {extras = ["dynamodb", "events", "s3"], version = "^1.40.51"}

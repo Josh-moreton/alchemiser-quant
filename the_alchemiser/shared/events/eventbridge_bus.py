@@ -15,11 +15,16 @@ from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from ..logging import get_logger
 from .base import BaseEvent
 from .bus import EventBus, HandlerType
 from .errors import EventPublishError
+
+if TYPE_CHECKING:
+    from mypy_boto3_events.client import EventBridgeClient
+    from mypy_boto3_events.type_defs import PutEventsRequestEntryTypeDef
 
 logger = get_logger(__name__)
 
@@ -63,7 +68,7 @@ class EventBridgeBus(EventBus):
         self.enable_local_handlers = enable_local_handlers
 
         # Initialize EventBridge client (lazy import to avoid runtime dependency in tests)
-        self._events_client: object | None = None
+        self._events_client: EventBridgeClient | None = None
 
         # Track EventBridge-specific events (not inherited from parent)
         self._eventbridge_count: int = 0
@@ -76,7 +81,7 @@ class EventBridgeBus(EventBus):
         )
 
     @property
-    def events_client(self) -> object:
+    def events_client(self) -> EventBridgeClient:
         """Get or create EventBridge client (lazy initialization).
 
         Returns:
@@ -120,7 +125,7 @@ class EventBridgeBus(EventBus):
             if event.causation_id:
                 resources.append(f"causation:{event.causation_id}")
 
-            entry: dict[str, object] = {
+            entry: PutEventsRequestEntryTypeDef = {
                 "Time": datetime.now(UTC),
                 "Source": source,
                 "DetailType": event.event_type,
@@ -130,8 +135,7 @@ class EventBridgeBus(EventBus):
             }
 
             # Publish to EventBridge
-            # Type ignore needed because boto3 client returns untyped dict response
-            response = self.events_client.put_events(Entries=[entry])  # type: ignore[attr-defined]
+            response = self.events_client.put_events(Entries=[entry])
 
             # Check for failures
             if response.get("FailedEntryCount", 0) > 0:
@@ -245,7 +249,7 @@ class EventBridgeBus(EventBus):
         """
         return self._eventbridge_count
 
-    def set_client_for_testing(self, mock_client: object) -> None:
+    def set_client_for_testing(self, mock_client: EventBridgeClient) -> None:
         """Set a mock EventBridge client for testing.
 
         This method allows dependency injection of a mock boto3 client during tests,

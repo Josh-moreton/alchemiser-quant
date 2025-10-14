@@ -8,7 +8,6 @@ Simulates market order fills at daily Open prices.
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 

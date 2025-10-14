@@ -21,16 +21,16 @@ if str(_project_root) not in sys.path:
 
 from scripts.backtest.analysis.performance_metrics import (
     PerformanceMetrics,
-)  # noqa: E402
+)
 from scripts.backtest.data_manager import DataManager  # noqa: E402
 from scripts.backtest.fill_simulator import FillSimulator  # noqa: E402
 from scripts.backtest.historical_market_data_port import (
     HistoricalMarketDataPort,
-)  # noqa: E402
+)
 from scripts.backtest.models.backtest_result import (
     BacktestConfig,
     BacktestResult,
-)  # noqa: E402
+)
 from scripts.backtest.models.market_data import DailyBar  # noqa: E402
 from scripts.backtest.models.portfolio_snapshot import (  # noqa: E402
     PortfolioSnapshot,
@@ -42,10 +42,10 @@ from the_alchemiser.shared.logging import get_logger  # noqa: E402
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngineError  # noqa: E402
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import (
     DslStrategyEngine,
-)  # noqa: E402
+)
 from the_alchemiser.strategy_v2.engines.dsl.types import (
     DslEvaluationError,
-)  # noqa: E402
+)
 
 # Constants
 MIN_POSITION_SIZE = Decimal("0.01")  # Minimum trade size in shares
@@ -82,11 +82,11 @@ class BacktestRunner:
         self.strategy_files = strategy_files or ["KLM.clj"]
         self.auto_download_missing = auto_download_missing
         self._missing_symbols_cache: set[str] = set()
-        
+
         # Cache for reusable components (performance optimization)
         self._market_data_port: HistoricalMarketDataPort | None = None
         self._strategy_engine: DslStrategyEngine | None = None
-        
+
         logger.info(
             f"BacktestRunner initialized with strategies: {self.strategy_files}"
         )

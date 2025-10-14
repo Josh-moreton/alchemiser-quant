@@ -39,13 +39,13 @@ def setup_logging(verbose: bool) -> None:
 
 def validate_positive_int(value: str) -> int:
     """Validate that a string represents a positive integer.
-    
+
     Args:
         value: String value to validate
-        
+
     Returns:
         Positive integer value
-        
+
     Raises:
         argparse.ArgumentTypeError: If value is not a positive integer
 
@@ -93,19 +93,19 @@ Examples:
 
     # Time period options (mutually exclusive)
     period_group = parser.add_mutually_exclusive_group(required=True)
-    
+
     period_group.add_argument(
         "--weekly",
         action="store_true",
         help="Show weekly P&L report",
     )
-    
+
     period_group.add_argument(
         "--monthly",
         action="store_true",
         help="Show monthly P&L report",
     )
-    
+
     period_group.add_argument(
         "--period",
         help="Use Alpaca period format (1W, 1M, 3M, 1A)",
@@ -171,7 +171,7 @@ Examples:
         # Generate report
         logger.info("Generating P&L report...")
         report = service.format_pnl_report(pnl_data, detailed=args.detailed)
-        
+
         # Output report
         if args.output:
             output_path = Path(args.output)
@@ -187,12 +187,12 @@ Examples:
         if pnl_data.start_value is None:
             print("⚠️  Warning: No portfolio data found for the specified period")
             return 1
-        
+
         # Show success status with P&L summary
         pnl_sign = "+" if (pnl_data.total_pnl or 0) >= 0 else ""
         pnl_amount = f"${pnl_data.total_pnl:,.2f}" if pnl_data.total_pnl else "N/A"
         pnl_pct = f"({pnl_data.total_pnl_pct:+.2f}%)" if pnl_data.total_pnl_pct else ""
-        
+
         logger.info(f"✅ P&L analysis completed - Total: {pnl_sign}{pnl_amount} {pnl_pct}")
         return 0
 
