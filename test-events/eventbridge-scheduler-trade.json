@@ -1,0 +1,16 @@
+{
+  "version": "0",
+  "id": "scheduler-event-123",
+  "detail-type": "Scheduled Event",
+  "source": "aws.scheduler",
+  "account": "211125653762",
+  "time": "2025-10-14T14:00:00Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:scheduler:us-east-1:211125653762:schedule/default/alchemiser-trading-schedule"
+  ],
+  "detail": {
+    "mode": "trade",
+    "trading_mode": "paper"
+  }
+}

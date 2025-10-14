@@ -271,31 +271,33 @@ def _build_error_response(
     }
 
 
-def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
-    """Parse the Lambda event.
+def parse_event_mode(event: dict[str, Any] | LambdaEvent) -> list[str]:
+    """Parse Lambda event data to extract command-line arguments for execution.
 
-    Supports two paths:
-    - Trading (default): returns ['trade']
-    - P&L analysis: returns ['pnl', ...] with P&L-specific arguments
+    Determines the execution mode from event payload and returns appropriate
+    command arguments for the main function. Supports trading, P&L analysis,
+    and bot modes with various configuration options.
 
     Args:
-        event: AWS Lambda event data
+        event: AWS Lambda event data (may be EventBridge envelope or direct payload)
 
     Returns:
         List of command arguments for the main function
 
     """
+    # Unwrap EventBridge envelope if present
+    # EventBridge wraps events with metadata: version, id, detail-type, source, etc.
+    # The actual event data is nested in the 'detail' field
+    if isinstance(event, dict) and "detail-type" in event and "detail" in event:
+        logger.debug(
+            "Detected EventBridge envelope; extracting detail payload",
+            detail_type=event.get("detail-type"),
+            source=event.get("source"),
+        )
+        event = event["detail"]
+
     # Validate event shape
     event_obj = LambdaEvent(**event) if isinstance(event, dict) else event
-
-    # Monthly summary action is no longer supported via Lambda
-    if (
-        isinstance(event_obj, LambdaEvent)
-        and getattr(event_obj, "action", None) == "monthly_summary"
-    ):
-        raise ValueError(
-            "Unsupported action 'monthly_summary' via Lambda. Use the CLI script 'scripts/send_monthly_summary.py' instead."
-        )
 
     # P&L analysis action
     if isinstance(event_obj, LambdaEvent) and getattr(event_obj, "action", None) == "pnl_analysis":
@@ -406,6 +408,24 @@ def lambda_handler(
         correlation_id=correlation_id,
         event_has_correlation_id=_has_correlation_id(event),
     )
+
+    # Circuit breaker: Skip error notification events to prevent infinite error loops
+    # When an error occurs, it publishes ErrorNotificationRequested to EventBridge,
+    # which triggers this Lambda again. Without this check, one error creates a cascade.
+    if isinstance(event, dict):
+        detail_type = event.get("detail-type")
+        if detail_type == "ErrorNotificationRequested":
+            logger.info(
+                "Skipping ErrorNotificationRequested event to prevent error cascade",
+                detail_type=detail_type,
+            )
+            return {
+                "status": "skipped",
+                "mode": "error_notification",
+                "trading_mode": "n/a",
+                "message": "Error notification event skipped (circuit breaker)",
+                "request_id": request_id,
+            }
 
     # TODO: Add idempotency check using DynamoDB or EventBridge event deduplication
     # if _is_duplicate_request(correlation_id):

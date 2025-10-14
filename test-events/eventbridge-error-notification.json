@@ -1,0 +1,30 @@
+{
+  "version": "0",
+  "id": "error-notification-test-123",
+  "detail-type": "ErrorNotificationRequested",
+  "source": "alchemiser.shared.errors.error_handler",
+  "account": "211125653762",
+  "time": "2025-10-14T13:35:52Z",
+  "region": "us-east-1",
+  "resources": [
+    "correlation:error-test-correlation-id",
+    "causation:error-handler-2025-10-14T13:35:52.748020+00:00"
+  ],
+  "detail": {
+    "correlation_id": "error-test-correlation-id",
+    "causation_id": "error-handler-2025-10-14T13:35:52.748020+00:00",
+    "event_id": "error-notification-test",
+    "event_type": "ErrorNotificationRequested",
+    "timestamp": "2025-10-14T13:35:52.748035Z",
+    "source_module": "shared.errors.error_handler",
+    "source_component": "TradingSystemErrorHandler",
+    "metadata": null,
+    "schema_version": "1.0",
+    "error_severity": "critical",
+    "error_priority": "URGENT",
+    "error_title": "Test Error",
+    "error_report": "This is a test error to verify circuit breaker works",
+    "error_code": null,
+    "recipient_override": null
+  }
+}

@@ -102,12 +102,6 @@ class TestEventParsing:
         command_args = parse_event_mode(event)
         assert command_args == ["pnl", "--weekly"]
 
-    def test_parse_monthly_summary_raises_error(self) -> None:
-        """Test parsing monthly_summary action raises error."""
-        event = {"action": "monthly_summary"}
-        with pytest.raises(ValueError, match="Unsupported action 'monthly_summary'"):
-            parse_event_mode(event)
-
     def test_parse_lambda_event_object(self) -> None:
         """Test parsing with LambdaEvent object."""
         event = LambdaEvent(mode="trade", trading_mode="paper")

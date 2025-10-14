@@ -1,0 +1,30 @@
+{
+  "version": "0",
+  "id": "test-event-123",
+  "detail-type": "WorkflowStarted",
+  "source": "alchemiser.orchestration.event_driven_orchestrator",
+  "account": "211125653762",
+  "time": "2025-10-14T13:35:50Z",
+  "region": "us-east-1",
+  "resources": [
+    "correlation:test-correlation-id",
+    "causation:system-request-2025-10-14T13:35:50.566524+00:00"
+  ],
+  "detail": {
+    "correlation_id": "test-correlation-id",
+    "causation_id": "system-request-2025-10-14T13:35:50.566524+00:00",
+    "event_id": "workflow-started-test",
+    "event_type": "WorkflowStarted",
+    "timestamp": "2025-10-14T13:35:50.566542Z",
+    "source_module": "orchestration.event_driven_orchestrator",
+    "source_component": "EventDrivenOrchestrator",
+    "metadata": null,
+    "schema_version": "1.0",
+    "workflow_type": "trading",
+    "requested_by": "TradingSystem",
+    "configuration": {
+      "live_trading": false
+    },
+    "mode": "trade"
+  }
+}
