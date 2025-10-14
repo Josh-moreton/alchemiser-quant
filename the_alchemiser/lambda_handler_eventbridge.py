@@ -162,9 +162,11 @@ def _get_event_class(detail_type: str) -> type[BaseEvent] | None:
         TradeExecuted,
         WorkflowCompleted,
         WorkflowFailed,
+        WorkflowStarted,
     )
 
     event_map: dict[str, type[BaseEvent]] = {
+        "WorkflowStarted": WorkflowStarted,
         "SignalGenerated": SignalGenerated,
         "RebalancePlanned": RebalancePlanned,
         "TradeExecuted": TradeExecuted,

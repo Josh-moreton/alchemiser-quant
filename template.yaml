@@ -113,7 +113,7 @@ Globals:
 
         # EventBridge configuration
         EVENTBRIDGE_BUS_NAME: !Ref AlchemiserEventBus
-        
+
         # Idempotency table name
         IDEMPOTENCY_TABLE_NAME: !Ref IdempotencyTable
 

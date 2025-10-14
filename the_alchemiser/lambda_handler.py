@@ -244,6 +244,44 @@ def _has_correlation_id(event: LambdaEvent | dict[str, Any] | None) -> bool:
     return bool(hasattr(event, "correlation_id") and event.correlation_id)
 
 
+def _is_domain_event(event: dict[str, Any] | LambdaEvent | None) -> bool:
+    """Detect if event is a domain event (vs. command/scheduler event).
+
+    Domain events are business events published by the trading system modules
+    (WorkflowStarted, SignalGenerated, etc.) that should be routed to
+    lambda_handler_eventbridge for processing.
+
+    Command events are scheduler invocations or direct Lambda calls that should
+    be processed by lambda_handler (this module).
+
+    Args:
+        event: Lambda event payload
+
+    Returns:
+        True if domain event (WorkflowStarted, SignalGenerated, etc.)
+        False if command event (Scheduled Event, direct invocation)
+
+    """
+    if not isinstance(event, dict):
+        return False
+
+    detail_type = event.get("detail-type", "")
+    source = event.get("source", "")
+
+    # Known domain event types that should route to lambda_handler_eventbridge
+    domain_event_types = {
+        "WorkflowStarted",
+        "SignalGenerated",
+        "RebalancePlanned",
+        "TradeExecuted",
+        "WorkflowCompleted",
+        "WorkflowFailed",
+    }
+
+    # Check if it's a domain event from alchemiser modules
+    return detail_type in domain_event_types and source.startswith("alchemiser.")
+
+
 def _build_error_response(
     mode: str,
     trading_mode: str,
@@ -426,6 +464,31 @@ def lambda_handler(
                 "message": "Error notification event skipped (circuit breaker)",
                 "request_id": request_id,
             }
+
+    # Smart routing: Detect domain events and route to eventbridge handler
+    # Domain events (WorkflowStarted, SignalGenerated, etc.) have different schemas
+    # than command events (Scheduled Event, direct invocations) and need different processing
+    if _is_domain_event(event):
+        # Type assertion: _is_domain_event already verified event is dict
+        if not isinstance(event, dict):
+            logger.error("Event should be dict after _is_domain_event check")
+            return {
+                "status": "failed",
+                "mode": "unknown",
+                "trading_mode": "n/a",
+                "message": "Invalid event type for domain event routing",
+                "request_id": request_id,
+            }
+
+        logger.info(
+            "Routing to eventbridge_handler for domain event",
+            detail_type=event.get("detail-type"),
+            source=event.get("source"),
+            correlation_id=correlation_id,
+        )
+        from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
+
+        return eventbridge_handler(event, context)
 
     # TODO: Add idempotency check using DynamoDB or EventBridge event deduplication
     # if _is_duplicate_request(correlation_id):

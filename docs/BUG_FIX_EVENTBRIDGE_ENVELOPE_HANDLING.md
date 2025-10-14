@@ -129,24 +129,58 @@ sam local invoke TradingSystemFunction \
 ### Event Flow
 
 ```
-EventBridge Scheduler (cron) 
+EventBridge Scheduler (cron)
   → Lambda (lambda_handler)
   → Unwraps envelope
   → Parses LambdaEvent
   → Executes trade workflow
   → Publishes WorkflowStarted to EventBridge
-  
+
 EventBridge Rule (event pattern)
-  → Lambda (lambda_handler_eventbridge) 
+  → Lambda (lambda_handler_eventbridge)
   → Routes to handler
   → Executes business logic
 ```
 
+## Additional Fix: Smart Event Routing
+
+After testing, discovered that EventBridge Rules were routing domain events (`WorkflowStarted`, `SignalGenerated`, etc.) back to `lambda_handler`, which only understands `LambdaEvent` schema. This caused validation errors.
+
+**Solution:** Implemented smart routing in `lambda_handler` to detect event type and route appropriately:
+
+1. **Detection Function (`_is_domain_event`)**: Detects domain events by checking:
+   - `detail-type` matches known domain event types (WorkflowStarted, SignalGenerated, etc.)
+   - `source` starts with "alchemiser."
+
+2. **Smart Routing Logic**: Added early routing in `lambda_handler`:
+   ```python
+   if _is_domain_event(event):
+       logger.info("Routing to eventbridge_handler for domain event")
+       from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
+       return eventbridge_handler(event, context)
+   ```
+
+3. **Added WorkflowStarted Support**: Updated `lambda_handler_eventbridge.py` to handle `WorkflowStarted` events
+
+4. **Re-enabled EventBridge Rules**: All rules now ENABLED:
+   - `SignalGeneratedRule` → ENABLED
+   - `RebalancePlannedRule` → ENABLED
+   - `TradeExecutedRule` → ENABLED
+   - `AllEventsToOrchestratorRule` → ENABLED
+
+**Effect:**
+- EventBridge Scheduler events (Scheduled Event) → processed by `lambda_handler`
+- Domain events (WorkflowStarted, SignalGenerated, etc.) → routed to `lambda_handler_eventbridge`
+- No validation errors
+- Circuit breaker still prevents ErrorNotificationRequested loops
+- Events properly archived (365-day retention)
+
 ## Version Bump Required
 
-Per project guidelines, this is a **PATCH** version bump:
-- Bug fix (EventBridge envelope handling)
-- No API changes
-- Backward compatible
+Per project guidelines, this is a **MINOR** version bump:
+- New feature (smart event routing)
+- EventBridge Rules enabled (significant functionality change)
+- Bug fixes (envelope handling, event routing)
+- Backward compatible (existing scheduler invocations unchanged)
 
-Command: `make bump-patch`
+Command: `make bump-minor`
