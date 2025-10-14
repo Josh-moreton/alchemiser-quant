@@ -112,7 +112,28 @@ class SmartOrderResult:
     final_price: Decimal | None = None
     anchor_price: Decimal | None = None
     repegs_used: int = 0
-    execution_strategy: Literal["smart_limit", "market", "limit"] = "smart_limit"
+    execution_strategy: (
+        Literal[
+            "smart_limit",
+            "market",
+            "limit",
+            "validation_failed",
+            "smart_limit_timeout",
+            "smart_limit_validation_error",
+            "smart_limit_error",
+            "smart_limit_failed",
+            "market_fallback_required",
+            "market_fallback",
+            "market_fallback_failed",
+            "market_escalation",
+            "market_escalation_failed",
+            "market_escalation_duplicate",
+            "market_escalation_error",
+            "smart_repeg_failed",
+            "smart_repeg_error",
+        ]
+        | str
+    ) = "smart_limit"  # Allow str for dynamic values like "smart_repeg_1"
     error_message: str | None = None
     placement_timestamp: datetime | None = None
     metadata: LiquidityMetadata | None = None
