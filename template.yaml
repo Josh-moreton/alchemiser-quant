@@ -493,6 +493,28 @@ Resources:
           DeadLetterConfig:
             Arn: !GetAtt EventDLQ.Arn
 
+  # Event Rule: Route TradingNotificationRequested events to notification handler
+  TradingNotificationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "alchemiser-trading-notification-${Stage}"
+      Description: Route TradingNotificationRequested events to notification handler
+      EventBusName: !Ref AlchemiserEventBus
+      State: ENABLED
+      EventPattern:
+        source:
+          - alchemiser.orchestration
+        detail-type:
+          - TradingNotificationRequested
+      Targets:
+        - Arn: !GetAtt TradingSystemFunction.Arn
+          Id: NotificationHandler
+          RetryPolicy:
+            MaximumRetryAttempts: 3
+            MaximumEventAgeInSeconds: 3600
+          DeadLetterConfig:
+            Arn: !GetAtt EventDLQ.Arn
+
   # Event Rule: Route all workflow events to orchestrator for monitoring
   AllEventsToOrchestratorRule:
     Type: AWS::Events::Rule
@@ -539,6 +561,15 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt TradeExecutedRule.Arn
+
+  # Lambda Permission: Allow EventBridge to invoke Lambda for TradingNotification
+  TradingNotificationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TradingSystemFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt TradingNotificationRule.Arn
 
   # Lambda Permission: Allow EventBridge to invoke Lambda for all events
   AllEventsPermission:

@@ -160,6 +160,7 @@ def _get_event_class(detail_type: str) -> type[BaseEvent] | None:
         RebalancePlanned,
         SignalGenerated,
         TradeExecuted,
+        TradingNotificationRequested,
         WorkflowCompleted,
         WorkflowFailed,
         WorkflowStarted,
@@ -172,6 +173,7 @@ def _get_event_class(detail_type: str) -> type[BaseEvent] | None:
         "TradeExecuted": TradeExecuted,
         "WorkflowCompleted": WorkflowCompleted,
         "WorkflowFailed": WorkflowFailed,
+        "TradingNotificationRequested": TradingNotificationRequested,
     }
 
     return event_map.get(detail_type)
@@ -194,6 +196,7 @@ def _get_handler_for_event(
     """
     # Import handlers
     from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
+    from the_alchemiser.notifications_v2.service import NotificationService
     from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
 
     # Map event types to their handlers
@@ -202,6 +205,7 @@ def _get_handler_for_event(
     handler_map: dict[str, Callable[[], EventHandler]] = {
         "SignalGenerated": lambda: PortfolioAnalysisHandler(container),
         "RebalancePlanned": lambda: TradingExecutionHandler(container),
+        "TradingNotificationRequested": lambda: NotificationService(container),
     }
 
     factory = handler_map.get(detail_type)
