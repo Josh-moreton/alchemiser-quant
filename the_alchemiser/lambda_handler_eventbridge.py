@@ -53,13 +53,17 @@ def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any
             detail = json.loads(detail)
         except json.JSONDecodeError:
             detail = {}
-    
-    correlation_id = detail.get("correlation_id", "unknown") if isinstance(detail, dict) else "unknown"
-    
+
+    correlation_id = (
+        detail.get("correlation_id", "unknown") if isinstance(detail, dict) else "unknown"
+    )
+
     # Set request ID for tracing (prefer correlation_id from event)
     set_request_id(correlation_id)
-    
-    lambda_request_id = getattr(context, "request_id", "unknown") if hasattr(context, "request_id") else "unknown"
+
+    lambda_request_id = (
+        getattr(context, "request_id", "unknown") if hasattr(context, "request_id") else "unknown"
+    )
 
     try:
         # Extract event details from EventBridge payload

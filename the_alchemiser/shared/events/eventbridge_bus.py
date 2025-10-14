@@ -138,7 +138,7 @@ class EventBridgeBus(EventBus):
                 failed = response["Entries"][0]
                 error_code = failed.get("ErrorCode", "Unknown")
                 error_message = failed.get("ErrorMessage", "No error message provided")
-                
+
                 logger.error(
                     "Failed to publish event to EventBridge",
                     event_type=event.event_type,
@@ -147,24 +147,23 @@ class EventBridgeBus(EventBus):
                     event_id=event.event_id,
                     correlation_id=event.correlation_id,
                 )
-                
+
                 raise EventPublishError(
                     f"{error_code}: {error_message}",
                     event_id=event.event_id,
                     correlation_id=event.correlation_id,
                     error_code=error_code,
                 )
-            else:
-                # Only increment counter on successful publish
-                self._eventbridge_count += 1
-                logger.info(
-                    "Event published to EventBridge",
-                    event_type=event.event_type,
-                    event_id=event.event_id,
-                    correlation_id=event.correlation_id,
-                    source=source,
-                    event_bus_name=self.event_bus_name,
-                )
+            # Only increment counter on successful publish
+            self._eventbridge_count += 1
+            logger.info(
+                "Event published to EventBridge",
+                event_type=event.event_type,
+                event_id=event.event_id,
+                correlation_id=event.correlation_id,
+                source=source,
+                event_bus_name=self.event_bus_name,
+            )
 
             # Also trigger local handlers if enabled (for testing/hybrid mode)
             if self.enable_local_handlers:
@@ -178,7 +177,7 @@ class EventBridgeBus(EventBus):
             # Import ClientError dynamically to avoid boto3 dependency at module level
             try:
                 from botocore.exceptions import ClientError
-                
+
                 if isinstance(e, ClientError):
                     logger.error(
                         "EventBridge client error",
@@ -193,7 +192,7 @@ class EventBridgeBus(EventBus):
                     raise
             except ImportError:
                 pass
-            
+
             # Wrap unexpected errors as EventPublishError
             logger.error(
                 "Unexpected error publishing to EventBridge",
@@ -205,7 +204,7 @@ class EventBridgeBus(EventBus):
                 exc_info=True,
             )
             raise EventPublishError(
-                f"Unexpected error: {str(e)}",
+                f"Unexpected error: {e!s}",
                 event_id=event.event_id,
                 correlation_id=event.correlation_id,
             ) from e

@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any
 
 from .logging import get_logger
 
@@ -35,7 +34,7 @@ logger = get_logger(__name__)
 DEFAULT_TTL_SECONDS = 86400
 
 
-def _get_dynamodb_client() -> Any:
+def _get_dynamodb_client() -> object:
     """Get DynamoDB client (lazy initialization).
 
     Returns:
@@ -43,7 +42,7 @@ def _get_dynamodb_client() -> Any:
 
     """
     import boto3
-    
+
     return boto3.client("dynamodb")
 
 
@@ -57,10 +56,7 @@ def _get_table_name(stage: str = "dev") -> str:
         DynamoDB table name
 
     """
-    return os.environ.get(
-        "IDEMPOTENCY_TABLE_NAME",
-        f"alchemiser-event-dedup-{stage}"
-    )
+    return os.environ.get("IDEMPOTENCY_TABLE_NAME", f"alchemiser-event-dedup-{stage}")
 
 
 def is_duplicate_event(
@@ -93,17 +89,17 @@ def is_duplicate_event(
     if not event_id:
         logger.warning("Cannot check idempotency: event_id is empty")
         return False
-    
+
     table_name = table_name or _get_table_name(stage)
-    
+
     try:
         client = _get_dynamodb_client()
-        response = client.get_item(
+        response = client.get_item(  # type: ignore[attr-defined]
             TableName=table_name,
             Key={"event_id": {"S": event_id}},
             ConsistentRead=True,
         )
-        
+
         exists = "Item" in response
         if exists:
             logger.info(
@@ -111,9 +107,9 @@ def is_duplicate_event(
                 event_id=event_id,
                 table_name=table_name,
             )
-        
+
         return exists
-    
+
     except Exception as e:
         # Fail-open: treat as new event if check fails
         logger.warning(
@@ -155,14 +151,14 @@ def mark_event_processed(
     if not event_id:
         logger.warning("Cannot mark event processed: event_id is empty")
         return False
-    
+
     table_name = table_name or _get_table_name(stage)
-    
+
     try:
         client = _get_dynamodb_client()
         expiry_time = int(time.time()) + ttl_seconds
-        
-        client.put_item(
+
+        client.put_item(  # type: ignore[attr-defined]
             TableName=table_name,
             Item={
                 "event_id": {"S": event_id},
@@ -170,7 +166,7 @@ def mark_event_processed(
                 "ttl": {"N": str(expiry_time)},
             },
         )
-        
+
         logger.debug(
             "Event marked as processed",
             event_id=event_id,
@@ -178,7 +174,7 @@ def mark_event_processed(
             ttl_seconds=ttl_seconds,
         )
         return True
-    
+
     except Exception as e:
         # Best-effort: log but don't fail the handler
         logger.error(
