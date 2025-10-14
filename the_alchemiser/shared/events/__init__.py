@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from .base import BaseEvent
 from .bus import EventBus
+from .eventbridge_bus import EventBridgeBus
 from .handlers import EventHandler
 from .schemas import (
     AllocationComparisonCompleted,
@@ -41,6 +42,7 @@ __all__ = [
     "BaseEvent",
     "BulkSettlementCompleted",
     "ErrorNotificationRequested",
+    "EventBridgeBus",
     "EventBus",
     "EventHandler",
     "ExecutionPhaseCompleted",

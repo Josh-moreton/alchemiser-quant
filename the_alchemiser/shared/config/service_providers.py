@@ -14,19 +14,23 @@ Architecture:
 - Only imports from shared.* (no business module imports)
 - Receives infrastructure and config via DependenciesContainer
 - EventBus is singleton for application-wide event coordination
+- Supports both in-memory EventBus and EventBridge-backed EventBridgeBus
 
 Usage:
     container = ServiceProviders()
     container.infrastructure.override(infrastructure_container)
     container.config.override(config_container)
-    event_bus = container.event_bus()
+    bus = container.event_bus()
 """
 
 from __future__ import annotations
 
+import os
+
 from dependency_injector import containers, providers
 
 from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.events.eventbridge_bus import EventBridgeBus
 
 # Deprecated services migrated to v2 modules:
 # - AccountService → the_alchemiser.shared.brokers.AlpacaManager
@@ -36,6 +40,23 @@ from the_alchemiser.shared.events.bus import EventBus
 # - MarketDataService → the_alchemiser.strategy_v2.adapters (see MarketDataAdapter)
 # - KLMEngine → the_alchemiser.strategy_v2.engines (see strategy registry)
 # See README.md "Module Boundaries" section for architecture details.
+
+
+def create_event_bus() -> EventBus | EventBridgeBus:
+    """Create appropriate event bus based on environment.
+
+    Returns EventBridgeBus if USE_EVENTBRIDGE=true environment variable is set,
+    otherwise returns standard in-memory EventBus.
+
+    Returns:
+        EventBus or EventBridgeBus instance
+
+    """
+    use_eventbridge = os.environ.get("USE_EVENTBRIDGE", "false").lower() == "true"
+
+    if use_eventbridge:
+        return EventBridgeBus()
+    return EventBus()
 
 
 class ServiceProviders(containers.DeclarativeContainer):
@@ -62,4 +83,5 @@ class ServiceProviders(containers.DeclarativeContainer):
     config = providers.DependenciesContainer()
 
     # Event bus (singleton for the application)
-    event_bus = providers.Singleton(EventBus)
+    # Uses factory to support both in-memory and EventBridge implementations
+    event_bus = providers.Singleton(create_event_bus)
