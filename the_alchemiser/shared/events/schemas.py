@@ -15,12 +15,13 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION, RECIPIENT_OVERRIDE_DESCRIPTION
 from ..schemas.common import AllocationComparison
 from ..schemas.portfolio_state import PortfolioState
 from ..schemas.rebalance_plan import RebalancePlan
+from ..schemas.types import DecimalStr, MoneyDecimal, PriceDecimal
 from .base import BaseEvent
 
 
@@ -161,49 +162,19 @@ class AllocationComparisonCompleted(BaseEvent):
     schema_version: str = Field(default="1.0", description="Event schema version")
 
     # Allocation comparison fields
-    target_allocations: dict[str, Decimal] = Field(..., description="Target allocation percentages")
-    current_allocations: dict[str, Decimal] = Field(
+    target_allocations: dict[str, DecimalStr] = Field(
+        ..., description="Target allocation percentages"
+    )
+    current_allocations: dict[str, DecimalStr] = Field(
         ..., description="Current allocation percentages"
     )
-    allocation_differences: dict[str, Decimal] = Field(
+    allocation_differences: dict[str, DecimalStr] = Field(
         ..., description="Differences requiring rebalancing"
     )
     rebalancing_required: bool = Field(..., description="Whether rebalancing is needed")
     comparison_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional comparison analysis data"
     )
-
-    @field_validator(
-        "target_allocations", "current_allocations", "allocation_differences", mode="before"
-    )
-    @classmethod
-    def coerce_dict_decimals_from_eventbridge(
-        cls, v: dict[str, Decimal] | dict[str, str]
-    ) -> dict[str, Decimal]:
-        """Coerce dict[str, Decimal] from EventBridge JSON.
-
-        EventBridge serializes Decimal values to strings. This validator converts
-        string values back to Decimal for all dict entries.
-
-        Args:
-            v: Dictionary with symbol keys and Decimal or string values
-
-        Returns:
-            Dictionary with Decimal values
-
-        """
-        if not isinstance(v, dict):
-            return v
-
-        result = {}
-        for symbol, value in v.items():
-            if isinstance(value, str):
-                result[symbol] = Decimal(value)
-            elif isinstance(value, (int, float)):
-                result[symbol] = Decimal(str(value))
-            else:
-                result[symbol] = value
-        return result
 
 
 class OrderSettlementCompleted(BaseEvent):
@@ -220,42 +191,15 @@ class OrderSettlementCompleted(BaseEvent):
     order_id: str = Field(..., description="Order ID that completed settlement")
     symbol: str = Field(..., description="Symbol of the settled order")
     side: str = Field(..., description="Order side (BUY/SELL)")
-    settled_quantity: Decimal = Field(..., description="Quantity that settled")
-    settlement_price: Decimal = Field(..., description="Price at which settlement occurred")
-    settled_value: Decimal = Field(..., description="Total value settled")
-    buying_power_released: Decimal = Field(
+    settled_quantity: DecimalStr = Field(..., description="Quantity that settled")
+    settlement_price: PriceDecimal = Field(..., description="Price at which settlement occurred")
+    settled_value: MoneyDecimal = Field(..., description="Total value settled")
+    buying_power_released: MoneyDecimal = Field(
         default=Decimal("0"), description="Buying power released from settlement"
     )
     original_correlation_id: str | None = Field(
         default=None, description="Original correlation ID for order tracking"
     )
-
-    @field_validator(
-        "settled_quantity",
-        "settlement_price",
-        "settled_value",
-        "buying_power_released",
-        mode="before",
-    )
-    @classmethod
-    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
-        """Coerce Decimal fields from EventBridge JSON string to Decimal.
-
-        EventBridge serializes Decimal to JSON strings. This validator handles
-        deserialization by converting string values back to Decimal.
-
-        Args:
-            v: Value that may be Decimal, str, int, or float
-
-        Returns:
-            Decimal value
-
-        """
-        if isinstance(v, str):
-            return Decimal(v)
-        elif isinstance(v, (int, float)):
-            return Decimal(str(v))
-        return v
 
 
 class BulkSettlementCompleted(BaseEvent):
@@ -272,32 +216,13 @@ class BulkSettlementCompleted(BaseEvent):
     settled_order_ids: list[str] = Field(
         ..., description="List of order IDs that completed settlement"
     )
-    total_buying_power_released: Decimal = Field(..., description="Total buying power released")
+    total_buying_power_released: MoneyDecimal = Field(
+        ..., description="Total buying power released"
+    )
     settlement_details: dict[str, Any] = Field(
         default_factory=dict, description="Detailed settlement information"
     )
     execution_plan_id: str | None = Field(default=None, description="Associated execution plan ID")
-
-    @field_validator("total_buying_power_released", mode="before")
-    @classmethod
-    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
-        """Coerce Decimal field from EventBridge JSON string to Decimal.
-
-        EventBridge serializes Decimal to JSON strings. This validator handles
-        deserialization by converting string values back to Decimal.
-
-        Args:
-            v: Value that may be Decimal, str, int, or float
-
-        Returns:
-            Decimal value
-
-        """
-        if isinstance(v, str):
-            return Decimal(v)
-        elif isinstance(v, (int, float)):
-            return Decimal(str(v))
-        return v
 
 
 class ExecutionPhaseCompleted(BaseEvent):
@@ -418,32 +343,11 @@ class TradingNotificationRequested(BaseEvent):
     trading_mode: str = Field(..., description="Trading mode (LIVE, PAPER)")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of orders that succeeded")
-    total_trade_value: Decimal = Field(..., description="Total value of trades executed")
+    total_trade_value: MoneyDecimal = Field(..., description="Total value of trades executed")
     execution_data: dict[str, Any] = Field(..., description="Detailed execution data")
     error_message: str | None = Field(default=None, description="Error message if trading failed")
     error_code: str | None = Field(default=None, description="Optional error code")
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
-
-    @field_validator("total_trade_value", mode="before")
-    @classmethod
-    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
-        """Coerce Decimal field from EventBridge JSON string to Decimal.
-
-        EventBridge serializes Decimal to JSON strings. This validator handles
-        deserialization by converting string values back to Decimal.
-
-        Args:
-            v: Value that may be Decimal, str, int, or float
-
-        Returns:
-            Decimal value
-
-        """
-        if isinstance(v, str):
-            return Decimal(v)
-        elif isinstance(v, (int, float)):
-            return Decimal(str(v))
-        return v
 
 
 class SystemNotificationRequested(BaseEvent):

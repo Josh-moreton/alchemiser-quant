@@ -257,9 +257,10 @@ class TestBaseEventTimezoneHandling:
             source_module="test_module",
         )
 
-        # Timestamp should be preserved as-is (not converted to UTC)
-        assert event.timestamp == offset_timestamp
-        assert event.timestamp.tzinfo == tz_offset
+        # Timestamp should be converted to UTC (UTC normalization policy)
+        assert event.timestamp.tzinfo == timezone.utc
+        # Time should be adjusted to UTC (12:00+05:00 becomes 07:00+00:00)
+        assert event.timestamp.hour == 7
 
 
 @pytest.mark.unit

@@ -21,6 +21,7 @@ from ..utils.data_conversion import (
     convert_nested_rebalance_item_data,
 )
 from ..utils.timezone_utils import ensure_timezone_aware
+from .types import MoneyDecimal, WeightDecimal, UtcDatetime
 
 
 class RebalancePlanItem(BaseModel):
@@ -34,12 +35,16 @@ class RebalancePlanItem(BaseModel):
     )
 
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    current_weight: Decimal = Field(..., ge=0, le=1, description="Current portfolio weight (0-1)")
-    target_weight: Decimal = Field(..., ge=0, le=1, description="Target portfolio weight (0-1)")
-    weight_diff: Decimal = Field(..., description="Weight difference (target - current)")
-    target_value: Decimal = Field(..., ge=0, description="Target dollar value")
-    current_value: Decimal = Field(..., ge=0, description="Current dollar value")
-    trade_amount: Decimal = Field(
+    current_weight: WeightDecimal = Field(
+        ..., ge=0, le=1, description="Current portfolio weight (0-1)"
+    )
+    target_weight: WeightDecimal = Field(
+        ..., ge=0, le=1, description="Target portfolio weight (0-1)"
+    )
+    weight_diff: WeightDecimal = Field(..., description="Weight difference (target - current)")
+    target_value: MoneyDecimal = Field(..., ge=0, description="Target dollar value")
+    current_value: MoneyDecimal = Field(..., ge=0, description="Current dollar value")
+    trade_amount: MoneyDecimal = Field(
         ..., description="Dollar amount to trade (positive=buy, negative=sell)"
     )
     action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
@@ -60,35 +65,6 @@ class RebalancePlanItem(BaseModel):
         if action_upper not in valid_actions:
             raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
         return action_upper
-
-    @field_validator(
-        "current_weight",
-        "target_weight",
-        "weight_diff",
-        "target_value",
-        "current_value",
-        "trade_amount",
-        mode="before",
-    )
-    @classmethod
-    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
-        """Coerce Decimal fields from EventBridge JSON string to Decimal.
-
-        EventBridge serializes Decimal to JSON strings. This validator handles
-        deserialization by converting string values back to Decimal.
-
-        Args:
-            v: Value that may be Decimal, str, int, or float
-
-        Returns:
-            Decimal value
-
-        """
-        if isinstance(v, str):
-            return Decimal(v)
-        elif isinstance(v, (int, float)):
-            return Decimal(str(v))
-        return v
 
 
 class RebalancePlan(BaseModel):
@@ -113,7 +89,7 @@ class RebalancePlan(BaseModel):
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
-    timestamp: datetime = Field(..., description="Plan generation timestamp")
+    timestamp: UtcDatetime = Field(..., description="Plan generation timestamp")
 
     # Plan identification
     plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
@@ -124,9 +100,9 @@ class RebalancePlan(BaseModel):
     )
 
     # Plan metadata
-    total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value")
-    total_trade_value: Decimal = Field(..., description="Total absolute trade value")
-    max_drift_tolerance: Decimal = Field(
+    total_portfolio_value: MoneyDecimal = Field(..., ge=0, description="Total portfolio value")
+    total_trade_value: MoneyDecimal = Field(..., description="Total absolute trade value")
+    max_drift_tolerance: WeightDecimal = Field(
         default=Decimal("0.05"), ge=0, le=1, description="Maximum drift tolerance (0-1)"
     )
 
@@ -150,60 +126,6 @@ class RebalancePlan(BaseModel):
         if urgency_upper not in valid_urgencies:
             raise ValueError(f"Urgency must be one of {valid_urgencies}, got {urgency_upper}")
         return urgency_upper
-
-    @field_validator("timestamp", mode="before")
-    @classmethod
-    def coerce_timestamp_from_eventbridge(cls, v: datetime | str) -> datetime:
-        """Coerce timestamp from EventBridge JSON string to datetime.
-
-        EventBridge serializes datetime to ISO 8601 strings. This validator handles
-        deserialization by parsing the string back to datetime, then ensures it's
-        timezone-aware.
-
-        Args:
-            v: Timestamp (may be str or datetime)
-
-        Returns:
-            datetime object (timezone-aware)
-
-        """
-        if isinstance(v, str):
-            # Parse ISO 8601 string from EventBridge
-            # Handle both 'Z' suffix and '+00:00' timezone format
-            v_normalized = v.replace("Z", "+00:00")
-            v = datetime.fromisoformat(v_normalized)
-
-        # Ensure timezone-aware
-        result = ensure_timezone_aware(v)
-        if result is None:
-            raise ValueError("timestamp cannot be None")
-        return result
-
-    @field_validator(
-        "total_portfolio_value",
-        "total_trade_value",
-        "max_drift_tolerance",
-        mode="before",
-    )
-    @classmethod
-    def coerce_decimal_from_eventbridge(cls, v: Decimal | str | int | float) -> Decimal:
-        """Coerce Decimal fields from EventBridge JSON string to Decimal.
-
-        EventBridge serializes Decimal to JSON strings. This validator handles
-        deserialization by converting string values back to Decimal.
-
-        Args:
-            v: Value that may be Decimal, str, int, or float
-
-        Returns:
-            Decimal value
-
-        """
-        if isinstance(v, str):
-            return Decimal(v)
-        elif isinstance(v, (int, float)):
-            return Decimal(str(v))
-        return v
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.

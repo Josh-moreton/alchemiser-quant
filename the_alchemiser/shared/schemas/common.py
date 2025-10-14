@@ -27,6 +27,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     OrderDetails,
     StrategySignal,
 )
+from .types import DecimalStr
 
 
 class MultiStrategyExecutionResult(BaseModel):
@@ -84,43 +85,15 @@ class AllocationComparison(BaseModel):
         validate_assignment=True,
     )
 
-    target_values: dict[str, Decimal] = Field(..., description="Target allocation values by symbol")
-    current_values: dict[str, Decimal] = Field(
+    target_values: dict[str, DecimalStr] = Field(
+        ..., description="Target allocation values by symbol"
+    )
+    current_values: dict[str, DecimalStr] = Field(
         ..., description="Current allocation values by symbol"
     )
-    deltas: dict[str, Decimal] = Field(
+    deltas: dict[str, DecimalStr] = Field(
         ..., description="Allocation deltas by symbol (current - target)"
     )
-
-    @field_validator("target_values", "current_values", "deltas", mode="before")
-    @classmethod
-    def coerce_dict_decimals_from_eventbridge(
-        cls, v: dict[str, Decimal] | dict[str, str]
-    ) -> dict[str, Decimal]:
-        """Coerce dict[str, Decimal] from EventBridge JSON.
-
-        EventBridge serializes Decimal values to strings. This validator converts
-        string values back to Decimal for all dict entries.
-
-        Args:
-            v: Dictionary with symbol keys and Decimal or string values
-
-        Returns:
-            Dictionary with Decimal values
-
-        """
-        if not isinstance(v, dict):
-            return v
-
-        result = {}
-        for symbol, value in v.items():
-            if isinstance(value, str):
-                result[symbol] = Decimal(value)
-            elif isinstance(value, (int, float)):
-                result[symbol] = Decimal(str(value))
-            else:
-                result[symbol] = value
-        return result
 
 
 class MultiStrategySummary(BaseModel):
