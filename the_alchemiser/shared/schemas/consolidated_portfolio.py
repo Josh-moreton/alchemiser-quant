@@ -97,6 +97,63 @@ class ConsolidatedPortfolio(BaseModel):
         default=None, description="Optional consolidation constraints and metadata"
     )
 
+    @field_validator("target_allocations", mode="before")
+    @classmethod
+    def coerce_allocations_from_eventbridge(
+        cls, v: dict[str, Decimal] | dict[str, str]
+    ) -> dict[str, Decimal]:
+        """Coerce allocation values from strings (EventBridge JSON) to Decimal.
+
+        EventBridge serializes Decimal to JSON strings. This validator handles
+        deserialization by converting string values back to Decimal.
+
+        Args:
+            v: Dictionary of symbol -> allocation weight (may be str or Decimal)
+
+        Returns:
+            Dictionary with Decimal values
+
+        """
+        if not isinstance(v, dict):
+            return v
+
+        result = {}
+        for symbol, weight in v.items():
+            if isinstance(weight, str):
+                # Convert string to Decimal (from EventBridge JSON serialization)
+                result[symbol] = Decimal(weight)
+            elif isinstance(weight, (int, float)):
+                # Convert numeric types to Decimal
+                result[symbol] = Decimal(str(weight))
+            else:
+                # Already Decimal or unknown type - pass through
+                result[symbol] = weight
+        return result
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def coerce_timestamp_from_eventbridge(cls, v: datetime | str) -> datetime:
+        """Coerce timestamp from string (EventBridge JSON) to datetime.
+
+        EventBridge serializes datetime to ISO 8601 strings. This validator handles
+        deserialization by parsing the string back to datetime.
+
+        Args:
+            v: Timestamp (may be str or datetime)
+
+        Returns:
+            datetime object (timezone-aware)
+
+        """
+        if isinstance(v, str):
+            # Parse ISO 8601 string from EventBridge
+            # Handle both 'Z' suffix and '+00:00' timezone format
+            from datetime import datetime
+
+            v_normalized = v.replace("Z", "+00:00")
+            return datetime.fromisoformat(v_normalized)
+        return v
+
     @field_validator("target_allocations")
     @classmethod
     def validate_allocations(cls, v: dict[str, Decimal]) -> dict[str, Decimal]:
