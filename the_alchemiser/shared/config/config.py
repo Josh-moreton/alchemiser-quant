@@ -390,10 +390,32 @@ class ExecutionSettings(BaseModel):
 
 
 class EventBridgeSettings(BaseModel):
-    """Amazon EventBridge configuration for event-driven architecture.
+    """Amazon EventBridge configuration for event-driven architecture migration.
 
-    Simple configuration for EventBridge event bus naming and behavior.
-    No feature flags - clean switch when implementation is ready.
+    This class centralizes configuration for Amazon EventBridge, which is used to
+    facilitate the migration from a monolithic or synchronous architecture to an
+    event-driven architecture within The Alchemiser platform. By defining event bus
+    naming, source prefixes, retry policies, and archive retention, it enables
+    seamless integration with AWS EventBridge for publishing and consuming trading
+    events.
+
+    The configuration is intentionally simple, with no feature flags, to allow a
+    clean switch to event-driven workflows when the implementation is ready. All
+    parameters are designed to be easily overridden via environment variables or
+    profile settings, supporting flexible deployment across development, staging,
+    and production environments.
+
+    Key configuration options:
+        - event_bus_name: Name of the EventBridge event bus for trading events.
+        - source_prefix: Prefix for event sources, enabling logical grouping.
+        - max_retry_attempts: Controls delivery reliability for failed events.
+        - max_event_age_seconds: Limits how long events are retried before expiring.
+        - archive_retention_days: Sets the retention period for archived events.
+
+    Usage:
+        Use this class as part of the main Settings object to configure event-driven
+        workflows. When migrating to EventBridge, update relevant services to publish
+        and consume events according to these settings.
     """
 
     # EventBridge configuration
