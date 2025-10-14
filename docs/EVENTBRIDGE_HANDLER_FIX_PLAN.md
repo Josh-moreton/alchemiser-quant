@@ -172,13 +172,13 @@ def lambda_handler(event, context):
 def lambda_handler(event, context):
     # 1. Extract correlation_id
     # 2. Circuit breaker for ErrorNotificationRequested
-    
+
     # 3. Detect event type
     if _is_domain_event(event):
         # Route to eventbridge_handler
         from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
         return eventbridge_handler(event, context)
-    
+
     # 4. Unwrap EventBridge envelope if present (for scheduler events)
     # 5. Parse as LambdaEvent
     # 6. Execute main()
@@ -188,18 +188,18 @@ def lambda_handler(event, context):
 ```python
 def _is_domain_event(event: dict[str, Any]) -> bool:
     """Detect if event is a domain event vs. command event.
-    
+
     Domain events have:
     - detail-type matching known domain event types
     - source starting with "alchemiser."
-    
+
     Command events have:
     - detail-type: "Scheduled Event" (scheduler)
     - OR no detail-type (direct invocation)
     """
     detail_type = event.get("detail-type", "")
     source = event.get("source", "")
-    
+
     # Known domain event types
     domain_event_types = {
         "WorkflowStarted",
@@ -210,13 +210,13 @@ def _is_domain_event(event: dict[str, Any]) -> bool:
         "WorkflowFailed",
         "ErrorNotificationRequested",
     }
-    
+
     # Check if it's a domain event
     is_domain = (
         detail_type in domain_event_types
         and source.startswith("alchemiser.")
     )
-    
+
     return is_domain
 ```
 
@@ -239,20 +239,20 @@ def _is_domain_event(event: dict[str, Any]) -> bool:
 ```python
 def _is_domain_event(event: dict[str, Any]) -> bool:
     """Detect if event is a domain event (vs. command/scheduler event).
-    
+
     Args:
         event: Lambda event payload
-        
+
     Returns:
         True if domain event (WorkflowStarted, SignalGenerated, etc.)
         False if command event (Scheduled Event, direct invocation)
     """
     if not isinstance(event, dict):
         return False
-    
+
     detail_type = event.get("detail-type", "")
     source = event.get("source", "")
-    
+
     # Known domain event types
     domain_event_types = {
         "WorkflowStarted",
@@ -262,28 +262,28 @@ def _is_domain_event(event: dict[str, Any]) -> bool:
         "WorkflowCompleted",
         "WorkflowFailed",
     }
-    
+
     # Check if it's a domain event from alchemiser
     return detail_type in domain_event_types and source.startswith("alchemiser.")
 
 
 def lambda_handler(event, context):
     """AWS Lambda entry point with smart routing."""
-    
+
     # Extract request IDs
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
     correlation_id = _extract_correlation_id(event)
     set_request_id(correlation_id)
-    
+
     logger.info("Lambda invoked", ...)
-    
+
     # Circuit breaker: Skip error notifications (applies to both handlers)
     if isinstance(event, dict):
         detail_type = event.get("detail-type")
         if detail_type == "ErrorNotificationRequested":
             logger.info("Skipping ErrorNotificationRequested event...")
             return {"status": "skipped", ...}
-    
+
     # Smart routing: Detect domain events vs. command events
     if _is_domain_event(event):
         logger.info(
@@ -293,7 +293,7 @@ def lambda_handler(event, context):
         )
         from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
         return eventbridge_handler(event, context)
-    
+
     # Continue with command/scheduler event handling
     # (existing logic for parse_event_mode, main(), etc.)
     ...
@@ -536,10 +536,10 @@ def test_lambda_handler_routes_to_eventbridge_handler(mock_eventbridge_handler):
         "source": "alchemiser.strategy",
         "detail": {...}
     }
-    
+
     with patch("the_alchemiser.lambda_handler.eventbridge_handler") as mock:
         lambda_handler(event, None)
-    
+
     mock.assert_called_once_with(event, None)
 ```
 
@@ -558,14 +558,14 @@ def test_lambda_handler_routes_to_eventbridge_handler(mock_eventbridge_handler):
 
 **Is it fucked?** No! It's actually in great shape:
 
-✅ **Code already exists** - `lambda_handler_eventbridge.py` is fully implemented  
-✅ **Tests already exist** - comprehensive test coverage  
-✅ **Small fix** - ~42 lines of code, ~30 minutes  
-✅ **Low risk** - simple routing logic, easy to test  
-✅ **Easy rollback** - just disable rules again if issues  
+✅ **Code already exists** - `lambda_handler_eventbridge.py` is fully implemented
+✅ **Tests already exist** - comprehensive test coverage
+✅ **Small fix** - ~42 lines of code, ~30 minutes
+✅ **Low risk** - simple routing logic, easy to test
+✅ **Easy rollback** - just disable rules again if issues
 
-**The problem:** Configuration mismatch between EventBridge Rules and Lambda handlers  
-**The solution:** Smart routing to detect event type and route to correct handler  
-**The effort:** **30 minutes to 1 hour**  
+**The problem:** Configuration mismatch between EventBridge Rules and Lambda handlers
+**The solution:** Smart routing to detect event type and route to correct handler
+**The effort:** **30 minutes to 1 hour**
 
 Not fucked at all! Just needs a small config fix. 🎯
