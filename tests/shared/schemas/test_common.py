@@ -90,6 +90,38 @@ class TestAllocationComparison:
         assert restored.current_values == original.current_values
         assert restored.deltas == original.deltas
 
+    def test_eventbridge_string_deserialization(self):
+        """Test deserialization from EventBridge JSON with string values."""
+        # Simulate EventBridge JSON where Decimal values are serialized as strings
+        eventbridge_data = {
+            "target_values": {"SPY": "50.0", "QQQ": "50.0"},  # Strings from EventBridge
+            "current_values": {"SPY": "45.0", "QQQ": "55.0"},  # Strings from EventBridge
+            "deltas": {"SPY": "5.0", "QQQ": "-5.0"},  # Strings from EventBridge
+        }
+
+        comparison = AllocationComparison.model_validate(eventbridge_data)
+
+        assert comparison.target_values["SPY"] == Decimal("50.0")
+        assert comparison.current_values["SPY"] == Decimal("45.0")
+        assert comparison.deltas["SPY"] == Decimal("5.0")
+        assert comparison.deltas["QQQ"] == Decimal("-5.0")
+
+    def test_eventbridge_numeric_deserialization(self):
+        """Test deserialization from EventBridge JSON with numeric values (edge case)."""
+        # Sometimes numeric types might come through
+        eventbridge_data = {
+            "target_values": {"SPY": 50, "QQQ": 50.5},  # int and float
+            "current_values": {"SPY": 45.0, "QQQ": 55},
+            "deltas": {"SPY": 5, "QQQ": -5.0},
+        }
+
+        comparison = AllocationComparison.model_validate(eventbridge_data)
+
+        assert comparison.target_values["SPY"] == Decimal("50")
+        assert comparison.target_values["QQQ"] == Decimal("50.5")
+        assert comparison.current_values["SPY"] == Decimal("45.0")
+
+
 
 class TestMultiStrategyExecutionResult:
     """Test MultiStrategyExecutionResult DTO validation."""

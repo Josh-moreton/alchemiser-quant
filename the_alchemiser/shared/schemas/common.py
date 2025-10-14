@@ -18,7 +18,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
@@ -27,6 +27,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     OrderDetails,
     StrategySignal,
 )
+from .types import DecimalStr
 
 
 class MultiStrategyExecutionResult(BaseModel):
@@ -84,11 +85,13 @@ class AllocationComparison(BaseModel):
         validate_assignment=True,
     )
 
-    target_values: dict[str, Decimal] = Field(..., description="Target allocation values by symbol")
-    current_values: dict[str, Decimal] = Field(
+    target_values: dict[str, DecimalStr] = Field(
+        ..., description="Target allocation values by symbol"
+    )
+    current_values: dict[str, DecimalStr] = Field(
         ..., description="Current allocation values by symbol"
     )
-    deltas: dict[str, Decimal] = Field(
+    deltas: dict[str, DecimalStr] = Field(
         ..., description="Allocation deltas by symbol (current - target)"
     )
 

@@ -63,9 +63,7 @@ class DataManager:
 
         logger.info("DataManager initialized")
 
-    def _data_exists_for_range(
-        self, symbol: str, start_date: datetime, end_date: datetime
-    ) -> bool:
+    def _data_exists_for_range(self, symbol: str, start_date: datetime, end_date: datetime) -> bool:
         """Check if data exists for the given symbol and date range.
 
         Args:
@@ -128,9 +126,7 @@ class DataManager:
         for symbol in symbols:
             try:
                 # Check if data already exists
-                if not force and self._data_exists_for_range(
-                    symbol, start_date, end_date
-                ):
+                if not force and self._data_exists_for_range(symbol, start_date, end_date):
                     logger.info(
                         f"Data already exists for {symbol}, skipping",
                         symbol=symbol,

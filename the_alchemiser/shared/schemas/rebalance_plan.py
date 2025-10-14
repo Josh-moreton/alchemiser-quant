@@ -21,6 +21,7 @@ from ..utils.data_conversion import (
     convert_nested_rebalance_item_data,
 )
 from ..utils.timezone_utils import ensure_timezone_aware
+from .types import MoneyDecimal, WeightDecimal, UtcDatetime
 
 
 class RebalancePlanItem(BaseModel):
@@ -34,12 +35,16 @@ class RebalancePlanItem(BaseModel):
     )
 
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    current_weight: Decimal = Field(..., ge=0, le=1, description="Current portfolio weight (0-1)")
-    target_weight: Decimal = Field(..., ge=0, le=1, description="Target portfolio weight (0-1)")
-    weight_diff: Decimal = Field(..., description="Weight difference (target - current)")
-    target_value: Decimal = Field(..., ge=0, description="Target dollar value")
-    current_value: Decimal = Field(..., ge=0, description="Current dollar value")
-    trade_amount: Decimal = Field(
+    current_weight: WeightDecimal = Field(
+        ..., ge=0, le=1, description="Current portfolio weight (0-1)"
+    )
+    target_weight: WeightDecimal = Field(
+        ..., ge=0, le=1, description="Target portfolio weight (0-1)"
+    )
+    weight_diff: WeightDecimal = Field(..., description="Weight difference (target - current)")
+    target_value: MoneyDecimal = Field(..., ge=0, description="Target dollar value")
+    current_value: MoneyDecimal = Field(..., ge=0, description="Current dollar value")
+    trade_amount: MoneyDecimal = Field(
         ..., description="Dollar amount to trade (positive=buy, negative=sell)"
     )
     action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
@@ -84,7 +89,7 @@ class RebalancePlan(BaseModel):
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
-    timestamp: datetime = Field(..., description="Plan generation timestamp")
+    timestamp: UtcDatetime = Field(..., description="Plan generation timestamp")
 
     # Plan identification
     plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
@@ -95,9 +100,9 @@ class RebalancePlan(BaseModel):
     )
 
     # Plan metadata
-    total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value")
-    total_trade_value: Decimal = Field(..., description="Total absolute trade value")
-    max_drift_tolerance: Decimal = Field(
+    total_portfolio_value: MoneyDecimal = Field(..., ge=0, description="Total portfolio value")
+    total_trade_value: MoneyDecimal = Field(..., description="Total absolute trade value")
+    max_drift_tolerance: WeightDecimal = Field(
         default=Decimal("0.05"), ge=0, le=1, description="Maximum drift tolerance (0-1)"
     )
 
@@ -121,15 +126,6 @@ class RebalancePlan(BaseModel):
         if urgency_upper not in valid_urgencies:
             raise ValueError(f"Urgency must be one of {valid_urgencies}, got {urgency_upper}")
         return urgency_upper
-
-    @field_validator("timestamp")
-    @classmethod
-    def ensure_timezone_aware_timestamp(cls, v: datetime) -> datetime:
-        """Ensure timestamp is timezone-aware."""
-        result = ensure_timezone_aware(v)
-        if result is None:
-            raise ValueError("timestamp cannot be None")
-        return result
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.

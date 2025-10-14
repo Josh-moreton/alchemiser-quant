@@ -89,9 +89,7 @@ class DataStore:
             logger.warning(f"No bars to save for {symbol}")
             return
 
-        logger.info(
-            f"Saving {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars)
-        )
+        logger.info(f"Saving {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars))
 
         # Group bars by year
         bars_by_year: dict[int, list[DailyBar]] = {}
@@ -131,9 +129,7 @@ class DataStore:
                 file_path=str(file_path),
             )
 
-    def load_bars(
-        self, symbol: str, start_date: datetime, end_date: datetime
-    ) -> list[DailyBar]:
+    def load_bars(self, symbol: str, start_date: datetime, end_date: datetime) -> list[DailyBar]:
         """Load daily bars from Parquet files.
 
         If data files are missing and a data provider is configured,
@@ -258,9 +254,7 @@ class DataStore:
             file_path = self._get_file_path(symbol, year)
             if not file_path.exists():
                 # This should not happen after auto-download above
-                logger.warning(
-                    f"No data file for {symbol} year {year}", symbol=symbol, year=year
-                )
+                logger.warning(f"No data file for {symbol} year {year}", symbol=symbol, year=year)
                 continue
 
             df = pd.read_parquet(file_path, engine="pyarrow")
@@ -269,7 +263,9 @@ class DataStore:
         if not all_dfs:
             from the_alchemiser.shared.errors.exceptions import DataUnavailableError
 
-            error_msg = f"No data found for {symbol} in date range {start_date.date()} to {end_date.date()}"
+            error_msg = (
+                f"No data found for {symbol} in date range {start_date.date()} to {end_date.date()}"
+            )
             raise DataUnavailableError(
                 error_msg,
                 symbol=symbol,
@@ -307,7 +303,9 @@ class DataStore:
             result_bars.append(bar)
 
         logger.info(
-            f"Loaded {len(result_bars)} bars for {symbol}", symbol=symbol, bar_count=len(result_bars)
+            f"Loaded {len(result_bars)} bars for {symbol}",
+            symbol=symbol,
+            bar_count=len(result_bars),
         )
 
         return result_bars

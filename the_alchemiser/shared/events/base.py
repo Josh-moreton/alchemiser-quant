@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
 from ..utils.timezone_utils import ensure_timezone_aware
+from ..schemas.types import UtcDatetime
 
 
 class BaseEvent(BaseModel):
@@ -41,7 +42,7 @@ class BaseEvent(BaseModel):
     # Event identification and timing
     event_id: str = Field(..., min_length=1, description="Unique event identifier")
     event_type: str = Field(..., min_length=1, description=EVENT_TYPE_DESCRIPTION)
-    timestamp: datetime = Field(..., description="Event timestamp")
+    timestamp: UtcDatetime = Field(..., description="Event timestamp")
 
     # Event source and context
     source_module: str = Field(..., min_length=1, description="Module that emitted the event")

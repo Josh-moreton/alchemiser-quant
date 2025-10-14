@@ -676,3 +676,143 @@ class TestRebalancePlanSerialization:
         restored = RebalancePlan.from_dict(data)
 
         assert restored.metadata == metadata
+
+
+class TestRebalancePlanEventBridgeDeserialization:
+    """Test suite for EventBridge JSON deserialization with string values."""
+
+    @pytest.mark.unit
+    def test_rebalance_plan_item_from_eventbridge_strings(self) -> None:
+        """Test RebalancePlanItem can deserialize from EventBridge JSON strings."""
+        # Simulate EventBridge JSON with Decimal fields as strings
+        item_data = {
+            "symbol": "AAPL",
+            "current_weight": "0.3",  # String from EventBridge
+            "target_weight": "0.5",  # String from EventBridge
+            "weight_diff": "0.2",  # String from EventBridge
+            "target_value": "5000.00",  # String from EventBridge
+            "current_value": "3000.00",  # String from EventBridge
+            "trade_amount": "2000.00",  # String from EventBridge
+            "action": "BUY",
+            "priority": 1,
+        }
+
+        # Should successfully deserialize with string values
+        item = RebalancePlanItem.model_validate(item_data)
+
+        assert item.symbol == "AAPL"
+        assert item.current_weight == Decimal("0.3")
+        assert item.target_weight == Decimal("0.5")
+        assert item.weight_diff == Decimal("0.2")
+        assert item.target_value == Decimal("5000.00")
+        assert item.current_value == Decimal("3000.00")
+        assert item.trade_amount == Decimal("2000.00")
+
+    @pytest.mark.unit
+    def test_rebalance_plan_from_eventbridge_strings(self) -> None:
+        """Test RebalancePlan can deserialize from EventBridge JSON strings."""
+        # Simulate EventBridge JSON with datetime and Decimal as strings
+        plan_data = {
+            "schema_version": "1.0",
+            "correlation_id": "corr-123",
+            "causation_id": "cause-123",
+            "timestamp": "2025-01-06T12:30:45+00:00",  # String from EventBridge
+            "plan_id": "plan-123",
+            "items": [
+                {
+                    "symbol": "AAPL",
+                    "current_weight": "0.3",
+                    "target_weight": "0.5",
+                    "weight_diff": "0.2",
+                    "target_value": "5000.00",
+                    "current_value": "3000.00",
+                    "trade_amount": "2000.00",
+                    "action": "BUY",
+                    "priority": 1,
+                }
+            ],
+            "total_portfolio_value": "10000.00",  # String from EventBridge
+            "total_trade_value": "2000.00",  # String from EventBridge
+            "max_drift_tolerance": "0.05",  # String from EventBridge
+            "execution_urgency": "NORMAL",
+            "estimated_duration_minutes": None,
+            "metadata": None,
+        }
+
+        # Should successfully deserialize with string values
+        plan = RebalancePlan.model_validate(plan_data)
+
+        assert plan.plan_id == "plan-123"
+        assert plan.timestamp.year == 2025
+        assert plan.timestamp.month == 1
+        assert plan.timestamp.day == 6
+        assert plan.total_portfolio_value == Decimal("10000.00")
+        assert plan.total_trade_value == Decimal("2000.00")
+        assert plan.max_drift_tolerance == Decimal("0.05")
+        assert len(plan.items) == 1
+        assert plan.items[0].trade_amount == Decimal("2000.00")
+
+    @pytest.mark.unit
+    def test_rebalance_plan_timestamp_with_z_suffix(self) -> None:
+        """Test RebalancePlan handles 'Z' suffix in timestamp from EventBridge."""
+        plan_data = {
+            "schema_version": "1.0",
+            "correlation_id": "corr-123",
+            "causation_id": "cause-123",
+            "timestamp": "2025-01-06T12:30:45Z",  # Z suffix from EventBridge
+            "plan_id": "plan-123",
+            "items": [
+                {
+                    "symbol": "AAPL",
+                    "current_weight": "0.5",
+                    "target_weight": "0.5",
+                    "weight_diff": "0.0",
+                    "target_value": "5000.00",
+                    "current_value": "5000.00",
+                    "trade_amount": "0.00",
+                    "action": "HOLD",
+                    "priority": 1,
+                }
+            ],
+            "total_portfolio_value": "10000.00",
+            "total_trade_value": "0.00",
+        }
+
+        plan = RebalancePlan.model_validate(plan_data)
+
+        assert plan.timestamp.tzinfo is not None
+        assert plan.timestamp.year == 2025
+
+    @pytest.mark.unit
+    def test_rebalance_plan_with_numeric_types(self) -> None:
+        """Test RebalancePlan handles int/float inputs (edge case)."""
+        plan_data = {
+            "schema_version": "1.0",
+            "correlation_id": "corr-123",
+            "causation_id": "cause-123",
+            "timestamp": "2025-01-06T12:30:45+00:00",
+            "plan_id": "plan-123",
+            "items": [
+                {
+                    "symbol": "AAPL",
+                    "current_weight": 0.3,  # float
+                    "target_weight": 0.5,  # float
+                    "weight_diff": 0.2,  # float
+                    "target_value": 5000,  # int
+                    "current_value": 3000,  # int
+                    "trade_amount": 2000,  # int
+                    "action": "BUY",
+                    "priority": 1,
+                }
+            ],
+            "total_portfolio_value": 10000,  # int
+            "total_trade_value": 2000,  # int
+            "max_drift_tolerance": 0.05,  # float
+        }
+
+        plan = RebalancePlan.model_validate(plan_data)
+
+        assert plan.total_portfolio_value == Decimal("10000")
+        assert plan.total_trade_value == Decimal("2000")
+        assert plan.items[0].trade_amount == Decimal("2000")
+

@@ -25,9 +25,7 @@ logger = get_logger(__name__)
 
 def main() -> None:
     """Download historical data for backtesting."""
-    parser = argparse.ArgumentParser(
-        description="Download historical data for backtesting"
-    )
+    parser = argparse.ArgumentParser(description="Download historical data for backtesting")
     parser.add_argument(
         "--symbols",
         nargs="+",
@@ -51,9 +49,9 @@ def main() -> None:
     # Calculate date range
     # Set end_date to yesterday to avoid Alpaca subscription limitations
     # (free tier cannot query current day or last 15 minutes of SIP data)
-    end_date = datetime.now(UTC).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ) - timedelta(days=1)
+    end_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(
+        days=1
+    )
     start_date = end_date - timedelta(days=args.days)
 
     logger.info(
@@ -84,9 +82,7 @@ def main() -> None:
         if info:
             start_date_str = str(info["start_date"])[:10]
             end_date_str = str(info["end_date"])[:10]
-            print(
-                f"  {symbol}: {info['bar_count']} bars from {start_date_str} to {end_date_str}"
-            )
+            print(f"  {symbol}: {info['bar_count']} bars from {start_date_str} to {end_date_str}")
 
     if failed:
         print(f"\n❌ Failed to download data for {len(failed)} symbols:")
