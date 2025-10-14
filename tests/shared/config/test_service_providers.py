@@ -13,6 +13,7 @@ from dependency_injector import containers, providers
 
 from the_alchemiser.shared.config.service_providers import ServiceProviders
 from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.events.eventbridge_bus import EventBridgeBus
 
 
 def test_service_providers_has_dependencies_containers() -> None:
@@ -38,6 +39,8 @@ def test_service_providers_event_bus_is_singleton() -> None:
 
     # Should be same instance (singleton)
     assert bus1 is bus2
+    assert isinstance(bus1, EventBridgeBus)
+    # EventBridgeBus inherits from EventBus
     assert isinstance(bus1, EventBus)
 
 
@@ -46,6 +49,8 @@ def test_service_providers_event_bus_type() -> None:
     container = ServiceProviders()
     bus = container.event_bus()
 
+    assert isinstance(bus, EventBridgeBus)
+    # EventBridgeBus inherits from EventBus
     assert isinstance(bus, EventBus)
     assert hasattr(bus, "publish")
     assert hasattr(bus, "subscribe")
@@ -64,6 +69,8 @@ def test_service_providers_can_be_composed() -> None:
 
     # Should not raise
     bus = container.event_bus()
+    assert isinstance(bus, EventBridgeBus)
+    # EventBridgeBus inherits from EventBus
     assert isinstance(bus, EventBus)
 
 

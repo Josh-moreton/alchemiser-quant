@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [2.26.0] - 2025-10-14
+
+### Changed
+- **Migrated to Amazon EventBridge for distributed event-driven architecture**: Replaced in-memory EventBus with EventBridgeBus
+  - Updated `ServiceProviders` to create `EventBridgeBus` by default instead of in-memory `EventBus`
+  - Updated `EventDrivenOrchestrator` to use `EventBridgeBus` type hints
+  - Added `eventbridge_bus_fixture` for tests requiring EventBridge behavior with mocked boto3 client
+  - Updated tests to verify `EventBridgeBus` instances while maintaining backward compatibility
+  - EventBridge provides durable, async, distributed event routing with automatic retries, dead-letter queues, and CloudWatch observability
+  - Event routing managed via CloudFormation EventRules instead of programmatic subscriptions
+  - Lambda handler (`lambda_handler_eventbridge.py`) receives events from EventBridge and routes to handlers
+  - File: `the_alchemiser/shared/config/service_providers.py`
+  - File: `the_alchemiser/orchestration/event_driven_orchestrator.py`
+  - File: `tests/conftest.py`
+  - File: `tests/shared/config/test_service_providers.py`
+
 ## [2.23.1] - 2025-10-13
 
 ### Changed
