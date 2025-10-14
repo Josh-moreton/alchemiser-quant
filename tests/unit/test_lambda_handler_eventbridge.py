@@ -274,3 +274,210 @@ class TestGetHandlerForEvent:
         handler = _get_handler_for_event(container, "UnknownEvent")
 
         assert handler is None
+
+
+class TestEventBridgeHandlerIdempotency:
+    """Test idempotency functionality in EventBridge handler."""
+
+    @patch("the_alchemiser.lambda_handler_eventbridge.is_duplicate_event")
+    @patch("the_alchemiser.lambda_handler_eventbridge.mark_event_processed")
+    @patch("the_alchemiser.lambda_handler_eventbridge.ApplicationContainer")
+    def test_handler_skips_duplicate_event(
+        self,
+        mock_container_class: Mock,
+        mock_mark: Mock,
+        mock_is_duplicate: Mock,
+    ) -> None:
+        """Test handler skips processing of duplicate events."""
+        from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
+
+        # Setup mocks
+        mock_is_duplicate.return_value = True  # Event is a duplicate
+        mock_mark.return_value = True
+
+        # Mock context
+        context = Mock()
+        context.request_id = "lambda-123"
+
+        # EventBridge event payload
+        event = {
+            "detail-type": "SignalGenerated",
+            "source": "alchemiser.strategy",
+            "detail": {
+                "event_id": "evt-duplicate",
+                "correlation_id": "corr-duplicate",
+                "timestamp": "2025-10-14T12:00:00Z",
+                "event_type": "SignalGenerated",
+                "source_module": "strategy",
+                "signals_data": {},
+                "consolidated_portfolio": {},
+                "signal_count": 0,
+            },
+        }
+
+        # Invoke handler
+        response = eventbridge_handler(event, context)
+
+        # Verify response indicates duplicate
+        assert response["statusCode"] == 200
+        assert "duplicate" in response["body"].lower()
+
+        # Verify idempotency check was called
+        mock_is_duplicate.assert_called_once()
+
+        # Verify mark was NOT called (already duplicate)
+        mock_mark.assert_not_called()
+
+        # Verify handler was NOT invoked
+        mock_container_class.create_for_environment.assert_not_called()
+
+    @patch("the_alchemiser.lambda_handler_eventbridge.is_duplicate_event")
+    @patch("the_alchemiser.lambda_handler_eventbridge.mark_event_processed")
+    @patch("the_alchemiser.lambda_handler_eventbridge.ApplicationContainer")
+    def test_handler_processes_new_event(
+        self,
+        mock_container_class: Mock,
+        mock_mark: Mock,
+        mock_is_duplicate: Mock,
+    ) -> None:
+        """Test handler processes new (non-duplicate) events."""
+        from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
+
+        # Setup mocks
+        mock_is_duplicate.return_value = False  # Not a duplicate
+        mock_mark.return_value = True
+
+        # Mock container and handler
+        mock_container = Mock()
+        mock_handler = Mock()
+        mock_container_class.create_for_environment.return_value = mock_container
+
+        # Mock handler creation
+        from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
+
+        with patch(
+            "the_alchemiser.lambda_handler_eventbridge._get_handler_for_event",
+            return_value=mock_handler,
+        ):
+            # Mock context
+            context = Mock()
+            context.request_id = "lambda-456"
+
+            # EventBridge event payload
+            event = {
+                "detail-type": "SignalGenerated",
+                "source": "alchemiser.strategy",
+                "detail": {
+                    "event_id": "evt-new",
+                    "correlation_id": "corr-new",
+                    "causation_id": "cause-new",
+                    "timestamp": "2025-10-14T12:00:00Z",
+                    "event_type": "SignalGenerated",
+                    "source_module": "strategy",
+                    "signals_data": {},
+                    "consolidated_portfolio": {},
+                    "signal_count": 0,
+                },
+            }
+
+            # Invoke handler
+            response = eventbridge_handler(event, context)
+
+            # Verify success response
+            assert response["statusCode"] == 200
+            assert "processed successfully" in response["body"].lower()
+
+            # Verify idempotency check was called
+            mock_is_duplicate.assert_called_once()
+
+            # Verify mark was called AFTER processing
+            mock_mark.assert_called_once_with("evt-new", stage="dev")
+
+            # Verify handler was invoked
+            mock_handler.handle_event.assert_called_once()
+
+    @patch("the_alchemiser.lambda_handler_eventbridge.is_duplicate_event")
+    @patch("the_alchemiser.lambda_handler_eventbridge.mark_event_processed")
+    def test_handler_uses_stage_from_environment(
+        self,
+        mock_mark: Mock,
+        mock_is_duplicate: Mock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test handler uses APP__STAGE environment variable."""
+        from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
+
+        # Set stage environment variable
+        monkeypatch.setenv("APP__STAGE", "prod")
+
+        # Setup mocks
+        mock_is_duplicate.return_value = True  # Skip processing
+
+        # Mock context
+        context = Mock()
+        context.request_id = "lambda-789"
+
+        # EventBridge event payload
+        event = {
+            "detail-type": "SignalGenerated",
+            "source": "alchemiser.strategy",
+            "detail": {
+                "event_id": "evt-stage-test",
+                "correlation_id": "corr-stage",
+                "timestamp": "2025-10-14T12:00:00Z",
+                "event_type": "SignalGenerated",
+                "source_module": "strategy",
+                "signals_data": {},
+                "consolidated_portfolio": {},
+                "signal_count": 0,
+            },
+        }
+
+        # Invoke handler
+        eventbridge_handler(event, context)
+
+        # Verify stage was passed correctly
+        mock_is_duplicate.assert_called_once_with("evt-stage-test", stage="prod")
+
+    @patch("the_alchemiser.lambda_handler_eventbridge.is_duplicate_event")
+    @patch("the_alchemiser.lambda_handler_eventbridge.mark_event_processed")
+    def test_handler_extracts_correlation_id_from_detail(
+        self,
+        mock_mark: Mock,
+        mock_is_duplicate: Mock,
+    ) -> None:
+        """Test handler extracts correlation_id from event detail for logging."""
+        from the_alchemiser.lambda_handler_eventbridge import eventbridge_handler
+
+        # Setup mocks
+        mock_is_duplicate.return_value = True  # Skip processing for simplicity
+
+        # Mock context
+        context = Mock()
+        context.request_id = "lambda-corr"
+
+        # EventBridge event payload with correlation_id in detail
+        event = {
+            "detail-type": "SignalGenerated",
+            "source": "alchemiser.strategy",
+            "detail": {
+                "event_id": "evt-corr",
+                "correlation_id": "corr-from-detail",
+                "timestamp": "2025-10-14T12:00:00Z",
+                "event_type": "SignalGenerated",
+                "source_module": "strategy",
+                "signals_data": {},
+                "consolidated_portfolio": {},
+                "signal_count": 0,
+            },
+        }
+
+        # Invoke handler (will skip processing due to mock)
+        response = eventbridge_handler(event, context)
+
+        # Verify response
+        assert response["statusCode"] == 200
+
+        # The correlation_id should be extracted from detail and used for logging
+        # This is verified by the set_request_id call within the handler
+

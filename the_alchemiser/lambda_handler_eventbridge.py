@@ -10,11 +10,13 @@ routing events to appropriate handlers based on event type.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from typing import Any
 
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import BaseEvent, EventHandler
+from the_alchemiser.shared.idempotency import is_duplicate_event, mark_event_processed
 from the_alchemiser.shared.logging import get_logger, set_request_id
 
 logger = get_logger(__name__)
@@ -26,6 +28,9 @@ def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any
     This function is invoked by AWS Lambda when an EventBridge rule triggers.
     It extracts event details from the EventBridge payload, reconstructs the
     event object, and routes it to the appropriate handler.
+
+    Implements idempotency checks using DynamoDB to prevent duplicate processing
+    on Lambda retries, EventBridge replays, or manual re-invocations.
 
     Args:
         event: EventBridge event payload containing:
@@ -41,26 +46,47 @@ def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any
         Exception: Re-raises exceptions to trigger Lambda retry mechanism
 
     """
-    # Set request ID for tracing
-    set_request_id(context.request_id if hasattr(context, "request_id") else "unknown")
+    # Extract correlation ID from event detail for tracing
+    detail = event.get("detail", {})
+    if isinstance(detail, str):
+        try:
+            detail = json.loads(detail)
+        except json.JSONDecodeError:
+            detail = {}
+    
+    correlation_id = detail.get("correlation_id", "unknown") if isinstance(detail, dict) else "unknown"
+    
+    # Set request ID for tracing (prefer correlation_id from event)
+    set_request_id(correlation_id)
+    
+    lambda_request_id = getattr(context, "request_id", "unknown") if hasattr(context, "request_id") else "unknown"
 
     try:
         # Extract event details from EventBridge payload
         detail_type = event.get("detail-type", "")
-        detail = event.get("detail", {})
         source = event.get("source", "")
+        event_id = detail.get("event_id") if isinstance(detail, dict) else "unknown"
 
         logger.info(
             "Received EventBridge event",
             detail_type=detail_type,
             source=source,
-            event_id=detail.get("event_id") if isinstance(detail, dict) else "unknown",
-            lambda_request_id=context.request_id if hasattr(context, "request_id") else "unknown",
+            event_id=event_id,
+            correlation_id=correlation_id,
+            lambda_request_id=lambda_request_id,
         )
 
-        # Parse detail as event object
-        if isinstance(detail, str):
-            detail = json.loads(detail)
+        # Idempotency check: skip if already processed
+        if event_id and event_id != "unknown":
+            stage = os.environ.get("APP__STAGE", "dev")
+            if is_duplicate_event(event_id, stage=stage):
+                logger.info(
+                    "Duplicate event detected; skipping processing",
+                    event_id=event_id,
+                    correlation_id=correlation_id,
+                    detail_type=detail_type,
+                )
+                return {"statusCode": 200, "body": "Duplicate event skipped"}
 
         # Parse timestamp if it's a string (EventBridge serializes as ISO string)
         # Handle both ISO 8601 with 'Z' suffix and '+00:00' timezone format
@@ -89,6 +115,10 @@ def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any
         # Invoke handler
         handler.handle_event(event_obj)
 
+        # Mark event as processed (best-effort)
+        if event_id and event_id != "unknown":
+            mark_event_processed(event_id, stage=stage)
+
         logger.info(
             "Event handled successfully",
             detail_type=detail_type,
@@ -104,6 +134,8 @@ def eventbridge_handler(event: dict[str, Any], context: object) -> dict[str, Any
             error=str(e),
             error_type=type(e).__name__,
             detail_type=event.get("detail-type", "unknown"),
+            correlation_id=correlation_id,
+            lambda_request_id=lambda_request_id,
             exc_info=True,
         )
         # Re-raise to trigger retry
