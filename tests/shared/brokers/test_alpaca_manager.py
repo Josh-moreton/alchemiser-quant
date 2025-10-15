@@ -51,11 +51,11 @@ class TestSingletonBehavior:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = AlpacaManager("test_api", "test_secret", paper=True)
         manager2 = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Assert
         assert manager1 is manager2, "Same credentials should return same instance"
 
@@ -72,11 +72,11 @@ class TestSingletonBehavior:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = AlpacaManager("api1", "secret1", paper=True)
         manager2 = AlpacaManager("api2", "secret2", paper=True)
-        
+
         # Assert
         assert manager1 is not manager2, "Different credentials should return different instances"
 
@@ -93,11 +93,11 @@ class TestSingletonBehavior:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = AlpacaManager("test_api", "test_secret", paper=True)
         manager2 = AlpacaManager("test_api", "test_secret", paper=False)
-        
+
         # Assert
         assert manager1 is not manager2, "Different paper mode should return different instances"
 
@@ -114,11 +114,11 @@ class TestSingletonBehavior:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = AlpacaManager("test_api", "test_secret", paper=True, base_url="url1")
         manager2 = AlpacaManager("test_api", "test_secret", paper=True, base_url="url2")
-        
+
         # Assert
         assert manager1 is not manager2, "Different base URL should return different instances"
 
@@ -135,16 +135,16 @@ class TestSingletonBehavior:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = AlpacaManager("test_api", "test_secret", paper=True)
         instance_id1 = id(manager1)
-        
+
         AlpacaManager.cleanup_all_instances()
-        
+
         manager2 = AlpacaManager("test_api", "test_secret", paper=True)
         instance_id2 = id(manager2)
-        
+
         # Assert
         assert instance_id1 != instance_id2, "Cleanup should allow new instance creation"
 
@@ -165,13 +165,13 @@ class TestCredentialSecurity:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         api_key = "test_api_key"
         secret_key = "test_secret_key"
-        
+
         # Act
         manager = AlpacaManager(api_key, secret_key, paper=True)
-        
+
         # Assert - check that instance is stored with hashed key
         credentials_str = f"{api_key}:{secret_key}:True:None"
         # Use PBKDF2_HMAC with static salt (matching the implementation)
@@ -182,7 +182,7 @@ class TestCredentialSecurity:
             _CREDENTIAL_HASH_SALT,
             100_000
         ).hex()
-        
+
         assert expected_hash in AlpacaManager._instances
         assert AlpacaManager._instances[expected_hash] is manager
 
@@ -199,14 +199,14 @@ class TestCredentialSecurity:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act & Assert
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             _ = manager.api_key
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             assert "api_key property is deprecated" in str(w[0].message)
@@ -224,14 +224,14 @@ class TestCredentialSecurity:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act & Assert
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             _ = manager.secret_key
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             assert "secret_key property is deprecated" in str(w[0].message)
@@ -249,11 +249,11 @@ class TestCredentialSecurity:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         with patch("the_alchemiser.shared.brokers.alpaca_manager.logger") as mock_logger:
             manager = AlpacaManager("test_api", "test_secret", paper=True)
-            
+
             # Assert - check that debug log was called with credentials_hash
             mock_logger.debug.assert_called()
             call_kwargs = mock_logger.debug.call_args[1]
@@ -273,12 +273,12 @@ class TestCredentialSecurity:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         manager = AlpacaManager("secret_api", "secret_key", paper=True)
-        
+
         # Act
         repr_str = repr(manager)
-        
+
         # Assert
         assert "secret_api" not in repr_str
         assert "secret_key" not in repr_str
@@ -301,20 +301,20 @@ class TestThreadSafety:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         instances = []
-        
+
         def create_manager():
             manager = AlpacaManager("test_api", "test_secret", paper=True)
             instances.append(manager)
-        
+
         # Act - create managers from 10 concurrent threads
         threads = [threading.Thread(target=create_manager) for _ in range(10)]
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        
+
         # Assert - all threads got the same instance
         assert len(set(id(instance) for instance in instances)) == 1
 
@@ -331,35 +331,35 @@ class TestThreadSafety:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act - simulate cleanup in progress
         AlpacaManager._cleanup_in_progress = True
         AlpacaManager._cleanup_event.clear()
-        
+
         # Start thread that will wait for cleanup
         instances = []
-        
+
         def delayed_create():
             time.sleep(0.1)  # Brief delay
             AlpacaManager._cleanup_in_progress = False
             AlpacaManager._cleanup_event.set()
-        
+
         def create_during_cleanup():
             # This should wait for cleanup
             manager2 = AlpacaManager("test_api", "test_secret", paper=True)
             instances.append(manager2)
-        
+
         cleanup_thread = threading.Thread(target=delayed_create)
         create_thread = threading.Thread(target=create_during_cleanup)
-        
+
         cleanup_thread.start()
         create_thread.start()
-        
+
         cleanup_thread.join()
         create_thread.join()
-        
+
         # Assert - manager was created after cleanup
         assert len(instances) == 1
 
@@ -376,20 +376,20 @@ class TestThreadSafety:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         results = []
-        
+
         def get_manager():
             manager = AlpacaManager("test_api", "test_secret", paper=True)
             results.append(id(manager))
-        
+
         # Act
         threads = [threading.Thread(target=get_manager) for _ in range(5)]
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        
+
         # Assert
         assert len(set(results)) == 1, "All threads should get same instance"
 
@@ -412,12 +412,12 @@ class TestDelegation:
         mock_service = Mock()
         mock_service.get_current_price.return_value = 123.45
         mock_mds.return_value = mock_service
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act
         price = manager.get_current_price("AAPL")
-        
+
         # Assert
         mock_service.get_current_price.assert_called_once_with("AAPL")
         assert isinstance(price, Decimal)
@@ -438,12 +438,12 @@ class TestDelegation:
         mock_service = Mock()
         mock_service.get_current_price.return_value = Decimal("123.45")
         mock_mds.return_value = mock_service
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act
         price = manager.get_current_price("AAPL")
-        
+
         # Assert
         assert isinstance(price, Decimal)
         assert price == Decimal("123.45")
@@ -463,12 +463,12 @@ class TestDelegation:
         mock_service = Mock()
         mock_service.get_current_price.return_value = None
         mock_mds.return_value = mock_service
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act
         price = manager.get_current_price("INVALID")
-        
+
         # Assert
         assert price is None
 
@@ -487,12 +487,12 @@ class TestDelegation:
         mock_service = Mock()
         mock_service.get_current_prices.return_value = {"AAPL": 150.0, "TSLA": 200.0}
         mock_mds.return_value = mock_service
-        
+
         manager = AlpacaManager("test_api", "test_secret", paper=True)
-        
+
         # Act
         prices = manager.get_current_prices(["AAPL", "TSLA"])
-        
+
         # Assert
         mock_service.get_current_prices.assert_called_once_with(["AAPL", "TSLA"])
         assert prices == {"AAPL": 150.0, "TSLA": 200.0}
@@ -510,12 +510,12 @@ class TestDelegation:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act - paper mode
         manager_paper = AlpacaManager("test_api", "test_secret", paper=True)
         # Act - live mode
         manager_live = AlpacaManager("test_api2", "test_secret2", paper=False)
-        
+
         # Assert
         assert manager_paper.is_paper_trading is True
         assert manager_live.is_paper_trading is False
@@ -538,13 +538,13 @@ class TestCleanup:
         mock_ws_instance = Mock()
         mock_ws.return_value = mock_ws_instance
         mock_mds.return_value = Mock()
-        
+
         manager1 = AlpacaManager("api1", "secret1", paper=True)
         manager2 = AlpacaManager("api2", "secret2", paper=True)
-        
+
         # Act
         AlpacaManager.cleanup_all_instances()
-        
+
         # Assert
         assert len(AlpacaManager._instances) == 0
         # Verify cleanup was called on WebSocket managers
@@ -561,24 +561,24 @@ class TestCleanup:
         # Arrange
         mock_trading_client.return_value = Mock()
         mock_data_client.return_value = Mock()
-        
+
         # First manager's cleanup will fail
         mock_ws_fail = Mock()
         mock_ws_fail.cleanup.side_effect = Exception("Cleanup failed")
-        
+
         # Second manager's cleanup will succeed
         mock_ws_ok = Mock()
-        
+
         mock_ws.side_effect = [mock_ws_fail, mock_ws_ok]
         mock_mds.return_value = Mock()
-        
+
         manager1 = AlpacaManager("api1", "secret1", paper=True)
         manager2 = AlpacaManager("api2", "secret2", paper=True)
-        
+
         # Act - should not raise even though one cleanup fails
         with patch("the_alchemiser.shared.brokers.alpaca_manager.logger") as mock_logger:
             AlpacaManager.cleanup_all_instances()
-            
+
             # Assert - error was logged
             mock_logger.error.assert_called()
 
@@ -595,16 +595,16 @@ class TestCleanup:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = AlpacaManager("test_api", "test_secret", paper=True)
         id1 = id(manager1)
-        
+
         AlpacaManager.cleanup_all_instances()
-        
+
         manager2 = AlpacaManager("test_api", "test_secret", paper=True)
         id2 = id(manager2)
-        
+
         # Assert
         assert id1 != id2, "New instance should be created after cleanup"
 
@@ -625,10 +625,10 @@ class TestFactoryFunction:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager = create_alpaca_manager("test_api", "test_secret", paper=True)
-        
+
         # Assert
         assert isinstance(manager, AlpacaManager)
         assert manager.is_paper_trading is True
@@ -646,10 +646,10 @@ class TestFactoryFunction:
         mock_data_client.return_value = Mock()
         mock_ws.return_value = Mock()
         mock_mds.return_value = Mock()
-        
+
         # Act
         manager1 = create_alpaca_manager("test_api", "test_secret", paper=True)
         manager2 = create_alpaca_manager("test_api", "test_secret", paper=True)
-        
+
         # Assert
         assert manager1 is manager2
