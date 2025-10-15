@@ -1,14 +1,16 @@
 {
   "files": [
-    "1-KMLM.clj",
-    "2-Nuclear.clj",
-    "5-Coin.clj",
-    "6-TQQQ-FLT.clj"
+    "foundation/grail.clj",
+    "foundation/kmlm.clj",
+    "foundation/semiconductors.clj",
+    "tactical/bitcoin.clj",
+    "tactical/quantum.clj"
   ],
   "allocations": {
-    "1-KMLM.clj": 0.4,
-    "2-Nuclear.clj": 0.25,
-    "5-Coin.clj": 0.1,
-    "6-TQQQ-FLT.clj": 0.25
+    "foundation/grail.clj": 0.2,
+    "foundation/kmlm.clj": 0.4,
+    "foundation/semiconductors.clj": 0.3,
+    "tactical/bitcoin.clj": 0.05,
+    "tactical/quantum.clj": 0.05
   }
 }
