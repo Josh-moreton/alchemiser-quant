@@ -17,6 +17,7 @@ import os
 from datetime import UTC, datetime
 
 from ..logging import get_logger
+from ..utils.serialization import event_to_detail_str
 from .base import BaseEvent
 from .bus import EventBus, HandlerType
 from .errors import EventPublishError
@@ -110,8 +111,8 @@ class EventBridgeBus(EventBus):
             # Determine source based on module
             source = f"{self.source_prefix}.{event.source_module}"
 
-            # Serialize event to dict (use model_dump for Pydantic v2)
-            event_dict = event.model_dump(mode="json")
+            # Serialize event to JSON string using canonical serialization
+            detail_str = event_to_detail_str(event)
 
             # Build EventBridge entry with proper type annotations
             resources: list[str] = []
@@ -124,7 +125,7 @@ class EventBridgeBus(EventBus):
                 "Time": datetime.now(UTC),
                 "Source": source,
                 "DetailType": event.event_type,
-                "Detail": json.dumps(event_dict),
+                "Detail": detail_str,
                 "EventBusName": self.event_bus_name,
                 "Resources": resources,
             }

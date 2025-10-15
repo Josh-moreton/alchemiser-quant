@@ -34,6 +34,7 @@ from the_alchemiser.shared.logging import (
     set_request_id,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
+from the_alchemiser.shared.utils.serialization import safe_json_dumps
 
 # Set up logging
 logger = get_logger(__name__)
@@ -498,7 +499,7 @@ def lambda_handler(
     try:
         # Log the incoming event for debugging (sanitize secrets)
         event_for_logging = _sanitize_event_for_logging(event) if event else None
-        event_json = json.dumps(event_for_logging) if event_for_logging else "None"
+        event_json = safe_json_dumps(event_for_logging) if event_for_logging else "None"
         logger.info(
             "Lambda invoked with event", event_data=event_json, correlation_id=correlation_id
         )
