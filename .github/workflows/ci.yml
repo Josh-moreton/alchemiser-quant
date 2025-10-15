@@ -45,6 +45,9 @@ jobs:
           make format
           make lint
 
+      - name: Check JSON serialization usage
+        run: ./scripts/check_json_dumps.sh
+
       - name: Type check
         run: make type-check
 
