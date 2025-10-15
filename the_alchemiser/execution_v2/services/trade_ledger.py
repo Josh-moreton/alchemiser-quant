@@ -47,10 +47,10 @@ class S3ClientProtocol(Protocol):
 
     def put_object(
         self,
-        bucket: str,
-        key: str,
-        body: str,
-        content_type: str,
+        Bucket: str,
+        Key: str,
+        Body: str,
+        ContentType: str,
     ) -> dict[str, Any]: ...
 
 
@@ -428,10 +428,10 @@ class TradeLedgerService:
 
             # Upload to S3
             s3_client.put_object(
-                bucket=self._settings.trade_ledger.bucket_name,
-                key=s3_key,
-                body=json.dumps(ledger_data, indent=2),
-                content_type="application/json",
+                Bucket=self._settings.trade_ledger.bucket_name,
+                Key=s3_key,
+                Body=json.dumps(ledger_data, indent=2),
+                ContentType="application/json",
             )
 
             # Mark as persisted

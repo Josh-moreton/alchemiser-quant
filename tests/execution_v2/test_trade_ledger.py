@@ -352,9 +352,9 @@ class TestTradeLedgerService:
         assert result is True
         mock_s3_client.put_object.assert_called_once()
         call_kwargs = mock_s3_client.put_object.call_args[1]
-        assert call_kwargs["bucket"] == "test-bucket"
-        assert "trade-ledgers/" in call_kwargs["key"]
-        assert call_kwargs["content_type"] == "application/json"
+        assert call_kwargs["Bucket"] == "test-bucket"
+        assert "trade-ledgers/" in call_kwargs["Key"]
+        assert call_kwargs["ContentType"] == "application/json"
 
     def test_persist_to_s3_disabled(self):
         """Test that S3 persistence can be disabled."""
