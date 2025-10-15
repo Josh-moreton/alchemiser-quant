@@ -671,7 +671,7 @@ class PortfolioAnalysisHandler:
                 # For multiple strategies, distribute equally
                 # In the future, this could be weighted based on signal strength
                 weight_per_strategy = 1.0 / len(strategy_names)
-                strategy_attribution[symbol] = dict.fromkeys(strategy_names, weight_per_strategy)
+                strategy_attribution[symbol] = {name: weight_per_strategy for name in strategy_names}
 
         return strategy_attribution
 
