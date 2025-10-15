@@ -4,13 +4,13 @@
     "foundation/kmlm.clj",
     "foundation/semiconductors.clj",
     "tactical/bitcoin.clj",
-    "tactical/quantum.clj"
+    "tactical/nuclear.clj"
   ],
   "allocations": {
-    "foundation/grail.clj": 0.2,
-    "foundation/kmlm.clj": 0.4,
-    "foundation/semiconductors.clj": 0.3,
-    "tactical/bitcoin.clj": 0.05,
-    "tactical/quantum.clj": 0.05
+    "foundation/grail.clj": 0.10,
+    "foundation/kmlm.clj": 0.30,
+    "foundation/semiconductors.clj": 0.20,
+    "tactical/bitcoin.clj": 0.20,
+    "tactical/nuclear.clj": 0.20
   }
 }
