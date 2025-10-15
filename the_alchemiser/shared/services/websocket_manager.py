@@ -178,6 +178,7 @@ class WebSocketConnectionManager:
                     secret_key=self._secret_key,
                     paper_trading=self._paper_trading,
                     max_symbols=50,  # Increased limit for shared service
+                    correlation_id=correlation_id,  # Propagate correlation ID for tracing
                 )
 
                 # DO NOT start the service here - let it start lazily when symbols are added

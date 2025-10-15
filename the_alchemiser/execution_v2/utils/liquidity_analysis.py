@@ -8,6 +8,7 @@ to enable truly liquidity-aware order placement that goes beyond simple bid/ask 
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, NamedTuple
@@ -59,18 +60,24 @@ class LiquidityAnalyzer:
         # Convert tick_size to Decimal to avoid floating point precision issues
         self.tick_size = Decimal(str(tick_size))
 
-    def analyze_liquidity(self, quote: QuoteModel, order_size: float) -> LiquidityAnalysis:
+    def analyze_liquidity(
+        self, quote: QuoteModel, order_size: float, side: str | None = None
+    ) -> LiquidityAnalysis:
         """Perform comprehensive liquidity analysis.
 
         Args:
             quote: Current market quote with volume data
             order_size: Size of order to place (in shares)
+            side: Order side ("BUY" or "SELL"). If provided, only computes that side's limit price.
+                  If None (legacy), computes both sides for backward compatibility.
 
         Returns:
             LiquidityAnalysis with recommendations
 
         """
-        logger.debug(f"Analyzing liquidity for {quote.symbol}: order_size={order_size}")
+        logger.debug(
+            f"Analyzing liquidity for {quote.symbol}: order_size={order_size}, side={side}"
+        )
 
         # Early validation of quote prices to prevent downstream negative price calculations
         if quote.bid_price < 0 or quote.ask_price < 0:
@@ -113,7 +120,7 @@ class LiquidityAnalyzer:
         liquidity_score = self._calculate_liquidity_score(quote, float(total_volume))
 
         # Determine optimal pricing based on volume analysis
-        recommended_prices = self._calculate_volume_aware_prices(quote, order_size)
+        recommended_prices = self._calculate_volume_aware_prices(quote, order_size, side)
 
         # Calculate confidence based on data quality and volume
         confidence = self._calculate_confidence(quote, order_size, float(total_volume))
@@ -175,138 +182,180 @@ class LiquidityAnalyzer:
         return min(volume_score + spread_score + balance_score, 100.0)
 
     def _calculate_volume_aware_prices(
-        self, quote: QuoteModel, order_size: float
+        self, quote: QuoteModel, order_size: float, side: str | None = None
     ) -> dict[str, float]:
-        """Calculate optimal prices based on volume analysis.
+        """Calculate optimal limit price(s) based on volume analysis.
+
+        CRITICAL INVARIANT: BUY limit must be < SELL limit (no self-cross).
 
         Args:
             quote: Market quote with volume data
             order_size: Size of order in shares
+            side: "BUY" or "SELL". If specified, only computes that side.
+                  If None, computes both (for legacy/preview use cases).
 
         Returns:
-            Dictionary with recommended bid and ask prices
+            Dictionary with "bid" (BUY limit) and "ask" (SELL limit) prices.
+            When side is specified, the other side uses fallback (quote price).
 
         """
         # Early validation: Ensure quote prices are positive before any calculations
-        # This prevents downstream arithmetic from producing negative recommended prices
         if quote.bid_price <= 0 or quote.ask_price <= 0:
             logger.error(
                 f"Invalid quote prices for {quote.symbol}: "
                 f"bid_price={quote.bid_price}, ask_price={quote.ask_price}. "
                 f"Cannot calculate volume-aware prices with non-positive values."
             )
-            # Return minimum valid prices as emergency fallback
             min_price = Decimal("0.01")
-            return {"bid": float(min_price), "ask": float(min_price)}
+            return {"bid": float(min_price), "ask": float(min_price * 2)}
 
-        # Analyze volume sufficiency at current levels
-        # For BUY orders: we need ask_volume (we buy from sellers)
-        # For SELL orders: we need bid_volume (we sell to buyers)
-        bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
-        ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
-
-        # Convert prices to Decimal for precise arithmetic
+        # Convert to Decimal for precise arithmetic
         bid_price = Decimal(str(quote.bid_price))
         ask_price = Decimal(str(quote.ask_price))
 
-        # For BUY orders: start from ask price and adjust based on ask volume
-        # Larger orders need more aggressive pricing (closer to or above ask)
-        if ask_volume_ratio > 0.8:  # Order size > 80% of available ask volume
-            # Large BUY order - price above ask to ensure fill
-            recommended_bid = ask_price + (self.tick_size * 2)
-            logger.debug(
-                f"Large buy order vs liquidity ({ask_volume_ratio:.1%}), "
-                f"pricing aggressively: {recommended_bid}"
+        # Ensure quote is not already crossed (would indicate upstream data issue)
+        if bid_price >= ask_price:
+            logger.error(
+                f"Crossed quote detected for {quote.symbol}: "
+                f"bid={bid_price} >= ask={ask_price}. "
+                f"Using ask as fallback for both sides."
             )
-        elif ask_volume_ratio > 0.3:  # Order size > 30% of available ask volume
-            # Medium BUY order - price at or slightly above ask
-            recommended_bid = ask_price + self.tick_size
+            return {"bid": float(ask_price), "ask": float(ask_price + self.tick_size)}
+
+        # Helper to quantize to tick_size
+        def quantize(price: Decimal) -> Decimal:
+            return price.quantize(self.tick_size)
+
+        # Compute limit prices based on order side
+        if side and side.upper() == "BUY":
+            # BUY: consume from ask side, anchor to ask_price
+            ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
+            buy_limit = self._calculate_buy_limit(ask_price, ask_volume_ratio, quantize)
+            # Fallback for sell side (not used in this execution)
+            sell_limit = quantize(ask_price + self.tick_size)
+
+        elif side and side.upper() == "SELL":
+            # SELL: consume from bid side, anchor to bid_price
+            bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
+            sell_limit = self._calculate_sell_limit(bid_price, bid_volume_ratio, quantize)
+            # Fallback for buy side (not used in this execution)
+            buy_limit = quantize(bid_price)
+
         else:
-            # Small BUY order - can try to get better price, bid between bid and ask
-            recommended_bid = bid_price + self.tick_size
+            # Legacy mode: compute both sides (for preview/display)
+            # This path is DEPRECATED and should be avoided in execution
+            ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
+            bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
 
-        # For SELL orders: start from bid price and adjust based on bid volume
-        # Larger orders need more aggressive pricing (closer to or below bid)
-        if bid_volume_ratio > 0.8:  # Order size > 80% of available bid volume
-            # Large SELL order - price below bid to ensure fill
-            recommended_ask = bid_price - (self.tick_size * 2)
+            buy_limit = self._calculate_buy_limit(ask_price, ask_volume_ratio, quantize)
+            sell_limit = self._calculate_sell_limit(bid_price, bid_volume_ratio, quantize)
+
+            # Enforce non-cross invariant when computing both sides
+            if buy_limit >= sell_limit:
+                logger.warning(
+                    f"Computed buy_limit ({buy_limit}) >= sell_limit ({sell_limit}) for {quote.symbol}. "
+                    f"Widening to prevent self-cross."
+                )
+                # Widen, don't collapse: ensure at least 1 tick spread
+                sell_limit = quantize(buy_limit + self.tick_size)
+
+        # Final sanity checks
+        min_price = Decimal("0.01")
+        buy_limit = max(buy_limit, min_price)
+        sell_limit = max(sell_limit, min_price + self.tick_size)
+
+        # Enforce invariant ONLY in legacy mode (side=None) where both sides are meaningful
+        # When side is specified, the opposite side is just a fallback and comparisons are invalid
+        if side is None and buy_limit >= sell_limit:
+            logger.error(
+                f"INVARIANT VIOLATION: buy_limit ({buy_limit}) >= sell_limit ({sell_limit}) "
+                f"for {quote.symbol}. Emergency widening."
+            )
+            sell_limit = quantize(buy_limit + self.tick_size)
+
+        return {"bid": float(buy_limit), "ask": float(sell_limit)}
+
+    def _calculate_buy_limit(
+        self,
+        ask_price: Decimal,
+        ask_volume_ratio: float,
+        quantize: Callable[[Decimal], Decimal],
+    ) -> Decimal:
+        """Calculate BUY limit price anchored to ask_price.
+
+        BUY orders consume liquidity from the ask side (sellers).
+        Larger orders relative to ask_size need more aggressive pricing.
+
+        Args:
+            ask_price: Current ask price (Decimal)
+            ask_volume_ratio: order_size / ask_size
+            quantize: Function to round to tick_size
+
+        Returns:
+            Recommended BUY limit price (will NOT cross above ask by default)
+
+        """
+        # Base: BUY at the ask (join the queue)
+        base_limit = ask_price
+
+        # Aggressiveness based on volume consumption
+        if ask_volume_ratio > 0.8:  # Order > 80% of ask liquidity
+            # Large order: stay AT ask (don't cross above)
+            # Rational: We want fill certainty but not overpay
+            # If we need to cross, that's a policy decision above this layer
+            limit = base_limit
             logger.debug(
-                f"Large sell order vs liquidity ({bid_volume_ratio:.1%}), "
-                f"pricing aggressively: {recommended_ask}"
+                f"Large buy vs ask liquidity ({ask_volume_ratio:.1%}), pricing at ask: {limit}"
             )
-        elif bid_volume_ratio > 0.3:  # Order size > 30% of available bid volume
-            # Medium SELL order - price at or slightly below bid
-            recommended_ask = bid_price - self.tick_size
+        elif ask_volume_ratio > 0.3:  # Order > 30% of ask liquidity
+            # Medium order: price at ask (no improvement attempt)
+            limit = base_limit
         else:
-            # Small SELL order - can try to get better price, ask between bid and ask
-            recommended_ask = ask_price - self.tick_size
+            # Small order: try to improve by 1 tick (passive)
+            # (but never go below current bid - that's handled by caller using bid_price floor)
+            limit = quantize(ask_price - self.tick_size)
 
-        # Additional adjustments based on volume imbalance
-        total_volume = quote.bid_size + quote.ask_size
-        if total_volume > 0:
-            imbalance = float((quote.ask_size - quote.bid_size) / total_volume)
+        return quantize(max(limit, Decimal("0.01")))  # Never negative
 
-            # If heavy bid side (imbalance < -0.2), be more aggressive on buys
-            if imbalance < -0.2:
-                # Ensure we don't create negative prices by validating ask_price - tick_size > 0
-                aggressive_bid_limit = ask_price - self.tick_size
-                if aggressive_bid_limit > 0:
-                    recommended_bid = min(recommended_bid + self.tick_size, aggressive_bid_limit)
-                    logger.debug(
-                        f"Heavy bid side detected, adjusting buy price to {recommended_bid}"
-                    )
-                else:
-                    logger.warning(
-                        f"Cannot apply heavy bid side adjustment for {quote.symbol}: "
-                        f"ask_price ({ask_price}) too small for tick adjustment"
-                    )
+    def _calculate_sell_limit(
+        self,
+        bid_price: Decimal,
+        bid_volume_ratio: float,
+        quantize: Callable[[Decimal], Decimal],
+    ) -> Decimal:
+        """Calculate SELL limit price anchored to bid_price.
 
-            # If heavy ask side (imbalance > 0.2), be more aggressive on sells
-            elif imbalance > 0.2:
-                # Ensure we don't create negative prices by validating bid_price + tick_size is reasonable
-                aggressive_ask_floor = bid_price + self.tick_size
-                if aggressive_ask_floor > 0:
-                    recommended_ask = max(recommended_ask - self.tick_size, aggressive_ask_floor)
-                    logger.debug(
-                        f"Heavy ask side detected, adjusting sell price to {recommended_ask}"
-                    )
-                else:
-                    logger.warning(
-                        f"Cannot apply heavy ask side adjustment for {quote.symbol}: "
-                        f"bid_price ({bid_price}) invalid for tick adjustment"
-                    )
+        SELL orders consume liquidity from the bid side (buyers).
+        Larger orders relative to bid_size need more aggressive pricing.
 
-        # Quantize prices to tick_size precision to avoid floating point errors
-        recommended_bid = recommended_bid.quantize(self.tick_size)
-        recommended_ask = recommended_ask.quantize(self.tick_size)
+        Args:
+            bid_price: Current bid price (Decimal)
+            bid_volume_ratio: order_size / bid_size
+            quantize: Function to round to tick_size
 
-        # Validate that recommended prices are positive and reasonable
-        # This prevents issues with bad quote data leading to zero or negative limit prices
-        min_price = Decimal("0.01")  # Minimum 1 cent
+        Returns:
+            Recommended SELL limit price (will NOT cross below bid by default)
 
-        if recommended_bid <= 0:
-            logger.warning(
-                f"Invalid recommended bid price {recommended_bid} for {quote.symbol}, "
-                f"using fallback of ${min_price}"
+        """
+        # Base: SELL at the bid (join the queue)
+        base_limit = bid_price
+
+        # Aggressiveness based on volume consumption
+        if bid_volume_ratio > 0.8:  # Order > 80% of bid liquidity
+            # Large order: stay AT bid (don't cross below)
+            limit = base_limit
+            logger.debug(
+                f"Large sell vs bid liquidity ({bid_volume_ratio:.1%}), pricing at bid: {limit}"
             )
-            recommended_bid = min_price
+        elif bid_volume_ratio > 0.3:  # Order > 30% of bid liquidity
+            # Medium order: price at bid (no improvement attempt)
+            limit = base_limit
+        else:
+            # Small order: try to improve by 1 tick (passive)
+            # (but never go above current ask - that's handled by caller using ask_price ceiling)
+            limit = quantize(bid_price + self.tick_size)
 
-        if recommended_ask <= 0:
-            logger.warning(
-                f"Invalid recommended ask price {recommended_ask} for {quote.symbol}, "
-                f"using fallback of ${min_price}"
-            )
-            recommended_ask = min_price
-
-        # Ensure ask >= bid (basic sanity check)
-        if recommended_ask < recommended_bid:
-            logger.warning(
-                f"Ask price {recommended_ask} < bid price {recommended_bid} for {quote.symbol}, "
-                f"adjusting ask to match bid"
-            )
-            recommended_ask = recommended_bid
-
-        return {"bid": float(recommended_bid), "ask": float(recommended_ask)}
+        return quantize(max(limit, Decimal("0.01")))  # Never negative
 
     def _calculate_confidence(
         self, quote: QuoteModel, order_size: float, total_volume: float
