@@ -326,7 +326,7 @@ class TradingExecutionHandler:
                     "total_trade_value": str(execution_result.total_trade_value),
                     "execution_timestamp": execution_result.execution_timestamp.isoformat(),
                     "success": execution_result.success,
-                    "orders": [order.model_dump() for order in execution_result.orders],
+                    "orders": [order.model_dump(mode="json") for order in execution_result.orders],
                 },
                 success=success,
                 orders_placed=execution_result.orders_placed,

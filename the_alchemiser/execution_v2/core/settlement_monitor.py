@@ -153,7 +153,8 @@ class SettlementMonitor:
         # Create and emit bulk settlement event
         # Convert SettlementDetails to dict for event payload
         settlement_details_dict = {
-            order_id: details.model_dump() for order_id, details in settlement_details.items()
+            order_id: details.model_dump(mode="json")
+            for order_id, details in settlement_details.items()
         }
 
         settlement_event = BulkSettlementCompleted(

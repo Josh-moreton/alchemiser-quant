@@ -349,7 +349,7 @@ class SignalGenerationHandler:
                 source_module="strategy_v2.handlers",
                 source_component="SignalGenerationHandler",
                 signals_data=strategy_signals,
-                consolidated_portfolio=consolidated_portfolio.model_dump(),
+                consolidated_portfolio=consolidated_portfolio.model_dump(mode="json"),
                 signal_count=len(strategy_signals),
                 metadata={
                     "generation_timestamp": datetime.now(UTC).isoformat(),

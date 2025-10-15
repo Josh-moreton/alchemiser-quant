@@ -61,7 +61,8 @@ def _sanitize_event_for_logging(event: LambdaEvent | dict[str, Any] | None) -> d
     if isinstance(event, dict):
         event_dict = event.copy()
     else:
-        event_dict = event.model_dump() if hasattr(event, "model_dump") else {}
+        # Use mode="json" to ensure all types (Decimal, datetime) are JSON-serializable
+        event_dict = event.model_dump(mode="json") if hasattr(event, "model_dump") else {}
 
     # Remove sensitive fields if present
     sensitive_keys = ["api_key", "secret_key", "password", "token", "credentials"]

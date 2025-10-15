@@ -12,7 +12,6 @@ Provides durable, async, distributed event routing with:
 
 from __future__ import annotations
 
-import json
 import os
 from datetime import UTC, datetime
 
@@ -110,8 +109,9 @@ class EventBridgeBus(EventBus):
             # Determine source based on module
             source = f"{self.source_prefix}.{event.source_module}"
 
-            # Serialize event to dict (use model_dump for Pydantic v2)
-            event_dict = event.model_dump(mode="json")
+            # Serialize event to JSON string using Pydantic's native serialization
+            # model_dump_json() respects PlainSerializer definitions for Decimal and datetime
+            detail_json = event.model_dump_json()
 
             # Build EventBridge entry with proper type annotations
             resources: list[str] = []
@@ -124,7 +124,7 @@ class EventBridgeBus(EventBus):
                 "Time": datetime.now(UTC),
                 "Source": source,
                 "DetailType": event.event_type,
-                "Detail": json.dumps(event_dict),
+                "Detail": detail_json,
                 "EventBusName": self.event_bus_name,
                 "Resources": resources,
             }
