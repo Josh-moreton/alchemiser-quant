@@ -24,7 +24,7 @@ import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import ValidationError
 
@@ -33,6 +33,8 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.trade_ledger import TradeLedger, TradeLedgerEntry
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
+
     from the_alchemiser.execution_v2.models.execution_result import OrderResult
     from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
     from the_alchemiser.shared.types.market_data import QuoteModel
@@ -40,18 +42,6 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 __all__ = ["TradeLedgerService"]
-
-
-class S3ClientProtocol(Protocol):
-    """Protocol for boto3 S3 client interface (subset used)."""
-
-    def put_object(
-        self,
-        bucket: str,
-        key: str,
-        body: str,
-        content_type: str,
-    ) -> dict[str, Any]: ...
 
 
 class TradeLedgerService:
@@ -69,7 +59,7 @@ class TradeLedgerService:
         self._ledger_id = str(uuid.uuid4())
         self._entries: list[TradeLedgerEntry] = []
         self._settings = load_settings()
-        self._s3_client: S3ClientProtocol | None = None  # Lazy initialization
+        self._s3_client: S3Client | None = None  # Lazy initialization
         self._s3_init_failed: bool = False  # Track S3 initialization failures
         self._created_at = datetime.now(UTC)  # Capture creation time once
         self._persisted_correlation_ids: set[str] = set()  # Track persisted runs for idempotency
@@ -355,7 +345,7 @@ class TradeLedgerService:
         """Get total number of entries recorded."""
         return len(self._entries)
 
-    def _get_s3_client(self) -> S3ClientProtocol | None:
+    def _get_s3_client(self) -> S3Client | None:
         """Get or create S3 client (lazy initialization).
 
         Returns:
@@ -428,10 +418,10 @@ class TradeLedgerService:
 
             # Upload to S3
             s3_client.put_object(
-                bucket=self._settings.trade_ledger.bucket_name,
-                key=s3_key,
-                body=json.dumps(ledger_data, indent=2),
-                content_type="application/json",
+                Bucket=self._settings.trade_ledger.bucket_name,
+                Key=s3_key,
+                Body=json.dumps(ledger_data, indent=2),
+                ContentType="application/json",
             )
 
             # Mark as persisted
