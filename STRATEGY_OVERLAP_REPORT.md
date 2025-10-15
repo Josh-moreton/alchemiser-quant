@@ -22,7 +22,7 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
 
 ### Foundation Strategies
 
-#### 1. **Prem's Baby** (`the_alchemiser/strategy_v2/strategies/foundation/prems-baby.clj`)
+#### 1. **The Holy Grail** (`the_alchemiser/strategy_v2/strategies/foundation/grail.clj`)
 - **Primary Assets:** TQQQ, TECL, SOXL, UPRO, SPXL, TMF, UVXY
 - **Core Logic:**
   - SPY 200-day MA trend following
@@ -34,7 +34,7 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
   - Long/short rotator with FTLS, KMLM, UUP, SSO
   - Differentiated RSI thresholds for different market conditions
 
-#### 2. **Goog-Soft Prem** (`the_alchemiser/strategy_v2/strategies/foundation/goog-soft-prem.clj`)
+#### 2. **Simons KMLM Switcher** (`the_alchemiser/strategy_v2/strategies/foundation/kmlm.clj`)
 - **Primary Assets:** GOOGL, MSFT, QQQ, SPY, TQQQ
 - **Core Logic:**
   - Focus on big tech individual stocks (GOOGL, MSFT)
@@ -46,7 +46,7 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
   - Simpler decision tree structure
   - Direct equity exposure with hedge positions
 
-#### 3. **Pelosi** (`the_alchemiser/strategy_v2/strategies/foundation/pelosi.clj`)
+#### 3. **FTL Starburst** (`the_alchemiser/strategy_v2/strategies/foundation/starburst.clj`)
 - **Primary Assets:** TQQQ, SOXL, TECL, FNGG (FANG+ 2X), VXX, BIL
 - **Core Logic:**
   - RSI-based entries (<30-32 on TQQQ, SOXL)
@@ -140,6 +140,19 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
   - Simplified RSI structure (10-day windows)
   - BTAL anti-beta positioning
 
+#### 9. **Custom Exposures (Quantum)** (`the_alchemiser/strategy_v2/strategies/tactical/quantum.clj`)
+- **Primary Assets:** SOFI, GME, PLTR, NVDA, AAPL, QQQ, TQQQ
+- **Core Logic:**
+  - Custom portfolio with specific exposure weightings (30% "Stuff I Like", 40% other allocations, 30% momentum)
+  - Individual stock picks (SOFI, GME, PLTR)
+  - Momentum-based filtering
+  - Simpler structure compared to other strategies
+- **Unique Features:**
+  - **Custom exposures** rather than systematic trading
+  - Individual stock concentration
+  - Static weighting approach
+  - Lower complexity
+
 ---
 
 ## Overlap Analysis Matrix
@@ -163,11 +176,11 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
 
 | Logic Pattern | Strategies | Overlap Type |
 |---------------|------------|--------------|
-| **RSI Overbought (>79-81)** | Prem's Baby, Pelosi, Juice, Nuclear, Manhattan, TQQQ Minimal | **HIGH** |
-| **RSI Oversold (<30-32)** | Prem's Baby, Pelosi, Manhattan, TQQQ Minimal, Goog-Soft | **HIGH** |
-| **200-day MA Trend Filter** | Prem's Baby, Goog-Soft, Pelosi, Nuclear, Manhattan, Bitcoin | **HIGH** |
-| **Cumulative Return Spikes** | Prem's Baby, Pelosi, Manhattan, TQQQ Minimal | MEDIUM |
-| **Bond vs Stock RSI** | Prem's Baby, Pelosi, Bitcoin, Manhattan | MEDIUM |
+| **RSI Overbought (>79-81)** | The Holy Grail, FTL Starburst, Juice, Nuclear, Manhattan, TQQQ Minimal | **HIGH** |
+| **RSI Oversold (<30-32)** | The Holy Grail, FTL Starburst, Manhattan, TQQQ Minimal, Simons KMLM | **HIGH** |
+| **200-day MA Trend Filter** | The Holy Grail, Simons KMLM, FTL Starburst, Nuclear, Manhattan, Bitcoin | **HIGH** |
+| **Cumulative Return Spikes** | The Holy Grail, FTL Starburst, Manhattan, TQQQ Minimal | MEDIUM |
+| **Bond vs Stock RSI** | The Holy Grail, FTL Starburst, Bitcoin, Manhattan | MEDIUM |
 | **Volatility Spike Hedging** | All except Goog-Soft | **HIGH** |
 | **EMA Crossovers** | Semiconductors, Bitcoin | LOW |
 
@@ -189,11 +202,11 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
 
 ### Highly Correlated Strategy Pairs
 
-1. **Prem's Baby ↔ Pelosi** (90% correlation)
+1. **The Holy Grail ↔ FTL Starburst** (90% correlation)
    - Both use identical RSI thresholds and windows
    - Same volatility hedging approach
    - Similar bond signal logic
-   - Difference: Pelosi adds FNGG and individual crypto stocks
+   - Difference: FTL Starburst adds FNGG and individual crypto stocks
 
 2. **Juice ↔ Manhattan** (85% correlation)
    - Shared SOXL/TECL/TQQQ core
@@ -201,7 +214,7 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
    - Both employ UVIX heavily
    - Difference: Manhattan has 50/50 structure, Juice has crypto exposure
 
-3. **TQQQ Minimal (embedded in Manhattan) ↔ Prem's Baby** (80% correlation)
+3. **TQQQ Minimal (embedded in Manhattan) ↔ The Holy Grail** (80% correlation)
    - Both use SPY 200 MA filter
    - Similar RSI overbought/oversold thresholds
    - Common UVXY hedging
@@ -215,16 +228,16 @@ This report analyzes 9 trading strategies for overlaps in logic, instruments, se
    - Different fundamental drivers
    - Some shared RSI logic but applied to different assets
 
-2. **Semiconductors ↔ Goog-Soft Prem** (35% correlation)
+2. **Semiconductors ↔ Simons KMLM** (35% correlation)
    - Semiconductors: Sector-specific with individual stocks
-   - Goog-Soft: Big cap tech individual stocks
+   - Simons KMLM: Big cap tech individual stocks
    - Both use individual equities vs ETFs
    - Different sector focuses
 
-3. **Bitcoin ↔ Goog-Soft Prem** (25% correlation)
+3. **Bitcoin ↔ Simons KMLM** (25% correlation)
    - Completely different asset classes
    - Bitcoin: Crypto/commodity
-   - Goog-Soft: Large cap tech equities
+   - Simons KMLM: Large cap tech equities
    - Minimal strategic overlap
 
 ---
@@ -283,11 +296,11 @@ These strategies offer the best risk-adjusted returns with manageable overlap:
 
 | Strategy | Weight | Rationale |
 |----------|--------|-----------|
-| **Prem's Baby** | 25% | Most sophisticated RSI logic with long/short rotation. Proven track record. Broadest asset coverage. |
+| **The Holy Grail** | 25% | Most sophisticated RSI logic with long/short rotation. Proven track record. Broadest asset coverage. |
 | **Nuclear Energy** | 20% | **Unique sector exposure.** Uncorrelated to tech. Defensive characteristics with nuclear theme. |
 | **Bitcoin** | 15% | **Crypto/commodity diversification.** Energy rotation adds depth. Low correlation to pure tech. |
 
-**Tier 1 Overlap:** Minimal (20% estimated). Nuclear and Bitcoin share almost no assets with Prem's Baby beyond baseline hedging.
+**Tier 1 Overlap:** Minimal (20% estimated). Nuclear and Bitcoin share almost no assets with The Holy Grail beyond baseline hedging.
 
 ---
 
@@ -297,10 +310,10 @@ Tactical allocations for specific market regimes:
 
 | Strategy | Weight | Rationale |
 |----------|--------|-----------|
-| **Goog-Soft Prem** | 15% | **Individual stock exposure.** Reduces over-reliance on leveraged ETFs. Simpler logic = easier to manage. |
+| **Simons KMLM** | 15% | **Individual stock exposure.** Reduces over-reliance on leveraged ETFs. Simpler logic = easier to manage. |
 | **Semiconductors** | 15% | **Pure semi play.** Useful during chip upcycles. Contains SOXL but with intelligent SOXS switching. |
 
-**Tier 2 Overlap:** Moderate (40% estimated). Semiconductors overlaps with Prem's Baby on SOXL, but adds bearish capability. Goog-Soft has low overlap.
+**Tier 2 Overlap:** Moderate (40% estimated). Semiconductors overlaps with The Holy Grail on SOXL, but adds bearish capability. Simons KMLM has low overlap.
 
 ---
 
@@ -310,10 +323,11 @@ These strategies offer insufficient differentiation or excessive complexity:
 
 | Strategy | Rationale for Exclusion |
 |----------|-------------------------|
-| **Pelosi** | 90% overlap with Prem's Baby. Adds FNGG but same core logic. Redundant. |
-| **Juice** | 13,997 lines of code. Unmanageable complexity. 85% overlap with Manhattan and Prem's Baby. Crypto exposure covered by Bitcoin strategy. |
-| **Manhattan** | Embedded TQQQ Minimal is 80% correlated to Prem's Baby. Manhattan's 50/50 structure doesn't add enough value vs simpler strategies. |
-| **TQQQ Minimal** | Simplistic version of Prem's Baby. Offers no unique edge. |
+| **FTL Starburst** | 90% overlap with The Holy Grail. Adds FNGG but same core logic. Redundant. |
+| **Juice** | 13,997 lines of code. Unmanageable complexity. 85% overlap with Manhattan and The Holy Grail. Crypto exposure covered by Bitcoin strategy. |
+| **Manhattan** | Embedded TQQQ Minimal is 80% correlated to The Holy Grail. Manhattan's 50/50 structure doesn't add enough value vs simpler strategies. |
+| **TQQQ Minimal** | Simplistic version of The Holy Grail. Offers no unique edge. |
+| **Custom Exposures (Quantum)** | Static custom allocations without systematic trading logic. Better suited as individual satellite positions. |
 
 ---
 
@@ -323,12 +337,12 @@ These strategies offer insufficient differentiation or excessive complexity:
 Total: 90% allocated (10% cash reserve for rebalancing/hedging)
 
 CORE (60%):
-├── Prem's Baby:          25%  ← Sophisticated tech/bond rotation
+├── The Holy Grail:       25%  ← Sophisticated tech/bond rotation
 ├── Nuclear Energy:       20%  ← Sector diversification
 └── Bitcoin:              15%  ← Crypto/commodity exposure
 
 SATELLITE (30%):
-├── Goog-Soft Prem:       15%  ← Individual stock exposure
+├── Simons KMLM:          15%  ← Individual stock exposure
 └── Semiconductors:       15%  ← Pure semi play
 
 RESERVE (10%):
@@ -340,13 +354,13 @@ RESERVE (10%):
 ## Overlap Mitigation Recommendations
 
 ### 1. Stagger Entry/Exit Thresholds
-- Prem's Baby: RSI thresholds at 79/29
+- The Holy Grail: RSI thresholds at 79/29
 - Semiconductors: RSI thresholds at 82/27
-- Goog-Soft: RSI thresholds at 81/30
+- Simons KMLM: RSI thresholds at 81/30
 - **Benefit:** Reduces simultaneous signal firing
 
 ### 2. Diversify Indicator Windows
-- Prem's Baby: 10-day RSI primary
+- The Holy Grail: 10-day RSI primary
 - Bitcoin: 20-day and 50-day EMAs
 - Nuclear: 90-day MA returns
 - **Benefit:** Different lookback periods = different entry timings
@@ -416,13 +430,13 @@ Before deploying this portfolio, validate:
 
 The 9 strategies exhibit **extreme overlap** in technology/semiconductor leveraged ETFs (89% coverage) and RSI-based logic. The recommended 5-strategy portfolio reduces overlap to ~30% while maintaining exposure to proven factors:
 
-1. **Prem's Baby** (25%) - Core sophisticated tech rotation
+1. **The Holy Grail** (25%) - Core sophisticated tech rotation
 2. **Nuclear Energy** (20%) - Sector diversification
 3. **Bitcoin** (15%) - Crypto/commodity exposure
-4. **Goog-Soft Prem** (15%) - Individual stock exposure
+4. **Simons KMLM** (15%) - Individual stock exposure
 5. **Semiconductors** (15%) - Pure semiconductor play
 
-This allocation balances risk, diversification, and operational simplicity. The excluded strategies (Pelosi, Juice, Manhattan, TQQQ Minimal) offer marginal value given their high overlap with retained strategies.
+This allocation balances risk, diversification, and operational simplicity. The excluded strategies (FTL Starburst, Juice, Manhattan, TQQQ Minimal, Custom Exposures) offer marginal value given their high overlap with retained strategies.
 
 **Critical Success Factors:**
 - Monitor leverage rigorously (target <200% portfolio-wide)
