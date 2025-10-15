@@ -1,20 +1,24 @@
 {
   "files": [
-    "1-KMLM.clj",
-    "2-Nuclear.clj",
-    "3-Starburst.clj",
-    "4-What.clj",
-    "5-Coin.clj",
-    "6-TQQQ-FLT.clj",
-    "7-Phoenix.clj"
+    "foundation/grail.clj",
+    "foundation/kmlm.clj",
+    "foundation/semiconductors.clj",
+    "foundation/starburst.clj",
+    "tactical/bitcoin.clj",
+    "tactical/juice.clj",
+    "tactical/manhattan.clj",
+    "tactical/nuclear.clj",
+    "tactical/quantum.clj"
   ],
   "allocations": {
-    "1-KMLM.clj": 0.2,
-    "2-Nuclear.clj": 0.15,
-    "3-Starburst.clj": 0.15,
-    "4-What.clj": 0.1,
-    "5-Coin.clj": 0.1,
-    "6-TQQQ-FLT.clj": 0.15,
-    "7-Phoenix.clj": 0.15
+    "foundation/grail.clj": 0.1875,
+    "foundation/kmlm.clj": 0.1875,
+    "foundation/semiconductors.clj": 0.1875,
+    "foundation/starburst.clj": 0.1875,
+    "tactical/bitcoin.clj": 0.05,
+    "tactical/juice.clj": 0.05,
+    "tactical/manhattan.clj": 0.05,
+    "tactical/nuclear.clj": 0.05,
+    "tactical/quantum.clj": 0.05
   }
 }
