@@ -113,6 +113,11 @@ RequestException = _RequestExcImported
 
 logger = get_logger(__name__)
 
+# Static salt for deterministic credential hashing (dictionary key generation)
+# This is NOT used for authentication - it ensures same credentials always
+# produce the same hash for singleton instance lookup
+_CREDENTIAL_HASH_SALT = b"alchemiser_credential_mapping_v1"
+
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     """Centralized Alpaca client management implementing domain interfaces.
@@ -162,10 +167,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         credentials_str = f"{api_key}:{secret_key}:{paper}:{base_url}"
         # Use PBKDF2_HMAC with static salt for deterministic, expensive hash suitable for secrets mapping
         hash_bytes = hashlib.pbkdf2_hmac(
-            'sha256',
+            "sha256",
             credentials_str.encode(),
             _CREDENTIAL_HASH_SALT,
-            100_000  # iterations
+            100_000,  # iterations
         )
         return hash_bytes.hex()
 

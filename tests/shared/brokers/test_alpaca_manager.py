@@ -174,7 +174,14 @@ class TestCredentialSecurity:
         
         # Assert - check that instance is stored with hashed key
         credentials_str = f"{api_key}:{secret_key}:True:None"
-        expected_hash = hashlib.sha256(credentials_str.encode()).hexdigest()
+        # Use PBKDF2_HMAC with static salt (matching the implementation)
+        from the_alchemiser.shared.brokers.alpaca_manager import _CREDENTIAL_HASH_SALT
+        expected_hash = hashlib.pbkdf2_hmac(
+            "sha256",
+            credentials_str.encode(),
+            _CREDENTIAL_HASH_SALT,
+            100_000
+        ).hex()
         
         assert expected_hash in AlpacaManager._instances
         assert AlpacaManager._instances[expected_hash] is manager
