@@ -174,7 +174,10 @@ class TestCredentialSecurity:
         
         # Assert - check that instance is stored with hashed key
         credentials_str = f"{api_key}:{secret_key}:True:None"
-        expected_hash = hashlib.sha256(credentials_str.encode()).hexdigest()
+        # Use a strong, computationally expensive, deterministic key derivation method for hashing sensitive data (PBKDF2-HMAC-SHA256)
+        expected_hash = hashlib.pbkdf2_hmac(
+            'sha256', credentials_str.encode(), b"unit-test-salt", 100_000
+        ).hex()
         
         assert expected_hash in AlpacaManager._instances
         assert AlpacaManager._instances[expected_hash] is manager
