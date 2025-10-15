@@ -1,14 +1,11 @@
 name: CD
 
 on:
-  # Gate dev deployment on CI success for main
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
-  # Allow prod deployments on release publish
-  release:
-    types: [published]
+  # Prod deployments triggered by version tags (v*.*.*)
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
   # Allow manual deploys for either environment
   workflow_dispatch:
     inputs:
@@ -29,7 +26,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'release' && 'prod' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'dev') }}
+    environment: ${{ contains(github.ref_name, 'beta') && 'dev' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'prod') }}
     # Ensure only one deploy per environment runs at a time
     concurrency:
       group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref || inputs.environment }}
@@ -38,22 +35,19 @@ jobs:
     steps:
       - name: Checkout correct commit
         uses: actions/checkout@v5
-        with:
-          # For workflow_run, use the commit from the CI run; else default to HEAD
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Decide target environment
         id: target
         run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            # Only proceed if CI concluded successfully
-            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
-              echo "CI did not succeed; skipping CD.";
-              exit 1;
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Tag-based deployment
+            if [[ "${{ github.ref_name }}" == *"beta"* ]]; then
+              echo "env=dev" >> $GITHUB_OUTPUT
+              echo "Deploying beta tag ${{ github.ref_name }} to dev"
+            else
+              echo "env=prod" >> $GITHUB_OUTPUT
+              echo "Deploying release tag ${{ github.ref_name }} to prod"
             fi
-            echo "env=dev" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            echo "env=prod" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "env=${{ inputs.environment }}" >> $GITHUB_OUTPUT
           else

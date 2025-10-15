@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all test-coverage release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all test-coverage release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run release-beta deploy-dev deploy-prod
 
 # Default target
 help:
@@ -52,8 +52,11 @@ help:
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment:"
-	@echo "  deploy          Deploy to AWS Lambda"
-	@echo "  release         Create and push a GitHub release (uses version from pyproject.toml)"
+	@echo "  deploy          Deploy to AWS Lambda (deprecated - use deploy-dev or deploy-prod)"
+	@echo "  deploy-dev      Create and push beta tag to trigger dev deployment"
+	@echo "  deploy-prod     Create and push release tag to trigger prod deployment"
+	@echo "  release         Create and push a production release tag (same as deploy-prod)"
+	@echo "  release-beta    Create and push a beta release tag (same as deploy-dev)"
 	@echo "  release v=x.y.z Create release with specific version number"
 	@echo ""
 	@echo "Version Management:"
@@ -332,3 +335,76 @@ bump-major:
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
 	fi
+
+# Beta/Dev Deployment
+release-beta:
+	@echo "🧪 Creating beta release for dev deployment..."
+	@if [ -n "$(v)" ]; then \
+		VERSION_TO_USE="$(v)"; \
+		echo "📋 Using specified version: $$VERSION_TO_USE"; \
+	else \
+		VERSION_TO_USE=$$(poetry version -s); \
+		echo "📋 Using version from pyproject.toml: $$VERSION_TO_USE"; \
+	fi; \
+	BETA_NUM=$$(git tag -l "v$$VERSION_TO_USE-beta.*" | wc -l | tr -d ' '); \
+	BETA_NUM=$$((BETA_NUM + 1)); \
+	TAG="v$$VERSION_TO_USE-beta.$$BETA_NUM"; \
+	echo "🏷️ Tag: $$TAG (beta release for DEV environment)"; \
+	echo ""; \
+	if git tag | grep -q "^$$TAG$$"; then \
+		echo "❌ Tag $$TAG already exists!"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "❌ You have uncommitted changes!"; \
+		echo "💡 Please commit or stash your changes first"; \
+		exit 1; \
+	fi; \
+	echo "📝 Creating beta tag $$TAG..."; \
+	git tag -a "$$TAG" -m "Beta release $$TAG for dev deployment"; \
+	echo "📤 Pushing tag to origin (will trigger dev deployment)..."; \
+	git push origin "$$TAG"; \
+	echo "✅ Beta tag $$TAG created and pushed!"; \
+	echo "🚀 Dev deployment will start automatically via GitHub Actions"
+
+deploy-dev: release-beta
+
+# Production Deployment
+deploy-prod:
+	@echo "🚀 Creating production release tag..."
+	@if [ -n "$(v)" ]; then \
+		VERSION_TO_USE="$(v)"; \
+		echo "📋 Using specified version: $$VERSION_TO_USE"; \
+	else \
+		VERSION_TO_USE=$$(poetry version -s); \
+		echo "📋 Using version from pyproject.toml: $$VERSION_TO_USE"; \
+	fi; \
+	TAG="v$$VERSION_TO_USE"; \
+	echo "🏷️ Tag: $$TAG (production release)"; \
+	echo ""; \
+	if git tag | grep -q "^$$TAG$$"; then \
+		echo "❌ Tag $$TAG already exists!"; \
+		echo "💡 Use a different version or delete the existing tag"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "❌ You have uncommitted changes!"; \
+		echo "💡 Please commit or stash your changes first"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "⚠️  WARNING: This will trigger a PRODUCTION deployment!"; \
+	read -p "Are you sure you want to deploy v$$VERSION_TO_USE to PRODUCTION? [y/N] " -n 1 -r; \
+	echo ""; \
+	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "❌ Production deployment cancelled"; \
+		exit 1; \
+	fi; \
+	echo "📝 Creating production tag $$TAG..."; \
+	git tag -a "$$TAG" -m "Production release $$TAG"; \
+	echo "📤 Pushing tag to origin (will trigger prod deployment)..."; \
+	git push origin "$$TAG"; \
+	echo "✅ Production tag $$TAG created and pushed!"; \
+	echo "🚀 Production deployment will start automatically via GitHub Actions"
