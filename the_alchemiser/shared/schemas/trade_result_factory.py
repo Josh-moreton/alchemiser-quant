@@ -278,23 +278,36 @@ def _create_single_order_result(
     # Extract ONLY last 6 chars (no prefix) to match schema validation (exactly 6 chars)
     order_id_redacted = order_id[-6:] if len(order_id) >= 6 else None
 
-    # Validate and convert qty
-    qty_raw = order.get("qty", 0)
+    # Validate and convert quantity
+    # OrderResult uses "shares" field, legacy code may use "qty"
+    qty_raw = order.get("shares", order.get("qty", 0))
     try:
         qty = Decimal(str(qty_raw))
     except (ValueError, TypeError, Exception) as e:
-        raise ValueError(f"Invalid qty in order: {qty_raw}") from e
+        raise ValueError(f"Invalid shares/qty in order: {qty_raw}") from e
 
     # Validate filled_price if present
-    filled_price = order.get("filled_avg_price")
+    # OrderResult uses "price" field, legacy code may use "filled_avg_price"
+    filled_price = order.get("price", order.get("filled_avg_price"))
     if filled_price is not None and not isinstance(filled_price, (int, float, Decimal)):
-        raise ValueError(f"Invalid filled_avg_price type: {type(filled_price).__name__}")
+        raise ValueError(f"Invalid filled_avg_price/price type: {type(filled_price).__name__}")
 
     trade_amount = _calculate_trade_amount(order, qty, filled_price)
 
     # Map action to OrderAction Literal type
-    side = order.get("side", "").upper()
-    action: OrderAction = "BUY" if side == "BUY" else "SELL"
+    # OrderResult uses "action" field, legacy code may use "side"
+    action_field = str(order.get("action") or order.get("side") or "").upper()
+    action: OrderAction = "BUY" if action_field == "BUY" else "SELL"
+
+    # Determine success: OrderResult uses boolean "success" field
+    # Legacy code may use string "status" field
+    success_value = order.get("success")
+    if isinstance(success_value, bool):
+        # Modern OrderResult format with boolean success field
+        order_success = success_value
+    else:
+        # Legacy format with string status field
+        order_success = order.get("status", "").upper() in ORDER_STATUS_SUCCESS
 
     return OrderResultSummary(
         symbol=order.get("symbol", ""),
@@ -304,7 +317,7 @@ def _create_single_order_result(
         price=(Decimal(str(filled_price)) if filled_price else None),
         order_id_redacted=order_id_redacted,
         order_id_full=order_id,
-        success=order.get("status", "").upper() in ORDER_STATUS_SUCCESS,
+        success=order_success,
         error_message=order.get("error_message"),
         timestamp=order.get("filled_at") or completed_at,
     )

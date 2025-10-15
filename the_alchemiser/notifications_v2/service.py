@@ -43,6 +43,10 @@ class _ExecutionResultAdapter:
             event: Trading notification event to adapt
 
         """
+        from the_alchemiser.shared.logging import get_logger
+
+        logger = get_logger(__name__)
+
         self.success = event.trading_success
         self.correlation_id = event.correlation_id
         self._execution_data = event.execution_data or {}
@@ -59,6 +63,19 @@ class _ExecutionResultAdapter:
         )
         self.execution_summary: dict[str, object] = self._execution_data.get(
             "execution_summary", {}
+        )
+
+        # Debug logging to diagnose missing data
+        logger.debug(
+            "ExecutionResultAdapter initialized",
+            extra={
+                "correlation_id": event.correlation_id,
+                "has_consolidated_portfolio": bool(self.consolidated_portfolio),
+                "has_orders_executed": bool(self.orders_executed),
+                "has_strategy_signals": bool(self.strategy_signals),
+                "orders_count": len(self.orders_executed),
+                "execution_data_keys": list(self._execution_data.keys()),
+            },
         )
 
     def get_execution_data(self, key: str) -> object:

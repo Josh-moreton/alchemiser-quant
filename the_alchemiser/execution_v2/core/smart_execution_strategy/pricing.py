@@ -158,8 +158,11 @@ class PricingCalculator:
         self._validate_side_parameter(side)
         self._validate_quote_data(quote, correlation_id)
 
-        # Perform comprehensive liquidity analysis (convert to float only for analysis)
-        analysis = self.liquidity_analyzer.analyze_liquidity(quote, float(order_size))
+        # Perform comprehensive liquidity analysis with side-specific pricing
+        # This ensures we only compute the limit price for the side we're trading
+        analysis = self.liquidity_analyzer.analyze_liquidity(
+            quote, float(order_size), side=side.upper()
+        )
 
         # Get volume-aware pricing recommendation
         if side.upper() == "BUY":

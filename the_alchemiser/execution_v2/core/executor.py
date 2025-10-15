@@ -297,12 +297,14 @@ class Executor:
                     },
                 )
 
-                # Cast side to Literal type after uppercasing
-                side_upper = cast(Literal["BUY", "SELL"], side.upper())
+                # Normalize side to uppercase and cast to Literal type
+                normalized_side = side.upper()
+                if normalized_side not in ("BUY", "SELL"):
+                    raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
 
                 request = SmartOrderRequest(
                     symbol=symbol,
-                    side=side_upper,
+                    side=cast(Literal["BUY", "SELL"], normalized_side),
                     quantity=Decimal(str(quantity)),
                     correlation_id=correlation_id or "",
                     urgency="NORMAL",

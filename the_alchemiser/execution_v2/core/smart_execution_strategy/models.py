@@ -104,7 +104,12 @@ class SmartOrderRequest:
 
 @dataclass(frozen=True)
 class SmartOrderResult:
-    """Result of smart order placement attempt."""
+    """Result of smart order placement attempt.
+
+    The execution_strategy field captures the specific strategy used for this order,
+    including dynamic values like 'smart_repeg_1', 'smart_repeg_2', etc., and
+    'smart_liquidity_{recommendation}' patterns.
+    """
 
     success: bool
     schema_version: str = "1.0.0"
@@ -112,28 +117,7 @@ class SmartOrderResult:
     final_price: Decimal | None = None
     anchor_price: Decimal | None = None
     repegs_used: int = 0
-    execution_strategy: (
-        Literal[
-            "smart_limit",
-            "market",
-            "limit",
-            "validation_failed",
-            "smart_limit_timeout",
-            "smart_limit_validation_error",
-            "smart_limit_error",
-            "smart_limit_failed",
-            "market_fallback_required",
-            "market_fallback",
-            "market_fallback_failed",
-            "market_escalation",
-            "market_escalation_failed",
-            "market_escalation_duplicate",
-            "market_escalation_error",
-            "smart_repeg_failed",
-            "smart_repeg_error",
-        ]
-        | str
-    ) = "smart_limit"  # Allow str for dynamic values like "smart_repeg_1"
+    execution_strategy: str = "smart_limit"
     error_message: str | None = None
     placement_timestamp: datetime | None = None
     metadata: LiquidityMetadata | None = None
