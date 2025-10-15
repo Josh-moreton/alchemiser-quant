@@ -633,6 +633,23 @@ Resources:
         - !Ref AlarmNotificationTopic
       TreatMissingData: notBreaching
 
+  # Alarm: EventBridge throttled rules
+  EventBridgeThrottledAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "alchemiser-eventbridge-throttled-${Stage}"
+      AlarmDescription: Alert when EventBridge rules are throttled
+      Namespace: AWS/Events
+      MetricName: ThrottledRules
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref AlarmNotificationTopic
+      TreatMissingData: notBreaching
+
   # Alarm: Lambda errors
   LambdaErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -685,6 +702,26 @@ Resources:
       Period: 300
       EvaluationPeriods: 2
       Threshold: 300000  # 5 minutes in milliseconds
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref TradingSystemFunction
+      AlarmActions:
+        - !Ref AlarmNotificationTopic
+      TreatMissingData: notBreaching
+
+  # Alarm: Lambda near-timeout warning (approaching 10-minute timeout)
+  LambdaNearTimeoutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "alchemiser-lambda-near-timeout-${Stage}"
+      AlarmDescription: Alert when Lambda duration exceeds 8 minutes (80% of 10-min timeout)
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 480000  # 8 minutes in milliseconds (80% of 600s timeout)
       ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: FunctionName

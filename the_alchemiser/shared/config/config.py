@@ -411,6 +411,7 @@ class EventBridgeSettings(BaseModel):
         - max_retry_attempts: Controls delivery reliability for failed events.
         - max_event_age_seconds: Limits how long events are retried before expiring.
         - archive_retention_days: Sets the retention period for archived events.
+        - max_payload_size_bytes: Maximum event payload size (EventBridge limit 256KB).
 
     Usage:
         Use this class as part of the main Settings object to configure event-driven
@@ -426,6 +427,13 @@ class EventBridgeSettings(BaseModel):
     source_prefix: str = Field(
         default="alchemiser",
         description="Prefix for event sources (e.g., 'alchemiser.strategy')",
+    )
+
+    # Payload size limits
+    max_payload_size_bytes: int = Field(
+        default=200_000,
+        description="Maximum event payload size in bytes (EventBridge limit is 256KB, "
+        "we use 200KB to leave buffer for metadata)",
     )
 
     # Retry and error handling

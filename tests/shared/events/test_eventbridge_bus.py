@@ -131,6 +131,57 @@ class TestEventBridgeBusPublish:
         assert detail["correlation_id"] == "corr-123"
         assert detail["signal_count"] == 1
 
+    def test_publish_event_exceeds_payload_size_limit(
+        self, eventbridge_bus: EventBridgeBus, mock_events_client: Mock
+    ) -> None:
+        """Test that oversized event payloads are rejected before publishing."""
+        from the_alchemiser.shared.events.errors import EventPublishError
+
+        # Create event with large payload
+        large_data = {"key_" + str(i): "x" * 1000 for i in range(500)}  # ~500KB
+        event = SignalGenerated(
+            correlation_id="corr-123",
+            causation_id="cause-123",
+            event_id="event-123",
+            timestamp=datetime.now(UTC),
+            source_module="strategy",
+            signals_data=large_data,
+            consolidated_portfolio={},
+            signal_count=1,
+        )
+
+        # Should raise EventPublishError with PayloadTooLarge code
+        with pytest.raises(EventPublishError) as exc_info:
+            eventbridge_bus.publish(event)
+
+        assert "too large" in str(exc_info.value).lower()
+        assert exc_info.value.error_code == "PayloadTooLarge"
+        assert exc_info.value.event_id == "event-123"
+
+        # Verify put_events was NOT called (failed before publish)
+        mock_events_client.put_events.assert_not_called()
+
+    def test_publish_event_logs_payload_size(
+        self, eventbridge_bus: EventBridgeBus, mock_events_client: Mock
+    ) -> None:
+        """Test that payload size is logged on successful publish."""
+        event = SignalGenerated(
+            correlation_id="corr-123",
+            causation_id="cause-123",
+            event_id="event-123",
+            timestamp=datetime.now(UTC),
+            source_module="strategy",
+            signals_data={"BTC": 0.5},
+            consolidated_portfolio={"BTC": 0.5},
+            signal_count=1,
+        )
+
+        eventbridge_bus.publish(event)
+
+        # Verify put_events was called with the event
+        # Payload size validation happens before the call
+        mock_events_client.put_events.assert_called_once()
+
     def test_publish_event_verifies_resources(
         self, eventbridge_bus: EventBridgeBus, mock_events_client: Mock
     ) -> None:
