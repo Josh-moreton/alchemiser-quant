@@ -1,9 +1,9 @@
 # Bug Fix: Missing Data in Email Notifications
 
-**Status:** ✅ Fixed  
-**Version:** 2.23.4  
-**Date:** 2025-10-15  
-**Severity:** Medium  
+**Status:** ✅ Fixed
+**Version:** 2.23.4
+**Date:** 2025-10-15
+**Severity:** Medium
 **Category:** Notifications / User Experience
 
 ---
@@ -42,7 +42,7 @@ The `consolidated_portfolio` data was being passed through the workflow but migh
 
 Updated `build_orders_table_neutral()` to use the actual `OrderResult` field names:
 - `action` instead of `side`
-- `shares` instead of `qty` 
+- `shares` instead of `qty`
 - `success` instead of `status`
 
 Added new helper method `_format_order_status_from_success()` to convert boolean `success` field to display string.
