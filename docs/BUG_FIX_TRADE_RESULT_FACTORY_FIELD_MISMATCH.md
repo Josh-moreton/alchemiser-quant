@@ -1,9 +1,9 @@
 # Bug Fix: Trade Result Factory Field Name Mismatch
 
-**Status:** ✅ Fixed  
-**Version:** 2.23.5  
-**Date:** 2025-10-15  
-**Severity:** **CRITICAL**  
+**Status:** ✅ Fixed
+**Version:** 2.23.5
+**Date:** 2025-10-15
+**Severity:** **CRITICAL**
 **Category:** Data Processing / Reporting
 
 ---
@@ -86,7 +86,7 @@ success=order.get("status", "").upper() in ORDER_STATUS_SUCCESS  # ❌ OrderResu
 def _calculate_execution_summary(order_results, ...):
     orders_succeeded = sum(1 for order in order_results if order.success)
     # Since all orders have success=False, this sums to 0
-    
+
     orders_failed = orders_total - orders_succeeded
     # 11 - 0 = 11 (all orders marked as failed!)
 ```
@@ -203,7 +203,7 @@ OrderResultSummary(symbol="TLT", action="BUY", shares=115.26, success=True)  # �
 
 1. **Trade Result Reporting** ✅ Fixed
    - Execution summaries now show correct success/failure counts
-   
+
 2. **Email Notifications** ✅ Already fixed in v2.23.4
    - Order details now display correctly
 
