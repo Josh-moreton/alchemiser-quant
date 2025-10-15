@@ -24,7 +24,9 @@ from the_alchemiser.shared.logging import get_logger
 _COMPONENT_EXECUTE_SIGNALS: str = "TradingOrchestrator.execute_strategy_signals"
 """Component identifier for execute_strategy_signals method in structured logging."""
 
-_COMPONENT_EXECUTE_SIGNALS_WITH_TRADING: str = "TradingOrchestrator.execute_strategy_signals_with_trading"
+_COMPONENT_EXECUTE_SIGNALS_WITH_TRADING: str = (
+    "TradingOrchestrator.execute_strategy_signals_with_trading"
+)
 """Component identifier for execute_strategy_signals_with_trading method in structured logging."""
 
 

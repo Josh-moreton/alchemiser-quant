@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 import structlog
 
@@ -297,9 +297,14 @@ class Executor:
                     },
                 )
 
+                # Normalize side to uppercase and cast to Literal type
+                normalized_side = side.upper()
+                if normalized_side not in ("BUY", "SELL"):
+                    raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
+
                 request = SmartOrderRequest(
                     symbol=symbol,
-                    side=side.upper(),
+                    side=cast(Literal["BUY", "SELL"], normalized_side),
                     quantity=Decimal(str(quantity)),
                     correlation_id=correlation_id or "",
                     urgency="NORMAL",
@@ -709,9 +714,7 @@ class Executor:
 
         # Normal case: calculate shares from trade amount
         raw_shares = abs(item.trade_amount) / price
-        shares = self._position_utils.adjust_quantity_for_fractionability(
-            item.symbol, raw_shares
-        )
+        shares = self._position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
 
         amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
         logger.info(
@@ -753,7 +756,6 @@ class Executor:
             order_type="MARKET",  # Default to MARKET for error cases
             filled_at=None,  # Not filled due to error
         )
-
 
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
