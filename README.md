@@ -243,13 +243,42 @@ PAPER_TRADING=true  # Default for local runs
 
 ### AWS Deployment
 
-```bash
-# Deploy to Lambda
-make deploy
+#### Production & Dev Deployments
 
-# Production credentials are passed via environment variables
-# Set PROD_ALPACA_KEY, PROD_ALPACA_SECRET before deploying to prod
+```bash
+# Deploy to dev (creates beta tag)
+make deploy-dev
+
+# Deploy to production (creates release tag)
+make deploy-prod
+
+# Or use the deprecated direct deploy
+make deploy
 ```
+
+#### Ephemeral Deployments (Feature Branch Testing)
+
+Deploy any feature branch as an isolated, temporary stack:
+
+```bash
+# Deploy ephemeral stack with 24-hour TTL
+make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24
+
+# List active ephemeral stacks
+make list-ephemeral
+
+# Destroy when done testing
+make destroy-ephemeral STACK=alchemiser-ephem-feature-my-feature-a1b2c3d
+```
+
+Ephemeral stacks are:
+- Fully isolated from dev/prod
+- Automatically cleaned up after TTL expires
+- Ideal for realistic testing of infrastructure changes
+
+📖 **[Full Ephemeral Deployments Documentation](docs/EPHEMERAL_DEPLOYMENTS.md)**
+
+For CI/CD details, see **[DEPLOYMENT_WORKFLOW.md](docs/DEPLOYMENT_WORKFLOW.md)**
 
 ## Observability
 
