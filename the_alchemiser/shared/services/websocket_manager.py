@@ -26,6 +26,8 @@ from the_alchemiser.shared.services.real_time_pricing import RealTimePricingServ
 if TYPE_CHECKING:
     pass
 
+# Module-level PBKDF2 salt for hashing credential keys (do not treat as secret, but do not change in production environments)
+_CREDENTIAL_HASH_SALT = b"WebSocketManagerPBKDF2Salt001"  # You may derive this from a config/env var for extra safety.
 logger = get_logger(__name__)
 
 
@@ -67,7 +69,14 @@ class WebSocketConnectionManager:
 
         """
         credentials_str = f"{api_key}:{secret_key}:{paper_trading}"
-        return hashlib.sha256(credentials_str.encode()).hexdigest()
+        # Use PBKDF2 for computationally expensive hashing of credential keys
+        hash_bytes = hashlib.pbkdf2_hmac(
+            "sha256",
+            credentials_str.encode(),
+            _CREDENTIAL_HASH_SALT,
+            100_000,  # Recommended minimum iterations
+        )
+        return hash_bytes.hex()
 
     def __new__(
         cls, api_key: str, secret_key: str, *, paper_trading: bool = True
