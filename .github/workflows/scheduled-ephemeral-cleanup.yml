@@ -1,0 +1,254 @@
+name: Scheduled Ephemeral Cleanup
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (show what would be deleted without deleting)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_PAGER: ""
+
+jobs:
+  cleanup-expired-stacks:
+    runs-on: ubuntu-latest
+    environment: dev
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install jq for JSON parsing
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Find and delete expired ephemeral stacks
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          echo "🔍 Scanning for expired ephemeral stacks..."
+          echo "Dry run: $DRY_RUN"
+          echo ""
+          
+          # Get current timestamp in seconds since epoch
+          CURRENT_TIME=$(date +%s)
+          
+          # Find all stacks with Ephemeral=true tag
+          STACKS=$(aws cloudformation describe-stacks \
+            --query "Stacks[?Tags[?Key=='Ephemeral' && Value=='true']].{Name:StackName,CreationTime:CreationTime,Tags:Tags}" \
+            --output json)
+          
+          STACK_COUNT=$(echo "$STACKS" | jq '. | length')
+          echo "Found $STACK_COUNT ephemeral stack(s)"
+          echo ""
+          
+          if [ "$STACK_COUNT" -eq 0 ]; then
+            echo "✅ No ephemeral stacks found"
+            exit 0
+          fi
+          
+          DELETED_COUNT=0
+          SKIPPED_COUNT=0
+          
+          # Process each stack
+          echo "$STACKS" | jq -c '.[]' | while read -r stack; do
+            STACK_NAME=$(echo "$stack" | jq -r '.Name')
+            CREATION_TIME=$(echo "$stack" | jq -r '.CreationTime')
+            TTL_HOURS=$(echo "$stack" | jq -r '.Tags[] | select(.Key=="TTLHours") | .Value')
+            BRANCH=$(echo "$stack" | jq -r '.Tags[] | select(.Key=="Branch") | .Value // "unknown"')
+            SHORT_SHA=$(echo "$stack" | jq -r '.Tags[] | select(.Key=="ShortSHA") | .Value // "unknown"')
+            
+            # Default TTL to 24 hours if not set
+            if [ -z "$TTL_HOURS" ] || [ "$TTL_HOURS" = "null" ]; then
+              TTL_HOURS=24
+            fi
+            
+            # Convert creation time to seconds since epoch
+            CREATION_TIME_SECONDS=$(date -d "$CREATION_TIME" +%s)
+            
+            # Calculate expiration time
+            TTL_SECONDS=$((TTL_HOURS * 3600))
+            EXPIRATION_TIME=$((CREATION_TIME_SECONDS + TTL_SECONDS))
+            
+            # Calculate age in hours
+            AGE_SECONDS=$((CURRENT_TIME - CREATION_TIME_SECONDS))
+            AGE_HOURS=$((AGE_SECONDS / 3600))
+            REMAINING_HOURS=$((TTL_HOURS - AGE_HOURS))
+            
+            echo "Stack: $STACK_NAME"
+            echo "  Branch: $BRANCH"
+            echo "  Commit: $SHORT_SHA"
+            echo "  Created: $CREATION_TIME"
+            echo "  Age: ${AGE_HOURS}h / ${TTL_HOURS}h TTL"
+            
+            if [ $CURRENT_TIME -ge $EXPIRATION_TIME ]; then
+              echo "  Status: ⏰ EXPIRED (deleting)"
+              
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "  Action: Would delete (dry run)"
+                DELETED_COUNT=$((DELETED_COUNT + 1))
+              else
+                echo "  Action: Deleting..."
+                
+                # Empty S3 bucket first
+                BUCKET_NAME=$(aws cloudformation describe-stack-resources \
+                  --stack-name "$STACK_NAME" \
+                  --query "StackResources[?ResourceType=='AWS::S3::Bucket'].PhysicalResourceId" \
+                  --output text 2>/dev/null || echo "")
+                
+                if [ -n "$BUCKET_NAME" ]; then
+                  echo "    Emptying S3 bucket: $BUCKET_NAME"
+                  
+                  if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+                    # Delete all objects
+                    aws s3 rm "s3://$BUCKET_NAME" --recursive 2>/dev/null || true
+                    
+                    # Delete all versions
+                    aws s3api list-object-versions \
+                      --bucket "$BUCKET_NAME" \
+                      --query 'Versions[].{Key:Key,VersionId:VersionId}' \
+                      --output text 2>/dev/null | \
+                      while read key versionId; do
+                        [ -n "$key" ] && aws s3api delete-object \
+                          --bucket "$BUCKET_NAME" \
+                          --key "$key" \
+                          --version-id "$versionId" 2>/dev/null || true
+                      done
+                    
+                    # Delete all delete markers
+                    aws s3api list-object-versions \
+                      --bucket "$BUCKET_NAME" \
+                      --query 'DeleteMarkers[].{Key:Key,VersionId:VersionId}' \
+                      --output text 2>/dev/null | \
+                      while read key versionId; do
+                        [ -n "$key" ] && aws s3api delete-object \
+                          --bucket "$BUCKET_NAME" \
+                          --key "$key" \
+                          --version-id "$versionId" 2>/dev/null || true
+                      done
+                  fi
+                fi
+                
+                # Delete the stack
+                aws cloudformation delete-stack --stack-name "$STACK_NAME" 2>/dev/null || {
+                  echo "    ⚠️  Failed to delete stack (may already be deleting)"
+                }
+                
+                # Cleanup log group
+                LOG_GROUP="/aws/lambda/${STACK_NAME}-lambda"
+                if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP" 2>/dev/null | grep -q "$LOG_GROUP"; then
+                  echo "    Deleting log group: $LOG_GROUP"
+                  aws logs delete-log-group --log-group-name "$LOG_GROUP" 2>/dev/null || true
+                fi
+                
+                DELETED_COUNT=$((DELETED_COUNT + 1))
+                echo "    ✅ Deletion initiated"
+              fi
+            else
+              echo "  Status: ✅ Active (${REMAINING_HOURS}h remaining)"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+            fi
+            
+            echo ""
+          done
+          
+          # Wait a bit for the counts to be available (since we're in a subshell loop)
+          sleep 2
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Summary:"
+          echo "  Total ephemeral stacks: $STACK_COUNT"
+          
+          # Re-count stacks for summary (workaround for subshell issue)
+          EXPIRED_COUNT=0
+          ACTIVE_COUNT=0
+          
+          echo "$STACKS" | jq -c '.[]' | while read -r stack; do
+            CREATION_TIME=$(echo "$stack" | jq -r '.CreationTime')
+            TTL_HOURS=$(echo "$stack" | jq -r '.Tags[] | select(.Key=="TTLHours") | .Value')
+            
+            if [ -z "$TTL_HOURS" ] || [ "$TTL_HOURS" = "null" ]; then
+              TTL_HOURS=24
+            fi
+            
+            CREATION_TIME_SECONDS=$(date -d "$CREATION_TIME" +%s)
+            TTL_SECONDS=$((TTL_HOURS * 3600))
+            EXPIRATION_TIME=$((CREATION_TIME_SECONDS + TTL_SECONDS))
+            
+            if [ $CURRENT_TIME -ge $EXPIRATION_TIME ]; then
+              EXPIRED_COUNT=$((EXPIRED_COUNT + 1))
+            else
+              ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
+            fi
+          done
+          
+          echo "  Expired stacks: $EXPIRED_COUNT $([ "$DRY_RUN" = "true" ] && echo "(would be deleted)" || echo "(deleted)")"
+          echo "  Active stacks: $ACTIVE_COUNT"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Cleanup orphaned SAM artifacts
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          echo ""
+          echo "🔍 Scanning for orphaned SAM deployment artifacts..."
+          echo ""
+          
+          # Get list of SAM managed buckets
+          SAM_BUCKETS=$(aws s3 ls | grep "aws-sam-cli-managed" | awk '{print $3}')
+          
+          if [ -z "$SAM_BUCKETS" ]; then
+            echo "✅ No SAM managed buckets found"
+            exit 0
+          fi
+          
+          # Get list of existing ephemeral stacks
+          EXISTING_STACKS=$(aws cloudformation describe-stacks \
+            --query "Stacks[?Tags[?Key=='Ephemeral' && Value=='true']].StackName" \
+            --output text)
+          
+          CLEANED_COUNT=0
+          
+          for bucket in $SAM_BUCKETS; do
+            echo "Checking bucket: $bucket"
+            
+            # List all prefixes in the bucket that match ephemeral pattern
+            PREFIXES=$(aws s3 ls "s3://$bucket/" | grep "alchemiser-ephem-" | awk '{print $2}' | sed 's/\///' || echo "")
+            
+            for prefix in $PREFIXES; do
+              # Check if this prefix corresponds to an existing stack
+              if echo "$EXISTING_STACKS" | grep -q "$prefix"; then
+                echo "  $prefix: Active stack (keeping)"
+              else
+                echo "  $prefix: Orphaned ($([ "$DRY_RUN" = "true" ] && echo "would delete" || echo "deleting"))"
+                
+                if [ "$DRY_RUN" != "true" ]; then
+                  aws s3 rm "s3://$bucket/$prefix/" --recursive 2>/dev/null || true
+                  CLEANED_COUNT=$((CLEANED_COUNT + 1))
+                fi
+              fi
+            done
+          done
+          
+          echo ""
+          echo "✅ Orphaned artifacts cleanup complete"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "   (dry run - no changes made)"
+          else
+            echo "   Cleaned: $CLEANED_COUNT prefix(es)"
+          fi

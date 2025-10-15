@@ -14,7 +14,27 @@ Parameters:
     AllowedValues:
       - dev
       - prod
-    Description: Deployment stage (dev or prod)
+      - ephemeral
+    Description: Deployment stage (dev, prod, or ephemeral)
+  
+  StackName:
+    Type: String
+    Default: ""
+    Description: Optional override for stack-specific resource naming (used for ephemeral stacks)
+  
+  Env:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+      - ephemeral
+    Description: Environment type for resource configuration
+  
+  ArtifactPrefix:
+    Type: String
+    Default: ""
+    Description: S3 prefix for artifacts (used for ephemeral stack isolation)
 
   AlpacaKey:
     Type: String
@@ -79,6 +99,9 @@ Parameters:
 
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
+  IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
+  HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
+  UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
 
 Globals:
   Function:
@@ -120,7 +143,10 @@ Resources:
   TradeLedgerBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "the-alchemiser-v2-trade-ledger-${Stage}"
+      BucketName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-trade-ledger"
+        - !Sub "the-alchemiser-v2-trade-ledger-${Stage}"
       VersioningConfiguration:
         Status: Enabled
       PublicAccessBlockConfiguration:
@@ -133,7 +159,10 @@ Resources:
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: !Sub "the-alchemiser-dependencies-${Stage}"
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-dependencies"
+        - !Sub "the-alchemiser-dependencies-${Stage}"
       Description: Dependencies for The Alchemiser Quantitative Trading System
       ContentUri: dependencies/
       CompatibleRuntimes:
@@ -145,7 +174,10 @@ Resources:
   TradingSystemFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "the-alchemiser-v2-lambda-${Stage}"
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-lambda"
+        - !Sub "the-alchemiser-v2-lambda-${Stage}"
       PackageType: Zip
       Runtime: python3.12
       CodeUri: ./
@@ -183,7 +215,10 @@ Resources:
   TradingSystemDLQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub "the-alchemiser-dlq-${Stage}"
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-dlq"
+        - !Sub "the-alchemiser-dlq-${Stage}"
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
 
@@ -191,7 +226,10 @@ Resources:
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub "the-alchemiser-daily-trading-${Stage}"
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-daily-trading"
+        - !Sub "the-alchemiser-daily-trading-${Stage}"
       Description: "Execute quantitative trading system daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
@@ -208,13 +246,16 @@ Resources:
           MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
         DeadLetterConfig:
           Arn: !GetAtt TradingSystemDLQ.Arn
-      State: "ENABLED"
+      State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
 
   # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC
   MonthlySummarySchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub "the-alchemiser-monthly-summary-${Stage}"
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-monthly-summary"
+        - !Sub "the-alchemiser-monthly-summary-${Stage}"
       Description: "Send monthly financial summary on the 1st (previous month)"
       ScheduleExpression: "cron(5 0 1 * ? *)"  # 00:05 UTC on day 1
       ScheduleExpressionTimezone: "UTC"
@@ -231,7 +272,7 @@ Resources:
           MaximumRetryAttempts: 1
         DeadLetterConfig:
           Arn: !GetAtt TradingSystemDLQ.Arn
-      State: "ENABLED"
+      State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
 
   # IAM Role for EventBridge Scheduler to invoke Lambda
   SchedulerExecutionRole:
@@ -313,8 +354,11 @@ Resources:
   TradingSystemLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
-      RetentionInDays: 30
+      LogGroupName: !If
+        - UseStackNameForResources
+        - !Sub "/aws/lambda/${StackName}-lambda"
+        - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
+      RetentionInDays: !If [ IsEphemeral, 3, 30 ]
 
 Outputs:
   TradingSystemFunctionArn:
@@ -323,7 +367,10 @@ Outputs:
 
   TradingSystemLogGroupName:
     Description: "CloudWatch Log Group for monitoring"
-    Value: !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
+    Value: !If
+      - UseStackNameForResources
+      - !Sub "/aws/lambda/${StackName}-lambda"
+      - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
 
   TradeLedgerBucketName:
     Description: "S3 bucket for trade ledger persistence"
@@ -332,3 +379,7 @@ Outputs:
   DeploymentStage:
     Description: "Deployed stage"
     Value: !Ref Stage
+  
+  StackNameUsed:
+    Description: "Stack name used for resource naming"
+    Value: !If [ HasStackName, !Ref StackName, !Sub "the-alchemiser-v2-${Stage}" ]
