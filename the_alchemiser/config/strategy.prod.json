@@ -8,7 +8,7 @@
   ],
   "allocations": {
     "foundation/grail.clj": 0.10,
-    "foundation/kmlm.clj": 0.20,
+    "foundation/kmlm.clj": 0.30,
     "foundation/semiconductors.clj": 0.20,
     "tactical/bitcoin.clj": 0.20,
     "tactical/nuclear.clj": 0.20
