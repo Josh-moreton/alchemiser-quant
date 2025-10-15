@@ -200,6 +200,8 @@ class LiquidityAnalyzer:
             return {"bid": float(min_price), "ask": float(min_price)}
 
         # Analyze volume sufficiency at current levels
+        # For BUY orders: we need ask_volume (we buy from sellers)
+        # For SELL orders: we need bid_volume (we sell to buyers)
         bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
         ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
 
@@ -207,32 +209,37 @@ class LiquidityAnalyzer:
         bid_price = Decimal(str(quote.bid_price))
         ask_price = Decimal(str(quote.ask_price))
 
-        # Adjust based on order size vs available volume
-        if bid_volume_ratio > 0.8:  # Order size > 80% of available volume
-            # Large order relative to liquidity - be more aggressive
-            recommended_bid = bid_price + (self.tick_size * 2)
+        # For BUY orders: start from ask price and adjust based on ask volume
+        # Larger orders need more aggressive pricing (closer to or above ask)
+        if ask_volume_ratio > 0.8:  # Order size > 80% of available ask volume
+            # Large BUY order - price above ask to ensure fill
+            recommended_bid = ask_price + (self.tick_size * 2)
             logger.debug(
-                f"Large buy order vs liquidity ({bid_volume_ratio:.1%}), "
+                f"Large buy order vs liquidity ({ask_volume_ratio:.1%}), "
                 f"pricing aggressively: {recommended_bid}"
             )
-        elif bid_volume_ratio > 0.3:  # Order size > 30% of available volume
-            # Medium order - price just inside
-            recommended_bid = bid_price + self.tick_size
+        elif ask_volume_ratio > 0.3:  # Order size > 30% of available ask volume
+            # Medium BUY order - price at or slightly above ask
+            recommended_bid = ask_price + self.tick_size
         else:
-            # Small order - can be patient, price at best bid
-            recommended_bid = bid_price
+            # Small BUY order - can try to get better price, bid between bid and ask
+            recommended_bid = bid_price + self.tick_size
 
-        # Similar logic for ask side
-        if ask_volume_ratio > 0.8:
-            recommended_ask = ask_price - (self.tick_size * 2)
+        # For SELL orders: start from bid price and adjust based on bid volume
+        # Larger orders need more aggressive pricing (closer to or below bid)
+        if bid_volume_ratio > 0.8:  # Order size > 80% of available bid volume
+            # Large SELL order - price below bid to ensure fill
+            recommended_ask = bid_price - (self.tick_size * 2)
             logger.debug(
-                f"Large sell order vs liquidity ({ask_volume_ratio:.1%}), "
+                f"Large sell order vs liquidity ({bid_volume_ratio:.1%}), "
                 f"pricing aggressively: {recommended_ask}"
             )
-        elif ask_volume_ratio > 0.3:
-            recommended_ask = ask_price - self.tick_size
+        elif bid_volume_ratio > 0.3:  # Order size > 30% of available bid volume
+            # Medium SELL order - price at or slightly below bid
+            recommended_ask = bid_price - self.tick_size
         else:
-            recommended_ask = ask_price
+            # Small SELL order - can try to get better price, ask between bid and ask
+            recommended_ask = ask_price - self.tick_size
 
         # Additional adjustments based on volume imbalance
         total_volume = quote.bid_size + quote.ask_size
