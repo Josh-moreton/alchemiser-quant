@@ -180,6 +180,21 @@ class PortfolioBuilder:
         return "#6B7280", status_upper
 
     @staticmethod
+    def _get_order_status_info_from_success(*, success: bool) -> tuple[str, str]:
+        """Get color and display label for order status from success boolean.
+
+        Args:
+            success: Order success flag from OrderResult
+
+        Returns:
+            Tuple of (color_hex, display_label)
+
+        """
+        if success:
+            return "#10B981", "Success"
+        return "#EF4444", "Failed"
+
+    @staticmethod
     def _format_quantity_display(qty: float | int | Decimal | None) -> str:
         """Format quantity for display with appropriate precision.
 
@@ -349,16 +364,19 @@ class PortfolioBuilder:
         """
 
         for order in orders:
-            # Extract order details safely
-            side = str(order.get("side", ""))
+            # Extract order details safely from OrderResult model fields
+            # OrderResult uses: action (not side), shares (not qty), success (not status)
+            action = str(order.get("action", ""))
             symbol = str(order.get("symbol", ""))
-            qty = order.get("qty", 0)
-            status = str(order.get("status", "unknown"))
+            shares = order.get("shares", 0)
+            success = order.get("success", False)
 
             # Use helper methods for formatting
-            action_color, action_label = PortfolioBuilder._get_order_action_info(side)
-            status_color, status_display = PortfolioBuilder._get_order_status_info(status)
-            qty_display = PortfolioBuilder._format_quantity_display(qty)
+            action_color, action_label = PortfolioBuilder._get_order_action_info(action)
+            status_color, status_display = PortfolioBuilder._get_order_status_info_from_success(
+                success=success
+            )
+            qty_display = PortfolioBuilder._format_quantity_display(shares)
 
             table_html += f"""
                 <tr>
