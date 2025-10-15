@@ -347,8 +347,14 @@ def get_github_repo(owner_repo_env: str | None = None) -> tuple[str, str] | None
             # handle git@github.com:owner/repo.git or https://github.com/owner/repo.git
             if url.startswith("git@") and ":" in url:
                 path = url.split(":", 1)[1]
-            elif url.startswith("http") and "github.com/" in url:
-                path = url.split("github.com/", 1)[1]
+            elif url.startswith("http"):
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                if parsed.hostname and parsed.hostname.lower() == "github.com" and parsed.path:
+                    # parsed.path starts with '/'
+                    path = parsed.path.lstrip("/")
+                else:
+                    path = ""
             else:
                 path = ""
             path = path.replace(".git", "")
