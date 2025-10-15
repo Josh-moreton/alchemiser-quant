@@ -78,8 +78,6 @@ from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataS
 from the_alchemiser.shared.types.market_data import QuoteModel
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 
-# Import Alpaca exceptions for proper error handling with type safety
-_RetryExcImported: type[Exception]
 try:
     from alpaca.common.exceptions import RetryException as _RetryExcImported
 except ImportError:  # pragma: no cover - environment-dependent import
@@ -162,7 +160,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         credentials_str = f"{api_key}:{secret_key}:{paper}:{base_url}"
-        return hashlib.sha256(credentials_str.encode()).hexdigest()
+        # Use PBKDF2_HMAC with static salt for deterministic, expensive hash suitable for secrets mapping
+        hash_bytes = hashlib.pbkdf2_hmac(
+            'sha256',
+            credentials_str.encode(),
+            _CREDENTIAL_HASH_SALT,
+            100_000  # iterations
+        )
+        return hash_bytes.hex()
 
     def __new__(
         cls,
