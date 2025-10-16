@@ -59,6 +59,9 @@ ErrorCategoryType = Literal[
 ]
 SeverityType = Literal["low", "medium", "high", "critical"]
 
+# Constant for schema version field description (prevents code duplication)
+_SCHEMA_VERSION_DESCRIPTION = "Schema version for compatibility tracking."
+
 __all__ = [
     "ErrorCategoryType",
     "ErrorDetailInfo",
@@ -155,9 +158,7 @@ class ErrorDetailInfo(BaseModel):
     suggested_action: str | None = Field(
         default=None, description="Recommended remediation action."
     )
-    schema_version: Literal["1.0"] = Field(
-        default="1.0", description="Schema version for compatibility tracking."
-    )
+    schema_version: Literal["1.0"] = Field(default="1.0", description=_SCHEMA_VERSION_DESCRIPTION)
 
 
 class ErrorSummaryData(BaseModel):
@@ -202,9 +203,7 @@ class ErrorSummaryData(BaseModel):
     errors: list[ErrorDetailInfo] = Field(
         default_factory=list, description="List of error details."
     )
-    schema_version: Literal["1.0"] = Field(
-        default="1.0", description="Schema version for compatibility tracking."
-    )
+    schema_version: Literal["1.0"] = Field(default="1.0", description=_SCHEMA_VERSION_DESCRIPTION)
 
 
 class ErrorReportSummary(BaseModel):
@@ -266,9 +265,7 @@ class ErrorReportSummary(BaseModel):
         default=None, description="Notification system errors."
     )
     warning: ErrorSummaryData | None = Field(default=None, description="Warning-level issues.")
-    schema_version: Literal["1.0"] = Field(
-        default="1.0", description="Schema version for compatibility tracking."
-    )
+    schema_version: Literal["1.0"] = Field(default="1.0", description=_SCHEMA_VERSION_DESCRIPTION)
 
 
 # Error Notification Types
@@ -351,9 +348,7 @@ class ErrorNotificationData(BaseModel):
     email_sent: bool = Field(description="Whether email was sent.")
     correlation_id: str | None = Field(default=None, description="Event correlation ID.")
     event_id: str | None = Field(default=None, description="Event identifier.")
-    schema_version: Literal["1.0"] = Field(
-        default="1.0", description="Schema version for compatibility tracking."
-    )
+    schema_version: Literal["1.0"] = Field(default="1.0", description=_SCHEMA_VERSION_DESCRIPTION)
 
 
 # Deprecation notice for ErrorContextData
