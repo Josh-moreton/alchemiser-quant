@@ -40,6 +40,8 @@ logger = get_logger(__name__)
 
 # Public API
 __all__ = [
+    "_execute_trading_command",
+    "_log_and_handle_error",
     "lambda_handler",
     "parse_event_mode",
 ]
@@ -324,6 +326,115 @@ def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
     return ["trade"]
 
 
+def _execute_trading_command(
+    event: LambdaEvent | None,
+    correlation_id: str,
+    request_id: str,
+) -> tuple[dict[str, Any], str, str, list[str]]:
+    """Execute the trading command and build response.
+
+    Args:
+        event: Lambda event data
+        correlation_id: Correlation ID for tracking
+        request_id: Request ID for response
+
+    Returns:
+        Tuple of (response dict, mode, trading_mode, command_args)
+
+    """
+    # Log the incoming event for debugging (sanitize secrets)
+    event_for_logging = _sanitize_event_for_logging(event) if event else None
+    event_json = json.dumps(event_for_logging) if event_for_logging else "None"
+    logger.info("Lambda invoked with event", event_data=event_json, correlation_id=correlation_id)
+
+    # Parse event to determine command arguments
+    command_args = parse_event_mode(event or {})
+
+    # Extract mode information for response
+    # Determine from command_args: first arg is mode (trade/pnl/bot)
+    mode = command_args[0] if command_args else "trade"
+
+    # Determine trading mode based on endpoint URL
+    trading_mode = _determine_trading_mode(mode)
+
+    logger.info("Executing command", command=" ".join(command_args))
+
+    # main() loads settings internally; do not pass unsupported kwargs
+    result = main(command_args)
+
+    # Normalize result for response formatting
+    result_ok = bool(result.success) if hasattr(result, "success") else bool(result)
+
+    # Build response message
+    message = _build_response_message(trading_mode, result=result_ok)
+
+    response = {
+        "status": "success" if result_ok else "failed",
+        "mode": mode,
+        "trading_mode": trading_mode,
+        "message": message,
+        "request_id": request_id,
+    }
+
+    logger.info("Lambda execution completed", response=response)
+    return response, mode, trading_mode, command_args
+
+
+def _log_and_handle_error(
+    error: Exception,
+    event: LambdaEvent | None,
+    request_id: str,
+    mode: str,
+    trading_mode: str,
+    command_args: list[str] | None,
+    *,
+    is_critical: bool,
+) -> None:
+    """Log error and delegate to appropriate handler.
+
+    Args:
+        error: The exception that occurred
+        event: Lambda event data
+        request_id: Request ID for tracking
+        mode: Execution mode
+        trading_mode: Trading mode (paper/live/n/a)
+        command_args: Parsed command arguments
+        is_critical: Whether this is a critical error
+
+    """
+    # Build error message and log fields
+    if is_critical:
+        error_message = f"Lambda execution critical error: {error!s}"
+        log_message = "Lambda execution critical error"
+        error_type = "unexpected_critical_error"
+        extra_fields = {"original_error": type(error).__name__}
+    else:
+        error_message = f"Lambda execution error ({type(error).__name__}): {error!s}"
+        log_message = "Lambda execution error"
+        error_type = type(error).__name__
+        extra_fields = {}
+
+    # Log the error
+    logger.error(
+        log_message,
+        error_message=error_message,
+        error_type=error_type,
+        **extra_fields,
+        operation="lambda_execution",
+        function="lambda_handler",
+        mode=mode,
+        trading_mode=trading_mode,
+        request_id=request_id,
+        exc_info=True,
+    )
+
+    # Enhanced error handling with detailed reporting
+    if is_critical:
+        _handle_critical_error(error, event, request_id, command_args)
+    else:
+        _handle_trading_error(error, event, request_id, command_args)
+
+
 def lambda_handler(
     event: LambdaEvent | None = None, context: object | None = None
 ) -> dict[str, Any]:
@@ -412,85 +523,24 @@ def lambda_handler(
     #     logger.warning("Duplicate request detected; skipping execution", correlation_id=correlation_id)
     #     return {"status": "skipped", "message": "Duplicate request", "request_id": request_id}
 
+    mode = "unknown"
+    trading_mode = "unknown"
+    command_args = None  # type: list[str] | None
+
     try:
-        # Log the incoming event for debugging (sanitize secrets)
-        event_for_logging = _sanitize_event_for_logging(event) if event else None
-        event_json = json.dumps(event_for_logging) if event_for_logging else "None"
-        logger.info(
-            "Lambda invoked with event", event_data=event_json, correlation_id=correlation_id
+        response, mode, trading_mode, command_args = _execute_trading_command(
+            event, correlation_id, request_id
         )
-
-        # Parse event to determine command arguments
-        command_args = parse_event_mode(event or {})
-
-        # Extract mode information for response
-        # Determine from command_args: first arg is mode (trade/pnl/bot)
-        mode = command_args[0] if command_args else "trade"
-
-        # Determine trading mode based on endpoint URL
-        trading_mode = _determine_trading_mode(mode)
-
-        logger.info("Executing command", command=" ".join(command_args))
-
-        # main() loads settings internally; do not pass unsupported kwargs
-        result = main(command_args)
-
-        # Normalize result for response formatting
-        result_ok = bool(result.success) if hasattr(result, "success") else bool(result)
-
-        # Build response message
-        message = _build_response_message(trading_mode, result=result_ok)
-
-        response = {
-            "status": "success" if result_ok else "failed",
-            "mode": mode,
-            "trading_mode": trading_mode,
-            "message": message,
-            "request_id": request_id,
-        }
-
-        logger.info("Lambda execution completed", response=response)
         return response
-
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        # Safely get variables that might not be defined
-        mode = locals().get("mode", "unknown")
-        trading_mode = locals().get("trading_mode", "unknown")
-        parsed_command_args = locals().get("command_args")  # type: list[str] | None
-
-        error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
-        logger.error(
-            "Lambda execution error",
-            error_message=error_message,
-            error_type=type(e).__name__,
-            operation="lambda_execution",
-            function="lambda_handler",
-            mode=mode,
-            trading_mode=trading_mode,
-            request_id=request_id,
-            exc_info=True,
+        _log_and_handle_error(
+            e, event, request_id, mode, trading_mode, command_args, is_critical=False
         )
-
-        # Enhanced error handling with detailed reporting
-        _handle_trading_error(e, event, request_id, parsed_command_args)
-
+        error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
         return _build_error_response(mode, trading_mode, error_message, request_id)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        critical_command_args = locals().get("command_args")  # type: list[str] | None
-
-        error_message = f"Lambda execution critical error: {e!s}"
-        logger.error(
-            "Lambda execution critical error",
-            error_message=error_message,
-            error_type="unexpected_critical_error",
-            original_error=type(e).__name__,
-            operation="lambda_execution",
-            function="lambda_handler",
-            request_id=request_id,
-            exc_info=True,
+        _log_and_handle_error(
+            e, event, request_id, mode, trading_mode, command_args, is_critical=True
         )
-
-        # Enhanced error handling with detailed reporting
-        _handle_critical_error(e, event, request_id, critical_command_args)
-
-        return _build_error_response("unknown", "unknown", error_message, request_id)
+        error_message = f"Lambda execution critical error: {e!s}"
+        return _build_error_response(mode, trading_mode, error_message, request_id)
