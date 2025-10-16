@@ -37,6 +37,10 @@ from the_alchemiser.shared.value_objects.core_types import (
 
 logger = get_logger(__name__)
 
+# Error message constants (SonarQube: S1192)
+_ERR_SYMBOL_EMPTY = "Symbol cannot be empty"
+_ERR_TIMESTAMP_EMPTY = "Timestamp cannot be empty"
+
 
 @dataclass(frozen=True)
 class BarModel:
@@ -108,12 +112,12 @@ class BarModel:
         # Validate symbol
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
-            raise ValueError("Symbol cannot be empty")
+            raise ValueError(_ERR_SYMBOL_EMPTY)
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
         if not timestamp_raw:
-            raise ValueError("Timestamp cannot be empty")
+            raise ValueError(_ERR_TIMESTAMP_EMPTY)
 
         try:
             # Handle both 'Z' suffix and '+00:00' suffix
@@ -282,12 +286,12 @@ class QuoteModel:
         """
         # Validate symbol
         if not symbol or not symbol.strip():
-            raise ValueError("Symbol cannot be empty")
+            raise ValueError(_ERR_SYMBOL_EMPTY)
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
         if not timestamp_raw:
-            raise ValueError("Timestamp cannot be empty")
+            raise ValueError(_ERR_TIMESTAMP_EMPTY)
 
         try:
             timestamp_str = timestamp_raw.replace("Z", UTC_TIMEZONE_SUFFIX)
@@ -384,6 +388,43 @@ class QuoteModel:
         return (self.bid_price + self.ask_price) / Decimal("2")
 
 
+def _validate_and_convert_optional_price(
+    value: Decimal | float | int | None,
+    price_name: str,
+    symbol: str,
+) -> Decimal | None:
+    """Validate and convert an optional price value to Decimal.
+
+    Helper function to reduce cognitive complexity in from_dict methods.
+
+    Args:
+        value: Optional price value to validate and convert
+        price_name: Name of the price field (for error messages)
+        symbol: Trading symbol (for error messages)
+
+    Returns:
+        Decimal value if input is not None, otherwise None
+
+    Raises:
+        ValueError: If value is invalid or negative
+
+    """
+    if value is None:
+        return None
+
+    try:
+        decimal_val = Decimal(str(value))
+        if decimal_val < 0:
+            raise ValueError(f"{price_name} cannot be negative: {decimal_val}")
+        return decimal_val
+    except (ValueError, TypeError) as e:
+        logger.error(
+            f"Invalid {price_name.lower()} for {symbol}",
+            extra={"symbol": symbol, "error": str(e)},
+        )
+        raise ValueError(f"Invalid {price_name.lower()}: {e}") from e
+
+
 @dataclass(frozen=True)
 class PriceDataModel:
     """Immutable price data model for real-time price information.
@@ -437,12 +478,12 @@ class PriceDataModel:
         # Validate symbol
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
-            raise ValueError("Symbol cannot be empty")
+            raise ValueError(_ERR_SYMBOL_EMPTY)
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
         if not timestamp_raw:
-            raise ValueError("Timestamp cannot be empty")
+            raise ValueError(_ERR_TIMESTAMP_EMPTY)
 
         try:
             timestamp_str = timestamp_raw.replace("Z", UTC_TIMEZONE_SUFFIX)
@@ -475,36 +516,9 @@ class PriceDataModel:
         if price < 0:
             raise ValueError(f"Price cannot be negative: {price}")
 
-        # Handle optional bid/ask
-        bid_val = data.get("bid")
-        ask_val = data.get("ask")
-
-        bid_decimal: Decimal | None = None
-        ask_decimal: Decimal | None = None
-
-        if bid_val is not None:
-            try:
-                bid_decimal = Decimal(str(bid_val))
-                if bid_decimal < 0:
-                    raise ValueError(f"Bid price cannot be negative: {bid_decimal}")
-            except (ValueError, TypeError) as e:
-                logger.error(
-                    f"Invalid bid price for {symbol}",
-                    extra={"symbol": symbol, "error": str(e)},
-                )
-                raise ValueError(f"Invalid bid price: {e}") from e
-
-        if ask_val is not None:
-            try:
-                ask_decimal = Decimal(str(ask_val))
-                if ask_decimal < 0:
-                    raise ValueError(f"Ask price cannot be negative: {ask_decimal}")
-            except (ValueError, TypeError) as e:
-                logger.error(
-                    f"Invalid ask price for {symbol}",
-                    extra={"symbol": symbol, "error": str(e)},
-                )
-                raise ValueError(f"Invalid ask price: {e}") from e
+        # Handle optional bid/ask using helper function
+        bid_decimal = _validate_and_convert_optional_price(data.get("bid"), "Bid price", symbol)
+        ask_decimal = _validate_and_convert_optional_price(data.get("ask"), "Ask price", symbol)
 
         # Validate bid <= ask if both present
         if bid_decimal is not None and ask_decimal is not None and bid_decimal > ask_decimal:
