@@ -66,7 +66,7 @@ jobs:
           SKIPPED_COUNT=0
           
           # Process each stack
-          echo "$STACKS" | jq -c '.[]' | while read -r stack; do
+          while read -r stack; do
             STACK_NAME=$(echo "$stack" | jq -r '.Name')
             CREATION_TIME=$(echo "$stack" | jq -r '.CreationTime')
             TTL_HOURS=$(echo "$stack" | jq -r '.Tags[] | select(.Key=="TTLHours") | .Value')
@@ -165,20 +165,17 @@ jobs:
             fi
             
             echo ""
-          done
-          
-          # Wait a bit for the counts to be available (since we're in a subshell loop)
-          sleep 2
+          done < <(echo "$STACKS" | jq -c '.[]')
           
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "Summary:"
           echo "  Total ephemeral stacks: $STACK_COUNT"
           
-          # Re-count stacks for summary (workaround for subshell issue)
+          # Re-count stacks for summary
           EXPIRED_COUNT=0
           ACTIVE_COUNT=0
           
-          echo "$STACKS" | jq -c '.[]' | while read -r stack; do
+          while read -r stack; do
             CREATION_TIME=$(echo "$stack" | jq -r '.CreationTime')
             TTL_HOURS=$(echo "$stack" | jq -r '.Tags[] | select(.Key=="TTLHours") | .Value')
             
@@ -195,7 +192,7 @@ jobs:
             else
               ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
             fi
-          done
+          done < <(echo "$STACKS" | jq -c '.[]')
           
           echo "  Expired stacks: $EXPIRED_COUNT $([ "$DRY_RUN" = "true" ] && echo "(would be deleted)" || echo "(deleted)")"
           echo "  Active stacks: $ACTIVE_COUNT"
