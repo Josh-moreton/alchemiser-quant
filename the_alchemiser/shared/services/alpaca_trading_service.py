@@ -1272,12 +1272,14 @@ class AlpacaTradingService:
             - Appends completed order IDs to completed_orders list
 
         """
-        for order_id in list(order_ids):  # Create copy to avoid modification during iteration
+        # Iterate in reverse to safely modify list during iteration
+        for i in range(len(order_ids) - 1, -1, -1):
+            order_id = order_ids[i]
             try:
                 status = self._check_order_completion_status(order_id)
                 if status:
                     completed_orders.append(order_id)
-                    order_ids.remove(order_id)
+                    del order_ids[i]
             except Exception as e:
                 logger.error(
                     "Error checking order",
