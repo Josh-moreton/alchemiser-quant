@@ -591,15 +591,27 @@ class PortfolioAnalysisHandler:
 
             # Add strategy attribution to metadata using model_copy
             strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
+            strategy_attribution = self._build_strategy_attribution(
+                rebalance_plan, strategy_names or ["DSL"]
+            )
 
             if rebalance_plan.metadata is None:
                 # Create new metadata with strategy attribution
                 rebalance_plan = rebalance_plan.model_copy(
-                    update={"metadata": {"strategy_name": strategy_name}}
+                    update={
+                        "metadata": {
+                            "strategy_name": strategy_name,
+                            "strategy_attribution": strategy_attribution,
+                        }
+                    }
                 )
             else:
                 # Update existing metadata with strategy attribution
-                updated_metadata = {**rebalance_plan.metadata, "strategy_name": strategy_name}
+                updated_metadata = {
+                    **rebalance_plan.metadata,
+                    "strategy_name": strategy_name,
+                    "strategy_attribution": strategy_attribution,
+                }
                 rebalance_plan = rebalance_plan.model_copy(update={"metadata": updated_metadata})
 
             return rebalance_plan
@@ -632,6 +644,36 @@ class PortfolioAnalysisHandler:
 
         # For multiple strategies, use the first one as primary with count
         return f"{strategy_names[0]} (+{len(strategy_names) - 1} others)"
+
+    def _build_strategy_attribution(
+        self, rebalance_plan: RebalancePlan, strategy_names: list[str]
+    ) -> dict[str, dict[str, float]]:
+        """Build per-symbol strategy attribution metadata.
+
+        Args:
+            rebalance_plan: The rebalance plan with items
+            strategy_names: List of strategy names
+
+        Returns:
+            Dictionary mapping symbol to strategy weights
+
+        """
+        strategy_attribution = {}
+
+        # For each symbol in the plan, assign full attribution to strategies
+        for item in rebalance_plan.items:
+            symbol = item.symbol
+
+            # For single strategy, assign 100% weight
+            if len(strategy_names) == 1:
+                strategy_attribution[symbol] = {strategy_names[0]: 1.0}
+            else:
+                # For multiple strategies, distribute equally
+                # In the future, this could be weighted based on signal strength
+                weight_per_strategy = 1.0 / len(strategy_names)
+                strategy_attribution[symbol] = dict.fromkeys(strategy_names, weight_per_strategy)
+
+        return strategy_attribution
 
     def _emit_rebalance_planned_event(
         self,
