@@ -58,6 +58,10 @@ EVENT_TYPE_DESCRIPTION: str = "Type of event"
 RECIPIENT_OVERRIDE_DESCRIPTION: str = "Optional recipient email override"
 """Description text for recipient override field in notification events."""
 
+# DTO schema descriptions
+DTO_SCHEMA_VERSION_DESCRIPTION: str = "DTO schema version"
+"""Description text for DTO schema version field in Pydantic models."""
+
 # UI/CLI styling constants
 STYLE_BOLD_CYAN: str = "bold cyan"
 """Rich text style: bold cyan color."""
@@ -127,6 +131,7 @@ __all__ = [
     "DEFAULT_AWS_REGION",
     "DEFAULT_DATE_FORMAT",
     "DSL_ENGINE_MODULE",
+    "DTO_SCHEMA_VERSION_DESCRIPTION",
     "EVENT_SCHEMA_VERSION_DESCRIPTION",
     "EVENT_TYPE_DESCRIPTION",
     "EXECUTION_HANDLERS_MODULE",
