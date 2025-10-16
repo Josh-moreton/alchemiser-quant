@@ -27,6 +27,9 @@ from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal,
 )
 
+# Module-level constant for schema version description
+_SCHEMA_VERSION_DESC = "Schema version for compatibility tracking"
+
 
 # CLI Command Types
 class CLIOptions(BaseModel):
@@ -39,9 +42,7 @@ class CLIOptions(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for compatibility tracking"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     verbose: bool = Field(default=False, description="Enable verbose output")
     quiet: bool = Field(default=False, description="Suppress non-essential output")
     live: bool = Field(default=False, description="Enable live trading mode")
@@ -59,9 +60,7 @@ class CLICommandResult(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for compatibility tracking"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     success: bool = Field(description="Whether command succeeded")
     message: str = Field(description="Human-readable result message")
     exit_code: int = Field(description="Shell exit code", ge=0, le=255)
@@ -81,9 +80,7 @@ class CLISignalData(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for compatibility tracking"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     strategy_type: str = Field(description="Strategy identifier")
     signals: dict[str, StrategySignal] = Field(
         default_factory=dict, description="Symbol-to-signal mapping"
@@ -103,9 +100,7 @@ class CLIAccountDisplay(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for compatibility tracking"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     account_info: AccountInfo = Field(description="Current account information")
     positions: dict[str, PositionInfo] = Field(
         default_factory=dict, description="Symbol-to-position mapping"
@@ -127,9 +122,7 @@ class CLIPortfolioData(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for compatibility tracking"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     symbol: str = Field(description="Asset symbol")
     allocation_percentage: Decimal = Field(
         description="Target allocation percentage (0-100 as Decimal)", ge=0, le=100
@@ -152,9 +145,7 @@ class CLIOrderDisplay(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    schema_version: str = Field(
-        default="1.0", description="Schema version for compatibility tracking"
-    )
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     order_details: OrderDetails = Field(description="Order details")
     display_style: str = Field(description="Display style/format")
     formatted_amount: str = Field(description="Human-formatted amount string")
