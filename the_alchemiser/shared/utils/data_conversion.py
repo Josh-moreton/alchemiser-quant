@@ -60,8 +60,9 @@ def convert_string_to_decimal(
     """
     try:
         return Decimal(decimal_str)
-    except (ValueError, TypeError, Exception) as e:
+    except Exception as e:
         # Decimal raises InvalidOperation (subclass of ArithmeticError) for syntax errors
+        # and TypeError for non-string/non-numeric inputs
         raise ValueError(f"Invalid {field_name} value: {decimal_str}") from e
 
 
