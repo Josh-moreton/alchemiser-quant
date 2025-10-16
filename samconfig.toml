@@ -40,3 +40,20 @@ resolve_s3 = true
 parameter_overrides = [
 	"Stage=prod",
 ]
+
+[ephemeral.build.parameters]
+beta_features = true
+use_container = false
+
+[ephemeral.deploy.parameters]
+# Stack name will be provided dynamically via CLI
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+# Ephemeral parameters will be provided via CLI
+parameter_overrides = [
+	"Stage=ephemeral",
+]

@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all test-coverage release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run release-beta deploy-dev deploy-prod
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all test-coverage release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run release-beta deploy-dev deploy-prod deploy-ephemeral destroy-ephemeral list-ephemeral
 
 # Default target
 help:
@@ -55,6 +55,9 @@ help:
 	@echo "  deploy          Deploy to AWS Lambda (deprecated - use deploy-dev or deploy-prod)"
 	@echo "  deploy-dev      Create and push beta tag to trigger dev deployment"
 	@echo "  deploy-prod     Create and push release tag to trigger prod deployment"
+	@echo "  deploy-ephemeral Deploy ephemeral stack (BRANCH=feature/foo TTL_HOURS=24)"
+	@echo "  destroy-ephemeral Destroy ephemeral stack (STACK=alchemiser-ephem-...)"
+	@echo "  list-ephemeral  List all ephemeral stacks"
 	@echo "  release         Create and push a production release tag (same as deploy-prod)"
 	@echo "  release-beta    Create and push a beta release tag (same as deploy-dev)"
 	@echo "  release v=x.y.z Create release with specific version number"
@@ -408,3 +411,95 @@ deploy-prod:
 	git push origin "$$TAG"; \
 	echo "✅ Production tag $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
+
+# Ephemeral Deployment
+deploy-ephemeral:
+	@echo "🧪 Deploying ephemeral stack..."
+	@if [ -z "$(BRANCH)" ]; then \
+		echo "❌ ERROR: BRANCH parameter is required"; \
+		echo "💡 Usage: make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24"; \
+		exit 1; \
+	fi; \
+	TTL_HOURS=$${TTL_HOURS:-24}; \
+	echo "Branch: $(BRANCH)"; \
+	echo "TTL: $$TTL_HOURS hours"; \
+	echo ""; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🚀 Triggering ephemeral deployment via GitHub Actions..."; \
+	gh workflow run manual-deploy-ephemeral.yml \
+		-f branch="$(BRANCH)" \
+		-f ttl_hours="$$TTL_HOURS"; \
+	echo ""; \
+	echo "✅ Deployment triggered!"; \
+	echo "📊 View progress: gh run list --workflow=manual-deploy-ephemeral.yml"; \
+	echo "📋 Or visit: https://github.com/Josh-moreton/alchemiser-quant/actions/workflows/manual-deploy-ephemeral.yml"
+
+# Destroy Ephemeral Stack
+destroy-ephemeral:
+	@echo "🗑️  Destroying ephemeral stack..."
+	@if [ -z "$(STACK)" ]; then \
+		echo "❌ ERROR: STACK parameter is required"; \
+		echo "💡 Usage: make destroy-ephemeral STACK=alchemiser-ephem-feature-foo-a1b2c3d"; \
+		echo ""; \
+		echo "📋 List available stacks with: make list-ephemeral"; \
+		exit 1; \
+	fi; \
+	if [[ ! "$(STACK)" =~ ^alchemiser-ephem- ]]; then \
+		echo "❌ ERROR: Stack name must start with 'alchemiser-ephem-'"; \
+		echo "💡 This prevents accidental deletion of dev/prod stacks"; \
+		exit 1; \
+	fi; \
+	echo "Stack: $(STACK)"; \
+	echo ""; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "⚠️  WARNING: This will permanently delete the ephemeral stack: $(STACK)"; \
+	read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo ""; \
+	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "❌ Destruction cancelled"; \
+		exit 1; \
+	fi; \
+	echo "🗑️  Triggering stack deletion via GitHub Actions..."; \
+	gh workflow run manual-destroy-ephemeral.yml \
+		-f stack_name="$(STACK)"; \
+	echo ""; \
+	echo "✅ Deletion triggered!"; \
+	echo "📊 View progress: gh run list --workflow=manual-destroy-ephemeral.yml"; \
+	echo "📋 Or visit: https://github.com/Josh-moreton/alchemiser-quant/actions/workflows/manual-destroy-ephemeral.yml"
+
+# List Ephemeral Stacks
+list-ephemeral:
+	@echo "📋 Listing ephemeral stacks..."
+	@if ! command -v aws >/dev/null 2>&1; then \
+		echo "❌ AWS CLI is not installed!"; \
+		echo "💡 Install with: pip install awscli"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	aws cloudformation describe-stacks \
+		--query "Stacks[?Tags[?Key=='Ephemeral' && Value=='true']].{Name:StackName,Status:StackStatus,Created:CreationTime,Branch:Tags[?Key=='Branch']|[0].Value,TTL:Tags[?Key=='TTLHours']|[0].Value}" \
+		--output table 2>/dev/null || { \
+		echo "⚠️  Failed to list stacks. Check AWS credentials."; \
+		echo "💡 Ensure you are authenticated: aws configure"; \
+		exit 1; \
+	}; \
+	echo ""; \
+	echo "💡 To destroy a stack: make destroy-ephemeral STACK=<stack-name>"
