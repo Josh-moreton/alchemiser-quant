@@ -26,6 +26,9 @@ from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
 logger = get_logger(__name__)
 
+# Module constant for logging context
+MODULE_NAME = "strategy_v2.indicators"
+
 
 class IndicatorService:
     """Service for computing technical indicators using real market data.
@@ -55,7 +58,7 @@ class IndicatorService:
         self.technical_indicators: TechnicalIndicators = TechnicalIndicators()
         logger.info(
             "IndicatorService initialized",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             has_market_data_service=market_data_service is not None,
         )
 
@@ -102,7 +105,7 @@ class IndicatorService:
 
         logger.debug(
             "RSI computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             rsi_value=rsi_value,
@@ -141,14 +144,14 @@ class IndicatorService:
         if last_price is None:
             logger.error(
                 "No last price available",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
             )
             raise DslEvaluationError(f"No last price for symbol {symbol}")
 
         logger.debug(
             "Current price retrieved",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             price=last_price,
         )
@@ -195,7 +198,7 @@ class IndicatorService:
         if latest_ma is None or pd.isna(latest_ma):
             logger.error(
                 "Moving average computation failed",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
             )
@@ -203,7 +206,7 @@ class IndicatorService:
 
         logger.debug(
             "Moving average computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             ma_value=latest_ma,
@@ -244,7 +247,7 @@ class IndicatorService:
         if latest is None or pd.isna(latest):
             logger.error(
                 "Moving average return computation failed",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
             )
@@ -252,7 +255,7 @@ class IndicatorService:
 
         logger.debug(
             "Moving average return computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             value=latest,
@@ -291,7 +294,7 @@ class IndicatorService:
         if latest is None or pd.isna(latest):
             logger.error(
                 "Cumulative return computation failed",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
             )
@@ -299,7 +302,7 @@ class IndicatorService:
 
         logger.debug(
             "Cumulative return computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             value=latest,
@@ -338,7 +341,7 @@ class IndicatorService:
         if latest is None or pd.isna(latest):
             logger.error(
                 "EMA computation failed",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
             )
@@ -346,7 +349,7 @@ class IndicatorService:
 
         logger.debug(
             "EMA computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             value=latest,
@@ -386,7 +389,7 @@ class IndicatorService:
         if latest is None or pd.isna(latest):
             logger.error(
                 "Standard deviation return computation failed",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
             )
@@ -394,7 +397,7 @@ class IndicatorService:
 
         logger.debug(
             "Standard deviation return computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             value=latest,
@@ -489,7 +492,7 @@ class IndicatorService:
         if latest is None or pd.isna(latest):
             logger.error(
                 "Max drawdown computation failed",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
             )
@@ -497,7 +500,7 @@ class IndicatorService:
 
         logger.debug(
             "Max drawdown computed",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             window=window,
             value=latest,
@@ -536,7 +539,7 @@ class IndicatorService:
 
         logger.info(
             "Indicator request received",
-            module="strategy_v2.indicators",
+            module=MODULE_NAME,
             symbol=symbol,
             indicator_type=indicator_type,
             correlation_id=correlation_id,
@@ -546,7 +549,7 @@ class IndicatorService:
         if not self.market_data_service:
             logger.error(
                 "No market data service configured",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 indicator_type=indicator_type,
                 correlation_id=correlation_id,
@@ -562,7 +565,7 @@ class IndicatorService:
 
             logger.debug(
                 "Fetching market data",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 required_bars=required,
                 period=period,
@@ -580,7 +583,7 @@ class IndicatorService:
             if not bars:
                 logger.error(
                     "No market data available",
-                    module="strategy_v2.indicators",
+                    module=MODULE_NAME,
                     symbol=symbol,
                     period=period,
                     correlation_id=correlation_id,
@@ -592,7 +595,7 @@ class IndicatorService:
 
             logger.debug(
                 "Market data fetched",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 bars_count=len(bars),
                 correlation_id=correlation_id,
@@ -617,7 +620,7 @@ class IndicatorService:
                 result = indicator_dispatch[indicator_type](symbol, prices, parameters)
                 logger.info(
                     "Indicator computed successfully",
-                    module="strategy_v2.indicators",
+                    module=MODULE_NAME,
                     symbol=symbol,
                     indicator_type=indicator_type,
                     correlation_id=correlation_id,
@@ -627,7 +630,7 @@ class IndicatorService:
             # Unsupported indicator types
             logger.error(
                 "Unsupported indicator type",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 indicator_type=indicator_type,
                 correlation_id=correlation_id,
@@ -643,7 +646,7 @@ class IndicatorService:
         except Exception as e:
             logger.error(
                 "Indicator computation error",
-                module="strategy_v2.indicators",
+                module=MODULE_NAME,
                 symbol=symbol,
                 indicator_type=indicator_type,
                 error=str(e),
