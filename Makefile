@@ -19,18 +19,6 @@ help:
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
 	@echo ""
-	@echo "Stress Testing Commands:"
-	@echo "  stress-test              Run full stress test (~34 scenarios, liquidation mode)"
-	@echo "  stress-test-quick        Run quick stress test (~14 scenarios, liquidation mode)"
-	@echo "  stress-test-stateful     Run full stress test in stateful mode (maintains portfolio)"
-	@echo "  stress-test-stateful-quick Run quick stress test in stateful mode"
-	@echo "  stress-test-dry-run      Show stress test plan without executing"
-	@echo ""
-	@echo "Backtesting Commands:"
-	@echo "  backtest-download        Download historical data for backtesting"
-	@echo "  backtest                 Run backtest (default 14 days / 2 weeks)"
-	@echo "  backtest-range           Run backtest with custom date range"
-	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
 	@echo "  test-unit       Run unit tests only"
@@ -39,9 +27,6 @@ help:
 	@echo "  test-e2e        Run end-to-end tests only"
 	@echo "  test-all        Run comprehensive test suite with coverage"
 	@echo "  test-coverage   Run tests with coverage report (XML for SonarCloud)"
-	@echo "  stress-test     Run comprehensive trading system stress test"
-	@echo "  stress-test-quick Run quick stress test (subset of scenarios)"
-	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
@@ -114,8 +99,6 @@ test-coverage:
 	poetry run pytest --cov=the_alchemiser --cov-report=xml --cov-report=term --ignore=tests/e2e -v tests/
 	@echo "✅ Coverage report generated: coverage.xml"
 
-# Stress Testing Commands
-
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade
 
@@ -135,41 +118,6 @@ run-pnl-monthly:
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
 	poetry run python -m the_alchemiser pnl --monthly --detailed
-
-# Stress Testing Commands
-stress-test:
-	@echo "🔥 Running full stress test (liquidation mode)..."
-	poetry run python scripts/stress_test.py
-
-stress-test-quick:
-	@echo "🔥 Running quick stress test (liquidation mode)..."
-	poetry run python scripts/stress_test.py --quick
-
-stress-test-stateful:
-	@echo "🔥 Running full stress test (stateful mode - maintains portfolio)..."
-	poetry run python scripts/stress_test.py --stateful
-
-stress-test-stateful-quick:
-	@echo "🔥 Running quick stress test (stateful mode - maintains portfolio)..."
-	poetry run python scripts/stress_test.py --stateful --quick
-
-stress-test-dry-run:
-	@echo "🔥 Showing stress test execution plan..."
-	poetry run python scripts/stress_test.py --dry-run
-
-# Backtesting Commands
-backtest-download:
-	@echo "📊 Downloading historical data for backtesting..."
-	poetry run python scripts/backtest_download.py
-
-backtest:
-	@echo "📊 Running backtest (default 14 days / 2 weeks)..."
-	poetry run python scripts/backtest_run.py
-
-backtest-range:
-	@echo "📊 Running backtest with custom date range..."
-	@echo "Usage: make backtest-range ARGS='--start-date 2023-01-01 --end-date 2023-12-31'"
-	poetry run python scripts/backtest_run.py $(ARGS)
 
 # Status command removed - use programmatic access via TradingSystem class
 
