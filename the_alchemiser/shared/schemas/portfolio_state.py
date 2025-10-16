@@ -48,6 +48,9 @@ POSITION_SCHEMA_VERSION = "1.0"
 PORTFOLIO_METRICS_SCHEMA_VERSION = "1.0"
 PORTFOLIO_STATE_SCHEMA_VERSION = "1.0"
 
+# Description string for schema version fields (DRY principle)
+SCHEMA_VERSION_DESCRIPTION = "Schema version for backwards compatibility"
+
 
 class Position(BaseModel):
     """DTO for individual position data."""
@@ -62,7 +65,7 @@ class Position(BaseModel):
     # Schema version for event evolution
     schema_version: str = Field(
         default=POSITION_SCHEMA_VERSION,
-        description="Schema version for backwards compatibility",
+        description=SCHEMA_VERSION_DESCRIPTION,
     )
 
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
@@ -103,7 +106,7 @@ class PortfolioMetrics(BaseModel):
     # Schema version for event evolution
     schema_version: str = Field(
         default=PORTFOLIO_METRICS_SCHEMA_VERSION,
-        description="Schema version for backwards compatibility",
+        description=SCHEMA_VERSION_DESCRIPTION,
     )
 
     total_value: Decimal = Field(..., ge=0, description="Total portfolio value")
@@ -143,7 +146,7 @@ class PortfolioState(BaseModel):
     # Schema version for event evolution
     schema_version: str = Field(
         default=PORTFOLIO_STATE_SCHEMA_VERSION,
-        description="Schema version for backwards compatibility",
+        description=SCHEMA_VERSION_DESCRIPTION,
     )
 
     # Required correlation fields
