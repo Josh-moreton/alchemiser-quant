@@ -102,6 +102,128 @@ class ServiceFactory:
         cls._container = container
 
     @classmethod
+    def _validate_credentials(
+        cls,
+        api_key: str | None,
+        secret_key: str | None,
+    ) -> tuple[str | None, str | None]:
+        """Validate and normalize credential parameters.
+
+        Args:
+            api_key: Alpaca API key to validate.
+            secret_key: Alpaca secret key to validate.
+
+        Returns:
+            Tuple of normalized (api_key, secret_key), treating empty strings as None.
+
+        Raises:
+            TypeError: If credentials are not strings when provided.
+
+        """
+        # Validate string parameters if provided
+        if api_key is not None and not isinstance(api_key, str):
+            raise TypeError(f"api_key must be str, got {type(api_key).__name__}")
+        if secret_key is not None and not isinstance(secret_key, str):
+            raise TypeError(f"secret_key must be str, got {type(secret_key).__name__}")
+
+        # Treat empty strings as None
+        api_key = api_key if api_key else None
+        secret_key = secret_key if secret_key else None
+
+        return api_key, secret_key
+
+    @classmethod
+    def _create_via_di_container(cls) -> ExecutionManagerType:
+        """Create ExecutionManager via DI container.
+
+        Returns:
+            ExecutionManagerType: Configured ExecutionManager instance from DI container.
+
+        Raises:
+            ConfigurationError: If container is None or execution_manager provider is None.
+
+        """
+        logger.debug("Initializing execution providers via DI container")
+
+        # Type guard: we know _container is not None here due to use_di check
+        container = cls._container
+        if container is None:
+            # Should never happen due to use_di logic, but satisfy type checker
+            raise ConfigurationError("Container is None despite use_di check")
+
+        execution_manager_provider = getattr(container, "execution_manager", None)
+        if execution_manager_provider is None:
+            raise ConfigurationError(
+                "Failed to get execution_manager provider: "
+                "execution_manager is None in container (wiring not called?)"
+            )
+
+        logger.info("Using DI container for ExecutionManager creation")
+        # The provider returns Any due to dependency injector limitation
+        return cast(ExecutionManagerType, execution_manager_provider())
+
+    @classmethod
+    def _create_via_direct_instantiation(
+        cls,
+        api_key: str,
+        secret_key: str,
+        *,
+        paper: bool,
+    ) -> ExecutionManagerType:
+        """Create ExecutionManager via direct instantiation.
+
+        Args:
+            api_key: Alpaca API key (must be non-empty).
+            secret_key: Alpaca secret key (must be non-empty).
+            paper: Whether to use paper trading mode.
+
+        Returns:
+            ExecutionManagerType: Configured ExecutionManager instance.
+
+        Raises:
+            ConfigurationError: If module import fails or ExecutionManager class not found.
+
+        """
+        logger.debug("Using direct instantiation for ExecutionManager")
+
+        # Use importlib to avoid static import detection (prevents circular imports)
+        try:
+            execution_manager_module = importlib.import_module(_EXECUTION_MANAGER_MODULE)
+        except ImportError as e:
+            logger.error(
+                "Failed to import ExecutionManager module",
+                extra={"module": _EXECUTION_MANAGER_MODULE, "error": str(e)},
+            )
+            raise ConfigurationError(
+                f"Failed to import ExecutionManager module '{_EXECUTION_MANAGER_MODULE}': {e}"
+            ) from e
+
+        try:
+            execution_manager = execution_manager_module.ExecutionManager
+        except AttributeError as e:
+            logger.error(
+                "ExecutionManager class not found in module",
+                extra={"module": _EXECUTION_MANAGER_MODULE, "error": str(e)},
+            )
+            raise ConfigurationError(
+                f"ExecutionManager class not found in module '{_EXECUTION_MANAGER_MODULE}': {e}"
+            ) from e
+
+        logger.info(
+            "Creating ExecutionManager via direct instantiation",
+            extra={"paper_mode": paper},
+        )
+
+        return cast(
+            ExecutionManagerType,
+            execution_manager.create_with_config(
+                api_key,
+                secret_key,
+                paper=paper,
+            ),
+        )
+
+    @classmethod
     def create_execution_manager(
         cls,
         api_key: str | None = None,
@@ -141,15 +263,8 @@ class ServiceFactory:
             ... )
 
         """
-        # Validate string parameters if provided
-        if api_key is not None and not isinstance(api_key, str):
-            raise TypeError(f"api_key must be str, got {type(api_key).__name__}")
-        if secret_key is not None and not isinstance(secret_key, str):
-            raise TypeError(f"secret_key must be str, got {type(secret_key).__name__}")
-
-        # Treat empty strings as None
-        api_key = api_key if api_key else None
-        secret_key = secret_key if secret_key else None
+        # Validate and normalize credentials
+        api_key, secret_key = cls._validate_credentials(api_key, secret_key)
 
         use_di = cls._container is not None and all(x is None for x in [api_key, secret_key, paper])
 
@@ -165,30 +280,9 @@ class ServiceFactory:
 
         try:
             if use_di:
-                # Use DI container - get ExecutionManager from execution providers
-                logger.debug("Initializing execution providers via DI container")
-
-                # Type guard: we know _container is not None here due to use_di check
-                container = cls._container
-                if container is None:
-                    # Should never happen due to use_di logic, but satisfy type checker
-                    raise ConfigurationError("Container is None despite use_di check")
-
-                execution_manager_provider = getattr(container, "execution_manager", None)
-                if execution_manager_provider is None:
-                    raise ConfigurationError(
-                        "Failed to get execution_manager provider: "
-                        "execution_manager is None in container (wiring not called?)"
-                    )
-
-                logger.info("Using DI container for ExecutionManager creation")
-                # The provider returns Any due to dependency injector limitation
-                return cast(ExecutionManagerType, execution_manager_provider())
+                return cls._create_via_di_container()
 
             # Direct instantiation for backward compatibility
-            logger.debug("Using direct instantiation for ExecutionManager")
-
-            # Validate credentials are provided
             if not api_key or not secret_key:
                 logger.error(
                     "Missing required credentials for ExecutionManager",
@@ -202,45 +296,10 @@ class ServiceFactory:
                     "Either initialize ServiceFactory with a DI container or provide credentials."
                 )
 
-            # Use importlib to avoid static import detection (prevents circular imports)
-            try:
-                execution_manager_module = importlib.import_module(_EXECUTION_MANAGER_MODULE)
-            except ImportError as e:
-                logger.error(
-                    "Failed to import ExecutionManager module",
-                    extra={"module": _EXECUTION_MANAGER_MODULE, "error": str(e)},
-                )
-                raise ConfigurationError(
-                    f"Failed to import ExecutionManager module '{_EXECUTION_MANAGER_MODULE}': {e}"
-                ) from e
-
-            try:
-                execution_manager = execution_manager_module.ExecutionManager
-            except AttributeError as e:
-                logger.error(
-                    "ExecutionManager class not found in module",
-                    extra={"module": _EXECUTION_MANAGER_MODULE, "error": str(e)},
-                )
-                raise ConfigurationError(
-                    f"ExecutionManager class not found in module '{_EXECUTION_MANAGER_MODULE}': {e}"
-                ) from e
-
             # Default to paper trading for safety
             paper = paper if paper is not None else True
 
-            logger.info(
-                "Creating ExecutionManager via direct instantiation",
-                extra={"paper_mode": paper},
-            )
-
-            return cast(
-                ExecutionManagerType,
-                execution_manager.create_with_config(
-                    api_key,
-                    secret_key,
-                    paper=paper,
-                ),
-            )
+            return cls._create_via_direct_instantiation(api_key, secret_key, paper=paper)
 
         except ConfigurationError:
             # Re-raise ConfigurationError as-is
