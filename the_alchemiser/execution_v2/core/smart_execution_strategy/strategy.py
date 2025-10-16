@@ -125,7 +125,6 @@ class SmartExecutionStrategy:
         validation_result = self.validator.validate_order(
             symbol=request.symbol,
             quantity=request.quantity,
-            side=side_normalized,  # type: ignore[arg-type]  # side_normalized is guaranteed to be "buy" or "sell" by line 104 check
             correlation_id=request.correlation_id,
             auto_adjust=True,
         )
