@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all test-coverage release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run release-beta deploy-dev deploy-prod deploy-ephemeral destroy-ephemeral list-ephemeral
+.PHONY: help install dev clean run-trade deploy format type-check import-check migration-check release bump-patch bump-minor bump-major version release-beta deploy-dev deploy-prod deploy-ephemeral destroy-ephemeral list-ephemeral
 
 # Default target
 help:
@@ -19,33 +19,8 @@ help:
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
 	@echo ""
-	@echo "Stress Testing Commands:"
-	@echo "  stress-test              Run full stress test (~34 scenarios, liquidation mode)"
-	@echo "  stress-test-quick        Run quick stress test (~14 scenarios, liquidation mode)"
-	@echo "  stress-test-stateful     Run full stress test in stateful mode (maintains portfolio)"
-	@echo "  stress-test-stateful-quick Run quick stress test in stateful mode"
-	@echo "  stress-test-dry-run      Show stress test plan without executing"
-	@echo ""
-	@echo "Backtesting Commands:"
-	@echo "  backtest-download        Download historical data for backtesting"
-	@echo "  backtest                 Run backtest (default 14 days / 2 weeks)"
-	@echo "  backtest-range           Run backtest with custom date range"
-	@echo ""
-	@echo "Testing Commands:"
-	@echo "  test            Run all tests"
-	@echo "  test-unit       Run unit tests only"
-	@echo "  test-integration Run integration tests only"
-	@echo "  test-functional Run functional tests only"
-	@echo "  test-e2e        Run end-to-end tests only"
-	@echo "  test-all        Run comprehensive test suite with coverage"
-	@echo "  test-coverage   Run tests with coverage report (XML for SonarCloud)"
-	@echo "  stress-test     Run comprehensive trading system stress test"
-	@echo "  stress-test-quick Run quick stress test (subset of scenarios)"
-	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
-	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
-	@echo "  lint            Run linting"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
 	@echo "  migration-check Full migration validation suite"
@@ -77,45 +52,6 @@ dev:
 	@echo "🔧 Installing The Alchemiser with development dependencies (Poetry groups)..."
 	poetry install --with dev
 
-# Testing Commands
-test:
-	@echo "🧪 Running all tests..."
-	python -m pytest tests/ -v
-
-test-unit:
-	@echo "🔬 Running unit tests..."
-	python -m pytest -m unit tests/ -v
-
-test-integration:
-	@echo "🔗 Running integration tests..."
-	python -m pytest -m integration tests/ -v
-
-test-functional:
-	@echo "⚙️ Running functional tests..."
-	python -m pytest -m functional tests/ -v
-
-test-e2e:
-	@echo "🚀 Running end-to-end tests..."
-	python -m pytest -m e2e tests/ -v
-
-test-all:
-	@echo "🧪 Running comprehensive test suite..."
-	python -m pytest tests/ -v --tb=short
-	@echo "✅ Test suite completed!"
-
-test-coverage:
-	@echo "📊 Running tests with coverage report for SonarCloud..."
-	@# Ensure pytest-cov is available (installed via dev dependencies)
-	@poetry run python -c "import pytest_cov" >/dev/null 2>&1 || { \
-		echo "❌ pytest-cov not found in the Poetry env."; \
-		echo "💡 Run: poetry install --with dev"; \
-		exit 1; \
-	}
-	poetry run pytest --cov=the_alchemiser --cov-report=xml --cov-report=term --ignore=tests/e2e -v tests/
-	@echo "✅ Coverage report generated: coverage.xml"
-
-# Stress Testing Commands
-
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade
 
@@ -136,41 +72,6 @@ run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
 	poetry run python -m the_alchemiser pnl --monthly --detailed
 
-# Stress Testing Commands
-stress-test:
-	@echo "🔥 Running full stress test (liquidation mode)..."
-	poetry run python scripts/stress_test.py
-
-stress-test-quick:
-	@echo "🔥 Running quick stress test (liquidation mode)..."
-	poetry run python scripts/stress_test.py --quick
-
-stress-test-stateful:
-	@echo "🔥 Running full stress test (stateful mode - maintains portfolio)..."
-	poetry run python scripts/stress_test.py --stateful
-
-stress-test-stateful-quick:
-	@echo "🔥 Running quick stress test (stateful mode - maintains portfolio)..."
-	poetry run python scripts/stress_test.py --stateful --quick
-
-stress-test-dry-run:
-	@echo "🔥 Showing stress test execution plan..."
-	poetry run python scripts/stress_test.py --dry-run
-
-# Backtesting Commands
-backtest-download:
-	@echo "📊 Downloading historical data for backtesting..."
-	poetry run python scripts/backtest_download.py
-
-backtest:
-	@echo "📊 Running backtest (default 14 days / 2 weeks)..."
-	poetry run python scripts/backtest_run.py
-
-backtest-range:
-	@echo "📊 Running backtest with custom date range..."
-	@echo "Usage: make backtest-range ARGS='--start-date 2023-01-01 --end-date 2023-12-31'"
-	poetry run python scripts/backtest_run.py $(ARGS)
-
 # Status command removed - use programmatic access via TradingSystem class
 
 # Development
@@ -180,10 +81,6 @@ format:
 	poetry run ruff format the_alchemiser/
 	@echo "  → Running Ruff auto-fix (safe fixes for lints)..."
 	poetry run ruff check --fix the_alchemiser/
-
-lint:
-	@echo "🔍 Running linting..."
-	poetry run ruff check the_alchemiser/
 
 type-check:
 	@echo "🔍 Running MyPy type checking (matching VS Code configuration)..."
@@ -199,7 +96,7 @@ import-check:
 		poetry run python -m importlinter --config pyproject.toml; \
 	fi
 
-migration-check: lint type-check import-check
+migration-check: type-check import-check
 	@echo "🚀 Running full migration validation suite..."
 	@echo "✅ Migration validation complete!"
 
