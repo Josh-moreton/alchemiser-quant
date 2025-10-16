@@ -16,14 +16,12 @@ from __future__ import annotations
 import functools
 import time
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any
 
 from the_alchemiser.shared.errors.exceptions import RateLimitError, TradingClientError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
-
-T = TypeVar("T")
 
 
 class RateLimiter:
@@ -132,7 +130,7 @@ class RateLimiter:
 _rate_limiter = RateLimiter()
 
 
-def with_rate_limiting(func: Callable[..., T]) -> Callable[..., T]:  # noqa: UP047
+def with_rate_limiting[T](func: Callable[..., T]) -> Callable[..., T]:
     """Apply rate limiting to API calls.
 
     Args:
@@ -180,7 +178,7 @@ def with_rate_limiting(func: Callable[..., T]) -> Callable[..., T]:  # noqa: UP0
     return wrapper
 
 
-def with_timeout(
+def with_timeout[T](
     timeout_seconds: float = 10.0,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Apply timeout to API calls.
