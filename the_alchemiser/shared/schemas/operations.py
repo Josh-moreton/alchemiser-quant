@@ -17,14 +17,10 @@ from __future__ import annotations
 
 import warnings
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from pydantic import ConfigDict, field_validator
 
 from the_alchemiser.shared.schemas.base import Result
-
-if TYPE_CHECKING:
-    pass
 
 
 class TerminalOrderError(str, Enum):
