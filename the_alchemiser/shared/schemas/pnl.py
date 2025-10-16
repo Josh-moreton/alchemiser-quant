@@ -19,6 +19,9 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# ISO 8601 date pattern (YYYY-MM-DD format)
+_ISO_DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
+
 
 class DailyPnLEntry(BaseModel):
     """Daily P&L entry with equity and profit/loss metrics.
@@ -48,7 +51,7 @@ class DailyPnLEntry(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True)
 
     date: str = Field(
-        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        pattern=_ISO_DATE_PATTERN,
         description="ISO 8601 date (YYYY-MM-DD)",
     )
     equity: Decimal = Field(
@@ -107,12 +110,12 @@ class PnLData(BaseModel):
     )
     start_date: str | None = Field(
         default=None,
-        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        pattern=_ISO_DATE_PATTERN,
         description="ISO 8601 start date (YYYY-MM-DD), None if no data available",
     )
     end_date: str | None = Field(
         default=None,
-        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        pattern=_ISO_DATE_PATTERN,
         description="ISO 8601 end date (YYYY-MM-DD), None if no data available",
     )
     start_value: Decimal | None = Field(
