@@ -19,19 +19,31 @@ Ephemeral deployments allow you to deploy any feature branch to AWS as a fully i
 **Option 1: GitHub Actions UI**
 1. Go to [Actions > Manual Deploy Ephemeral](https://github.com/Josh-moreton/alchemiser-quant/actions/workflows/manual-deploy-ephemeral.yml)
 2. Click "Run workflow"
-3. Enter your branch name (e.g., `feature/my-feature`)
+3. **Select the branch you want to deploy** from the "Use workflow from" dropdown
 4. Set TTL hours (default: 24)
 5. Click "Run workflow"
 
 **Option 2: GitHub CLI**
 ```bash
+# Deploy current branch
 gh workflow run manual-deploy-ephemeral.yml \
-  -f branch="feature/my-feature" \
+  -f ttl_hours="24"
+
+# Deploy specific branch
+gh workflow run manual-deploy-ephemeral.yml \
+  --ref "feature/my-feature" \
   -f ttl_hours="24"
 ```
 
 **Option 3: Makefile**
 ```bash
+# Deploy current branch with default TTL (24 hours)
+make deploy-ephemeral
+
+# Deploy current branch with custom TTL
+make deploy-ephemeral TTL_HOURS=48
+
+# Deploy specific branch
 make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24
 ```
 
@@ -81,8 +93,10 @@ alchemiser-ephem-{sanitized-branch}-{short-sha}
 **Long Branch Names:**
 If your branch name is too long, use the `stack_suffix` parameter:
 ```bash
+# Via GitHub UI: enter value in "Optional stack suffix override" field
+# Via GitHub CLI:
 gh workflow run manual-deploy-ephemeral.yml \
-  -f branch="feature/very-long-branch-name-that-exceeds-limits" \
+  --ref "feature/very-long-branch-name-that-exceeds-limits" \
   -f stack_suffix="my-short-name"
 ```
 
@@ -193,13 +207,13 @@ Makefile targets validate:
 **File:** `.github/workflows/manual-deploy-ephemeral.yml`
 
 **Triggers:**
-- Manual via GitHub Actions UI
-- GitHub CLI (`gh workflow run`)
+- Manual via GitHub Actions UI (select branch from dropdown)
+- GitHub CLI (`gh workflow run --ref <branch>`)
 - Makefile (`make deploy-ephemeral`)
 
 **Steps:**
 1. Validate branch name (reject main/prod/production)
-2. Checkout the specified branch
+2. Checkout the selected branch
 3. Generate sanitized stack name with short SHA
 4. Configure AWS credentials (OIDC)
 5. Set up Python and Poetry
@@ -280,9 +294,9 @@ Makefile targets validate:
 # Check existing stacks
 make list-ephemeral
 
-# Try with a shorter suffix
+# Try with a shorter suffix via GitHub UI or:
 gh workflow run manual-deploy-ephemeral.yml \
-  -f branch="my-branch" \
+  --ref "my-branch" \
   -f stack_suffix="short"
 ```
 
@@ -329,16 +343,21 @@ aws cloudformation describe-stacks --stack-name <stack-name> \
 
 Set a longer TTL for extended testing:
 ```bash
-make deploy-ephemeral BRANCH=feature/long-test TTL_HOURS=168  # 1 week
+# Current branch with 1 week TTL
+make deploy-ephemeral TTL_HOURS=168
+
+# Specific branch with custom TTL
+make deploy-ephemeral BRANCH=feature/long-test TTL_HOURS=168
 ```
 
 ### Testing Specific Commits
 
-Deploy a specific commit by checking out before triggering:
+Deploy a specific commit by specifying its branch or SHA:
 ```bash
-git checkout abc123
+# Via GitHub CLI with a specific ref
 gh workflow run manual-deploy-ephemeral.yml \
-  -f branch=$(git symbolic-ref --short HEAD)
+  --ref abc123def \
+  -f ttl_hours=24
 ```
 
 ### Parallel Ephemeral Stacks

@@ -55,7 +55,7 @@ help:
 	@echo "  deploy          Deploy to AWS Lambda (deprecated - use deploy-dev or deploy-prod)"
 	@echo "  deploy-dev      Create and push beta tag to trigger dev deployment"
 	@echo "  deploy-prod     Create and push release tag to trigger prod deployment"
-	@echo "  deploy-ephemeral Deploy ephemeral stack (BRANCH=feature/foo TTL_HOURS=24)"
+	@echo "  deploy-ephemeral Deploy ephemeral stack (TTL_HOURS=24, optionally BRANCH=...)"
 	@echo "  destroy-ephemeral Destroy ephemeral stack (STACK=alchemiser-ephem-...)"
 	@echo "  list-ephemeral  List all ephemeral stacks"
 	@echo "  release         Create and push a production release tag (same as deploy-prod)"
@@ -415,13 +415,9 @@ deploy-prod:
 # Ephemeral Deployment
 deploy-ephemeral:
 	@echo "🧪 Deploying ephemeral stack..."
-	@if [ -z "$(BRANCH)" ]; then \
-		echo "❌ ERROR: BRANCH parameter is required"; \
-		echo "💡 Usage: make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24"; \
-		exit 1; \
-	fi; \
-	TTL_HOURS=$${TTL_HOURS:-24}; \
-	echo "Branch: $(BRANCH)"; \
+	@TTL_HOURS=$${TTL_HOURS:-24}; \
+	BRANCH=$${BRANCH:-$$(git branch --show-current)}; \
+	echo "Branch: $$BRANCH"; \
 	echo "TTL: $$TTL_HOURS hours"; \
 	echo ""; \
 	if ! command -v gh >/dev/null 2>&1; then \
@@ -435,8 +431,9 @@ deploy-ephemeral:
 		exit 1; \
 	fi; \
 	echo "🚀 Triggering ephemeral deployment via GitHub Actions..."; \
+	echo "💡 Select branch '$$BRANCH' in the GitHub Actions UI"; \
 	gh workflow run manual-deploy-ephemeral.yml \
-		-f branch="$(BRANCH)" \
+		--ref "$$BRANCH" \
 		-f ttl_hours="$$TTL_HOURS"; \
 	echo ""; \
 	echo "✅ Deployment triggered!"; \

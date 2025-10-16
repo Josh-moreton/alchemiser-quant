@@ -4,11 +4,17 @@
 
 ### Deploy
 ```bash
-# Via Makefile
+# Via Makefile (uses current branch by default)
+make deploy-ephemeral TTL_HOURS=24
+
+# Or specify a branch
 make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24
 
-# Via GitHub CLI
-gh workflow run manual-deploy-ephemeral.yml -f branch=feature/my-feature -f ttl_hours=24
+# Via GitHub CLI (uses selected branch)
+gh workflow run manual-deploy-ephemeral.yml -f ttl_hours=24
+
+# Or specify with --ref
+gh workflow run manual-deploy-ephemeral.yml --ref feature/my-feature -f ttl_hours=24
 ```
 
 ### Destroy
@@ -85,7 +91,8 @@ Branch Sanitization:
 
 ### Quick Test (2 hours)
 ```bash
-make deploy-ephemeral BRANCH=$(git branch --show-current) TTL_HOURS=2
+# Uses current branch
+make deploy-ephemeral TTL_HOURS=2
 # ... test ...
 make destroy-ephemeral STACK=<generated-stack-name>
 ```
@@ -125,8 +132,9 @@ aws cloudformation describe-stacks --stack-name {stack} \
 
 ### Stack name too long
 ```bash
+# Via GitHub UI or CLI:
 gh workflow run manual-deploy-ephemeral.yml \
-  -f branch=feature/my-branch \
+  --ref feature/my-branch \
   -f stack_suffix=short-name
 ```
 

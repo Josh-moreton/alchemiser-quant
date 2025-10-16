@@ -261,7 +261,10 @@ make deploy
 Deploy any feature branch as an isolated, temporary stack:
 
 ```bash
-# Deploy ephemeral stack with 24-hour TTL
+# Deploy ephemeral stack with 24-hour TTL (uses current branch by default)
+make deploy-ephemeral TTL_HOURS=24
+
+# Or specify a different branch
 make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24
 
 # List active ephemeral stacks
