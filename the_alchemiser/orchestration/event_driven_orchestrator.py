@@ -502,6 +502,44 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
+    def _extract_consolidated_portfolio(self, workflow_results: dict[str, Any]) -> dict[str, Any]:
+        """Extract consolidated portfolio from workflow context.
+
+        Args:
+            workflow_results: Dictionary containing workflow results
+
+        Returns:
+            Dictionary mapping symbols to their target weights
+
+        """
+        # Try to get from SignalGenerated event first
+        consolidated_portfolio = workflow_results.get("consolidated_portfolio", {})
+        if consolidated_portfolio:
+            return cast(dict[str, Any], consolidated_portfolio)
+
+        # Fall back to rebalance plan
+        if "rebalance_plan" not in workflow_results:
+            return {}
+
+        rebalance_plan = workflow_results["rebalance_plan"]
+
+        # Try to extract from rebalance plan metadata
+        if hasattr(rebalance_plan, "metadata") and isinstance(rebalance_plan.metadata, dict):
+            consolidated_portfolio = rebalance_plan.metadata.get("consolidated_portfolio", {})
+            if consolidated_portfolio:
+                return cast(dict[str, Any], consolidated_portfolio)
+
+        # Build from rebalance plan items as last resort
+        result: dict[str, Any] = {}
+        if hasattr(rebalance_plan, "items") and rebalance_plan.items:
+            for item in rebalance_plan.items:
+                symbol = getattr(item, "symbol", None)
+                target_weight = getattr(item, "target_weight", None)
+                if symbol and target_weight is not None:
+                    result[symbol] = float(target_weight)
+
+        return result
+
     def _prepare_execution_data(self, event: TradeExecuted, *, success: bool) -> dict[str, Any]:
         """Prepare execution data with failure details and workflow context.
 
@@ -527,25 +565,7 @@ class EventDrivenOrchestrator:
             execution_data["strategy_signals"] = workflow_results["strategy_signals"]
 
         # Add consolidated portfolio from workflow context
-        # Try to get from SignalGenerated event first, then fall back to rebalance plan
-        consolidated_portfolio = workflow_results.get("consolidated_portfolio", {})
-        if not consolidated_portfolio and "rebalance_plan" in workflow_results:
-            # Extract consolidated portfolio from rebalance plan metadata as fallback
-            rebalance_plan = workflow_results["rebalance_plan"]
-            if hasattr(rebalance_plan, "metadata") and isinstance(rebalance_plan.metadata, dict):
-                consolidated_portfolio = rebalance_plan.metadata.get("consolidated_portfolio", {})
-            # Build consolidated portfolio from rebalance plan items as last resort
-            if (
-                not consolidated_portfolio
-                and hasattr(rebalance_plan, "items")
-                and rebalance_plan.items
-            ):
-                for item in rebalance_plan.items:
-                    symbol = getattr(item, "symbol", None)
-                    target_weight = getattr(item, "target_weight", None)
-                    if symbol and target_weight is not None:
-                        consolidated_portfolio[symbol] = float(target_weight)
-
+        consolidated_portfolio = self._extract_consolidated_portfolio(workflow_results)
         if consolidated_portfolio:
             execution_data["consolidated_portfolio"] = consolidated_portfolio
 
