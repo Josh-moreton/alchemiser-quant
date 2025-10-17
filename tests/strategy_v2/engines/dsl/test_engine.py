@@ -331,3 +331,49 @@ class TestDslEngine:
         
         # Timestamps should be identical
         assert first_event.timestamp == second_event.timestamp
+
+    def test_evaluate_strategy_captures_decision_path_in_trace(self, engine):
+        """Test that decision path is captured during evaluation and added to trace metadata."""
+        # Create a simple strategy with an if condition
+        strategy_code = """
+        (defsymphony "test-strategy" {}
+          (weight-equal
+            [(if (> 5 3)
+              [(asset "AAPL" "Apple Inc.")]
+              [(asset "MSFT" "Microsoft Corp.")])]))
+        """
+        
+        # Write to a temp file
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".clj", delete=False) as f:
+            f.write(strategy_code)
+            temp_path = f.name
+        
+        try:
+            # Evaluate the strategy
+            allocation, trace = engine.evaluate_strategy(temp_path, str(uuid.uuid4()))
+            
+            # Check that decision_path is in trace metadata
+            assert "decision_path" in trace.metadata
+            decision_path = trace.metadata["decision_path"]
+            
+            # Should have at least one decision
+            assert len(decision_path) > 0
+            
+            # Check decision node structure
+            decision_node = decision_path[0]
+            assert "condition" in decision_node
+            assert "result" in decision_node
+            assert "branch" in decision_node
+            assert "values" in decision_node
+            
+            # The condition should have been True (5 > 3)
+            assert decision_node["result"] is True
+            assert decision_node["branch"] == "then"
+            
+            # Allocation should be for AAPL (since condition was true)
+            assert "AAPL" in allocation.target_weights
+            
+        finally:
+            # Clean up temp file
+            Path(temp_path).unlink(missing_ok=True)

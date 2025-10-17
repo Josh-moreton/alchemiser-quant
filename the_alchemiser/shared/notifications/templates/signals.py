@@ -599,16 +599,29 @@ class SignalsBuilder:
             # Strategy signals may include allocation data
             symbol = signal_data.get("symbol", "")
             action = signal_data.get("action", "UNKNOWN")
+            reason = signal_data.get("reason", "")
 
             # Build allocation string from signal
             allocation_str = f"{action}"
             if symbol:
                 allocation_str += f" {symbol}"
 
+            # Add reasoning if available (decision path explanation)
+            reasoning_html = ""
+            if reason:
+                # Truncate reasoning for summary display
+                truncated_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
+                reasoning_html = f"""
+                    <div style="margin-left: 16px; margin-top: 4px; color: #6B7280; font-size: 13px; line-height: 1.5;">
+                        → {truncated_reason}
+                    </div>
+                """
+
             strategy_rows.append(
                 f"""
                 <div style="padding: 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
                     <strong style="color: #1F2937;">{strategy_display_name}:</strong> {allocation_str}
+                    {reasoning_html}
                 </div>
                 """
             )

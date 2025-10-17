@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal, DecimalException
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
@@ -28,12 +28,31 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class DecisionNode(TypedDict):
+    """Represents a single decision point in strategy evaluation.
+
+    Attributes:
+        condition: Human-readable condition expression (e.g., "SPY RSI(10) > 79")
+        result: Boolean result of the condition evaluation
+        branch: Branch taken ("then" or "else")
+        values: Dictionary mapping indicator references to their values.
+            Values may be placeholder strings like "<computed>" when actual
+            values are not available without re-evaluation.
+
+    """
+
+    condition: str
+    result: bool
+    branch: str
+    values: dict[str, Any]
+
+
 class DslContext:
     """Context object for DSL operator evaluation.
 
     Carries shared state and utilities for DSL operators, including
-    indicator service, event publisher, correlation tracking, and
-    type coercion utilities.
+    indicator service, event publisher, correlation tracking, decision
+    path capture, and type coercion utilities.
     """
 
     def __init__(
@@ -60,6 +79,11 @@ class DslContext:
         self.trace = trace
         self.evaluate_node = evaluate_node
         self.timestamp = datetime.now(UTC)
+        # Decision path stored as list of dicts for serialization compatibility.
+        # Note: This is initialized here but immediately replaced with evaluator's
+        # shared list (see dsl_evaluator.py line 289) to ensure all contexts
+        # accumulate decisions to the same list.
+        self.decision_path: list[dict[str, Any]] = []
 
     def as_decimal(self, val: DSLValue) -> Decimal:
         """Coerce a DSLValue to Decimal for numeric comparisons.
