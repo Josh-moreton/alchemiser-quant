@@ -89,6 +89,14 @@ class MultiStrategyReportBuilder:
         # Build content sections (neutral mode - no financial data)
         content_sections = []
 
+        # Add signal summary at the top (Issue: More context in emails)
+        consolidated_portfolio = getattr(result, "consolidated_portfolio", {})
+        signal_summary_html = SignalsBuilder.build_signal_summary(
+            strategy_signals, consolidated_portfolio
+        )
+        if signal_summary_html:
+            content_sections.append(signal_summary_html)
+
         # Add execution summary box if successful
         if success:
             orders = getattr(result, "orders_executed", [])

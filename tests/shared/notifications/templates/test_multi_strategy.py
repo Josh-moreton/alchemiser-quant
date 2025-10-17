@@ -41,9 +41,7 @@ class TestMultiStrategyReportBuilder:
     def test_build_with_valid_paper_mode(self) -> None:
         """Test building report with valid PAPER mode."""
         result = MockExecutionResult(success=True)
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert html is not None
         assert isinstance(html, str)
@@ -53,9 +51,7 @@ class TestMultiStrategyReportBuilder:
     def test_build_with_valid_live_mode(self) -> None:
         """Test building report with valid LIVE mode."""
         result = MockExecutionResult(success=True)
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "LIVE"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "LIVE")
 
         assert html is not None
         assert isinstance(html, str)
@@ -65,9 +61,7 @@ class TestMultiStrategyReportBuilder:
     def test_build_with_lowercase_mode(self) -> None:
         """Test mode parameter is case-insensitive."""
         result = MockExecutionResult(success=True)
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "paper"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "paper")
 
         assert html is not None
         assert "PAPER" in html
@@ -77,9 +71,7 @@ class TestMultiStrategyReportBuilder:
         result = MockExecutionResult(success=True)
 
         with pytest.raises(ValueError, match="Invalid mode 'INVALID'"):
-            MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                result, "INVALID"
-            )
+            MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "INVALID")
 
     def test_build_with_empty_mode_raises_error(self) -> None:
         """Test that empty mode raises ValueError."""
@@ -92,13 +84,9 @@ class TestMultiStrategyReportBuilder:
         """Test building report for successful execution."""
         result = MockExecutionResult(
             success=True,
-            orders_executed=[
-                {"side": "BUY", "symbol": "AAPL", "qty": 10, "status": "filled"}
-            ],
+            orders_executed=[{"side": "BUY", "symbol": "AAPL", "qty": 10, "status": "filled"}],
         )
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert "Completed Successfully" in html
         assert "059669" in html  # Success color
@@ -106,9 +94,7 @@ class TestMultiStrategyReportBuilder:
     def test_build_failure_case(self) -> None:
         """Test building report for failed execution."""
         result = MockExecutionResult(success=False)
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert "Execution Failed" in html or "Failed" in html
         assert "DC2626" in html  # Error color
@@ -116,9 +102,7 @@ class TestMultiStrategyReportBuilder:
     def test_build_with_minimal_data(self) -> None:
         """Test building report with minimal result data."""
         result = MockExecutionResult()
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert html is not None
         assert isinstance(html, str)
@@ -127,9 +111,7 @@ class TestMultiStrategyReportBuilder:
     def test_build_with_empty_orders(self) -> None:
         """Test building report when no orders executed."""
         result = MockExecutionResult(success=True, orders_executed=[])
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert "No rebalancing orders required" in html
 
@@ -145,19 +127,49 @@ class TestMultiStrategyReportBuilder:
                 }
             },
         )
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert html is not None
         # Strategy signals should be included via SignalsBuilder
 
+    def test_build_with_signal_summary(self) -> None:
+        """Test building report includes signal summary section."""
+
+        class MockResultWithPortfolio(MockExecutionResult):
+            def __init__(self) -> None:
+                super().__init__(
+                    success=True,
+                    strategy_signals={
+                        "momentum": {
+                            "action": "BUY",
+                            "symbol": "TQQQ",
+                            "reason": "Strong momentum",
+                        },
+                        "mean_reversion": {
+                            "action": "BUY",
+                            "symbol": "SOXL",
+                            "reason": "Oversold",
+                        },
+                    },
+                )
+                self.consolidated_portfolio = {
+                    "TQQQ": 0.75,
+                    "SOXL": 0.25,
+                }
+
+        result = MockResultWithPortfolio()
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
+
+        assert html is not None
+        assert "Signal Summary" in html
+        assert "Consolidated Signal" in html
+        assert "75.0% TQQQ" in html
+        assert "25.0% SOXL" in html
+
     def test_build_html_structure_valid(self) -> None:
         """Test that generated HTML has valid structure."""
         result = MockExecutionResult(success=True)
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         # Check basic HTML structure
         assert "<!DOCTYPE html>" in html
@@ -185,9 +197,7 @@ class TestMultiStrategyReportBuilder:
                 return self._data.get(name)
 
         result = DictLikeResult(result_dict)
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert html is not None
         assert isinstance(html, str)
@@ -203,9 +213,7 @@ class TestMultiStrategyReportBuilderEdgeCases:
             pass
 
         result = MinimalResult()
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         # Should default to True per getattr default
         assert html is not None
@@ -219,9 +227,7 @@ class TestMultiStrategyReportBuilderEdgeCases:
                 self.strategy_signals = {}
 
         result = ResultWithoutOrders()
-        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, "PAPER"
-        )
+        html = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, "PAPER")
 
         assert html is not None
         assert "No rebalancing orders required" in html
@@ -232,6 +238,4 @@ class TestMultiStrategyReportBuilderEdgeCases:
 
         # Should handle whitespace after upper()
         with pytest.raises(ValueError):
-            MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                result, " PAPER "
-            )
+            MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, " PAPER ")
