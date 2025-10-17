@@ -203,6 +203,108 @@ class SignalsBuilder:
         return reason
 
     @staticmethod
+    def _format_decision_path_for_table(reason: str, max_length: int) -> str:
+        """Format decision path for table display with smart truncation.
+
+        Preserves decision path symbols (✓, →) and intelligently truncates
+        while maintaining readability. Used in neutral signal tables where
+        space is limited.
+
+        Args:
+            reason: The reasoning text containing decision path (may include ✓ and → symbols)
+            max_length: Maximum length before truncation
+
+        Returns:
+            Formatted string with decision path symbols preserved, truncated if needed
+
+        Examples:
+            >>> _format_decision_path_for_table("Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation", 100)
+            "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation"
+
+            >>> _format_decision_path_for_table("Very long decision path with many conditions...", 50)
+            "Very long decision path with many conditions..."
+
+        """
+        if len(reason) <= max_length:
+            return reason
+
+        # For decision paths with arrows, try to keep complete decision nodes
+        if "→" in reason:
+            # Split by arrows to preserve decision node boundaries
+            parts = reason.split(" → ")
+
+            # Try to fit as many complete nodes as possible
+            result_parts: list[str] = []
+            current_length = 0
+
+            for part in parts:
+                # Account for arrow separator (3 chars: " → ")
+                part_length = len(part) + (3 if result_parts else 0)
+
+                if current_length + part_length <= max_length - 3:  # Reserve 3 for "..."
+                    result_parts.append(part)
+                    current_length += part_length
+                else:
+                    break
+
+            if result_parts:
+                return " → ".join(result_parts) + "..."
+
+        # Fallback to simple truncation if no arrow or can't preserve nodes
+        return reason[:max_length] + "..."
+
+    @staticmethod
+    def _render_decision_tree(reason: str) -> str:
+        """Render decision path as hierarchical tree with visual formatting.
+
+        Converts flat decision path text into visually structured HTML
+        with proper indentation and hierarchy. Used in detailed signal cards
+        to provide clear visual distinction between decision steps.
+
+        Args:
+            reason: The reasoning text containing decision path
+
+        Returns:
+            HTML string with hierarchical formatting for decision steps
+
+        Examples:
+            Input: "Nuclear: ✓ 5 > 3 → ✓ TQQQ RSI(10) < 81 → 75.0% allocation"
+            Output: HTML with indented decision steps and visual hierarchy
+
+        Note:
+            - Preserves checkmarks (✓) and arrows (→) from decision paths
+            - Adds visual indentation for better readability
+            - Falls back to simple formatting if no decision path detected
+
+        """
+        # Check if this contains decision path formatting (arrows and checkmarks)
+        if "→" not in reason and "✓" not in reason:
+            # Not a decision path, return as-is wrapped in basic formatting
+            return f'<div style="color: #4B5563; font-size: 14px; line-height: 1.5;">{reason}</div>'
+
+        # Split by arrows to get decision steps
+        steps = reason.split(" → ")
+
+        # Build hierarchical HTML structure
+        html_parts = []
+
+        for i, step in enumerate(steps):
+            # Calculate indentation based on step depth
+            indent = i * 16  # 16px per level
+
+            # Determine if this is a success (✓) or failure step
+            is_success = "✓" in step
+            color = "#10B981" if is_success else "#6B7280"  # Green for success, gray otherwise
+
+            # Add step with indentation
+            html_parts.append(
+                f'<div style="margin-left: {indent}px; color: {color}; font-size: 14px; '
+                f'line-height: 1.8; font-family: monospace;">{step.strip()}</div>'
+            )
+
+        return "".join(html_parts)
+
+    @staticmethod
     def build_signal_information(signal: SignalProtocol | Any) -> str:  # noqa: ANN401
         """Build HTML for signal information section.
 
@@ -377,9 +479,10 @@ class SignalsBuilder:
             action_bg = colors["background"]
             action_label = colors["label"]
 
-            # Truncate reason text using helper method
-            formatted_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_DETAILED)
-            formatted_reason = formatted_reason.replace("\n", "<br>")
+            # Render decision tree for detailed display
+            # First truncate if too long, then render as tree
+            truncated_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_DETAILED)
+            formatted_reason = SignalsBuilder._render_decision_tree(truncated_reason)
 
             signals_html += f"""
             <div style="margin-bottom: 20px; padding: 20px; background-color: white; border-radius: 12px; border-left: 4px solid {action_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -400,9 +503,7 @@ class SignalsBuilder:
                 </div>
                 <div style="background-color: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 12px;">
                     <h5 style="margin: 0 0 8px 0; color: #374151; font-size: 14px; font-weight: 600;">Strategy Reasoning:</h5>
-                    <div style="color: #4B5563; font-size: 14px; line-height: 1.5;">
-                        {formatted_reason}
-                    </div>
+                    {formatted_reason}
                 </div>
                 {f'<div style="color: #9CA3AF; font-size: 12px; text-align: right;">Generated: {timestamp}</div>' if timestamp else ""}
             </div>
@@ -610,7 +711,9 @@ class SignalsBuilder:
             reasoning_html = ""
             if reason:
                 # Truncate reasoning for summary display
-                truncated_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
+                truncated_reason = SignalsBuilder._truncate_reason(
+                    reason, MAX_REASON_LENGTH_SUMMARY
+                )
                 reasoning_html = f"""
                     <div style="margin-left: 16px; margin-top: 4px; color: #6B7280; font-size: 13px; line-height: 1.5;">
                         → {truncated_reason}
@@ -732,8 +835,10 @@ class SignalsBuilder:
             action_color = colors["text"]
             action_label = colors["label"]
 
-            # Truncate reason for summary display
-            display_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
+            # Format decision path for table display with smart truncation
+            display_reason = SignalsBuilder._format_decision_path_for_table(
+                reason, MAX_REASON_LENGTH_SUMMARY
+            )
 
             signal_rows.append(
                 f"""
