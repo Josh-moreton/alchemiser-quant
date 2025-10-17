@@ -91,8 +91,9 @@ def build_allocation_comparison(
     # Calculate target values in dollars using effective portfolio value
     target_values = {}
     for symbol, weight in consolidated_portfolio.items():
-        # weight is already Decimal, no conversion needed
-        target_money = effective_portfolio_value.multiply(weight)
+        # Convert weight to Decimal if needed (Money.multiply requires Decimal)
+        weight_decimal = weight if isinstance(weight, Decimal) else Decimal(str(weight))
+        target_money = effective_portfolio_value.multiply(weight_decimal)
         target_values[symbol] = target_money.to_decimal()
 
     # Convert current position values to Money then extract Decimal

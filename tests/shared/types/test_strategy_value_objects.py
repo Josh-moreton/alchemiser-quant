@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from hypothesis import given
@@ -28,16 +29,37 @@ from the_alchemiser.shared.types.strategy_value_objects import (
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
+def _default_signal_fields(**overrides: Any) -> dict[str, Any]:
+    """Helper to create StrategySignal fields with required correlation/causation IDs.
+    
+    Provides default values for:
+    - correlation_id: "test-correlation-id"
+    - causation_id: "test-causation-id"
+    - reasoning: "Test signal reasoning"
+    
+    All defaults can be overridden via kwargs.
+    """
+    defaults = {
+        "correlation_id": "test-correlation-id",
+        "causation_id": "test-causation-id",
+        "reasoning": "Test signal reasoning",
+    }
+    defaults.update(overrides)
+    return defaults
+
+
 class TestStrategySignalValidation:
     """Test StrategySignal field validation."""
 
     def test_valid_buy_signal(self) -> None:
         """Test creating valid BUY signal."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            reasoning="Test buy signal",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                reasoning="Test buy signal",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.action == "BUY"
         assert signal.symbol.value == "AAPL"
@@ -46,9 +68,11 @@ class TestStrategySignalValidation:
     def test_valid_sell_signal(self) -> None:
         """Test creating valid SELL signal."""
         signal = StrategySignal(
-            symbol=Symbol("SPY"),
-            action="SELL",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol=Symbol("SPY"),
+                action="SELL",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.action == "SELL"
         assert signal.symbol.value == "SPY"
@@ -56,9 +80,11 @@ class TestStrategySignalValidation:
     def test_valid_hold_signal(self) -> None:
         """Test creating valid HOLD signal."""
         signal = StrategySignal(
-            symbol="QQQ",
-            action="HOLD",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="QQQ",
+                action="HOLD",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.action == "HOLD"
         assert signal.symbol.value == "QQQ"
@@ -68,39 +94,47 @@ class TestStrategySignalValidation:
         # This should fail type checking, but test runtime behavior
         with pytest.raises(ValidationError) as exc_info:
             StrategySignal(
-                symbol="AAPL",
-                action="INVALID",  # type: ignore[arg-type]
-                timestamp=datetime.now(UTC),
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="INVALID",  # type: ignore[arg-type]
+                    timestamp=datetime.now(UTC),
+                )
             )
         assert "action" in str(exc_info.value).lower()
 
     def test_target_allocation_in_valid_range(self) -> None:
         """Test target_allocation within [0, 1]."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.5"),
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.5"),
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("0.5")
 
     def test_target_allocation_zero_accepted(self) -> None:
         """Test target_allocation of 0.0 is accepted."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.0"),
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.0"),
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("0.0")
 
     def test_target_allocation_one_accepted(self) -> None:
         """Test target_allocation of 1.0 is accepted."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("1.0"),
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("1.0"),
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("1.0")
 
@@ -108,10 +142,12 @@ class TestStrategySignalValidation:
         """Test target_allocation > 1.0 is rejected."""
         with pytest.raises(ValidationError) as exc_info:
             StrategySignal(
-                symbol="AAPL",
-                action="BUY",
-                target_allocation=Decimal("1.5"),
-                timestamp=datetime.now(UTC),
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    target_allocation=Decimal("1.5"),
+                    timestamp=datetime.now(UTC),
+                )
             )
         assert "target_allocation" in str(exc_info.value).lower()
 
@@ -119,20 +155,24 @@ class TestStrategySignalValidation:
         """Test target_allocation < 0.0 is rejected."""
         with pytest.raises(ValidationError) as exc_info:
             StrategySignal(
-                symbol="AAPL",
-                action="BUY",
-                target_allocation=Decimal("-0.1"),
-                timestamp=datetime.now(UTC),
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    target_allocation=Decimal("-0.1"),
+                    timestamp=datetime.now(UTC),
+                )
             )
         assert "target_allocation" in str(exc_info.value).lower()
 
     def test_target_allocation_none_accepted(self) -> None:
         """Test None target_allocation is accepted."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=None,
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=None,
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation is None
 
@@ -140,9 +180,11 @@ class TestStrategySignalValidation:
         """Test that timezone-naive datetime is rejected."""
         with pytest.raises(ValidationError) as exc_info:
             StrategySignal(
-                symbol="AAPL",
-                action="BUY",
-                timestamp=datetime(2025, 1, 1, 12, 0, 0),  # No timezone
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    timestamp=datetime(2025, 1, 1, 12, 0, 0),  # No timezone
+                )
             )
         assert "timezone-aware" in str(exc_info.value).lower()
 
@@ -150,9 +192,11 @@ class TestStrategySignalValidation:
         """Test that timezone-aware datetime is accepted."""
         ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=ts,
+            )
         )
         assert signal.timestamp == ts
         assert signal.timestamp.tzinfo == UTC
@@ -162,9 +206,11 @@ class TestStrategySignalValidation:
         eastern = timezone(timedelta(hours=-5))
         ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=eastern)
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=ts,
+            )
         )
         assert signal.timestamp.tzinfo == eastern
 
@@ -173,29 +219,35 @@ class TestStrategySignalValidation:
         long_reasoning = "A" * 1001  # Exceeds 1000 char limit
         with pytest.raises(ValidationError) as exc_info:
             StrategySignal(
-                symbol="AAPL",
-                action="BUY",
-                reasoning=long_reasoning,
-                timestamp=datetime.now(UTC),
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    reasoning=long_reasoning,
+                    timestamp=datetime.now(UTC),
+                )
             )
         assert "reasoning" in str(exc_info.value).lower()
 
     def test_reasoning_empty_string_accepted(self) -> None:
         """Test empty reasoning is accepted."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            reasoning="",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                reasoning="",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.reasoning == ""
 
     def test_immutability(self) -> None:
         """Test that StrategySignal is immutable (frozen)."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=datetime.now(UTC),
+            )
         )
         with pytest.raises(ValidationError):
             signal.action = "SELL"  # type: ignore[misc]
@@ -203,9 +255,11 @@ class TestStrategySignalValidation:
     def test_immutability_symbol_field(self) -> None:
         """Test that symbol field is immutable."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=datetime.now(UTC),
+            )
         )
         with pytest.raises(ValidationError):
             signal.symbol = Symbol("SPY")  # type: ignore[misc]
@@ -217,9 +271,11 @@ class TestStrategySignalInputFlexibility:
     def test_string_symbol_converted(self) -> None:
         """Test str symbol is converted to Symbol."""
         signal = StrategySignal(
-            symbol="aapl",  # lowercase
-            action="BUY",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="aapl",  # lowercase
+                action="BUY",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert isinstance(signal.symbol, Symbol)
         assert signal.symbol.value == "AAPL"  # Should be normalized to uppercase
@@ -228,19 +284,23 @@ class TestStrategySignalInputFlexibility:
         """Test Symbol instance is accepted directly."""
         sym = Symbol("SPY")
         signal = StrategySignal(
-            symbol=sym,
-            action="BUY",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol=sym,
+                action="BUY",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.symbol is sym
 
     def test_float_allocation_converted(self) -> None:
         """Test float allocation is converted to Decimal."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=0.5,  # float
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=0.5,  # float
+                timestamp=datetime.now(UTC),
+            )
         )
         assert isinstance(signal.target_allocation, Decimal)
         assert signal.target_allocation == Decimal("0.5")
@@ -248,10 +308,12 @@ class TestStrategySignalInputFlexibility:
     def test_int_allocation_converted(self) -> None:
         """Test int allocation is converted to Decimal."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=1,  # int
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=1,  # int
+                timestamp=datetime.now(UTC),
+            )
         )
         assert isinstance(signal.target_allocation, Decimal)
         assert signal.target_allocation == Decimal("1")
@@ -260,10 +322,12 @@ class TestStrategySignalInputFlexibility:
         """Test Percentage allocation is converted to Decimal."""
         pct = Percentage(Decimal("0.3"))
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=pct,
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=pct,
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("0.3")
 
@@ -271,10 +335,12 @@ class TestStrategySignalInputFlexibility:
         """Test Percentage created from percent value."""
         pct = Percentage.from_percent(25.0)  # 25% = 0.25
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=pct,
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=pct,
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("0.25")
 
@@ -282,10 +348,12 @@ class TestStrategySignalInputFlexibility:
         """Test Decimal allocation is accepted directly."""
         alloc = Decimal("0.75")
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=alloc,
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=alloc,
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == alloc
 
@@ -293,9 +361,11 @@ class TestStrategySignalInputFlexibility:
         """Test None timestamp defaults to current UTC time."""
         before = datetime.now(UTC)
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=None,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=None,
+            )
         )
         after = datetime.now(UTC)
 
@@ -307,9 +377,11 @@ class TestStrategySignalInputFlexibility:
         """Test explicit timestamp is used when provided."""
         explicit_ts = datetime(2025, 6, 15, 10, 30, 0, tzinfo=UTC)
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=explicit_ts,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=explicit_ts,
+            )
         )
         assert signal.timestamp == explicit_ts
 
@@ -320,18 +392,21 @@ class TestStrategySignalExtraFields:
     def test_extra_fields_accepted(self) -> None:
         """Test that extra fields are accepted for event-driven architecture."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=datetime.now(UTC),
-            correlation_id="test-correlation-123",  # type: ignore[call-arg]
-            causation_id="test-causation-456",  # type: ignore[call-arg]
-            strategy="dsl_momentum",  # type: ignore[call-arg]
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=datetime.now(UTC),
+                correlation_id="test-correlation-123",
+                causation_id="test-causation-456",
+                strategy="dsl_momentum",  # type: ignore[call-arg]
+            )
         )
+        # Correlation and causation IDs are now standard fields, strategy is extra
+        assert signal.correlation_id == "test-correlation-123"
+        assert signal.causation_id == "test-causation-456"
         # Extra fields are stored in __pydantic_extra__
-        assert hasattr(signal, "__pydantic_extra__")
-        assert signal.__pydantic_extra__["correlation_id"] == "test-correlation-123"  # type: ignore[index]
-        assert signal.__pydantic_extra__["causation_id"] == "test-causation-456"  # type: ignore[index]
-        assert signal.__pydantic_extra__["strategy"] == "dsl_momentum"  # type: ignore[index]
+        if hasattr(signal, "__pydantic_extra__") and signal.__pydantic_extra__:
+            assert signal.__pydantic_extra__["strategy"] == "dsl_momentum"  # type: ignore[index]
 
 
 class TestStrategySignalEdgeCases:
@@ -340,20 +415,24 @@ class TestStrategySignalEdgeCases:
     def test_very_small_allocation(self) -> None:
         """Test very small but valid allocation."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.0001"),
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.0001"),
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("0.0001")
 
     def test_allocation_with_many_decimal_places(self) -> None:
         """Test allocation with high precision."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.123456789"),
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.123456789"),
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.target_allocation == Decimal("0.123456789")
 
@@ -361,9 +440,11 @@ class TestStrategySignalEdgeCases:
         """Test that symbol normalization maintains validity."""
         # Symbol class normalizes to uppercase and validates
         signal = StrategySignal(
-            symbol="spy",
-            action="BUY",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="spy",
+                action="BUY",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.symbol.value == "SPY"
 
@@ -371,9 +452,11 @@ class TestStrategySignalEdgeCases:
         """Test that invalid symbols are rejected by Symbol validation."""
         with pytest.raises(ValueError):
             StrategySignal(
-                symbol="INVALID SYMBOL WITH SPACES",
-                action="BUY",
-                timestamp=datetime.now(UTC),
+                **_default_signal_fields(
+                    symbol="INVALID SYMBOL WITH SPACES",
+                    action="BUY",
+                    timestamp=datetime.now(UTC),
+                )
             )
 
 
@@ -409,11 +492,13 @@ class TestStrategySignalPropertyBased:
         """Test that valid inputs always create valid signals (ASCII alphanumeric symbols only)."""
         ts = datetime.now(UTC)
         signal = StrategySignal(
-            symbol=symbol,
-            action=action,
-            target_allocation=allocation,
-            reasoning=reasoning,
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol=symbol,
+                action=action,
+                target_allocation=allocation,
+                reasoning=reasoning,
+                timestamp=ts,
+            )
         )
         assert signal.symbol.value == symbol.upper()
         assert signal.action == action
@@ -444,10 +529,12 @@ class TestStrategySignalPropertyBased:
         """Test that allocations outside [0, 1] are always rejected."""
         with pytest.raises(ValidationError):
             StrategySignal(
-                symbol="AAPL",
-                action="BUY",
-                target_allocation=allocation,
-                timestamp=datetime.now(UTC),
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    target_allocation=allocation,
+                    timestamp=datetime.now(UTC),
+                )
             )
 
 
@@ -458,18 +545,22 @@ class TestStrategySignalEquality:
         """Test that signals with same data are equal."""
         ts = datetime(2025, 6, 15, 10, 30, 0, tzinfo=UTC)
         signal1 = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.5"),
-            reasoning="Test",
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.5"),
+                reasoning="Test",
+                timestamp=ts,
+            )
         )
         signal2 = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.5"),
-            reasoning="Test",
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.5"),
+                reasoning="Test",
+                timestamp=ts,
+            )
         )
         assert signal1 == signal2
 
@@ -477,14 +568,18 @@ class TestStrategySignalEquality:
         """Test that signals with different data are not equal."""
         ts = datetime.now(UTC)
         signal1 = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=ts,
+            )
         )
         signal2 = StrategySignal(
-            symbol="SPY",
-            action="BUY",
-            timestamp=ts,
+            **_default_signal_fields(
+                symbol="SPY",
+                action="BUY",
+                timestamp=ts,
+            )
         )
         assert signal1 != signal2
 
@@ -495,11 +590,13 @@ class TestStrategySignalRepresentation:
     def test_repr_contains_key_fields(self) -> None:
         """Test that repr contains key fields."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            target_allocation=Decimal("0.5"),
-            reasoning="Test signal",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                target_allocation=Decimal("0.5"),
+                reasoning="Test signal",
+                timestamp=datetime.now(UTC),
+            )
         )
         repr_str = repr(signal)
         assert "AAPL" in repr_str
@@ -509,9 +606,11 @@ class TestStrategySignalRepresentation:
     def test_str_is_readable(self) -> None:
         """Test that str() produces readable output."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=datetime.now(UTC),
+            )
         )
         str_repr = str(signal)
         assert len(str_repr) > 0

@@ -288,18 +288,20 @@ class AssetMetadataService:
             error_msg = f"Asset data structure invalid for {symbol_upper}: {e}"
             logger.error(
                 "Asset data validation failed",
-                symbol=symbol_upper,
                 error=str(e),
                 error_type="AttributeError",
                 **log_context,
             )
             raise DataProviderError(error_msg, context={"symbol": symbol_upper}) from e
 
+        except DataProviderError:
+            # Re-raise DataProviderError as-is (from validation checks)
+            raise
+
         except RateLimitError:
             # Re-raise rate limit errors as-is for retry logic upstream
             logger.warning(
                 "Rate limit error fetching asset",
-                symbol=symbol_upper,
                 **log_context,
             )
             raise
@@ -309,7 +311,6 @@ class AssetMetadataService:
             error_msg = f"Failed to retrieve asset info for {symbol_upper}"
             logger.error(
                 "Asset metadata retrieval failed",
-                symbol=symbol_upper,
                 error=str(e),
                 error_type=type(e).__name__,
                 **log_context,
@@ -318,7 +319,7 @@ class AssetMetadataService:
             # Check if it's a not found case
             if "not found" in str(e).lower() or "404" in str(e):
                 # Asset doesn't exist - return None
-                logger.info("Asset not found", symbol=symbol_upper, **log_context)
+                logger.info("Asset not found", **log_context)
                 return None
 
             # Re-raise as TradingClientError with context

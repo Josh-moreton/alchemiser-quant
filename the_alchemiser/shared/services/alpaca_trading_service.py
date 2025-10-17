@@ -859,7 +859,7 @@ class AlpacaTradingService:
         return ExecutedOrder(
             order_id="FAILED",  # Must be non-empty
             symbol=symbol,
-            action=action,  # type: ignore[arg-type]
+            action=action,
             quantity=MIN_ORDER_QUANTITY,  # Must be > 0
             filled_quantity=Decimal("0"),
             price=MIN_ORDER_PRICE,

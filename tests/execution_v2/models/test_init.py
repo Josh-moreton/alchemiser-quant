@@ -28,6 +28,7 @@ class TestExecutionV2ModelsInit:
             "ExecutionResult",
             "ExecutionStatus",
             "OrderResult",
+            "SettlementDetails",
         }
         assert set(models.__all__) == expected_exports
 
