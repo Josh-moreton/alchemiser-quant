@@ -63,9 +63,6 @@ class EventDrivenOrchestrator:
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
 
-        # Register domain handlers using module registration functions
-        self._register_domain_handlers()
-
         # Cache event dispatch mapping to avoid per-call construction
         # Use cast to align specific handler signatures with BaseEvent for dispatching
         self._event_handlers: dict[type[BaseEvent], TypingCallable[[BaseEvent], None]] = {
@@ -81,8 +78,13 @@ class EventDrivenOrchestrator:
             WorkflowFailed: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_failed),
         }
 
-        # Register event handlers (both cross-cutting and domain)
+        # Register orchestrator's event handlers FIRST so workflow_results is populated
+        # before domain handlers process events (critical for data flow)
         self._register_handlers()
+
+        # Register domain handlers using module registration functions
+        # These run AFTER orchestrator handlers, so they can access workflow_results
+        self._register_domain_handlers()
 
         # Track workflow state for monitoring and recovery
         self.workflow_state: dict[str, Any] = {
