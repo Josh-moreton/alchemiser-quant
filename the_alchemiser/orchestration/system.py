@@ -297,8 +297,6 @@ class TradingSystem:
                 e,
                 correlation_id=exec_correlation_id,
                 started_at=started_at,
-                show_tracking=show_tracking,
-                export_tracking_json=export_tracking_json,
             )
             self._execution_cache[exec_correlation_id] = result
             return result
@@ -311,8 +309,6 @@ class TradingSystem:
                 TradingClientError(f"Unexpected error: {e}"),
                 correlation_id=exec_correlation_id,
                 started_at=started_at,
-                show_tracking=show_tracking,
-                export_tracking_json=export_tracking_json,
             )
             self._execution_cache[exec_correlation_id] = result
             return result
@@ -507,8 +503,6 @@ class TradingSystem:
         *,
         correlation_id: str,
         started_at: datetime,
-        show_tracking: bool,
-        export_tracking_json: str | None,
     ) -> TradeRunResult:
         """Handle trading execution errors with proper error handling and notifications.
 
@@ -516,8 +510,6 @@ class TradingSystem:
             e: The exception that occurred
             correlation_id: Correlation ID for this execution (for tracing)
             started_at: When execution started
-            show_tracking: Whether tracking was requested
-            export_tracking_json: Export path for tracking JSON
 
         Returns:
             TradeRunResult representing the failure
@@ -532,8 +524,6 @@ class TradingSystem:
                 component="TradingSystem.execute_trading",
                 additional_data={
                     "correlation_id": correlation_id,
-                    "show_tracking": show_tracking,
-                    "export_tracking_json": export_tracking_json,
                 },
             )
             # Send error notifications for trading system errors

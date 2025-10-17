@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 if TYPE_CHECKING:
     from pydantic import ValidationInfo
 
+from the_alchemiser.shared.constants import DTO_SCHEMA_VERSION_DESCRIPTION
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
 
 # Type aliases for string enums
@@ -46,7 +47,7 @@ class AllocationSummary(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=DTO_SCHEMA_VERSION_DESCRIPTION)
     total_allocation: Decimal = Field(
         ..., ge=0, le=100, description="Total portfolio allocation percentage"
     )
@@ -81,7 +82,7 @@ class StrategyPnLSummary(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=DTO_SCHEMA_VERSION_DESCRIPTION)
     total_pnl: Decimal = Field(..., description="Total P&L across all strategies in USD")
     best_performer: str | None = Field(
         None, min_length=1, max_length=100, description="Best performing strategy"
@@ -106,7 +107,7 @@ class StrategySummary(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=DTO_SCHEMA_VERSION_DESCRIPTION)
     strategy_name: str = Field(..., min_length=1, max_length=100, description="Strategy identifier")
     allocation_pct: Decimal = Field(..., ge=0, le=100, description="Strategy allocation percentage")
     signal_strength: Decimal = Field(..., ge=0, le=1, description="Signal strength (0-1)")
@@ -147,7 +148,7 @@ class TradingSummary(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=DTO_SCHEMA_VERSION_DESCRIPTION)
     total_orders: int = Field(..., ge=0, description="Total number of orders")
     orders_executed: int = Field(..., ge=0, description="Number of executed orders")
     success_rate: Decimal = Field(..., ge=0, le=1, description="Execution success rate (0-1)")
@@ -188,7 +189,7 @@ class ExecutionSummary(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=DTO_SCHEMA_VERSION_DESCRIPTION)
 
     # Core execution metrics
     allocations: AllocationSummary = Field(..., description="Portfolio allocation summary")
@@ -243,7 +244,7 @@ class PortfolioState(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=DTO_SCHEMA_VERSION_DESCRIPTION)
 
     # Portfolio value metrics
     total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value in USD")

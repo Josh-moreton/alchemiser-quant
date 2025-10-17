@@ -125,6 +125,52 @@ class OrderRequest(BaseModel):
         return data
 
     @classmethod
+    def _convert_timestamp_from_string(cls, data: dict[str, Any]) -> None:
+        """Convert string timestamp to datetime in-place.
+
+        Args:
+            data: Dictionary to modify
+
+        Raises:
+            ValueError: If timestamp format is invalid
+
+        """
+        if "timestamp" not in data or not isinstance(data["timestamp"], str):
+            return
+
+        try:
+            timestamp_str = data["timestamp"]
+            if timestamp_str.endswith("Z"):
+                timestamp_str = timestamp_str[:-1] + "+00:00"
+            data["timestamp"] = datetime.fromisoformat(timestamp_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+
+    @classmethod
+    def _convert_decimal_field(cls, data: dict[str, Any], field_name: str) -> None:
+        """Convert string decimal field to Decimal in-place.
+
+        Args:
+            data: Dictionary to modify
+            field_name: Name of the field to convert
+
+        Raises:
+            ValueError: If decimal value is invalid
+
+        """
+        if field_name not in data or data[field_name] is None:
+            return
+        if not isinstance(data[field_name], str):
+            return
+
+        try:
+            data[field_name] = Decimal(data[field_name])
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+        except Exception as e:
+            raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+
+    @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OrderRequest:
         """Create DTO from dictionary.
 
@@ -138,17 +184,8 @@ class OrderRequest(BaseModel):
             ValueError: If data is invalid or missing required fields
 
         """
-        # Convert string timestamp back to datetime
-        if "timestamp" in data and isinstance(data["timestamp"], str):
-            try:
-                timestamp_str = data["timestamp"]
-                if timestamp_str.endswith("Z"):
-                    timestamp_str = timestamp_str[:-1] + "+00:00"
-                data["timestamp"] = datetime.fromisoformat(timestamp_str)
-            except ValueError as e:
-                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+        cls._convert_timestamp_from_string(data)
 
-        # Convert string decimal fields back to Decimal
         decimal_fields = [
             "quantity",
             "limit_price",
@@ -157,18 +194,7 @@ class OrderRequest(BaseModel):
             "risk_budget",
         ]
         for field_name in decimal_fields:
-            if (
-                field_name in data
-                and data[field_name] is not None
-                and isinstance(data[field_name], str)
-            ):
-                try:
-                    data[field_name] = Decimal(data[field_name])
-                except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
-                except Exception as e:
-                    # Catch any other Decimal conversion errors (e.g., InvalidOperation)
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+            cls._convert_decimal_field(data, field_name)
 
         return cls(**data)
 
@@ -265,19 +291,56 @@ class MarketData(BaseModel):
         return data
 
     @classmethod
+    def _convert_timestamp_from_string(cls, data: dict[str, Any]) -> None:
+        """Convert string timestamp to datetime in-place.
+
+        Args:
+            data: Dictionary to modify
+
+        Raises:
+            ValueError: If timestamp format is invalid
+
+        """
+        if "timestamp" not in data or not isinstance(data["timestamp"], str):
+            return
+
+        try:
+            timestamp_str = data["timestamp"]
+            if timestamp_str.endswith("Z"):
+                timestamp_str = timestamp_str[:-1] + "+00:00"
+            data["timestamp"] = datetime.fromisoformat(timestamp_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+
+    @classmethod
+    def _convert_decimal_field(cls, data: dict[str, Any], field_name: str) -> None:
+        """Convert string decimal field to Decimal in-place.
+
+        Args:
+            data: Dictionary to modify
+            field_name: Name of the field to convert
+
+        Raises:
+            ValueError: If decimal value is invalid
+
+        """
+        if field_name not in data or data[field_name] is None:
+            return
+        if not isinstance(data[field_name], str):
+            return
+
+        try:
+            data[field_name] = Decimal(data[field_name])
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+        except Exception as e:
+            raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+
+    @classmethod
     def from_dict(cls, data: dict[str, Any]) -> MarketData:
         """Create DTO from dictionary."""
-        # Convert string timestamp back to datetime
-        if "timestamp" in data and isinstance(data["timestamp"], str):
-            try:
-                timestamp_str = data["timestamp"]
-                if timestamp_str.endswith("Z"):
-                    timestamp_str = timestamp_str[:-1] + "+00:00"
-                data["timestamp"] = datetime.fromisoformat(timestamp_str)
-            except ValueError as e:
-                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+        cls._convert_timestamp_from_string(data)
 
-        # Convert string decimal fields back to Decimal
         decimal_fields = [
             "price",
             "bid_price",
@@ -292,17 +355,6 @@ class MarketData(BaseModel):
             "quality_score",
         ]
         for field_name in decimal_fields:
-            if (
-                field_name in data
-                and data[field_name] is not None
-                and isinstance(data[field_name], str)
-            ):
-                try:
-                    data[field_name] = Decimal(data[field_name])
-                except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
-                except Exception as e:
-                    # Catch any other Decimal conversion errors (e.g., InvalidOperation)
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+            cls._convert_decimal_field(data, field_name)
 
         return cls(**data)

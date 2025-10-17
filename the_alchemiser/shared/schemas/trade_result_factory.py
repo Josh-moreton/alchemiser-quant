@@ -10,7 +10,7 @@ various trading execution scenarios and outcomes.
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 
 from the_alchemiser.shared.logging import get_logger
@@ -29,6 +29,9 @@ ORDER_STATUS_SUCCESS = frozenset(["FILLED", "COMPLETE"])
 TRADING_MODE_UNKNOWN = "UNKNOWN"
 TRADING_MODE_LIVE = "LIVE"
 TRADING_MODE_PAPER = "PAPER"
+
+# Error message constants
+ERROR_COMPLETED_AT_TIMEZONE_NAIVE = "completed_at must be timezone-aware datetime"
 
 logger = get_logger(__name__)
 
@@ -74,7 +77,7 @@ def create_failure_result(
             "Timezone-naive datetime provided for completed_at",
             extra={"correlation_id": correlation_id},
         )
-        raise ValueError("completed_at must be timezone-aware datetime")
+        raise ValueError(ERROR_COMPLETED_AT_TIMEZONE_NAIVE)
 
     logger.info(
         "Creating failure result DTO",
@@ -148,7 +151,7 @@ def create_success_result(
             "Timezone-naive datetime provided for completed_at",
             extra={"correlation_id": correlation_id},
         )
-        raise ValueError("completed_at must be timezone-aware datetime")
+        raise ValueError(ERROR_COMPLETED_AT_TIMEZONE_NAIVE)
 
     # Validate trading_result structure
     if not isinstance(trading_result, dict):
@@ -269,7 +272,7 @@ def _create_single_order_result(
 
     # Validate timezone-aware datetime
     if completed_at.tzinfo is None:
-        raise ValueError("completed_at must be timezone-aware datetime")
+        raise ValueError(ERROR_COMPLETED_AT_TIMEZONE_NAIVE)
 
     # Safe order_id handling with type validation
     order_id = order.get("order_id", "")
@@ -283,7 +286,7 @@ def _create_single_order_result(
     qty_raw = order.get("shares", order.get("qty", 0))
     try:
         qty = Decimal(str(qty_raw))
-    except (ValueError, TypeError, Exception) as e:
+    except (ValueError, TypeError, InvalidOperation) as e:
         raise ValueError(f"Invalid shares/qty in order: {qty_raw}") from e
 
     # Validate filled_price if present

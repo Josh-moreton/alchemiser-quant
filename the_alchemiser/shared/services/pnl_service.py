@@ -289,8 +289,6 @@ class PnLService:
             # Validate and extract required fields
             timestamps = history.get("timestamp", [])
             equity_values = history.get("equity", [])
-            profit_loss = history.get("profit_loss", [])
-            profit_loss_pct = history.get("profit_loss_pct", [])
 
             # Type guard: ensure all are lists
             if not isinstance(timestamps, list) or not isinstance(equity_values, list):
@@ -313,9 +311,7 @@ class PnLService:
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
-            daily_data = self._build_daily_data(
-                timestamps, equity_values, profit_loss, profit_loss_pct
-            )
+            daily_data = self._build_daily_data(timestamps, equity_values)
 
             return PnLData(
                 period=period,
@@ -391,8 +387,6 @@ class PnLService:
         self,
         timestamps: list[int] | list[float],
         equity_values: list[float] | list[int],
-        profit_loss: list[float] | list[int],
-        profit_loss_pct: list[float] | list[int],
     ) -> list[DailyPnLEntry]:
         """Convert raw history arrays into per-day entries.
 
@@ -406,8 +400,6 @@ class PnLService:
         Args:
             timestamps: Unix timestamps (seconds since epoch).
             equity_values: Daily equity values.
-            profit_loss: Daily profit/loss values (may be unused).
-            profit_loss_pct: Daily profit/loss percentages (may be unused).
 
         Returns:
             List of DailyPnLEntry objects.

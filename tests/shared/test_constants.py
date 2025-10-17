@@ -20,6 +20,7 @@ from the_alchemiser.shared.constants import (
     DEFAULT_AWS_REGION,
     DEFAULT_DATE_FORMAT,
     DSL_ENGINE_MODULE,
+    DTO_SCHEMA_VERSION_DESCRIPTION,
     EVENT_SCHEMA_VERSION_DESCRIPTION,
     EVENT_TYPE_DESCRIPTION,
     EXECUTION_HANDLERS_MODULE,
@@ -140,6 +141,17 @@ class TestEventSchemaConstants:
     def test_recipient_override_description_type(self):
         """Test RECIPIENT_OVERRIDE_DESCRIPTION is a string."""
         assert isinstance(RECIPIENT_OVERRIDE_DESCRIPTION, str)
+
+    @pytest.mark.unit
+    def test_dto_schema_version_description_type(self):
+        """Test DTO_SCHEMA_VERSION_DESCRIPTION is a string."""
+        assert isinstance(DTO_SCHEMA_VERSION_DESCRIPTION, str)
+        assert len(DTO_SCHEMA_VERSION_DESCRIPTION) > 0
+
+    @pytest.mark.unit
+    def test_dto_schema_version_description_value(self):
+        """Test DTO_SCHEMA_VERSION_DESCRIPTION has expected value."""
+        assert DTO_SCHEMA_VERSION_DESCRIPTION == "DTO schema version"
 
 
 class TestStyleConstants:

@@ -140,8 +140,8 @@ class ExecutionManager:
                     "TradingStream initialization completed",
                     extra={"correlation_id": correlation_id},
                 )
-            except (ConnectionError, TimeoutError, OSError) as e:
-                # Network-related errors that shouldn't stop execution
+            except OSError as e:
+                # Network-related errors that shouldn't stop execution (includes ConnectionError, TimeoutError)
                 stream_init_error = e
                 logger.warning(
                     "TradingStream background initialization failed (non-critical)",

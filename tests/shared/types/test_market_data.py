@@ -414,3 +414,73 @@ class TestPrecisionCorrectness:
         # Mid-price should be exact
         expected = (Decimal("100.111111") + Decimal("100.222222")) / Decimal("2")
         assert quote.mid_price == expected
+
+
+class TestValidationErrorMessages:
+    """Tests for validation error messages (SonarQube: S1192)."""
+
+    def test_bar_model_empty_symbol_error(self) -> None:
+        """Test that BarModel.from_dict raises correct error for empty symbol."""
+        data: MarketDataPoint = {
+            "symbol": "",
+            "timestamp": "2024-01-01T10:00:00+00:00",
+            "open": Decimal("150.00"),
+            "high": Decimal("155.00"),
+            "low": Decimal("149.00"),
+            "close": Decimal("154.00"),
+            "volume": 1000000,
+        }
+        with pytest.raises(ValueError, match="Symbol cannot be empty"):
+            BarModel.from_dict(data)
+
+    def test_bar_model_empty_timestamp_error(self) -> None:
+        """Test that BarModel.from_dict raises correct error for empty timestamp."""
+        data: MarketDataPoint = {
+            "symbol": "AAPL",
+            "timestamp": "",
+            "open": Decimal("150.00"),
+            "high": Decimal("155.00"),
+            "low": Decimal("149.00"),
+            "close": Decimal("154.00"),
+            "volume": 1000000,
+        }
+        with pytest.raises(ValueError, match="Timestamp cannot be empty"):
+            BarModel.from_dict(data)
+
+    def test_quote_model_empty_symbol_error(self) -> None:
+        """Test that QuoteModel.from_dict raises correct error for empty symbol."""
+        data: QuoteData = {
+            "bid_price": Decimal("149.00"),
+            "ask_price": Decimal("150.00"),
+            "bid_size": Decimal("100.0"),
+            "ask_size": Decimal("100.0"),
+            "timestamp": "2024-01-01T10:00:00+00:00",
+        }
+        with pytest.raises(ValueError, match="Symbol cannot be empty"):
+            QuoteModel.from_dict(data, symbol="")
+
+    def test_price_data_model_negative_bid(self) -> None:
+        """Test that PriceDataModel.from_dict validates negative bid prices."""
+        data: PriceData = {
+            "symbol": "AAPL",
+            "price": Decimal("150.00"),
+            "timestamp": "2024-01-01T10:00:00+00:00",
+            "bid": Decimal("-1.0"),
+            "ask": None,
+            "volume": None,
+        }
+        with pytest.raises(ValueError, match="Bid price cannot be negative"):
+            PriceDataModel.from_dict(data)
+
+    def test_price_data_model_negative_ask(self) -> None:
+        """Test that PriceDataModel.from_dict validates negative ask prices."""
+        data: PriceData = {
+            "symbol": "AAPL",
+            "price": Decimal("150.00"),
+            "timestamp": "2024-01-01T10:00:00+00:00",
+            "bid": None,
+            "ask": Decimal("-1.0"),
+            "volume": None,
+        }
+        with pytest.raises(ValueError, match="Ask price cannot be negative"):
+            PriceDataModel.from_dict(data)

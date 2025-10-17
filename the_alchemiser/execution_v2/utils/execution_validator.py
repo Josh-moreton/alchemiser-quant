@@ -9,7 +9,6 @@ and quantity adjustments for non-fractionable assets.
 from __future__ import annotations
 
 from decimal import ROUND_DOWN, Decimal
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -90,7 +89,6 @@ class ExecutionValidator:
         self,
         symbol: str,
         quantity: Decimal,
-        side: Literal["buy", "sell"],
         *,
         correlation_id: str | None = None,
         auto_adjust: bool = True,
@@ -100,7 +98,6 @@ class ExecutionValidator:
         Args:
             symbol: Asset symbol
             quantity: Order quantity (must be positive)
-            side: "buy" or "sell"
             correlation_id: Optional correlation ID for tracing
             auto_adjust: Whether to auto-adjust non-fractionable quantities
 
