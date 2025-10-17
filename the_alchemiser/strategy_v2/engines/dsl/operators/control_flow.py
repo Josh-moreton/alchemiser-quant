@@ -198,7 +198,7 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
 
 
 def _build_decision_node(
-    condition: ASTNode, result: bool, branch: str, context: DslContext
+    condition: ASTNode, result: bool, branch: str, context: DslContext  # noqa: FBT001
 ) -> DecisionNode:
     """Build a decision node from condition evaluation.
 

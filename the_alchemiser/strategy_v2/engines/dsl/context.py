@@ -36,6 +36,7 @@ class DecisionNode(TypedDict):
         result: Boolean result of the condition evaluation
         branch: Branch taken ("then" or "else")
         values: Optional dictionary of indicator values referenced in condition
+
     """
 
     condition: str
