@@ -610,7 +610,9 @@ class SignalsBuilder:
             reasoning_html = ""
             if reason:
                 # Truncate reasoning for summary display
-                truncated_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
+                truncated_reason = SignalsBuilder._truncate_reason(
+                    reason, MAX_REASON_LENGTH_SUMMARY
+                )
                 reasoning_html = f"""
                     <div style="margin-left: 16px; margin-top: 4px; color: #6B7280; font-size: 13px; line-height: 1.5;">
                         → {truncated_reason}

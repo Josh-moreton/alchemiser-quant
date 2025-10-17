@@ -346,7 +346,7 @@ class TradingNotificationRequested(BaseEvent):
 
     @field_validator("total_trade_value", mode="before")
     @classmethod
-    def convert_total_trade_value_to_decimal(cls, v: Any) -> Decimal:
+    def convert_total_trade_value_to_decimal(cls, v: object) -> Decimal:
         """Convert total_trade_value to Decimal if it's a float or int."""
         if isinstance(v, Decimal):
             return v

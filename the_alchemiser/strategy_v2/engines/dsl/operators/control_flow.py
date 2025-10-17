@@ -198,7 +198,10 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
 
 
 def _build_decision_node(
-    condition: ASTNode, result: bool, branch: str, context: DslContext  # noqa: FBT001
+    condition: ASTNode,
+    result: bool,  # noqa: FBT001
+    branch: str,
+    context: DslContext,
 ) -> DecisionNode:
     """Build a decision node from condition evaluation.
 
@@ -249,7 +252,9 @@ def _format_condition(condition: ASTNode) -> str:
     if condition.is_list() and condition.children:
         # Handle comparison operators like (> (rsi "SPY" {:window 10}) 79)
         if len(condition.children) >= 3:
-            op = condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
+            op = (
+                condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
+            )
             left = _format_condition(condition.children[1])
             right = _format_condition(condition.children[2])
 
@@ -268,7 +273,9 @@ def _format_condition(condition: ASTNode) -> str:
             return f"{left} {readable_op} {right}"
 
         # Fallback: format as function call
-        func_name = condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
+        func_name = (
+            condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
+        )
         args = [_format_condition(child) for child in condition.children[1:]]
         return f"{func_name}({', '.join(args)})"
 
@@ -300,7 +307,12 @@ def _extract_indicator_values(condition: ASTNode, context: DslContext) -> dict[s
             func_name = child.children[0].get_symbol_name() if child.children[0].is_symbol() else ""
 
             # Check if it's an indicator function
-            if func_name in {"rsi", "moving-average-price", "moving-average-return", "current-price"}:
+            if func_name in {
+                "rsi",
+                "moving-average-price",
+                "moving-average-return",
+                "current-price",
+            }:
                 # Extract symbol if present
                 symbol = ""
                 if len(child.children) > 1 and child.children[1].is_atom():

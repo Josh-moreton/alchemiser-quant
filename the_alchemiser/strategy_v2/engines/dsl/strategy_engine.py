@@ -132,7 +132,11 @@ class DslStrategyEngine:
 
             consolidated = self._normalize_allocations(consolidated)
             signals = self._convert_to_signals(
-                consolidated, timestamp, correlation_id, dsl_files=dsl_files, decision_path=decision_path
+                consolidated,
+                timestamp,
+                correlation_id,
+                dsl_files=dsl_files,
+                decision_path=decision_path,
             )
 
             self.logger.info(
@@ -183,7 +187,9 @@ class DslStrategyEngine:
     def _accumulate_results(
         self,
         dsl_files: list[str],
-        file_results: list[tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]],
+        file_results: list[
+            tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]
+        ],
     ) -> tuple[dict[str, float], list[dict[str, Any]] | None]:
         """Accumulate per-symbol weights from DSL file evaluation results.
 
@@ -198,7 +204,9 @@ class DslStrategyEngine:
         consolidated: dict[str, float] = {}
         decision_path: list[dict[str, Any]] | None = None
 
-        for _f, (per_file_weights, _trace_id, _, _, file_decision_path) in zip(dsl_files, file_results, strict=True):
+        for _f, (per_file_weights, _trace_id, _, _, file_decision_path) in zip(
+            dsl_files, file_results, strict=True
+        ):
             if per_file_weights is None:  # Evaluation failed
                 continue
             for symbol, weight in per_file_weights.items():
@@ -399,7 +407,9 @@ class DslStrategyEngine:
             List of evaluation results for each file (preserves order)
 
         """
-        results: list[tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]] = []
+        results: list[
+            tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]
+        ] = []
         for f in dsl_files:
             try:
                 result = self._evaluate_file(f, correlation_id, normalized_file_weights)
