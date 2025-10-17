@@ -105,9 +105,13 @@ class _ExecutionResultAdapter:
 
     def _normalize_strategy_reasons(self) -> None:
         """Ensure each strategy signal has a 'reason' field from 'reasoning'."""
+        from the_alchemiser.shared.logging import get_logger
+
+        logger = get_logger(__name__)
+
         if not isinstance(self.strategy_signals, dict):
             return
-        for data in self.strategy_signals.values():
+        for strategy_name, data in self.strategy_signals.items():
             if not isinstance(data, dict):
                 continue
             if "reason" in data:
@@ -115,6 +119,15 @@ class _ExecutionResultAdapter:
             reasoning = data.get("reasoning")
             if isinstance(reasoning, str):
                 data["reason"] = reasoning
+                logger.debug(
+                    f"🔄 Normalized strategy signal: {strategy_name}",
+                    extra={
+                        "strategy": strategy_name,
+                        "has_reason_after": "reason" in data,
+                        "has_reasoning": "reasoning" in data,
+                        "keys": list(data.keys()),
+                    },
+                )
 
     def _try_flatten_portfolio(self, obj: object) -> dict[str, object] | None:
         """Attempt to flatten various consolidated portfolio shapes to a flat dict."""

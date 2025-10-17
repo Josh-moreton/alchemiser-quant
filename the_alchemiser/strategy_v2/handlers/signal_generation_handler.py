@@ -215,32 +215,35 @@ class SignalGenerationHandler:
         return strategy_signals, consolidated_portfolio
 
     def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
-        """Convert DSL signals to display format."""
-        strategy_signals = {}
+        """Convert strategy signals to display format for notifications.
 
-        if signals:
-            # For DSL engine, we group all signals under "DSL" strategy type
-            if len(signals) > 1:
-                # Multiple signals - present a concise primary symbol; keep full list separately
-                symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
-                primary_signal = signals[0]  # Use first signal for other attributes
-                primary_symbol = primary_signal.symbol.value
-                strategy_signals["DSL"] = {
-                    "symbol": primary_symbol,
-                    "symbols": symbols,  # Keep individual symbols for other processing and display
-                    "action": primary_signal.action,
-                    "reasoning": primary_signal.reasoning,
-                    "is_multi_symbol": True,
-                }
-            else:
-                # Single signal - existing behavior
-                signal = signals[0]
-                strategy_signals["DSL"] = {
-                    "symbol": signal.symbol.value,
-                    "action": signal.action,
-                    "reasoning": signal.reasoning,
-                    "is_multi_symbol": False,
-                }
+        Each signal represents one .clj strategy file (grail, kmlm, etc.) and should be
+        displayed separately in the Signal Summary section.
+
+        Args:
+            signals: List of strategy signals from DSL engine (one per .clj file)
+
+        Returns:
+            Dictionary mapping strategy name to signal data
+            Example: {"grail": {...}, "kmlm": {...}}
+
+        """
+        strategy_signals: dict[str, Any] = {}
+
+        for signal in signals:
+            # Use the strategy name from the signal (e.g., "grail", "kmlm")
+            strategy_name = signal.strategy_name or "DSL"
+
+            # Build signal display string showing all symbols for this strategy
+            # For multi-symbol strategies, show: "BUY TQQQ, TLT"
+            signal_display = f"{signal.action} {signal.symbol.value}"
+
+            strategy_signals[strategy_name] = {
+                "symbol": signal.symbol.value,
+                "action": signal.action,
+                "reasoning": signal.reasoning,
+                "signal": signal_display,
+            }
 
         return strategy_signals
 

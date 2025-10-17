@@ -130,20 +130,19 @@ class DslStrategyEngine:
             if not consolidated:
                 return self._create_fallback_signals(timestamp)
 
-            consolidated = self._normalize_allocations(consolidated)
-            signals = self._convert_to_signals(
-                consolidated,
+            # Create per-file signals showing each strategy's allocations
+            signals = self._create_per_file_signals(
+                dsl_files,
+                file_results,
                 timestamp,
                 correlation_id,
-                dsl_files=dsl_files,
-                decision_path=decision_path,
             )
 
             self.logger.info(
-                f"Generated {len(signals)} DSL consolidated signals",
+                f"Generated {len(signals)} DSL strategy signals from {len(dsl_files)} files",
                 extra={
                     "correlation_id": correlation_id,
-                    "symbols": [s.symbol for s in signals],
+                    "strategies": [Path(f).stem for f in dsl_files],
                 },
             )
 
@@ -218,6 +217,76 @@ class DslStrategyEngine:
 
         return consolidated, decision_path
 
+    def _create_per_file_signals(
+        self,
+        dsl_files: list[str],
+        file_results: list[
+            tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]
+        ],
+        timestamp: datetime,
+        correlation_id: str,
+    ) -> list[StrategySignal]:
+        """Create one signal per DSL file showing that file's allocations.
+
+        Args:
+            dsl_files: List of DSL files that were evaluated
+            file_results: Results from file evaluations
+            timestamp: Timestamp for signal generation
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            List of StrategySignal objects, one per file with allocations
+
+        """
+        signals: list[StrategySignal] = []
+
+        for filename, (per_file_weights, _trace_id, _file_weight, _file_sum, _decision_path) in zip(
+            dsl_files, file_results, strict=True
+        ):
+            if per_file_weights is None or not per_file_weights:
+                continue
+
+            # Extract strategy name from filename
+            strategy_name = Path(filename).stem
+
+            # Get all symbols for this strategy
+            symbols_list = [sym for sym, w in per_file_weights.items() if w > 0]
+
+            if not symbols_list:
+                continue
+
+            # Use first symbol as primary (for backward compatibility with StrategySignal schema)
+            primary_symbol = symbols_list[0]
+            primary_weight = per_file_weights[primary_symbol]
+
+            # Build contextual reasoning from decision path if available
+            # Falls back to simple allocation string if no decision path
+            if _decision_path:
+                # Use decision path reasoning for contextual explanation
+                reasoning = self._build_decision_reasoning(_decision_path, primary_weight)
+            else:
+                # Fallback: show all symbol allocations
+                symbol_allocations = [f"{sym}: {per_file_weights[sym]:.1%}" for sym in symbols_list]
+                reasoning = f"{strategy_name} allocation - {', '.join(symbol_allocations)}"
+
+            # Create signal for this strategy file
+            signal = StrategySignal(
+                symbol=Symbol(primary_symbol),
+                symbols=[Symbol(sym) for sym in symbols_list],  # Include all symbols
+                action="BUY",
+                target_allocation=Decimal(str(primary_weight)),
+                reasoning=reasoning,
+                timestamp=timestamp,
+                strategy_name=strategy_name,
+                data_source=f"dsl_engine:{filename}",
+                correlation_id=correlation_id,
+                causation_id=correlation_id,
+                is_multi_symbol=len(symbols_list) > 1,
+            )
+            signals.append(signal)
+
+        return signals
+
     def _convert_to_signals(
         self,
         consolidated: dict[str, float],
@@ -227,6 +296,9 @@ class DslStrategyEngine:
         decision_path: list[dict[str, Any]] | None = None,
     ) -> list[StrategySignal]:
         """Convert consolidated weights to StrategySignal objects.
+
+        This method is being refactored to create per-file signals.
+        Currently creates consolidated signals only for backward compatibility.
 
         Args:
             consolidated: Dictionary mapping symbols to weights
@@ -263,9 +335,7 @@ class DslStrategyEngine:
                 else:
                     strategy_display = primary_strategy
                     # Build reasoning from decision path if available
-                    reasoning = self._build_decision_reasoning(
-                        decision_path, primary_strategy, weight
-                    )
+                    reasoning = self._build_decision_reasoning(decision_path, weight)
 
                 signals.append(
                     StrategySignal(
@@ -524,14 +594,12 @@ class DslStrategyEngine:
     def _build_decision_reasoning(
         self,
         decision_path: list[dict[str, Any]] | None,
-        strategy_name: str,
         weight: float,
     ) -> str:
         """Build human-readable reasoning from decision path.
 
         Args:
             decision_path: List of decision nodes captured during evaluation
-            strategy_name: Name of the strategy
             weight: Allocation weight
 
         Returns:
@@ -540,7 +608,7 @@ class DslStrategyEngine:
         """
         # Fallback if no decision path
         if not decision_path:
-            return f"{strategy_name} allocation: {weight:.1%}"
+            return f"{weight:.1%} allocation"
 
         # Build reasoning from decision path
         reasoning_parts = []
@@ -556,9 +624,9 @@ class DslStrategyEngine:
         # Combine with allocation info
         if reasoning_parts:
             decision_summary = " → ".join(reasoning_parts)
-            reasoning = f"{strategy_name}: {decision_summary} → {weight:.1%} allocation"
+            reasoning = f"{decision_summary} → {weight:.1%} allocation"
         else:
-            reasoning = f"{strategy_name} allocation: {weight:.1%}"
+            reasoning = f"{weight:.1%} allocation"
 
         # Truncate to max length (1000 chars for StrategySignal.reasoning field)
         max_length = 1000
