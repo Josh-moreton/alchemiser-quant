@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from hypothesis import given
@@ -28,16 +29,37 @@ from the_alchemiser.shared.types.strategy_value_objects import (
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
+def _default_signal_fields(**overrides: Any) -> dict[str, Any]:
+    """Helper to create StrategySignal fields with required correlation/causation IDs.
+    
+    Provides default values for:
+    - correlation_id: "test-correlation-id"
+    - causation_id: "test-causation-id"
+    - reasoning: "Test signal reasoning"
+    
+    All defaults can be overridden via kwargs.
+    """
+    defaults = {
+        "correlation_id": "test-correlation-id",
+        "causation_id": "test-causation-id",
+        "reasoning": "Test signal reasoning",
+    }
+    defaults.update(overrides)
+    return defaults
+
+
 class TestStrategySignalValidation:
     """Test StrategySignal field validation."""
 
     def test_valid_buy_signal(self) -> None:
         """Test creating valid BUY signal."""
         signal = StrategySignal(
-            symbol="AAPL",
-            action="BUY",
-            reasoning="Test buy signal",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                reasoning="Test buy signal",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.action == "BUY"
         assert signal.symbol.value == "AAPL"
@@ -46,9 +68,11 @@ class TestStrategySignalValidation:
     def test_valid_sell_signal(self) -> None:
         """Test creating valid SELL signal."""
         signal = StrategySignal(
-            symbol=Symbol("SPY"),
-            action="SELL",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol=Symbol("SPY"),
+                action="SELL",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.action == "SELL"
         assert signal.symbol.value == "SPY"
@@ -56,9 +80,11 @@ class TestStrategySignalValidation:
     def test_valid_hold_signal(self) -> None:
         """Test creating valid HOLD signal."""
         signal = StrategySignal(
-            symbol="QQQ",
-            action="HOLD",
-            timestamp=datetime.now(UTC),
+            **_default_signal_fields(
+                symbol="QQQ",
+                action="HOLD",
+                timestamp=datetime.now(UTC),
+            )
         )
         assert signal.action == "HOLD"
         assert signal.symbol.value == "QQQ"
