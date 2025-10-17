@@ -280,7 +280,6 @@ class TestLambdaHandler:
     """Test main Lambda handler function."""
 
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -289,7 +288,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
     ) -> None:
         """Test successful Lambda handler execution."""
@@ -317,7 +315,6 @@ class TestLambdaHandler:
         mock_main.assert_called_once_with(["trade"])
 
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -326,7 +323,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
     ) -> None:
         """Test Lambda handler with failed execution."""
@@ -352,7 +348,6 @@ class TestLambdaHandler:
         assert "failed" in response["message"]
 
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -361,7 +356,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
     ) -> None:
         """Test Lambda handler with empty event."""
@@ -385,7 +379,6 @@ class TestLambdaHandler:
         mock_main.assert_called_once_with(["trade"])
 
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -394,7 +387,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
     ) -> None:
         """Test Lambda handler with None context."""
@@ -416,7 +408,6 @@ class TestLambdaHandler:
         assert response["request_id"] == "local"
 
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -425,7 +416,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
     ) -> None:
         """Test Lambda handler with boolean result (e.g., from pnl command)."""
@@ -447,7 +437,6 @@ class TestLambdaHandler:
         mock_main.assert_called_once_with(["pnl", "--weekly"])
 
     @patch("the_alchemiser.lambda_handler._handle_trading_error")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -456,7 +445,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_handle_error: Mock,
     ) -> None:
         """Test Lambda handler with DataProviderError."""
@@ -478,7 +466,6 @@ class TestLambdaHandler:
 
     @patch("the_alchemiser.lambda_handler._handle_trading_error")
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -487,7 +474,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
         mock_handle_error: Mock,
     ) -> None:
@@ -512,7 +498,6 @@ class TestLambdaHandler:
 
     @patch("the_alchemiser.lambda_handler._handle_trading_error")
     @patch("the_alchemiser.lambda_handler.main")
-    @patch("the_alchemiser.lambda_handler.load_settings")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -521,7 +506,6 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
         mock_main: Mock,
         mock_handle_error: Mock,
     ) -> None:
@@ -544,7 +528,7 @@ class TestLambdaHandler:
         assert "TradingClientError" in response["message"]
 
     @patch("the_alchemiser.lambda_handler._handle_critical_error")
-    @patch("the_alchemiser.lambda_handler.load_settings")
+    @patch("the_alchemiser.lambda_handler.main")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -553,12 +537,17 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
+        mock_main: Mock,
         mock_handle_error: Mock,
     ) -> None:
         """Test Lambda handler with ImportError."""
         mock_generate_request_id.return_value = "test-correlation-id"
-        mock_load_settings.side_effect = ImportError("Test import error")
+        mock_get_alpaca_keys.return_value = (
+            "key",
+            "secret",
+            "https://paper-api.alpaca.markets",
+        )
+        mock_main.side_effect = ImportError("Test import error")
 
         context = Mock()
         context.aws_request_id = "test-request-id"
@@ -573,7 +562,7 @@ class TestLambdaHandler:
         mock_handle_error.assert_called_once()
 
     @patch("the_alchemiser.lambda_handler._handle_critical_error")
-    @patch("the_alchemiser.lambda_handler.load_settings")
+    @patch("the_alchemiser.lambda_handler.main")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -582,12 +571,17 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
+        mock_main: Mock,
         mock_handle_error: Mock,
     ) -> None:
         """Test Lambda handler with ValueError."""
         mock_generate_request_id.return_value = "test-correlation-id"
-        mock_load_settings.side_effect = ValueError("Test value error")
+        mock_get_alpaca_keys.return_value = (
+            "key",
+            "secret",
+            "https://paper-api.alpaca.markets",
+        )
+        mock_main.side_effect = ValueError("Test value error")
 
         context = Mock()
         context.aws_request_id = "test-request-id"
@@ -599,7 +593,7 @@ class TestLambdaHandler:
         assert "critical error" in response["message"]
 
     @patch("the_alchemiser.lambda_handler._handle_critical_error")
-    @patch("the_alchemiser.lambda_handler.load_settings")
+    @patch("the_alchemiser.lambda_handler.main")
     @patch("the_alchemiser.lambda_handler.get_alpaca_keys")
     @patch("the_alchemiser.lambda_handler.generate_request_id")
     @patch("the_alchemiser.lambda_handler.set_request_id")
@@ -608,12 +602,17 @@ class TestLambdaHandler:
         mock_set_request_id: Mock,
         mock_generate_request_id: Mock,
         mock_get_alpaca_keys: Mock,
-        mock_load_settings: Mock,
+        mock_main: Mock,
         mock_handle_error: Mock,
     ) -> None:
         """Test Lambda handler with OSError."""
         mock_generate_request_id.return_value = "test-correlation-id"
-        mock_load_settings.side_effect = OSError("Test OS error")
+        mock_get_alpaca_keys.return_value = (
+            "key",
+            "secret",
+            "https://paper-api.alpaca.markets",
+        )
+        mock_main.side_effect = OSError("Test OS error")
 
         context = Mock()
         context.aws_request_id = "test-request-id"
