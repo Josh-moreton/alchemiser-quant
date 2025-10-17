@@ -257,13 +257,15 @@ class DslStrategyEngine:
 
             # Use first symbol as primary (for backward compatibility with StrategySignal schema)
             primary_symbol = symbols_list[0]
-            primary_weight = per_file_weights[primary_symbol]
+
+            # Calculate total allocation for this strategy file (sum across all symbols)
+            total_allocation = sum(per_file_weights[sym] for sym in symbols_list)
 
             # Build contextual reasoning from decision path if available
             # Falls back to simple allocation string if no decision path
             if _decision_path:
                 # Use decision path reasoning for contextual explanation
-                reasoning = self._build_decision_reasoning(_decision_path, primary_weight)
+                reasoning = self._build_decision_reasoning(_decision_path, total_allocation)
             else:
                 # Fallback: show all symbol allocations
                 symbol_allocations = [f"{sym}: {per_file_weights[sym]:.1%}" for sym in symbols_list]
@@ -274,7 +276,9 @@ class DslStrategyEngine:
                 symbol=Symbol(primary_symbol),
                 symbols=[Symbol(sym) for sym in symbols_list],  # Include all symbols
                 action="BUY",
-                target_allocation=Decimal(str(primary_weight)),
+                target_allocation=Decimal(
+                    str(total_allocation)
+                ),  # Total across all symbols for this file
                 reasoning=reasoning,
                 timestamp=timestamp,
                 strategy_name=strategy_name,
