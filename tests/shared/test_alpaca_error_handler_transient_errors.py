@@ -174,3 +174,145 @@ class TestAlpacaErrorHandlerTransientErrors:
 
         assert is_transient is False
         assert reason == ""
+
+
+class TestDNSAndNetworkErrors:
+    """Test DNS and network error detection."""
+
+    def test_detects_name_resolution_error(self) -> None:
+        """Test detection of DNS NameResolutionError."""
+        error = Exception(
+            "NameResolutionError: Failed to resolve 'data.alpaca.markets' "
+            "([Errno 8] nodename nor servname provided, or not known)"
+        )
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_detects_getaddrinfo_failed(self) -> None:
+        """Test detection of getaddrinfo failure."""
+        error = Exception("[Errno -3] Temporary failure in name resolution")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_detects_failed_to_resolve(self) -> None:
+        """Test detection of failed to resolve DNS error."""
+        error = Exception("Failed to resolve hostname")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_detects_nodename_nor_servname(self) -> None:
+        """Test detection of nodename nor servname error."""
+        error = Exception("nodename nor servname provided, or not known")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_detects_name_or_service_not_known(self) -> None:
+        """Test detection of name or service not known error."""
+        error = Exception("[Errno -2] Name or service not known")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_detects_getaddrinfo_failed_pattern(self) -> None:
+        """Test detection of getaddrinfo failed pattern."""
+        error = Exception("getaddrinfo failed for api.alpaca.markets")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_detects_connection_refused(self) -> None:
+        """Test detection of connection refused."""
+        error = Exception("ConnectionRefusedError: [Errno 111] Connection refused")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_detects_connection_error(self) -> None:
+        """Test detection of generic ConnectionError."""
+        error = Exception("ConnectionError: Failed to establish connection")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_detects_max_retries_exceeded(self) -> None:
+        """Test detection of urllib3 max retries exceeded."""
+        error = Exception("HTTPSConnectionPool: Max retries exceeded with url: /v2/...")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_detects_network_unreachable(self) -> None:
+        """Test detection of network unreachable."""
+        error = Exception("[Errno 101] Network is unreachable")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_detects_connection_reset(self) -> None:
+        """Test detection of connection reset."""
+        error = Exception("Connection reset by peer")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_detects_connection_aborted(self) -> None:
+        """Test detection of connection aborted."""
+        error = Exception("Connection aborted")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_detects_no_route_to_host(self) -> None:
+        """Test detection of no route to host."""
+        error = Exception("[Errno 113] No route to host")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
+
+    def test_dns_errors_case_insensitive(self) -> None:
+        """Test that DNS error detection is case-insensitive."""
+        error = Exception("NAMERESOLUTIONERROR: FAILED TO RESOLVE")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "DNS Resolution Error"
+
+    def test_connection_errors_case_insensitive(self) -> None:
+        """Test that connection error detection is case-insensitive."""
+        error = Exception("CONNECTIONERROR: CONNECTION REFUSED")
+
+        is_transient, reason = AlpacaErrorHandler.is_transient_error(error)
+
+        assert is_transient is True
+        assert reason == "Network Connection Error"
