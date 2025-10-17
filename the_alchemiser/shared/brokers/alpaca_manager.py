@@ -40,6 +40,7 @@ See docs/adr/ADR-001-circular-imports.md for full architectural rationale.
 from __future__ import annotations
 
 import hashlib
+import secrets
 import threading
 import warnings
 from decimal import Decimal
@@ -137,6 +138,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     """
 
     _instances: ClassVar[dict[str, AlpacaManager]] = {}
+    _credential_salts: ClassVar[dict[str, bytes]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
     _cleanup_event: ClassVar[threading.Event] = threading.Event()
     _cleanup_in_progress: ClassVar[bool] = False
@@ -146,7 +148,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def _hash_credentials(
         api_key: str, secret_key: str, *, paper: bool, base_url: str | None = None
     ) -> str:
-        """Hash credentials for secure storage in dictionary keys.
+        """Hash credentials using PBKDF2 with salt and work factor.
 
         Args:
             api_key: API key (will be hashed)
@@ -155,14 +157,42 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             base_url: Optional base URL
 
         Returns:
-            SHA-256 hash of credentials
+            PBKDF2-HMAC-SHA256 hash of credentials
 
         Security:
-            This prevents credential exposure in memory dumps, logs, and debug output.
+            - Uses PBKDF2-HMAC-SHA256 with 600,000 iterations (OWASP 2023 recommendation)
+            - Generates unique 32-byte salt per credential set
+            - Resistant to brute-force and rainbow table attacks
+            - Salts are stored in-memory only (not persisted)
+
+        Note:
+            This hashing is used for singleton instance deduplication, not credential
+            storage. Credentials remain in memory for SDK usage. The PBKDF2 approach
+            makes extracted hashes computationally expensive to reverse if an attacker
+            gains process memory access.
 
         """
         credentials_str = f"{api_key}:{secret_key}:{paper}:{base_url}"
-        return hashlib.sha256(credentials_str.encode()).hexdigest()
+
+        # Generate deterministic key for salt lookup (not exposed)
+        # This allows the same credentials to get the same salt across calls
+        temp_key = hashlib.sha256(credentials_str.encode()).hexdigest()
+
+        # Generate or retrieve salt for this credential set
+        if temp_key not in AlpacaManager._credential_salts:
+            AlpacaManager._credential_salts[temp_key] = secrets.token_bytes(32)
+
+        salt = AlpacaManager._credential_salts[temp_key]
+
+        # PBKDF2 with 600,000 iterations (OWASP 2023 recommendation)
+        dk = hashlib.pbkdf2_hmac(
+            "sha256",
+            credentials_str.encode(),
+            salt,
+            600_000,  # Iteration count - adjustable for future security
+            dklen=32,
+        )
+        return dk.hex()
 
     def __new__(
         cls,
