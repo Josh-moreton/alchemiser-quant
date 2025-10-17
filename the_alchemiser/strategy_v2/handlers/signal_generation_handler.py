@@ -263,7 +263,11 @@ class SignalGenerationHandler:
             allocation = self._extract_signal_allocation(signal)
 
             if allocation > 0:
-                consolidated_portfolio[symbol] = allocation
+                # Sum allocations if the same symbol appears in multiple strategies
+                if symbol in consolidated_portfolio:
+                    consolidated_portfolio[symbol] += allocation
+                else:
+                    consolidated_portfolio[symbol] = allocation
                 contributing_strategies.append("DSL")
 
         return consolidated_portfolio, contributing_strategies

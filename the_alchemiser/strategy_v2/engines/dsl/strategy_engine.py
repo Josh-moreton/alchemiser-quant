@@ -455,6 +455,18 @@ class DslStrategyEngine:
         formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
         self.logger.debug(formatted_allocation)
 
+        # Log diagnostic information about allocation scaling
+        self.logger.info(
+            f"DSL file evaluation: {Path(filename).stem}",
+            extra={
+                "filename": filename,
+                "file_weight": file_weight,
+                "file_sum": file_sum,
+                "scaled_total": sum(per_file_weights.values()),
+                "symbols": list(per_file_weights.keys()),
+            },
+        )
+
         # Extract decision path from trace metadata
         decision_path = trace.metadata.get("decision_path") if trace.metadata else None
 
