@@ -250,8 +250,6 @@ def _format_condition(condition: ASTNode) -> str:
         # Handle comparison operators like (> (rsi "SPY" {:window 10}) 79)
         if len(condition.children) >= 3:
             op = condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
-            if not op:
-                op = ""
             left = _format_condition(condition.children[1])
             right = _format_condition(condition.children[2])
 
@@ -271,8 +269,6 @@ def _format_condition(condition: ASTNode) -> str:
 
         # Fallback: format as function call
         func_name = condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
-        if not func_name:
-            func_name = ""
         args = [_format_condition(child) for child in condition.children[1:]]
         return f"{func_name}({', '.join(args)})"
 
@@ -316,8 +312,8 @@ def _extract_indicator_values(condition: ASTNode, context: DslContext) -> dict[s
                 if symbol:
                     key = f"{symbol}_{func_name.replace('-', '_')}"
                     # Note: We don't have the actual computed value here without re-evaluating
-                    # For now, just mark that this indicator was used
-                    values[key] = "evaluated"
+                    # Mark that this indicator was referenced in the decision
+                    values[key] = "<computed>"
 
         # Recursively check nested conditions
         if child.is_list():

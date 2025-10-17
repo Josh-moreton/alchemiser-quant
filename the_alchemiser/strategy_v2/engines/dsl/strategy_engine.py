@@ -31,6 +31,8 @@ from the_alchemiser.strategy_v2.errors import ConfigurationError, StrategyExecut
 DEFAULT_STRATEGY_FILE = "KLM.clj"
 DEFAULT_MAX_WORKERS = 4
 DEFAULT_DSL_TIMEOUT_SECONDS = 300  # 5 minutes
+# Accounts for '... [N decisions]' truncation suffix when reasoning exceeds max length
+REASONING_TRUNCATION_SUFFIX_LENGTH = 20
 
 
 class DslStrategyEngine:
@@ -551,7 +553,10 @@ class DslStrategyEngine:
         # Truncate to max length (1000 chars for StrategySignal.reasoning field)
         max_length = 1000
         if len(reasoning) > max_length:
-            reasoning = reasoning[: max_length - 20] + f"... [{len(decision_path)} decisions]"
+            reasoning = (
+                reasoning[: max_length - REASONING_TRUNCATION_SUFFIX_LENGTH]
+                + f"... [{len(decision_path)} decisions]"
+            )
 
         return reasoning
 
