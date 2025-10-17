@@ -78,6 +78,11 @@ class _ExecutionResultAdapter:
             },
         )
 
+        # Normalize incoming data for template consumption
+        # - Map StrategySignal.reasoning -> reason (templates read "reason")
+        # - Flatten ConsolidatedPortfolio DTO to a simple symbol->weight mapping
+        self._normalize_for_templates()
+
     def get_execution_data(self, key: str) -> object:
         """Get execution data by key.
 
@@ -89,6 +94,57 @@ class _ExecutionResultAdapter:
 
         """
         return self._execution_data.get(key, None) if self._execution_data else None
+
+    def _normalize_for_templates(self) -> None:
+        """Normalize adapter fields to align with template expectations.
+
+        Delegates to smaller helpers for clarity and to keep complexity low.
+        """
+        self._normalize_strategy_reasons()
+        self._normalize_consolidated_portfolio()
+
+    def _normalize_strategy_reasons(self) -> None:
+        """Ensure each strategy signal has a 'reason' field from 'reasoning'."""
+        if not isinstance(self.strategy_signals, dict):
+            return
+        for data in self.strategy_signals.values():
+            if not isinstance(data, dict):
+                continue
+            if "reason" in data:
+                continue
+            reasoning = data.get("reasoning")
+            if isinstance(reasoning, str):
+                data["reason"] = reasoning
+
+    def _try_flatten_portfolio(self, obj: object) -> dict[str, object] | None:
+        """Attempt to flatten various consolidated portfolio shapes to a flat dict."""
+        if not isinstance(obj, dict):
+            return None
+        # Preferred: DTO dump with target_allocations
+        target = obj.get("target_allocations")
+        if isinstance(target, dict):
+            return target
+        # Some callers might use a generic key
+        alt = obj.get("allocations")
+        if isinstance(alt, dict):
+            return alt
+        # Already flat mapping? Heuristic: keys are str
+        if obj and all(isinstance(k, str) for k in obj):
+            return obj
+        return None
+
+    def _normalize_consolidated_portfolio(self) -> None:
+        """Flatten consolidated_portfolio or fall back appropriately."""
+        flattened = self._try_flatten_portfolio(self.consolidated_portfolio)
+        if flattened is None and isinstance(self.execution_summary, dict):
+            flattened = self._try_flatten_portfolio(
+                self.execution_summary.get("consolidated_portfolio")
+            )
+        if flattened is not None:
+            self.consolidated_portfolio = flattened
+        elif not isinstance(self.consolidated_portfolio, dict):
+            # Ensure a dict to prevent template errors
+            self.consolidated_portfolio = {}
 
 
 class NotificationService:
