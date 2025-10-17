@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
@@ -67,7 +67,7 @@ class ExecutedOrder(BaseModel):
 
     order_id: str = Field(..., min_length=1, description="Unique order identifier")
     symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol")
-    action: Literal["BUY", "SELL"] = Field(..., description="Trading action (BUY, SELL)")
+    action: str = Field(..., description="Trading action (BUY, SELL)")
     quantity: Decimal = Field(..., gt=0, description="Order quantity")
     filled_quantity: Decimal = Field(..., ge=0, description="Filled quantity")
     price: Decimal = Field(..., gt=0, description="Execution price")
@@ -91,8 +91,8 @@ class ExecutedOrder(BaseModel):
     def validate_action(cls, v: str) -> str:
         """Validate and normalize action to uppercase.
 
-        Note: Field type is Literal["BUY", "SELL"], but this validator
-        provides helpful error messages and normalization for string inputs.
+        Accepts lowercase or uppercase input and normalizes to uppercase.
+        Only 'BUY' or 'SELL' are valid actions.
         """
         action_upper = v.strip().upper()
         if action_upper not in {"BUY", "SELL"}:
