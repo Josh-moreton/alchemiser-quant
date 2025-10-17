@@ -17,6 +17,7 @@ from typing import Any, Protocol, TypedDict
 
 from ...errors.exceptions import TemplateGenerationError
 from ...logging import get_logger
+from ...types.strategy_types import StrategyType
 from .base import BaseEmailTemplate
 
 # Module logger
@@ -202,6 +203,108 @@ class SignalsBuilder:
         return reason
 
     @staticmethod
+    def _format_decision_path_for_table(reason: str, max_length: int) -> str:
+        """Format decision path for table display with smart truncation.
+
+        Preserves decision path symbols (✓, →) and intelligently truncates
+        while maintaining readability. Used in neutral signal tables where
+        space is limited.
+
+        Args:
+            reason: The reasoning text containing decision path (may include ✓ and → symbols)
+            max_length: Maximum length before truncation
+
+        Returns:
+            Formatted string with decision path symbols preserved, truncated if needed
+
+        Examples:
+            >>> _format_decision_path_for_table("Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation", 100)
+            "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation"
+
+            >>> _format_decision_path_for_table("Very long decision path with many conditions...", 50)
+            "Very long decision path with many conditions..."
+
+        """
+        if len(reason) <= max_length:
+            return reason
+
+        # For decision paths with arrows, try to keep complete decision nodes
+        if "→" in reason:
+            # Split by arrows to preserve decision node boundaries
+            parts = reason.split(" → ")
+
+            # Try to fit as many complete nodes as possible
+            result_parts: list[str] = []
+            current_length = 0
+
+            for part in parts:
+                # Account for arrow separator (3 chars: " → ")
+                part_length = len(part) + (3 if result_parts else 0)
+
+                if current_length + part_length <= max_length - 3:  # Reserve 3 for "..."
+                    result_parts.append(part)
+                    current_length += part_length
+                else:
+                    break
+
+            if result_parts:
+                return " → ".join(result_parts) + "..."
+
+        # Fallback to simple truncation if no arrow or can't preserve nodes
+        return reason[:max_length] + "..."
+
+    @staticmethod
+    def _render_decision_tree(reason: str) -> str:
+        """Render decision path as hierarchical tree with visual formatting.
+
+        Converts flat decision path text into visually structured HTML
+        with proper indentation and hierarchy. Used in detailed signal cards
+        to provide clear visual distinction between decision steps.
+
+        Args:
+            reason: The reasoning text containing decision path
+
+        Returns:
+            HTML string with hierarchical formatting for decision steps
+
+        Examples:
+            Input: "Nuclear: ✓ 5 > 3 → ✓ TQQQ RSI(10) < 81 → 75.0% allocation"
+            Output: HTML with indented decision steps and visual hierarchy
+
+        Note:
+            - Preserves checkmarks (✓) and arrows (→) from decision paths
+            - Adds visual indentation for better readability
+            - Falls back to simple formatting if no decision path detected
+
+        """
+        # Check if this contains decision path formatting (arrows and checkmarks)
+        if "→" not in reason and "✓" not in reason:
+            # Not a decision path, return as-is wrapped in basic formatting
+            return f'<div style="color: #4B5563; font-size: 14px; line-height: 1.5;">{reason}</div>'
+
+        # Split by arrows to get decision steps
+        steps = reason.split(" → ")
+
+        # Build hierarchical HTML structure
+        html_parts = []
+
+        for i, step in enumerate(steps):
+            # Calculate indentation based on step depth
+            indent = i * 16  # 16px per level
+
+            # Determine if this is a success (✓) or failure step
+            is_success = "✓" in step
+            color = "#10B981" if is_success else "#6B7280"  # Green for success, gray otherwise
+
+            # Add step with indentation
+            html_parts.append(
+                f'<div style="margin-left: {indent}px; color: {color}; font-size: 14px; '
+                f'line-height: 1.8; font-family: monospace;">{step.strip()}</div>'
+            )
+
+        return "".join(html_parts)
+
+    @staticmethod
     def build_signal_information(signal: SignalProtocol | Any) -> str:  # noqa: ANN401
         """Build HTML for signal information section.
 
@@ -376,9 +479,10 @@ class SignalsBuilder:
             action_bg = colors["background"]
             action_label = colors["label"]
 
-            # Truncate reason text using helper method
-            formatted_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_DETAILED)
-            formatted_reason = formatted_reason.replace("\n", "<br>")
+            # Render decision tree for detailed display
+            # First truncate if too long, then render as tree
+            truncated_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_DETAILED)
+            formatted_reason = SignalsBuilder._render_decision_tree(truncated_reason)
 
             signals_html += f"""
             <div style="margin-bottom: 20px; padding: 20px; background-color: white; border-radius: 12px; border-left: 4px solid {action_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -399,9 +503,7 @@ class SignalsBuilder:
                 </div>
                 <div style="background-color: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 12px;">
                     <h5 style="margin: 0 0 8px 0; color: #374151; font-size: 14px; font-weight: 600;">Strategy Reasoning:</h5>
-                    <div style="color: #4B5563; font-size: 14px; line-height: 1.5;">
-                        {formatted_reason}
-                    </div>
+                    {formatted_reason}
                 </div>
                 {f'<div style="color: #9CA3AF; font-size: 12px; text-align: right;">Generated: {timestamp}</div>' if timestamp else ""}
             </div>
@@ -524,6 +626,156 @@ class SignalsBuilder:
         """
 
     @staticmethod
+    def _safe_float_conversion(value: float | int | str, context: str = "") -> float:
+        """Safely convert a value to float with error handling.
+
+        Args:
+            value: Value to convert to float (float, int, or string)
+            context: Context string for logging (e.g., symbol name)
+
+        Returns:
+            Float value or 0.0 if conversion fails
+
+        """
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Invalid allocation value in consolidated_portfolio",
+                value=value,
+                context=context,
+            )
+            return 0.0
+
+    @staticmethod
+    def build_signal_summary(
+        strategy_signals: dict[str | StrategyType, SignalData],
+        consolidated_portfolio: dict[str, float],
+    ) -> str:
+        """Build signal summary section showing individual and consolidated signals.
+
+        Creates a concise summary at the top of the email showing:
+        1. Individual strategy signals (e.g., "Strategy A: 50% TQQQ / 50% SOXL")
+        2. Consolidated signal (aggregated allocation across all strategies)
+
+        Args:
+            strategy_signals: Dictionary mapping strategy names/types to signal data
+            consolidated_portfolio: Dictionary mapping symbols to target allocations
+
+        Returns:
+            HTML string containing signal summary section, or empty string
+            if no signals or portfolio data available
+
+        Note:
+            This section appears immediately after the email header to provide
+            a quick overview of generated signals before portfolio and trade details.
+
+        """
+        if not strategy_signals and not consolidated_portfolio:
+            logger.debug("build_signal_summary_skipped", reason="no_data")
+            return ""
+
+        logger.debug(
+            "building_signal_summary",
+            signal_count=len(strategy_signals),
+            portfolio_symbols=len(consolidated_portfolio),
+        )
+
+        # Build individual strategy signal rows
+        strategy_rows = []
+        for strategy_name, signal_data in strategy_signals.items():
+            if not isinstance(signal_data, dict):
+                continue
+
+            # Format strategy name
+            if hasattr(strategy_name, "name"):
+                strategy_display_name = strategy_name.name.replace("_", " ").title()
+            else:
+                # Strip StrategyType enum prefix (e.g., "StrategyType.DSL" -> "DSL") for display
+                strategy_display_name = (
+                    str(strategy_name).replace(_STRATEGY_TYPE_PREFIX, "").replace("_", " ").title()
+                )
+
+            # Get target allocation for this strategy if available
+            # Strategy signals may include allocation data
+            symbol = signal_data.get("symbol", "")
+            action = signal_data.get("action", "UNKNOWN")
+            reason = signal_data.get("reason", "")
+
+            # Build allocation string from signal
+            allocation_str = f"{action}"
+            if symbol:
+                allocation_str += f" {symbol}"
+
+            # Add reasoning if available (decision path explanation)
+            reasoning_html = ""
+            if reason:
+                # Truncate reasoning for summary display
+                truncated_reason = SignalsBuilder._truncate_reason(
+                    reason, MAX_REASON_LENGTH_SUMMARY
+                )
+                reasoning_html = f"""
+                    <div style="margin-left: 16px; margin-top: 4px; color: #6B7280; font-size: 13px; line-height: 1.5;">
+                        → {truncated_reason}
+                    </div>
+                """
+
+            strategy_rows.append(
+                f"""
+                <div style="padding: 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
+                    <strong style="color: #1F2937;">{strategy_display_name}:</strong> {allocation_str}
+                    {reasoning_html}
+                </div>
+                """
+            )
+
+        # Build consolidated signal from portfolio
+        consolidated_str = ""
+        if consolidated_portfolio:
+            # Sort by allocation descending with safe float conversion
+            sorted_allocations = sorted(
+                consolidated_portfolio.items(),
+                key=lambda x: SignalsBuilder._safe_float_conversion(x[1], x[0]),
+                reverse=True,
+            )
+            allocation_parts = []
+            for symbol, weight in sorted_allocations:
+                try:
+                    float_weight = float(weight)
+                except (ValueError, TypeError):
+                    logger.warning("Invalid allocation value", symbol=symbol, value=weight)
+                    continue
+                if float_weight > 0:
+                    allocation_parts.append(f"{float_weight:.1%} {symbol}")
+            consolidated_str = " / ".join(allocation_parts) if allocation_parts else "No allocation"
+
+        # Build the complete signal summary section
+        strategy_section = "".join(strategy_rows) if strategy_rows else ""
+
+        return f"""
+        <div style="margin: 0 0 28px 0; padding: 20px; background-color: #F0F9FF; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <h3 style="margin: 0 0 14px 0; color: #1E40AF; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                📊 Signal Summary
+            </h3>
+            {strategy_section}
+            {
+            f'''
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #DBEAFE;">
+                <div style="color: #1E40AF; font-size: 15px; font-weight: 600; margin-bottom: 6px;">
+                    Consolidated Signal:
+                </div>
+                <div style="color: #1F2937; font-size: 14px; font-weight: 500; line-height: 1.6;">
+                    {consolidated_str}
+                </div>
+            </div>
+            '''
+            if consolidated_str
+            else ""
+        }
+        </div>
+        """
+
+    @staticmethod
     def build_strategy_signals_neutral(strategy_signals: dict[Any, Any]) -> str:
         """Build strategy signals section for neutral mode (no financial data).
 
@@ -583,8 +835,10 @@ class SignalsBuilder:
             action_color = colors["text"]
             action_label = colors["label"]
 
-            # Truncate reason for summary display
-            display_reason = SignalsBuilder._truncate_reason(reason, MAX_REASON_LENGTH_SUMMARY)
+            # Format decision path for table display with smart truncation
+            display_reason = SignalsBuilder._format_decision_path_for_table(
+                reason, MAX_REASON_LENGTH_SUMMARY
+            )
 
             signal_rows.append(
                 f"""

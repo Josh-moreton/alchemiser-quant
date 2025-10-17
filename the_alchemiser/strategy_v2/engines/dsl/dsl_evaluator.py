@@ -12,6 +12,7 @@ from __future__ import annotations
 import decimal
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.schemas.ast_node import ASTNode
@@ -62,6 +63,9 @@ class DslEvaluator:
         self.dispatcher = DslDispatcher()
         self._register_all_operators()
 
+        # Shared decision path for all contexts during evaluation (stored as dicts for serialization)
+        self.decision_path: list[dict[str, Any]] = []
+
     def _register_all_operators(self) -> None:
         """Register all DSL operators with the dispatcher."""
         register_portfolio_operators(self.dispatcher)
@@ -96,6 +100,9 @@ class DslEvaluator:
             )
 
         try:
+            # Clear decision path for new evaluation
+            self.decision_path = []
+
             # Add trace entry for evaluation start
             trace = trace.add_entry(
                 step_id=str(uuid.uuid4()),
@@ -278,6 +285,8 @@ class DslEvaluator:
             trace=trace,
             evaluate_node=self._evaluate_node,
         )
+        # Share decision_path with context so all contexts accumulate to the same list
+        context.decision_path = self.decision_path
 
         # Function application: (func arg1 arg2 ...)
         first_child = node.children[0]

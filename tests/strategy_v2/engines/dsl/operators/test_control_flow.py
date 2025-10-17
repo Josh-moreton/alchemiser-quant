@@ -156,6 +156,44 @@ class TestControlFlowOperators:
         assert call_kwargs["condition_result"] is False
         assert call_kwargs["branch_taken"] == "else"
 
+    def test_if_condition_captures_decision_path(self, context):
+        """Test if captures decision node in context decision_path."""
+        condition = ASTNode.atom("true")
+        then_expr = ASTNode.atom("result")
+        
+        # Ensure decision_path is empty initially
+        assert len(context.decision_path) == 0
+        
+        args = [condition, then_expr]
+        if_condition(args, context)
+        
+        # Check decision node was captured
+        assert len(context.decision_path) == 1
+        decision_node = context.decision_path[0]
+        assert decision_node["result"] is True
+        assert decision_node["branch"] == "then"
+        assert "condition" in decision_node
+
+    def test_if_condition_captures_multiple_decisions(self, context):
+        """Test if captures multiple decision nodes in nested conditions."""
+        # First decision
+        condition1 = ASTNode.atom("true")
+        then_expr1 = ASTNode.atom("result1")
+        args1 = [condition1, then_expr1]
+        if_condition(args1, context)
+        
+        # Second decision
+        condition2 = ASTNode.atom("false")
+        then_expr2 = ASTNode.atom("result2")
+        else_expr2 = ASTNode.atom("result3")
+        args2 = [condition2, then_expr2, else_expr2]
+        if_condition(args2, context)
+        
+        # Check both decisions were captured
+        assert len(context.decision_path) == 2
+        assert context.decision_path[0]["result"] is True
+        assert context.decision_path[1]["result"] is False
+
     def test_if_condition_wrong_arg_count(self, context):
         """Test if with wrong number of arguments."""
         with pytest.raises(DslEvaluationError, match="requires at least 2 arguments"):

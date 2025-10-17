@@ -1,8 +1,6 @@
 name: SonarCloud Scan and Sync Issues
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
