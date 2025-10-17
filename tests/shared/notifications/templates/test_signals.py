@@ -583,6 +583,104 @@ class TestBuildSignalSummary:
         assert "40.0% ALSO_VALID" in result
 
 
+class TestFormatDecisionPathForTable:
+    """Tests for decision path formatting for table display."""
+
+    def test_format_short_decision_path(self) -> None:
+        """Test that short decision paths are not truncated."""
+        reason = "Nuclear: ✓ SPY RSI(10)>79 → 75.0% allocation"
+        result = SignalsBuilder._format_decision_path_for_table(reason, 100)
+        assert result == reason
+        assert "..." not in result
+
+    def test_format_long_decision_path_preserves_nodes(self) -> None:
+        """Test that long decision paths preserve complete nodes."""
+        reason = "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → ✓ condition 3 → ✓ condition 4 → 75.0% allocation"
+        result = SignalsBuilder._format_decision_path_for_table(reason, 80)
+
+        # Should preserve at least first 2 nodes and add ellipsis
+        assert "✓ SPY RSI(10)>79" in result
+        assert "..." in result
+        assert len(result) <= 83  # max_length + "..."
+
+    def test_format_no_arrow_fallback(self) -> None:
+        """Test formatting for non-decision-path reasons."""
+        reason = "Simple allocation reason without decision path symbols"
+        result = SignalsBuilder._format_decision_path_for_table(reason, 30)
+
+        assert result.endswith("...")
+        assert len(result) == 33  # 30 + "..."
+
+    def test_format_preserves_checkmarks(self) -> None:
+        """Test that checkmarks are preserved in formatted output."""
+        reason = "Strategy: ✓ condition 1 → ✓ condition 2 → result"
+        result = SignalsBuilder._format_decision_path_for_table(reason, 100)
+
+        # Both checkmarks should be present
+        assert reason.count("✓") == result.count("✓")
+
+    def test_format_empty_string(self) -> None:
+        """Test formatting of empty string."""
+        result = SignalsBuilder._format_decision_path_for_table("", 100)
+        assert result == ""
+
+    def test_format_exact_length(self) -> None:
+        """Test decision path at exact max length."""
+        reason = "A" * 100
+        result = SignalsBuilder._format_decision_path_for_table(reason, 100)
+        assert result == reason
+        assert "..." not in result
+
+
+class TestRenderDecisionTree:
+    """Tests for decision tree rendering."""
+
+    def test_render_simple_decision_path(self) -> None:
+        """Test rendering a simple decision path."""
+        reason = "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation"
+        result = SignalsBuilder._render_decision_tree(reason)
+
+        # Should contain HTML structure
+        assert "<div" in result
+        assert "style=" in result
+        # Should preserve decision path content
+        assert "Nuclear:" in result or "SPY RSI(10)>79" in result
+
+    def test_render_non_decision_path(self) -> None:
+        """Test rendering of non-decision-path text."""
+        reason = "Simple allocation without decision path"
+        result = SignalsBuilder._render_decision_tree(reason)
+
+        # Should wrap in basic div
+        assert "<div" in result
+        assert reason in result
+
+    def test_render_preserves_checkmarks(self) -> None:
+        """Test that checkmarks are preserved in rendering."""
+        reason = "✓ condition 1 → ✓ condition 2 → result"
+        result = SignalsBuilder._render_decision_tree(reason)
+
+        # Count checkmarks - should be same as input
+        assert reason.count("✓") == result.count("✓")
+
+    def test_render_creates_hierarchy(self) -> None:
+        """Test that rendering creates visual hierarchy."""
+        reason = "step1 → step2 → step3"
+        result = SignalsBuilder._render_decision_tree(reason)
+
+        # Should create multiple divs with margin-left for indentation
+        assert result.count("<div") >= 3  # At least one per step
+        assert "margin-left: 0px" in result  # First level
+        assert "margin-left: 16px" in result  # Second level
+        assert "margin-left: 32px" in result  # Third level
+
+    def test_render_empty_string(self) -> None:
+        """Test rendering empty string."""
+        result = SignalsBuilder._render_decision_tree("")
+        assert "<div" in result
+        assert result  # Should return something, not empty
+
+
 class TestConstants:
     """Tests for module constants."""
 
