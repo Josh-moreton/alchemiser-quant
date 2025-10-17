@@ -30,6 +30,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.base import Result
 
+# Constants for Field descriptions (to avoid duplication flagged by SonarQube)
+_TRADING_SYMBOL_DESC = "Trading symbol"
+_SCHEMA_VERSION_DESC = "DTO schema version"
+
 # Nested data models for type safety
 
 
@@ -43,7 +47,7 @@ class RawOrderData(BaseModel):
     )
 
     id: str = Field(description="Order ID from broker")
-    symbol: str = Field(description="Trading symbol")
+    symbol: str = Field(description=_TRADING_SYMBOL_DESC)
     # Allow any additional fields from Alpaca API
     # This model can be extended as needed based on actual usage
 
@@ -57,7 +61,7 @@ class DomainOrderData(BaseModel):
         validate_assignment=True,
     )
 
-    symbol: str = Field(description="Trading symbol")
+    symbol: str = Field(description=_TRADING_SYMBOL_DESC)
     side: Literal["buy", "sell"] = Field(description="Order side")
     # Allow any additional domain fields
     # This model can be extended based on domain requirements
@@ -86,7 +90,7 @@ class RawPositionData(BaseModel):
         validate_assignment=True,
     )
 
-    symbol: str = Field(description="Trading symbol")
+    symbol: str = Field(description=_TRADING_SYMBOL_DESC)
     qty: Decimal = Field(description="Position quantity")
     # Allow any additional fields from Alpaca API
 
@@ -100,7 +104,7 @@ class PositionSummaryData(BaseModel):
         validate_assignment=True,
     )
 
-    symbol: str = Field(description="Trading symbol")
+    symbol: str = Field(description=_TRADING_SYMBOL_DESC)
     qty: Decimal = Field(ge=0, description="Position quantity")
     market_value: Decimal = Field(description="Current market value")
     unrealized_pl: Decimal = Field(description="Unrealized profit/loss")
@@ -122,7 +126,7 @@ class EnrichedOrderView(BaseModel):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     raw: RawOrderData = Field(description="Raw broker API data")
     domain: DomainOrderData = Field(description="Domain order representation")
     summary: OrderSummaryData = Field(description="Order execution summary")
@@ -140,7 +144,7 @@ class OpenOrdersView(Result):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     orders: list[EnrichedOrderView] = Field(
         description="List of enriched order views. Empty list if no open orders."
     )
@@ -165,7 +169,7 @@ class EnrichedPositionView(BaseModel):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     raw: RawPositionData = Field(description="Raw broker API data")
     summary: PositionSummaryData = Field(description="Position summary with P&L")
 
@@ -182,7 +186,7 @@ class EnrichedPositionsView(Result):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
     positions: list[EnrichedPositionView] = Field(
         description="List of enriched position views. Empty list if no positions."
     )

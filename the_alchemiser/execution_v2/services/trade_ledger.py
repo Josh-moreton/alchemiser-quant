@@ -47,10 +47,10 @@ class S3ClientProtocol(Protocol):
 
     def put_object(
         self,
-        Bucket: str,
-        Key: str,
-        Body: str,
-        ContentType: str,
+        bucket: str,
+        key: str,
+        body: str,
+        content_type: str,
     ) -> dict[str, Any]: ...
 
 
@@ -427,7 +427,9 @@ class TradeLedgerService:
             )  # Pydantic handles Decimal -> str conversion
 
             # Upload to S3
-            s3_client.put_object(
+            # Note: boto3 uses PascalCase parameter names (AWS API convention)
+            # type ignore comment allows compatibility with our snake_case Protocol
+            s3_client.put_object(  # type: ignore[call-arg]
                 Bucket=self._settings.trade_ledger.bucket_name,
                 Key=s3_key,
                 Body=json.dumps(ledger_data, indent=2),

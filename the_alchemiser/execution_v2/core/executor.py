@@ -265,6 +265,103 @@ class Executor:
                     extra={"error": str(e), "error_type": type(e).__name__},
                 )
 
+    async def _try_smart_execution(
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        correlation_id: str | None = None,
+    ) -> OrderResult | None:
+        """Try to execute an order using smart execution.
+
+        Args:
+            symbol: Stock symbol
+            side: "buy" or "sell"
+            quantity: Number of shares
+            correlation_id: Correlation ID for tracking
+
+        Returns:
+            OrderResult if smart execution succeeds, None if it fails or should fallback.
+
+        """
+        # Early return if smart_strategy is not available
+        if self.smart_strategy is None:
+            return None
+
+        try:
+            logger.info(
+                "🎯 Attempting smart execution for symbol",
+                extra={
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": str(quantity),
+                    "correlation_id": correlation_id,
+                },
+            )
+
+            # Normalize side to uppercase and cast to Literal type
+            normalized_side = side.upper()
+            if normalized_side not in ("BUY", "SELL"):
+                raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
+
+            request = SmartOrderRequest(
+                symbol=symbol,
+                side=cast(Literal["BUY", "SELL"], normalized_side),
+                quantity=Decimal(str(quantity)),
+                correlation_id=correlation_id or "",
+                urgency="NORMAL",
+            )
+
+            result = await self.smart_strategy.place_smart_order(request)
+
+            if result.success:
+                # Success here means order was placed; fill will be checked later
+                log_order_flow(
+                    logger,
+                    stage="submission",
+                    symbol=symbol,
+                    quantity=Decimal(str(quantity)),
+                    price=result.final_price,
+                    order_id=result.order_id,
+                    execution_strategy="smart_limit",
+                )
+                side_upper = side.upper()
+                if side_upper not in ("BUY", "SELL"):
+                    side_upper = "BUY"  # Fallback to BUY if invalid
+                return OrderResult(
+                    symbol=symbol,
+                    action=side_upper,  # type: ignore[arg-type]
+                    trade_amount=abs(Decimal(str(quantity)) * (result.final_price or Decimal("0"))),
+                    shares=Decimal(str(quantity)),
+                    price=(result.final_price if result.final_price else None),
+                    order_id=result.order_id,
+                    success=True,
+                    error_message=None,
+                    timestamp=datetime.now(UTC),
+                    order_type="LIMIT",  # Smart execution uses LIMIT orders
+                    filled_at=result.placement_timestamp,  # Use placement timestamp from smart result
+                )
+            logger.warning(
+                "⚠️ Smart execution failed for symbol",
+                extra={
+                    "symbol": symbol,
+                    "error": result.error_message,
+                },
+            )
+            return None
+
+        except Exception as e:
+            logger.error(
+                "❌ Smart execution failed for symbol",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
+            return None
+
     async def execute_order(
         self,
         symbol: str,
@@ -286,79 +383,9 @@ class Executor:
         """
         # Try smart execution first if enabled
         if self.enable_smart_execution and self.smart_strategy:
-            try:
-                logger.info(
-                    "🎯 Attempting smart execution for symbol",
-                    extra={
-                        "symbol": symbol,
-                        "side": side,
-                        "quantity": str(quantity),
-                        "correlation_id": correlation_id,
-                    },
-                )
-
-                # Normalize side to uppercase and cast to Literal type
-                normalized_side = side.upper()
-                if normalized_side not in ("BUY", "SELL"):
-                    raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
-
-                request = SmartOrderRequest(
-                    symbol=symbol,
-                    side=cast(Literal["BUY", "SELL"], normalized_side),
-                    quantity=Decimal(str(quantity)),
-                    correlation_id=correlation_id or "",
-                    urgency="NORMAL",
-                )
-
-                result = await self.smart_strategy.place_smart_order(request)
-
-                if result.success:
-                    # Success here means order was placed; fill will be checked later
-                    log_order_flow(
-                        logger,
-                        stage="submission",
-                        symbol=symbol,
-                        quantity=Decimal(str(quantity)),
-                        price=result.final_price,
-                        order_id=result.order_id,
-                        execution_strategy="smart_limit",
-                    )
-                    side_upper = side.upper()
-                    if side_upper not in ("BUY", "SELL"):
-                        side_upper = "BUY"  # Fallback to BUY if invalid
-                    return OrderResult(
-                        symbol=symbol,
-                        action=side_upper,  # type: ignore[arg-type]
-                        trade_amount=abs(
-                            Decimal(str(quantity)) * (result.final_price or Decimal("0"))
-                        ),
-                        shares=Decimal(str(quantity)),
-                        price=(result.final_price if result.final_price else None),
-                        order_id=result.order_id,
-                        success=True,
-                        error_message=None,
-                        timestamp=datetime.now(UTC),
-                        order_type="LIMIT",  # Smart execution uses LIMIT orders
-                        filled_at=result.placement_timestamp,  # Use placement timestamp from smart result
-                    )
-                logger.warning(
-                    "⚠️ Smart execution failed for symbol",
-                    extra={
-                        "symbol": symbol,
-                        "error": result.error_message,
-                    },
-                )
-
-            except Exception as e:
-                logger.error(
-                    "❌ Smart execution failed for symbol",
-                    extra={
-                        "symbol": symbol,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
-                    exc_info=True,
-                )
+            smart_result = await self._try_smart_execution(symbol, side, quantity, correlation_id)
+            if smart_result is not None:
+                return smart_result
 
         # Fallback to regular market order
         logger.info("📈 Using standard market order for symbol", extra={"symbol": symbol})

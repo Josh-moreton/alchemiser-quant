@@ -128,7 +128,6 @@ class MarketOrderExecutor:
         return self.validator.validate_order(
             symbol=symbol,
             quantity=quantity,
-            side=side_normalized,  # type: ignore[arg-type]
             auto_adjust=True,
             correlation_id=correlation_id,
         )

@@ -181,6 +181,163 @@ class LiquidityAnalyzer:
 
         return min(volume_score + spread_score + balance_score, 100.0)
 
+    def _validate_and_convert_quote_prices(
+        self, quote: QuoteModel
+    ) -> tuple[Decimal, Decimal] | None:
+        """Validate quote prices and convert to Decimal.
+
+        Args:
+            quote: Market quote to validate
+
+        Returns:
+            Tuple of (bid_price, ask_price) as Decimals, or None if invalid
+
+        """
+        # Early validation: Ensure quote prices are positive before any calculations
+        if quote.bid_price <= 0 or quote.ask_price <= 0:
+            logger.error(
+                f"Invalid quote prices for {quote.symbol}: "
+                f"bid_price={quote.bid_price}, ask_price={quote.ask_price}. "
+                f"Cannot calculate volume-aware prices with non-positive values."
+            )
+            return None
+
+        # Convert to Decimal for precise arithmetic
+        bid_price = Decimal(str(quote.bid_price))
+        ask_price = Decimal(str(quote.ask_price))
+
+        # Ensure quote is not already crossed (would indicate upstream data issue)
+        if bid_price >= ask_price:
+            logger.error(
+                f"Crossed quote detected for {quote.symbol}: "
+                f"bid={bid_price} >= ask={ask_price}. "
+                f"Using ask as fallback for both sides."
+            )
+            return None
+
+        return (bid_price, ask_price)
+
+    def _compute_side_specific_limits(
+        self,
+        quote: QuoteModel,
+        order_size: float,
+        side: str | None,
+        bid_price: Decimal,
+        ask_price: Decimal,
+        quantize: Callable[[Decimal], Decimal],
+    ) -> tuple[Decimal, Decimal]:
+        """Compute buy and sell limit prices based on order side.
+
+        Args:
+            quote: Market quote
+            order_size: Order size in shares
+            side: "BUY", "SELL", or None (legacy mode)
+            bid_price: Validated bid price as Decimal
+            ask_price: Validated ask price as Decimal
+            quantize: Function to round to tick_size
+
+        Returns:
+            Tuple of (buy_limit, sell_limit) as Decimals
+
+        """
+        if side and side.upper() == "BUY":
+            # BUY: consume from ask side, anchor to ask_price
+            ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
+            buy_limit = self._calculate_buy_limit(ask_price, ask_volume_ratio, quantize)
+            # Fallback for sell side (not used in this execution)
+            sell_limit = quantize(ask_price + self.tick_size)
+
+        elif side and side.upper() == "SELL":
+            # SELL: consume from bid side, anchor to bid_price
+            bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
+            sell_limit = self._calculate_sell_limit(bid_price, bid_volume_ratio, quantize)
+            # Fallback for buy side (not used in this execution)
+            buy_limit = quantize(bid_price)
+
+        else:
+            # Legacy mode: compute both sides (for preview/display)
+            buy_limit, sell_limit = self._compute_legacy_both_sides(
+                quote, order_size, bid_price, ask_price, quantize
+            )
+
+        return (buy_limit, sell_limit)
+
+    def _compute_legacy_both_sides(
+        self,
+        quote: QuoteModel,
+        order_size: float,
+        bid_price: Decimal,
+        ask_price: Decimal,
+        quantize: Callable[[Decimal], Decimal],
+    ) -> tuple[Decimal, Decimal]:
+        """Compute both buy and sell limits for legacy mode.
+
+        Args:
+            quote: Market quote
+            order_size: Order size in shares
+            bid_price: Validated bid price as Decimal
+            ask_price: Validated ask price as Decimal
+            quantize: Function to round to tick_size
+
+        Returns:
+            Tuple of (buy_limit, sell_limit) as Decimals
+
+        """
+        # This path is DEPRECATED and should be avoided in execution
+        ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
+        bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
+
+        buy_limit = self._calculate_buy_limit(ask_price, ask_volume_ratio, quantize)
+        sell_limit = self._calculate_sell_limit(bid_price, bid_volume_ratio, quantize)
+
+        # Enforce non-cross invariant when computing both sides
+        if buy_limit >= sell_limit:
+            logger.warning(
+                f"Computed buy_limit ({buy_limit}) >= sell_limit ({sell_limit}) for {quote.symbol}. "
+                f"Widening to prevent self-cross."
+            )
+            # Widen, don't collapse: ensure at least 1 tick spread
+            sell_limit = quantize(buy_limit + self.tick_size)
+
+        return (buy_limit, sell_limit)
+
+    def _apply_final_price_checks(
+        self,
+        buy_limit: Decimal,
+        sell_limit: Decimal,
+        side: str | None,
+        symbol: str,
+        quantize: Callable[[Decimal], Decimal],
+    ) -> dict[str, float]:
+        """Apply final sanity checks and enforce price invariants.
+
+        Args:
+            buy_limit: Calculated buy limit price
+            sell_limit: Calculated sell limit price
+            side: Order side (or None for legacy mode)
+            symbol: Symbol for logging
+            quantize: Function to round to tick_size
+
+        Returns:
+            Dictionary with "bid" and "ask" prices as floats
+
+        """
+        # Final sanity checks
+        min_price = Decimal("0.01")
+        buy_limit = max(buy_limit, min_price)
+        sell_limit = max(sell_limit, min_price + self.tick_size)
+
+        # Enforce invariant ONLY in legacy mode (side=None) where both sides are meaningful
+        # When side is specified, the opposite side is just a fallback and comparisons are invalid
+        if side is None and buy_limit >= sell_limit:
+            logger.error(
+                f"INVARIANT VIOLATION: buy_limit ({buy_limit}) >= sell_limit ({sell_limit}) "
+                f"for {symbol}. Emergency widening."
+            )
+            sell_limit = quantize(buy_limit + self.tick_size)
+
+        return {"bid": float(buy_limit), "ask": float(sell_limit)}
+
     def _calculate_volume_aware_prices(
         self, quote: QuoteModel, order_size: float, side: str | None = None
     ) -> dict[str, float]:
@@ -199,81 +356,25 @@ class LiquidityAnalyzer:
             When side is specified, the other side uses fallback (quote price).
 
         """
-        # Early validation: Ensure quote prices are positive before any calculations
-        if quote.bid_price <= 0 or quote.ask_price <= 0:
-            logger.error(
-                f"Invalid quote prices for {quote.symbol}: "
-                f"bid_price={quote.bid_price}, ask_price={quote.ask_price}. "
-                f"Cannot calculate volume-aware prices with non-positive values."
-            )
+        # Validate quote and get validated prices, or early return on error
+        validated_prices = self._validate_and_convert_quote_prices(quote)
+        if validated_prices is None:
             min_price = Decimal("0.01")
             return {"bid": float(min_price), "ask": float(min_price * 2)}
 
-        # Convert to Decimal for precise arithmetic
-        bid_price = Decimal(str(quote.bid_price))
-        ask_price = Decimal(str(quote.ask_price))
-
-        # Ensure quote is not already crossed (would indicate upstream data issue)
-        if bid_price >= ask_price:
-            logger.error(
-                f"Crossed quote detected for {quote.symbol}: "
-                f"bid={bid_price} >= ask={ask_price}. "
-                f"Using ask as fallback for both sides."
-            )
-            return {"bid": float(ask_price), "ask": float(ask_price + self.tick_size)}
+        bid_price, ask_price = validated_prices
 
         # Helper to quantize to tick_size
         def quantize(price: Decimal) -> Decimal:
             return price.quantize(self.tick_size)
 
         # Compute limit prices based on order side
-        if side and side.upper() == "BUY":
-            # BUY: consume from ask side, anchor to ask_price
-            ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
-            buy_limit = self._calculate_buy_limit(ask_price, ask_volume_ratio, quantize)
-            # Fallback for sell side (not used in this execution)
-            sell_limit = quantize(ask_price + self.tick_size)
+        buy_limit, sell_limit = self._compute_side_specific_limits(
+            quote, order_size, side, bid_price, ask_price, quantize
+        )
 
-        elif side and side.upper() == "SELL":
-            # SELL: consume from bid side, anchor to bid_price
-            bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
-            sell_limit = self._calculate_sell_limit(bid_price, bid_volume_ratio, quantize)
-            # Fallback for buy side (not used in this execution)
-            buy_limit = quantize(bid_price)
-
-        else:
-            # Legacy mode: compute both sides (for preview/display)
-            # This path is DEPRECATED and should be avoided in execution
-            ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
-            bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
-
-            buy_limit = self._calculate_buy_limit(ask_price, ask_volume_ratio, quantize)
-            sell_limit = self._calculate_sell_limit(bid_price, bid_volume_ratio, quantize)
-
-            # Enforce non-cross invariant when computing both sides
-            if buy_limit >= sell_limit:
-                logger.warning(
-                    f"Computed buy_limit ({buy_limit}) >= sell_limit ({sell_limit}) for {quote.symbol}. "
-                    f"Widening to prevent self-cross."
-                )
-                # Widen, don't collapse: ensure at least 1 tick spread
-                sell_limit = quantize(buy_limit + self.tick_size)
-
-        # Final sanity checks
-        min_price = Decimal("0.01")
-        buy_limit = max(buy_limit, min_price)
-        sell_limit = max(sell_limit, min_price + self.tick_size)
-
-        # Enforce invariant ONLY in legacy mode (side=None) where both sides are meaningful
-        # When side is specified, the opposite side is just a fallback and comparisons are invalid
-        if side is None and buy_limit >= sell_limit:
-            logger.error(
-                f"INVARIANT VIOLATION: buy_limit ({buy_limit}) >= sell_limit ({sell_limit}) "
-                f"for {quote.symbol}. Emergency widening."
-            )
-            sell_limit = quantize(buy_limit + self.tick_size)
-
-        return {"bid": float(buy_limit), "ask": float(sell_limit)}
+        # Apply final sanity checks and enforce invariants
+        return self._apply_final_price_checks(buy_limit, sell_limit, side, quote.symbol, quantize)
 
     def _calculate_buy_limit(
         self,

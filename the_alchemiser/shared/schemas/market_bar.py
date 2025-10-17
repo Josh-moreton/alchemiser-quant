@@ -172,7 +172,7 @@ class MarketBar(BaseModel):
             ):
                 try:
                     data[field_name] = Decimal(data[field_name])
-                except (ValueError, TypeError, Exception) as e:
+                except Exception as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)

@@ -16,15 +16,12 @@ from __future__ import annotations
 import hashlib
 import threading
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 from alpaca.trading.stream import TradingStream
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 

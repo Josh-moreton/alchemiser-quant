@@ -328,40 +328,54 @@ class ExecutionReport(BaseModel):
         ]
         convert_decimal_fields_to_dict(data, decimal_fields)
 
-        # Convert nested orders - must be done manually due to nested structure
+        # Convert nested orders using helper method
         if data.get("orders"):
-            orders_data = []
-            for order in data["orders"]:
-                # Convert order model to dict if needed
-                order_dict = dict(order) if not isinstance(order, dict) else order
-
-                # Convert order datetime fields
-                if order_dict.get("execution_timestamp") is not None and isinstance(
-                    order_dict["execution_timestamp"], datetime
-                ):
-                    order_dict["execution_timestamp"] = order_dict[
-                        "execution_timestamp"
-                    ].isoformat()
-
-                # Convert order Decimal fields
-                order_decimal_fields = [
-                    "quantity",
-                    "filled_quantity",
-                    "price",
-                    "total_value",
-                    "commission",
-                    "fees",
-                ]
-                for field_name in order_decimal_fields:
-                    if order_dict.get(field_name) is not None and isinstance(
-                        order_dict[field_name], Decimal
-                    ):
-                        order_dict[field_name] = str(order_dict[field_name])
-
-                orders_data.append(order_dict)
-            data["orders"] = orders_data
+            data["orders"] = self._convert_orders_to_dict(data["orders"])
 
         return data
+
+    @staticmethod
+    def _convert_orders_to_dict(orders: list[Any]) -> list[dict[str, Any]]:
+        """Convert orders list to dictionary format for serialization.
+
+        Extracts order conversion logic to reduce cognitive complexity
+        in the main to_dict method.
+
+        Args:
+            orders: List of order data (dicts or DTOs)
+
+        Returns:
+            List of order dictionaries with properly serialized values
+
+        """
+        orders_data = []
+        for order in orders:
+            # Convert order model to dict if needed
+            order_dict = dict(order) if not isinstance(order, dict) else order
+
+            # Convert order datetime fields
+            if order_dict.get("execution_timestamp") is not None and isinstance(
+                order_dict["execution_timestamp"], datetime
+            ):
+                order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
+
+            # Convert order Decimal fields
+            order_decimal_fields = [
+                "quantity",
+                "filled_quantity",
+                "price",
+                "total_value",
+                "commission",
+                "fees",
+            ]
+            for field_name in order_decimal_fields:
+                if order_dict.get(field_name) is not None and isinstance(
+                    order_dict[field_name], Decimal
+                ):
+                    order_dict[field_name] = str(order_dict[field_name])
+
+            orders_data.append(order_dict)
+        return orders_data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ExecutionReport:

@@ -125,6 +125,158 @@ def _validate_bar_prices(
         )
 
 
+def _extract_timestamp_from_row(
+    row: dict[str, Any], row_index: int, correlation_id: str | None
+) -> datetime | None:
+    """Extract and parse timestamp from bar row.
+
+    Args:
+        row: Bar data dictionary
+        row_index: Index of row for logging
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Parsed timezone-aware datetime, or None if parsing fails
+
+    """
+    raw_ts = row.get("t") or row.get("timestamp") or row.get("time")
+    ts_parsed = _parse_ts(raw_ts)
+    if ts_parsed is None:
+        logger.warning(
+            "Skipping bar row with invalid timestamp",
+            extra={
+                "correlation_id": correlation_id,
+                "raw_timestamp": raw_ts,
+                "row_index": row_index,
+            },
+        )
+    return ts_parsed
+
+
+def _extract_symbol_from_row(
+    row: dict[str, Any],
+    default_symbol: str | None,
+    ts_parsed: datetime,
+    row_index: int,
+    correlation_id: str | None,
+) -> str | None:
+    """Extract symbol from bar row with fallback to default.
+
+    Args:
+        row: Bar data dictionary
+        default_symbol: Default symbol to use if not in row
+        ts_parsed: Parsed timestamp for logging
+        row_index: Index of row for logging
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Symbol string, or None if missing
+
+    """
+    bar_symbol = row.get("S") or row.get("symbol") or default_symbol
+    if not bar_symbol:
+        logger.warning(
+            "Skipping bar row with missing symbol",
+            extra={
+                "correlation_id": correlation_id,
+                "timestamp": ts_parsed.isoformat(),
+                "row_index": row_index,
+            },
+        )
+    return bar_symbol
+
+
+def _extract_prices_from_row(
+    row: dict[str, Any],
+    bar_symbol: str,
+    ts_parsed: datetime,
+    row_index: int,
+    correlation_id: str | None,
+) -> tuple[Decimal, Decimal, Decimal, Decimal] | None:
+    """Extract and validate OHLC prices from bar row.
+
+    Args:
+        row: Bar data dictionary
+        bar_symbol: Symbol for logging
+        ts_parsed: Parsed timestamp for logging
+        row_index: Index of row for logging
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Tuple of (open, high, low, close) prices as Decimal, or None if any are missing
+
+    """
+    open_raw = row.get("o") or row.get("open")
+    high_raw = row.get("h") or row.get("high")
+    low_raw = row.get("l") or row.get("low")
+    close_raw = row.get("c") or row.get("close")
+
+    if open_raw is None or high_raw is None or low_raw is None or close_raw is None:
+        missing_fields = [
+            k
+            for k, v in {
+                "open": open_raw,
+                "high": high_raw,
+                "low": low_raw,
+                "close": close_raw,
+            }.items()
+            if v is None
+        ]
+        logger.warning(
+            "Skipping bar row with missing price data",
+            extra={
+                "correlation_id": correlation_id,
+                "symbol": bar_symbol,
+                "timestamp": ts_parsed.isoformat(),
+                "missing_fields": missing_fields,
+            },
+        )
+        return None
+
+    return (
+        Decimal(str(open_raw)),
+        Decimal(str(high_raw)),
+        Decimal(str(low_raw)),
+        Decimal(str(close_raw)),
+    )
+
+
+def _create_bar_model(
+    row: dict[str, Any],
+    bar_symbol: str,
+    ts_parsed: datetime,
+    open_price: Decimal,
+    high_price: Decimal,
+    low_price: Decimal,
+    close_price: Decimal,
+) -> BarModel:
+    """Create BarModel from validated data.
+
+    Args:
+        row: Bar data dictionary (for volume extraction)
+        bar_symbol: Validated symbol
+        ts_parsed: Validated timestamp
+        open_price: Validated open price
+        high_price: Validated high price
+        low_price: Validated low price
+        close_price: Validated close price
+
+    Returns:
+        BarModel instance
+
+    """
+    volume = int(row.get("v") or row.get("volume") or 0)
+    return BarModel(
+        symbol=bar_symbol,
+        timestamp=ts_parsed,
+        open=open_price,
+        high=high_price,
+        low=low_price,
+        close=close_price,
+        volume=volume,
+    )
+
+
 def bars_to_domain(
     rows: Iterable[dict[str, Any]],
     symbol: str | None = None,
@@ -178,87 +330,37 @@ def bars_to_domain(
 
     for r in rows:
         processed_count += 1
+        row_index = processed_count - 1
+
         try:
             # Extract and parse timestamp
-            raw_ts = r.get("t") or r.get("timestamp") or r.get("time")
-            ts_parsed = _parse_ts(raw_ts)
+            ts_parsed = _extract_timestamp_from_row(r, row_index, correlation_id)
             if ts_parsed is None:
                 skipped_count += 1
-                logger.warning(
-                    "Skipping bar row with invalid timestamp",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "raw_timestamp": raw_ts,
-                        "row_index": processed_count - 1,
-                    },
-                )
                 continue
 
             # Extract symbol - required field
-            bar_symbol = r.get("S") or r.get("symbol") or symbol
+            bar_symbol = _extract_symbol_from_row(r, symbol, ts_parsed, row_index, correlation_id)
             if not bar_symbol:
                 skipped_count += 1
-                logger.warning(
-                    "Skipping bar row with missing symbol",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "timestamp": ts_parsed.isoformat(),
-                        "row_index": processed_count - 1,
-                    },
-                )
                 continue
 
             # Extract and validate prices - all required
-            open_raw = r.get("o") or r.get("open")
-            high_raw = r.get("h") or r.get("high")
-            low_raw = r.get("l") or r.get("low")
-            close_raw = r.get("c") or r.get("close")
-
-            if open_raw is None or high_raw is None or low_raw is None or close_raw is None:
+            prices = _extract_prices_from_row(r, bar_symbol, ts_parsed, row_index, correlation_id)
+            if prices is None:
                 skipped_count += 1
-                logger.warning(
-                    "Skipping bar row with missing price data",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "symbol": bar_symbol,
-                        "timestamp": ts_parsed.isoformat(),
-                        "missing_fields": [
-                            k
-                            for k, v in {
-                                "open": open_raw,
-                                "high": high_raw,
-                                "low": low_raw,
-                                "close": close_raw,
-                            }.items()
-                            if v is None
-                        ],
-                    },
-                )
                 continue
 
-            # Convert to Decimal
-            open_price = Decimal(str(open_raw))
-            high_price = Decimal(str(high_raw))
-            low_price = Decimal(str(low_raw))
-            close_price = Decimal(str(close_raw))
+            open_price, high_price, low_price, close_price = prices
 
             # Validate OHLC relationships
             _validate_bar_prices(open_price, high_price, low_price, close_price, bar_symbol)
 
-            # Extract volume (can be zero)
-            volume = int(r.get("v") or r.get("volume") or 0)
-
-            out.append(
-                BarModel(
-                    symbol=bar_symbol,
-                    timestamp=ts_parsed,
-                    open=open_price,
-                    high=high_price,
-                    low=low_price,
-                    close=close_price,
-                    volume=volume,
-                )
+            # Create and append bar model
+            bar = _create_bar_model(
+                r, bar_symbol, ts_parsed, open_price, high_price, low_price, close_price
             )
+            out.append(bar)
 
         except (ValidationError, ValueError) as exc:
             # Expected errors - validation failures or conversion errors
@@ -269,10 +371,9 @@ def bars_to_domain(
                     "correlation_id": correlation_id,
                     "error": str(exc),
                     "error_type": exc.__class__.__name__,
-                    "row_index": processed_count - 1,
+                    "row_index": row_index,
                 },
             )
-            continue
         except Exception as exc:
             # Unexpected errors - log at error level for investigation
             skipped_count += 1
@@ -282,11 +383,10 @@ def bars_to_domain(
                     "correlation_id": correlation_id,
                     "error": str(exc),
                     "error_type": exc.__class__.__name__,
-                    "row_index": processed_count - 1,
+                    "row_index": row_index,
                 },
                 exc_info=True,
             )
-            continue
 
     # Log summary statistics
     if skipped_count > 0:

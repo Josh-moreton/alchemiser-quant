@@ -352,6 +352,81 @@ class RealTimeStreamManager:
             self._connected_event.clear()
             raise StreamingError(f"Failed to restart stream: {e}") from e
 
+    def _check_circuit_breaker(self, retry_count: int) -> bool:
+        """Check if circuit breaker allows connection attempt.
+
+        Args:
+            retry_count: Current retry attempt count
+
+        Returns:
+            True if connection is allowed, False otherwise
+
+        """
+        if not self._circuit_breaker.can_attempt_connection():
+            self.logger.warning(
+                "Circuit breaker blocking connection attempt",
+                attempt=retry_count + 1,
+                circuit_state=self._circuit_breaker.state.value,
+            )
+            import time
+
+            time.sleep(self._config.reconnect_backoff_delay)
+            return False
+        return True
+
+    def _handle_stream_error(self, e: Exception, retry_count: int) -> tuple[int, bool]:
+        """Handle stream connection errors and determine retry behavior.
+
+        Args:
+            e: The exception that occurred
+            retry_count: Current retry attempt count
+
+        Returns:
+            Tuple of (updated_retry_count, should_continue)
+
+        """
+        self._connected_event.clear()
+        retry_count += 1
+
+        error_msg = str(e)
+        if "connection limit exceeded" in error_msg.lower() or "http 429" in error_msg.lower():
+            self._circuit_breaker.record_failure(f"Connection limit exceeded: {error_msg}")
+            self.logger.error(
+                "Connection limit exceeded",
+                error=error_msg,
+                retry_count=retry_count,
+            )
+        else:
+            self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
+            self.logger.error(
+                "Stream connection error",
+                error=error_msg,
+                error_type=type(e).__name__,
+                retry_count=retry_count,
+            )
+
+        if retry_count >= self._config.max_retries:
+            self.logger.error(
+                "Max retries exceeded, giving up",
+                max_retries=self._config.max_retries,
+            )
+            return retry_count, False
+
+        # Exponential backoff
+        delay = min(
+            self._config.base_retry_delay * (2 ** (retry_count - 1)),
+            self._config.max_retry_delay,
+        )
+        self.logger.info(
+            "Retrying connection",
+            retry_count=retry_count,
+            delay=delay,
+        )
+        import time
+
+        time.sleep(delay)
+        return retry_count, True
+
     def _run_stream_blocking(self) -> None:
         """Run the WebSocket stream using SDK's public blocking API.
 
@@ -385,16 +460,8 @@ class RealTimeStreamManager:
                     continue
 
                 # Check circuit breaker
-                if not self._circuit_breaker.can_attempt_connection():
-                    self.logger.warning(
-                        "Circuit breaker blocking connection attempt",
-                        attempt=retry_count + 1,
-                        circuit_state=self._circuit_breaker.state.value,
-                    )
+                if not self._check_circuit_breaker(retry_count):
                     retry_count += 1
-                    import time
-
-                    time.sleep(self._config.reconnect_backoff_delay)
                     continue
 
                 self.logger.info("Attempting to start stream", attempt=retry_count + 1)
@@ -426,50 +493,10 @@ class RealTimeStreamManager:
                 self.logger.info("Stream interrupted by user")
                 break
 
-            except (OSError, RuntimeError, ConnectionError) as e:
-                self._connected_event.clear()
-                retry_count += 1
-
-                error_msg = str(e)
-                if (
-                    "connection limit exceeded" in error_msg.lower()
-                    or "http 429" in error_msg.lower()
-                ):
-                    self._circuit_breaker.record_failure(f"Connection limit exceeded: {error_msg}")
-                    self.logger.error(
-                        "Connection limit exceeded",
-                        error=error_msg,
-                        retry_count=retry_count,
-                    )
-                else:
-                    self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
-                    self.logger.error(
-                        "Stream connection error",
-                        error=error_msg,
-                        error_type=type(e).__name__,
-                        retry_count=retry_count,
-                    )
-
-                if retry_count >= self._config.max_retries:
-                    self.logger.error(
-                        "Max retries exceeded, giving up",
-                        max_retries=self._config.max_retries,
-                    )
+            except (OSError, RuntimeError) as e:
+                retry_count, should_continue = self._handle_stream_error(e, retry_count)
+                if not should_continue:
                     break
-
-                # Exponential backoff
-                delay = min(
-                    self._config.base_retry_delay * (2 ** (retry_count - 1)),
-                    self._config.max_retry_delay,
-                )
-                self.logger.info(
-                    "Retrying connection",
-                    retry_count=retry_count,
-                    delay=delay,
-                )
-                import time
-
-                time.sleep(delay)
 
             except Exception as e:
                 # Catch-all for unexpected errors
@@ -485,6 +512,64 @@ class RealTimeStreamManager:
                     break
 
         self.logger.info("Stream thread exiting", retry_count=retry_count)
+
+    def _create_quote_callback(self) -> Callable[[AlpacaQuoteData], Awaitable[None]]:
+        """Create async quote callback wrapper.
+
+        Returns:
+            Async callback function for quote data
+
+        """
+
+        async def async_quote_callback(data: AlpacaQuoteData) -> None:
+            """Wrap async quote callback for SDK's asynchronous callback interface."""
+            try:
+                if self._on_quote:
+                    # Call our async callback
+                    await self._on_quote(data)
+            except (KeyError, ValueError, TypeError) as e:
+                self.logger.error(
+                    "Error in quote callback",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Unexpected error in quote callback",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+
+        return async_quote_callback
+
+    def _create_trade_callback(self) -> Callable[[AlpacaTradeData], Awaitable[None]]:
+        """Create async trade callback wrapper.
+
+        Returns:
+            Async callback function for trade data
+
+        """
+
+        async def async_trade_callback(data: AlpacaTradeData) -> None:
+            """Wrap async trade callback for SDK's asynchronous callback interface."""
+            try:
+                if self._on_trade:
+                    # Call our async callback
+                    await self._on_trade(data)
+            except (KeyError, ValueError, TypeError) as e:
+                self.logger.error(
+                    "Error in trade callback",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+            except Exception as e:
+                self.logger.error(
+                    "Unexpected error in trade callback",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+
+        return async_trade_callback
 
     def _setup_stream_with_symbols(self, symbols_to_subscribe: list[str]) -> bool:
         """Set up stream instance with symbol subscriptions.
@@ -522,44 +607,9 @@ class RealTimeStreamManager:
 
         self._background_tasks: set[asyncio.Task[None]] = set()
 
-        # Set up callback wrappers that bridge our async callbacks to SDK's async API
-        async def async_quote_callback(data: AlpacaQuoteData) -> None:
-            """Wrap async quote callback for SDK's asynchronous callback interface."""
-            try:
-                if self._on_quote:
-                    # Call our async callback
-                    await self._on_quote(data)
-            except (KeyError, ValueError, TypeError) as e:
-                self.logger.error(
-                    "Error in quote callback",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-            except Exception as e:
-                self.logger.error(
-                    "Unexpected error in quote callback",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-
-        async def async_trade_callback(data: AlpacaTradeData) -> None:
-            """Wrap async trade callback for SDK's asynchronous callback interface."""
-            try:
-                if self._on_trade:
-                    # Call our async callback
-                    await self._on_trade(data)
-            except (KeyError, ValueError, TypeError) as e:
-                self.logger.error(
-                    "Error in trade callback",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-            except Exception as e:
-                self.logger.error(
-                    "Unexpected error in trade callback",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
+        # Create callback wrappers
+        async_quote_callback = self._create_quote_callback()
+        async_trade_callback = self._create_trade_callback()
 
         # Subscribe to quotes and trades
         try:

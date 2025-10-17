@@ -38,7 +38,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("AAPL", Decimal("10.5"), "buy")
+        result = self.validator.validate_order("AAPL", Decimal("10.5"))
         
         assert result.is_valid is True
         assert result.adjusted_quantity is None
@@ -56,7 +56,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("BRK.A", Decimal("5"), "buy")
+        result = self.validator.validate_order("BRK.A", Decimal("5"))
         
         assert result.is_valid is True
         assert result.adjusted_quantity is None
@@ -74,7 +74,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("BRK.A", Decimal("5.7"), "buy", auto_adjust=True)
+        result = self.validator.validate_order("BRK.A", Decimal("5.7"), auto_adjust=True)
         
         assert result.is_valid is True
         assert result.adjusted_quantity == Decimal("5")
@@ -93,7 +93,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("BRK.A", Decimal("5.7"), "buy", auto_adjust=False)
+        result = self.validator.validate_order("BRK.A", Decimal("5.7"), auto_adjust=False)
         
         assert result.is_valid is False
         assert result.error_code == "40310000"
@@ -111,7 +111,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("BRK.A", Decimal("0.3"), "buy", auto_adjust=True)
+        result = self.validator.validate_order("BRK.A", Decimal("0.3"), auto_adjust=True)
         
         assert result.is_valid is False
         assert result.error_code == "ZERO_QUANTITY_AFTER_ROUNDING"
@@ -129,7 +129,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("DELISTED", Decimal("10"), "buy")
+        result = self.validator.validate_order("DELISTED", Decimal("10"))
         
         assert result.is_valid is False
         assert result.error_code == "NOT_TRADABLE"
@@ -147,7 +147,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("AAPL", Decimal("0"), "buy")
+        result = self.validator.validate_order("AAPL", Decimal("0"))
         
         assert result.is_valid is False
         assert result.error_code == "INVALID_QUANTITY"
@@ -164,7 +164,7 @@ class TestExecutionValidator:
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
-        result = self.validator.validate_order("AAPL", Decimal("-5"), "buy")
+        result = self.validator.validate_order("AAPL", Decimal("-5"))
         
         assert result.is_valid is False
         assert result.error_code == "INVALID_QUANTITY"
@@ -174,7 +174,7 @@ class TestExecutionValidator:
         # Mock get_asset_info to return None (asset info unavailable)
         self.mock_alpaca_manager.get_asset_info.return_value = None
         
-        result = self.validator.validate_order("UNKNOWN", Decimal("10"), "buy")
+        result = self.validator.validate_order("UNKNOWN", Decimal("10"))
         
         assert result.is_valid is True
         assert result.adjusted_quantity is None
@@ -192,7 +192,7 @@ class TestExecutionValidator:
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
         
         result = self.validator.validate_order(
-            "AAPL", Decimal("10.5"), "buy", correlation_id="test-correlation-123"
+            "AAPL", Decimal("10.5"), correlation_id="test-correlation-123"
         )
         
         assert result.is_valid is True

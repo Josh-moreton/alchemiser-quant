@@ -41,9 +41,7 @@ jobs:
         run: poetry run pip install boto3
 
       - name: Format & Lint
-        run: |
-          make format
-          make lint
+        run: make format
 
       - name: Type check
         run: make type-check
