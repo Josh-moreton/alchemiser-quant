@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from ..constants import EVENT_TYPE_DESCRIPTION, RECIPIENT_OVERRIDE_DESCRIPTION
 from ..schemas.common import AllocationComparison
@@ -343,6 +343,18 @@ class TradingNotificationRequested(BaseEvent):
     error_message: str | None = Field(default=None, description="Error message if trading failed")
     error_code: str | None = Field(default=None, description="Optional error code")
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+    @field_validator("total_trade_value", mode="before")
+    @classmethod
+    def convert_total_trade_value_to_decimal(cls, v: Any) -> Decimal:
+        """Convert total_trade_value to Decimal if it's a float or int."""
+        if isinstance(v, Decimal):
+            return v
+        if isinstance(v, (int, float)):
+            return Decimal(str(v))
+        if isinstance(v, str):
+            return Decimal(v)
+        raise ValueError(f"Cannot convert {type(v).__name__} to Decimal")
 
 
 class SystemNotificationRequested(BaseEvent):
