@@ -163,11 +163,23 @@ class DslEngine(EventHandler):
             # Evaluate AST
             allocation, trace = self.evaluator.evaluate(ast, correlation_id)
 
+            # Add decision path to trace metadata for signal reasoning
+            if self.evaluator.decision_path:
+                trace = trace.model_copy(
+                    update={
+                        "metadata": {
+                            **trace.metadata,
+                            "decision_path": self.evaluator.decision_path,
+                        }
+                    }
+                )
+
             self.logger.debug(
                 "DSL strategy evaluation completed successfully",
                 extra={
                     "correlation_id": correlation_id,
                     "allocation_symbols": list(allocation.target_weights.keys()),
+                    "decision_nodes": len(self.evaluator.decision_path),
                     "component": "dsl_engine",
                 },
             )
