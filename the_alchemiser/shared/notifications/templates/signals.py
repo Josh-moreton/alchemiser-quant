@@ -17,6 +17,7 @@ from typing import Any, Protocol, TypedDict
 
 from ...errors.exceptions import TemplateGenerationError
 from ...logging import get_logger
+from ...types.strategy_types import StrategyType
 from .base import BaseEmailTemplate
 
 # Module logger
@@ -520,6 +521,141 @@ class SignalsBuilder:
                     </div>
                 </div>
             </div>
+        </div>
+        """
+
+    @staticmethod
+    def _safe_float_conversion(value: float | int | str, context: str = "") -> float:
+        """Safely convert a value to float with error handling.
+
+        Args:
+            value: Value to convert to float (float, int, or string)
+            context: Context string for logging (e.g., symbol name)
+
+        Returns:
+            Float value or 0.0 if conversion fails
+
+        """
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Invalid allocation value in consolidated_portfolio",
+                value=value,
+                context=context,
+            )
+            return 0.0
+
+    @staticmethod
+    def build_signal_summary(
+        strategy_signals: dict[str | StrategyType, SignalData],
+        consolidated_portfolio: dict[str, float],
+    ) -> str:
+        """Build signal summary section showing individual and consolidated signals.
+
+        Creates a concise summary at the top of the email showing:
+        1. Individual strategy signals (e.g., "Strategy A: 50% TQQQ / 50% SOXL")
+        2. Consolidated signal (aggregated allocation across all strategies)
+
+        Args:
+            strategy_signals: Dictionary mapping strategy names/types to signal data
+            consolidated_portfolio: Dictionary mapping symbols to target allocations
+
+        Returns:
+            HTML string containing signal summary section, or empty string
+            if no signals or portfolio data available
+
+        Note:
+            This section appears immediately after the email header to provide
+            a quick overview of generated signals before portfolio and trade details.
+
+        """
+        if not strategy_signals and not consolidated_portfolio:
+            logger.debug("build_signal_summary_skipped", reason="no_data")
+            return ""
+
+        logger.debug(
+            "building_signal_summary",
+            signal_count=len(strategy_signals),
+            portfolio_symbols=len(consolidated_portfolio),
+        )
+
+        # Build individual strategy signal rows
+        strategy_rows = []
+        for strategy_name, signal_data in strategy_signals.items():
+            if not isinstance(signal_data, dict):
+                continue
+
+            # Format strategy name
+            if hasattr(strategy_name, "name"):
+                strategy_display_name = strategy_name.name.replace("_", " ").title()
+            else:
+                # Strip StrategyType enum prefix (e.g., "StrategyType.DSL" -> "DSL") for display
+                strategy_display_name = (
+                    str(strategy_name).replace(_STRATEGY_TYPE_PREFIX, "").replace("_", " ").title()
+                )
+
+            # Get target allocation for this strategy if available
+            # Strategy signals may include allocation data
+            symbol = signal_data.get("symbol", "")
+            action = signal_data.get("action", "UNKNOWN")
+
+            # Build allocation string from signal
+            allocation_str = f"{action}"
+            if symbol:
+                allocation_str += f" {symbol}"
+
+            strategy_rows.append(
+                f"""
+                <div style="padding: 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
+                    <strong style="color: #1F2937;">{strategy_display_name}:</strong> {allocation_str}
+                </div>
+                """
+            )
+
+        # Build consolidated signal from portfolio
+        consolidated_str = ""
+        if consolidated_portfolio:
+            # Sort by allocation descending with safe float conversion
+            sorted_allocations = sorted(
+                consolidated_portfolio.items(),
+                key=lambda x: SignalsBuilder._safe_float_conversion(x[1], x[0]),
+                reverse=True,
+            )
+            allocation_parts = []
+            for symbol, weight in sorted_allocations:
+                try:
+                    float_weight = float(weight)
+                except (ValueError, TypeError):
+                    logger.warning("Invalid allocation value", symbol=symbol, value=weight)
+                    continue
+                if float_weight > 0:
+                    allocation_parts.append(f"{float_weight:.1%} {symbol}")
+            consolidated_str = " / ".join(allocation_parts) if allocation_parts else "No allocation"
+
+        # Build the complete signal summary section
+        strategy_section = "".join(strategy_rows) if strategy_rows else ""
+
+        return f"""
+        <div style="margin: 0 0 28px 0; padding: 20px; background-color: #F0F9FF; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <h3 style="margin: 0 0 14px 0; color: #1E40AF; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                📊 Signal Summary
+            </h3>
+            {strategy_section}
+            {
+            f'''
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #DBEAFE;">
+                <div style="color: #1E40AF; font-size: 15px; font-weight: 600; margin-bottom: 6px;">
+                    Consolidated Signal:
+                </div>
+                <div style="color: #1F2937; font-size: 14px; font-weight: 500; line-height: 1.6;">
+                    {consolidated_str}
+                </div>
+            </div>
+            '''
+            if consolidated_str
+            else ""
+        }
         </div>
         """
 

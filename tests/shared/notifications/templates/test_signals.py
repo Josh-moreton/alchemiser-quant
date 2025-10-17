@@ -219,9 +219,7 @@ class TestBuildDetailedStrategySignals:
         }
         strategy_summary = {"STRATEGY1": {"allocation": 0.5}}
 
-        result = SignalsBuilder.build_detailed_strategy_signals(
-            strategy_signals, strategy_summary
-        )
+        result = SignalsBuilder.build_detailed_strategy_signals(strategy_signals, strategy_summary)
         assert "Strategy Signals" in result
         assert "BUY" in result
         assert "SPY" in result
@@ -428,6 +426,161 @@ class TestBuildStrategySignalsNeutral:
         # Should still generate HTML for valid signal
         assert "SPY" in result
         assert "BUY" in result
+
+
+class TestBuildSignalSummary:
+    """Tests for signal summary section builder."""
+
+    def test_signal_summary_with_complete_data(self) -> None:
+        """Test signal summary with both strategy signals and consolidated portfolio."""
+        strategy_signals = {
+            "momentum": {
+                "action": "BUY",
+                "symbol": "TQQQ",
+                "reason": "Strong uptrend detected",
+            },
+            "mean_reversion": {
+                "action": "BUY",
+                "symbol": "SOXL",
+                "reason": "Oversold conditions",
+            },
+        }
+        consolidated_portfolio = {
+            "TQQQ": 0.75,
+            "SOXL": 0.25,
+        }
+
+        result = SignalsBuilder.build_signal_summary(strategy_signals, consolidated_portfolio)
+
+        assert result is not None
+        assert "Signal Summary" in result
+        assert "Momentum:" in result or "momentum" in result.lower()
+        assert "Mean Reversion:" in result or "mean_reversion" in result.lower()
+        assert "Consolidated Signal" in result
+        assert "75.0% TQQQ" in result
+        assert "25.0% SOXL" in result
+
+    def test_signal_summary_with_strategy_signals_only(self) -> None:
+        """Test signal summary with only strategy signals (no portfolio)."""
+        strategy_signals = {
+            "momentum": {
+                "action": "BUY",
+                "symbol": "SPY",
+                "reason": "Test",
+            }
+        }
+
+        result = SignalsBuilder.build_signal_summary(strategy_signals, {})
+
+        assert result is not None
+        assert "Signal Summary" in result
+        assert "BUY SPY" in result
+
+    def test_signal_summary_with_portfolio_only(self) -> None:
+        """Test signal summary with only consolidated portfolio (no strategy signals)."""
+        consolidated_portfolio = {
+            "QQQ": 0.6,
+            "SPY": 0.4,
+        }
+
+        result = SignalsBuilder.build_signal_summary({}, consolidated_portfolio)
+
+        assert result is not None
+        assert "Signal Summary" in result
+        assert "Consolidated Signal" in result
+        assert "60.0% QQQ" in result
+        assert "40.0% SPY" in result
+
+    def test_signal_summary_empty_data(self) -> None:
+        """Test signal summary with no data returns empty string."""
+        result = SignalsBuilder.build_signal_summary({}, {})
+
+        assert result == ""
+
+    def test_signal_summary_handles_enum_strategy_names(self) -> None:
+        """Test signal summary correctly handles StrategyType enum keys."""
+
+        class StrategyType:
+            def __init__(self, name: str) -> None:
+                self.name = name
+
+        strategy_signals = {
+            StrategyType("dsl_momentum"): {
+                "action": "BUY",
+                "symbol": "TQQQ",
+                "reason": "Test",
+            }
+        }
+        consolidated_portfolio = {"TQQQ": 1.0}
+
+        result = SignalsBuilder.build_signal_summary(strategy_signals, consolidated_portfolio)
+
+        assert result is not None
+        assert "Dsl Momentum:" in result or "dsl_momentum" in result.lower()
+
+    def test_signal_summary_ignores_invalid_signal_data(self) -> None:
+        """Test signal summary skips invalid signal data."""
+        strategy_signals = {
+            "valid": {
+                "action": "BUY",
+                "symbol": "SPY",
+                "reason": "Test",
+            },
+            "invalid": "not a dict",
+        }
+        consolidated_portfolio = {"SPY": 1.0}
+
+        result = SignalsBuilder.build_signal_summary(strategy_signals, consolidated_portfolio)
+
+        assert result is not None
+        assert "Valid:" in result or "valid" in result.lower()
+        # Should not crash, should skip invalid entry
+
+    def test_signal_summary_sorts_portfolio_by_allocation(self) -> None:
+        """Test consolidated signal sorts symbols by allocation descending."""
+        consolidated_portfolio = {
+            "SMALL": 0.1,
+            "LARGE": 0.6,
+            "MEDIUM": 0.3,
+        }
+
+        result = SignalsBuilder.build_signal_summary({}, consolidated_portfolio)
+
+        assert result is not None
+        # Check that LARGE appears before MEDIUM which appears before SMALL
+        large_pos = result.find("60.0% LARGE")
+        medium_pos = result.find("30.0% MEDIUM")
+        small_pos = result.find("10.0% SMALL")
+        assert large_pos < medium_pos < small_pos
+
+    def test_signal_summary_excludes_zero_allocations(self) -> None:
+        """Test consolidated signal excludes zero allocations."""
+        consolidated_portfolio = {
+            "ACTIVE": 0.7,
+            "ZERO": 0.0,
+            "ALSO_ACTIVE": 0.3,
+        }
+
+        result = SignalsBuilder.build_signal_summary({}, consolidated_portfolio)
+
+        assert result is not None
+        assert "70.0% ACTIVE" in result
+        assert "30.0% ALSO_ACTIVE" in result
+        assert "ZERO" not in result
+
+    def test_signal_summary_handles_invalid_allocation_values(self) -> None:
+        """Test signal summary gracefully handles invalid allocation values."""
+        consolidated_portfolio = {
+            "VALID": 0.6,
+            "ALSO_VALID": 0.4,
+        }
+
+        result = SignalsBuilder.build_signal_summary({}, consolidated_portfolio)
+
+        # Should still work with valid values
+        assert result is not None
+        assert "60.0% VALID" in result
+        assert "40.0% ALSO_VALID" in result
 
 
 class TestConstants:
