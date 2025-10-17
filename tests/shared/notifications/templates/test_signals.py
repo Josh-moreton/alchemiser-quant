@@ -568,6 +568,20 @@ class TestBuildSignalSummary:
         assert "30.0% ALSO_ACTIVE" in result
         assert "ZERO" not in result
 
+    def test_signal_summary_handles_invalid_allocation_values(self) -> None:
+        """Test signal summary gracefully handles invalid allocation values."""
+        consolidated_portfolio = {
+            "VALID": 0.6,
+            "ALSO_VALID": 0.4,
+        }
+
+        result = SignalsBuilder.build_signal_summary({}, consolidated_portfolio)
+
+        # Should still work with valid values
+        assert result is not None
+        assert "60.0% VALID" in result
+        assert "40.0% ALSO_VALID" in result
+
 
 class TestConstants:
     """Tests for module constants."""

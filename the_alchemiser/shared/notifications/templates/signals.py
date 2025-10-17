@@ -17,6 +17,7 @@ from typing import Any, Protocol, TypedDict
 
 from ...errors.exceptions import TemplateGenerationError
 from ...logging import get_logger
+from ...types.strategy_types import StrategyType
 from .base import BaseEmailTemplate
 
 # Module logger
@@ -524,8 +525,31 @@ class SignalsBuilder:
         """
 
     @staticmethod
+    def _safe_float_conversion(value: float | int | str, context: str = "") -> float:
+        """Safely convert a value to float with error handling.
+
+        Args:
+            value: Value to convert to float (float, int, or string)
+            context: Context string for logging (e.g., symbol name)
+
+        Returns:
+            Float value or 0.0 if conversion fails
+
+        """
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Invalid allocation value in consolidated_portfolio",
+                value=value,
+                context=context,
+            )
+            return 0.0
+
+    @staticmethod
     def build_signal_summary(
-        strategy_signals: dict[Any, Any], consolidated_portfolio: dict[str, Any]
+        strategy_signals: dict[str | StrategyType, SignalData],
+        consolidated_portfolio: dict[str, float],
     ) -> str:
         """Build signal summary section showing individual and consolidated signals.
 
@@ -566,6 +590,7 @@ class SignalsBuilder:
             if hasattr(strategy_name, "name"):
                 strategy_display_name = strategy_name.name.replace("_", " ").title()
             else:
+                # Strip StrategyType enum prefix (e.g., "StrategyType.DSL" -> "DSL") for display
                 strategy_display_name = (
                     str(strategy_name).replace(_STRATEGY_TYPE_PREFIX, "").replace("_", " ").title()
                 )
@@ -591,16 +616,21 @@ class SignalsBuilder:
         # Build consolidated signal from portfolio
         consolidated_str = ""
         if consolidated_portfolio:
-            # Sort by allocation descending
+            # Sort by allocation descending with safe float conversion
             sorted_allocations = sorted(
                 consolidated_portfolio.items(),
-                key=lambda x: float(x[1]) if x[1] else 0,
+                key=lambda x: SignalsBuilder._safe_float_conversion(x[1], x[0]),
                 reverse=True,
             )
             allocation_parts = []
             for symbol, weight in sorted_allocations:
-                if weight and float(weight) > 0:
-                    allocation_parts.append(f"{float(weight):.1%} {symbol}")
+                try:
+                    float_weight = float(weight)
+                except (ValueError, TypeError):
+                    logger.warning("Invalid allocation value", symbol=symbol, value=weight)
+                    continue
+                if float_weight > 0:
+                    allocation_parts.append(f"{float_weight:.1%} {symbol}")
             consolidated_str = " / ".join(allocation_parts) if allocation_parts else "No allocation"
 
         # Build the complete signal summary section
