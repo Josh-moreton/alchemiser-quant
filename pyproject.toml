@@ -24,7 +24,7 @@ format = "wheel"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = [ ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pycache__", "build", "dist", "tests",]
+extend-exclude = [ ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pycache__", "build", "dist", "tests", "scripts",]
 
 [tool.mypy]
 python_version = "3.12"
@@ -35,7 +35,7 @@ show_error_codes = true
 pretty = true
 color_output = true
 cache_dir = ".mypy_cache"
-exclude = [ "the_alchemiser/application/", "the_alchemiser/domain/", "the_alchemiser/infrastructure/config/execution_config.py", "the_alchemiser/services/", "the_alchemiser/utils/", "the_alchemiser/.*_backup/", "the_alchemiser/.*/.*original.*", "the_alchemiser/execution_v2/core/smart_execution_strategy.py", "tests/",]
+exclude = [ "scripts/", "tests/",]
 [[tool.mypy.overrides]]
 module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*",]
 ignore_missing_imports = true
