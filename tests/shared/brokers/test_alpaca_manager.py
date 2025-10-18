@@ -13,6 +13,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import hashlib
 import threading
 import time
 import warnings
@@ -158,7 +159,7 @@ class TestCredentialSecurity:
     def test_credentials_are_hashed_in_dictionary_keys(
         self, mock_mds, mock_ws, mock_data_client, mock_trading_client
     ):
-        """Test that credentials are hashed (using PBKDF2) for dictionary keys."""
+        """Test that credentials are hashed for dictionary keys."""
         # Arrange
         mock_trading_client.return_value = Mock()
         mock_data_client.return_value = Mock()
@@ -171,20 +172,12 @@ class TestCredentialSecurity:
         # Act
         manager = AlpacaManager(api_key, secret_key, paper=True)
 
-        # Assert - check that instance is stored with a hashed key
-        # With PBKDF2, we can't predict the exact hash due to random salt,
-        # but we can verify that:
-        # 1. The manager is stored in _instances
-        # 2. The hash is a 64-character hex string (32 bytes * 2)
-        assert len(AlpacaManager._instances) == 1
-        stored_hash = list(AlpacaManager._instances.keys())[0]
-        assert len(stored_hash) == 64  # PBKDF2 with 32-byte output = 64 hex chars
-        assert all(c in "0123456789abcdef" for c in stored_hash)
-        assert AlpacaManager._instances[stored_hash] is manager
+        # Assert - check that instance is stored with hashed key
+        credentials_str = f"{api_key}:{secret_key}:True:None"
+        expected_hash = hashlib.sha256(credentials_str.encode()).hexdigest()
 
-        # Verify that the same credentials return the same hash (salt is reused)
-        credentials_hash = AlpacaManager._hash_credentials(api_key, secret_key, paper=True)
-        assert credentials_hash == stored_hash
+        assert expected_hash in AlpacaManager._instances
+        assert AlpacaManager._instances[expected_hash] is manager
 
     @patch("the_alchemiser.shared.brokers.alpaca_manager.create_trading_client")
     @patch("the_alchemiser.shared.brokers.alpaca_manager.create_data_client")

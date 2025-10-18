@@ -14,6 +14,7 @@ Comprehensive tests for the WebSocketConnectionManager class including:
 
 from __future__ import annotations
 
+import hashlib
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -53,55 +54,36 @@ class TestWebSocketConnectionManagerSingleton:
         assert manager1 is not manager2
 
     def test_credentials_are_hashed_not_stored_plaintext(self):
-        """Test that credentials are hashed (using PBKDF2) for dictionary keys."""
+        """Test that credentials are hashed for dictionary keys."""
         api_key = "test_key"
         secret_key = "test_secret"
         paper_trading = True
 
         manager = WebSocketConnectionManager(api_key, secret_key, paper_trading=paper_trading)
 
-        # With PBKDF2, we can't predict the exact hash due to random salt,
-        # but we can verify that:
-        # 1. The hash is a 64-character hex string (32 bytes * 2)
-        # 2. The same credentials return the same hash (salt is reused)
-        assert len(manager._credentials_hash) == 64  # PBKDF2 with 32-byte output
-        assert all(c in "0123456789abcdef" for c in manager._credentials_hash)
+        # Check the hash is stored correctly
+        expected_hash = hashlib.sha256(
+            f"{api_key}:{secret_key}:{paper_trading}".encode()
+        ).hexdigest()
+        assert manager._credentials_hash == expected_hash
 
         # Check that instance keys in the class are hashed
-        assert manager._credentials_hash in WebSocketConnectionManager._instances
-
-        # Verify that the same credentials return the same hash (salt is reused)
-        credentials_hash = WebSocketConnectionManager._hash_credentials(
-            api_key, secret_key, paper_trading=paper_trading
-        )
-        assert credentials_hash == manager._credentials_hash
+        assert expected_hash in WebSocketConnectionManager._instances
 
     def test_hash_credentials_static_method(self):
-        """Test the static hash_credentials method produces consistent PBKDF2 hashes."""
+        """Test the static hash_credentials method."""
         api_key = "test_key"
         secret_key = "test_secret"
         paper_trading = True
 
-        # First call creates a salt
-        result1 = WebSocketConnectionManager._hash_credentials(
+        result = WebSocketConnectionManager._hash_credentials(
             api_key, secret_key, paper_trading=paper_trading
         )
 
-        # Second call with same credentials should return the same hash (salt is reused)
-        result2 = WebSocketConnectionManager._hash_credentials(
-            api_key, secret_key, paper_trading=paper_trading
-        )
-
-        # Verify hash properties
-        assert len(result1) == 64  # PBKDF2 with 32-byte output = 64 hex chars
-        assert all(c in "0123456789abcdef" for c in result1)
-        assert result1 == result2  # Same credentials = same hash
-
-        # Different credentials should produce different hash
-        result3 = WebSocketConnectionManager._hash_credentials(
-            "different_key", secret_key, paper_trading=paper_trading
-        )
-        assert result1 != result3
+        expected_hash = hashlib.sha256(
+            f"{api_key}:{secret_key}:{paper_trading}".encode()
+        ).hexdigest()
+        assert result == expected_hash
 
 
 class TestWebSocketConnectionManagerReferenceCountingPricing:
