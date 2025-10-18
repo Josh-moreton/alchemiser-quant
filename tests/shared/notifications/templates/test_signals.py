@@ -211,7 +211,7 @@ class TestBuildDetailedStrategySignals:
         """Test detailed signals with BUY action."""
         strategy_signals = {
             "STRATEGY1": {
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "action": "BUY",
                 "reason": "Strong momentum",
                 "timestamp": "2024-01-01 10:00:00",
@@ -230,7 +230,7 @@ class TestBuildDetailedStrategySignals:
         """Test detailed signals with SELL action."""
         strategy_signals = {
             "STRATEGY1": {
-                "symbol": "QQQ",
+                "symbols": ["QQQ"],
                 "action": "SELL",
                 "reason": "Overbought conditions",
             }
@@ -246,7 +246,7 @@ class TestBuildDetailedStrategySignals:
         long_reason = "A" * 400
         strategy_signals = {
             "STRATEGY1": {
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "action": "BUY",
                 "reason": long_reason,
             }
@@ -367,12 +367,12 @@ class TestBuildStrategySignalsNeutral:
         strategy_signals = {
             "STRATEGY1": {
                 "action": "BUY",
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "reason": "Strong momentum",
             },
             "STRATEGY2": {
                 "action": "SELL",
-                "symbol": "QQQ",
+                "symbols": ["QQQ"],
                 "reason": "Weak trend",
             },
         }
@@ -389,7 +389,7 @@ class TestBuildStrategySignalsNeutral:
         strategy_signals = {
             "STRATEGY1": {
                 "action": "BUY",
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "reason": long_reason,
             }
         }
@@ -405,7 +405,7 @@ class TestBuildStrategySignalsNeutral:
         strategy_signals = {
             strategy_enum: {
                 "action": "BUY",
-                "symbol": "URA",
+                "symbols": ["URA"],
                 "reason": "Strong nuclear sentiment",
             }
         }
@@ -418,7 +418,7 @@ class TestBuildStrategySignalsNeutral:
             "STRATEGY1": "not a dict",  # Invalid
             "STRATEGY2": {  # Valid
                 "action": "BUY",
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "reason": "Valid signal",
             },
         }
@@ -436,12 +436,12 @@ class TestBuildSignalSummary:
         strategy_signals = {
             "momentum": {
                 "action": "BUY",
-                "symbol": "TQQQ",
+                "symbols": ["TQQQ"],
                 "reason": "Strong uptrend detected",
             },
             "mean_reversion": {
                 "action": "BUY",
-                "symbol": "SOXL",
+                "symbols": ["SOXL"],
                 "reason": "Oversold conditions",
             },
         }
@@ -465,7 +465,7 @@ class TestBuildSignalSummary:
         strategy_signals = {
             "momentum": {
                 "action": "BUY",
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "reason": "Test",
             }
         }
@@ -507,7 +507,7 @@ class TestBuildSignalSummary:
         strategy_signals = {
             StrategyType("dsl_momentum"): {
                 "action": "BUY",
-                "symbol": "TQQQ",
+                "symbols": ["TQQQ"],
                 "reason": "Test",
             }
         }
@@ -523,7 +523,7 @@ class TestBuildSignalSummary:
         strategy_signals = {
             "valid": {
                 "action": "BUY",
-                "symbol": "SPY",
+                "symbols": ["SPY"],
                 "reason": "Test",
             },
             "invalid": "not a dict",

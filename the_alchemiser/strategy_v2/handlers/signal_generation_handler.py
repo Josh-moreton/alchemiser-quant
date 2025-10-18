@@ -256,13 +256,9 @@ class SignalGenerationHandler:
 
             strategy_signals[strategy_name] = {
                 "symbols": symbols_and_allocations,
-                "symbol": symbols_and_allocations[0]
-                if symbols_and_allocations
-                else "",  # Primary symbol for backward compatibility
                 "action": first_signal.action,
                 "reasoning": first_signal.reasoning,
                 "signal": signal_display,
-                "is_multi_symbol": len(symbols_and_allocations) > 1,
                 "total_allocation": float(total_allocation),
             }
 
@@ -464,7 +460,8 @@ class SignalGenerationHandler:
 
     def _is_multi_symbol_signal(self, data: dict[str, Any]) -> bool:
         """Check if signal data represents a multi-symbol signal."""
-        return bool(data.get("is_multi_symbol")) and isinstance(data.get("symbols"), list)
+        symbols = data.get("symbols", [])
+        return isinstance(symbols, list) and len(symbols) > 1
 
     def _format_multi_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
         """Format multi-symbol signal detail."""

@@ -22,11 +22,9 @@ class TestMultiSymbolSignalFlowIntegration:
         strategy_signals = {
             "grail": {
                 "symbols": ["TQQQ"],
-                "symbol": "TQQQ",
                 "action": "BUY",
                 "reasoning": "Strong momentum detected",
                 "signal": "BUY TQQQ",
-                "is_multi_symbol": False,
                 "total_allocation": 0.75,
             }
         }
@@ -53,7 +51,6 @@ class TestMultiSymbolSignalFlowIntegration:
 
         # Step 4: Verify event preserves data
         assert event.signals_data["grail"]["symbols"] == ["TQQQ"]
-        assert event.signals_data["grail"]["symbol"] == "TQQQ"
         assert event.signals_data["grail"]["signal"] == "BUY TQQQ"
 
         # Step 5: Notification rendering
@@ -72,11 +69,9 @@ class TestMultiSymbolSignalFlowIntegration:
         strategy_signals = {
             "grail": {
                 "symbols": ["TQQQ", "SOXL"],  # Multiple symbols!
-                "symbol": "TQQQ",  # First symbol for backward compatibility
                 "action": "BUY",
                 "reasoning": "Diversified momentum strategy across tech sectors",
                 "signal": "BUY TQQQ, SOXL",  # Pre-formatted with all symbols
-                "is_multi_symbol": True,
                 "total_allocation": 0.75,
             }
         }
@@ -103,9 +98,7 @@ class TestMultiSymbolSignalFlowIntegration:
 
         # Step 4: Verify event preserves ALL symbols (no truncation)
         assert event.signals_data["grail"]["symbols"] == ["TQQQ", "SOXL"]
-        assert event.signals_data["grail"]["symbol"] == "TQQQ"
         assert event.signals_data["grail"]["signal"] == "BUY TQQQ, SOXL"
-        assert event.signals_data["grail"]["is_multi_symbol"] is True
 
         # Step 5: Notification rendering - verify NO DATA LOSS
         html = SignalsBuilder.build_signal_summary(
@@ -129,20 +122,16 @@ class TestMultiSymbolSignalFlowIntegration:
         strategy_signals = {
             "grail": {
                 "symbols": ["TQQQ", "SOXL"],
-                "symbol": "TQQQ",
                 "action": "BUY",
                 "reasoning": "Tech momentum",
                 "signal": "BUY TQQQ, SOXL",
-                "is_multi_symbol": True,
                 "total_allocation": 0.5,
             },
             "nuclear": {
                 "symbols": ["UPRO", "TMF"],
-                "symbol": "UPRO",
                 "action": "BUY",
                 "reasoning": "Risk-on allocation",
                 "signal": "BUY UPRO, TMF",
-                "is_multi_symbol": True,
                 "total_allocation": 0.5,
             },
         }
@@ -197,11 +186,9 @@ class TestMultiSymbolSignalFlowIntegration:
         strategy_signals = {
             "grail": {
                 "symbols": ["TQQQ", "SOXL", "TECL"],  # 3 symbols
-                "symbol": "TQQQ",
                 "action": "BUY",
                 "reasoning": "Triple momentum",
                 "signal": "BUY TQQQ, SOXL, TECL",
-                "is_multi_symbol": True,
             }
         }
 
@@ -241,25 +228,24 @@ class TestMultiSymbolSignalFlowIntegration:
         assert event_restored.signals_data["grail"]["symbols"] == ["TQQQ", "SOXL", "TECL"]
         assert len(event_restored.signals_data["grail"]["symbols"]) == 3
 
-    def test_backward_compatibility_no_symbols_list(self):
-        """Test that old signal format (no symbols list) still works."""
-        # Old format - only has 'symbol' field, no 'symbols' list
+    def test_single_symbol_in_list_format(self):
+        """Test that single symbol signals use list format."""
+        # Single symbol in list format
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
-                # No symbols list - testing backward compatibility
+                "symbols": ["TQQQ"],
                 "action": "BUY",
-                "reasoning": "Test backward compat",
+                "reasoning": "Test single symbol",
             }
         }
 
         consolidated_portfolio_data = {
             "target_allocations": {"TQQQ": Decimal("0.75")},
-            "correlation_id": "test-backward",
+            "correlation_id": "test-single",
             "source_strategies": ["grail"],
         }
 
-        # Should still work with all templates
+        # Should work with all templates
         html_summary = SignalsBuilder.build_signal_summary(
             strategy_signals, consolidated_portfolio_data["target_allocations"]
         )

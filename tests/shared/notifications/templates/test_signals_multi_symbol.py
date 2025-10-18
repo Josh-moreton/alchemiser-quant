@@ -17,12 +17,10 @@ class TestMultiSymbolSignalRendering:
         """Test detailed signals with single symbol."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
                 "symbols": ["TQQQ"],
                 "action": "BUY",
                 "reason": "Strong momentum detected",
                 "signal": "BUY TQQQ",
-                "is_multi_symbol": False,
             }
         }
         strategy_summary = {"grail": {"allocation": 0.75}}
@@ -37,12 +35,10 @@ class TestMultiSymbolSignalRendering:
         """Test detailed signals with multiple symbols - should show all symbols."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",  # Backward compatibility - first symbol
                 "symbols": ["TQQQ", "SOXL"],  # Full list
                 "action": "BUY",
                 "reason": "Strong momentum detected across multiple assets",
                 "signal": "BUY TQQQ, SOXL",
-                "is_multi_symbol": True,
             }
         }
         strategy_summary = {"grail": {"allocation": 0.75}}
@@ -59,8 +55,7 @@ class TestMultiSymbolSignalRendering:
         """Test detailed signals without symbols list - falls back to singular symbol."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
-                # No symbols list - testing backward compatibility
+                "symbols": ["TQQQ"],
                 "action": "BUY",
                 "reason": "Strong momentum detected",
             }
@@ -76,12 +71,10 @@ class TestMultiSymbolSignalRendering:
         """Test signal summary with single symbol."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
                 "symbols": ["TQQQ"],
                 "action": "BUY",
                 "reasoning": "Strong momentum",
                 "signal": "BUY TQQQ",
-                "is_multi_symbol": False,
             }
         }
         consolidated_portfolio = {"TQQQ": 0.75}
@@ -96,12 +89,10 @@ class TestMultiSymbolSignalRendering:
         """Test signal summary with multiple symbols - should show all symbols."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",  # Backward compatibility
                 "symbols": ["TQQQ", "SOXL"],  # Full list
                 "action": "BUY",
                 "reasoning": "Diversified momentum strategy",
                 "signal": "BUY TQQQ, SOXL",
-                "is_multi_symbol": True,
             }
         }
         consolidated_portfolio = {"TQQQ": 0.5, "SOXL": 0.25}
@@ -120,7 +111,6 @@ class TestMultiSymbolSignalRendering:
         """Test signal summary fallback when signal field is missing - single symbol."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
                 "symbols": ["TQQQ"],
                 "action": "BUY",
                 "reasoning": "Test",
@@ -138,7 +128,6 @@ class TestMultiSymbolSignalRendering:
         """Test signal summary fallback when signal field is missing - multiple symbols."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",  # Backward compatibility
                 "symbols": ["TQQQ", "SOXL"],  # Full list
                 "action": "BUY",
                 "reasoning": "Test multi-symbol fallback",
@@ -158,7 +147,6 @@ class TestMultiSymbolSignalRendering:
         """Test neutral signals table with single symbol."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
                 "symbols": ["TQQQ"],
                 "action": "BUY",
                 "reason": "Strong momentum",
@@ -175,7 +163,6 @@ class TestMultiSymbolSignalRendering:
         """Test neutral signals table with multiple symbols - should show all."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",  # Backward compatibility
                 "symbols": ["TQQQ", "SOXL"],  # Full list
                 "action": "BUY",
                 "reason": "Diversified momentum across tech sectors",
@@ -194,8 +181,7 @@ class TestMultiSymbolSignalRendering:
         """Test neutral signals table without symbols list - backward compatibility."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
-                # No symbols list - testing backward compatibility
+                "symbols": ["TQQQ"],
                 "action": "BUY",
                 "reason": "Test",
             }
@@ -230,20 +216,16 @@ class TestMultiSymbolSignalRendering:
         """Test multiple strategies each with multiple symbols."""
         strategy_signals = {
             "grail": {
-                "symbol": "TQQQ",
                 "symbols": ["TQQQ", "SOXL"],
                 "action": "BUY",
                 "reasoning": "Tech momentum",
                 "signal": "BUY TQQQ, SOXL",
-                "is_multi_symbol": True,
             },
             "nuclear": {
-                "symbol": "UPRO",
                 "symbols": ["UPRO", "TMF"],
                 "action": "BUY",
                 "reasoning": "Risk-on allocation",
                 "signal": "BUY UPRO, TMF",
-                "is_multi_symbol": True,
             },
         }
         consolidated_portfolio = {
@@ -274,42 +256,26 @@ class TestSignalDataIntegrity:
         # This test documents the expected data structure
         signal_data = {
             "symbols": ["TQQQ", "SOXL"],  # List of all symbols
-            "symbol": "TQQQ",  # First symbol for backward compatibility
             "action": "BUY",
             "reasoning": "Test",
             "signal": "BUY TQQQ, SOXL",  # Pre-formatted display string
-            "is_multi_symbol": True,
         }
 
         # Verify structure
         assert isinstance(signal_data["symbols"], list)
         assert len(signal_data["symbols"]) >= 1
-        assert signal_data["symbol"] == signal_data["symbols"][0]
-        assert signal_data["is_multi_symbol"] == (len(signal_data["symbols"]) > 1)
 
-    def test_backward_compatibility_single_symbol(self):
-        """Test that single-symbol signals work with or without symbols list."""
-        # Old format (no symbols list)
-        old_format = {
-            "symbol": "TQQQ",
-            "action": "BUY",
-            "reason": "Test",
-        }
-
-        # New format (with symbols list)
-        new_format = {
-            "symbol": "TQQQ",
+    def test_single_symbol_in_symbols_list(self):
+        """Test that single-symbol signals use symbols list with one element."""
+        # Single symbol in list format
+        signal_format = {
             "symbols": ["TQQQ"],
             "action": "BUY",
             "reason": "Test",
-            "is_multi_symbol": False,
         }
 
-        # Both should work in templates
-        html_old = SignalsBuilder.build_strategy_signals_neutral({"test": old_format})
-        html_new = SignalsBuilder.build_strategy_signals_neutral({"test": new_format})
+        # Should work in templates
+        html = SignalsBuilder.build_strategy_signals_neutral({"test": signal_format})
 
-        assert "TQQQ" in html_old
-        assert "TQQQ" in html_new
-        assert "BUY" in html_old
-        assert "BUY" in html_new
+        assert "TQQQ" in html
+        assert "BUY" in html
