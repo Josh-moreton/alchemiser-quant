@@ -14,7 +14,7 @@ from unittest.mock import Mock
 import pytest
 
 from the_alchemiser.shared.schemas.ast_node import ASTNode
-from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest, PortfolioFragment
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.strategy_v2.engines.dsl.context import DslContext

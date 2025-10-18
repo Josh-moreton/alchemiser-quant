@@ -298,7 +298,7 @@ class TestTechnicalIndicatorSerialization:
             current_price=Decimal("150.50"),
         )
         data = indicator.to_dict()
-        
+
         assert data["symbol"] == "AAPL"
         assert data["timestamp"] == now.isoformat()
         assert data["current_price"] == "150.50"
@@ -311,7 +311,7 @@ class TestTechnicalIndicatorSerialization:
             current_price=Decimal("123.456"),
         )
         data = indicator.to_dict()
-        
+
         assert isinstance(data["current_price"], str)
         assert data["current_price"] == "123.456"
 
@@ -323,7 +323,7 @@ class TestTechnicalIndicatorSerialization:
             timestamp=now,
         )
         data = indicator.to_dict()
-        
+
         assert isinstance(data["timestamp"], str)
         assert now.isoformat() in data["timestamp"]
 
@@ -335,7 +335,7 @@ class TestTechnicalIndicatorSerialization:
             "current_price": "150.50",
         }
         indicator = TechnicalIndicator.from_dict(data)
-        
+
         assert indicator.symbol == "AAPL"
         assert indicator.current_price == Decimal("150.50")
         assert indicator.timestamp.year == 2025
@@ -347,7 +347,7 @@ class TestTechnicalIndicatorSerialization:
             "timestamp": "2025-01-15T10:30:00Z",
         }
         indicator = TechnicalIndicator.from_dict(data)
-        
+
         assert indicator.timestamp.year == 2025
         assert indicator.timestamp.tzinfo is not None
 
@@ -382,10 +382,10 @@ class TestTechnicalIndicatorSerialization:
             rsi_14=52.3,
             ma_20=148.0,
         )
-        
+
         data = original.to_dict()
         reconstructed = TechnicalIndicator.from_dict(data)
-        
+
         assert reconstructed.symbol == original.symbol
         assert reconstructed.current_price == original.current_price
         assert reconstructed.rsi_14 == original.rsi_14
@@ -403,7 +403,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "ma_20": 148.0,
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.symbol == "AAPL"
         assert indicator.current_price == Decimal("150.50")
         assert indicator.rsi_14 == 52.3
@@ -417,7 +417,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "current_price": 150.50,
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.timestamp.year == 2025
         assert indicator.timestamp.month == 1
 
@@ -430,7 +430,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "rsi_21": 56.0,
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.rsi_10 == 45.0
         assert indicator.rsi_14 == 50.0
         assert indicator.rsi_20 == 55.0
@@ -444,7 +444,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "ma_200": 140.0,
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.ma_20 == 148.0
         assert indicator.ma_50 == 145.0
         assert indicator.ma_200 == 140.0
@@ -457,7 +457,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "stdev_return_6": 0.02,
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.ma_return_90 == 0.15
         assert indicator.cum_return_60 == 0.10
         assert indicator.stdev_return_6 == 0.02
@@ -470,7 +470,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "atr_14": 3.5,
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.volatility_14 == 0.25
         assert indicator.volatility_20 == 0.22
         assert indicator.atr_14 == 3.5
@@ -483,7 +483,7 @@ class TestTechnicalIndicatorLegacyConversion:
             "custom_indicator_2": "value",
         }
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", legacy_data)
-        
+
         assert indicator.metadata is not None
         assert "custom_indicator_1" in indicator.metadata
         assert "custom_indicator_2" in indicator.metadata
@@ -498,7 +498,7 @@ class TestTechnicalIndicatorLegacyConversion:
             ma_20=148.0,
         )
         legacy_data = indicator.to_legacy_dict()
-        
+
         assert legacy_data["current_price"] == 150.50
         assert legacy_data["rsi_14"] == 52.3
         assert legacy_data["ma_20"] == 148.0
@@ -511,7 +511,7 @@ class TestTechnicalIndicatorLegacyConversion:
             metadata={"custom_field": "value"},
         )
         legacy_data = indicator.to_legacy_dict()
-        
+
         assert "custom_field" in legacy_data
         assert legacy_data["custom_field"] == "value"
 
@@ -523,10 +523,10 @@ class TestTechnicalIndicatorLegacyConversion:
             "ma_20": 148.0,
             "volatility_14": 0.25,
         }
-        
+
         indicator = TechnicalIndicator.from_legacy_dict("AAPL", original_legacy)
         reconstructed_legacy = indicator.to_legacy_dict()
-        
+
         assert reconstructed_legacy["current_price"] == original_legacy["current_price"]
         assert reconstructed_legacy["rsi_14"] == original_legacy["rsi_14"]
         assert reconstructed_legacy["ma_20"] == original_legacy["ma_20"]
@@ -545,7 +545,7 @@ class TestTechnicalIndicatorGetters:
             rsi_14=50.0,
             rsi_20=55.0,
         )
-        
+
         assert indicator.get_rsi_by_period(10) == 45.0
         assert indicator.get_rsi_by_period(14) == 50.0
         assert indicator.get_rsi_by_period(20) == 55.0
@@ -556,7 +556,7 @@ class TestTechnicalIndicatorGetters:
             symbol="AAPL",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert indicator.get_rsi_by_period(14) is None
 
     def test_get_ma_by_period(self):
@@ -568,7 +568,7 @@ class TestTechnicalIndicatorGetters:
             ma_50=145.0,
             ma_200=140.0,
         )
-        
+
         assert indicator.get_ma_by_period(20) == 148.0
         assert indicator.get_ma_by_period(50) == 145.0
         assert indicator.get_ma_by_period(200) == 140.0
@@ -579,7 +579,7 @@ class TestTechnicalIndicatorGetters:
             symbol="AAPL",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert indicator.get_ma_by_period(20) is None
 
 
@@ -592,7 +592,7 @@ class TestTechnicalIndicatorEdgeCases:
             symbol="AAPL",
             timestamp=datetime.now(UTC),
         )
-        
+
         # Verify all optional fields are None
         assert indicator.data_source is None
         assert indicator.current_price is None
@@ -613,7 +613,7 @@ class TestTechnicalIndicatorEdgeCases:
                 "bool_val": True,
             },
         )
-        
+
         assert indicator.metadata["string_val"] == "test"
         assert indicator.metadata["int_val"] == 42
         assert indicator.metadata["float_val"] == 3.14
@@ -627,7 +627,7 @@ class TestTechnicalIndicatorEdgeCases:
             timestamp=datetime.now(UTC),
             current_price=price,
         )
-        
+
         assert indicator.current_price == price
         assert str(indicator.current_price) == "150.123456789"
 
@@ -638,7 +638,7 @@ class TestTechnicalIndicatorEdgeCases:
             timestamp=datetime.now(UTC),
             current_price=Decimal("0.0001"),
         )
-        
+
         assert indicator.current_price == Decimal("0.0001")
 
     def test_negative_returns_allowed(self):
@@ -649,7 +649,7 @@ class TestTechnicalIndicatorEdgeCases:
             ma_return_90=-0.15,
             cum_return_60=-0.10,
         )
-        
+
         assert indicator.ma_return_90 == -0.15
         assert indicator.cum_return_60 == -0.10
 
@@ -662,7 +662,7 @@ class TestTechnicalIndicatorEdgeCases:
             macd_signal=-1.8,
             macd_histogram=-0.3,
         )
-        
+
         assert indicator.macd_line == -2.1
         assert indicator.macd_signal == -1.8
         assert indicator.macd_histogram == -0.3

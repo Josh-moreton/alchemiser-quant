@@ -5,20 +5,22 @@ Comprehensive unit and property-based tests for account schema DTOs.
 Tests all account-related DTOs with validation, immutability, and constraint checks.
 """
 
-import pytest
 from decimal import Decimal
-from hypothesis import given, strategies as st
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from the_alchemiser.shared.schemas.accounts import (
-    AccountSummary,
     AccountMetrics,
+    AccountSummary,
     BuyingPowerResult,
+    EnrichedAccountSummaryView,
+    PortfolioAllocationResult,
     RiskMetrics,
     RiskMetricsResult,
     TradeEligibilityResult,
-    PortfolioAllocationResult,
-    EnrichedAccountSummaryView,
 )
 
 
@@ -717,9 +719,7 @@ class TestAccountMetricsProperties:
     """Property-based tests for AccountMetrics."""
 
     @given(
-        cash_ratio=st.decimals(
-            min_value=Decimal("0"), max_value=Decimal("1"), places=4
-        ),
+        cash_ratio=st.decimals(min_value=Decimal("0"), max_value=Decimal("1"), places=4),
         market_exposure=st.decimals(min_value=Decimal("0"), max_value=Decimal("2"), places=4),
         available_buying_power_ratio=st.decimals(
             min_value=Decimal("0"), max_value=Decimal("5"), places=4
@@ -750,9 +750,7 @@ class TestAccountSummaryProperties:
         cash=st.decimals(min_value=Decimal("0"), max_value=Decimal("1000000"), places=2),
         day_trade_count=st.integers(min_value=0, max_value=100),
     )
-    def test_account_summary_with_random_valid_values(
-        self, equity, cash, day_trade_count
-    ):
+    def test_account_summary_with_random_valid_values(self, equity, cash, day_trade_count):
         """Test AccountSummary with random valid values."""
         metrics = AccountMetrics(
             cash_ratio=Decimal("0.5"),

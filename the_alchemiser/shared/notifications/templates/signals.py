@@ -468,7 +468,13 @@ class SignalsBuilder:
             summary_data = strategy_summary.get(strategy_name, {})
             allocation = summary_data.get("allocation", 0)
 
-            symbol = signal_data.get("symbol", "N/A")
+            # Get symbols list and join for display
+            symbols_list = signal_data.get("symbols", [])
+            if isinstance(symbols_list, list):
+                symbol = ", ".join(str(s) for s in symbols_list) if symbols_list else "N/A"
+            else:
+                symbol = str(symbols_list) if symbols_list else "N/A"
+
             action = signal_data.get("action", "UNKNOWN")
             reason = signal_data.get("reason", "No reason provided")
             timestamp = signal_data.get("timestamp", "")
@@ -697,11 +703,15 @@ class SignalsBuilder:
             reasoning = str(signal_data.get("reasoning", signal_data.get("reason", "")))
             signal_str = str(signal_data.get("signal", ""))
 
-            # Fallback: build signal from symbol/action if not provided
+            # Fallback: build signal from symbols/action if not provided
             if not signal_str:
                 action = str(signal_data.get("action", "UNKNOWN"))
-                symbol = str(signal_data.get("symbol", ""))
-                signal_str = f"{action} {symbol}" if symbol else action
+                symbols_list = signal_data.get("symbols", [])
+                if symbols_list and isinstance(symbols_list, list):
+                    symbols_str = ", ".join(str(s) for s in symbols_list)
+                    signal_str = f"{action} {symbols_str}"
+                else:
+                    signal_str = action
 
             # Format as: strategy_name: reasoning → signal
             # Truncate reasoning for summary display
@@ -809,7 +819,9 @@ class SignalsBuilder:
                 continue
 
             action = signal_data.get("action", "UNKNOWN")
-            symbol = signal_data.get("symbol", "UNKNOWN")
+            # Get symbols list and join for display
+            symbols_list = signal_data.get("symbols", [])
+            symbol = ", ".join(str(s) for s in symbols_list) if symbols_list else "UNKNOWN"
             reason = signal_data.get("reason", "No reason provided")
 
             # Convert strategy_name to string and format

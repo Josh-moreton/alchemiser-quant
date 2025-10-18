@@ -168,13 +168,17 @@ def test_error_context_data_backward_compatibility() -> None:
 
         # Verify deprecation warning was issued
         assert len(w) >= 1, "Should emit at least one deprecation warning"
-        deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
         assert len(deprecation_warnings) >= 1, "Should have at least one DeprecationWarning"
-        
+
         # Find the ErrorContextData deprecation warning
         error_context_warnings = [
-            warning for warning in deprecation_warnings
-            if "deprecated" in str(warning.message).lower() and "shared.errors.context" in str(warning.message)
+            warning
+            for warning in deprecation_warnings
+            if "deprecated" in str(warning.message).lower()
+            and "shared.errors.context" in str(warning.message)
         ]
         assert len(error_context_warnings) >= 1, "Should have ErrorContextData deprecation warning"
         assert "v3.0.0" in str(error_context_warnings[0].message)

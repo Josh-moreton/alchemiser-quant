@@ -10,7 +10,6 @@ from decimal import Decimal
 
 import pytest
 
-from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.strategy_v2.engines.dsl.sexpr_parser import (
     SexprParseError,
     SexprParser,
@@ -72,7 +71,7 @@ class TestSexprParser:
         assert ast.is_list()
         assert len(ast.children) == 3
         assert ast.children[0].get_symbol_name() == "+"
-        
+
         # Check nested expression
         nested = ast.children[1]
         assert nested.is_list()
@@ -123,7 +122,7 @@ class TestSexprParser:
         ast = parser.parse(code)
         assert ast.is_list()
         assert ast.children[0].get_symbol_name() == "if"
-        
+
         condition = ast.children[1]
         assert condition.is_list()
         assert condition.children[0].get_symbol_name() == ">"
@@ -205,7 +204,7 @@ class TestSexprParserPropertyBased:
             ("3.14", Decimal("3.14")),
             ('"test"', "test"),
         ]
-        
+
         for input_str, expected_value in test_cases:
             ast = parser.parse(input_str)
             assert ast.is_atom()
@@ -216,12 +215,12 @@ class TestSexprParserPropertyBased:
         # Depth 1
         ast1 = parser.parse("(+ 1 2)")
         assert ast1.is_list()
-        
+
         # Depth 2
         ast2 = parser.parse("(+ (+ 1 2) 3)")
         assert ast2.is_list()
         assert ast2.children[1].is_list()
-        
+
         # Depth 3
         ast3 = parser.parse("(+ (+ (+ 1 2) 3) 4)")
         assert ast3.is_list()

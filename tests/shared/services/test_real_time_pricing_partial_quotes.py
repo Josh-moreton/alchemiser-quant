@@ -10,10 +10,9 @@ Tests cover:
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -49,12 +48,12 @@ class TestPartialQuoteHandling:
             "the_alchemiser.shared.services.real_time_pricing.RealTimeDataProcessor"
         ) as mock_processor_class:
             mock_processor_class.return_value = data_processor
-            
+
             with patch(
                 "the_alchemiser.shared.services.real_time_pricing.RealTimePriceStore"
             ) as mock_store_class:
                 mock_store_class.return_value = price_store
-                
+
                 service = RealTimePricingService(
                     api_key="test_key",
                     secret_key="test_secret",
@@ -63,7 +62,7 @@ class TestPartialQuoteHandling:
                 # Replace with our real instances
                 service._price_store = price_store
                 service._data_processor = data_processor
-                
+
                 return service
 
     @pytest.mark.asyncio
@@ -150,9 +149,7 @@ class TestPartialQuoteHandling:
         assert quote_data.timestamp == initial_timestamp  # Original timestamp
 
     @pytest.mark.asyncio
-    async def test_full_quote_updates_normally(
-        self, pricing_service, data_processor, price_store
-    ):
+    async def test_full_quote_updates_normally(self, pricing_service, data_processor, price_store):
         """Test that when both bid and ask are present, quote updates normally."""
         # Setup: quote with both sides
         data_processor.extract_quote_values.return_value = QuoteExtractionResult(

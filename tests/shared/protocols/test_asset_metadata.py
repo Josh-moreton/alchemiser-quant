@@ -42,7 +42,6 @@ class TestAssetMetadataProviderProtocol:
         """Verify protocol uses structural typing (not nominal)."""
         # Protocol should be a typing.Protocol
         # This documents that any class with matching methods satisfies the protocol
-        from typing import Protocol as TypingProtocol
 
         # Check that AssetMetadataProvider is a Protocol subclass
         assert isinstance(AssetMetadataProvider, type)

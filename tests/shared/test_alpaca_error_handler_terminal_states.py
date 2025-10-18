@@ -7,7 +7,6 @@ order placement when an order has already been filled or reached another
 terminal state.
 """
 
-import pytest
 
 from the_alchemiser.shared.schemas.operations import TerminalOrderError
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
@@ -19,13 +18,9 @@ class TestAlpacaErrorHandlerTerminalStates:
     def test_detects_order_already_filled_with_error_code(self):
         """Test detection of Alpaca error code 42210000 for filled orders."""
         # This is the actual error from the issue
-        error = Exception(
-            '{"code":42210000,"message":"order is already in \\"filled\\" state"}'
-        )
+        error = Exception('{"code":42210000,"message":"order is already in \\"filled\\" state"}')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_FILLED
@@ -34,9 +29,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test detection of filled state from message alone."""
         error = Exception('order is already in "filled" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_FILLED
@@ -45,9 +38,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test detection of cancelled state."""
         error = Exception('order is already in "canceled" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_CANCELLED
@@ -56,9 +47,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test detection of cancelled state with UK spelling."""
         error = Exception('order is already in "cancelled" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_CANCELLED
@@ -67,9 +56,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test detection of rejected state."""
         error = Exception('order is already in "rejected" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_REJECTED
@@ -78,9 +65,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test detection of expired state."""
         error = Exception('order is already in "expired" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_EXPIRED
@@ -89,9 +74,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test that non-terminal errors are not classified as terminal."""
         error = Exception("Insufficient buying power")
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is False
         assert terminal_error is None
@@ -100,9 +83,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test that generic errors are not classified as terminal."""
         error = Exception("Network timeout")
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is False
         assert terminal_error is None
@@ -111,9 +92,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test that pending order state is not classified as terminal."""
         error = Exception('order is in "pending_new" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is False
         assert terminal_error is None
@@ -122,9 +101,7 @@ class TestAlpacaErrorHandlerTerminalStates:
         """Test that state detection is case-insensitive."""
         error = Exception('Order is already in "FILLED" state')
 
-        is_terminal, terminal_error = (
-            AlpacaErrorHandler.is_order_already_in_terminal_state(error)
-        )
+        is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
 
         assert is_terminal is True
         assert terminal_error == TerminalOrderError.ALREADY_FILLED

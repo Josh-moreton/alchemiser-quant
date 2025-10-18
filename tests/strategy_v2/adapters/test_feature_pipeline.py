@@ -10,10 +10,9 @@ for mathematical correctness and edge cases.
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
-import numpy as np
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -33,7 +32,7 @@ def sample_bars():
     """Create sample market bars for testing."""
     return [
         MarketBar(
-            timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+            timestamp=datetime(2025, 1, i, tzinfo=UTC),
             symbol="AAPL",
             timeframe="1D",
             open_price=Decimal("100.00"),
@@ -87,7 +86,7 @@ class TestComputeReturns:
         """Test that returns are calculated correctly."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, 1, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),
@@ -97,7 +96,7 @@ class TestComputeReturns:
                 volume=1000000,
             ),
             MarketBar(
-                timestamp=datetime(2025, 1, 2, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, 2, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),
@@ -116,7 +115,7 @@ class TestComputeReturns:
         """Test returns calculation handles near-zero prices."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, 1, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("0.000001"),
@@ -126,7 +125,7 @@ class TestComputeReturns:
                 volume=1000000,
             ),
             MarketBar(
-                timestamp=datetime(2025, 1, 2, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, 2, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("0.000001"),
@@ -158,7 +157,7 @@ class TestComputeReturns:
         pipeline = FeaturePipeline()
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=price,
@@ -208,9 +207,7 @@ class TestComputeVolatility:
     def test_volatility_with_window(self, feature_pipeline):
         """Test volatility calculation with window parameter."""
         returns = [0.01, -0.02, 0.015, -0.01, 0.02, 0.005, -0.015]
-        vol_window = feature_pipeline.compute_volatility(
-            returns, window=3, annualize=False
-        )
+        vol_window = feature_pipeline.compute_volatility(returns, window=3, annualize=False)
         vol_full = feature_pipeline.compute_volatility(returns, annualize=False)
 
         # Windowed volatility should be calculated from last 3 returns
@@ -221,9 +218,7 @@ class TestComputeVolatility:
     @pytest.mark.property
     @given(
         st.lists(
-            st.floats(
-                min_value=-0.2, max_value=0.2, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=-0.2, max_value=0.2, allow_nan=False, allow_infinity=False),
             min_size=2,
             max_size=100,
         )
@@ -235,9 +230,7 @@ class TestComputeVolatility:
         assert vol >= 0.0
 
     @pytest.mark.property
-    @given(
-        st.floats(min_value=-0.1, max_value=0.1, allow_nan=False, allow_infinity=False)
-    )
+    @given(st.floats(min_value=-0.1, max_value=0.1, allow_nan=False, allow_infinity=False))
     def test_zero_volatility_for_constant_returns(self, constant_value):
         """Property: constant returns should give zero volatility."""
         pipeline = FeaturePipeline()
@@ -337,9 +330,7 @@ class TestComputeCorrelation:
     @pytest.mark.property
     @given(
         st.lists(
-            st.floats(
-                min_value=-100, max_value=100, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=-100, max_value=100, allow_nan=False, allow_infinity=False),
             min_size=2,
             max_size=100,
         )
@@ -353,9 +344,7 @@ class TestComputeCorrelation:
     @pytest.mark.property
     @given(
         st.lists(
-            st.floats(
-                min_value=-100, max_value=100, allow_nan=False, allow_infinity=False
-            ),
+            st.floats(min_value=-100, max_value=100, allow_nan=False, allow_infinity=False),
             min_size=2,
             max_size=100,
         )
@@ -403,9 +392,7 @@ class TestExtractPriceFeatures:
     @pytest.mark.unit
     def test_extract_features_with_sufficient_data(self, feature_pipeline, sample_bars):
         """Test feature extraction with sufficient data."""
-        features = feature_pipeline.extract_price_features(
-            sample_bars, lookback_window=20
-        )
+        features = feature_pipeline.extract_price_features(sample_bars, lookback_window=20)
 
         # Check all expected features are present
         expected_keys = {
@@ -437,9 +424,7 @@ class TestExtractPriceFeatures:
     def test_extract_features_insufficient_data(self, feature_pipeline, sample_bars):
         """Test feature extraction with insufficient data for lookback."""
         # Use only 5 bars with lookback of 20
-        features = feature_pipeline.extract_price_features(
-            sample_bars[:5], lookback_window=20
-        )
+        features = feature_pipeline.extract_price_features(sample_bars[:5], lookback_window=20)
 
         # Should still return features but with defaults for some
         assert "current_price" in features
@@ -449,12 +434,8 @@ class TestExtractPriceFeatures:
     @pytest.mark.unit
     def test_extract_features_custom_lookback(self, feature_pipeline, sample_bars):
         """Test feature extraction with custom lookback window."""
-        features_10 = feature_pipeline.extract_price_features(
-            sample_bars, lookback_window=10
-        )
-        features_20 = feature_pipeline.extract_price_features(
-            sample_bars, lookback_window=20
-        )
+        features_10 = feature_pipeline.extract_price_features(sample_bars, lookback_window=10)
+        features_20 = feature_pipeline.extract_price_features(sample_bars, lookback_window=20)
 
         # Both should have all keys
         assert set(features_10.keys()) == set(features_20.keys())
@@ -503,7 +484,7 @@ class TestPrivateMethods:
         """Test price position when at high."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),
@@ -516,9 +497,7 @@ class TestPrivateMethods:
         ]
 
         # Price at the high of the range
-        position = feature_pipeline._compute_price_position(
-            bars, 110.0, lookback_window=5
-        )
+        position = feature_pipeline._compute_price_position(bars, 110.0, lookback_window=5)
         assert math.isclose(position, 1.0, abs_tol=1e-9)
 
     @pytest.mark.unit
@@ -526,7 +505,7 @@ class TestPrivateMethods:
         """Test price position when at low."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),
@@ -539,9 +518,7 @@ class TestPrivateMethods:
         ]
 
         # Price at the low of the range
-        position = feature_pipeline._compute_price_position(
-            bars, 90.0, lookback_window=5
-        )
+        position = feature_pipeline._compute_price_position(bars, 90.0, lookback_window=5)
         assert math.isclose(position, 0.0, abs_tol=1e-9)
 
     @pytest.mark.unit
@@ -549,7 +526,7 @@ class TestPrivateMethods:
         """Test price position when high equals low."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),
@@ -562,9 +539,7 @@ class TestPrivateMethods:
         ]
 
         # When high == low, should return default 0.5
-        position = feature_pipeline._compute_price_position(
-            bars, 100.0, lookback_window=5
-        )
+        position = feature_pipeline._compute_price_position(bars, 100.0, lookback_window=5)
         assert position == 0.5
 
     @pytest.mark.unit
@@ -601,7 +576,7 @@ class TestEdgeCases:
         """Test handling of very large numbers."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("1e10"),
@@ -622,7 +597,7 @@ class TestEdgeCases:
         """Test handling of very small numbers."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("0.01"),
@@ -643,7 +618,7 @@ class TestEdgeCases:
         """Test when all prices are the same."""
         bars = [
             MarketBar(
-                timestamp=datetime(2025, 1, i, tzinfo=timezone.utc),
+                timestamp=datetime(2025, 1, i, tzinfo=UTC),
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),

@@ -114,7 +114,6 @@ class TestAlpacaOrderProtocol:
         assert order.updated_at is None or isinstance(order.updated_at, str)
 
 
-
 class TestAlpacaOrderObject:
     """Test AlpacaOrderObject minimal monitoring protocol."""
 
@@ -200,7 +199,9 @@ class TestProtocolUseCases:
 
         # Monitor using minimal protocol
         filled_orders: list[AlpacaOrderObject] = [
-            o() for o in orders if o.status == "filled"  # type: ignore[attr-defined]
+            o()
+            for o in orders
+            if o.status == "filled"  # type: ignore[attr-defined]
         ]
 
         assert len(filled_orders) == 2
@@ -215,6 +216,7 @@ class TestProtocolDocumentation:
         The protocol has been updated to accept both str | UUID to support
         both serialized forms and native SDK objects.
         """
+
         # Protocol accepts string
         class StringIdOrder:
             id: str = "some-string-id"
@@ -240,6 +242,7 @@ class TestProtocolDocumentation:
         The protocol has been updated to accept both str | datetime to support
         both serialized forms and native SDK objects.
         """
+
         # Protocol accepts string
         class StringTimestampOrder:
             id: str = "order-id"
@@ -274,7 +277,6 @@ class TestProtocolDocumentation:
         Rationale: Protocol defines essential fields for most use cases.
         """
         # This test documents the protocol scope
-        pass
 
 
 class TestProtocolComparison:
@@ -313,7 +315,6 @@ class TestProtocolComparison:
         assert hasattr(order, "created_at")
         assert hasattr(order, "submitted_at")
         assert hasattr(order, "updated_at")
-
 
     def test_minimal_protocol_has_only_monitoring_fields(self) -> None:
         """AlpacaOrderObject has only essential monitoring fields."""

@@ -149,7 +149,7 @@ class TestConfigModuleInterface:
         exec("from the_alchemiser.shared.config import *", namespace)
 
         # Remove builtins
-        imported_names = {name for name in namespace.keys() if not name.startswith("__")}
+        imported_names = {name for name in namespace if not name.startswith("__")}
 
         expected_names = {
             "Config",

@@ -3,8 +3,7 @@
 Tests for error details and categorization logic.
 """
 
-from datetime import UTC, datetime
-from unittest.mock import patch
+from datetime import datetime
 
 import pytest
 
@@ -254,6 +253,7 @@ class TestCategorizeByExceptionType:
 
     def test_categorize_strategy_execution_error(self):
         """Test categorization of StrategyExecutionError by name."""
+
         # Create a mock exception with the right class name
         class StrategyExecutionError(Exception):
             pass

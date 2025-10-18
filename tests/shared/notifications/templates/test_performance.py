@@ -17,7 +17,6 @@ from decimal import Decimal
 import pytest
 
 from the_alchemiser.shared.notifications.templates.performance import (
-    MAX_DISPLAYED_ORDERS,
     PerformanceBuilder,
 )
 from the_alchemiser.shared.schemas.notifications import (

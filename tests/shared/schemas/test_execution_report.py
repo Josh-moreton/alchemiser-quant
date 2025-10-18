@@ -271,7 +271,7 @@ class TestExecutionReport:
     def test_success_rate_boundaries(self) -> None:
         """Test success_rate validation at boundaries."""
         now = datetime.now(UTC)
-        
+
         # Test 0.0
         report_zero = ExecutionReport(
             correlation_id="corr-123",
@@ -336,7 +336,7 @@ class TestExecutionReport:
     def test_invalid_success_rate(self, invalid_rate: Decimal) -> None:
         """Test success_rate validation rejects out-of-range values."""
         now = datetime.now(UTC)
-        
+
         with pytest.raises(ValidationError) as exc_info:
             ExecutionReport(
                 correlation_id="corr-123",
@@ -396,16 +396,16 @@ class TestExecutionReport:
 
         # Serialize to dict
         data = original.to_dict()
-        
+
         # Verify serialization types
         assert isinstance(data["timestamp"], str)
         assert isinstance(data["total_value_traded"], str)
         assert isinstance(data["success_rate"], str)
         assert isinstance(data["total_duration_seconds"], str)
-        
+
         # Deserialize from dict
         restored = ExecutionReport.from_dict(data)
-        
+
         # Verify data integrity
         assert restored.execution_id == original.execution_id
         assert restored.correlation_id == original.correlation_id
@@ -448,7 +448,7 @@ class TestExecutionReport:
     def test_idempotency_key_different_for_different_data(self) -> None:
         """Test idempotency key differs for different reports."""
         now = datetime.now(UTC)
-        
+
         report1 = ExecutionReport(
             correlation_id="corr-123",
             causation_id="cause-456",
@@ -514,7 +514,7 @@ class TestExecutionReport:
     def test_timezone_aware_timestamps(self) -> None:
         """Test all timestamp fields are timezone-aware."""
         naive_dt = datetime(2024, 1, 1, 12, 0, 0)
-        
+
         report = ExecutionReport(
             correlation_id="corr-123",
             causation_id="cause-456",
@@ -564,7 +564,7 @@ class TestExecutionReport:
     def test_orders_type_safety(self) -> None:
         """Test _convert_orders_from_dict validates types properly."""
         now = datetime.now(UTC)
-        
+
         # Valid: dict orders
         data_with_dict_orders = {
             "schema_version": "1.0",
@@ -597,7 +597,7 @@ class TestExecutionReport:
                 }
             ],
         }
-        
+
         report = ExecutionReport.from_dict(data_with_dict_orders)
         assert len(report.orders) == 1
         assert isinstance(report.orders[0], ExecutedOrder)
@@ -605,10 +605,10 @@ class TestExecutionReport:
         # Invalid: non-dict, non-ExecutedOrder items should raise TypeError
         data_with_invalid_orders = data_with_dict_orders.copy()
         data_with_invalid_orders["orders"] = ["invalid", 123, None]  # type: ignore
-        
+
         with pytest.raises(TypeError) as exc_info:
             ExecutionReport.from_dict(data_with_invalid_orders)
-        
+
         assert "Order data must be dict or ExecutedOrder" in str(exc_info.value)
 
     def test_negative_net_cash_flow(self) -> None:

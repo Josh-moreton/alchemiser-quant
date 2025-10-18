@@ -252,7 +252,7 @@ class TestSymbolBusinessRules:
             ("googl", "GOOGL"),
             ("BRK.B", "BRK.B"),
         ]
-        
+
         for input_sym, expected_sym in test_cases:
             symbol = Symbol(input_sym)
             assert symbol.value == expected_sym

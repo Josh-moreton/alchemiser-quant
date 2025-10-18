@@ -25,7 +25,7 @@ class TestRequestIdManagement:
         """Test setting and getting request ID."""
         test_id = "test-request-123"
         context.set_request_id(test_id)
-        
+
         try:
             result = context.get_request_id()
             assert result == test_id
@@ -43,19 +43,19 @@ class TestRequestIdManagement:
         """Test that setting None clears the request ID."""
         context.set_request_id("test-id")
         context.set_request_id(None)
-        
+
         result = context.get_request_id()
         assert result is None
 
     def test_set_request_id_is_idempotent(self) -> None:
         """Test that setting request ID multiple times is idempotent."""
         test_id = "test-request-456"
-        
+
         try:
             context.set_request_id(test_id)
             context.set_request_id(test_id)
             context.set_request_id(test_id)
-            
+
             result = context.get_request_id()
             assert result == test_id
         finally:
@@ -65,11 +65,11 @@ class TestRequestIdManagement:
         """Test that setting a new request ID overwrites the previous one."""
         first_id = "first-id"
         second_id = "second-id"
-        
+
         try:
             context.set_request_id(first_id)
             assert context.get_request_id() == first_id
-            
+
             context.set_request_id(second_id)
             assert context.get_request_id() == second_id
         finally:
@@ -84,7 +84,7 @@ class TestCorrelationIdManagement:
         """Test setting and getting correlation ID."""
         test_id = "corr-123"
         context.set_correlation_id(test_id)
-        
+
         try:
             result = context.get_correlation_id()
             assert result == test_id
@@ -102,19 +102,19 @@ class TestCorrelationIdManagement:
         """Test that setting None clears the correlation ID."""
         context.set_correlation_id("test-corr")
         context.set_correlation_id(None)
-        
+
         result = context.get_correlation_id()
         assert result is None
 
     def test_set_correlation_id_is_idempotent(self) -> None:
         """Test that setting correlation ID multiple times is idempotent."""
         test_id = "corr-456"
-        
+
         try:
             context.set_correlation_id(test_id)
             context.set_correlation_id(test_id)
             context.set_correlation_id(test_id)
-            
+
             result = context.get_correlation_id()
             assert result == test_id
         finally:
@@ -124,11 +124,11 @@ class TestCorrelationIdManagement:
         """Test that setting a new correlation ID overwrites the previous one."""
         first_id = "corr-1"
         second_id = "corr-2"
-        
+
         try:
             context.set_correlation_id(first_id)
             assert context.get_correlation_id() == first_id
-            
+
             context.set_correlation_id(second_id)
             assert context.get_correlation_id() == second_id
         finally:
@@ -143,7 +143,7 @@ class TestCausationIdManagement:
         """Test setting and getting causation ID."""
         test_id = "cause-789"
         context.set_causation_id(test_id)
-        
+
         try:
             result = context.get_causation_id()
             assert result == test_id
@@ -161,19 +161,19 @@ class TestCausationIdManagement:
         """Test that setting None clears the causation ID."""
         context.set_causation_id("test-cause")
         context.set_causation_id(None)
-        
+
         result = context.get_causation_id()
         assert result is None
 
     def test_set_causation_id_is_idempotent(self) -> None:
         """Test that setting causation ID multiple times is idempotent."""
         test_id = "cause-999"
-        
+
         try:
             context.set_causation_id(test_id)
             context.set_causation_id(test_id)
             context.set_causation_id(test_id)
-            
+
             result = context.get_causation_id()
             assert result == test_id
         finally:
@@ -183,11 +183,11 @@ class TestCausationIdManagement:
         """Test that setting a new causation ID overwrites the previous one."""
         first_id = "cause-1"
         second_id = "cause-2"
-        
+
         try:
             context.set_causation_id(first_id)
             assert context.get_causation_id() == first_id
-            
+
             context.set_causation_id(second_id)
             assert context.get_causation_id() == second_id
         finally:
@@ -202,7 +202,7 @@ class TestErrorIdManagement:
         """Test setting and getting error ID."""
         test_id = "error-789"
         context.set_error_id(test_id)
-        
+
         try:
             result = context.get_error_id()
             assert result == test_id
@@ -220,19 +220,19 @@ class TestErrorIdManagement:
         """Test that setting None clears the error ID."""
         context.set_error_id("test-error")
         context.set_error_id(None)
-        
+
         result = context.get_error_id()
         assert result is None
 
     def test_set_error_id_is_idempotent(self) -> None:
         """Test that setting error ID multiple times is idempotent."""
         test_id = "error-999"
-        
+
         try:
             context.set_error_id(test_id)
             context.set_error_id(test_id)
             context.set_error_id(test_id)
-            
+
             result = context.get_error_id()
             assert result == test_id
         finally:
@@ -242,11 +242,11 @@ class TestErrorIdManagement:
         """Test that setting a new error ID overwrites the previous one."""
         first_id = "error-1"
         second_id = "error-2"
-        
+
         try:
             context.set_error_id(first_id)
             assert context.get_error_id() == first_id
-            
+
             context.set_error_id(second_id)
             assert context.get_error_id() == second_id
         finally:
@@ -265,7 +265,7 @@ class TestRequestIdGeneration:
     def test_generate_request_id_returns_valid_uuid(self) -> None:
         """Test that generated ID is a valid UUID format."""
         result = context.generate_request_id()
-        
+
         # Should be parseable as UUID
         parsed = uuid.UUID(result)
         assert str(parsed) == result
@@ -274,7 +274,7 @@ class TestRequestIdGeneration:
         """Test that generated ID uses UUID v4 format."""
         result = context.generate_request_id()
         parsed = uuid.UUID(result)
-        
+
         # UUID v4 has version 4
         assert parsed.version == 4
 
@@ -283,7 +283,7 @@ class TestRequestIdGeneration:
         id1 = context.generate_request_id()
         id2 = context.generate_request_id()
         id3 = context.generate_request_id()
-        
+
         # All IDs should be unique
         assert id1 != id2
         assert id2 != id3
@@ -292,7 +292,7 @@ class TestRequestIdGeneration:
     def test_generate_request_id_with_mock(self) -> None:
         """Test that generate_request_id can be mocked for deterministic tests."""
         mock_uuid = "12345678-1234-5678-1234-567812345678"
-        
+
         with patch("uuid.uuid4", return_value=uuid.UUID(mock_uuid)):
             result = context.generate_request_id()
             assert result == mock_uuid
@@ -306,14 +306,14 @@ class TestContextIsolation:
         """Test that request_id and error_id are independent."""
         request_id = "req-123"
         error_id = "err-456"
-        
+
         try:
             context.set_request_id(request_id)
             context.set_error_id(error_id)
-            
+
             assert context.get_request_id() == request_id
             assert context.get_error_id() == error_id
-            
+
             # Clear one, the other should remain
             context.set_request_id(None)
             assert context.get_request_id() is None
@@ -328,19 +328,19 @@ class TestContextIsolation:
         error_id = "err-456"
         correlation_id = "corr-789"
         causation_id = "cause-012"
-        
+
         try:
             context.set_request_id(request_id)
             context.set_error_id(error_id)
             context.set_correlation_id(correlation_id)
             context.set_causation_id(causation_id)
-            
+
             # All should be set
             assert context.get_request_id() == request_id
             assert context.get_error_id() == error_id
             assert context.get_correlation_id() == correlation_id
             assert context.get_causation_id() == causation_id
-            
+
             # Clear one, others should remain
             context.set_correlation_id(None)
             assert context.get_correlation_id() is None
@@ -357,22 +357,22 @@ class TestContextIsolation:
     async def test_context_isolation_in_async_tasks(self) -> None:
         """Test that context variables are isolated between async tasks."""
         results: dict[str, str | None] = {}
-        
+
         async def task_a() -> None:
             context.set_request_id("task-a-id")
             await asyncio.sleep(0.01)  # Yield control
             results["a"] = context.get_request_id()
             context.set_request_id(None)
-        
+
         async def task_b() -> None:
             context.set_request_id("task-b-id")
             await asyncio.sleep(0.01)  # Yield control
             results["b"] = context.get_request_id()
             context.set_request_id(None)
-        
+
         # Run tasks concurrently
         await asyncio.gather(task_a(), task_b())
-        
+
         # Each task should see its own context value
         assert results["a"] == "task-a-id"
         assert results["b"] == "task-b-id"
@@ -403,7 +403,7 @@ class TestEdgeCases:
     def test_set_request_id_with_very_long_string(self) -> None:
         """Test setting request ID to a very long string."""
         long_id = "x" * 10000
-        
+
         try:
             context.set_request_id(long_id)
             result = context.get_request_id()
@@ -415,7 +415,7 @@ class TestEdgeCases:
     def test_set_request_id_with_special_characters(self) -> None:
         """Test setting request ID with special characters."""
         special_id = "req-123!@#$%^&*(){}[]|\\:;\"'<>,.?/~`"
-        
+
         try:
             context.set_request_id(special_id)
             result = context.get_request_id()
@@ -426,7 +426,7 @@ class TestEdgeCases:
     def test_set_request_id_with_unicode(self) -> None:
         """Test setting request ID with unicode characters."""
         unicode_id = "req-测试-🎯-αβγ"
-        
+
         try:
             context.set_request_id(unicode_id)
             result = context.get_request_id()
@@ -442,7 +442,7 @@ class TestContextLifecycle:
     def test_multiple_set_get_cycles(self) -> None:
         """Test multiple set/get cycles work correctly."""
         ids = ["id-1", "id-2", "id-3", "id-4", "id-5"]
-        
+
         try:
             for test_id in ids:
                 context.set_request_id(test_id)
@@ -456,23 +456,24 @@ class TestContextLifecycle:
         # Set values
         context.set_request_id("req-cleanup")
         context.set_error_id("err-cleanup")
-        
+
         # Cleanup
         context.set_request_id(None)
         context.set_error_id(None)
-        
+
         # Should return to default None state
         assert context.get_request_id() is None
         assert context.get_error_id() is None
 
     def test_context_survives_across_function_calls(self) -> None:
         """Test that context persists across function boundaries."""
+
         def set_context() -> None:
             context.set_request_id("persistent-id")
-        
+
         def get_context() -> str | None:
             return context.get_request_id()
-        
+
         try:
             set_context()
             result = get_context()

@@ -9,7 +9,7 @@ Decimal usage for money, and timezone awareness.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.protocols.strategy_tracking import (
@@ -18,7 +18,6 @@ from the_alchemiser.shared.protocols.strategy_tracking import (
     StrategyPnLSummaryProtocol,
     StrategyPositionProtocol,
 )
-
 
 # Mock implementations for testing protocol conformance
 
@@ -39,7 +38,7 @@ class MockStrategyPosition:
         self._quantity = quantity
         self._average_cost = average_cost
         self._total_cost = quantity * average_cost
-        self._last_updated = datetime.now(timezone.utc)
+        self._last_updated = datetime.now(UTC)
 
     @property
     def strategy(self) -> str:
@@ -90,7 +89,7 @@ class MockStrategyPnLSummary:
         self._total_orders = total_orders
         self._successful_orders = successful_orders
         self._position_count = 5
-        self._last_updated = datetime.now(timezone.utc)
+        self._last_updated = datetime.now(UTC)
 
     @property
     def total_pnl(self) -> Decimal:
@@ -245,12 +244,12 @@ def test_strategy_position_uses_decimal() -> None:
         quantity=Decimal("10.0"),
         average_cost=Decimal("450.50"),
     )
-    
+
     # Verify types are Decimal, not float
     assert isinstance(position.quantity, Decimal)
     assert isinstance(position.average_cost, Decimal)
     assert isinstance(position.total_cost, Decimal)
-    
+
     # Verify calculations maintain precision
     assert position.total_cost == Decimal("4505.00")
 
@@ -263,9 +262,9 @@ def test_strategy_position_timezone_aware() -> None:
         quantity=Decimal("10.0"),
         average_cost=Decimal("450.50"),
     )
-    
+
     assert position.last_updated.tzinfo is not None
-    assert position.last_updated.tzinfo == timezone.utc
+    assert position.last_updated.tzinfo == UTC
 
 
 def test_strategy_pnl_summary_protocol_conformance() -> None:
@@ -285,7 +284,7 @@ def test_strategy_pnl_summary_uses_decimal() -> None:
         unrealized=Decimal("500.25"),
         basis=Decimal("10000.00"),
     )
-    
+
     # Verify money fields are Decimal
     assert isinstance(summary.total_pnl, Decimal)
     assert isinstance(summary.total_profit_loss, Decimal)
@@ -293,7 +292,7 @@ def test_strategy_pnl_summary_uses_decimal() -> None:
     assert isinstance(summary.unrealized_pnl, Decimal)
     assert isinstance(summary.cost_basis, Decimal)
     assert isinstance(summary.avg_profit_per_trade, Decimal)
-    
+
     # Verify percentages are float (not Decimal)
     assert isinstance(summary.success_rate, float)
     assert isinstance(summary.total_return_pct, float)
@@ -306,7 +305,7 @@ def test_strategy_pnl_summary_alias_consistency() -> None:
         unrealized=Decimal("500.25"),
         basis=Decimal("10000.00"),
     )
-    
+
     assert summary.total_pnl == summary.total_profit_loss
     assert summary.total_pnl == Decimal("1500.75")
 
@@ -323,7 +322,7 @@ def test_strategy_pnl_summary_edge_cases() -> None:
     )
     assert summary_no_trades.success_rate == 0.0
     assert summary_no_trades.avg_profit_per_trade == Decimal("0")
-    
+
     # Zero cost basis
     summary_no_basis = MockStrategyPnLSummary(
         realized=Decimal("100.00"),
@@ -342,11 +341,11 @@ def test_strategy_pnl_summary_percentage_ranges() -> None:
         total_orders=10,
         successful_orders=8,
     )
-    
+
     # success_rate should be in [0.0, 100.0]
     assert 0.0 <= summary.success_rate <= 100.0
     assert summary.success_rate == 80.0
-    
+
     # total_return_pct can be negative or positive
     assert summary.total_return_pct == 15.0  # 1500/10000 * 100
 
@@ -370,13 +369,13 @@ def test_strategy_order_tracker_protocol_conformance() -> None:
 def test_strategy_order_tracker_positions_summary() -> None:
     """Test get_positions_summary returns all positions."""
     tracker = MockStrategyOrderTracker()
-    
+
     pos1 = MockStrategyPosition("NUCLEAR", "SPY", Decimal("10"), Decimal("450"))
     pos2 = MockStrategyPosition("TECL", "QQQ", Decimal("5"), Decimal("350"))
-    
+
     tracker.add_position(pos1)
     tracker.add_position(pos2)
-    
+
     positions = tracker.get_positions_summary()
     assert len(positions) == 2
     assert all(isinstance(p, StrategyPositionProtocol) for p in positions)
@@ -385,14 +384,14 @@ def test_strategy_order_tracker_positions_summary() -> None:
 def test_strategy_order_tracker_pnl_summary_found() -> None:
     """Test get_pnl_summary returns summary when strategy exists."""
     tracker = MockStrategyOrderTracker()
-    
+
     summary = MockStrategyPnLSummary(
         realized=Decimal("1000"),
         unrealized=Decimal("500"),
         basis=Decimal("10000"),
     )
     tracker.add_summary("NUCLEAR", summary)
-    
+
     result = tracker.get_pnl_summary("NUCLEAR")
     assert isinstance(result, StrategyPnLSummaryProtocol)
     assert result.total_pnl == Decimal("1500")
@@ -401,7 +400,7 @@ def test_strategy_order_tracker_pnl_summary_found() -> None:
 def test_strategy_order_tracker_pnl_summary_not_found() -> None:
     """Test get_pnl_summary raises KeyError when strategy not found."""
     tracker = MockStrategyOrderTracker()
-    
+
     try:
         tracker.get_pnl_summary("UNKNOWN")
         assert False, "Expected KeyError to be raised"
@@ -412,19 +411,19 @@ def test_strategy_order_tracker_pnl_summary_not_found() -> None:
 def test_strategy_order_tracker_orders_for_strategy() -> None:
     """Test get_orders_for_strategy returns orders for strategy."""
     tracker = MockStrategyOrderTracker()
-    
+
     order1 = MockStrategyOrder("ORDER1", "NUCLEAR", "SPY")
     order2 = MockStrategyOrder("ORDER2", "NUCLEAR", "QQQ")
     order3 = MockStrategyOrder("ORDER3", "TECL", "AAPL")
-    
+
     tracker.add_order(order1)
     tracker.add_order(order2)
     tracker.add_order(order3)
-    
+
     nuclear_orders = tracker.get_orders_for_strategy("NUCLEAR")
     assert len(nuclear_orders) == 2
     assert all(o.strategy == "NUCLEAR" for o in nuclear_orders)
-    
+
     # Unknown strategy returns empty list (graceful handling)
     unknown_orders = tracker.get_orders_for_strategy("UNKNOWN")
     assert unknown_orders == []
@@ -433,19 +432,19 @@ def test_strategy_order_tracker_orders_for_strategy() -> None:
 def test_strategy_order_tracker_optional_summary() -> None:
     """Test get_strategy_summary returns None for missing strategy."""
     tracker = MockStrategyOrderTracker()
-    
+
     summary = MockStrategyPnLSummary(
         realized=Decimal("1000"),
         unrealized=Decimal("500"),
         basis=Decimal("10000"),
     )
     tracker.add_summary("NUCLEAR", summary)
-    
+
     # Found strategy
     result = tracker.get_strategy_summary("NUCLEAR")
     assert result is not None
     assert isinstance(result, StrategyPnLSummaryProtocol)
-    
+
     # Unknown strategy returns None
     result_none = tracker.get_strategy_summary("UNKNOWN")
     assert result_none is None
@@ -453,16 +452,16 @@ def test_strategy_order_tracker_optional_summary() -> None:
 
 def test_non_conforming_position_rejected() -> None:
     """Test that non-conforming implementations are rejected."""
-    
+
     class NonConformingPosition:
         """Missing required properties."""
-        
+
         @property
         def strategy(self) -> str:
             return "NUCLEAR"
-        
+
         # Missing other required properties
-    
+
     position = NonConformingPosition()
     assert not isinstance(position, StrategyPositionProtocol)
 
@@ -475,10 +474,10 @@ def test_decimal_precision_maintained() -> None:
         quantity=Decimal("10.123456789"),
         average_cost=Decimal("450.987654321"),
     )
-    
+
     # High precision multiplication
     expected_total = Decimal("10.123456789") * Decimal("450.987654321")
     assert position.total_cost == expected_total
-    
+
     # Verify no float conversion has occurred
     assert str(position.total_cost).count(".") == 1  # Still a decimal, not scientific notation

@@ -7,9 +7,6 @@ and error result creation methods to supplement existing tests.
 """
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from the_alchemiser.shared.utils.alpaca_error_handler import (
     AlpacaErrorHandler,
@@ -73,7 +70,7 @@ class TestCalculateRetryDelay:
 
 class TestAlpacaRetryContext:
     """Test the alpaca_retry_context context manager.
-    
+
     Note: Testing retry context managers is complex because exceptions raised
     inside the yield cause generator protocol issues. These tests focus on
     verifying the helper functions and integration with real usage patterns.

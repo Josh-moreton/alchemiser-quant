@@ -18,7 +18,7 @@ import hashlib
 import threading
 import time
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

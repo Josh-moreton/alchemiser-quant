@@ -188,13 +188,13 @@ class TestEmailConfigClearCache:
 
         config = EmailConfig()
         config.get_config()
-        
+
         # Verify caches are set
         assert config._config_cache is not None
         assert config._neutral_mode_cache is not None
-        
+
         config.clear_cache()
-        
+
         # Verify caches are cleared
         assert config._config_cache is None
         assert config._neutral_mode_cache is None
@@ -318,9 +318,7 @@ class TestBackwardCompatibilityFunctions:
         assert result is True
 
     @patch("the_alchemiser.shared.notifications.config.load_settings")
-    def test_is_neutral_mode_enabled_standalone_returns_false_on_error(
-        self, mock_settings_loader
-    ):
+    def test_is_neutral_mode_enabled_standalone_returns_false_on_error(self, mock_settings_loader):
         """Test that standalone is_neutral_mode_enabled() returns False on error."""
         mock_settings_loader.side_effect = RuntimeError("Settings unavailable")
 
@@ -369,6 +367,7 @@ class TestThreadSafety:
     ):
         """Test that concurrent access to singleton is thread-safe."""
         import threading
+
         from the_alchemiser.shared.notifications.config import (
             _get_email_config_singleton,
         )
@@ -377,16 +376,16 @@ class TestThreadSafety:
         mock_password.return_value = "test_password"
 
         instances = []
-        
+
         def get_instance():
             instances.append(_get_email_config_singleton())
-        
+
         # Create multiple threads accessing singleton
         threads = [threading.Thread(target=get_instance) for _ in range(10)]
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        
+
         # All instances should be the same object
         assert all(instance is instances[0] for instance in instances)

@@ -6,12 +6,14 @@ This module tests float comparison logic with tolerance handling according
 to project guardrails (no direct float ==).
 """
 
-import pytest
 from decimal import Decimal
-from hypothesis import given, strategies as st
-import numpy as np
 
-from the_alchemiser.shared.math.num import floats_equal, _extract_numeric_value
+import numpy as np
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from the_alchemiser.shared.math.num import _extract_numeric_value, floats_equal
 
 
 class TestExtractNumericValue:
@@ -159,18 +161,12 @@ class TestFloatsEqual:
         """Test comparison of numpy arrays."""
         # Single element arrays
         assert floats_equal(np.array([1.0]), np.array([1.0]))
-        
+
         # Arrays with same values
-        assert floats_equal(
-            np.array([1.0, 2.0, 3.0]), 
-            np.array([1.0, 2.0, 3.0])
-        )
-        
+        assert floats_equal(np.array([1.0, 2.0, 3.0]), np.array([1.0, 2.0, 3.0]))
+
         # Arrays with different values
-        assert not floats_equal(
-            np.array([1.0, 2.0, 3.0]), 
-            np.array([1.0, 2.0, 3.1])
-        )
+        assert not floats_equal(np.array([1.0, 2.0, 3.0]), np.array([1.0, 2.0, 3.1]))
 
     @pytest.mark.unit
     def test_numpy_array_with_tolerance(self):
@@ -205,7 +201,7 @@ class TestFloatsEqual:
     @pytest.mark.property
     @given(
         st.floats(min_value=-1e10, max_value=1e10, allow_nan=False, allow_infinity=False),
-        st.floats(min_value=-1e10, max_value=1e10, allow_nan=False, allow_infinity=False)
+        st.floats(min_value=-1e10, max_value=1e10, allow_nan=False, allow_infinity=False),
     )
     def test_symmetry(self, x, y):
         """Property: if x equals y, then y equals x."""
@@ -221,16 +217,20 @@ class TestFloatsEqual:
 
     @pytest.mark.property
     @given(
-        st.decimals(min_value="-1000000", max_value="1000000", allow_nan=False, allow_infinity=False, places=6)
+        st.decimals(
+            min_value="-1000000",
+            max_value="1000000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=6,
+        )
     )
     def test_decimal_reflexivity(self, d):
         """Property: any Decimal should equal itself."""
         assert floats_equal(d, d)
 
     @pytest.mark.property
-    @given(
-        st.integers(min_value=-1000000, max_value=1000000)
-    )
+    @given(st.integers(min_value=-1000000, max_value=1000000))
     def test_integer_reflexivity(self, n):
         """Property: any integer should equal itself."""
         assert floats_equal(n, n)
@@ -238,7 +238,7 @@ class TestFloatsEqual:
     @pytest.mark.property
     @given(
         st.floats(min_value=0.1, max_value=1e6, allow_nan=False, allow_infinity=False),
-        st.floats(min_value=1e-6, max_value=1e-3)
+        st.floats(min_value=1e-6, max_value=1e-3),
     )
     def test_relative_tolerance_bounds(self, base, rel_tol):
         """Property: values within relative tolerance are equal."""
@@ -249,7 +249,7 @@ class TestFloatsEqual:
     @pytest.mark.property
     @given(
         st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
-        st.floats(min_value=1e-6, max_value=1e-3)
+        st.floats(min_value=1e-6, max_value=1e-3),
     )
     def test_absolute_tolerance_bounds(self, base, abs_tol):
         """Property: values within absolute tolerance are equal."""
@@ -262,7 +262,7 @@ class TestFloatsEqual:
         st.lists(
             st.floats(min_value=-100, max_value=100, allow_nan=False, allow_infinity=False),
             min_size=1,
-            max_size=10
+            max_size=10,
         )
     )
     def test_numpy_array_reflexivity(self, values):

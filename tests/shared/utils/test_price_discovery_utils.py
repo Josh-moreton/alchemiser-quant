@@ -10,8 +10,6 @@ import math
 from decimal import Decimal
 from unittest.mock import Mock
 
-import pytest
-
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.utils.price_discovery_utils import (
     LegacyQuoteProvider,
@@ -91,9 +89,7 @@ class TestGetCurrentPriceFromQuote:
     def test_quote_provider_with_quote_model(self):
         """Test QuoteProvider returning QuoteModel."""
         mock_provider = Mock(spec=QuoteProvider)
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.0"), ask=Decimal("101.0")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.0"), ask=Decimal("101.0"))
         mock_provider.get_latest_quote.return_value = quote
 
         result = get_current_price_from_quote(mock_provider, "AAPL")
@@ -114,9 +110,7 @@ class TestGetCurrentPriceFromQuote:
     def test_quote_model_with_mid_property(self):
         """Test QuoteModel with pre-calculated mid property."""
         mock_provider = Mock(spec=QuoteProvider)
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.0"), ask=Decimal("102.0")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.0"), ask=Decimal("102.0"))
         mock_provider.get_latest_quote.return_value = quote
 
         result = get_current_price_from_quote(mock_provider, "AAPL")
@@ -163,9 +157,7 @@ class TestGetCurrentPriceFromQuote:
     def test_invalid_bid_ask_returns_none(self):
         """Test that invalid bid/ask in QuoteModel returns None."""
         mock_provider = Mock(spec=QuoteProvider)
-        quote = QuoteModel(
-            ts=None, bid=Decimal("0.0"), ask=Decimal("101.0")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("0.0"), ask=Decimal("101.0"))
         mock_provider.get_latest_quote.return_value = quote
 
         result = get_current_price_from_quote(mock_provider, "AAPL")
@@ -224,9 +216,7 @@ class TestGetCurrentPriceWithFallback:
     def test_quote_provider_as_primary(self):
         """Test using QuoteProvider as primary."""
         primary = Mock(spec=QuoteProvider)
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.0"), ask=Decimal("101.0")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.0"), ask=Decimal("101.0"))
         primary.get_latest_quote.return_value = quote
         fallback = Mock(spec=PriceProvider)
 
@@ -264,9 +254,7 @@ class TestGetCurrentPriceAsDecimal:
     def test_quote_provider_returns_decimal(self):
         """Test that QuoteProvider result is converted to Decimal."""
         provider = Mock(spec=QuoteProvider)
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.0"), ask=Decimal("101.0")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.0"), ask=Decimal("101.0"))
         provider.get_latest_quote.return_value = quote
 
         result = get_current_price_as_decimal(provider, "AAPL")
@@ -323,9 +311,7 @@ class TestProtocolImplementations:
 
         class CustomQuoteProvider:
             def get_latest_quote(self, symbol: str) -> QuoteModel | None:
-                return QuoteModel(
-                    ts=None, bid=Decimal("100.0"), ask=Decimal("101.0")
-                )
+                return QuoteModel(ts=None, bid=Decimal("100.0"), ask=Decimal("101.0"))
 
         provider = CustomQuoteProvider()
         result = get_current_price_from_quote(provider, "AAPL")

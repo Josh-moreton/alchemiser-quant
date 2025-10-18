@@ -9,14 +9,12 @@ position sizing, trade calculations, and portfolio allocation math.
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock
 
 import pytest
 
 from the_alchemiser.portfolio_v2.core.planner import RebalancePlanCalculator
 from the_alchemiser.portfolio_v2.models.portfolio_snapshot import PortfolioSnapshot
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-from the_alchemiser.shared.schemas.asset_info import AssetInfo
 
 
 class TestRebalancePlanCalculator:
@@ -128,9 +126,7 @@ class TestRebalancePlanCalculator:
         effective_value = total_value * Decimal("0.99")
 
         for item in plan.items:
-            expected_target_weight = sample_strategy_allocation.target_weights[
-                item.symbol
-            ]
+            expected_target_weight = sample_strategy_allocation.target_weights[item.symbol]
             expected_target_value = effective_value * expected_target_weight
 
             # Target value should match allocation percentage (accounting for cash reserve)
@@ -158,9 +154,7 @@ class TestRebalancePlanCalculator:
 
         # Should be able to buy fractional shares
         aapl_item = next(item for item in plan.items if item.symbol == "AAPL")
-        assert aapl_item.target_value == Decimal(
-            "990.00"
-        )  # 1000 * (1 - 0.01 cash reserve)
+        assert aapl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
         # For fractionable assets, quantity can be fractional
 
     def test_quantity_calculation_non_fractional_assets(self, calculator):
@@ -183,14 +177,10 @@ class TestRebalancePlanCalculator:
 
         # Should handle whole share requirements
         googl_item = next(item for item in plan.items if item.symbol == "GOOGL")
-        assert googl_item.target_value == Decimal(
-            "990.00"
-        )  # 1000 * (1 - 0.01 cash reserve)
+        assert googl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
         # For non-fractionable assets, quantities should be whole numbers
 
-    def test_rebalance_determines_correct_actions(
-        self, calculator, sample_portfolio_snapshot
-    ):
+    def test_rebalance_determines_correct_actions(self, calculator, sample_portfolio_snapshot):
         """Test that rebalance correctly determines BUY/SELL/HOLD actions."""
         # Create allocation that requires rebalancing
         allocation = StrategyAllocation(
@@ -204,18 +194,12 @@ class TestRebalancePlanCalculator:
             constraints={},
         )
 
-        plan = calculator.build_plan(
-            allocation, sample_portfolio_snapshot, str(uuid.uuid4())
-        )
+        plan = calculator.build_plan(allocation, sample_portfolio_snapshot, str(uuid.uuid4()))
 
         # Verify actions make sense based on current vs target allocations
         for item in plan.items:
-            current_position = sample_portfolio_snapshot.positions.get(
-                item.symbol, Decimal("0")
-            )
-            current_price = sample_portfolio_snapshot.prices.get(
-                item.symbol, Decimal("0")
-            )
+            current_position = sample_portfolio_snapshot.positions.get(item.symbol, Decimal("0"))
+            current_price = sample_portfolio_snapshot.prices.get(item.symbol, Decimal("0"))
             current_value = current_position * current_price
             current_allocation_pct = (
                 current_value / sample_portfolio_snapshot.total_value
@@ -265,9 +249,7 @@ class TestRebalancePlanCalculator:
             constraints={},
         )
 
-        plan = calculator.build_plan(
-            allocation, sample_portfolio_snapshot, str(uuid.uuid4())
-        )
+        plan = calculator.build_plan(allocation, sample_portfolio_snapshot, str(uuid.uuid4()))
 
         # Should create plan to exit existing positions and enter new one
         tsla_item = next((item for item in plan.items if item.symbol == "TSLA"), None)
@@ -285,9 +267,7 @@ class TestRebalancePlanCalculator:
         )
 
         # Calculate total cash needed for buys vs cash from sells
-        total_buy_value = sum(
-            item.trade_amount for item in plan.items if item.action == "BUY"
-        )
+        total_buy_value = sum(item.trade_amount for item in plan.items if item.action == "BUY")
         total_sell_value = sum(
             abs(item.trade_amount) for item in plan.items if item.action == "SELL"
         )

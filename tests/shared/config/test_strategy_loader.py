@@ -1,6 +1,5 @@
-import json
-import os
 import pytest
+
 from the_alchemiser.shared.config.config import Settings
 
 

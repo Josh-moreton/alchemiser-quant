@@ -58,9 +58,7 @@ class TestNegativeCashLiquidation:
             snapshot = state_reader.build_portfolio_snapshot()
 
         # Verify that close_all_positions was called
-        mock_alpaca_manager.close_all_positions.assert_called_once_with(
-            cancel_orders=True
-        )
+        mock_alpaca_manager.close_all_positions.assert_called_once_with(cancel_orders=True)
 
         # Verify snapshot was created successfully
         assert snapshot is not None
@@ -86,16 +84,12 @@ class TestNegativeCashLiquidation:
                 state_reader.build_portfolio_snapshot()
 
         # Verify liquidation was attempted
-        mock_alpaca_manager.close_all_positions.assert_called_once_with(
-            cancel_orders=True
-        )
+        mock_alpaca_manager.close_all_positions.assert_called_once_with(cancel_orders=True)
 
         # Exception should contain the final cash balance
         assert "-50.00" in str(exc_info.value.cash_balance)
 
-    def test_zero_cash_triggers_liquidation_and_continues(
-        self, state_reader, mock_alpaca_manager
-    ):
+    def test_zero_cash_triggers_liquidation_and_continues(self, state_reader, mock_alpaca_manager):
         """Test that zero cash balance triggers liquidation and continues if recovery succeeds."""
         # Setup mock to return zero cash initially
         mock_alpaca_manager.get_account.return_value = {"cash": "0.00"}
@@ -190,13 +184,9 @@ class TestAlpacaDataAdapterLiquidation:
         result = data_adapter.liquidate_all_positions()
 
         assert result is True
-        mock_alpaca_manager.close_all_positions.assert_called_once_with(
-            cancel_orders=True
-        )
+        mock_alpaca_manager.close_all_positions.assert_called_once_with(cancel_orders=True)
 
-    def test_liquidate_all_positions_empty_result(
-        self, data_adapter, mock_alpaca_manager
-    ):
+    def test_liquidate_all_positions_empty_result(self, data_adapter, mock_alpaca_manager):
         """Test that empty result returns False."""
         mock_alpaca_manager.close_all_positions.return_value = []
 

@@ -516,7 +516,6 @@ class TestDecoratorEdgeCases:
         Note: The decorator wraps the generator creation, not the generator execution.
         Exceptions raised during generator execution are not caught by the decorator.
         """
-
         from collections.abc import Generator
 
         @translate_service_errors()

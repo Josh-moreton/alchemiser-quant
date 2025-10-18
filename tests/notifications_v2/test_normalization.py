@@ -78,9 +78,7 @@ class TestNormalization:
                 # Missing top-level consolidated_portfolio; present inside execution_summary
                 "execution_summary": {
                     "orders_placed": 1,
-                    "consolidated_portfolio": {
-                        "target_allocations": {"GLD": 0.1, "QQQ": 0.9}
-                    },
+                    "consolidated_portfolio": {"target_allocations": {"GLD": 0.1, "QQQ": 0.9}},
                 }
             }
         )

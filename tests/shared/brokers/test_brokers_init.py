@@ -72,9 +72,7 @@ class TestBrokersModuleInterface:
         from the_alchemiser.shared import brokers
 
         sorted_all = sorted(brokers.__all__)
-        assert (
-            brokers.__all__ == sorted_all
-        ), "exports in __all__ should be alphabetically sorted"
+        assert brokers.__all__ == sorted_all, "exports in __all__ should be alphabetically sorted"
 
     def test_alpaca_manager_exported(self) -> None:
         """Test that AlpacaManager is exported and is the correct type."""
@@ -131,9 +129,9 @@ class TestBrokersModuleInterface:
 
         # All public attributes should be in __all__
         for attr in public_attrs:
-            assert (
-                attr in brokers.__all__
-            ), f"{attr} is public but not in __all__ (API surface leak)"
+            assert attr in brokers.__all__, (
+                f"{attr} is public but not in __all__ (API surface leak)"
+            )
 
     def test_exports_count_matches_all(self) -> None:
         """Test that the number of exports matches __all__ declaration."""
@@ -149,9 +147,9 @@ class TestBrokersModuleInterface:
         ]
 
         # Should match __all__ length
-        assert len(public_attrs) == len(
-            brokers.__all__
-        ), "Number of public attributes doesn't match __all__"
+        assert len(public_attrs) == len(brokers.__all__), (
+            "Number of public attributes doesn't match __all__"
+        )
 
     def test_imports_are_deterministic(self) -> None:
         """Test that imports are deterministic (same result on re-import)."""
@@ -204,69 +202,55 @@ class TestModuleBoundaries:
     def test_no_execution_v2_imports(self) -> None:
         """Test that the module doesn't import from execution_v2 (would violate architecture)."""
         # Clear any execution_v2 modules from sys.modules first
-        execution_modules_before = {
-            name for name in sys.modules.keys() if "execution_v2" in name
-        }
+        execution_modules_before = {name for name in sys.modules.keys() if "execution_v2" in name}
 
         # Import brokers module
         from the_alchemiser.shared import brokers
 
         # Get execution modules after import
-        execution_modules_after = {
-            name for name in sys.modules.keys() if "execution_v2" in name
-        }
+        execution_modules_after = {name for name in sys.modules.keys() if "execution_v2" in name}
 
         # No new execution_v2 modules should be loaded
         new_modules = execution_modules_after - execution_modules_before
-        assert (
-            len(new_modules) == 0
-        ), f"brokers module triggered execution_v2 imports: {new_modules}"
+        assert len(new_modules) == 0, (
+            f"brokers module triggered execution_v2 imports: {new_modules}"
+        )
 
         assert brokers is not None  # Use the import
 
     def test_no_portfolio_v2_imports(self) -> None:
         """Test that the module doesn't import from portfolio_v2 (would violate architecture)."""
         # Clear any portfolio_v2 modules from sys.modules first
-        portfolio_modules_before = {
-            name for name in sys.modules.keys() if "portfolio_v2" in name
-        }
+        portfolio_modules_before = {name for name in sys.modules.keys() if "portfolio_v2" in name}
 
         # Import brokers module
         from the_alchemiser.shared import brokers
 
         # Get portfolio modules after import
-        portfolio_modules_after = {
-            name for name in sys.modules.keys() if "portfolio_v2" in name
-        }
+        portfolio_modules_after = {name for name in sys.modules.keys() if "portfolio_v2" in name}
 
         # No new portfolio_v2 modules should be loaded
         new_modules = portfolio_modules_after - portfolio_modules_before
-        assert (
-            len(new_modules) == 0
-        ), f"brokers module triggered portfolio_v2 imports: {new_modules}"
+        assert len(new_modules) == 0, (
+            f"brokers module triggered portfolio_v2 imports: {new_modules}"
+        )
 
         assert brokers is not None  # Use the import
 
     def test_no_strategy_v2_imports(self) -> None:
         """Test that the module doesn't import from strategy_v2 (would violate architecture)."""
         # Clear any strategy_v2 modules from sys.modules first
-        strategy_modules_before = {
-            name for name in sys.modules.keys() if "strategy_v2" in name
-        }
+        strategy_modules_before = {name for name in sys.modules.keys() if "strategy_v2" in name}
 
         # Import brokers module
         from the_alchemiser.shared import brokers
 
         # Get strategy modules after import
-        strategy_modules_after = {
-            name for name in sys.modules.keys() if "strategy_v2" in name
-        }
+        strategy_modules_after = {name for name in sys.modules.keys() if "strategy_v2" in name}
 
         # No new strategy_v2 modules should be loaded
         new_modules = strategy_modules_after - strategy_modules_before
-        assert (
-            len(new_modules) == 0
-        ), f"brokers module triggered strategy_v2 imports: {new_modules}"
+        assert len(new_modules) == 0, f"brokers module triggered strategy_v2 imports: {new_modules}"
 
         assert brokers is not None  # Use the import
 
@@ -290,24 +274,16 @@ class TestTypePreservation:
         from the_alchemiser.shared.brokers.alpaca_manager import create_alpaca_manager
 
         # The exported function should have the same __module__ as the source
-        assert (
-            brokers.create_alpaca_manager.__module__ == create_alpaca_manager.__module__
-        )
+        assert brokers.create_alpaca_manager.__module__ == create_alpaca_manager.__module__
         assert brokers.create_alpaca_manager.__name__ == create_alpaca_manager.__name__
-        assert (
-            brokers.create_alpaca_manager.__qualname__
-            == create_alpaca_manager.__qualname__
-        )
+        assert brokers.create_alpaca_manager.__qualname__ == create_alpaca_manager.__qualname__
 
     def test_alpaca_manager_has_correct_module_path(self) -> None:
         """Test that AlpacaManager __module__ points to the correct source module."""
         from the_alchemiser.shared import brokers
 
         # Should point to alpaca_manager module, not the __init__
-        assert (
-            brokers.AlpacaManager.__module__
-            == "the_alchemiser.shared.brokers.alpaca_manager"
-        )
+        assert brokers.AlpacaManager.__module__ == "the_alchemiser.shared.brokers.alpaca_manager"
 
     def test_create_alpaca_manager_has_correct_module_path(self) -> None:
         """Test that create_alpaca_manager __module__ points to the correct source."""
@@ -442,9 +418,7 @@ class TestImportPerformance:
         new_files = temp_files_after - temp_files_before
         # Filter out unrelated files (pytest may create some)
         broker_related = [f for f in new_files if "broker" in f.lower()]
-        assert (
-            len(broker_related) == 0
-        ), f"Import created temp files: {broker_related}"
+        assert len(broker_related) == 0, f"Import created temp files: {broker_related}"
 
 
 class TestAPIUsagePatterns:
@@ -464,14 +438,15 @@ class TestAPIUsagePatterns:
         ]
 
         for method in expected_methods:
-            assert hasattr(
-                AlpacaManager, method
-            ), f"AlpacaManager missing expected method: {method}"
+            assert hasattr(AlpacaManager, method), (
+                f"AlpacaManager missing expected method: {method}"
+            )
 
     def test_create_alpaca_manager_has_correct_signature(self) -> None:
         """Test that create_alpaca_manager has the expected signature."""
-        from the_alchemiser.shared.brokers import create_alpaca_manager
         import inspect
+
+        from the_alchemiser.shared.brokers import create_alpaca_manager
 
         sig = inspect.signature(create_alpaca_manager)
         params = list(sig.parameters.keys())
@@ -487,6 +462,4 @@ class TestAPIUsagePatterns:
 
         # Check for singleton-related attributes/methods
         # AlpacaManager uses _instances class variable for singleton behavior
-        assert hasattr(AlpacaManager, "_instances") or hasattr(
-            AlpacaManager, "__new__"
-        )
+        assert hasattr(AlpacaManager, "_instances") or hasattr(AlpacaManager, "__new__")

@@ -79,45 +79,37 @@ class TestSideParameterValidation:
 
     def test_buy_side_accepted(self, pricing_calculator, valid_quote):
         """Test that 'BUY' side is accepted."""
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            valid_quote, "BUY"
-        )
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(valid_quote, "BUY")
         assert price > 0
 
     def test_sell_side_accepted(self, pricing_calculator, valid_quote):
         """Test that 'SELL' side is accepted."""
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            valid_quote, "SELL"
-        )
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(valid_quote, "SELL")
         assert price > 0
 
     def test_lowercase_buy_accepted(self, pricing_calculator, valid_quote):
         """Test that lowercase 'buy' is accepted."""
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            valid_quote, "buy"
-        )
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(valid_quote, "buy")
         assert price > 0
 
     def test_lowercase_sell_accepted(self, pricing_calculator, valid_quote):
         """Test that lowercase 'sell' is accepted."""
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            valid_quote, "sell"
-        )
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(valid_quote, "sell")
         assert price > 0
 
     def test_invalid_side_rejected(self, pricing_calculator, valid_quote):
         """Test that invalid side parameter is rejected."""
-        with pytest.raises(ValidationError, match="Invalid side parameter.*Must be 'BUY' or 'SELL'"):
-            pricing_calculator.calculate_simple_inside_spread_price(
-                valid_quote, "INVALID"
-            )
+        with pytest.raises(
+            ValidationError, match="Invalid side parameter.*Must be 'BUY' or 'SELL'"
+        ):
+            pricing_calculator.calculate_simple_inside_spread_price(valid_quote, "INVALID")
 
     def test_empty_side_rejected(self, pricing_calculator, valid_quote):
         """Test that empty side parameter is rejected."""
-        with pytest.raises(ValidationError, match="Invalid side parameter.*Must be 'BUY' or 'SELL'"):
-            pricing_calculator.calculate_simple_inside_spread_price(
-                valid_quote, ""
-            )
+        with pytest.raises(
+            ValidationError, match="Invalid side parameter.*Must be 'BUY' or 'SELL'"
+        ):
+            pricing_calculator.calculate_simple_inside_spread_price(valid_quote, "")
 
 
 class TestQuoteDataValidation:
@@ -277,9 +269,7 @@ class TestZeroVolumeHandling:
             timestamp=datetime.now(UTC),
         )
         # Should not crash, should log warning
-        price, metadata = pricing_calculator.calculate_liquidity_aware_price(
-            quote, "BUY", 50.0
-        )
+        price, metadata = pricing_calculator.calculate_liquidity_aware_price(quote, "BUY", 50.0)
         assert price > 0
         # Volume ratio should be 0 when volume is 0
         assert metadata["volume_ratio"] == 0.0
@@ -308,9 +298,7 @@ class TestRepegPriceWithValidation:
     def test_repeg_with_invalid_side_rejected(self, pricing_calculator, valid_quote):
         """Test that repeg with invalid side is rejected."""
         with pytest.raises(ValidationError, match="Invalid side parameter"):
-            pricing_calculator.calculate_repeg_price(
-                valid_quote, "INVALID", Decimal("100.25")
-            )
+            pricing_calculator.calculate_repeg_price(valid_quote, "INVALID", Decimal("100.25"))
 
     def test_repeg_with_invalid_quote_rejected(self, pricing_calculator):
         """Test that repeg with invalid quote is rejected."""
@@ -323,14 +311,10 @@ class TestRepegPriceWithValidation:
             timestamp=datetime.now(UTC),
         )
         with pytest.raises(ValidationError, match="Quote prices cannot be negative"):
-            pricing_calculator.calculate_repeg_price(
-                quote, "BUY", Decimal("100.25")
-            )
+            pricing_calculator.calculate_repeg_price(quote, "BUY", Decimal("100.25"))
 
     def test_repeg_with_valid_inputs(self, pricing_calculator, valid_quote):
         """Test that repeg with valid inputs succeeds."""
-        new_price = pricing_calculator.calculate_repeg_price(
-            valid_quote, "BUY", Decimal("100.25")
-        )
+        new_price = pricing_calculator.calculate_repeg_price(valid_quote, "BUY", Decimal("100.25"))
         assert new_price is not None
         assert new_price > 0

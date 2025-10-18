@@ -39,9 +39,10 @@ class TestExtractSymbolFromQuote(TestRealTimeDataProcessor):
 
     def test_extract_from_object_with_symbol_attr(self, processor: RealTimeDataProcessor) -> None:
         """Test symbol extraction from object with symbol attribute."""
+
         class MockQuote:
             symbol = "TSLA"
-        
+
         data = MockQuote()
         result = processor.extract_symbol_from_quote(data)
         assert result == "TSLA"
@@ -72,15 +73,9 @@ class TestExtractQuoteValues(TestRealTimeDataProcessor):
         self, processor: RealTimeDataProcessor, sample_timestamp: datetime
     ) -> None:
         """Test quote extraction from Alpaca dict format."""
-        data = {
-            "bp": 150.25,
-            "ap": 150.27,
-            "bs": 100,
-            "as": 200,
-            "t": sample_timestamp
-        }
+        data = {"bp": 150.25, "ap": 150.27, "bs": 100, "as": 200, "t": sample_timestamp}
         result = processor.extract_quote_values(data)
-        
+
         assert isinstance(result, QuoteExtractionResult)
         assert result.bid_price == Decimal("150.25")
         assert result.ask_price == Decimal("150.27")
@@ -92,16 +87,17 @@ class TestExtractQuoteValues(TestRealTimeDataProcessor):
         self, processor: RealTimeDataProcessor, sample_timestamp: datetime
     ) -> None:
         """Test quote extraction from Alpaca object format."""
+
         class MockQuote:
             bid_price = 150.25
             ask_price = 150.27
             bid_size = 100
             ask_size = 200
             timestamp = sample_timestamp
-        
+
         data = MockQuote()
         result = processor.extract_quote_values(data)
-        
+
         assert isinstance(result, QuoteExtractionResult)
         assert result.bid_price == Decimal("150.25")
         assert result.ask_price == Decimal("150.27")
@@ -113,7 +109,7 @@ class TestExtractQuoteValues(TestRealTimeDataProcessor):
         """Test that None values are handled correctly."""
         data = {"bp": None, "ap": None, "bs": None, "as": None, "t": None}
         result = processor.extract_quote_values(data)
-        
+
         assert result.bid_price is None
         assert result.ask_price is None
         assert result.bid_size is None
@@ -122,15 +118,9 @@ class TestExtractQuoteValues(TestRealTimeDataProcessor):
 
     def test_decimal_precision_maintained(self, processor: RealTimeDataProcessor) -> None:
         """Test that Decimal precision is maintained for financial data."""
-        data = {
-            "bp": "150.123456789",
-            "ap": "150.987654321",
-            "bs": 100,
-            "as": 200,
-            "t": None
-        }
+        data = {"bp": "150.123456789", "ap": "150.987654321", "bs": 100, "as": 200, "t": None}
         result = processor.extract_quote_values(data)
-        
+
         # Verify exact Decimal precision
         assert result.bid_price == Decimal("150.123456789")
         assert result.ask_price == Decimal("150.987654321")
@@ -139,7 +129,7 @@ class TestExtractQuoteValues(TestRealTimeDataProcessor):
         """Test that QuoteExtractionResult is immutable/frozen."""
         data = {"bp": 150.25, "ap": 150.27, "bs": 100, "as": 200, "t": None}
         result = processor.extract_quote_values(data)
-        
+
         # Should raise FrozenInstanceError when trying to modify
         with pytest.raises(Exception):  # dataclass frozen=True raises FrozenInstanceError
             result.bid_price = Decimal("999.99")  # type: ignore
@@ -156,9 +146,10 @@ class TestExtractSymbolFromTrade(TestRealTimeDataProcessor):
 
     def test_extract_from_object_with_symbol_attr(self, processor: RealTimeDataProcessor) -> None:
         """Test symbol extraction from object with symbol attribute."""
+
         class MockTrade:
             symbol = "TSLA"
-        
+
         data = MockTrade()
         result = processor.extract_symbol_from_trade(data)
         assert result == "TSLA"
@@ -177,14 +168,9 @@ class TestExtractTradeValues(TestRealTimeDataProcessor):
         self, processor: RealTimeDataProcessor, sample_timestamp: datetime
     ) -> None:
         """Test trade extraction from dict format."""
-        data = {
-            "price": 150.25,
-            "size": 100,
-            "volume": 100,
-            "timestamp": sample_timestamp
-        }
+        data = {"price": 150.25, "size": 100, "volume": 100, "timestamp": sample_timestamp}
         price, volume, timestamp = processor.extract_trade_values(data)
-        
+
         assert price == Decimal("150.25")
         assert volume == Decimal("100")
         assert timestamp == sample_timestamp
@@ -193,15 +179,16 @@ class TestExtractTradeValues(TestRealTimeDataProcessor):
         self, processor: RealTimeDataProcessor, sample_timestamp: datetime
     ) -> None:
         """Test trade extraction from object format."""
+
         class MockTrade:
             price = 150.25
             size = 100
             volume = 100
             timestamp = sample_timestamp
-        
+
         data = MockTrade()
         price, volume, timestamp = processor.extract_trade_values(data)
-        
+
         assert price == Decimal("150.25")
         assert volume == Decimal("100")
         assert timestamp == sample_timestamp
@@ -232,27 +219,18 @@ class TestExtractTradeValues(TestRealTimeDataProcessor):
         self, processor: RealTimeDataProcessor, sample_timestamp: datetime
     ) -> None:
         """Test that Decimal precision is maintained for price."""
-        data = {
-            "price": "150.123456789",
-            "size": 100,
-            "timestamp": sample_timestamp
-        }
+        data = {"price": "150.123456789", "size": 100, "timestamp": sample_timestamp}
         price, _, _ = processor.extract_trade_values(data)
-        
+
         assert price == Decimal("150.123456789")
 
     def test_volume_can_be_none(
         self, processor: RealTimeDataProcessor, sample_timestamp: datetime
     ) -> None:
         """Test that volume can be None."""
-        data = {
-            "price": 150.25,
-            "size": None,
-            "volume": None,
-            "timestamp": sample_timestamp
-        }
+        data = {"price": 150.25, "size": None, "volume": None, "timestamp": sample_timestamp}
         _, volume, _ = processor.extract_trade_values(data)
-        
+
         assert volume is None
 
 
@@ -364,24 +342,18 @@ class TestLogQuoteDebug(TestRealTimeDataProcessor):
             symbol="AAPL",
             bid_price=Decimal("150.25"),
             ask_price=Decimal("150.27"),
-            correlation_id="test-correlation-123"
+            correlation_id="test-correlation-123",
         )
 
     def test_logs_quote_without_correlation_id(self, processor: RealTimeDataProcessor) -> None:
         """Test that quote is logged without correlation_id."""
         processor.log_quote_debug(
-            symbol="AAPL",
-            bid_price=Decimal("150.25"),
-            ask_price=Decimal("150.27")
+            symbol="AAPL", bid_price=Decimal("150.25"), ask_price=Decimal("150.27")
         )
 
     def test_logs_quote_with_none_values(self, processor: RealTimeDataProcessor) -> None:
         """Test that quote with None values is logged."""
-        processor.log_quote_debug(
-            symbol="AAPL",
-            bid_price=None,
-            ask_price=None
-        )
+        processor.log_quote_debug(symbol="AAPL", bid_price=None, ask_price=None)
 
 
 class TestHandleQuoteError(TestRealTimeDataProcessor):
@@ -402,7 +374,7 @@ class TestHandleQuoteError(TestRealTimeDataProcessor):
         errors = [
             ValueError("Value error"),
             TypeError("Type error"),
-            DataProviderError("Data provider error")
+            DataProviderError("Data provider error"),
         ]
         for error in errors:
             processor.handle_quote_error(error)

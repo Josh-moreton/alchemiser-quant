@@ -75,31 +75,23 @@ class TestMoneyConstruction:
     @pytest.mark.unit
     def test_invalid_currency_code_too_short(self):
         """Test that currency codes must be valid ISO 4217 codes."""
-        with pytest.raises(
-            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
-        ):
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
             Money(Decimal("100.00"), "US")
 
     @pytest.mark.unit
     def test_invalid_currency_code_too_long(self):
         """Test that currency codes must be valid ISO 4217 codes."""
-        with pytest.raises(
-            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
-        ):
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
             Money(Decimal("100.00"), "USDD")
 
     @pytest.mark.unit
     def test_invalid_currency_code_not_in_iso_4217(self):
         """Test that only valid ISO 4217 codes are accepted."""
         # 3-letter code but not valid ISO 4217
-        with pytest.raises(
-            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
-        ):
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
             Money(Decimal("100.00"), "XXX")
 
-        with pytest.raises(
-            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
-        ):
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
             Money(Decimal("100.00"), "ABC")
 
     @pytest.mark.unit
@@ -280,9 +272,7 @@ class TestMoneyAddition:
         m1 = Money(Decimal("100.00"), "USD")
         m2 = Money(Decimal("50.00"), "EUR")
 
-        with pytest.raises(
-            CurrencyMismatchError, match="Cannot add different currencies"
-        ):
+        with pytest.raises(CurrencyMismatchError, match="Cannot add different currencies"):
             m1.add(m2)
 
     @pytest.mark.unit
@@ -338,9 +328,7 @@ class TestMoneySubtraction:
         m1 = Money(Decimal("100.00"), "USD")
         m2 = Money(Decimal("50.00"), "EUR")
 
-        with pytest.raises(
-            CurrencyMismatchError, match="Cannot subtract different currencies"
-        ):
+        with pytest.raises(CurrencyMismatchError, match="Cannot subtract different currencies"):
             m1.subtract(m2)
 
     @pytest.mark.unit
@@ -349,9 +337,7 @@ class TestMoneySubtraction:
         m1 = Money(Decimal("50.00"), "USD")
         m2 = Money(Decimal("100.00"), "USD")
 
-        with pytest.raises(
-            NegativeMoneyError, match="Subtraction would result in negative amount"
-        ):
+        with pytest.raises(NegativeMoneyError, match="Subtraction would result in negative amount"):
             m1.subtract(m2)
 
     @pytest.mark.unit

@@ -378,7 +378,7 @@ def test_consistency_with_json_config_dev():
     assert set(DEV_DSL_FILES) == set(json_config["files"])
 
     # Allocations should match
-    assert DEV_DSL_ALLOCATIONS == json_config["allocations"]
+    assert json_config["allocations"] == DEV_DSL_ALLOCATIONS
 
 
 @pytest.mark.unit
@@ -401,4 +401,4 @@ def test_consistency_with_json_config_prod():
     assert set(PROD_DSL_FILES) == set(json_config["files"])
 
     # Allocations should match
-    assert PROD_DSL_ALLOCATIONS == json_config["allocations"]
+    assert json_config["allocations"] == PROD_DSL_ALLOCATIONS
