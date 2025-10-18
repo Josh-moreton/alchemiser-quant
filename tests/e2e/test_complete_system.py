@@ -6,14 +6,11 @@ Tests the complete system including main entry points, with paper trading mode
 to validate the entire application flow as specified in event_driven_enforcement_plan.md.
 """
 
-import pytest
 import os
 import uuid
-import subprocess
-import time
-from datetime import UTC, datetime
-from pathlib import Path
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Test imports
 try:
@@ -54,21 +51,17 @@ def test_environment():
 @pytest.fixture
 def mock_external_dependencies():
     """Mock all external service dependencies for E2E tests."""
-    with patch("boto3.client") as mock_boto_client, patch(
-        "requests.get"
-    ) as mock_requests, patch(
-        "alpaca.trading.client.TradingClient"
-    ) as mock_trading_client, patch(
-        "alpaca.data.historical.StockHistoricalDataClient"
-    ) as mock_data_client:
-
+    with (
+        patch("boto3.client") as mock_boto_client,
+        patch("requests.get") as mock_requests,
+        patch("alpaca.trading.client.TradingClient") as mock_trading_client,
+        patch("alpaca.data.historical.StockHistoricalDataClient") as mock_data_client,
+    ):
         # Mock AWS client (for any potential AWS calls)
         mock_boto_client.return_value = Mock()
 
         # Mock HTTP requests (for any potential API calls)
-        mock_requests.return_value = Mock(
-            status_code=200, json=lambda: {"status": "ok"}
-        )
+        mock_requests.return_value = Mock(status_code=200, json=lambda: {"status": "ok"})
 
         # Mock Alpaca clients
         mock_trading_instance = Mock()
@@ -103,9 +96,7 @@ class TestCompleteSystemE2E:
 
         self.test_run_id = f"e2e-test-{uuid.uuid4()}"
 
-    def test_main_module_entry_point(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_main_module_entry_point(self, test_environment, mock_external_dependencies):
         """Test main module entry point with mocked dependencies."""
         # Mock the main function to avoid actual trading
         with patch("the_alchemiser.main.TradingSystem") as mock_trading_system:
@@ -137,9 +128,7 @@ class TestCompleteSystemE2E:
             mock_trading_system.assert_called_once()
             mock_system_instance.execute_trading.assert_called_once()
 
-    def test_python_module_execution(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_python_module_execution(self, test_environment, mock_external_dependencies):
         """Test python -m the_alchemiser execution path."""
         # This test would require careful mocking to avoid subprocess complexity
         # For now, we test the equivalent function call
@@ -164,9 +153,7 @@ class TestCompleteSystemE2E:
             assert excinfo.value.code == 0
             mock_main.assert_called_once_with(["trade"])
 
-    def test_trading_system_initialization_e2e(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_trading_system_initialization_e2e(self, test_environment, mock_external_dependencies):
         """Test TradingSystem initialization in E2E context."""
         # Create container in test mode
         container = ApplicationContainer.create_for_testing()
@@ -181,9 +168,7 @@ class TestCompleteSystemE2E:
         assert trading_system is not None
 
     @pytest.mark.slow
-    def test_complete_workflow_simulation(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_complete_workflow_simulation(self, test_environment, mock_external_dependencies):
         """Test complete workflow simulation with all components."""
         # Mock the complete workflow to simulate real execution without external calls
         with patch(
@@ -260,9 +245,7 @@ class TestCompleteSystemE2E:
             assert result.recovery_attempted is True
             assert "failed" in result.summary
 
-    def test_configuration_validation_e2e(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_configuration_validation_e2e(self, test_environment, mock_external_dependencies):
         """Test configuration validation in E2E context."""
         # Test with invalid configuration
         invalid_env = test_environment.copy()
@@ -278,9 +261,7 @@ class TestCompleteSystemE2E:
                 # If it fails, it should be a clear configuration error
                 assert "configuration" in str(e).lower() or "invalid" in str(e).lower()
 
-    def test_paper_trading_mode_validation(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_paper_trading_mode_validation(self, test_environment, mock_external_dependencies):
         """Test paper trading mode is properly enforced in E2E tests."""
         # Verify paper trading environment is set
         assert os.environ.get("PAPER_TRADING") == "true"
@@ -297,9 +278,7 @@ class TestCompleteSystemE2E:
         # For this test, we verify the configuration is set correctly
         assert container is not None
 
-    def test_event_logging_and_observability(
-        self, test_environment, mock_external_dependencies
-    ):
+    def test_event_logging_and_observability(self, test_environment, mock_external_dependencies):
         """Test event logging and observability in E2E context."""
         with patch(
             "the_alchemiser.orchestration.system.TradingSystem.execute_trading"

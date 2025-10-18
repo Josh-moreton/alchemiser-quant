@@ -8,7 +8,6 @@ including liquidity-aware pricing, fallback pricing, and re-pegging calculations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, patch
 
 import pytest
 from hypothesis import given
@@ -44,11 +43,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        price, metadata = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        
+
+        price, metadata = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+
         # Should be bid + offset (100.00 + 0.01 = 100.01)
         assert price >= Decimal("100.00")
         assert price < Decimal("100.50")
@@ -65,11 +62,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        price, metadata = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "SELL"
-        )
-        
+
+        price, metadata = pricing_calculator.calculate_simple_inside_spread_price(quote, "SELL")
+
         # Should be ask - offset (100.50 - 0.01 = 100.49)
         assert price > Decimal("100.00")
         assert price <= Decimal("100.50")
@@ -86,11 +81,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        
+
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+
         # Check that price has at most 2 decimal places
         assert price == price.quantize(Decimal("0.01"))
 
@@ -104,11 +97,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        
+
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+
         # Should enforce minimum price of $0.01
         assert price >= Decimal("0.01")
 
@@ -122,11 +113,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        
+
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+
         # Should not exceed mid point for tight spreads
         mid = (Decimal("100.00") + Decimal("100.02")) / Decimal("2")
         assert price <= mid
@@ -141,11 +130,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "SELL"
-        )
-        
+
+        price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "SELL")
+
         # Should not fall below mid point for tight spreads
         mid = (Decimal("100.00") + Decimal("100.02")) / Decimal("2")
         assert price >= mid
@@ -160,11 +147,9 @@ class TestCalculateSimpleInsideSpreadPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        _, metadata = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        
+
+        _, metadata = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+
         # Check all expected metadata fields
         assert "method" in metadata
         assert "mid" in metadata
@@ -191,12 +176,10 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.25")
-        new_price = pricing_calculator.calculate_repeg_price(
-            quote, "BUY", original_price, None
-        )
-        
+        new_price = pricing_calculator.calculate_repeg_price(quote, "BUY", original_price, None)
+
         # Should move closer to ask (50% of the way)
         # Note: with allow_cross_spread_on_repeg=True (default), may exceed ask
         assert new_price is not None
@@ -212,12 +195,10 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.75")
-        new_price = pricing_calculator.calculate_repeg_price(
-            quote, "SELL", original_price, None
-        )
-        
+        new_price = pricing_calculator.calculate_repeg_price(quote, "SELL", original_price, None)
+
         # Should move closer to bid (50% of the way)
         # Note: with allow_cross_spread_on_repeg=True (default), may fall below bid
         assert new_price is not None
@@ -233,19 +214,15 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         # BUY without original price
-        buy_price = pricing_calculator.calculate_repeg_price(
-            quote, "BUY", None, None
-        )
+        buy_price = pricing_calculator.calculate_repeg_price(quote, "BUY", None, None)
         assert buy_price is not None
         assert buy_price >= Decimal("100.00")
         # With allow_cross_spread_on_repeg=True, may exceed ask
-        
+
         # SELL without original price
-        sell_price = pricing_calculator.calculate_repeg_price(
-            quote, "SELL", None, None
-        )
+        sell_price = pricing_calculator.calculate_repeg_price(quote, "SELL", None, None)
         assert sell_price is not None
         assert sell_price <= Decimal("100.50")
         # With allow_cross_spread_on_repeg=True, may fall below bid
@@ -260,15 +237,15 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.00")
         # Simulate a price that would collide with history
         price_history = [Decimal("100.50")]  # This is 50% between 100 and 101
-        
+
         new_price = pricing_calculator.calculate_repeg_price(
             quote, "BUY", original_price, price_history
         )
-        
+
         # Should avoid price in history
         assert new_price is not None
         assert new_price not in price_history or new_price != Decimal("100.50")
@@ -284,11 +261,9 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        result = pricing_calculator.calculate_repeg_price(
-            quote, "BUY", Decimal("100.00"), None
-        )
-        
+
+        result = pricing_calculator.calculate_repeg_price(quote, "BUY", Decimal("100.00"), None)
+
         # Should handle exception gracefully
         assert result is not None  # Will return minimum price due to validation
 
@@ -302,11 +277,9 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        new_price = pricing_calculator.calculate_repeg_price(
-            quote, "BUY", Decimal("0.006"), None
-        )
-        
+
+        new_price = pricing_calculator.calculate_repeg_price(quote, "BUY", Decimal("0.006"), None)
+
         # Should enforce minimum of $0.01
         assert new_price is not None
         assert new_price >= Decimal("0.01")
@@ -321,11 +294,9 @@ class TestCalculateRepegPrice:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        new_price = pricing_calculator.calculate_repeg_price(
-            quote, "BUY", Decimal("100.456"), None
-        )
-        
+
+        new_price = pricing_calculator.calculate_repeg_price(quote, "BUY", Decimal("100.456"), None)
+
         # Should be quantized to cent precision
         assert new_price is not None
         assert new_price == new_price.quantize(Decimal("0.01"))
@@ -338,7 +309,7 @@ class TestRepegWithCrossSpread:
         """Test that buy can cross ask when configured."""
         config = ExecutionConfig(allow_cross_spread_on_repeg=True)
         calculator = PricingCalculator(config)
-        
+
         quote = QuoteModel(
             symbol="AAPL",
             bid_price=100.00,
@@ -347,12 +318,10 @@ class TestRepegWithCrossSpread:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.25")
-        new_price = calculator.calculate_repeg_price(
-            quote, "BUY", original_price, None
-        )
-        
+        new_price = calculator.calculate_repeg_price(quote, "BUY", original_price, None)
+
         # With cross allowed, price can be >= ask
         assert new_price is not None
         # Price should be more aggressive than without crossing
@@ -362,7 +331,7 @@ class TestRepegWithCrossSpread:
         """Test that sell can cross bid when configured."""
         config = ExecutionConfig(allow_cross_spread_on_repeg=True)
         calculator = PricingCalculator(config)
-        
+
         quote = QuoteModel(
             symbol="AAPL",
             bid_price=100.00,
@@ -371,12 +340,10 @@ class TestRepegWithCrossSpread:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.25")
-        new_price = calculator.calculate_repeg_price(
-            quote, "SELL", original_price, None
-        )
-        
+        new_price = calculator.calculate_repeg_price(quote, "SELL", original_price, None)
+
         # With cross allowed, price can be <= bid
         assert new_price is not None
         # Price should be more aggressive than without crossing
@@ -390,9 +357,9 @@ class TestFinalizeRepegPrice:
         """Test finalization of valid price."""
         new_price = Decimal("100.123")
         original_price = Decimal("100.00")
-        
+
         result = pricing_calculator._finalize_repeg_price(new_price, original_price)
-        
+
         # Should quantize to cent precision
         assert result == Decimal("100.12")
 
@@ -400,9 +367,9 @@ class TestFinalizeRepegPrice:
         """Test that zero price falls back to original."""
         new_price = Decimal("0.00")
         original_price = Decimal("100.00")
-        
+
         result = pricing_calculator._finalize_repeg_price(new_price, original_price)
-        
+
         # Should use original price
         assert result == original_price
 
@@ -410,9 +377,9 @@ class TestFinalizeRepegPrice:
         """Test that negative price falls back to original."""
         new_price = Decimal("-50.00")
         original_price = Decimal("100.00")
-        
+
         result = pricing_calculator._finalize_repeg_price(new_price, original_price)
-        
+
         # Should use original price
         assert result == original_price
 
@@ -420,9 +387,9 @@ class TestFinalizeRepegPrice:
         """Test that zero price with invalid original uses minimum."""
         new_price = Decimal("0.00")
         original_price = Decimal("0.005")  # Below minimum
-        
+
         result = pricing_calculator._finalize_repeg_price(new_price, original_price)
-        
+
         # Should use minimum price
         assert result == Decimal("0.01")
 
@@ -430,9 +397,9 @@ class TestFinalizeRepegPrice:
         """Test that zero price with no original uses minimum."""
         new_price = Decimal("0.00")
         original_price = None
-        
+
         result = pricing_calculator._finalize_repeg_price(new_price, original_price)
-        
+
         # Should use minimum price
         assert result == Decimal("0.01")
 
@@ -450,9 +417,9 @@ class TestPriceFundamentalsCalculation:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         bid, ask, mid, tick = pricing_calculator._calculate_price_fundamentals(quote)
-        
+
         assert bid == Decimal("100.00")
         assert ask == Decimal("100.50")
         assert mid == Decimal("100.25")
@@ -468,9 +435,9 @@ class TestPriceFundamentalsCalculation:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         bid, ask, mid, tick = pricing_calculator._calculate_price_fundamentals(quote)
-        
+
         assert bid == Decimal("0.00")
         assert ask == Decimal("100.50")
         assert mid == ask  # Should use ask when bid is zero
@@ -486,9 +453,9 @@ class TestPriceFundamentalsCalculation:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         bid, ask, mid, tick = pricing_calculator._calculate_price_fundamentals(quote)
-        
+
         assert bid == Decimal("100.00")
         assert ask == Decimal("0.00")
         assert mid == bid  # Should use bid when ask is zero
@@ -504,9 +471,9 @@ class TestPriceFundamentalsCalculation:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         bid, ask, mid, tick = pricing_calculator._calculate_price_fundamentals(quote)
-        
+
         # Negative prices should be clamped to zero
         assert bid == Decimal("0.00")
         assert ask == Decimal("0.00")
@@ -519,43 +486,33 @@ class TestQuantizeAndValidateAnchor:
     def test_quantize_valid_anchor(self, pricing_calculator):
         """Test quantization of valid anchor price."""
         anchor = Decimal("100.123")
-        result = pricing_calculator._quantize_and_validate_anchor(
-            anchor, "AAPL", "BUY"
-        )
-        
+        result = pricing_calculator._quantize_and_validate_anchor(anchor, "AAPL", "BUY")
+
         assert result == Decimal("100.12")
 
     def test_quantize_zero_anchor_uses_minimum(self, pricing_calculator):
         """Test that zero anchor uses minimum price."""
         anchor = Decimal("0.00")
-        result = pricing_calculator._quantize_and_validate_anchor(
-            anchor, "AAPL", "BUY"
-        )
-        
+        result = pricing_calculator._quantize_and_validate_anchor(anchor, "AAPL", "BUY")
+
         assert result == Decimal("0.01")
 
     def test_quantize_negative_anchor_uses_minimum(self, pricing_calculator):
         """Test that negative anchor uses minimum price."""
         anchor = Decimal("-50.00")
-        result = pricing_calculator._quantize_and_validate_anchor(
-            anchor, "AAPL", "BUY"
-        )
-        
+        result = pricing_calculator._quantize_and_validate_anchor(anchor, "AAPL", "BUY")
+
         assert result == Decimal("0.01")
 
     def test_quantize_rounds_correctly(self, pricing_calculator):
         """Test that quantization rounds correctly."""
         # Test banker's rounding (ROUND_HALF_EVEN)
         anchor1 = Decimal("100.125")
-        result1 = pricing_calculator._quantize_and_validate_anchor(
-            anchor1, "AAPL", "BUY"
-        )
+        result1 = pricing_calculator._quantize_and_validate_anchor(anchor1, "AAPL", "BUY")
         assert result1 == Decimal("100.12")
-        
+
         anchor2 = Decimal("100.135")
-        result2 = pricing_calculator._quantize_and_validate_anchor(
-            anchor2, "AAPL", "BUY"
-        )
+        result2 = pricing_calculator._quantize_and_validate_anchor(anchor2, "AAPL", "BUY")
         assert result2 == Decimal("100.14")
 
 
@@ -572,14 +529,10 @@ class TestEdgeCasesAndErrorHandling:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        buy_price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        sell_price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "SELL"
-        )
-        
+
+        buy_price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+        sell_price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "SELL")
+
         # Both should be inside the spread
         assert buy_price >= Decimal("100.00")
         assert buy_price <= Decimal("100.01")
@@ -596,14 +549,10 @@ class TestEdgeCasesAndErrorHandling:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        buy_price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        sell_price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "SELL"
-        )
-        
+
+        buy_price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+        sell_price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "SELL")
+
         # Prices should still be reasonable
         mid = Decimal("150.00")
         assert buy_price <= mid  # Buy should not exceed mid for wide spreads
@@ -619,11 +568,9 @@ class TestEdgeCasesAndErrorHandling:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        buy_price, _ = pricing_calculator.calculate_simple_inside_spread_price(
-            quote, "BUY"
-        )
-        
+
+        buy_price, _ = pricing_calculator.calculate_simple_inside_spread_price(quote, "BUY")
+
         # Should handle penny stocks correctly
         assert buy_price >= Decimal("0.01")
         assert buy_price >= Decimal("0.10")  # At least bid
@@ -646,7 +593,7 @@ def test_property_buy_price_in_spread(bid, spread_cents):
     """Property test: buy price should always be between bid and ask."""
     config = ExecutionConfig()
     calculator = PricingCalculator(config)
-    
+
     ask = bid + spread_cents
     quote = QuoteModel(
         symbol="TEST",
@@ -656,9 +603,9 @@ def test_property_buy_price_in_spread(bid, spread_cents):
         ask_size=100.0,
         timestamp=datetime.now(UTC),
     )
-    
+
     price, _ = calculator.calculate_simple_inside_spread_price(quote, "BUY")
-    
+
     # Buy price should be >= bid and <= ask
     assert price >= bid
     assert price <= ask
@@ -680,7 +627,7 @@ def test_property_sell_price_in_spread(bid, spread_cents):
     """Property test: sell price should always be between bid and ask."""
     config = ExecutionConfig()
     calculator = PricingCalculator(config)
-    
+
     ask = bid + spread_cents
     quote = QuoteModel(
         symbol="TEST",
@@ -690,9 +637,9 @@ def test_property_sell_price_in_spread(bid, spread_cents):
         ask_size=100.0,
         timestamp=datetime.now(UTC),
     )
-    
+
     price, _ = calculator.calculate_simple_inside_spread_price(quote, "SELL")
-    
+
     # Sell price should be >= bid and <= ask
     assert price >= bid
     assert price <= ask
@@ -705,7 +652,7 @@ class TestRepegWithoutCrossSpread:
         """Test that buy respects ask when crossing is disabled."""
         config = ExecutionConfig(allow_cross_spread_on_repeg=False)
         calculator = PricingCalculator(config)
-        
+
         quote = QuoteModel(
             symbol="AAPL",
             bid_price=100.00,
@@ -714,12 +661,10 @@ class TestRepegWithoutCrossSpread:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.25")
-        new_price = calculator.calculate_repeg_price(
-            quote, "BUY", original_price, None
-        )
-        
+        new_price = calculator.calculate_repeg_price(quote, "BUY", original_price, None)
+
         # With cross disabled, price should not exceed ask
         assert new_price is not None
         assert new_price <= Decimal("100.50")
@@ -728,7 +673,7 @@ class TestRepegWithoutCrossSpread:
         """Test that sell respects bid when crossing is disabled."""
         config = ExecutionConfig(allow_cross_spread_on_repeg=False)
         calculator = PricingCalculator(config)
-        
+
         quote = QuoteModel(
             symbol="AAPL",
             bid_price=100.00,
@@ -737,12 +682,10 @@ class TestRepegWithoutCrossSpread:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         original_price = Decimal("100.25")
-        new_price = calculator.calculate_repeg_price(
-            quote, "SELL", original_price, None
-        )
-        
+        new_price = calculator.calculate_repeg_price(quote, "SELL", original_price, None)
+
         # With cross disabled, price should not fall below bid
         assert new_price is not None
         assert new_price >= Decimal("100.00")
@@ -756,9 +699,9 @@ class TestBuildFallbackMetadata:
         bid = Decimal("100.00")
         ask = Decimal("100.50")
         mid = Decimal("100.25")
-        
+
         metadata = pricing_calculator._build_fallback_metadata(bid, ask, mid)
-        
+
         # Check all expected fields
         assert metadata["method"] == "simple_inside_spread_fallback"
         assert metadata["mid"] == float(mid)
@@ -774,9 +717,9 @@ class TestBuildFallbackMetadata:
         bid = Decimal("100.00")
         ask = Decimal("101.00")
         mid = Decimal("100.50")
-        
+
         metadata = pricing_calculator._build_fallback_metadata(bid, ask, mid)
-        
+
         # Spread should be calculated correctly
         # (101 - 100) / 100 * 100 = 1%
         assert metadata["spread_percent"] == pytest.approx(1.0, rel=0.01)
@@ -786,9 +729,9 @@ class TestBuildFallbackMetadata:
         bid = Decimal("0.00")
         ask = Decimal("100.00")
         mid = Decimal("50.00")
-        
+
         metadata = pricing_calculator._build_fallback_metadata(bid, ask, mid)
-        
+
         # Should not raise error with zero bid
         assert metadata["spread_percent"] == 0.0
 
@@ -802,11 +745,9 @@ class TestCalculateSideSpecificAnchor:
         ask = Decimal("100.50")
         mid = Decimal("100.25")
         tick = Decimal("0.01")
-        
-        anchor = pricing_calculator._calculate_side_specific_anchor(
-            "BUY", bid, ask, mid, tick
-        )
-        
+
+        anchor = pricing_calculator._calculate_side_specific_anchor("BUY", bid, ask, mid, tick)
+
         # Buy anchor should be above bid
         assert anchor > bid
         # But should not exceed mid
@@ -818,11 +759,9 @@ class TestCalculateSideSpecificAnchor:
         ask = Decimal("100.50")
         mid = Decimal("100.25")
         tick = Decimal("0.01")
-        
-        anchor = pricing_calculator._calculate_side_specific_anchor(
-            "SELL", bid, ask, mid, tick
-        )
-        
+
+        anchor = pricing_calculator._calculate_side_specific_anchor("SELL", bid, ask, mid, tick)
+
         # Sell anchor should be below ask
         assert anchor < ask
         # But should not fall below mid
@@ -838,9 +777,9 @@ class TestCalculateBuyAnchor:
         ask = Decimal("100.50")
         mid = Decimal("100.25")
         tick = Decimal("0.01")
-        
+
         anchor = pricing_calculator._calculate_buy_anchor(bid, ask, mid, tick)
-        
+
         # Should be bid + offset
         assert anchor > bid
         assert anchor <= mid
@@ -851,9 +790,9 @@ class TestCalculateBuyAnchor:
         ask = Decimal("100.02")
         mid = Decimal("100.01")
         tick = Decimal("0.01")
-        
+
         anchor = pricing_calculator._calculate_buy_anchor(bid, ask, mid, tick)
-        
+
         # Should stay inside spread
         assert anchor >= bid
         assert anchor <= mid
@@ -868,9 +807,9 @@ class TestCalculateSellAnchor:
         ask = Decimal("100.50")
         mid = Decimal("100.25")
         tick = Decimal("0.01")
-        
+
         anchor = pricing_calculator._calculate_sell_anchor(bid, ask, mid, tick)
-        
+
         # Should be ask - offset
         assert anchor < ask
         assert anchor >= mid
@@ -881,9 +820,9 @@ class TestCalculateSellAnchor:
         ask = Decimal("100.02")
         mid = Decimal("100.01")
         tick = Decimal("0.01")
-        
+
         anchor = pricing_calculator._calculate_sell_anchor(bid, ask, mid, tick)
-        
+
         # Should stay inside spread
         assert anchor <= ask
         assert anchor >= mid

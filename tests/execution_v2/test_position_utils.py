@@ -5,15 +5,15 @@ Test position utilities functionality.
 Tests position management, pricing, and subscription operations without broker dependencies.
 """
 
-from decimal import ROUND_DOWN, Decimal
-from unittest.mock import Mock, patch
 import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
+from unittest.mock import Mock
 
 import pytest
 
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
-from datetime import UTC, datetime
 
 
 def _make_rebalance_plan_item(
@@ -187,9 +187,7 @@ class TestPositionUtils:
         assert call_args[0][0] == symbols  # First positional arg
         assert "priority" in call_args[1]  # Keyword arg
 
-    def test_bulk_subscribe_symbols_disabled_smart_execution(
-        self, position_utils_no_smart
-    ):
+    def test_bulk_subscribe_symbols_disabled_smart_execution(self, position_utils_no_smart):
         """Test bulk subscription skipped when smart execution disabled."""
         symbols = ["AAPL", "MSFT"]
 
@@ -212,21 +210,15 @@ class TestPositionUtils:
         # Should call unsubscribe for each symbol
         assert mock_pricing_service.unsubscribe_symbol.call_count == 2
 
-    def test_cleanup_subscriptions_with_exception(
-        self, position_utils, mock_pricing_service
-    ):
+    def test_cleanup_subscriptions_with_exception(self, position_utils, mock_pricing_service):
         """Test cleanup handles exceptions gracefully."""
-        mock_pricing_service.unsubscribe_symbol.side_effect = RuntimeError(
-            "Unsubscribe failed"
-        )
+        mock_pricing_service.unsubscribe_symbol.side_effect = RuntimeError("Unsubscribe failed")
         symbols = ["AAPL"]
 
         # Should not raise exception
         position_utils.cleanup_subscriptions(symbols)
 
-    def test_get_price_for_estimation_real_time(
-        self, position_utils, mock_pricing_service
-    ):
+    def test_get_price_for_estimation_real_time(self, position_utils, mock_pricing_service):
         """Test getting price from real-time service."""
         price = position_utils.get_price_for_estimation("AAPL")
 
@@ -257,9 +249,7 @@ class TestPositionUtils:
         # Should go directly to static price
         mock_alpaca_manager.get_current_price.assert_called_once()
 
-    def test_get_price_for_estimation_invalid_prices(
-        self, position_utils, mock_pricing_service
-    ):
+    def test_get_price_for_estimation_invalid_prices(self, position_utils, mock_pricing_service):
         """Test handling of invalid quote prices."""
         quote = Mock()
         quote.bid_price = 0  # Invalid
@@ -296,9 +286,7 @@ class TestPositionUtils:
         asset_info.fractionable = False
         mock_alpaca_manager.get_asset_info.return_value = asset_info
 
-        adjusted = position_utils.adjust_quantity_for_fractionability(
-            "AAPL", Decimal("10.75")
-        )
+        adjusted = position_utils.adjust_quantity_for_fractionability("AAPL", Decimal("10.75"))
 
         # Should round down to whole shares
         assert adjusted == Decimal("10")
@@ -322,20 +310,14 @@ class TestPositionUtils:
         self, position_utils, mock_alpaca_manager
     ):
         """Test quantity adjustment with asset info error."""
-        mock_alpaca_manager.get_asset_info.side_effect = RuntimeError(
-            "Asset not found"
-        )
+        mock_alpaca_manager.get_asset_info.side_effect = RuntimeError("Asset not found")
 
         # Should default to whole shares on error
-        adjusted = position_utils.adjust_quantity_for_fractionability(
-            "UNKNOWN", Decimal("10.75")
-        )
+        adjusted = position_utils.adjust_quantity_for_fractionability("UNKNOWN", Decimal("10.75"))
 
         assert adjusted == Decimal("10")
 
-    def test_get_position_quantity_existing_position(
-        self, position_utils, mock_alpaca_manager
-    ):
+    def test_get_position_quantity_existing_position(self, position_utils, mock_alpaca_manager):
         """Test getting quantity for existing position."""
         position = Mock()
         position.qty = Decimal("25.5")
@@ -346,9 +328,7 @@ class TestPositionUtils:
         assert quantity == Decimal("25.5")
         assert isinstance(quantity, Decimal)
 
-    def test_get_position_quantity_no_position(
-        self, position_utils, mock_alpaca_manager
-    ):
+    def test_get_position_quantity_no_position(self, position_utils, mock_alpaca_manager):
         """Test getting quantity when no position exists."""
         mock_alpaca_manager.get_position.return_value = None
 
@@ -356,9 +336,7 @@ class TestPositionUtils:
 
         assert quantity == Decimal("0")
 
-    def test_get_position_quantity_string_qty(
-        self, position_utils, mock_alpaca_manager
-    ):
+    def test_get_position_quantity_string_qty(self, position_utils, mock_alpaca_manager):
         """Test getting position quantity when broker returns string."""
         position = Mock()
         position.qty = "15.25"  # String instead of Decimal
@@ -369,9 +347,7 @@ class TestPositionUtils:
         assert quantity == Decimal("15.25")
         assert isinstance(quantity, Decimal)
 
-    def test_get_position_quantity_exception_handling(
-        self, position_utils, mock_alpaca_manager
-    ):
+    def test_get_position_quantity_exception_handling(self, position_utils, mock_alpaca_manager):
         """Test position quantity handles exceptions."""
         mock_alpaca_manager.get_position.side_effect = RuntimeError("API error")
 
@@ -389,9 +365,7 @@ class TestPositionUtils:
         asset_info.fractionable = True
         mock_alpaca_manager.get_asset_info.return_value = asset_info
 
-        adjusted = position_utils.adjust_quantity_for_fractionability(
-            "AAPL", precise_qty
-        )
+        adjusted = position_utils.adjust_quantity_for_fractionability("AAPL", precise_qty)
 
         # Should maintain precision (limited to 6 decimals)
         assert isinstance(adjusted, Decimal)
@@ -463,19 +437,14 @@ class TestFractionalLiquidationEdgeCase:
         mock_alpaca_manager.get_asset_info.return_value = asset_info
 
         # Act: Adjust quantity for a NEW purchase (not liquidation)
-        adjusted = position_utils.adjust_quantity_for_fractionability(
-            "EDZ", Decimal("0.3")
-        )
+        adjusted = position_utils.adjust_quantity_for_fractionability("EDZ", Decimal("0.3"))
 
         # Assert: NEW purchases should round down to whole shares
         assert adjusted == Decimal("0"), (
-            "New purchases of non-fractionable assets should round down "
-            "to whole shares (0.3 → 0)"
+            "New purchases of non-fractionable assets should round down to whole shares (0.3 → 0)"
         )
 
-    def test_liquidation_various_fractional_amounts(
-        self, position_utils, mock_alpaca_manager
-    ):
+    def test_liquidation_various_fractional_amounts(self, position_utils, mock_alpaca_manager):
         """Test liquidation preserves various fractional position amounts."""
         asset_info = Mock()
         asset_info.fractionable = False
@@ -497,6 +466,4 @@ class TestFractionalLiquidationEdgeCase:
 
             quantity = position_utils.get_position_quantity("EDZ")
 
-            assert quantity == qty, (
-                f"Liquidation must preserve exact quantity {qty}, not round it"
-            )
+            assert quantity == qty, f"Liquidation must preserve exact quantity {qty}, not round it"

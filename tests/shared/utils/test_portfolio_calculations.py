@@ -44,9 +44,7 @@ class TestBuildAllocationComparison:
             "MSFT": 20000.0,  # Currently 20%
         }
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Effective portfolio value is $100k * 0.99 = $99k (1% cash reserve)
         # Check target values (50%, 30%, 20% of $99k)
@@ -73,9 +71,7 @@ class TestBuildAllocationComparison:
         account_dict = {"portfolio_value": 0.0, "equity": 50000.0}
         positions_dict = {"AAPL": 45000.0}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Should use equity value of $50k * 0.99 = $49.5k
         assert result["target_values"]["AAPL"] == Decimal("49500.0000")
@@ -89,9 +85,7 @@ class TestBuildAllocationComparison:
         account_dict = {"equity": 75000.0}  # No portfolio_value key
         positions_dict = {"AAPL": 70000.0}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Should use equity value of $75k * 0.99 = $74.25k
         assert result["target_values"]["AAPL"] == Decimal("74250.0000")
@@ -105,9 +99,7 @@ class TestBuildAllocationComparison:
         account_dict = {"portfolio_value": "100000.0"}  # String value
         positions_dict = {"AAPL": 40000.0, "GOOGL": 60000.0}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # $100k * 0.99 * 0.5 = $49.5k each
         assert result["target_values"]["AAPL"] == Decimal("49500.0000")
@@ -120,9 +112,7 @@ class TestBuildAllocationComparison:
         positions_dict = {"AAPL": 50000.0}
 
         with pytest.raises(ConfigurationError, match="Portfolio value not available"):
-            build_allocation_comparison(
-                consolidated_portfolio, account_dict, positions_dict
-            )
+            build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
     @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_empty_consolidated_portfolio_has_current_deltas(self, mock_load_settings):
@@ -133,15 +123,11 @@ class TestBuildAllocationComparison:
         account_dict = {"portfolio_value": 100000.0}
         positions_dict = {"AAPL": 50000.0}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Should have empty target_values but deltas show current positions need to be sold
         assert result["target_values"] == {}
-        assert result["deltas"]["AAPL"] == Decimal(
-            "-50000.0"
-        )  # Need to sell current position
+        assert result["deltas"]["AAPL"] == Decimal("-50000.0")  # Need to sell current position
 
         # But should still have current_values
         assert result["current_values"]["AAPL"] == Decimal("50000.0")
@@ -170,14 +156,10 @@ class TestPropertyBasedAllocationComparison:
         account_dict = {"portfolio_value": portfolio_value}
         positions_dict = {}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Expected: target_value = portfolio_value * 0.99 * allocation
-        expected = (
-            Decimal(str(portfolio_value)) * Decimal("0.99") * Decimal(str(allocation))
-        )
+        expected = Decimal(str(portfolio_value)) * Decimal("0.99") * Decimal(str(allocation))
         actual = result["target_values"]["AAPL"]
 
         # Use tolerance for float->Decimal conversion
@@ -205,9 +187,7 @@ class TestPropertyBasedAllocationComparison:
         account_dict = {"portfolio_value": portfolio_value}
         positions_dict = {}  # Start with empty portfolio
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Sum of all deltas should equal effective portfolio value (99% of total)
         total_deltas = sum(result["deltas"].values())
@@ -241,9 +221,7 @@ class TestPropertyBasedAllocationComparison:
         account_dict = {"portfolio_value": portfolio_value}
         positions_dict = {symbol: current_value}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Verify delta = target - current
         target = result["target_values"][symbol]
@@ -257,9 +235,7 @@ class TestPropertyBasedAllocationComparison:
         portfolio_value=st.floats(min_value=1000.0, max_value=1_000_000.0),
     )
     @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
-    def test_all_symbols_included_in_output(
-        self, mock_load_settings, portfolio_value: float
-    ):
+    def test_all_symbols_included_in_output(self, mock_load_settings, portfolio_value: float):
         """Test that all symbols from both inputs appear in deltas."""
         mock_load_settings.return_value = self.mock_settings
 
@@ -267,9 +243,7 @@ class TestPropertyBasedAllocationComparison:
         account_dict = {"portfolio_value": portfolio_value}
         positions_dict = {"MSFT": 10000.0, "AAPL": 20000.0}  # MSFT not in target
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # All unique symbols should appear in deltas
         all_symbols = {"AAPL", "GOOGL", "MSFT"}

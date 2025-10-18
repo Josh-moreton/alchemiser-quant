@@ -25,7 +25,9 @@ class TestConfigProviders:
 
         assert settings1 is settings2, "Settings should be a singleton"
 
-    def test_paper_trading_detection_with_paper_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_paper_trading_detection_with_paper_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test paper trading flag is True when endpoint contains 'paper'."""
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
@@ -36,7 +38,9 @@ class TestConfigProviders:
 
         assert paper_trading is True, "Should detect paper trading from endpoint URL"
 
-    def test_paper_trading_detection_with_live_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_paper_trading_detection_with_live_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test paper trading flag is False when endpoint is live."""
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
@@ -47,7 +51,9 @@ class TestConfigProviders:
 
         assert paper_trading is False, "Should detect live trading from endpoint URL"
 
-    def test_paper_trading_defaults_to_true_when_no_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_paper_trading_defaults_to_true_when_no_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test paper trading flag defaults to True when endpoint is None."""
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
@@ -79,9 +85,7 @@ class TestConfigProviders:
         container = ConfigProviders()
         secret_key = container.alpaca_secret_key()
 
-        assert (
-            secret_key == "test_secret_key"
-        ), "Should extract secret key from credentials"
+        assert secret_key == "test_secret_key", "Should extract secret key from credentials"
 
     def test_alpaca_endpoint_provider(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test endpoint is correctly extracted from credentials tuple."""
@@ -95,7 +99,9 @@ class TestConfigProviders:
 
         assert endpoint == test_endpoint, "Should extract endpoint from credentials"
 
-    def test_credentials_provider_when_credentials_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_credentials_provider_when_credentials_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test behavior when credentials are not in environment (returns None tuple)."""
         # Clear all Alpaca credentials from environment
         monkeypatch.delenv("ALPACA_KEY", raising=False)
@@ -161,9 +167,7 @@ class TestConfigProviders:
             container = ConfigProviders()
             paper_trading = container.paper_trading()
 
-            assert (
-                paper_trading is True
-            ), f"Should detect paper trading for endpoint: {endpoint}"
+            assert paper_trading is True, f"Should detect paper trading for endpoint: {endpoint}"
 
 
 class TestConfigProvidersIntegration:
@@ -198,9 +202,7 @@ class TestConfigProvidersIntegration:
         if api_key is None:
             assert secret_key is None, "If API key is None, secret should also be None"
             assert endpoint is None, "If API key is None, endpoint should also be None"
-            assert (
-                paper_trading is True
-            ), "Paper trading should default to True when no endpoint"
+            assert paper_trading is True, "Paper trading should default to True when no endpoint"
         else:
             assert isinstance(api_key, str), "API key should be string if present"
             assert isinstance(secret_key, str), "Secret key should be string if present"

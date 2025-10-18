@@ -12,7 +12,7 @@ Tests cover:
 - Property-based tests for mathematical correctness
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -223,7 +223,7 @@ class TestConvertDatetimeFieldsFromDict:
     @pytest.mark.unit
     def test_skip_non_string_values(self):
         """Test that non-string values are skipped."""
-        dt = datetime.now(timezone.utc)
+        dt = datetime.now(UTC)
         data = {"timestamp": dt}
 
         # Should not raise error or modify already-datetime value
@@ -327,7 +327,7 @@ class TestConvertDatetimeFieldsToDict:
     @pytest.mark.unit
     def test_convert_single_field(self):
         """Test converting single datetime field to ISO string."""
-        dt = datetime(2025, 1, 6, 12, 30, 45, tzinfo=timezone.utc)
+        dt = datetime(2025, 1, 6, 12, 30, 45, tzinfo=UTC)
         data = {"timestamp": dt}
 
         convert_datetime_fields_to_dict(data, ["timestamp"])
@@ -339,8 +339,8 @@ class TestConvertDatetimeFieldsToDict:
     @pytest.mark.unit
     def test_convert_multiple_fields(self):
         """Test converting multiple datetime fields."""
-        dt1 = datetime(2025, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
-        dt2 = datetime(2025, 1, 6, 13, 0, 0, tzinfo=timezone.utc)
+        dt1 = datetime(2025, 1, 6, 12, 0, 0, tzinfo=UTC)
+        dt2 = datetime(2025, 1, 6, 13, 0, 0, tzinfo=UTC)
         data = {"created_at": dt1, "updated_at": dt2}
 
         convert_datetime_fields_to_dict(data, ["created_at", "updated_at"])
@@ -361,7 +361,7 @@ class TestConvertDatetimeFieldsToDict:
     @pytest.mark.unit
     def test_skip_missing_fields(self):
         """Test that missing fields are skipped."""
-        data = {"timestamp": datetime.now(timezone.utc)}
+        data = {"timestamp": datetime.now(UTC)}
 
         convert_datetime_fields_to_dict(data, ["timestamp", "missing_field"])
 
@@ -371,7 +371,7 @@ class TestConvertDatetimeFieldsToDict:
     @pytest.mark.unit
     def test_in_place_mutation(self):
         """Test that dict is mutated in-place."""
-        dt = datetime(2025, 1, 6, 12, 30, 45, tzinfo=timezone.utc)
+        dt = datetime(2025, 1, 6, 12, 30, 45, tzinfo=UTC)
         data = {"timestamp": dt}
         original_id = id(data)
 
@@ -556,7 +556,7 @@ class TestRoundTripConversions:
     @pytest.mark.unit
     def test_datetime_round_trip(self):
         """Test datetime -> ISO string -> datetime preserves value."""
-        original = datetime(2025, 1, 6, 12, 30, 45, 123456, tzinfo=timezone.utc)
+        original = datetime(2025, 1, 6, 12, 30, 45, 123456, tzinfo=UTC)
         as_string = original.isoformat()
         back_to_datetime = datetime.fromisoformat(as_string)
 
@@ -565,7 +565,7 @@ class TestRoundTripConversions:
     @pytest.mark.unit
     def test_dict_datetime_round_trip(self):
         """Test dict datetime field round-trip conversion."""
-        original_dt = datetime(2025, 1, 6, 12, 30, 45, tzinfo=timezone.utc)
+        original_dt = datetime(2025, 1, 6, 12, 30, 45, tzinfo=UTC)
         data = {"timestamp": original_dt}
 
         # Convert to string
@@ -628,7 +628,7 @@ class TestPropertyBasedConversions:
         """Property: datetime -> ISO string -> datetime preserves the value."""
         # Make timezone-aware (as required by trading system)
         if original_datetime.tzinfo is None:
-            original_datetime = original_datetime.replace(tzinfo=timezone.utc)
+            original_datetime = original_datetime.replace(tzinfo=UTC)
 
         iso_string = original_datetime.isoformat()
         result = convert_string_to_datetime(iso_string)

@@ -8,13 +8,12 @@ Tests market liquidity scoring and volume-aware pricing without broker dependenc
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock
 
 import pytest
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import (
-    LiquidityAnalyzer,
     LiquidityAnalysis,
+    LiquidityAnalyzer,
 )
 
 
@@ -101,7 +100,7 @@ class TestLiquidityAnalyzer:
             symbol="AAPL",
             bid_price=150.00,
             ask_price=150.10,
-            bid_size=50.0,  # Below threshold  
+            bid_size=50.0,  # Below threshold
             ask_size=50.0,  # Below threshold
             timestamp=datetime.now(UTC),
         )
@@ -398,7 +397,7 @@ class TestLiquidityAnalyzer:
 
 class TestNegativePricePrevention:
     """Test that the analyzer prevents negative recommended prices.
-    
+
     This test class specifically addresses the issue where correct streaming quotes
     (e.g., bid=269.58, ask=270.73) would somehow lead to negative recommended prices
     (-0.01, -0.02) causing order placement failures.

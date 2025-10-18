@@ -163,10 +163,10 @@ class TestDslContext:
     def test_evaluate_node_is_callable(self, context, mock_evaluate_node):
         """Test that evaluate_node function is accessible."""
         from the_alchemiser.shared.schemas.ast_node import ASTNode
-        
+
         node = ASTNode.atom("test")
         result = context.evaluate_node(node, "corr-id", context.trace)
-        
+
         mock_evaluate_node.assert_called_once()
         assert result == 42
 
@@ -202,7 +202,7 @@ class TestDslContextPropertyBased:
             Decimal("1234567890.123456789"),
             Decimal("-0.000000001"),
         ]
-        
+
         for val in test_values:
             result = context.as_decimal(val)
             assert result == val
@@ -220,7 +220,7 @@ class TestDslContextPropertyBased:
             [],
             {},
         ]
-        
+
         for val in test_values:
             result = context.as_decimal(val)
             assert isinstance(result, Decimal)
@@ -238,7 +238,7 @@ class TestDslContextPropertyBased:
             None,
             [42],
         ]
-        
+
         for val in test_values:
             result = context.coerce_param_value(val)
             assert isinstance(result, (int, float, Decimal, str))

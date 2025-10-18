@@ -14,8 +14,8 @@ from pydantic import ValidationError
 from the_alchemiser.shared.schemas.enriched_data import (
     DomainOrderData,
     EnrichedOrderView,
-    EnrichedPositionView,
     EnrichedPositionsView,
+    EnrichedPositionView,
     OpenOrdersView,
     OrderSummaryData,
     PositionSummaryData,

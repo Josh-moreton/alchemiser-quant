@@ -27,9 +27,7 @@ class TestRunFunction:
 
     @patch("the_alchemiser.__main__.main")
     @patch("the_alchemiser.__main__.sys.exit")
-    def test_run_with_no_args_defaults_to_trade(
-        self, mock_exit: Mock, mock_main: Mock
-    ) -> None:
+    def test_run_with_no_args_defaults_to_trade(self, mock_exit: Mock, mock_main: Mock) -> None:
         """Test run function with no arguments defaults to trade command."""
         mock_result = Mock()
         mock_result.success = True
@@ -93,9 +91,7 @@ class TestRunFunction:
 
     @patch("the_alchemiser.__main__.main")
     @patch("the_alchemiser.__main__.sys.exit")
-    def test_run_with_boolean_result_true(
-        self, mock_exit: Mock, mock_main: Mock
-    ) -> None:
+    def test_run_with_boolean_result_true(self, mock_exit: Mock, mock_main: Mock) -> None:
         """Test run function with boolean True result."""
         mock_main.return_value = True
 
@@ -106,9 +102,7 @@ class TestRunFunction:
 
     @patch("the_alchemiser.__main__.main")
     @patch("the_alchemiser.__main__.sys.exit")
-    def test_run_with_boolean_result_false(
-        self, mock_exit: Mock, mock_main: Mock
-    ) -> None:
+    def test_run_with_boolean_result_false(self, mock_exit: Mock, mock_main: Mock) -> None:
         """Test run function with boolean False result."""
         mock_main.return_value = False
 

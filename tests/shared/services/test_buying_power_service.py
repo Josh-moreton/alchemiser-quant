@@ -43,9 +43,7 @@ class TestBuyingPowerService:
         assert actual_bp == Decimal("10000.00")
         mock_broker_manager.get_buying_power.assert_called_once()
 
-    def test_verify_buying_power_available_success_after_retry(
-        self, service, mock_broker_manager
-    ):
+    def test_verify_buying_power_available_success_after_retry(self, service, mock_broker_manager):
         """Test buying power verification succeeds after retry."""
         # First call returns insufficient, second call returns sufficient
         mock_broker_manager.get_buying_power.side_effect = [3000.0, 8000.0]
@@ -60,9 +58,7 @@ class TestBuyingPowerService:
         assert actual_bp == Decimal("8000.00")
         assert mock_broker_manager.get_buying_power.call_count == 2
 
-    def test_verify_buying_power_available_failure_all_retries(
-        self, service, mock_broker_manager
-    ):
+    def test_verify_buying_power_available_failure_all_retries(self, service, mock_broker_manager):
         """Test buying power verification fails after all retries."""
         mock_broker_manager.get_buying_power.return_value = 3000.0
         expected_amount = Decimal("5000")
@@ -76,9 +72,7 @@ class TestBuyingPowerService:
         assert actual_bp == Decimal("3000.00")
         assert mock_broker_manager.get_buying_power.call_count == 4  # 3 retries + 1 final
 
-    def test_verify_buying_power_available_none_response(
-        self, service, mock_broker_manager
-    ):
+    def test_verify_buying_power_available_none_response(self, service, mock_broker_manager):
         """Test handling when broker returns None for buying power."""
         mock_broker_manager.get_buying_power.side_effect = [None, None, 5000.0]
         expected_amount = Decimal("4000")
@@ -91,12 +85,10 @@ class TestBuyingPowerService:
         assert is_available is True
         assert actual_bp == Decimal("5000.00")
 
-    def test_verify_buying_power_available_exception_handling(
-        self, service, mock_broker_manager
-    ):
+    def test_verify_buying_power_available_exception_handling(self, service, mock_broker_manager):
         """Test exception handling during buying power check."""
         from the_alchemiser.shared.errors.exceptions import DataProviderError
-        
+
         mock_broker_manager.get_buying_power.side_effect = [
             DataProviderError("API Error"),
             5000.0,
@@ -111,17 +103,13 @@ class TestBuyingPowerService:
         assert is_available is True
         assert actual_bp == Decimal("5000.00")
 
-    def test_verify_buying_power_available_exponential_backoff(
-        self, service, mock_broker_manager
-    ):
+    def test_verify_buying_power_available_exponential_backoff(self, service, mock_broker_manager):
         """Test that exponential backoff wait times are correct (with jitter)."""
         mock_broker_manager.get_buying_power.return_value = 3000.0
         expected_amount = Decimal("5000")
 
         with patch("time.sleep") as mock_sleep, patch("random.uniform", return_value=0):
-            service.verify_buying_power_available(
-                expected_amount, max_retries=3, initial_wait=1.0
-            )
+            service.verify_buying_power_available(expected_amount, max_retries=3, initial_wait=1.0)
 
             # Check backoff: 1.0 * 2^0, 1.0 * 2^1 (last retry doesn't sleep)
             # With jitter mocked to return 0, the waits should be exact
@@ -141,9 +129,7 @@ class TestBuyingPowerService:
         assert result[0] is True
         assert result[1] == Decimal("10000.00")
 
-    def test_check_buying_power_attempt_insufficient(
-        self, service, mock_broker_manager
-    ):
+    def test_check_buying_power_attempt_insufficient(self, service, mock_broker_manager):
         """Test _check_buying_power_attempt when buying power is insufficient."""
         mock_broker_manager.get_buying_power.return_value = 3000.0
         expected_amount = Decimal("5000")
@@ -152,9 +138,7 @@ class TestBuyingPowerService:
 
         assert result is None
 
-    def test_check_buying_power_attempt_none_response(
-        self, service, mock_broker_manager
-    ):
+    def test_check_buying_power_attempt_none_response(self, service, mock_broker_manager):
         """Test _check_buying_power_attempt when broker returns None."""
         mock_broker_manager.get_buying_power.return_value = None
         expected_amount = Decimal("5000")
@@ -210,7 +194,7 @@ class TestBuyingPowerService:
     def test_force_account_refresh_exception(self, service, mock_broker_manager):
         """Test account refresh exception handling."""
         from the_alchemiser.shared.errors.exceptions import DataProviderError
-        
+
         mock_broker_manager.get_buying_power.side_effect = DataProviderError("API Error")
 
         result = service.force_account_refresh()
@@ -251,7 +235,7 @@ class TestBuyingPowerService:
     def test_estimate_order_cost_exception(self, service, mock_broker_manager):
         """Test order cost estimation exception handling."""
         from the_alchemiser.shared.errors.exceptions import DataProviderError
-        
+
         mock_broker_manager.get_current_price.side_effect = DataProviderError("API Error")
         quantity = Decimal("10")
 
@@ -259,9 +243,7 @@ class TestBuyingPowerService:
 
         assert result is None
 
-    def test_check_sufficient_buying_power_sufficient(
-        self, service, mock_broker_manager
-    ):
+    def test_check_sufficient_buying_power_sufficient(self, service, mock_broker_manager):
         """Test check_sufficient_buying_power when power is sufficient."""
         mock_broker_manager.get_current_price.return_value = 100.0
         mock_broker_manager.get_buying_power.return_value = 10000.0
@@ -275,9 +257,7 @@ class TestBuyingPowerService:
         assert current_bp == Decimal("10000.00")
         assert estimated_cost == Decimal("10") * Decimal("100.00") * Decimal("1.05")
 
-    def test_check_sufficient_buying_power_insufficient(
-        self, service, mock_broker_manager
-    ):
+    def test_check_sufficient_buying_power_insufficient(self, service, mock_broker_manager):
         """Test check_sufficient_buying_power when power is insufficient."""
         mock_broker_manager.get_current_price.return_value = 100.0
         mock_broker_manager.get_buying_power.return_value = 500.0
@@ -291,9 +271,7 @@ class TestBuyingPowerService:
         assert current_bp == Decimal("500.00")
         assert estimated_cost == Decimal("10") * Decimal("100.00") * Decimal("1.05")
 
-    def test_check_sufficient_buying_power_no_price(
-        self, service, mock_broker_manager
-    ):
+    def test_check_sufficient_buying_power_no_price(self, service, mock_broker_manager):
         """Test check_sufficient_buying_power when price unavailable."""
         mock_broker_manager.get_current_price.return_value = None
         mock_broker_manager.get_buying_power.return_value = 10000.0
@@ -307,9 +285,7 @@ class TestBuyingPowerService:
         assert current_bp == Decimal("0")
         assert estimated_cost is None
 
-    def test_check_sufficient_buying_power_no_buying_power(
-        self, service, mock_broker_manager
-    ):
+    def test_check_sufficient_buying_power_no_buying_power(self, service, mock_broker_manager):
         """Test check_sufficient_buying_power when buying power unavailable."""
         mock_broker_manager.get_current_price.return_value = 100.0
         mock_broker_manager.get_buying_power.return_value = None
@@ -323,12 +299,10 @@ class TestBuyingPowerService:
         assert current_bp == Decimal("0")
         assert estimated_cost is not None
 
-    def test_check_sufficient_buying_power_exception(
-        self, service, mock_broker_manager
-    ):
+    def test_check_sufficient_buying_power_exception(self, service, mock_broker_manager):
         """Test check_sufficient_buying_power exception handling."""
         from the_alchemiser.shared.errors.exceptions import DataProviderError
-        
+
         mock_broker_manager.get_current_price.side_effect = DataProviderError("API Error")
         quantity = Decimal("10")
 
@@ -474,9 +448,7 @@ class TestJitterBehavior:
         expected_amount = Decimal("5000")
 
         with patch("time.sleep") as mock_sleep, patch("random.uniform", return_value=0):
-            service.verify_buying_power_available(
-                expected_amount, max_retries=10, initial_wait=5.0
-            )
+            service.verify_buying_power_available(expected_amount, max_retries=10, initial_wait=5.0)
 
             # Check that no wait time exceeds MAX_BACKOFF_SECONDS
             for call in mock_sleep.call_args_list:

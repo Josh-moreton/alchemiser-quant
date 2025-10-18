@@ -88,17 +88,17 @@ class TestStrategyContextImmutability:
 
     def test_symbols_list_is_immutable_semantically(self):
         """Test that modifying symbols list doesn't affect context.
-        
+
         Note: Python lists are mutable, but we expect users to treat
         the context as immutable. This test documents the limitation.
         """
         symbols = ["AAPL", "MSFT"]
         context = StrategyContext(symbols=symbols, timeframe="1D")
-        
+
         # Original list still contains lowercase, but context has uppercase
         assert symbols == ["AAPL", "MSFT"]
         assert context.symbols == ["AAPL", "MSFT"]
-        
+
         # Modifying original list doesn't affect context
         # (because new list is created in __post_init__)
         symbols.append("GOOGL")

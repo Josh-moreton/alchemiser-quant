@@ -113,11 +113,11 @@ class TestClassifySymbol:
 
     def test_classify_option_ending_with_c(self):
         """Test option detection with C suffix.
-        
+
         Note: Real option symbols like "AAPL240315C00150000" exceed the 10-character
         limit and will raise ValueError during Symbol validation. This is expected
         since the Symbol value object enforces a maximum length of 10 characters.
-        
+
         The simplified option detection logic (checking for C/P suffix) is documented
         as having limitations in the module docstring.
         """
@@ -126,11 +126,11 @@ class TestClassifySymbol:
 
     def test_classify_option_ending_with_p(self):
         """Test option detection with P suffix.
-        
+
         Note: Real option symbols like "AAPL240315P00150000" exceed the 10-character
         limit and will raise ValueError during Symbol validation. This is expected
         since the Symbol value object enforces a maximum length of 10 characters.
-        
+
         The simplified option detection logic (checking for C/P suffix) is documented
         as having limitations in the module docstring.
         """
@@ -139,11 +139,11 @@ class TestClassifySymbol:
 
     def test_classify_future_with_numeric_suffix(self):
         """Test that symbol > 5 chars ending with digits is classified as FUTURE.
-        
+
         Note: This is overly simplistic and causes false positives. Real futures
         symbols have specific month/year codes. This is a known issue documented
         in FILE_REVIEW_symbols_config_2025_10_10.md (HIGH-3).
-        
+
         ESH23 is 5 chars (not > 5), so it's classified as STOCK.
         Using a longer example that meets the > 5 chars condition.
         """
@@ -162,7 +162,7 @@ class TestClassifySymbol:
 
     def test_classify_empty_string_returns_stock(self):
         """Test that empty string raises ValueError after Symbol validation.
-        
+
         Previously returned 'STOCK', but now validates input using Symbol value object.
         """
         with pytest.raises(ValueError, match="Symbol must not be empty"):
@@ -170,7 +170,7 @@ class TestClassifySymbol:
 
     def test_classify_whitespace_only_returns_stock(self):
         """Test that whitespace-only string raises ValueError after Symbol validation.
-        
+
         Previously returned 'STOCK', but now validates input using Symbol value object.
         """
         with pytest.raises(ValueError, match="Symbol must not be empty"):
@@ -369,7 +369,7 @@ class TestAddETFSymbol:
 
     def test_add_etf_symbol_raises_not_implemented_error(self):
         """Test that add_etf_symbol raises NotImplementedError.
-        
+
         This function is deprecated to ensure thread-safety and immutability.
         Symbol universes should be loaded from external configuration, not
         modified at runtime.
@@ -427,9 +427,7 @@ class TestEdgeCases:
         """Test that all KNOWN_CRYPTO are classified as CRYPTO."""
         for crypto in KNOWN_CRYPTO:
             result = classify_symbol(crypto)
-            assert (
-                result == "CRYPTO"
-            ), f"Expected {crypto} to be classified as CRYPTO, got {result}"
+            assert result == "CRYPTO", f"Expected {crypto} to be classified as CRYPTO, got {result}"
 
 
 class TestPropertyBased:
@@ -438,7 +436,7 @@ class TestPropertyBased:
     @given(st.text(min_size=1, max_size=10))
     def test_classify_always_returns_valid_asset_type(self, symbol: str):
         """Test that classify_symbol always returns a valid AssetType or raises ValueError.
-        
+
         Since we now use Symbol value object for validation, invalid symbols
         will raise ValueError instead of being classified.
         """
@@ -509,9 +507,7 @@ class TestBusinessRules:
         crypto_symbols = ["BTC", "ETH", "BTCUSD", "ETHUSD"]
         for crypto in crypto_symbols:
             result = classify_symbol(crypto)
-            assert (
-                result == "CRYPTO"
-            ), f"Expected {crypto} to be classified as CRYPTO, got {result}"
+            assert result == "CRYPTO", f"Expected {crypto} to be classified as CRYPTO, got {result}"
 
     def test_common_stocks_not_etfs(self):
         """Test that common stocks are not recognized as ETFs."""

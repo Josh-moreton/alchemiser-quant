@@ -6,14 +6,15 @@ This test suite provides coverage of execution validation functions including
 order validation, quantity checks, and fractional asset handling.
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import MagicMock
 
+import pytest
+
 from the_alchemiser.execution_v2.utils.execution_validator import (
+    ExecutionValidationError,
     ExecutionValidator,
     OrderValidationResult,
-    ExecutionValidationError,
 )
 from the_alchemiser.shared.schemas.asset_info import AssetInfo
 
@@ -34,12 +35,12 @@ class TestExecutionValidator:
             name="Apple Inc",
             asset_class="us_equity",
             tradable=True,
-            fractionable=True
+            fractionable=True,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("AAPL", Decimal("10.5"))
-        
+
         assert result.is_valid is True
         assert result.adjusted_quantity is None
         assert len(result.warnings) == 0
@@ -52,12 +53,12 @@ class TestExecutionValidator:
             name="Berkshire Hathaway Class A",
             asset_class="us_equity",
             tradable=True,
-            fractionable=False
+            fractionable=False,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("BRK.A", Decimal("5"))
-        
+
         assert result.is_valid is True
         assert result.adjusted_quantity is None
         assert len(result.warnings) == 0
@@ -70,12 +71,12 @@ class TestExecutionValidator:
             name="Berkshire Hathaway Class A",
             asset_class="us_equity",
             tradable=True,
-            fractionable=False
+            fractionable=False,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("BRK.A", Decimal("5.7"), auto_adjust=True)
-        
+
         assert result.is_valid is True
         assert result.adjusted_quantity == Decimal("5")
         assert len(result.warnings) == 1
@@ -89,12 +90,12 @@ class TestExecutionValidator:
             name="Berkshire Hathaway Class A",
             asset_class="us_equity",
             tradable=True,
-            fractionable=False
+            fractionable=False,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("BRK.A", Decimal("5.7"), auto_adjust=False)
-        
+
         assert result.is_valid is False
         assert result.error_code == "40310000"
         assert "not fractionable but quantity 5.7 is fractional" in result.error_message
@@ -107,12 +108,12 @@ class TestExecutionValidator:
             name="Berkshire Hathaway Class A",
             asset_class="us_equity",
             tradable=True,
-            fractionable=False
+            fractionable=False,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("BRK.A", Decimal("0.3"), auto_adjust=True)
-        
+
         assert result.is_valid is False
         assert result.error_code == "ZERO_QUANTITY_AFTER_ROUNDING"
         assert "rounds to zero" in result.error_message
@@ -125,12 +126,12 @@ class TestExecutionValidator:
             name="Delisted Stock",
             asset_class="us_equity",
             tradable=False,
-            fractionable=True
+            fractionable=True,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("DELISTED", Decimal("10"))
-        
+
         assert result.is_valid is False
         assert result.error_code == "NOT_TRADABLE"
         assert "is not tradable" in result.error_message
@@ -143,12 +144,12 @@ class TestExecutionValidator:
             name="Apple Inc",
             asset_class="us_equity",
             tradable=True,
-            fractionable=True
+            fractionable=True,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("AAPL", Decimal("0"))
-        
+
         assert result.is_valid is False
         assert result.error_code == "INVALID_QUANTITY"
 
@@ -160,12 +161,12 @@ class TestExecutionValidator:
             name="Apple Inc",
             asset_class="us_equity",
             tradable=True,
-            fractionable=True
+            fractionable=True,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order("AAPL", Decimal("-5"))
-        
+
         assert result.is_valid is False
         assert result.error_code == "INVALID_QUANTITY"
 
@@ -173,9 +174,9 @@ class TestExecutionValidator:
         """Test validation allows order when asset info is unavailable."""
         # Mock get_asset_info to return None (asset info unavailable)
         self.mock_alpaca_manager.get_asset_info.return_value = None
-        
+
         result = self.validator.validate_order("UNKNOWN", Decimal("10"))
-        
+
         assert result.is_valid is True
         assert result.adjusted_quantity is None
 
@@ -187,14 +188,14 @@ class TestExecutionValidator:
             name="Apple Inc",
             asset_class="us_equity",
             tradable=True,
-            fractionable=True
+            fractionable=True,
         )
         self.mock_alpaca_manager.get_asset_info.return_value = asset_info
-        
+
         result = self.validator.validate_order(
             "AAPL", Decimal("10.5"), correlation_id="test-correlation-123"
         )
-        
+
         assert result.is_valid is True
 
 
@@ -203,23 +204,16 @@ class TestExecutionValidationError:
 
     def test_execution_validation_error_creation(self):
         """Test creation of execution validation errors."""
-        error = ExecutionValidationError(
-            "Test error message",
-            symbol="AAPL",
-            code="TEST_ERROR"
-        )
-        
+        error = ExecutionValidationError("Test error message", symbol="AAPL", code="TEST_ERROR")
+
         assert str(error) == "Test error message"
         assert error.symbol == "AAPL"
         assert error.code == "TEST_ERROR"
 
     def test_execution_validation_error_without_code(self):
         """Test creation of execution validation error without error code."""
-        error = ExecutionValidationError(
-            "Test error message",
-            symbol="AAPL"
-        )
-        
+        error = ExecutionValidationError("Test error message", symbol="AAPL")
+
         assert str(error) == "Test error message"
         assert error.symbol == "AAPL"
         assert error.code is None
@@ -231,7 +225,7 @@ class TestOrderValidationResult:
     def test_order_validation_result_valid(self):
         """Test creation of valid order validation result."""
         result = OrderValidationResult(is_valid=True)
-        
+
         assert result.is_valid is True
         assert result.adjusted_quantity is None
         assert result.warnings == ()
@@ -243,11 +237,9 @@ class TestOrderValidationResult:
     def test_order_validation_result_invalid_with_error(self):
         """Test creation of invalid order validation result with error."""
         result = OrderValidationResult(
-            is_valid=False,
-            error_message="Invalid order",
-            error_code="INVALID_ORDER"
+            is_valid=False, error_message="Invalid order", error_code="INVALID_ORDER"
         )
-        
+
         assert result.is_valid is False
         assert result.error_message == "Invalid order"
         assert result.error_code == "INVALID_ORDER"
@@ -258,9 +250,9 @@ class TestOrderValidationResult:
         result = OrderValidationResult(
             is_valid=True,
             adjusted_quantity=Decimal("5"),
-            warnings=("Quantity adjusted from 5.7 to 5 shares",)
+            warnings=("Quantity adjusted from 5.7 to 5 shares",),
         )
-        
+
         assert result.is_valid is True
         assert result.adjusted_quantity == Decimal("5")
         assert len(result.warnings) == 1
@@ -270,17 +262,14 @@ class TestOrderValidationResult:
     def test_order_validation_result_is_immutable(self):
         """Test that OrderValidationResult is frozen and immutable."""
         result = OrderValidationResult(is_valid=True)
-        
+
         # Attempt to modify should raise an error
         with pytest.raises(Exception):  # Pydantic raises ValidationError or AttributeError
             result.is_valid = False
 
     def test_order_validation_result_with_correlation_id(self):
         """Test that correlation_id is captured in result."""
-        result = OrderValidationResult(
-            is_valid=True,
-            correlation_id="test-correlation-123"
-        )
-        
+        result = OrderValidationResult(is_valid=True, correlation_id="test-correlation-123")
+
         assert result.correlation_id == "test-correlation-123"
         assert result.schema_version == "1.0"

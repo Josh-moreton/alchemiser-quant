@@ -6,10 +6,9 @@ Validates that trades_required is set based on BUY/SELL actions,
 not merely the presence of HOLD items.
 """
 
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, patch
-import uuid
 
 import pytest
 from pydantic import ValidationError
@@ -72,9 +71,7 @@ class TestTradesRequiredLogic:
 
         # Verify trades_required logic
         trades_required = any(item.action in ["BUY", "SELL"] for item in plan.items)
-        assert (
-            trades_required is False
-        ), "Should be False when only HOLD actions present"
+        assert trades_required is False, "Should be False when only HOLD actions present"
 
     def test_trades_required_true_with_buy_action(self):
         """Test that trades_required=True when plan contains BUY actions."""
@@ -199,9 +196,7 @@ class TestTradesRequiredLogic:
         )
 
         trades_required = any(item.action in ["BUY", "SELL"] for item in plan.items)
-        assert (
-            trades_required is True
-        ), "Should be True when BUY and SELL actions present"
+        assert trades_required is True, "Should be True when BUY and SELL actions present"
 
     def test_trades_required_false_with_empty_plan(self):
         """Test that trades_required=False when plan has no items."""

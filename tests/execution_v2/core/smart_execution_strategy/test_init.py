@@ -165,9 +165,9 @@ class TestSmartExecutionStrategyInit:
         from the_alchemiser.execution_v2.core import smart_execution_strategy
 
         for export_name in smart_execution_strategy.__all__:
-            assert hasattr(
-                smart_execution_strategy, export_name
-            ), f"{export_name} not found in module"
+            assert hasattr(smart_execution_strategy, export_name), (
+                f"{export_name} not found in module"
+            )
             exported_item = getattr(smart_execution_strategy, export_name)
             assert exported_item is not None
 
@@ -181,9 +181,9 @@ class TestSmartExecutionStrategyInit:
         for symbol in internal_symbols:
             # Symbol may exist but should not be in __all__
             if hasattr(smart_execution_strategy, symbol):
-                assert (
-                    symbol not in smart_execution_strategy.__all__
-                ), f"{symbol} should not be in __all__"
+                assert symbol not in smart_execution_strategy.__all__, (
+                    f"{symbol} should not be in __all__"
+                )
 
     def test_execution_config_has_decimal_fields(self):
         """Test that ExecutionConfig uses Decimal for monetary/percentage values."""
@@ -225,9 +225,7 @@ class TestSmartExecutionStrategyInit:
 
         from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderResult
 
-        result = SmartOrderResult(
-            success=True, order_id="order-123", final_price=Decimal("150.50")
-        )
+        result = SmartOrderResult(success=True, order_id="order-123", final_price=Decimal("150.50"))
 
         assert result.success is True
         assert result.order_id == "order-123"
@@ -268,6 +266,6 @@ class TestSmartExecutionStrategyInit:
 
         for module_name in impl_modules:
             if hasattr(smart_execution_strategy, module_name):
-                assert (
-                    module_name not in smart_execution_strategy.__all__
-                ), f"Implementation module {module_name} should not be in __all__"
+                assert module_name not in smart_execution_strategy.__all__, (
+                    f"Implementation module {module_name} should not be in __all__"
+                )

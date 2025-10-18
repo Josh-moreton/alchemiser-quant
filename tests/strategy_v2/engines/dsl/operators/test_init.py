@@ -105,6 +105,4 @@ class TestOperatorsInit:
             sig = inspect.signature(func)
             params = list(sig.parameters.keys())
             assert len(params) == 1, f"{func.__name__} should have exactly 1 parameter"
-            assert (
-                params[0] == "dispatcher"
-            ), f"{func.__name__} should have 'dispatcher' parameter"
+            assert params[0] == "dispatcher", f"{func.__name__} should have 'dispatcher' parameter"

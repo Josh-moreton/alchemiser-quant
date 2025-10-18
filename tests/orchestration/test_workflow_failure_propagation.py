@@ -6,10 +6,10 @@ Tests the end-to-end scenario where a workflow fails (e.g., negative cash balanc
 and ensures subsequent event handlers properly skip processing.
 """
 
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
-import uuid
 
 import pytest
 
@@ -19,10 +19,9 @@ from the_alchemiser.orchestration.event_driven_orchestrator import (
 from the_alchemiser.orchestration.workflow_state import WorkflowState
 from the_alchemiser.shared.events import (
     BaseEvent,
-    SignalGenerated,
     RebalancePlanned,
+    SignalGenerated,
     WorkflowFailed,
-    WorkflowStarted,
 )
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
@@ -305,9 +304,7 @@ class TestWorkflowFailurePropagation:
         called_event = mock_handler.handle_event_calls[0]
         assert called_event.correlation_id == correlation_id_2
 
-    def test_workflow_failure_during_different_stages(
-        self, orchestrator_with_mocked_handlers
-    ):
+    def test_workflow_failure_during_different_stages(self, orchestrator_with_mocked_handlers):
         """Test that workflow can fail at any stage and prevent subsequent processing."""
         orchestrator = orchestrator_with_mocked_handlers
 

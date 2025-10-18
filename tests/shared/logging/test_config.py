@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from the_alchemiser.shared.logging.config import (
     configure_application_logging,
@@ -23,9 +21,7 @@ class TestConfigureTestLogging:
     """Test suite for configure_test_logging function."""
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
-    def test_configures_with_default_warning_level(
-        self, mock_configure: MagicMock
-    ) -> None:
+    def test_configures_with_default_warning_level(self, mock_configure: MagicMock) -> None:
         """Test that configure_test_logging uses WARNING level by default."""
         configure_test_logging()
 
@@ -69,9 +65,7 @@ class TestConfigureProductionLogging:
     """Test suite for configure_production_logging function."""
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
-    def test_configures_with_default_info_level(
-        self, mock_configure: MagicMock
-    ) -> None:
+    def test_configures_with_default_info_level(self, mock_configure: MagicMock) -> None:
         """Test that configure_production_logging uses INFO level by default."""
         configure_production_logging()
 
@@ -106,9 +100,7 @@ class TestConfigureProductionLogging:
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_custom_console_level(self, mock_configure: MagicMock) -> None:
         """Test that console_level can override base log_level."""
-        configure_production_logging(
-            log_level=logging.INFO, console_level=logging.WARNING
-        )
+        configure_production_logging(log_level=logging.INFO, console_level=logging.WARNING)
 
         call_kwargs = mock_configure.call_args.kwargs
         assert call_kwargs["console_level"] == logging.WARNING
@@ -191,7 +183,7 @@ class TestConfigureApplicationLogging:
         self, mock_structlog: MagicMock, mock_production: MagicMock
     ) -> None:
         """Test that empty AWS_LAMBDA_FUNCTION_NAME still triggers production mode.
-        
+
         This tests the fix for M1: Environment variable detection edge case.
         Even if the env var is set to empty string, it should be treated as production.
         """
@@ -237,9 +229,7 @@ class TestEdgeCases:
     """Test suite for edge cases and error conditions."""
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
-    def test_configure_test_logging_with_zero_log_level(
-        self, mock_configure: MagicMock
-    ) -> None:
+    def test_configure_test_logging_with_zero_log_level(self, mock_configure: MagicMock) -> None:
         """Test that log level 0 (NOTSET) is accepted."""
         configure_test_logging(log_level=logging.NOTSET)
 
@@ -247,9 +237,7 @@ class TestEdgeCases:
         assert call_kwargs["console_level"] == logging.NOTSET
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
-    def test_configure_test_logging_with_critical_level(
-        self, mock_configure: MagicMock
-    ) -> None:
+    def test_configure_test_logging_with_critical_level(self, mock_configure: MagicMock) -> None:
         """Test that CRITICAL log level is accepted."""
         configure_test_logging(log_level=logging.CRITICAL)
 
@@ -268,9 +256,7 @@ class TestEdgeCases:
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
-    def test_configure_production_logging_without_env_var(
-        self, mock_configure: MagicMock
-    ) -> None:
+    def test_configure_production_logging_without_env_var(self, mock_configure: MagicMock) -> None:
         """Test that production logging works without LOG_FILE_PATH env var."""
         configure_production_logging()
 

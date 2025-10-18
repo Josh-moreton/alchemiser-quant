@@ -5,7 +5,6 @@ Unit tests for strategy_v2/engines/__init__.py.
 Tests module structure, documentation, and accessibility patterns.
 """
 
-import pytest
 
 
 class TestEnginesInit:

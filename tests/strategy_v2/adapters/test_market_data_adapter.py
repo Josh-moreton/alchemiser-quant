@@ -14,15 +14,16 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
-from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.shared.errors.exceptions import DataProviderError, MarketDataError
+from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.strategy_v2.adapters.market_data_adapter import (
     StrategyMarketDataAdapter,
 )
@@ -75,7 +76,9 @@ class TestInitialization:
 class TestGetBarsInputValidation:
     """Tests for get_bars input validation."""
 
-    def test_empty_symbols_list_raises_value_error(self, adapter: StrategyMarketDataAdapter) -> None:
+    def test_empty_symbols_list_raises_value_error(
+        self, adapter: StrategyMarketDataAdapter
+    ) -> None:
         """Test that empty symbols list raises ValueError."""
         with pytest.raises(ValueError, match="symbols list cannot be empty"):
             adapter.get_bars(symbols=[], timeframe="1D", lookback_days=30)
@@ -204,9 +207,8 @@ class TestGetBarsErrorHandling:
             adapter._market_data_service,
             "get_historical_bars",
             side_effect=TypeError("Unexpected error"),
-        ):
-            with pytest.raises(MarketDataError, match="Unexpected error fetching bars"):
-                adapter.get_bars(symbols=["AAPL"], timeframe="1D", lookback_days=30)
+        ), pytest.raises(MarketDataError, match="Unexpected error fetching bars"):
+            adapter.get_bars(symbols=["AAPL"], timeframe="1D", lookback_days=30)
 
     def test_invalid_bar_data_skipped(self, adapter: StrategyMarketDataAdapter) -> None:
         """Test that invalid bar data is skipped gracefully."""
@@ -258,23 +260,17 @@ class TestGetCurrentPricesDecimalCorrectness:
         """Test that prices are returned as Decimal, not float."""
         mock_quote = {"ask_price": 100.50, "bid_price": 100.00}
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["AAPL"])
 
             assert "AAPL" in result
             assert isinstance(result["AAPL"], Decimal)
 
-    def test_mid_price_calculation_uses_decimal(
-        self, adapter: StrategyMarketDataAdapter
-    ) -> None:
+    def test_mid_price_calculation_uses_decimal(self, adapter: StrategyMarketDataAdapter) -> None:
         """Test that mid-price calculation uses Decimal arithmetic."""
         mock_quote = {"ask_price": 100.50, "bid_price": 100.00}
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["AAPL"])
 
             expected = Decimal("100.25")  # (100.50 + 100.00) / 2
@@ -285,9 +281,7 @@ class TestGetCurrentPricesDecimalCorrectness:
         # Use prices that would lose precision with float
         mock_quote = {"ask_price": 100.333333, "bid_price": 100.111111}
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["AAPL"])
 
             # Verify it's a Decimal and has expected precision
@@ -312,9 +306,7 @@ class TestGetCurrentPricesErrorHandling:
         """Test that quote missing ask_price returns None."""
         mock_quote = {"bid_price": 100.00}  # Missing ask_price
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["AAPL"])
 
             assert result["AAPL"] is None
@@ -323,9 +315,7 @@ class TestGetCurrentPricesErrorHandling:
         """Test that quote missing bid_price returns None."""
         mock_quote = {"ask_price": 100.50}  # Missing bid_price
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["AAPL"])
 
             assert result["AAPL"] is None
@@ -360,25 +350,20 @@ class TestGetCurrentPricesErrorHandling:
             adapter._market_data_service,
             "get_quote",
             side_effect=TypeError("Unexpected error"),
-        ):
-            with pytest.raises(DataProviderError, match="Unexpected error fetching price"):
-                adapter.get_current_prices(symbols=["AAPL"])
+        ), pytest.raises(DataProviderError, match="Unexpected error fetching price"):
+            adapter.get_current_prices(symbols=["AAPL"])
 
-    def test_multiple_symbols_partial_failure(
-        self, adapter: StrategyMarketDataAdapter
-    ) -> None:
+    def test_multiple_symbols_partial_failure(self, adapter: StrategyMarketDataAdapter) -> None:
         """Test that partial failures return mixed results."""
+
         def mock_get_quote(symbol: str):
             if symbol == "AAPL":
                 return {"ask_price": 150.0, "bid_price": 149.0}
-            elif symbol == "GOOGL":
+            if symbol == "GOOGL":
                 return None  # No data
-            else:
-                raise RuntimeError("API error")
+            raise RuntimeError("API error")
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", side_effect=mock_get_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", side_effect=mock_get_quote):
             result = adapter.get_current_prices(symbols=["AAPL", "GOOGL", "MSFT"])
 
             assert isinstance(result["AAPL"], Decimal)
@@ -434,9 +419,7 @@ class TestCorrelationIDPropagation:
             "get_historical_bars",
             return_value=mock_bars,
         ):
-            adapter_with_correlation_id.get_bars(
-                symbols=["AAPL"], timeframe="1D", lookback_days=30
-            )
+            adapter_with_correlation_id.get_bars(symbols=["AAPL"], timeframe="1D", lookback_days=30)
 
             # Correlation ID should be in extra fields (implementation detail)
             # This is a smoke test - actual log inspection depends on logger configuration
@@ -472,9 +455,7 @@ class TestPropertyBasedPriceCalculations:
             places=2,
         ),
     )
-    def test_mid_price_always_between_bid_and_ask(
-        self, bid: Decimal, ask: Decimal
-    ) -> None:
+    def test_mid_price_always_between_bid_and_ask(self, bid: Decimal, ask: Decimal) -> None:
         """Property: mid-price should always be between bid and ask."""
         # Ensure ask >= bid
         if ask < bid:
@@ -487,9 +468,7 @@ class TestPropertyBasedPriceCalculations:
 
         mock_quote = {"ask_price": float(ask), "bid_price": float(bid)}
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["TEST"])
             mid_price = result["TEST"]
 
@@ -503,9 +482,7 @@ class TestPropertyBasedPriceCalculations:
             places=4,
         )
     )
-    def test_equal_bid_ask_returns_that_price(
-        self, price: Decimal
-    ) -> None:
+    def test_equal_bid_ask_returns_that_price(self, price: Decimal) -> None:
         """Property: when bid == ask, mid-price should equal that price."""
         # Create adapter inline to avoid function-scoped fixture issues with Hypothesis
         mock = Mock()
@@ -514,9 +491,7 @@ class TestPropertyBasedPriceCalculations:
 
         mock_quote = {"ask_price": float(price), "bid_price": float(price)}
 
-        with patch.object(
-            adapter._market_data_service, "get_quote", return_value=mock_quote
-        ):
+        with patch.object(adapter._market_data_service, "get_quote", return_value=mock_quote):
             result = adapter.get_current_prices(symbols=["TEST"])
             mid_price = result["TEST"]
 

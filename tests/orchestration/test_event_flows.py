@@ -19,13 +19,11 @@ from the_alchemiser.orchestration.event_driven_orchestrator import (
 )
 from the_alchemiser.orchestration.workflow_state import WorkflowState
 from the_alchemiser.shared.events import (
-    RebalancePlanned,
     SignalGenerated,
     StartupEvent,
     TradeExecuted,
     WorkflowCompleted,
     WorkflowFailed,
-    WorkflowStarted,
 )
 
 
@@ -52,9 +50,7 @@ class TestEventFlowsIntegration:
     def orchestrator(self, mock_container):
         """Create an orchestrator instance for testing."""
         # Mock domain handler registration to avoid dependencies
-        with patch.object(
-            EventDrivenOrchestrator, "_register_domain_handlers", return_value=None
-        ):
+        with patch.object(EventDrivenOrchestrator, "_register_domain_handlers", return_value=None):
             with patch.object(
                 EventDrivenOrchestrator, "_wrap_handlers_with_state_checking", return_value=None
             ):
@@ -176,9 +172,7 @@ class TestEventFlowsIntegration:
 
         # Handle the event first time
         orchestrator.handle_event(signal_event)
-        first_result = orchestrator.workflow_results.get(correlation_id, {}).get(
-            "strategy_signals"
-        )
+        first_result = orchestrator.workflow_results.get(correlation_id, {}).get("strategy_signals")
 
         # Replay the same event
         orchestrator.handle_event(signal_event)
@@ -239,9 +233,7 @@ class TestWorkflowWaitAndTimeout:
     @pytest.fixture
     def orchestrator(self, mock_container):
         """Create an orchestrator instance for testing."""
-        with patch.object(
-            EventDrivenOrchestrator, "_register_domain_handlers", return_value=None
-        ):
+        with patch.object(EventDrivenOrchestrator, "_register_domain_handlers", return_value=None):
             with patch.object(
                 EventDrivenOrchestrator, "_wrap_handlers_with_state_checking", return_value=None
             ):
@@ -323,9 +315,7 @@ class TestNotificationAndRecovery:
     @pytest.fixture
     def orchestrator(self, mock_container):
         """Create an orchestrator instance for testing."""
-        with patch.object(
-            EventDrivenOrchestrator, "_register_domain_handlers", return_value=None
-        ):
+        with patch.object(EventDrivenOrchestrator, "_register_domain_handlers", return_value=None):
             with patch.object(
                 EventDrivenOrchestrator, "_wrap_handlers_with_state_checking", return_value=None
             ):
@@ -446,9 +436,7 @@ class TestWorkflowStartAndStatus:
     @pytest.fixture
     def orchestrator(self, mock_container):
         """Create an orchestrator instance for testing."""
-        with patch.object(
-            EventDrivenOrchestrator, "_register_domain_handlers", return_value=None
-        ):
+        with patch.object(EventDrivenOrchestrator, "_register_domain_handlers", return_value=None):
             with patch.object(
                 EventDrivenOrchestrator, "_wrap_handlers_with_state_checking", return_value=None
             ):
@@ -549,9 +537,7 @@ class TestWorkflowStartAndStatus:
         )
 
         # Patch the handler to raise an exception
-        with patch.object(
-            orchestrator, "_handle_startup", side_effect=Exception("Test error")
-        ):
+        with patch.object(orchestrator, "_handle_startup", side_effect=Exception("Test error")):
             # Should not raise, just log error
             orchestrator.handle_event(startup_event)
 
@@ -573,9 +559,7 @@ class TestStartupEventHandling:
     @pytest.fixture
     def orchestrator(self, mock_container):
         """Create an orchestrator instance for testing."""
-        with patch.object(
-            EventDrivenOrchestrator, "_register_domain_handlers", return_value=None
-        ):
+        with patch.object(EventDrivenOrchestrator, "_register_domain_handlers", return_value=None):
             with patch.object(
                 EventDrivenOrchestrator, "_wrap_handlers_with_state_checking", return_value=None
             ):
@@ -622,9 +606,7 @@ class TestWorkflowCompletionWithDuration:
     @pytest.fixture
     def orchestrator(self, mock_container):
         """Create an orchestrator instance for testing."""
-        with patch.object(
-            EventDrivenOrchestrator, "_register_domain_handlers", return_value=None
-        ):
+        with patch.object(EventDrivenOrchestrator, "_register_domain_handlers", return_value=None):
             with patch.object(
                 EventDrivenOrchestrator, "_wrap_handlers_with_state_checking", return_value=None
             ):

@@ -9,7 +9,7 @@ partial fills, market escalation, and configuration management.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -22,11 +22,9 @@ from the_alchemiser.execution_v2.core.order_monitor import (
 )
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     ExecutionConfig,
-    SmartOrderRequest,
     SmartOrderResult,
 )
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
-from the_alchemiser.shared.errors.trading_errors import OrderError
 
 
 def _make_order_result(

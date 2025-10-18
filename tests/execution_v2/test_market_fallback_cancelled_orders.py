@@ -8,7 +8,7 @@ were not triggering market order fallback, leaving unfilled quantities.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -59,17 +59,21 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         # Mock order that was placed but then cancelled with unfilled quantity
         order_id = "test-order-123"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="CANCELED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="CANCELED"
+        )
+
         # Mock order result showing partial fill
         mock_order_result = Mock()
         mock_order_result.filled_qty = 3.0  # Only 3 out of 10 filled
-        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(return_value=mock_order_result)
-        
+        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
+            return_value=mock_order_result
+        )
+
         # Mock escalation
         mock_escalation_result = SmartOrderResult(
             success=True,
@@ -79,10 +83,12 @@ class TestMarketFallbackCancelledOrders:
             metadata={"original_order_id": order_id},
         )
         mock_smart_strategy.repeg_manager = Mock()
-        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(return_value=mock_escalation_result)
-        
+        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(
+            return_value=mock_escalation_result
+        )
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         # Create order with 10 shares requested
         orders = [
             _make_order_result(
@@ -95,16 +101,16 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert
         assert replacement_map == {order_id: "market-order-456"}
         mock_smart_strategy.repeg_manager._escalate_to_market.assert_called_once()
-        
+
         # Verify the request had correct remaining quantity (10 - 3 = 7)
         call_args = mock_smart_strategy.repeg_manager._escalate_to_market.call_args
         request = call_args[0][1]
@@ -119,16 +125,20 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-789"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="EXPIRED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="EXPIRED"
+        )
+
         # Mock order result showing no fills
         mock_order_result = Mock()
         mock_order_result.filled_qty = 0
-        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(return_value=mock_order_result)
-        
+        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
+            return_value=mock_order_result
+        )
+
         # Mock escalation
         mock_escalation_result = SmartOrderResult(
             success=True,
@@ -138,10 +148,12 @@ class TestMarketFallbackCancelledOrders:
             metadata={"original_order_id": order_id},
         )
         mock_smart_strategy.repeg_manager = Mock()
-        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(return_value=mock_escalation_result)
-        
+        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(
+            return_value=mock_escalation_result
+        )
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "LEU",
@@ -153,15 +165,15 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert
         assert replacement_map == {order_id: "market-order-999"}
-        
+
         # Verify the request had full quantity (5 - 0 = 5)
         call_args = mock_smart_strategy.repeg_manager._escalate_to_market.call_args
         request = call_args[0][1]
@@ -174,15 +186,19 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-rejected"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="REJECTED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="REJECTED"
+        )
+
         mock_order_result = Mock()
         mock_order_result.filled_qty = 0
-        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(return_value=mock_order_result)
-        
+        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
+            return_value=mock_order_result
+        )
+
         mock_escalation_result = SmartOrderResult(
             success=True,
             order_id="market-order-rejected",
@@ -191,10 +207,12 @@ class TestMarketFallbackCancelledOrders:
             metadata={"original_order_id": order_id},
         )
         mock_smart_strategy.repeg_manager = Mock()
-        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(return_value=mock_escalation_result)
-        
+        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(
+            return_value=mock_escalation_result
+        )
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "XYZ",
@@ -206,12 +224,12 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "SELL", "test-corr-id", orders=orders
         )
-        
+
         # Assert
         assert replacement_map == {order_id: "market-order-rejected"}
 
@@ -222,21 +240,25 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-filled"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="CANCELED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="CANCELED"
+        )
+
         # Mock order result showing complete fill
         mock_order_result = Mock()
         mock_order_result.filled_qty = 10.0  # Fully filled
-        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(return_value=mock_order_result)
-        
+        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
+            return_value=mock_order_result
+        )
+
         mock_smart_strategy.repeg_manager = Mock()
         mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock()
-        
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "ABC",
@@ -248,12 +270,12 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert - no escalation should occur
         assert replacement_map == {}
         mock_smart_strategy.repeg_manager._escalate_to_market.assert_not_called()
@@ -265,16 +287,18 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-filled-status"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="FILLED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="FILLED"
+        )
+
         mock_smart_strategy.repeg_manager = Mock()
         mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock()
-        
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "DEF",
@@ -286,12 +310,12 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert - no escalation should occur for filled orders
         assert replacement_map == {}
         mock_smart_strategy.repeg_manager._escalate_to_market.assert_not_called()
@@ -303,21 +327,23 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-missing"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="CANCELED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="CANCELED"
+        )
+
         # Simulate order not found error
         mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
             side_effect=AttributeError("Order not found")
         )
-        
+
         mock_smart_strategy.repeg_manager = Mock()
         mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock()
-        
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "GHI",
@@ -329,12 +355,12 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act - should not raise exception
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert - no escalation due to error, but doesn't crash
         assert replacement_map == {}
 
@@ -345,21 +371,23 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-api-error"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="CANCELED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="CANCELED"
+        )
+
         # Simulate unexpected API error
         mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
             side_effect=RuntimeError("API connection failed")
         )
-        
+
         mock_smart_strategy.repeg_manager = Mock()
         mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock()
-        
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "JKL",
@@ -371,12 +399,12 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act - should not raise exception
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert - no escalation due to error, but doesn't crash
         assert replacement_map == {}
 
@@ -385,7 +413,7 @@ class TestMarketFallbackCancelledOrders:
         # Setup
         config = ExecutionConfig()
         mock_smart_strategy = Mock()
-        
+
         # Active order still in tracking
         active_order_id = "active-order-1"
         active_request = SmartOrderRequest(
@@ -398,16 +426,20 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy.order_tracker.get_active_orders = Mock(
             return_value={active_order_id: active_request}
         )
-        
+
         # Cancelled order no longer in tracking
         cancelled_order_id = "cancelled-order-2"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="CANCELED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="CANCELED"
+        )
+
         mock_order_result = Mock()
         mock_order_result.filled_qty = 0
-        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(return_value=mock_order_result)
-        
+        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
+            return_value=mock_order_result
+        )
+
         # Mock escalation for both
         mock_result_1 = SmartOrderResult(
             success=True,
@@ -427,9 +459,9 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(
             side_effect=[mock_result_1, mock_result_2]
         )
-        
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "CANCELLED",
@@ -441,12 +473,12 @@ class TestMarketFallbackCancelledOrders:
                 order_id=cancelled_order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert - both orders escalated
         assert replacement_map == {
             active_order_id: "market-active",
@@ -461,16 +493,20 @@ class TestMarketFallbackCancelledOrders:
         mock_smart_strategy = Mock()
         mock_smart_strategy.order_tracker = Mock()
         mock_smart_strategy.order_tracker.get_active_orders = Mock(return_value={})
-        
+
         order_id = "test-order-decimal"
         mock_smart_strategy.alpaca_manager = Mock()
-        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(return_value="CANCELED")
-        
+        mock_smart_strategy.alpaca_manager._check_order_completion_status = Mock(
+            return_value="CANCELED"
+        )
+
         # Mock partial fill with decimal quantity
         mock_order_result = Mock()
         mock_order_result.filled_qty = 7.333  # Fractional shares filled
-        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(return_value=mock_order_result)
-        
+        mock_smart_strategy.alpaca_manager.get_order_execution_result = Mock(
+            return_value=mock_order_result
+        )
+
         mock_escalation_result = SmartOrderResult(
             success=True,
             order_id="market-order-decimal",
@@ -479,10 +515,12 @@ class TestMarketFallbackCancelledOrders:
             metadata={"original_order_id": order_id},
         )
         mock_smart_strategy.repeg_manager = Mock()
-        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(return_value=mock_escalation_result)
-        
+        mock_smart_strategy.repeg_manager._escalate_to_market = AsyncMock(
+            return_value=mock_escalation_result
+        )
+
         monitor = OrderMonitor(mock_smart_strategy, config)
-        
+
         orders = [
             _make_order_result(
                 "DECIMAL",
@@ -494,15 +532,15 @@ class TestMarketFallbackCancelledOrders:
                 order_id=order_id,
             )
         ]
-        
+
         # Act
         replacement_map = await monitor._final_escalation_if_active_orders(
             "BUY", "test-corr-id", orders=orders
         )
-        
+
         # Assert
         assert replacement_map == {order_id: "market-order-decimal"}
-        
+
         # Verify precise decimal calculation: 10.5 - 7.333 = 3.167
         call_args = mock_smart_strategy.repeg_manager._escalate_to_market.call_args
         request = call_args[0][1]

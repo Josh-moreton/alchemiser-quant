@@ -8,8 +8,7 @@ implementations can conform to it properly.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
 
 import pytest
 
@@ -28,7 +27,7 @@ class MockMarketDataPort:
 
     def get_latest_quote(self, symbol: Symbol):
         """Mock get_latest_quote."""
-        return None
+        return
 
     def get_mid_price(self, symbol: Symbol) -> float | None:
         """Mock get_mid_price."""
@@ -78,6 +77,7 @@ class NonConformingEngine:
     def generate_signals(self, timestamp: datetime) -> list[StrategySignal]:
         """Generate test signals."""
         return []
+
     # Missing validate_signals method
 
 
@@ -99,7 +99,7 @@ def test_generate_signals_timezone_awareness():
     engine = ConformingEngine(MockMarketDataPort())  # type: ignore[arg-type]
 
     # Should work with timezone-aware datetime
-    aware_ts = datetime.now(timezone.utc)
+    aware_ts = datetime.now(UTC)
     signals = engine.generate_signals(aware_ts)
     assert isinstance(signals, list)
     assert len(signals) > 0
@@ -135,7 +135,7 @@ def test_validate_signals_invalid_symbol():
             causation_id="test-cause-456",
             symbol="",  # Empty symbol - caught by Pydantic validation
             action="BUY",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="Test invalid symbol",
         )
 
@@ -151,7 +151,7 @@ def test_validate_signals_invalid_action():
             causation_id="test-cause-456",
             symbol="SPY",
             action="INVALID",  # Invalid action - caught by Pydantic validation
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="Test invalid action",
         )
 
@@ -166,7 +166,7 @@ def test_validate_signals_valid():
             causation_id="test-cause-456",
             symbol="SPY",
             action="BUY",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="Test valid signal 1",
         ),
         StrategySignal(
@@ -174,7 +174,7 @@ def test_validate_signals_valid():
             causation_id="test-cause-012",
             symbol="QQQ",
             action="HOLD",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="Test valid signal 2",
         ),
     ]
@@ -187,7 +187,7 @@ def test_protocol_idempotency():
     """Test that generate_signals is idempotent for same timestamp."""
     engine = ConformingEngine(MockMarketDataPort())  # type: ignore[arg-type]
 
-    ts = datetime.now(timezone.utc)
+    ts = datetime.now(UTC)
 
     # Call multiple times with same timestamp
     signals1 = engine.generate_signals(ts)
@@ -204,8 +204,8 @@ def test_protocol_thread_safety_basic():
     engine = ConformingEngine(MockMarketDataPort())  # type: ignore[arg-type]
 
     # Generate signals with different timestamps (simulating concurrent calls)
-    ts1 = datetime.now(timezone.utc)
-    ts2 = datetime.now(timezone.utc)
+    ts1 = datetime.now(UTC)
+    ts2 = datetime.now(UTC)
 
     signals1 = engine.generate_signals(ts1)
     signals2 = engine.generate_signals(ts2)

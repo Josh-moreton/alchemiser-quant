@@ -5,7 +5,6 @@ Test for suspicious quote validation utilities.
 This test focuses on the core validation logic without external dependencies.
 """
 
-import pytest
 
 from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
 
@@ -20,7 +19,7 @@ class TestSuspiciousQuoteDetection:
         assert is_suspicious
         assert "negative bid price: -0.01" in reasons
 
-        # Test negative ask price  
+        # Test negative ask price
         is_suspicious, reasons = detect_suspicious_quote_prices(100.0, -0.02)
         assert is_suspicious
         assert "negative ask price: -0.02" in reasons
@@ -88,14 +87,16 @@ class TestSuspiciousQuoteDetection:
         # This is the exact scenario that caused the problem:
         # "Invalid recommended bid -0.01 / ask -0.02 for COST"
         is_suspicious, reasons = detect_suspicious_quote_prices(-0.01, -0.02)
-        
+
         assert is_suspicious
         assert len(reasons) == 2
         assert "negative bid price: -0.01" in reasons
         assert "negative ask price: -0.02" in reasons
-        
+
         # The real COST price should not be suspicious
         real_cost_price = 923.77
-        is_suspicious, reasons = detect_suspicious_quote_prices(real_cost_price - 0.27, real_cost_price)
+        is_suspicious, reasons = detect_suspicious_quote_prices(
+            real_cost_price - 0.27, real_cost_price
+        )
         assert not is_suspicious
         assert len(reasons) == 0

@@ -42,24 +42,20 @@ class TestTypesModuleInterface:
         }
         actual_exports = set(types.__all__)
 
-        assert (
-            actual_exports == expected_exports
-        ), f"__all__ mismatch. Expected: {expected_exports}, Got: {actual_exports}"
+        assert actual_exports == expected_exports, (
+            f"__all__ mismatch. Expected: {expected_exports}, Got: {actual_exports}"
+        )
 
     def test_all_exports_are_importable(self) -> None:
         """Test that all items in __all__ can be imported."""
         from the_alchemiser.shared import types
 
         for name in types.__all__:
-            assert hasattr(
-                types, name
-            ), f"Export '{name}' in __all__ but not importable"
+            assert hasattr(types, name), f"Export '{name}' in __all__ but not importable"
             obj = getattr(types, name)
             assert obj is not None, f"Export '{name}' is None"
 
-    @pytest.mark.skip(
-        reason="BrokerOrderSide removed in v2.10.7+ - use Alpaca SDK enums directly"
-    )
+    @pytest.mark.skip(reason="BrokerOrderSide removed in v2.10.7+ - use Alpaca SDK enums directly")
     def test_broker_order_side_export(self) -> None:
         """Test BrokerOrderSide enum is correctly exported."""
         from the_alchemiser.shared.types import BrokerOrderSide
@@ -144,9 +140,7 @@ class TestTypesModuleInterface:
         assert StrategyType is SourceStrategyType
         assert StrategyType.__name__ == "StrategyType"
 
-    @pytest.mark.skip(
-        reason="Type aliases removed in v2.10.7+ - use Alpaca SDK enums directly"
-    )
+    @pytest.mark.skip(reason="Type aliases removed in v2.10.7+ - use Alpaca SDK enums directly")
     def test_type_aliases_export(self) -> None:
         """Test that type aliases are correctly exported."""
         from the_alchemiser.shared.types import OrderSideType, TimeInForceType
@@ -234,12 +228,10 @@ class TestTypesModuleInterface:
 
         assert types.__doc__ is not None, "Module must have a docstring"
         assert len(types.__doc__) > 0, "Module docstring must not be empty"
-        assert (
-            "Business Unit: shared" in types.__doc__
-        ), "Module docstring must include 'Business Unit: shared'"
-        assert (
-            "Status: current" in types.__doc__
-        ), "Module docstring must include 'Status: current'"
+        assert "Business Unit: shared" in types.__doc__, (
+            "Module docstring must include 'Business Unit: shared'"
+        )
+        assert "Status: current" in types.__doc__, "Module docstring must include 'Status: current'"
 
     def test_exports_are_types_or_protocols(self) -> None:
         """Test that all exports are types, protocols, or type aliases."""
@@ -258,9 +250,9 @@ class TestTypesModuleInterface:
                 hasattr(typing, "get_origin") and typing.get_origin(obj) is not None
             ) or isinstance(obj, type)
 
-            assert (
-                is_type or is_protocol or is_type_alias
-            ), f"Export '{name}' should be a type/protocol/alias, got {type(obj)}"
+            assert is_type or is_protocol or is_type_alias, (
+                f"Export '{name}' should be a type/protocol/alias, got {type(obj)}"
+            )
 
     @pytest.mark.skip(reason="StrategySignal moved to shared.schemas in v2.10.7+")
     def test_relative_imports_work(self) -> None:
@@ -311,16 +303,16 @@ class TestDeprecatedTypes:
         from the_alchemiser.shared import types
 
         # Should not be in __all__
-        assert (
-            "TimeInForce" not in types.__all__
-        ), "TimeInForce should not be in __all__ (deprecated as of v2.10.7)"
+        assert "TimeInForce" not in types.__all__, (
+            "TimeInForce should not be in __all__ (deprecated as of v2.10.7)"
+        )
 
         # Should not be accessible via star import
         test_namespace: dict[str, object] = {}
         exec("from the_alchemiser.shared.types import *", test_namespace)
-        assert (
-            "TimeInForce" not in test_namespace
-        ), "TimeInForce should not be imported via star import"
+        assert "TimeInForce" not in test_namespace, (
+            "TimeInForce should not be imported via star import"
+        )
 
     def test_time_in_force_import_via_submodule(self) -> None:
         """Test that TimeInForce can still be imported from submodule (deprecated)."""
@@ -370,9 +362,9 @@ class TestModuleBoundaries:
         ]
 
         for forbidden in forbidden_imports:
-            assert (
-                forbidden not in source_code
-            ), f"types module should not import from business modules: {forbidden}"
+            assert forbidden not in source_code, (
+                f"types module should not import from business modules: {forbidden}"
+            )
 
     def test_only_relative_imports(self) -> None:
         """Test that all imports from types submodules are relative."""
@@ -388,9 +380,7 @@ class TestModuleBoundaries:
 
         # All imports should be relative (start with .)
         import_lines = [
-            line.strip()
-            for line in source_code.split("\n")
-            if line.strip().startswith("from .")
+            line.strip() for line in source_code.split("\n") if line.strip().startswith("from .")
         ]
 
         # Should have relative imports
@@ -398,9 +388,7 @@ class TestModuleBoundaries:
 
         # No absolute imports of submodules
         forbidden = "from the_alchemiser.shared.types."
-        assert (
-            forbidden not in source_code
-        ), f"Should use relative imports, not: {forbidden}"
+        assert forbidden not in source_code, f"Should use relative imports, not: {forbidden}"
 
 
 class TestTypePreservation:

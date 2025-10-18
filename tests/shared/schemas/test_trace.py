@@ -121,7 +121,7 @@ class TestTraceEntry:
 
     def test_strict_mode_rejects_extra_fields(self):
         """Test that extra fields are rejected in strict mode.
-        
+
         Note: Pydantic v2 by default ignores extra fields unless ConfigDict(extra='forbid') is set.
         The current configuration uses strict=True which enforces type coercion but doesn't forbid extras.
         """
@@ -278,7 +278,7 @@ class TestTrace:
 
     def test_strict_mode_rejects_extra_fields(self):
         """Test that extra fields are rejected in strict mode.
-        
+
         Note: Pydantic v2 by default ignores extra fields unless ConfigDict(extra='forbid') is set.
         The current configuration uses strict=True which enforces type coercion but doesn't forbid extras.
         """
@@ -687,7 +687,7 @@ class TestTraceSerializationDeserialization:
 
     def test_trace_from_dict(self):
         """Test trace deserialization from dict.
-        
+
         Note: strict=True requires Decimal values to be actual Decimal instances,
         not strings that can be coerced. This enforces type safety at boundaries.
         """
