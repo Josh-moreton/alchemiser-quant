@@ -450,30 +450,17 @@ class SignalGenerationHandler:
             self.logger.info(f"  • {detail}")
 
     def _format_signal_detail(self, raw_name: str, data: dict[str, Any]) -> str:
-        """Format individual signal detail for logging."""
+        """Format individual signal detail for logging.
+
+        Handles both single and multi-symbol signals uniformly since symbols is always a list.
+        """
         name = str(raw_name)
         action = str(data.get("action", "")).upper() or "UNKNOWN"
 
-        if self._is_multi_symbol_signal(data):
-            return self._format_multi_symbol_detail(name, action, data)
-        return self._format_single_symbol_detail(name, action, data)
-
-    def _is_multi_symbol_signal(self, data: dict[str, Any]) -> bool:
-        """Check if signal data represents a multi-symbol signal."""
-        symbols = data.get("symbols", [])
-        return isinstance(symbols, list) and len(symbols) > 1
-
-    def _format_multi_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
-        """Format multi-symbol signal detail."""
-        symbols = ", ".join(str(symbol) for symbol in data["symbols"])
-        return f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
-
-    def _format_single_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
-        """Format single symbol signal detail."""
-        symbols = data.get("symbols", [])
-        if symbols and len(symbols) == 1:
-            symbol = str(symbols[0])
-            return f"{name}: {action} {symbol}"
+        symbols_list = data.get("symbols", [])
+        if symbols_list:
+            symbols_str = ", ".join(str(symbol) for symbol in symbols_list)
+            return f"{name}: {action} {symbols_str}"
         return f"{name}: {action}"
 
     def _log_portfolio_allocations(self, consolidated_portfolio: ConsolidatedPortfolio) -> None:
