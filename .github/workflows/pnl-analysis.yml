@@ -67,29 +67,32 @@ jobs:
         id: pnl_command
         run: |
           if [ "${{ github.event.inputs.analysis_type }}" == "custom" ]; then
-            echo "command=pnl --period ${{ github.event.inputs.custom_period }}" >> $GITHUB_OUTPUT
-            echo "description=P&L analysis for period ${{ github.event.inputs.custom_period }}" >> $GITHUB_OUTPUT
+            command="pnl --period ${{ github.event.inputs.custom_period }}"
+            description="P&L analysis for period ${{ github.event.inputs.custom_period }}"
           elif [ "${{ github.event.inputs.analysis_type }}" == "weekly" ]; then
             periods="${{ github.event.inputs.periods }}"
-            echo "command=pnl --weekly --periods ${periods:-1}" >> $GITHUB_OUTPUT
-            echo "description=Weekly P&L analysis for ${periods:-1} week(s)" >> $GITHUB_OUTPUT
+            command="pnl --weekly --periods ${periods:-1}"
+            description="Weekly P&L analysis for ${periods:-1} week(s)"
           else
             periods="${{ github.event.inputs.periods }}"
-            echo "command=pnl --monthly --periods ${periods:-1}" >> $GITHUB_OUTPUT
-            echo "description=Monthly P&L analysis for ${periods:-1} month(s)" >> $GITHUB_OUTPUT
+            command="pnl --monthly --periods ${periods:-1}"
+            description="Monthly P&L analysis for ${periods:-1} month(s)"
           fi
 
           # Add detailed flag if requested
           if [ "${{ github.event.inputs.detailed }}" == "true" ]; then
-            echo "command=${command} --detailed" >> $GITHUB_OUTPUT
-            echo "description=${description} (detailed)" >> $GITHUB_OUTPUT
+            command="${command} --detailed"
+            description="${description} (detailed)"
           fi
 
           # Add verbose flag if requested
           if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
-            echo "command=${command} --verbose" >> $GITHUB_OUTPUT
+            command="${command} --verbose"
           fi
 
+          # Output final values
+          echo "command=${command}" >> $GITHUB_OUTPUT
+          echo "description=${description}" >> $GITHUB_OUTPUT
       - name: Run P&L Analysis
         id: run_pnl
         env:
