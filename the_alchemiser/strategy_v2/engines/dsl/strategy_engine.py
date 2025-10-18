@@ -226,7 +226,7 @@ class DslStrategyEngine:
         timestamp: datetime,
         correlation_id: str,
     ) -> list[StrategySignal]:
-        """Create one signal per DSL file showing that file's allocations.
+        """Create one signal per symbol with positive allocation across all DSL files.
 
         Args:
             dsl_files: List of DSL files that were evaluated
@@ -235,7 +235,7 @@ class DslStrategyEngine:
             correlation_id: Correlation ID for tracing
 
         Returns:
-            List of StrategySignal objects, one per file with allocations
+            List of StrategySignal objects, one per symbol with positive allocation
 
         """
         signals: list[StrategySignal] = []
@@ -249,45 +249,33 @@ class DslStrategyEngine:
             # Extract strategy name from filename
             strategy_name = Path(filename).stem
 
-            # Get all symbols for this strategy
-            symbols_list = [sym for sym, w in per_file_weights.items() if w > 0]
+            # Create one signal per symbol with positive weight
+            for symbol, weight in per_file_weights.items():
+                if weight <= 0:
+                    continue
 
-            if not symbols_list:
-                continue
+                # Build contextual reasoning from decision path if available
+                # Falls back to simple allocation string if no decision path
+                if _decision_path:
+                    # Use decision path reasoning for contextual explanation
+                    reasoning = self._build_decision_reasoning(_decision_path, weight)
+                else:
+                    # Fallback: show symbol allocation
+                    reasoning = f"{strategy_name} allocation: {weight:.1%}"
 
-            # Use first symbol as primary (for backward compatibility with StrategySignal schema)
-            primary_symbol = symbols_list[0]
-
-            # Calculate total allocation for this strategy file (sum across all symbols)
-            total_allocation = sum(per_file_weights[sym] for sym in symbols_list)
-
-            # Build contextual reasoning from decision path if available
-            # Falls back to simple allocation string if no decision path
-            if _decision_path:
-                # Use decision path reasoning for contextual explanation
-                reasoning = self._build_decision_reasoning(_decision_path, total_allocation)
-            else:
-                # Fallback: show all symbol allocations
-                symbol_allocations = [f"{sym}: {per_file_weights[sym]:.1%}" for sym in symbols_list]
-                reasoning = f"{strategy_name} allocation - {', '.join(symbol_allocations)}"
-
-            # Create signal for this strategy file
-            signal = StrategySignal(
-                symbol=Symbol(primary_symbol),
-                symbols=[Symbol(sym) for sym in symbols_list],  # Include all symbols
-                action="BUY",
-                target_allocation=Decimal(
-                    str(total_allocation)
-                ),  # Total across all symbols for this file
-                reasoning=reasoning,
-                timestamp=timestamp,
-                strategy_name=strategy_name,
-                data_source=f"dsl_engine:{filename}",
-                correlation_id=correlation_id,
-                causation_id=correlation_id,
-                is_multi_symbol=len(symbols_list) > 1,
-            )
-            signals.append(signal)
+                # Create signal for this symbol
+                signal = StrategySignal(
+                    symbol=Symbol(symbol),
+                    action="BUY",
+                    target_allocation=Decimal(str(weight)),
+                    reasoning=reasoning,
+                    timestamp=timestamp,
+                    strategy_name=strategy_name,
+                    data_source=f"dsl_engine:{filename}",
+                    correlation_id=correlation_id,
+                    causation_id=correlation_id,
+                )
+                signals.append(signal)
 
         return signals
 

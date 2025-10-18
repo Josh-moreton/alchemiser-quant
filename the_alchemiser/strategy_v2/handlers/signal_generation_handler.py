@@ -217,32 +217,53 @@ class SignalGenerationHandler:
     def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
         """Convert strategy signals to display format for notifications.
 
-        Each signal represents one .clj strategy file (grail, kmlm, etc.) and should be
-        displayed separately in the Signal Summary section.
+        Groups signals by strategy and shows all symbols allocated to by each strategy.
 
         Args:
-            signals: List of strategy signals from DSL engine (one per .clj file)
+            signals: List of strategy signals from DSL engine (one per symbol per strategy)
 
         Returns:
             Dictionary mapping strategy name to signal data
-            Example: {"grail": {...}, "kmlm": {...}}
+            Example: {"grail": {"symbols": ["TQQQ"], "action": "BUY", ...}}
 
         """
+        # Group signals by strategy
+        strategy_groups: dict[str, list[StrategySignal]] = {}
+        for signal in signals:
+            strategy_name = signal.strategy_name or "DSL"
+            if strategy_name not in strategy_groups:
+                strategy_groups[strategy_name] = []
+            strategy_groups[strategy_name].append(signal)
+
         strategy_signals: dict[str, Any] = {}
 
-        for signal in signals:
-            # Use the strategy name from the signal (e.g., "grail", "kmlm")
-            strategy_name = signal.strategy_name or "DSL"
+        for strategy_name, strategy_signals_list in strategy_groups.items():
+            # Collect all symbols and their allocations for this strategy
+            symbols_and_allocations = []
+            total_allocation = Decimal("0")
 
-            # Build signal display string showing all symbols for this strategy
-            # For multi-symbol strategies, show: "BUY TQQQ, TLT"
-            signal_display = f"{signal.action} {signal.symbol.value}"
+            for signal in strategy_signals_list:
+                symbols_and_allocations.append(f"{signal.symbol.value}")
+                if signal.target_allocation:
+                    total_allocation += signal.target_allocation
+
+            # Use first signal for action and reasoning (they should be the same for a strategy)
+            first_signal = strategy_signals_list[0]
+
+            # Build signal display string showing all symbols
+            symbols_str = ", ".join(symbols_and_allocations)
+            signal_display = f"{first_signal.action} {symbols_str}"
 
             strategy_signals[strategy_name] = {
-                "symbol": signal.symbol.value,
-                "action": signal.action,
-                "reasoning": signal.reasoning,
+                "symbols": symbols_and_allocations,
+                "symbol": symbols_and_allocations[0]
+                if symbols_and_allocations
+                else "",  # Primary symbol for backward compatibility
+                "action": first_signal.action,
+                "reasoning": first_signal.reasoning,
                 "signal": signal_display,
+                "is_multi_symbol": len(symbols_and_allocations) > 1,
+                "total_allocation": float(total_allocation),
             }
 
         return strategy_signals
