@@ -348,28 +348,18 @@ class PortfolioAnalysisHandler:
         """Extract strategy names from signals data.
 
         Args:
-            signals_data: Signals data from the event
+            signals_data: Signals data from the event (display format dict)
 
         Returns:
             List of strategy names from signals
 
         """
-        strategy_names: list[str] = []
+        if not isinstance(signals_data, dict):
+            return []
 
-        if not isinstance(signals_data, dict) or "signals" not in signals_data:
-            return strategy_names
-
-        signals = signals_data["signals"]
-        if not isinstance(signals, list):
-            return strategy_names
-
-        for signal in signals:
-            if isinstance(signal, dict) and "strategy" in signal:
-                strategy_name = signal["strategy"]
-                if strategy_name not in strategy_names:
-                    strategy_names.append(strategy_name)
-
-        return strategy_names
+        # The signals_data is now a dict mapping strategy names to signal data
+        # Extract strategy names from the keys
+        return list(signals_data.keys())
 
     def _extract_from_strategy_allocations(self, signals_data: dict[str, Any] | None) -> list[str]:
         """Extract strategy names from strategy allocations as fallback.

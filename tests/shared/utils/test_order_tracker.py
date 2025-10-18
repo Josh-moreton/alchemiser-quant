@@ -540,9 +540,7 @@ class TestOrderTrackerThreadSafety:
         def update_status(status):
             tracker.update_order_status(order_id, status=status)
 
-        threads = [
-            threading.Thread(target=update_status, args=(f"status-{i}",)) for i in range(10)
-        ]
+        threads = [threading.Thread(target=update_status, args=(f"status-{i}",)) for i in range(10)]
         for thread in threads:
             thread.start()
         for thread in threads:

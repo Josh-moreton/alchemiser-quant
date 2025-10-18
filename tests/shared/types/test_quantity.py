@@ -5,9 +5,11 @@ Comprehensive unit and property-based tests for Quantity value object.
 Tests Quantity value object validation with Decimal arithmetic per guardrails.
 """
 
-import pytest
 from decimal import Decimal
-from hypothesis import given, strategies as st
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.types.quantity import Quantity
 
@@ -84,7 +86,11 @@ class TestQuantityProperties:
             Quantity(Decimal(str(value)))
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0.01", max_value="1000000", allow_nan=False, allow_infinity=False, places=2))
+    @given(
+        st.decimals(
+            min_value="0.01", max_value="1000000", allow_nan=False, allow_infinity=False, places=2
+        )
+    )
     def test_fractional_values_invalid(self, value):
         """Property: all fractional values should be invalid Quantity."""
         # Only test values that are actually fractional
@@ -100,15 +106,12 @@ class TestQuantityProperties:
         assert int(q.value) == value
 
     @pytest.mark.property
-    @given(
-        st.integers(min_value=0, max_value=1000),
-        st.integers(min_value=0, max_value=1000)
-    )
+    @given(st.integers(min_value=0, max_value=1000), st.integers(min_value=0, max_value=1000))
     def test_quantity_comparison(self, value1, value2):
         """Property: Quantity comparison should match integer comparison."""
         q1 = Quantity(Decimal(str(value1)))
         q2 = Quantity(Decimal(str(value2)))
-        
+
         if value1 < value2:
             assert q1.value < q2.value
         elif value1 > value2:

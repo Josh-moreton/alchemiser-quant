@@ -137,7 +137,9 @@ class TestEventHandling:
         assert handler.can_handle("TradeExecuted") is False
         assert handler.can_handle("UnknownEvent") is False
 
-    def test_handle_event_routes_to_rebalance_handler(self, handler, sample_rebalance_planned_event):
+    def test_handle_event_routes_to_rebalance_handler(
+        self, handler, sample_rebalance_planned_event
+    ):
         """Test handle_event routes RebalancePlanned to correct handler."""
         with patch.object(handler, "_handle_rebalance_planned") as mock_handle:
             handler.handle_event(sample_rebalance_planned_event)
@@ -164,13 +166,12 @@ class TestEventHandling:
         """Test handle_event emits WorkflowFailed on exception."""
         with patch.object(
             handler, "_handle_rebalance_planned", side_effect=Exception("Test error")
-        ):
-            with patch.object(handler, "_emit_workflow_failure") as mock_emit:
-                handler.handle_event(sample_rebalance_planned_event)
-                mock_emit.assert_called_once()
-                args = mock_emit.call_args[0]
-                assert args[0] == sample_rebalance_planned_event
-                assert "Test error" in args[1]
+        ), patch.object(handler, "_emit_workflow_failure") as mock_emit:
+            handler.handle_event(sample_rebalance_planned_event)
+            mock_emit.assert_called_once()
+            args = mock_emit.call_args[0]
+            assert args[0] == sample_rebalance_planned_event
+            assert "Test error" in args[1]
 
 
 class TestIdempotencyKey:
@@ -284,9 +285,7 @@ class TestExecutionManagerCreation:
 
     def test_create_execution_manager_uses_container_dependencies(self, handler, mock_container):
         """Test execution manager creation uses container dependencies."""
-        with patch(
-            "the_alchemiser.execution_v2.core.execution_manager.ExecutionManager"
-        ):
+        with patch("the_alchemiser.execution_v2.core.execution_manager.ExecutionManager"):
             handler._create_execution_manager()
 
             # Verify alpaca_manager is retrieved from container

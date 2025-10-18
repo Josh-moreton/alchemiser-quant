@@ -52,9 +52,7 @@ class TestQuoteModelCreation:
 
     def test_creates_with_large_prices(self):
         """Test creation with large decimal prices."""
-        quote = QuoteModel(
-            ts=None, bid=Decimal("99999.99"), ask=Decimal("100000.00")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("99999.99"), ask=Decimal("100000.00"))
 
         assert quote.bid == Decimal("99999.99")
         assert quote.ask == Decimal("100000.00")
@@ -89,9 +87,7 @@ class TestMidProperty:
 
     def test_mid_with_high_precision(self):
         """Test mid calculation preserves high precision."""
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.1234"), ask=Decimal("100.5678")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.1234"), ask=Decimal("100.5678"))
 
         expected = (Decimal("100.1234") + Decimal("100.5678")) / Decimal("2")
         assert quote.mid == expected
@@ -189,9 +185,7 @@ class TestDecimalPrecision:
 
     def test_preserves_four_decimal_places(self):
         """Test that 4 decimal places are preserved."""
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.1234"), ask=Decimal("100.5678")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.1234"), ask=Decimal("100.5678"))
 
         assert str(quote.bid) == "100.1234"
         assert str(quote.ask) == "100.5678"
@@ -206,9 +200,7 @@ class TestDecimalPrecision:
 
     def test_string_initialization_preserves_precision(self):
         """Test that string initialization preserves exact precision."""
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.123456789"), ask=Decimal("100.987654321")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.123456789"), ask=Decimal("100.987654321"))
 
         assert quote.bid == Decimal("100.123456789")
         assert quote.ask == Decimal("100.987654321")
@@ -219,9 +211,7 @@ class TestEdgeCases:
 
     def test_very_small_spread(self):
         """Test quote with very small spread."""
-        quote = QuoteModel(
-            ts=None, bid=Decimal("100.0000"), ask=Decimal("100.0001")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("100.0000"), ask=Decimal("100.0001"))
 
         assert quote.mid == Decimal("100.00005")
 
@@ -239,9 +229,7 @@ class TestEdgeCases:
 
     def test_high_value_stocks(self):
         """Test quotes for high-value stocks."""
-        quote = QuoteModel(
-            ts=None, bid=Decimal("500000.00"), ask=Decimal("500001.00")
-        )
+        quote = QuoteModel(ts=None, bid=Decimal("500000.00"), ask=Decimal("500001.00"))
 
         assert quote.mid == Decimal("500000.50")
 
@@ -313,9 +301,7 @@ class TestTypeAnnotations:
 
     def test_fields_have_correct_types(self):
         """Test that QuoteModel fields have correct type annotations."""
-        quote = QuoteModel(
-            ts=datetime.now(UTC), bid=Decimal("100"), ask=Decimal("101")
-        )
+        quote = QuoteModel(ts=datetime.now(UTC), bid=Decimal("100"), ask=Decimal("101"))
 
         # Test that we can access fields with proper types
         assert isinstance(quote.ts, datetime) or quote.ts is None

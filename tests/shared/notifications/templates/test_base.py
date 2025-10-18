@@ -14,8 +14,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
-
 from the_alchemiser.shared.constants import APPLICATION_NAME
 from the_alchemiser.shared.notifications.templates.base import BaseEmailTemplate
 
@@ -450,9 +448,7 @@ class TestCreateTable:
     def test_table_id_attribute(self):
         """Test that table id attribute is set when provided."""
         table_id = "performance-metrics-table"
-        result = BaseEmailTemplate.create_table(
-            ["Header"], [["Data"]], table_id=table_id
-        )
+        result = BaseEmailTemplate.create_table(["Header"], [["Data"]], table_id=table_id)
         assert f'id="{table_id}"' in result
 
     def test_table_no_id_when_empty_string(self):

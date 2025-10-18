@@ -2,7 +2,7 @@
 
 Unit tests for portfolio state DTOs.
 
-Tests DTO validation, immutability, serialization/deserialization, 
+Tests DTO validation, immutability, serialization/deserialization,
 and timezone handling for Position, PortfolioMetrics, and PortfolioState.
 """
 
@@ -203,7 +203,7 @@ class TestPosition:
 
     def test_strict_mode_rejects_extra_fields(self):
         """Test that extra fields are rejected in strict mode.
-        
+
         Note: Pydantic v2 by default ignores extra fields unless ConfigDict(extra='forbid') is set.
         The current configuration uses strict=True which enforces type coercion but doesn't forbid extras.
         """
@@ -338,7 +338,7 @@ class TestPortfolioMetrics:
 
     def test_strict_mode_rejects_extra_fields(self):
         """Test that extra fields are rejected in strict mode.
-        
+
         Note: Pydantic v2 by default ignores extra fields unless ConfigDict(extra='forbid') is set.
         The current configuration uses strict=True which enforces type coercion but doesn't forbid extras.
         """
@@ -676,7 +676,7 @@ class TestPortfolioState:
 
     def test_strict_mode_rejects_extra_fields(self):
         """Test that extra fields are rejected in strict mode.
-        
+
         Note: Pydantic v2 by default ignores extra fields unless ConfigDict(extra='forbid') is set.
         The current configuration uses strict=True which enforces type coercion but doesn't forbid extras.
         """
@@ -1072,7 +1072,7 @@ class TestPortfolioStateSerialization:
     def test_from_dict_invalid_decimal_raises_error(self):
         """Test that invalid Decimal value raises error."""
         from decimal import InvalidOperation
-        
+
         data = {
             "correlation_id": "corr-123",
             "causation_id": "cause-456",

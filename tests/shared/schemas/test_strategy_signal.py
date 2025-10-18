@@ -6,14 +6,13 @@ Tests StrategySignal schema validation, serialization, deserialization,
 type safety, immutability, and event-driven field requirements.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
 from the_alchemiser.shared.schemas.strategy_signal import (
-    ActionLiteral,
     StrategySignal,
 )
 from the_alchemiser.shared.types.percentage import Percentage
@@ -31,7 +30,7 @@ class TestStrategySignalValidation:
             timestamp=datetime.now(UTC),
             symbol="AAPL",
             action="BUY",
-            reasoning="Test signal"
+            reasoning="Test signal",
         )
         assert signal.symbol.value == "AAPL"
         assert signal.action == "BUY"
@@ -54,7 +53,7 @@ class TestStrategySignalValidation:
             strategy_name="dsl_momentum",
             target_allocation=Decimal("0.25"),
             signal_strength=Decimal("0.85"),
-            metadata={"confidence": 0.9, "indicators": ["RSI", "MACD"]}
+            metadata={"confidence": 0.9, "indicators": ["RSI", "MACD"]},
         )
         assert signal.symbol.value == "SPY"
         assert signal.action == "SELL"
@@ -73,7 +72,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="INVALID",  # type: ignore[arg-type]
-                reasoning="Test"
+                reasoning="Test",
             )
         assert "action" in str(exc_info.value).lower()
 
@@ -87,7 +86,7 @@ class TestStrategySignalValidation:
                 timestamp=ts,
                 symbol="AAPL",
                 action=action,  # type: ignore[arg-type]
-                reasoning="Test"
+                reasoning="Test",
             )
             assert signal.action == action
 
@@ -100,7 +99,7 @@ class TestStrategySignalValidation:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.5")
+            target_allocation=Decimal("0.5"),
         )
         assert signal.target_allocation == Decimal("0.5")
 
@@ -113,7 +112,7 @@ class TestStrategySignalValidation:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.0")
+            target_allocation=Decimal("0.0"),
         )
         assert signal.target_allocation == Decimal("0.0")
 
@@ -126,7 +125,7 @@ class TestStrategySignalValidation:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("1.0")
+            target_allocation=Decimal("1.0"),
         )
         assert signal.target_allocation == Decimal("1.0")
 
@@ -140,7 +139,7 @@ class TestStrategySignalValidation:
                 symbol="AAPL",
                 action="BUY",
                 reasoning="Test",
-                target_allocation=Decimal("1.5")
+                target_allocation=Decimal("1.5"),
             )
         assert "target_allocation" in str(exc_info.value).lower()
 
@@ -154,7 +153,7 @@ class TestStrategySignalValidation:
                 symbol="AAPL",
                 action="BUY",
                 reasoning="Test",
-                target_allocation=Decimal("-0.1")
+                target_allocation=Decimal("-0.1"),
             )
         assert "target_allocation" in str(exc_info.value).lower()
 
@@ -168,7 +167,7 @@ class TestStrategySignalValidation:
             timestamp=ts,
             symbol="AAPL",
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         assert signal.timestamp == ts
         assert signal.timestamp.tzinfo is not None
@@ -183,7 +182,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="BUY",
-                reasoning=long_reasoning
+                reasoning=long_reasoning,
             )
         assert "reasoning" in str(exc_info.value).lower()
 
@@ -196,7 +195,7 @@ class TestStrategySignalValidation:
             timestamp=datetime.now(UTC),
             symbol="AAPL",
             action="BUY",
-            reasoning=max_reasoning
+            reasoning=max_reasoning,
         )
         assert len(signal.reasoning) == 1000
 
@@ -208,7 +207,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="BUY",
-                reasoning="Test"
+                reasoning="Test",
             )
 
     def test_causation_id_required(self):
@@ -219,7 +218,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="BUY",
-                reasoning="Test"
+                reasoning="Test",
             )
 
     def test_empty_correlation_id_rejected(self):
@@ -231,7 +230,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="BUY",
-                reasoning="Test"
+                reasoning="Test",
             )
 
     def test_schema_version_default(self):
@@ -242,7 +241,7 @@ class TestStrategySignalValidation:
             timestamp=datetime.now(UTC),
             symbol="AAPL",
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         assert signal.schema_version == "1.0"
 
@@ -257,7 +256,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="BUY",
-                reasoning="Test"
+                reasoning="Test",
             )
             assert signal.schema_version == version
 
@@ -270,7 +269,7 @@ class TestStrategySignalValidation:
                 timestamp=datetime.now(UTC),
                 symbol="AAPL",
                 action="BUY",
-                reasoning="Test"
+                reasoning="Test",
             )
 
 
@@ -285,7 +284,7 @@ class TestStrategySignalInputFlexibility:
             timestamp=datetime.now(UTC),
             symbol="aapl",  # lowercase
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         assert isinstance(signal.symbol, Symbol)
         assert signal.symbol.value == "AAPL"  # Should be normalized to uppercase
@@ -299,7 +298,7 @@ class TestStrategySignalInputFlexibility:
             timestamp=datetime.now(UTC),
             symbol=sym,
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         assert signal.symbol.value == "SPY"
 
@@ -312,7 +311,7 @@ class TestStrategySignalInputFlexibility:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=0.5  # float
+            target_allocation=0.5,  # float
         )
         assert isinstance(signal.target_allocation, Decimal)
         assert signal.target_allocation == Decimal("0.5")
@@ -326,7 +325,7 @@ class TestStrategySignalInputFlexibility:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=1  # int
+            target_allocation=1,  # int
         )
         assert isinstance(signal.target_allocation, Decimal)
         assert signal.target_allocation == Decimal("1")
@@ -341,7 +340,7 @@ class TestStrategySignalInputFlexibility:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=pct
+            target_allocation=pct,
         )
         assert signal.target_allocation == Decimal("0.3")
 
@@ -355,7 +354,7 @@ class TestStrategySignalInputFlexibility:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=alloc
+            target_allocation=alloc,
         )
         assert signal.target_allocation == alloc
 
@@ -371,7 +370,7 @@ class TestStrategySignalImmutability:
             timestamp=datetime.now(UTC),
             symbol="AAPL",
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         with pytest.raises(ValidationError):
             signal.action = "SELL"  # type: ignore[misc]
@@ -384,7 +383,7 @@ class TestStrategySignalImmutability:
             timestamp=datetime.now(UTC),
             symbol="AAPL",
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         with pytest.raises(ValidationError):
             signal.symbol = Symbol("SPY")  # type: ignore[misc]
@@ -398,7 +397,7 @@ class TestStrategySignalImmutability:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.5")
+            target_allocation=Decimal("0.5"),
         )
         with pytest.raises(ValidationError):
             signal.target_allocation = Decimal("0.75")  # type: ignore[misc]
@@ -416,9 +415,9 @@ class TestStrategySignalSerialization:
             timestamp=ts,
             symbol="AAPL",
             action="BUY",
-            reasoning="Test signal"
+            reasoning="Test signal",
         )
-        
+
         data = signal.to_dict()
         assert isinstance(data, dict)
         assert data["correlation_id"] == "test-corr"
@@ -439,9 +438,9 @@ class TestStrategySignalSerialization:
             action="BUY",
             reasoning="Test",
             target_allocation=Decimal("0.5"),
-            signal_strength=Decimal("0.85")
+            signal_strength=Decimal("0.85"),
         )
-        
+
         data = signal.to_dict()
         assert isinstance(data["target_allocation"], str)
         assert data["target_allocation"] == "0.5"
@@ -456,9 +455,9 @@ class TestStrategySignalSerialization:
             "timestamp": "2025-01-07T12:00:00+00:00",
             "symbol": "AAPL",
             "action": "BUY",
-            "reasoning": "Test signal"
+            "reasoning": "Test signal",
         }
-        
+
         signal = StrategySignal.from_dict(data)
         assert signal.correlation_id == "test-corr"
         assert signal.causation_id == "test-cause"
@@ -476,9 +475,9 @@ class TestStrategySignalSerialization:
             "action": "BUY",
             "reasoning": "Test",
             "target_allocation": "0.5",
-            "signal_strength": "0.85"
+            "signal_strength": "0.85",
         }
-        
+
         signal = StrategySignal.from_dict(data)
         assert signal.target_allocation == Decimal("0.5")
         assert signal.signal_strength == Decimal("0.85")
@@ -496,15 +495,15 @@ class TestStrategySignalSerialization:
             strategy_name="dsl_momentum",
             target_allocation=Decimal("0.3"),
             signal_strength=Decimal("0.75"),
-            metadata={"confidence": 0.8}
+            metadata={"confidence": 0.8},
         )
-        
+
         # Serialize
         data = original.to_dict()
         assert isinstance(data["timestamp"], str)
         assert isinstance(data["target_allocation"], str)
         assert isinstance(data["signal_strength"], str)
-        
+
         # Deserialize
         restored = StrategySignal.from_dict(data)
         assert restored.correlation_id == original.correlation_id
@@ -524,9 +523,9 @@ class TestStrategySignalSerialization:
             "timestamp": "2025-01-07T12:00:00Z",  # Z suffix
             "symbol": "AAPL",
             "action": "BUY",
-            "reasoning": "Test"
+            "reasoning": "Test",
         }
-        
+
         signal = StrategySignal.from_dict(data)
         assert signal.timestamp.tzinfo is not None
 
@@ -538,9 +537,9 @@ class TestStrategySignalSerialization:
             "timestamp": "invalid-timestamp",
             "symbol": "AAPL",
             "action": "BUY",
-            "reasoning": "Test"
+            "reasoning": "Test",
         }
-        
+
         with pytest.raises(ValueError) as exc_info:
             StrategySignal.from_dict(data)
         assert "timestamp" in str(exc_info.value).lower()
@@ -554,9 +553,9 @@ class TestStrategySignalSerialization:
             "symbol": "AAPL",
             "action": "BUY",
             "reasoning": "Test",
-            "target_allocation": "invalid"
+            "target_allocation": "invalid",
         }
-        
+
         with pytest.raises(ValueError) as exc_info:
             StrategySignal.from_dict(data)
         assert "target_allocation" in str(exc_info.value).lower()
@@ -574,7 +573,7 @@ class TestStrategySignalEdgeCases:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.0001")
+            target_allocation=Decimal("0.0001"),
         )
         assert signal.target_allocation == Decimal("0.0001")
 
@@ -587,7 +586,7 @@ class TestStrategySignalEdgeCases:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.123456789")
+            target_allocation=Decimal("0.123456789"),
         )
         assert signal.target_allocation == Decimal("0.123456789")
 
@@ -599,7 +598,7 @@ class TestStrategySignalEdgeCases:
             timestamp=datetime.now(UTC),
             symbol="spy",  # lowercase
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         assert signal.symbol.value == "SPY"
 
@@ -611,7 +610,7 @@ class TestStrategySignalEdgeCases:
             timestamp=datetime.now(UTC),
             symbol="AAPL",
             action="BUY",
-            reasoning="  Test with spaces  "
+            reasoning="  Test with spaces  ",
         )
         # Pydantic's str_strip_whitespace should handle this
         assert signal.reasoning.strip() == signal.reasoning
@@ -624,15 +623,20 @@ class TestStrategySignalBackwardCompatibility:
         """Test deprecated types module still works."""
         # This should issue a deprecation warning but still work
         import warnings
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            from the_alchemiser.shared.types.strategy_value_objects import StrategySignal as TypesSignal
+            from the_alchemiser.shared.types.strategy_value_objects import (
+                StrategySignal as TypesSignal,
+            )
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             assert "deprecated" in str(w[0].message).lower()
-        
+
         # Should be the same class
         from the_alchemiser.shared.schemas.strategy_signal import StrategySignal as SchemasSignal
+
         assert TypesSignal is SchemasSignal
 
 
@@ -649,7 +653,7 @@ class TestStrategySignalEquality:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.5")
+            target_allocation=Decimal("0.5"),
         )
         signal2 = StrategySignal(
             correlation_id="test-corr",
@@ -658,7 +662,7 @@ class TestStrategySignalEquality:
             symbol="AAPL",
             action="BUY",
             reasoning="Test",
-            target_allocation=Decimal("0.5")
+            target_allocation=Decimal("0.5"),
         )
         assert signal1 == signal2
 
@@ -671,7 +675,7 @@ class TestStrategySignalEquality:
             timestamp=ts,
             symbol="AAPL",
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         signal2 = StrategySignal(
             correlation_id="test-corr",
@@ -679,6 +683,6 @@ class TestStrategySignalEquality:
             timestamp=ts,
             symbol="SPY",  # Different symbol
             action="BUY",
-            reasoning="Test"
+            reasoning="Test",
         )
         assert signal1 != signal2

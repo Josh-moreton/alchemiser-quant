@@ -189,12 +189,20 @@ class TestExecutionV2ModelsInit:
         """Test that imports from package and submodule return same objects."""
         from the_alchemiser.execution_v2.models import (
             ExecutionResult as ER1,
+        )
+        from the_alchemiser.execution_v2.models import (
             ExecutionStatus as ES1,
+        )
+        from the_alchemiser.execution_v2.models import (
             OrderResult as OR1,
         )
         from the_alchemiser.execution_v2.models.execution_result import (
             ExecutionResult as ER2,
+        )
+        from the_alchemiser.execution_v2.models.execution_result import (
             ExecutionStatus as ES2,
+        )
+        from the_alchemiser.execution_v2.models.execution_result import (
             OrderResult as OR2,
         )
 

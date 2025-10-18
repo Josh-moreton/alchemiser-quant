@@ -5,7 +5,7 @@ Unit tests for Alpaca replace_order functionality.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import pytest
 from alpaca.trading.requests import ReplaceOrderRequest
@@ -44,7 +44,18 @@ def alpaca_trading_service(mock_trading_client, mock_websocket_manager):
 def test_replace_order_success(alpaca_trading_service, mock_trading_client):
     """Test successful order replacement."""
     # Setup mock order response with proper spec
-    mock_order = Mock(spec=['id', 'symbol', 'status', 'qty', 'filled_qty', 'filled_avg_price', 'submitted_at', 'updated_at'])
+    mock_order = Mock(
+        spec=[
+            "id",
+            "symbol",
+            "status",
+            "qty",
+            "filled_qty",
+            "filled_avg_price",
+            "submitted_at",
+            "updated_at",
+        ]
+    )
     mock_order.id = "test-order-123"
     mock_order.symbol = "AAPL"
     mock_order.status = "accepted"
@@ -76,7 +87,18 @@ def test_replace_order_success(alpaca_trading_service, mock_trading_client):
 def test_replace_order_with_none_data(alpaca_trading_service, mock_trading_client):
     """Test order replacement with None order_data."""
     # Setup mock order response with proper spec
-    mock_order = Mock(spec=['id', 'symbol', 'status', 'qty', 'filled_qty', 'filled_avg_price', 'submitted_at', 'updated_at'])
+    mock_order = Mock(
+        spec=[
+            "id",
+            "symbol",
+            "status",
+            "qty",
+            "filled_qty",
+            "filled_avg_price",
+            "submitted_at",
+            "updated_at",
+        ]
+    )
     mock_order.id = "test-order-456"
     mock_order.symbol = "GOOGL"
     mock_order.status = "accepted"
@@ -120,7 +142,18 @@ def test_replace_order_failure(alpaca_trading_service, mock_trading_client):
 def test_replace_order_updates_quantity(alpaca_trading_service, mock_trading_client):
     """Test that replace_order correctly updates order quantity."""
     # Setup mock order with updated quantity and proper spec
-    mock_order = Mock(spec=['id', 'symbol', 'status', 'qty', 'filled_qty', 'filled_avg_price', 'submitted_at', 'updated_at'])
+    mock_order = Mock(
+        spec=[
+            "id",
+            "symbol",
+            "status",
+            "qty",
+            "filled_qty",
+            "filled_avg_price",
+            "submitted_at",
+            "updated_at",
+        ]
+    )
     mock_order.id = "test-order-789"
     mock_order.symbol = "TSLA"
     mock_order.status = "accepted"
@@ -148,7 +181,19 @@ def test_replace_order_updates_quantity(alpaca_trading_service, mock_trading_cli
 def test_replace_order_updates_limit_price(alpaca_trading_service, mock_trading_client):
     """Test that replace_order correctly updates limit price."""
     # Setup mock order with updated limit price and proper spec
-    mock_order = Mock(spec=['id', 'symbol', 'status', 'qty', 'filled_qty', 'filled_avg_price', 'limit_price', 'submitted_at', 'updated_at'])
+    mock_order = Mock(
+        spec=[
+            "id",
+            "symbol",
+            "status",
+            "qty",
+            "filled_qty",
+            "filled_avg_price",
+            "limit_price",
+            "submitted_at",
+            "updated_at",
+        ]
+    )
     mock_order.id = "test-order-101"
     mock_order.symbol = "NVDA"
     mock_order.status = "accepted"

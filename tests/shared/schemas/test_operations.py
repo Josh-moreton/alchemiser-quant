@@ -59,9 +59,7 @@ class TestOperationResult:
 
     def test_success_result_with_details(self):
         """Test creating successful result with details."""
-        result = OperationResult(
-            success=True, error=None, details={"key": "value", "count": 42}
-        )
+        result = OperationResult(success=True, error=None, details={"key": "value", "count": 42})
         assert result.success is True
         assert result.details == {"key": "value", "count": 42}
         assert result.details["key"] == "value"
@@ -122,9 +120,7 @@ class TestOperationResult:
 
     def test_serialization(self):
         """Test DTO can be serialized to dict."""
-        result = OperationResult(
-            success=True, error=None, details={"key": "value"}
-        )
+        result = OperationResult(success=True, error=None, details={"key": "value"})
         data = result.model_dump()
         assert data == {
             "success": True,
@@ -146,9 +142,7 @@ class TestOrderCancellationResult:
 
     def test_successful_cancellation(self):
         """Test successful cancellation."""
-        result = OrderCancellationResult(
-            success=True, error=None, order_id="order-123"
-        )
+        result = OrderCancellationResult(success=True, error=None, order_id="order-123")
         assert result.success is True
         assert result.order_id == "order-123"
         assert result.error is None
@@ -164,9 +158,7 @@ class TestOrderCancellationResult:
 
     def test_terminal_state_cancellation(self):
         """Test cancellation of already terminal order."""
-        result = OrderCancellationResult(
-            success=True, error="already_filled", order_id="order-789"
-        )
+        result = OrderCancellationResult(success=True, error="already_filled", order_id="order-789")
         assert result.success is True
         assert result.error == "already_filled"
         assert result.order_id == "order-789"
@@ -205,9 +197,7 @@ class TestOrderCancellationResult:
 
     def test_serialization(self):
         """Test DTO can be serialized."""
-        result = OrderCancellationResult(
-            success=True, error=None, order_id="order-123"
-        )
+        result = OrderCancellationResult(success=True, error=None, order_id="order-123")
         data = result.model_dump()
         assert data == {"success": True, "error": None, "order_id": "order-123"}
 
@@ -225,9 +215,7 @@ class TestOrderStatusResult:
 
     def test_successful_status_query(self):
         """Test successful status query."""
-        result = OrderStatusResult(
-            success=True, error=None, order_id="order-123", status="filled"
-        )
+        result = OrderStatusResult(success=True, error=None, order_id="order-123", status="filled")
         assert result.success is True
         assert result.order_id == "order-123"
         assert result.status == "filled"
@@ -254,9 +242,7 @@ class TestOrderStatusResult:
             "rejected",
         ]
         for status in statuses:
-            result = OrderStatusResult(
-                success=True, order_id="order-123", status=status
-            )
+            result = OrderStatusResult(success=True, order_id="order-123", status=status)
             assert result.status == status
 
     def test_status_query_without_order_id(self):
@@ -294,9 +280,7 @@ class TestOrderStatusResult:
 
     def test_serialization(self):
         """Test DTO can be serialized."""
-        result = OrderStatusResult(
-            success=True, error=None, order_id="order-123", status="filled"
-        )
+        result = OrderStatusResult(success=True, error=None, order_id="order-123", status="filled")
         data = result.model_dump()
         assert data == {
             "success": True,
@@ -388,9 +372,7 @@ class TestBackwardCompatibilityAliases:
             cancel_result = OrderCancellationDTO(success=True, order_id="123")
             assert isinstance(cancel_result, OrderCancellationResult)
 
-            status_result = OrderStatusDTO(
-                success=True, order_id="123", status="filled"
-            )
+            status_result = OrderStatusDTO(success=True, order_id="123", status="filled")
             assert isinstance(status_result, OrderStatusResult)
 
 
@@ -400,9 +382,7 @@ class TestIntegrationScenarios:
     def test_terminal_order_error_in_cancellation_result(self):
         """Test using TerminalOrderError values in OrderCancellationResult."""
         for error in TerminalOrderError:
-            result = OrderCancellationResult(
-                success=True, error=error.value, order_id="order-123"
-            )
+            result = OrderCancellationResult(success=True, error=error.value, order_id="order-123")
             assert result.success is True
             assert result.error == error.value
 

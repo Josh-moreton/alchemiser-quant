@@ -11,8 +11,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock
 
-import pytest
-
 from the_alchemiser.shared.events.base import BaseEvent
 
 

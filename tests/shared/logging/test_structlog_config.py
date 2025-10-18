@@ -9,7 +9,6 @@ from io import StringIO
 from unittest.mock import patch
 
 import pytest
-import structlog
 
 from the_alchemiser.shared.logging import context
 from the_alchemiser.shared.logging.structlog_config import (
@@ -97,9 +96,7 @@ def test_add_alchemiser_context_includes_causation_id() -> None:
 
 def test_configure_structlog_json_format() -> None:
     """Test that configure_structlog sets up JSON output."""
-    configure_structlog(
-        structured_format=True, console_level=logging.INFO, file_level=logging.INFO
-    )
+    configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
 
     logger = get_structlog_logger(__name__)
     assert logger is not None
@@ -117,9 +114,7 @@ def test_configure_structlog_console_format() -> None:
 
 def test_get_structlog_logger_returns_logger() -> None:
     """Test that get_structlog_logger returns a logger instance."""
-    configure_structlog(
-        structured_format=True, console_level=logging.INFO, file_level=logging.INFO
-    )
+    configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
 
     logger = get_structlog_logger(__name__)
     assert logger is not None

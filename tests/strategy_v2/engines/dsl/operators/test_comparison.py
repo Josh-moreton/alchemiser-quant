@@ -36,13 +36,14 @@ class TestComparisonOperators:
     @pytest.fixture
     def context(self):
         """Create mock context."""
+
         def evaluate_node(node, corr_id, trace):
             if node.is_atom():
                 return node.get_atom_value()
             if node.is_symbol():
                 return node.get_symbol_name()
             return None
-        
+
         trace = Trace(
             trace_id="test-trace-id",
             correlation_id="test",
@@ -80,9 +81,16 @@ class TestComparisonOperators:
         """Test > operator with wrong number of arguments."""
         with pytest.raises(DslEvaluationError, match="requires exactly 2 arguments"):
             greater_than([ASTNode.atom(Decimal("1"))], context)
-        
+
         with pytest.raises(DslEvaluationError, match="requires exactly 2 arguments"):
-            greater_than([ASTNode.atom(Decimal("1")), ASTNode.atom(Decimal("2")), ASTNode.atom(Decimal("3"))], context)
+            greater_than(
+                [
+                    ASTNode.atom(Decimal("1")),
+                    ASTNode.atom(Decimal("2")),
+                    ASTNode.atom(Decimal("3")),
+                ],
+                context,
+            )
 
     def test_less_than_true(self, context):
         """Test < operator returns True when left < right."""
@@ -191,10 +199,10 @@ class TestComparisonOperators:
     def test_register_comparison_operators(self):
         """Test registering all comparison operators."""
         from the_alchemiser.strategy_v2.engines.dsl.dispatcher import DslDispatcher
-        
+
         dispatcher = DslDispatcher()
         register_comparison_operators(dispatcher)
-        
+
         assert dispatcher.is_registered(">")
         assert dispatcher.is_registered("<")
         assert dispatcher.is_registered(">=")
@@ -206,7 +214,7 @@ class TestComparisonOperators:
         # -5 > -10
         args = [ASTNode.atom(Decimal("-5")), ASTNode.atom(Decimal("-10"))]
         assert greater_than(args, context) is True
-        
+
         # -10 < -5
         args = [ASTNode.atom(Decimal("-10")), ASTNode.atom(Decimal("-5"))]
         assert less_than(args, context) is True
@@ -216,7 +224,7 @@ class TestComparisonOperators:
         # 0 > -1
         args = [ASTNode.atom(Decimal("0")), ASTNode.atom(Decimal("-1"))]
         assert greater_than(args, context) is True
-        
+
         # 0 < 1
         args = [ASTNode.atom(Decimal("0")), ASTNode.atom(Decimal("1"))]
         assert less_than(args, context) is True
@@ -226,7 +234,7 @@ class TestComparisonOperators:
         # 3.14 > 3.13
         args = [ASTNode.atom(Decimal("3.14")), ASTNode.atom(Decimal("3.13"))]
         assert greater_than(args, context) is True
-        
+
         # 3.14 == 3.14
         args = [ASTNode.atom(Decimal("3.14")), ASTNode.atom(Decimal("3.14"))]
         assert equal(args, context) is True
@@ -240,11 +248,12 @@ class TestComparisonOperatorsPropertyBased:
 
     def _make_context(self):
         """Create mock context."""
+
         def evaluate_node(node, corr_id, trace):
             if node.is_atom():
                 return node.get_atom_value()
             return None
-        
+
         trace = Trace(
             trace_id="test-trace-id",
             correlation_id="test",

@@ -6,18 +6,17 @@ Tests that the PortfolioServiceV2 properly propagates NegativeCashBalanceError
 when the underlying state reader detects a negative cash balance.
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock
-from datetime import UTC, datetime
 
 import pytest
 
 from the_alchemiser.portfolio_v2.core.portfolio_service import PortfolioServiceV2
-from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.errors.exceptions import (
-    NegativeCashBalanceError,
     PortfolioError,
 )
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 
 class TestPortfolioServiceNegativeCash:
@@ -64,10 +63,7 @@ class TestPortfolioServiceNegativeCash:
 
         # Verify the error mentions the negative cash issue
         error_message = str(exc_info.value).lower()
-        assert (
-            "failed to create rebalance plan" in error_message
-            or "snapshot" in error_message
-        )
+        assert "failed to create rebalance plan" in error_message or "snapshot" in error_message
 
     def test_create_rebalance_plan_with_zero_cash_raises_portfolio_error(
         self, portfolio_service, mock_alpaca_manager, sample_strategy_allocation

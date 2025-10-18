@@ -5,10 +5,10 @@ Test suite for AlpacaTradingService order placement and management.
 Tests order placement, cancellation, and error handling.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
-from alpaca.trading.enums import OrderSide, OrderStatus, TimeInForce
+from alpaca.trading.enums import OrderSide, OrderStatus
 
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 
@@ -142,7 +142,6 @@ class TestAlpacaTradingServiceOrderPlacement:
         mock_order.status = OrderStatus.ACCEPTED
         mock_order.submitted_at = "2024-01-01T10:00:00Z"
 
-
         mock_trading_client.submit_order.return_value = mock_order
 
         result = trading_service.place_market_order("AAPL", "buy", qty=10.0)
@@ -214,9 +213,7 @@ class TestAlpacaTradingServiceOrderPlacement:
 
         mock_trading_client.submit_order.return_value = mock_order
 
-        result = trading_service.place_market_order(
-            "AAPL", "sell", qty=10.0, is_complete_exit=True
-        )
+        result = trading_service.place_market_order("AAPL", "sell", qty=10.0, is_complete_exit=True)
 
         assert result.symbol == "AAPL"
 
@@ -255,7 +252,6 @@ class TestAlpacaTradingServiceOrderPlacement:
         mock_trading_client.submit_order.side_effect = Exception("API Error")
 
         result = trading_service.place_limit_order("AAPL", "buy", 10.0, 150.0)
-
 
         assert result.success is False
         # Just verify it failed, don't check exact error message
@@ -378,4 +374,3 @@ class TestAlpacaOrderConversionEdgeCases:
         assert result.status == "accepted"  # NOT "partially_filled"
         assert result.filled_qty == Decimal("0")  # Reset to 0 for validation
         assert result.avg_fill_price is None
-

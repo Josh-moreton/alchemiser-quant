@@ -6,9 +6,9 @@ Tests workflow state tracking and failure prevention logic to ensure
 handlers don't process events after workflow failures.
 """
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import Mock
-import uuid
 
 import pytest
 
@@ -21,9 +21,8 @@ from the_alchemiser.orchestration.workflow_state import (
 )
 from the_alchemiser.shared.events import (
     SignalGenerated,
-    WorkflowFailed,
-    WorkflowStarted,
     WorkflowCompleted,
+    WorkflowFailed,
 )
 
 
@@ -263,9 +262,7 @@ class TestWorkflowStateManagement:
 
         # Set state to COMPLETED
         orchestrator._set_workflow_state(correlation_id, WorkflowState.COMPLETED)
-        assert (
-            orchestrator.get_workflow_state(correlation_id) == WorkflowState.COMPLETED
-        )
+        assert orchestrator.get_workflow_state(correlation_id) == WorkflowState.COMPLETED
 
     def test_cleanup_workflow_state(self, orchestrator):
         """Test cleaning up workflow state."""
@@ -273,9 +270,7 @@ class TestWorkflowStateManagement:
 
         # Set a workflow state
         orchestrator._set_workflow_state(correlation_id, WorkflowState.COMPLETED)
-        assert (
-            orchestrator.get_workflow_state(correlation_id) == WorkflowState.COMPLETED
-        )
+        assert orchestrator.get_workflow_state(correlation_id) == WorkflowState.COMPLETED
 
         # Clean up the state
         result = orchestrator.cleanup_workflow_state(correlation_id)

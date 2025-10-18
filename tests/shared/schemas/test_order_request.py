@@ -5,7 +5,7 @@ Unit tests for OrderRequest and MarketData DTOs.
 Tests DTO validation, immutability, serialization, and timezone handling.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -269,7 +269,7 @@ class TestOrderRequest:
             limit_price=Decimal("150.50"),
         )
         data = request.to_dict()
-        
+
         assert isinstance(data, dict)
         assert data["correlation_id"] == "corr-001"
         assert data["symbol"] == "AAPL"
@@ -291,7 +291,7 @@ class TestOrderRequest:
             "limit_price": "150.50",
         }
         request = OrderRequest.from_dict(data)
-        
+
         assert request.correlation_id == "corr-001"
         assert request.symbol == "AAPL"
         assert request.quantity == Decimal("100")
@@ -370,10 +370,10 @@ class TestOrderRequest:
             rebalance_plan_id="plan-001",
             metadata={"key": "value"},
         )
-        
+
         data = original.to_dict()
         restored = OrderRequest.from_dict(data)
-        
+
         assert restored.correlation_id == original.correlation_id
         assert restored.causation_id == original.causation_id
         assert restored.request_id == original.request_id
@@ -524,7 +524,7 @@ class TestMarketData:
             volume=Decimal("1000000"),
         )
         data = market_data.to_dict()
-        
+
         assert isinstance(data, dict)
         assert data["correlation_id"] == "corr-001"
         assert data["symbol"] == "AAPL"
@@ -543,7 +543,7 @@ class TestMarketData:
             "volume": "1000000",
         }
         market_data = MarketData.from_dict(data)
-        
+
         assert market_data.correlation_id == "corr-001"
         assert market_data.symbol == "AAPL"
         assert market_data.price == Decimal("150.00")
@@ -585,12 +585,14 @@ class TestMarketData:
             quality_score=Decimal("0.98"),
             metadata={"exchange": "NYSE"},
         )
-        
+
         data = original.to_dict()
         restored = MarketData.from_dict(data)
-        
+
         assert restored.correlation_id == original.correlation_id
-        assert restored.timestamp.replace(microsecond=0) == original.timestamp.replace(microsecond=0)
+        assert restored.timestamp.replace(microsecond=0) == original.timestamp.replace(
+            microsecond=0
+        )
         assert restored.symbol == original.symbol
         assert restored.data_type == original.data_type
         assert restored.price == original.price

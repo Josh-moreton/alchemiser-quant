@@ -34,15 +34,13 @@ class TestAlpacaTradingServiceCloseAllPositions:
             paper_trading=True,
         )
 
-    def test_close_all_positions_with_list_response(
-        self, trading_service, mock_trading_client
-    ):
+    def test_close_all_positions_with_list_response(self, trading_service, mock_trading_client):
         """Test close_all_positions with list response from Alpaca."""
         # Mock response objects
         mock_response_1 = Mock()
         mock_response_1.symbol = "AAPL"
         mock_response_1.status = "closed"
-        
+
         mock_response_2 = Mock()
         mock_response_2.symbol = "MSFT"
         mock_response_2.status = "closed"
@@ -58,13 +56,11 @@ class TestAlpacaTradingServiceCloseAllPositions:
         assert isinstance(result, list)
         assert len(result) == 2
         assert all(isinstance(item, dict) for item in result)
-        
+
         # Verify the API was called correctly
         mock_trading_client.close_all_positions.assert_called_once_with(cancel_orders=True)
 
-    def test_close_all_positions_with_dict_response(
-        self, trading_service, mock_trading_client
-    ):
+    def test_close_all_positions_with_dict_response(self, trading_service, mock_trading_client):
         """Test close_all_positions with dict response."""
         mock_trading_client.close_all_positions.return_value = {
             "status": "success",
@@ -77,13 +73,11 @@ class TestAlpacaTradingServiceCloseAllPositions:
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0] == {"status": "success", "count": 2}
-        
+
         # Verify the API was called correctly
         mock_trading_client.close_all_positions.assert_called_once_with(cancel_orders=False)
 
-    def test_close_all_positions_empty_result(
-        self, trading_service, mock_trading_client
-    ):
+    def test_close_all_positions_empty_result(self, trading_service, mock_trading_client):
         """Test close_all_positions with no positions to close."""
         mock_trading_client.close_all_positions.return_value = []
 
@@ -93,9 +87,7 @@ class TestAlpacaTradingServiceCloseAllPositions:
         assert isinstance(result, list)
         assert len(result) == 0
 
-    def test_close_all_positions_exception(
-        self, trading_service, mock_trading_client
-    ):
+    def test_close_all_positions_exception(self, trading_service, mock_trading_client):
         """Test close_all_positions handles exceptions gracefully."""
         mock_trading_client.close_all_positions.side_effect = Exception("API Error")
 
@@ -105,9 +97,7 @@ class TestAlpacaTradingServiceCloseAllPositions:
         assert isinstance(result, list)
         assert len(result) == 0
 
-    def test_close_all_positions_default_cancel_orders(
-        self, trading_service, mock_trading_client
-    ):
+    def test_close_all_positions_default_cancel_orders(self, trading_service, mock_trading_client):
         """Test that cancel_orders defaults to True."""
         mock_trading_client.close_all_positions.return_value = []
 

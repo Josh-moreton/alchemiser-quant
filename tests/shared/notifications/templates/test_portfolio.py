@@ -16,65 +16,65 @@ we use direct inspection of the module rather than importing.
 
 import math
 from decimal import Decimal
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
 
 # Constants defined in portfolio.py module
 HIGH_DEPLOYMENT_PCT = Decimal("95.0")
-MODERATE_DEPLOYMENT_PCT = Decimal("80.0") 
+MODERATE_DEPLOYMENT_PCT = Decimal("80.0")
 REBALANCE_TOLERANCE = Decimal("0.01")
 
 
 class TestDecimalConstants:
     """Test that financial constants use Decimal for precision."""
-    
+
     def test_high_deployment_pct_is_decimal(self):
         """Test HIGH_DEPLOYMENT_PCT is a Decimal."""
         assert isinstance(HIGH_DEPLOYMENT_PCT, Decimal)
-        assert HIGH_DEPLOYMENT_PCT == Decimal("95.0")
-    
+        assert Decimal("95.0") == HIGH_DEPLOYMENT_PCT
+
     def test_moderate_deployment_pct_is_decimal(self):
         """Test MODERATE_DEPLOYMENT_PCT is a Decimal."""
         assert isinstance(MODERATE_DEPLOYMENT_PCT, Decimal)
-        assert MODERATE_DEPLOYMENT_PCT == Decimal("80.0")
-    
+        assert Decimal("80.0") == MODERATE_DEPLOYMENT_PCT
+
     def test_rebalance_tolerance_is_decimal(self):
         """Test REBALANCE_TOLERANCE is a Decimal (1%)."""
         assert isinstance(REBALANCE_TOLERANCE, Decimal)
-        assert REBALANCE_TOLERANCE == Decimal("0.01")
+        assert Decimal("0.01") == REBALANCE_TOLERANCE
 
 
 class TestDecimalCalculations:
     """Test financial calculations use Decimal for precision."""
-    
+
     def test_deployment_percentage_calculation(self):
         """Test deployment percentage calculation with Decimal."""
         # Simulate the calculation from build_account_summary_neutral
         equity = Decimal("100000.00")
         cash = Decimal("5000.00")
         deployed_pct = (equity - cash) / equity * Decimal("100")
-        
+
         # Should be exactly 95%
         assert deployed_pct == Decimal("95.0")
         assert isinstance(deployed_pct, Decimal)
-    
+
     def test_weight_calculation_with_decimal(self):
         """Test portfolio weight calculation using Decimal."""
         market_value = Decimal("33333.33")
         total_value = Decimal("100000.00")
         weight = market_value / total_value
-        
+
         # Check precision
         assert isinstance(weight, Decimal)
         assert abs(weight - Decimal("0.3333333")) < Decimal("0.0000001")
-    
+
     def test_rebalancing_difference_with_isclose(self):
         """Test rebalancing uses math.isclose for float comparison."""
         target = Decimal("0.5")
         current = Decimal("0.505")
         diff = target - current
-        
+
         # Should use math.isclose with tolerance
         is_hold = math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE))
         assert is_hold is True  # Within 1% tolerance
@@ -164,7 +164,7 @@ class TestPortfolioValueExtraction:
     def test_extract_portfolio_value_as_decimal(self):
         """Test converting portfolio value to Decimal."""
         raw_value = "100000.50"
-        
+
         # Logic from _extract_portfolio_value
         value = Decimal(str(raw_value))
 
@@ -174,7 +174,7 @@ class TestPortfolioValueExtraction:
     def test_extract_from_equity_field(self):
         """Test extracting from equity field."""
         raw_value = 50000.25
-        
+
         value = Decimal(str(raw_value))
 
         assert isinstance(value, Decimal)
@@ -195,7 +195,7 @@ class TestOrderActionInfoLogic:
         """Test BUY action returns correct color and label."""
         side = "buy"
         side_upper = side.upper()
-        
+
         if side_upper == "BUY":
             color, label = "#10B981", "BUY"
         else:
@@ -208,7 +208,7 @@ class TestOrderActionInfoLogic:
         """Test SELL action returns correct color and label."""
         side = "SELL"
         side_upper = side.upper()
-        
+
         if side_upper == "BUY":
             color, label = "#10B981", "BUY"
         elif side_upper == "SELL":
@@ -227,7 +227,7 @@ class TestOrderStatusInfoLogic:
         """Test filled status returns green color."""
         status = "FILLED"
         status_upper = status.upper()
-        
+
         if status_upper in ("FILLED", "COMPLETE"):
             color, label = "#10B981", "Filled"
         else:
@@ -240,7 +240,7 @@ class TestOrderStatusInfoLogic:
         """Test pending status returns blue color."""
         status = "NEW"
         status_upper = status.upper()
-        
+
         if status_upper in ("PENDING", "NEW", "ACCEPTED", "PENDING_NEW"):
             color, label = "#3B82F6", "Pending"
         else:
@@ -256,7 +256,7 @@ class TestQuantityFormatting:
     def test_format_large_quantity_logic(self):
         """Test formatting quantity >= 1."""
         qty = 150.5
-        
+
         if isinstance(qty, (int, float)) and qty != 0:
             result = f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
         else:
@@ -267,7 +267,7 @@ class TestQuantityFormatting:
     def test_format_small_quantity_logic(self):
         """Test formatting quantity < 1."""
         qty = 0.123456
-        
+
         if isinstance(qty, (int, float)) and qty != 0:
             result = f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
         else:
@@ -278,7 +278,7 @@ class TestQuantityFormatting:
     def test_format_zero_quantity_logic(self):
         """Test zero quantity returns em dash."""
         qty = 0
-        
+
         if isinstance(qty, (int, float)) and qty != 0:
             result = f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
         else:
@@ -293,7 +293,7 @@ class TestDeploymentClassification:
     def test_high_deployment_classification(self):
         """Test high deployment (>=95%) returns correct label."""
         deployed_pct = Decimal("96.0")
-        
+
         if deployed_pct >= HIGH_DEPLOYMENT_PCT:
             label = "High"
         elif deployed_pct >= MODERATE_DEPLOYMENT_PCT:
@@ -306,7 +306,7 @@ class TestDeploymentClassification:
     def test_moderate_deployment_classification(self):
         """Test moderate deployment (80-95%) returns correct label."""
         deployed_pct = Decimal("85.0")
-        
+
         if deployed_pct >= HIGH_DEPLOYMENT_PCT:
             label = "High"
         elif deployed_pct >= MODERATE_DEPLOYMENT_PCT:
@@ -319,7 +319,7 @@ class TestDeploymentClassification:
     def test_low_deployment_classification(self):
         """Test low deployment (<80%) returns correct label."""
         deployed_pct = Decimal("50.0")
-        
+
         if deployed_pct >= HIGH_DEPLOYMENT_PCT:
             label = "High"
         elif deployed_pct >= MODERATE_DEPLOYMENT_PCT:
@@ -338,7 +338,7 @@ class TestRebalancingActionLogic:
         target = Decimal("0.5")
         current = Decimal("0.505")
         diff = target - current
-        
+
         if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
             action = "HOLD"
         elif diff > 0:
@@ -353,7 +353,7 @@ class TestRebalancingActionLogic:
         target = Decimal("0.6")
         current = Decimal("0.3")
         diff = target - current
-        
+
         if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
             action = "HOLD"
         elif diff > 0:
@@ -368,7 +368,7 @@ class TestRebalancingActionLogic:
         target = Decimal("0.4")
         current = Decimal("0.7")
         diff = target - current
-        
+
         if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
             action = "HOLD"
         elif diff > 0:

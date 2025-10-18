@@ -6,7 +6,6 @@ Tests that correlation and causation IDs are properly propagated through
 all adapter methods for distributed tracing support.
 """
 
-from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -43,9 +42,7 @@ class TestCorrelationIdPropagation:
         correlation_id = "test-corr-123"
         causation_id = "test-cause-456"
 
-        data_adapter.get_positions(
-            correlation_id=correlation_id, causation_id=causation_id
-        )
+        data_adapter.get_positions(correlation_id=correlation_id, causation_id=causation_id)
 
         # Check debug log calls include correlation_id
         assert mock_logger.debug.called
@@ -81,9 +78,7 @@ class TestCorrelationIdPropagation:
         correlation_id = "test-corr-345"
         causation_id = "test-cause-678"
 
-        data_adapter.get_account_cash(
-            correlation_id=correlation_id, causation_id=causation_id
-        )
+        data_adapter.get_account_cash(correlation_id=correlation_id, causation_id=causation_id)
 
         # Check debug log calls include correlation_id
         assert mock_logger.debug.called
@@ -123,9 +118,7 @@ class TestCorrelationIdPropagation:
         mock_alpaca_manager.get_positions.side_effect = AttributeError("Test error")
 
         with pytest.raises(DataProviderError):
-            data_adapter.get_positions(
-                correlation_id=correlation_id, causation_id=causation_id
-            )
+            data_adapter.get_positions(correlation_id=correlation_id, causation_id=causation_id)
 
         # Check error log includes correlation_id
         assert mock_logger.error.called
@@ -156,9 +149,7 @@ class TestInputValidation:
         with pytest.raises(TypeError, match="alpaca_manager cannot be None"):
             AlpacaDataAdapter(None)  # type: ignore
 
-    def test_get_current_prices_filters_empty_strings(
-        self, data_adapter, mock_alpaca_manager
-    ):
+    def test_get_current_prices_filters_empty_strings(self, data_adapter, mock_alpaca_manager):
         """Test that empty strings are filtered from symbols list."""
         result = data_adapter.get_current_prices(["", "  ", "AAPL", ""])
 
@@ -191,9 +182,7 @@ class TestSpecificExceptions:
         """Create data adapter with mock manager."""
         return AlpacaDataAdapter(mock_alpaca_manager)
 
-    def test_get_positions_raises_data_provider_error(
-        self, data_adapter, mock_alpaca_manager
-    ):
+    def test_get_positions_raises_data_provider_error(self, data_adapter, mock_alpaca_manager):
         """Test that get_positions raises DataProviderError on failure."""
         mock_alpaca_manager.get_positions.side_effect = ValueError("Test error")
 

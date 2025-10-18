@@ -14,15 +14,13 @@ for mathematical invariants using Hypothesis.
 
 from __future__ import annotations
 
-import math
-
 import pandas as pd
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.errors.exceptions import MarketDataError
 from the_alchemiser.strategy_v2.indicators.indicators import (
-    DEFAULT_RSI_WINDOW,
     NEUTRAL_RSI_VALUE,
     TechnicalIndicators,
 )
@@ -36,7 +34,7 @@ class TestRSI:
         """RSI should be neutral (50) when prices are flat."""
         prices = pd.Series([100.0] * 20)
         rsi = TechnicalIndicators.rsi(prices, window=14)
-        
+
         # All values should be neutral RSI
         valid_rsi = rsi.dropna()
         assert len(valid_rsi) > 0
@@ -47,7 +45,7 @@ class TestRSI:
         """RSI should use default window when not specified."""
         prices = pd.Series([100 + i for i in range(20)])
         rsi = TechnicalIndicators.rsi(prices)
-        
+
         # Should not raise and should return valid series
         assert isinstance(rsi, pd.Series)
         assert len(rsi) == len(prices)
@@ -56,7 +54,7 @@ class TestRSI:
         """RSI should be above neutral in a strong uptrend."""
         prices = pd.Series([100 + i * 2 for i in range(20)])
         rsi = TechnicalIndicators.rsi(prices, window=14)
-        
+
         # Last RSI value should be significantly above neutral
         assert rsi.iloc[-1] > 60.0
 
@@ -64,7 +62,7 @@ class TestRSI:
         """RSI should be below neutral in a strong downtrend."""
         prices = pd.Series([100 - i * 2 for i in range(20)])
         rsi = TechnicalIndicators.rsi(prices, window=14)
-        
+
         # Last RSI value should be significantly below neutral
         assert rsi.iloc[-1] < 40.0
 
@@ -72,7 +70,7 @@ class TestRSI:
         """RSI should return neutral values when data is insufficient."""
         prices = pd.Series([100.0, 101.0, 102.0])
         rsi = TechnicalIndicators.rsi(prices, window=14)
-        
+
         # Should return neutral RSI for all values
         assert len(rsi) == len(prices)
         for val in rsi:
@@ -81,14 +79,14 @@ class TestRSI:
     def test_rsi_rejects_negative_window(self):
         """RSI should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.rsi(prices, window=-1)
 
     def test_rsi_rejects_zero_window(self):
         """RSI should reject zero window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.rsi(prices, window=0)
 
@@ -96,7 +94,7 @@ class TestRSI:
         """RSI should handle empty series gracefully."""
         prices = pd.Series(dtype=float)
         rsi = TechnicalIndicators.rsi(prices, window=14)
-        
+
         assert len(rsi) == 0
         assert isinstance(rsi, pd.Series)
 
@@ -105,10 +103,10 @@ class TestRSI:
         # All gains, no losses
         prices = pd.Series([100 + i for i in range(20)])
         rsi = TechnicalIndicators.rsi(prices, window=14)
-        
+
         # Should handle gracefully without inf or errors
         assert not rsi.isna().all()
-        assert not (rsi == float('inf')).any()
+        assert not (rsi == float("inf")).any()
 
 
 @pytest.mark.unit
@@ -119,11 +117,11 @@ class TestMovingAverage:
         """Moving average should calculate correctly."""
         prices = pd.Series([100.0, 102.0, 101.0, 103.0, 105.0])
         ma = TechnicalIndicators.moving_average(prices, window=3)
-        
+
         # First two values should be NaN
         assert pd.isna(ma.iloc[0])
         assert pd.isna(ma.iloc[1])
-        
+
         # Third value should be average of first 3 prices
         expected = (100.0 + 102.0 + 101.0) / 3
         assert abs(ma.iloc[2] - expected) < 0.01
@@ -131,7 +129,7 @@ class TestMovingAverage:
     def test_moving_average_rejects_negative_window(self):
         """Moving average should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.moving_average(prices, window=-1)
 
@@ -139,7 +137,7 @@ class TestMovingAverage:
         """Moving average should handle empty series gracefully."""
         prices = pd.Series(dtype=float)
         ma = TechnicalIndicators.moving_average(prices, window=3)
-        
+
         assert len(ma) == 0
         assert isinstance(ma, pd.Series)
 
@@ -152,18 +150,18 @@ class TestExponentialMovingAverage:
         """EMA should mask early values similar to SMA."""
         prices = pd.Series([100.0, 102.0, 101.0, 103.0, 105.0])
         ema = TechnicalIndicators.exponential_moving_average(prices, window=3)
-        
+
         # First two values should be masked
         assert pd.isna(ema.iloc[0])
         assert pd.isna(ema.iloc[1])
-        
+
         # Later values should not be NaN
         assert not pd.isna(ema.iloc[2])
 
     def test_ema_rejects_negative_window(self):
         """EMA should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.exponential_moving_average(prices, window=-1)
 
@@ -171,7 +169,7 @@ class TestExponentialMovingAverage:
         """EMA should handle empty series gracefully."""
         prices = pd.Series(dtype=float)
         ema = TechnicalIndicators.exponential_moving_average(prices, window=3)
-        
+
         assert len(ema) == 0
         assert isinstance(ema, pd.Series)
 
@@ -184,10 +182,10 @@ class TestMovingAverageReturn:
         """Moving average return should calculate correctly."""
         prices = pd.Series([100.0, 102.0, 101.0, 103.0, 105.0])
         returns = TechnicalIndicators.moving_average_return(prices, window=3)
-        
+
         # Should return a series of same length
         assert len(returns) == len(prices)
-        
+
         # Values should be in percentage form
         assert isinstance(returns.iloc[-1], float)
 
@@ -195,14 +193,14 @@ class TestMovingAverageReturn:
         """Moving average return should handle insufficient data."""
         prices = pd.Series([100.0, 101.0])
         returns = TechnicalIndicators.moving_average_return(prices, window=5)
-        
+
         # Should return zero series
         assert all(returns == 0)
 
     def test_moving_average_return_rejects_negative_window(self):
         """Moving average return should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.moving_average_return(prices, window=-1)
 
@@ -215,10 +213,10 @@ class TestCumulativeReturn:
         """Cumulative return should calculate correctly."""
         prices = pd.Series([100.0, 102.0, 98.0, 105.0, 110.0])
         cum_ret = TechnicalIndicators.cumulative_return(prices, window=2)
-        
+
         # Third value should be (98 / 100 - 1) * 100 = -2%
         assert abs(cum_ret.iloc[2] - (-2.0)) < 0.01
-        
+
         # Fourth value should be (105 / 102 - 1) * 100 ≈ 2.94%
         expected = ((105.0 / 102.0) - 1) * 100
         assert abs(cum_ret.iloc[3] - expected) < 0.01
@@ -227,14 +225,14 @@ class TestCumulativeReturn:
         """Cumulative return should handle insufficient data."""
         prices = pd.Series([100.0, 101.0])
         cum_ret = TechnicalIndicators.cumulative_return(prices, window=5)
-        
+
         # Should return zero series
         assert all(cum_ret == 0)
 
     def test_cumulative_return_rejects_negative_window(self):
         """Cumulative return should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.cumulative_return(prices, window=-1)
 
@@ -247,10 +245,10 @@ class TestStdevReturn:
         """Standard deviation return should calculate correctly."""
         prices = pd.Series([100.0, 102.0, 98.0, 105.0, 103.0, 110.0])
         stdev = TechnicalIndicators.stdev_return(prices, window=3)
-        
+
         # Should return a series of same length
         assert len(stdev) == len(prices)
-        
+
         # Values should be positive (or NaN for insufficient data)
         valid_values = stdev.dropna()
         assert all(valid_values >= 0)
@@ -259,14 +257,14 @@ class TestStdevReturn:
         """Standard deviation return should handle insufficient data."""
         prices = pd.Series([100.0, 101.0])
         stdev = TechnicalIndicators.stdev_return(prices, window=5)
-        
+
         # Should return zero series
         assert all(stdev == 0)
 
     def test_stdev_return_rejects_negative_window(self):
         """Standard deviation return should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.stdev_return(prices, window=-1)
 
@@ -279,10 +277,10 @@ class TestMaxDrawdown:
         """Maximum drawdown should calculate correctly."""
         prices = pd.Series([100.0, 105.0, 98.0, 102.0, 95.0, 110.0])
         mdd = TechnicalIndicators.max_drawdown(prices, window=3)
-        
+
         # Should return a series of same length
         assert len(mdd) == len(prices)
-        
+
         # Values should be positive (or NaN for insufficient data)
         valid_values = mdd.dropna()
         assert all(valid_values >= 0)
@@ -292,7 +290,7 @@ class TestMaxDrawdown:
         # Create a clear peak-to-trough scenario
         prices = pd.Series([100.0, 110.0, 90.0, 95.0])
         mdd = TechnicalIndicators.max_drawdown(prices, window=3)
-        
+
         # At index 2: window [100, 110, 90]
         # Max drawdown should be (110 - 90) / 110 * 100 ≈ 18.18%
         expected = ((110.0 - 90.0) / 110.0) * 100
@@ -302,14 +300,14 @@ class TestMaxDrawdown:
         """Maximum drawdown should handle insufficient data."""
         prices = pd.Series([100.0, 101.0])
         mdd = TechnicalIndicators.max_drawdown(prices, window=5)
-        
+
         # Should return zero series
         assert all(mdd == 0)
 
     def test_max_drawdown_rejects_negative_window(self):
         """Maximum drawdown should reject negative window."""
         prices = pd.Series([100.0] * 20)
-        
+
         with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.max_drawdown(prices, window=-1)
 
@@ -324,7 +322,7 @@ class TestIndicatorProperties:
         """Property: RSI should always be between 0 and 100."""
         series = pd.Series(prices)
         rsi = TechnicalIndicators.rsi(series, window=14)
-        
+
         # All non-NaN values should be in [0, 100]
         valid_rsi = rsi.dropna()
         if len(valid_rsi) > 0:
@@ -337,10 +335,10 @@ class TestIndicatorProperties:
         series = pd.Series(prices)
         if len(series) < 5:
             return  # Skip if insufficient data
-        
+
         ma = TechnicalIndicators.moving_average(series, window=5)
         valid_ma = ma.dropna()
-        
+
         if len(valid_ma) > 1:
             # MA should exist and be within range of original prices
             assert valid_ma.min() >= series.min() * 0.5
@@ -352,12 +350,12 @@ class TestIndicatorProperties:
         series = pd.Series(prices)
         if len(series) < 5:
             return  # Skip if insufficient data
-        
+
         cum_ret = TechnicalIndicators.cumulative_return(series, window=1)
-        
+
         # 1-period cumulative return should match pct_change * 100
         pct_change = series.pct_change() * 100
-        
+
         # Compare non-NaN values
         valid_indices = ~(cum_ret.isna() | pct_change.isna())
         if valid_indices.sum() > 0:
@@ -369,10 +367,10 @@ class TestIndicatorProperties:
         series = pd.Series(prices)
         if len(series) < 5:
             return  # Skip if insufficient data
-        
+
         mdd = TechnicalIndicators.max_drawdown(series, window=5)
         valid_mdd = mdd.dropna()
-        
+
         if len(valid_mdd) > 0:
             # All drawdowns should be >= 0
             assert (valid_mdd >= 0).all()
@@ -385,7 +383,7 @@ class TestInputValidation:
     def test_all_indicators_reject_negative_windows(self):
         """All indicators should reject negative windows."""
         prices = pd.Series([100.0] * 20)
-        
+
         indicators = [
             TechnicalIndicators.rsi,
             TechnicalIndicators.moving_average,
@@ -395,7 +393,7 @@ class TestInputValidation:
             TechnicalIndicators.stdev_return,
             TechnicalIndicators.max_drawdown,
         ]
-        
+
         for indicator in indicators:
             with pytest.raises(MarketDataError, match="must be positive"):
                 indicator(prices, window=-1)
@@ -403,7 +401,7 @@ class TestInputValidation:
     def test_all_indicators_handle_empty_series(self):
         """All indicators should handle empty series gracefully."""
         prices = pd.Series(dtype=float)
-        
+
         indicators = [
             TechnicalIndicators.rsi,
             TechnicalIndicators.moving_average,
@@ -413,7 +411,7 @@ class TestInputValidation:
             TechnicalIndicators.stdev_return,
             TechnicalIndicators.max_drawdown,
         ]
-        
+
         for indicator in indicators:
             result = indicator(prices, window=5)
             assert isinstance(result, pd.Series)
@@ -427,19 +425,19 @@ class TestDeterminism:
     def test_rsi_deterministic(self):
         """RSI should produce same results for same input."""
         prices = pd.Series([100 + i * 0.5 for i in range(30)])
-        
+
         rsi1 = TechnicalIndicators.rsi(prices, window=14)
         rsi2 = TechnicalIndicators.rsi(prices, window=14)
-        
+
         # Results should be identical
         pd.testing.assert_series_equal(rsi1, rsi2)
 
     def test_moving_average_deterministic(self):
         """Moving average should produce same results for same input."""
         prices = pd.Series([100 + i * 0.5 for i in range(30)])
-        
+
         ma1 = TechnicalIndicators.moving_average(prices, window=10)
         ma2 = TechnicalIndicators.moving_average(prices, window=10)
-        
+
         # Results should be identical
         pd.testing.assert_series_equal(ma1, ma2)
