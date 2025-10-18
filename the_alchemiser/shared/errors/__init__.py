@@ -45,7 +45,6 @@ from .exceptions import (
     OrderExecutionError,
 )
 
-
 __all__ = [
     "AlchemiserError",
     "BuyingPowerError",
