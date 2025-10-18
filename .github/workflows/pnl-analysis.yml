@@ -1,0 +1,199 @@
+---
+name: PnL Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      analysis_type:
+        description: 'Type of P&L analysis to run'
+        required: true
+        default: 'weekly'
+        type: choice
+        options:
+        - weekly
+        - monthly
+        - custom
+      periods:
+        description: 'Number of periods back to analyze (for weekly/monthly)'
+        required: false
+        default: '1'
+        type: string
+      custom_period:
+        description: 'Custom period (e.g., 1W, 1M, 3M, 1A) when analysis_type is custom'
+        required: false
+        default: '1M'
+        type: string
+      detailed:
+        description: 'Show detailed daily breakdown'
+        required: false
+        default: false
+        type: boolean
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Run weekly P&L analysis every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  pnl-analysis:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: |
+          pip install -U pip
+          pip install poetry
+
+      - name: Install dependencies
+        run: |
+          poetry install --only=main
+
+      - name: Determine P&L command
+        id: pnl_command
+        run: |
+          if [ "${{ github.event.inputs.analysis_type }}" == "custom" ]; then
+            command="pnl --period ${{ github.event.inputs.custom_period }}"
+            description="P&L analysis for period ${{ github.event.inputs.custom_period }}"
+          elif [ "${{ github.event.inputs.analysis_type }}" == "weekly" ]; then
+            periods="${{ github.event.inputs.periods }}"
+            command="pnl --weekly --periods ${periods:-1}"
+            description="Weekly P&L analysis for ${periods:-1} week(s)"
+          else
+            periods="${{ github.event.inputs.periods }}"
+            command="pnl --monthly --periods ${periods:-1}"
+            description="Monthly P&L analysis for ${periods:-1} month(s)"
+          fi
+
+          # Add detailed flag if requested
+          if [ "${{ github.event.inputs.detailed }}" == "true" ]; then
+            command="${command} --detailed"
+            description="${description} (detailed)"
+          fi
+
+          # Add verbose flag if requested
+          if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+            command="${command} --verbose"
+          fi
+
+          # Output final values
+          echo "command=${command}" >> $GITHUB_OUTPUT
+          echo "description=${description}" >> $GITHUB_OUTPUT
+
+      - name: Run P&L Analysis
+        id: run_pnl
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
+          EMAIL__FROM_EMAIL: ${{ vars.EMAIL__FROM_EMAIL }}
+          EMAIL__TO_EMAIL: ${{ vars.EMAIL__TO_EMAIL }}
+          EMAIL__PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          APP__STAGE: prod
+          LOGGING__CONSOLE_LEVEL: INFO
+          LOGGING__LEVEL: INFO
+        run: |
+          echo "🔍 Running ${{ steps.pnl_command.outputs.description }}"
+          echo "📊 Command: python -m the_alchemiser ${{ steps.pnl_command.outputs.command }}"
+          echo
+
+          # Run the P&L analysis and capture output
+          set +e
+          poetry run python -m the_alchemiser ${{ steps.pnl_command.outputs.command }} > pnl_output.log 2>&1
+          exit_code=$?
+
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+
+          # Check if we got valid data
+          if grep -q "No portfolio data found" pnl_output.log; then
+            echo "no_data=true" >> $GITHUB_OUTPUT
+          else
+            echo "no_data=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "=== P&L Analysis Output ==="
+          cat pnl_output.log
+          echo "=== Exit Code: $exit_code ==="
+
+      - name: Upload P&L Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnl-analysis-report
+          path: pnl_output.log
+
+      - name: Prepare P&L Issue Content
+        if: always()
+        run: |
+          timestamp="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          success_status="✅ Success"
+          if [ "${{ steps.run_pnl.outputs.exit_code }}" != "0" ]; then
+            success_status="❌ Failed"
+          fi
+          if [ "${{ steps.run_pnl.outputs.no_data }}" == "true" ]; then
+            success_status="⚠️ No Data"
+          fi
+
+          cat > pnl_issue_content.md << EOF
+          # 📊 P&L Analysis Report
+
+          **Analysis Type**: ${{ steps.pnl_command.outputs.description }}
+          **Status**: $success_status
+          **Workflow Run ID**: ${{ github.run_id }}
+          **Exit Code**: ${{ steps.run_pnl.outputs.exit_code }}
+          **Timestamp**: $timestamp
+          **Repository**: ${{ github.repository }}
+          **Branch**: ${{ github.ref_name }}
+          **Commit**: ${{ github.sha }}
+          **Triggered by**: ${{ github.triggering_actor }}
+
+          ## P&L Analysis Output
+
+          \`\`\`
+          EOF
+          cat pnl_output.log >> pnl_issue_content.md
+          cat >> pnl_issue_content.md << EOF
+          \`\`\`
+
+          ## Summary
+
+          - **Command Executed**: \`python -m the_alchemiser ${{ steps.pnl_command.outputs.command }}\`
+          - **Environment**: Production
+          - **Data Available**: $([ "${{ steps.run_pnl.outputs.no_data }}" == "true" ] && echo "No" || echo "Yes")
+
+          ## Actions
+
+          - 📥 [Download full report artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - 🔍 [View workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - 📈 [View all P&L reports](https://github.com/${{ github.repository }}/issues?q=label%3Apnl-analysis)
+
+          ---
+          *This report was automatically generated by the PnL Analysis workflow.*
+          EOF
+
+      - name: Create P&L Summary Issue
+        if: always()
+        uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v5
+        with:
+          title: "📊 P&L Analysis Report - ${{ steps.pnl_command.outputs.description }}"
+          content-filepath: ./pnl_issue_content.md
+          labels: pnl-analysis,automated-report
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ P&L analysis failed. Check the issue created above for details."
