@@ -37,21 +37,15 @@ class TestServiceFactoryInitialization:
             assert ServiceFactory.get_container() == mock_container
 
             # Verify logging occurred
-            mock_logger.info.assert_called_with(
-                "ServiceFactory initialized with DI container"
-            )
+            mock_logger.info.assert_called_with("ServiceFactory initialized with DI container")
 
     def test_initialize_creates_container_when_none_provided(self):
         """Test that initialize creates new container when None provided."""
-        with patch(
-            "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
-        ) as mock_ac:
+        with patch("the_alchemiser.shared.utils.service_factory.ApplicationContainer") as mock_ac:
             mock_container_instance = Mock()
             mock_ac.create_for_environment.return_value = mock_container_instance
 
-            with patch(
-                "the_alchemiser.shared.utils.service_factory.logger"
-            ) as mock_logger:
+            with patch("the_alchemiser.shared.utils.service_factory.logger") as mock_logger:
                 ServiceFactory.initialize(None)
 
                 # Verify container was created via create_for_environment
@@ -66,14 +60,10 @@ class TestServiceFactoryInitialization:
 
     def test_initialize_raises_on_container_creation_failure(self):
         """Test that initialize raises ConfigurationError when container creation fails."""
-        with patch(
-            "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
-        ) as mock_ac:
+        with patch("the_alchemiser.shared.utils.service_factory.ApplicationContainer") as mock_ac:
             mock_ac.create_for_environment.side_effect = RuntimeError("Container creation failed")
 
-            with patch(
-                "the_alchemiser.shared.utils.service_factory.logger"
-            ) as mock_logger:
+            with patch("the_alchemiser.shared.utils.service_factory.logger") as mock_logger:
                 with pytest.raises(
                     ConfigurationError, match="Failed to create ApplicationContainer"
                 ):
@@ -113,9 +103,7 @@ class TestServiceFactoryCreateExecutionManagerViaDI:
 
         ServiceFactory.initialize(mock_container)
 
-        with patch(
-            "the_alchemiser.shared.utils.service_factory.logger"
-        ) as mock_logger:
+        with patch("the_alchemiser.shared.utils.service_factory.logger") as mock_logger:
             # Create without credentials (should use DI)
             result = ServiceFactory.create_execution_manager()
 
@@ -143,12 +131,11 @@ class TestServiceFactoryCreateExecutionManagerViaDI:
 
         ServiceFactory.initialize(mock_container)
 
-        with patch("the_alchemiser.shared.utils.service_factory.logger"):
-            with pytest.raises(
-                ConfigurationError,
-                match="Failed to get execution_manager provider.*execution_manager is None",
-            ):
-                ServiceFactory.create_execution_manager()
+        with patch("the_alchemiser.shared.utils.service_factory.logger"), pytest.raises(
+            ConfigurationError,
+            match="Failed to get execution_manager provider.*execution_manager is None",
+        ):
+            ServiceFactory.create_execution_manager()
 
 
 class TestServiceFactoryCreateExecutionManagerDirect:
@@ -190,9 +177,7 @@ class TestServiceFactoryCreateExecutionManagerDirect:
         mock_module.ExecutionManager = mock_execution_manager_class
 
         with patch("importlib.import_module", return_value=mock_module):
-            ServiceFactory.create_execution_manager(
-                api_key="test_key", secret_key="test_secret"
-            )
+            ServiceFactory.create_execution_manager(api_key="test_key", secret_key="test_secret")
 
             # Verify paper=True was passed
             _, kwargs = mock_execution_manager_class.create_with_config.call_args
@@ -242,7 +227,8 @@ class TestServiceFactoryInputValidation:
 
         with pytest.raises(TypeError, match="api_key must be str"):
             ServiceFactory.create_execution_manager(
-                api_key=12345, secret_key="secret"  # type: ignore[arg-type]
+                api_key=12345,
+                secret_key="secret",  # type: ignore[arg-type]
             )
 
     def test_create_execution_manager_raises_on_non_string_secret_key(self):
@@ -251,7 +237,8 @@ class TestServiceFactoryInputValidation:
 
         with pytest.raises(TypeError, match="secret_key must be str"):
             ServiceFactory.create_execution_manager(
-                api_key="key", secret_key=12345  # type: ignore[arg-type]
+                api_key="key",
+                secret_key=12345,  # type: ignore[arg-type]
             )
 
     def test_create_execution_manager_treats_empty_string_as_none(self):
@@ -279,16 +266,12 @@ class TestServiceFactoryImportErrorHandling:
         """Test that ImportError is properly caught and wrapped."""
         ServiceFactory._container = None
 
-        with patch(
-            "importlib.import_module", side_effect=ImportError("Module not found")
-        ):
+        with patch("importlib.import_module", side_effect=ImportError("Module not found")):
             with pytest.raises(
                 ConfigurationError,
                 match="Failed to import ExecutionManager module.*Module not found",
             ):
-                ServiceFactory.create_execution_manager(
-                    api_key="key", secret_key="secret"
-                )
+                ServiceFactory.create_execution_manager(api_key="key", secret_key="secret")
 
     def test_create_execution_manager_handles_attribute_error(self):
         """Test that AttributeError is properly caught and wrapped."""
@@ -296,34 +279,26 @@ class TestServiceFactoryImportErrorHandling:
 
         mock_module = Mock(spec=[])  # Module without ExecutionManager attribute
 
-        with patch("importlib.import_module", return_value=mock_module):
-            with pytest.raises(
-                ConfigurationError,
-                match="ExecutionManager class not found in module",
-            ):
-                ServiceFactory.create_execution_manager(
-                    api_key="key", secret_key="secret"
-                )
+        with patch("importlib.import_module", return_value=mock_module), pytest.raises(
+            ConfigurationError,
+            match="ExecutionManager class not found in module",
+        ):
+            ServiceFactory.create_execution_manager(api_key="key", secret_key="secret")
 
     def test_create_execution_manager_handles_unexpected_error(self):
         """Test that unexpected errors are caught and wrapped with context."""
         ServiceFactory._container = None
 
         mock_execution_manager_class = Mock()
-        mock_execution_manager_class.create_with_config.side_effect = ValueError(
-            "Unexpected error"
-        )
+        mock_execution_manager_class.create_with_config.side_effect = ValueError("Unexpected error")
 
         mock_module = Mock()
         mock_module.ExecutionManager = mock_execution_manager_class
 
-        with patch("importlib.import_module", return_value=mock_module):
-            with pytest.raises(
-                ConfigurationError, match="Unexpected error creating ExecutionManager"
-            ):
-                ServiceFactory.create_execution_manager(
-                    api_key="key", secret_key="secret"
-                )
+        with patch("importlib.import_module", return_value=mock_module), pytest.raises(
+            ConfigurationError, match="Unexpected error creating ExecutionManager"
+        ):
+            ServiceFactory.create_execution_manager(api_key="key", secret_key="secret")
 
 
 class TestServiceFactoryLogging:
@@ -339,9 +314,7 @@ class TestServiceFactoryLogging:
         """Test that DI creation path logs appropriately."""
         mock_container = Mock(spec=ApplicationContainer)
 
-        with patch(
-            "the_alchemiser.shared.utils.service_factory.ApplicationContainer"
-        ) as mock_ac:
+        with patch("the_alchemiser.shared.utils.service_factory.ApplicationContainer") as mock_ac:
             mock_ac.initialize_execution_providers = Mock()
 
             ServiceFactory.initialize(mock_container)
@@ -357,10 +330,7 @@ class TestServiceFactoryLogging:
 
         # Verify key log messages appear in output
         assert "Creating ExecutionManager" in log_text
-        assert (
-            "Initializing execution providers" in log_text
-            or "Using DI container" in log_text
-        )
+        assert "Initializing execution providers" in log_text or "Using DI container" in log_text
 
     @pytest.mark.unit
     def test_logging_on_direct_creation_path(self, capsys):
@@ -372,9 +342,7 @@ class TestServiceFactoryLogging:
         mock_module.ExecutionManager = mock_execution_manager_class
 
         with patch("importlib.import_module", return_value=mock_module):
-            ServiceFactory.create_execution_manager(
-                api_key="key", secret_key="secret", paper=False
-            )
+            ServiceFactory.create_execution_manager(api_key="key", secret_key="secret", paper=False)
 
         # Capture structlog output from stdout/stderr AFTER exiting context
         captured = capsys.readouterr()
@@ -398,9 +366,7 @@ class TestServiceFactoryLogging:
         mock_module.ExecutionManager = mock_execution_manager_class
 
         with patch("importlib.import_module", return_value=mock_module):
-            ServiceFactory.create_execution_manager(
-                api_key="key", secret_key="secret", paper=False
-            )
+            ServiceFactory.create_execution_manager(api_key="key", secret_key="secret", paper=False)
 
         # Capture structlog output from stdout/stderr AFTER exiting context
         captured = capsys.readouterr()

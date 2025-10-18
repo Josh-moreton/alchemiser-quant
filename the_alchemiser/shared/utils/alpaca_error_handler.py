@@ -257,6 +257,63 @@ class AlpacaErrorHandler:
         return True, f"HTTP {code} HTML error"
 
     @staticmethod
+    def _check_dns_error(msg: str) -> tuple[bool, str]:
+        """Check if error is a DNS resolution failure.
+
+        DNS failures are transient - temporary network issues, DNS server
+        unavailability, or routing problems.
+
+        Args:
+            msg: Error message string
+
+        Returns:
+            Tuple of (is_dns_error, reason) if match found, else (False, "")
+
+        """
+        msg_lower = msg.lower()
+        dns_patterns = [
+            "nameresolutionerror",
+            "failed to resolve",
+            "nodename nor servname",
+            "name or service not known",
+            "temporary failure in name resolution",
+            "getaddrinfo failed",
+        ]
+
+        if any(pattern in msg_lower for pattern in dns_patterns):
+            return True, "DNS Resolution Error"
+        return False, ""
+
+    @staticmethod
+    def _check_connection_error(msg: str) -> tuple[bool, str]:
+        """Check if error is a network connection failure.
+
+        Connection failures are transient - network issues, firewall problems,
+        or temporary service unavailability.
+
+        Args:
+            msg: Error message string
+
+        Returns:
+            Tuple of (is_connection_error, reason) if match found, else (False, "")
+
+        """
+        msg_lower = msg.lower()
+        connection_patterns = [
+            "connectionerror",
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "max retries exceeded",  # urllib3 retry exhaustion
+            "network is unreachable",
+            "no route to host",
+        ]
+
+        if any(pattern in msg_lower for pattern in connection_patterns):
+            return True, "Network Connection Error"
+        return False, ""
+
+    @staticmethod
     def is_transient_error(error: Exception) -> tuple[bool, str]:
         """Determine if error is transient and should be retried.
 
@@ -274,6 +331,8 @@ class AlpacaErrorHandler:
             AlpacaErrorHandler._check_502_error,
             AlpacaErrorHandler._check_503_error,
             AlpacaErrorHandler._check_timeout_error,
+            AlpacaErrorHandler._check_dns_error,
+            AlpacaErrorHandler._check_connection_error,
             AlpacaErrorHandler._check_html_error,
         ]:
             is_transient, reason = check_method(msg)

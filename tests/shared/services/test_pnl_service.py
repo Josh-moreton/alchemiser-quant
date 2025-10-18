@@ -6,9 +6,10 @@ Tests for P&L service functionality.
 
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
 from unittest.mock import Mock, patch
+
+import pytest
 
 from the_alchemiser.shared.errors.exceptions import ConfigurationError, DataProviderError
 from the_alchemiser.shared.schemas.pnl import DailyPnLEntry, PnLData
@@ -310,18 +311,18 @@ class TestPnLService:
         mock_manager.get_portfolio_history.return_value = None
 
         service = PnLService(alpaca_manager=mock_manager)
-        
+
         with pytest.raises(DataProviderError) as exc_info:
             service.get_period_pnl("1W")
-        
+
         assert "empty history" in str(exc_info.value).lower()
 
     def test_configuration_error_on_missing_keys(self) -> None:
         """Test that ConfigurationError is raised when API keys are missing."""
         with patch("the_alchemiser.shared.services.pnl_service.get_alpaca_keys") as mock_keys:
             mock_keys.return_value = (None, None, None)
-            
+
             with pytest.raises(ConfigurationError) as exc_info:
                 PnLService(alpaca_manager=None)
-            
+
             assert "API keys not found" in str(exc_info.value)

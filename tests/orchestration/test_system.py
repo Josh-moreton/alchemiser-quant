@@ -67,7 +67,9 @@ class TestTradingSystemInitialization:
         with patch("the_alchemiser.orchestration.system.load_settings") as mock_load:
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem(settings=mock_settings)
 
                         # Verify settings were not loaded (provided settings used)
@@ -79,7 +81,9 @@ class TestTradingSystemInitialization:
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
 
                         assert system.error_handler is not None
@@ -90,7 +94,9 @@ class TestTradingSystemInitialization:
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
 
                         assert system.logger is not None
@@ -101,27 +107,32 @@ class TestTradingSystemDIInitialization:
 
     def test_initialize_di_creates_container(self):
         """Test that _initialize_di creates ApplicationContainer."""
-        with patch("the_alchemiser.orchestration.system.load_settings"):
-            with patch(
-                "the_alchemiser.orchestration.system.ApplicationContainer"
-            ) as mock_container_class:
-                mock_container_instance = Mock()
-                mock_container_class.create_for_environment.return_value = mock_container_instance
+        with patch("the_alchemiser.orchestration.system.load_settings"), patch(
+            "the_alchemiser.orchestration.system.ApplicationContainer"
+        ) as mock_container_class:
+            mock_container_instance = Mock()
+            mock_container_class.create_for_environment.return_value = mock_container_instance
 
-                with patch("the_alchemiser.orchestration.system.ServiceFactory") as mock_sf:
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
-                        system = TradingSystem()
+            with patch("the_alchemiser.orchestration.system.ServiceFactory") as mock_sf:
+                with patch(
+                    "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                ):
+                    system = TradingSystem()
 
-                        # Verify container was created via create_for_environment
-                        mock_container_class.create_for_environment.assert_called_once_with("development")
-                        assert system.container == mock_container_instance
+                    # Verify container was created via create_for_environment
+                    mock_container_class.create_for_environment.assert_called_once_with(
+                        "development"
+                    )
+                    assert system.container == mock_container_instance
 
     def test_initialize_di_initializes_service_factory(self):
         """Test that _initialize_di calls ServiceFactory.initialize."""
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory") as mock_sf:
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
 
                         # Verify ServiceFactory.initialize was called
@@ -156,7 +167,9 @@ class TestTradingSystemEventOrchestration:
                 "the_alchemiser.orchestration.system.ApplicationContainer"
             ) as mock_container_class:
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
 
                         # Manually break the container
@@ -178,7 +191,9 @@ class TestTradingSystemEmitStartupEvent:
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
 
                         # Mock the event bus
@@ -239,7 +254,9 @@ class TestTradingSystemExecuteTrading:
                         "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
                     ) as mock_edo:
                         mock_orchestrator = Mock()
-                        mock_orchestrator.start_trading_workflow.return_value = "test-correlation-id"
+                        mock_orchestrator.start_trading_workflow.return_value = (
+                            "test-correlation-id"
+                        )
                         mock_orchestrator.wait_for_workflow_completion.return_value = {
                             "success": True,
                             "duration_seconds": 1.5,
@@ -277,7 +294,9 @@ class TestTradingSystemDisplayPostExecution:
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
                         return system
 
@@ -300,7 +319,9 @@ class TestTradingSystemExecuteTradingErrorPaths:
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
                         # Manually break the container
                         system.container = None
@@ -316,7 +337,9 @@ class TestTradingSystemExecuteTradingErrorPaths:
         with patch("the_alchemiser.orchestration.system.load_settings"):
             with patch("the_alchemiser.orchestration.system.ApplicationContainer"):
                 with patch("the_alchemiser.orchestration.system.ServiceFactory"):
-                    with patch("the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"):
+                    with patch(
+                        "the_alchemiser.orchestration.event_driven_orchestrator.EventDrivenOrchestrator"
+                    ):
                         system = TradingSystem()
                         # Manually break the orchestrator
                         system.event_driven_orchestrator = None
@@ -326,4 +349,3 @@ class TestTradingSystemExecuteTradingErrorPaths:
                         # Verify failure result
                         assert result is not None
                         assert result.success is False
-

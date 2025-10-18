@@ -468,7 +468,13 @@ class SignalsBuilder:
             summary_data = strategy_summary.get(strategy_name, {})
             allocation = summary_data.get("allocation", 0)
 
-            symbol = signal_data.get("symbol", "N/A")
+            # Get symbols list and join for display
+            symbols_list = signal_data.get("symbols", [])
+            if isinstance(symbols_list, list):
+                symbol = ", ".join(str(s) for s in symbols_list) if symbols_list else "N/A"
+            else:
+                symbol = str(symbols_list) if symbols_list else "N/A"
+
             action = signal_data.get("action", "UNKNOWN")
             reason = signal_data.get("reason", "No reason provided")
             timestamp = signal_data.get("timestamp", "")
@@ -687,44 +693,41 @@ class SignalsBuilder:
             if not isinstance(signal_data, dict):
                 continue
 
-            # Format strategy name
+            # Format strategy name (simple title case, no enum prefix stripping)
             if hasattr(strategy_name, "name"):
                 strategy_display_name = strategy_name.name.replace("_", " ").title()
             else:
-                # Strip StrategyType enum prefix (e.g., "StrategyType.DSL" -> "DSL") for display
-                strategy_display_name = (
-                    str(strategy_name).replace(_STRATEGY_TYPE_PREFIX, "").replace("_", " ").title()
-                )
+                strategy_display_name = str(strategy_name).title()
 
-            # Get target allocation for this strategy if available
-            # Strategy signals may include allocation data
-            symbol = signal_data.get("symbol", "")
-            action = signal_data.get("action", "UNKNOWN")
-            reason = signal_data.get("reason", "")
+            # Get signal data
+            reasoning = str(signal_data.get("reasoning", signal_data.get("reason", "")))
+            signal_str = str(signal_data.get("signal", ""))
 
-            # Build allocation string from signal
-            allocation_str = f"{action}"
-            if symbol:
-                allocation_str += f" {symbol}"
+            # Fallback: build signal from symbols/action if not provided
+            if not signal_str:
+                action = str(signal_data.get("action", "UNKNOWN"))
+                symbols_list = signal_data.get("symbols", [])
+                if symbols_list and isinstance(symbols_list, list):
+                    symbols_str = ", ".join(str(s) for s in symbols_list)
+                    signal_str = f"{action} {symbols_str}"
+                else:
+                    signal_str = action
 
-            # Add reasoning if available (decision path explanation)
-            reasoning_html = ""
-            if reason:
-                # Truncate reasoning for summary display
+            # Format as: strategy_name: reasoning → signal
+            # Truncate reasoning for summary display
+            truncated_reason = ""
+            if reasoning:
                 truncated_reason = SignalsBuilder._truncate_reason(
-                    reason, MAX_REASON_LENGTH_SUMMARY
+                    reasoning, MAX_REASON_LENGTH_SUMMARY
                 )
-                reasoning_html = f"""
-                    <div style="margin-left: 16px; margin-top: 4px; color: #6B7280; font-size: 13px; line-height: 1.5;">
-                        → {truncated_reason}
-                    </div>
-                """
+
+            # Build the row: "grail: <reasoning> → BUY TQQQ"
+            display_line = f"{truncated_reason} → {signal_str}" if truncated_reason else signal_str
 
             strategy_rows.append(
                 f"""
                 <div style="padding: 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
-                    <strong style="color: #1F2937;">{strategy_display_name}:</strong> {allocation_str}
-                    {reasoning_html}
+                    <strong style="color: #1F2937;">{strategy_display_name}:</strong> {display_line}
                 </div>
                 """
             )
@@ -816,7 +819,9 @@ class SignalsBuilder:
                 continue
 
             action = signal_data.get("action", "UNKNOWN")
-            symbol = signal_data.get("symbol", "UNKNOWN")
+            # Get symbols list and join for display
+            symbols_list = signal_data.get("symbols", [])
+            symbol = ", ".join(str(s) for s in symbols_list) if symbols_list else "UNKNOWN"
             reason = signal_data.get("reason", "No reason provided")
 
             # Convert strategy_name to string and format

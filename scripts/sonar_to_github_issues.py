@@ -19,12 +19,14 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import requests
 from pathlib import Path
@@ -323,12 +325,51 @@ def get_sonar_token() -> str:
     sys.exit(2)
 
 
+def _validate_and_return(owner: str, repo: str) -> tuple[str, str] | None:
+    """Validate owner and repo names match GitHub naming rules.
+    
+    GitHub naming rules:
+        - Alphanumeric characters, hyphens, and underscores only
+        - Cannot start with hyphen
+        - Max 39 characters for owner, 100 for repo
+    
+    Security:
+        - Prevents path traversal attacks (e.g., "../../../etc/passwd")
+        - Blocks query parameter injection
+        - Ensures only valid GitHub identifiers are used
+    
+    Returns:
+        Validated (owner, repo) tuple or None if invalid
+    """
+    # GitHub username/org pattern: alphanumeric, hyphens, cannot start with hyphen
+    owner_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9-]){0,38}$"
+    # GitHub repo name pattern: alphanumeric, dots, hyphens, underscores
+    repo_pattern = r"^[a-zA-Z0-9._-]{1,100}$"
+    
+    if not re.match(owner_pattern, owner):
+        logging.warning(f"Invalid GitHub owner name: {owner}")
+        return None
+    
+    if not re.match(repo_pattern, repo):
+        logging.warning(f"Invalid GitHub repo name: {repo}")
+        return None
+    
+    return owner, repo
+
+
 def get_github_repo(owner_repo_env: str | None = None) -> tuple[str, str] | None:
-    """Determine owner/repo from env, gh CLI, or git remote origin."""
+    """Determine owner/repo from env, gh CLI, or git remote origin.
+    
+    Security:
+        - Uses urllib.parse for proper URL parsing
+        - Validates path structure before extraction
+        - Strips query parameters and fragments
+        - Validates owner/repo format (alphanumeric + hyphens/underscores)
+    """
     if owner_repo_env:
         try:
             owner, repo = owner_repo_env.split("/", 1)
-            return owner, repo
+            return _validate_and_return(owner, repo)
         except ValueError:
             pass
     # gh CLI
@@ -338,23 +379,41 @@ def get_github_repo(owner_repo_env: str | None = None) -> tuple[str, str] | None
         )
         if code == 0 and out and "/" in out:
             owner, repo = out.split("/", 1)
-            return owner, repo
+            return _validate_and_return(owner, repo)
     # git remote
     if shutil.which("git"):
         code, out, _ = _run_command(["git", "remote", "get-url", "origin"])
         if code == 0 and out:
             url = out.strip()
-            # handle git@github.com:owner/repo.git or https://github.com/owner/repo.git
-            if url.startswith("git@") and ":" in url:
-                path = url.split(":", 1)[1]
-            elif url.startswith("http") and "github.com/" in url:
-                path = url.split("github.com/", 1)[1]
-            else:
-                path = ""
-            path = path.replace(".git", "")
-            if "/" in path:
-                owner, repo = path.split("/", 1)
-                return owner, repo
+            
+            # Handle SSH URLs: git@github.com:owner/repo.git
+            if url.startswith("git@"):
+                match = re.match(r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$", url)
+                if match:
+                    owner, repo = match.groups()
+                    return _validate_and_return(owner, repo)
+            
+            # Handle HTTPS URLs: https://github.com/owner/repo.git
+            elif url.startswith("http"):
+                parsed = urlparse(url)
+                
+                # Validate domain is exactly github.com
+                if parsed.netloc.lower() != "github.com":
+                    return None
+                
+                # Extract path, strip leading/trailing slashes
+                path = parsed.path.strip("/")
+                
+                # Remove .git suffix if present
+                if path.endswith(".git"):
+                    path = path[:-4]
+                
+                # Split into owner/repo
+                parts = path.split("/")
+                if len(parts) >= 2:
+                    owner, repo = parts[0], parts[1]
+                    return _validate_and_return(owner, repo)
+    
     return None
 
 

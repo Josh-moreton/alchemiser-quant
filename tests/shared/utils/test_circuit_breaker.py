@@ -100,9 +100,7 @@ class TestConnectionCircuitBreakerStateTransitions:
 
     def test_half_open_to_closed_after_successes(self) -> None:
         """Test HALF_OPEN → CLOSED transition after success threshold."""
-        config = CircuitBreakerConfig(
-            failure_threshold=2, timeout_seconds=0.1, success_threshold=2
-        )
+        config = CircuitBreakerConfig(failure_threshold=2, timeout_seconds=0.1, success_threshold=2)
         cb = ConnectionCircuitBreaker(config=config)
 
         # Open the circuit
@@ -215,9 +213,7 @@ class TestConnectionCircuitBreakerCounters:
 
     def test_success_count_increments_in_half_open(self) -> None:
         """Test success counter in HALF_OPEN state."""
-        config = CircuitBreakerConfig(
-            failure_threshold=2, timeout_seconds=0.1, success_threshold=3
-        )
+        config = CircuitBreakerConfig(failure_threshold=2, timeout_seconds=0.1, success_threshold=3)
         cb = ConnectionCircuitBreaker(config=config)
 
         # Open circuit
@@ -347,9 +343,7 @@ class TestConnectionCircuitBreakerEdgeCases:
 
     def test_exact_success_threshold_in_half_open(self) -> None:
         """Test behavior at exact success threshold in HALF_OPEN."""
-        config = CircuitBreakerConfig(
-            failure_threshold=2, timeout_seconds=0.1, success_threshold=2
-        )
+        config = CircuitBreakerConfig(failure_threshold=2, timeout_seconds=0.1, success_threshold=2)
         cb = ConnectionCircuitBreaker(config=config)
 
         # Open circuit

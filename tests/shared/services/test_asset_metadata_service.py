@@ -13,7 +13,7 @@ Tests cover:
 
 import threading
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -22,10 +22,8 @@ from the_alchemiser.shared.errors.exceptions import (
     TradingClientError,
     ValidationError,
 )
-from the_alchemiser.shared.schemas.asset_info import AssetInfo
 from the_alchemiser.shared.services.asset_metadata_service import (
     AssetMetadataService,
-    CacheStats,
 )
 
 
@@ -36,7 +34,7 @@ class TestAssetMetadataServiceInit:
         """Test initialization with valid parameters."""
         mock_client = Mock()
         service = AssetMetadataService(mock_client, asset_cache_ttl=300.0, max_cache_size=500)
-        
+
         assert service._trading_client == mock_client
         assert service._asset_cache_ttl == 300.0
         assert service._max_cache_size == 500
@@ -47,7 +45,7 @@ class TestAssetMetadataServiceInit:
         """Test initialization fails with None trading client."""
         with pytest.raises(ValidationError) as exc_info:
             AssetMetadataService(None)  # type: ignore
-        
+
         assert "trading_client cannot be None" in str(exc_info.value)
 
     def test_init_negative_ttl(self):
@@ -55,7 +53,7 @@ class TestAssetMetadataServiceInit:
         mock_client = Mock()
         with pytest.raises(ValidationError) as exc_info:
             AssetMetadataService(mock_client, asset_cache_ttl=-1.0)
-        
+
         assert "asset_cache_ttl must be positive" in str(exc_info.value)
 
     def test_init_zero_cache_size(self):
@@ -63,7 +61,7 @@ class TestAssetMetadataServiceInit:
         mock_client = Mock()
         with pytest.raises(ValidationError) as exc_info:
             AssetMetadataService(mock_client, max_cache_size=0)
-        
+
         assert "max_cache_size must be positive" in str(exc_info.value)
 
 
@@ -129,9 +127,9 @@ class TestGetAssetInfo:
     def test_get_asset_info_cache_miss(self, service, mock_asset):
         """Test cache miss fetches from API."""
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         result = service.get_asset_info("AAPL")
-        
+
         assert result is not None
         assert result.symbol == "AAPL"
         assert result.fractionable is True
@@ -143,13 +141,13 @@ class TestGetAssetInfo:
     def test_get_asset_info_cache_hit(self, service, mock_asset):
         """Test cache hit doesn't call API."""
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         # First call - cache miss
         result1 = service.get_asset_info("AAPL")
-        
+
         # Second call - cache hit
         result2 = service.get_asset_info("AAPL")
-        
+
         assert result1 == result2
         assert service._cache_hits == 1
         assert service._cache_misses == 1
@@ -159,25 +157,25 @@ class TestGetAssetInfo:
     def test_get_asset_info_cache_expiry(self, service, mock_asset):
         """Test cache expires after TTL."""
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         # First call
         service.get_asset_info("AAPL")
-        
+
         # Wait for cache to expire
         time.sleep(1.1)
-        
+
         # Second call should fetch from API
         service.get_asset_info("AAPL")
-        
+
         assert service._cache_misses == 2
         assert service._trading_client.get_asset.call_count == 2
 
     def test_get_asset_info_with_correlation_id(self, service, mock_asset):
         """Test correlation ID is passed through."""
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         result = service.get_asset_info("AAPL", correlation_id="test-123")
-        
+
         assert result is not None
         assert result.symbol == "AAPL"
 
@@ -193,12 +191,12 @@ class TestGetAssetInfo:
         mock_asset.tradable = True
         # fractionable attribute missing
         del mock_asset.fractionable
-        
+
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         with pytest.raises(DataProviderError) as exc_info:
             service.get_asset_info("AAPL")
-        
+
         assert "fractionable" in str(exc_info.value)
 
     def test_get_asset_info_missing_tradable_field(self, service):
@@ -208,26 +206,26 @@ class TestGetAssetInfo:
         mock_asset.fractionable = True
         # tradable attribute missing
         del mock_asset.tradable
-        
+
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         with pytest.raises(DataProviderError) as exc_info:
             service.get_asset_info("AAPL")
-        
+
         assert "tradable" in str(exc_info.value)
 
     def test_get_asset_info_not_found(self, service):
         """Test asset not found returns None."""
         service._trading_client.get_asset.side_effect = Exception("Asset not found")
-        
+
         result = service.get_asset_info("NOTFOUND")
-        
+
         assert result is None
 
     def test_get_asset_info_api_error(self, service):
         """Test API error raises TradingClientError."""
         service._trading_client.get_asset.side_effect = Exception("API connection failed")
-        
+
         with pytest.raises(TradingClientError):
             service.get_asset_info("AAPL")
 
@@ -235,11 +233,13 @@ class TestGetAssetInfo:
         """Test AttributeError raises DataProviderError."""
         mock_asset = Mock()
         # Make accessing fractionable raise AttributeError
-        type(mock_asset).fractionable = property(lambda self: (_ for _ in ()).throw(AttributeError("test")))
+        type(mock_asset).fractionable = property(
+            lambda self: (_ for _ in ()).throw(AttributeError("test"))
+        )
         mock_asset.tradable = True
-        
+
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         with pytest.raises(DataProviderError):
             service.get_asset_info("AAPL")
 
@@ -259,9 +259,9 @@ class TestIsFramentable:
         mock_asset.symbol = "AAPL"
         mock_asset.fractionable = True
         mock_asset.tradable = True
-        
+
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         result = service.is_fractionable("AAPL")
         assert result is True
 
@@ -271,19 +271,19 @@ class TestIsFramentable:
         mock_asset.symbol = "BRK.A"
         mock_asset.fractionable = False
         mock_asset.tradable = True
-        
+
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         result = service.is_fractionable("BRK.A")
         assert result is False
 
     def test_is_fractionable_asset_not_found(self, service):
         """Test asset not found raises DataProviderError."""
         service._trading_client.get_asset.side_effect = Exception("Asset not found")
-        
+
         with pytest.raises(DataProviderError) as exc_info:
             service.is_fractionable("NOTFOUND")
-        
+
         assert "asset not found" in str(exc_info.value).lower()
 
     def test_is_fractionable_with_correlation_id(self, service):
@@ -292,9 +292,9 @@ class TestIsFramentable:
         mock_asset.symbol = "AAPL"
         mock_asset.fractionable = True
         mock_asset.tradable = True
-        
+
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         result = service.is_fractionable("AAPL", correlation_id="test-123")
         assert result is True
 
@@ -313,7 +313,7 @@ class TestIsMarketOpen:
         mock_clock = Mock()
         mock_clock.is_open = True
         service._trading_client.get_clock.return_value = mock_clock
-        
+
         result = service.is_market_open()
         assert result is True
 
@@ -322,14 +322,14 @@ class TestIsMarketOpen:
         mock_clock = Mock()
         mock_clock.is_open = False
         service._trading_client.get_clock.return_value = mock_clock
-        
+
         result = service.is_market_open()
         assert result is False
 
     def test_is_market_open_api_error(self, service):
         """Test API error raises TradingClientError."""
         service._trading_client.get_clock.side_effect = Exception("API error")
-        
+
         with pytest.raises(TradingClientError):
             service.is_market_open()
 
@@ -338,7 +338,7 @@ class TestIsMarketOpen:
         mock_clock = Mock()
         mock_clock.is_open = True
         service._trading_client.get_clock.return_value = mock_clock
-        
+
         result = service.is_market_open(correlation_id="test-123")
         assert result is True
 
@@ -358,16 +358,16 @@ class TestGetMarketCalendar:
         mock_day1.date = "2025-01-06"
         mock_day1.open = "09:30"
         mock_day1.close = "16:00"
-        
+
         mock_day2 = Mock()
         mock_day2.date = "2025-01-07"
         mock_day2.open = "09:30"
         mock_day2.close = "16:00"
-        
+
         service._trading_client.get_calendar.return_value = [mock_day1, mock_day2]
-        
+
         result = service.get_market_calendar()
-        
+
         assert len(result) == 2
         assert result[0]["date"] == "2025-01-06"
         assert result[1]["date"] == "2025-01-07"
@@ -375,14 +375,14 @@ class TestGetMarketCalendar:
     def test_get_market_calendar_api_error(self, service):
         """Test API error raises TradingClientError."""
         service._trading_client.get_calendar.side_effect = Exception("API error")
-        
+
         with pytest.raises(TradingClientError):
             service.get_market_calendar()
 
     def test_get_market_calendar_with_correlation_id(self, service):
         """Test correlation ID is passed through."""
         service._trading_client.get_calendar.return_value = []
-        
+
         result = service.get_market_calendar(correlation_id="test-123")
         assert result == []
 
@@ -404,10 +404,10 @@ class TestCacheManagement:
         mock_asset.fractionable = True
         mock_asset.tradable = True
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         service.get_asset_info("AAPL")
         assert len(service._asset_cache) == 1
-        
+
         # Clear cache
         service.clear_cache()
         assert len(service._asset_cache) == 0
@@ -418,20 +418,20 @@ class TestCacheManagement:
         mock_asset = Mock()
         mock_asset.fractionable = True
         mock_asset.tradable = True
-        
+
         # Fill cache to max (3 entries)
         for symbol in ["AAPL", "MSFT", "GOOGL"]:
             mock_asset.symbol = symbol
             service._trading_client.get_asset.return_value = mock_asset
             service.get_asset_info(symbol)
-        
+
         assert len(service._asset_cache) == 3
-        
+
         # Add 4th entry - should evict oldest (AAPL)
         mock_asset.symbol = "TSLA"
         service._trading_client.get_asset.return_value = mock_asset
         service.get_asset_info("TSLA")
-        
+
         assert len(service._asset_cache) == 3
         assert "AAPL" not in service._asset_cache
         assert "TSLA" in service._asset_cache
@@ -444,17 +444,17 @@ class TestCacheManagement:
         assert stats["cache_hits"] == 0
         assert stats["cache_misses"] == 0
         assert stats["cache_hit_ratio"] == 0.0
-        
+
         # Add one entry
         mock_asset = Mock()
         mock_asset.symbol = "AAPL"
         mock_asset.fractionable = True
         mock_asset.tradable = True
         service._trading_client.get_asset.return_value = mock_asset
-        
+
         service.get_asset_info("AAPL")  # Miss
         service.get_asset_info("AAPL")  # Hit
-        
+
         stats = service.get_cache_stats()
         assert stats["total_cached"] == 1
         assert stats["cache_hits"] == 1
@@ -464,7 +464,7 @@ class TestCacheManagement:
     def test_cache_stats_type(self, service):
         """Test cache stats returns CacheStats TypedDict."""
         stats = service.get_cache_stats()
-        
+
         # Verify all required keys present
         assert "total_cached" in stats
         assert "expired_entries" in stats
@@ -488,10 +488,10 @@ class TestThreadSafety:
         mock_asset = Mock()
         mock_asset.fractionable = True
         mock_asset.tradable = True
-        
+
         symbols = [f"SYM{i}" for i in range(10)]
         errors = []
-        
+
         def fetch_asset(symbol):
             try:
                 mock_asset.symbol = symbol
@@ -500,15 +500,15 @@ class TestThreadSafety:
                 assert result is not None
             except Exception as e:
                 errors.append(e)
-        
+
         threads = [threading.Thread(target=fetch_asset, args=(sym,)) for sym in symbols]
-        
+
         for thread in threads:
             thread.start()
-        
+
         for thread in threads:
             thread.join()
-        
+
         # No errors should occur
         assert len(errors) == 0
         # All symbols should be cached
@@ -517,20 +517,20 @@ class TestThreadSafety:
     def test_concurrent_cache_stats(self, service):
         """Test concurrent stats access doesn't deadlock."""
         errors = []
-        
+
         def get_stats():
             try:
                 stats = service.get_cache_stats()
                 assert stats is not None
             except Exception as e:
                 errors.append(e)
-        
+
         threads = [threading.Thread(target=get_stats) for _ in range(10)]
-        
+
         for thread in threads:
             thread.start()
-        
+
         for thread in threads:
             thread.join()
-        
+
         assert len(errors) == 0

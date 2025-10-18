@@ -87,9 +87,7 @@ class TestNegativeCashHandling:
         assert snapshot.cash == Decimal("1000.00")
         assert snapshot.total_value == Decimal("1000.00")
 
-    def test_negative_cash_with_positions_still_raises(
-        self, state_reader, mock_alpaca_manager
-    ):
+    def test_negative_cash_with_positions_still_raises(self, state_reader, mock_alpaca_manager):
         """Test that negative cash raises exception even with positions."""
         # Setup mock position with correct attributes
         mock_position = Mock()

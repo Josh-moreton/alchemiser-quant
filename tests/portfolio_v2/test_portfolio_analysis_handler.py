@@ -8,7 +8,7 @@ handles errors gracefully, and emits appropriate events.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -26,13 +26,8 @@ from the_alchemiser.shared.errors.exceptions import (
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
-    RebalancePlanned,
     SignalGenerated,
     WorkflowFailed,
-)
-from the_alchemiser.shared.schemas.common import AllocationComparison
-from the_alchemiser.shared.schemas.consolidated_portfolio import (
-    ConsolidatedPortfolio,
 )
 
 
@@ -75,7 +70,7 @@ class TestHelperFunctions:
         account_obj.cash = 1500.0
         account_obj.buying_power = 3000.0
         account_obj.portfolio_value = 7500.0
-        
+
         result = _normalize_account_info(account_obj)
         assert result["cash"] == Decimal("1500.0")
         assert result["buying_power"] == Decimal("3000.0")
@@ -86,7 +81,7 @@ class TestHelperFunctions:
         account_dict = {"cash": 0, "buying_power": 1000, "portfolio_value": 1000}
         with pytest.raises(NegativeCashBalanceError):
             _normalize_account_info(account_dict)
-        
+
         account_dict_negative = {"cash": -100, "buying_power": 1000, "portfolio_value": 1000}
         with pytest.raises(NegativeCashBalanceError):
             _normalize_account_info(account_dict_negative)
@@ -96,14 +91,14 @@ class TestHelperFunctions:
         pos1 = Mock()
         pos1.symbol = "AAPL"
         pos1.market_value = 5000.0
-        
+
         pos2 = Mock()
         pos2.symbol = "GOOGL"
         pos2.market_value = 3000.0
-        
+
         positions = [pos1, pos2]
         result = _build_positions_dict(positions)
-        
+
         assert result["AAPL"] == Decimal("5000.0")
         assert result["GOOGL"] == Decimal("3000.0")
 
@@ -117,12 +112,12 @@ class TestHelperFunctions:
         pos1 = Mock()
         pos1.symbol = "AAPL"
         pos1.market_value = 5000.0
-        
+
         pos2 = Mock(spec=[])  # No attributes
-        
+
         positions = [pos1, pos2]
         result = _build_positions_dict(positions)
-        
+
         assert len(result) == 1
         assert result["AAPL"] == 5000.0
 
@@ -134,15 +129,15 @@ class TestPortfolioAnalysisHandler:
     def mock_container(self):
         """Create mock application container."""
         container = Mock()
-        
+
         # Mock event bus
         mock_event_bus = Mock()
         container.services.event_bus.return_value = mock_event_bus
-        
+
         # Mock infrastructure
         mock_alpaca = Mock()
         container.infrastructure.alpaca_manager.return_value = mock_alpaca
-        
+
         return container
 
     @pytest.fixture
@@ -154,7 +149,7 @@ class TestPortfolioAnalysisHandler:
     def sample_signal_event(self):
         """Create sample SignalGenerated event."""
         correlation_id = str(uuid4())
-        
+
         return SignalGenerated(
             event_id=str(uuid4()),
             correlation_id=correlation_id,
@@ -208,14 +203,14 @@ class TestPortfolioAnalysisHandler:
         """Test handler ignores non-SignalGenerated events."""
         other_event = Mock(spec=BaseEvent)
         other_event.event_type = "SomeOtherEvent"
-        
+
         # Should not raise exception
         handler.handle_event(other_event)
 
     def test_extract_strategy_names_from_signals(self, handler, sample_signal_event):
         """Test extracting strategy names from signals data."""
         strategy_names = handler._extract_strategy_names_from_event(sample_signal_event)
-        
+
         assert "momentum" in strategy_names
         assert "value" in strategy_names
         assert len(strategy_names) == 2
@@ -237,9 +232,9 @@ class TestPortfolioAnalysisHandler:
             consolidated_portfolio={"target_allocations": {}},
             signal_count=0,
         )
-        
+
         strategy_names = handler._extract_strategy_names_from_event(event)
-        
+
         assert "trend" in strategy_names
         assert "mean_reversion" in strategy_names
 
@@ -255,9 +250,9 @@ class TestPortfolioAnalysisHandler:
             consolidated_portfolio={"target_allocations": {}},
             signal_count=0,
         )
-        
+
         strategy_names = handler._extract_strategy_names_from_event(event)
-        
+
         assert strategy_names == ["unknown"]
 
     def test_extract_from_signals_with_valid_data(self, handler):
@@ -269,9 +264,9 @@ class TestPortfolioAnalysisHandler:
                 {"strategy": "momentum", "symbol": "MSFT"},  # Duplicate
             ],
         }
-        
+
         result = handler._extract_from_signals(signals_data)
-        
+
         assert "momentum" in result
         assert "value" in result
         assert len(result) == 2  # No duplicates
@@ -283,9 +278,9 @@ class TestPortfolioAnalysisHandler:
                 {"symbol": "AAPL"},  # No strategy key
             ],
         }
-        
+
         result = handler._extract_from_signals(signals_data)
-        
+
         assert result == []
 
     def test_extract_from_signals_with_invalid_data(self, handler):
@@ -302,9 +297,9 @@ class TestPortfolioAnalysisHandler:
                 "defensive": 0.5,
             },
         }
-        
+
         result = handler._extract_from_strategy_allocations(signals_data)
-        
+
         assert "growth" in result
         assert "defensive" in result
 
@@ -312,25 +307,27 @@ class TestPortfolioAnalysisHandler:
         """Test handling invalid strategy allocations."""
         assert handler._extract_from_strategy_allocations(None) == []
         assert handler._extract_from_strategy_allocations({}) == []
-        assert handler._extract_from_strategy_allocations({"strategy_allocations": "not dict"}) == []
+        assert (
+            handler._extract_from_strategy_allocations({"strategy_allocations": "not dict"}) == []
+        )
 
     def test_get_comprehensive_account_data_success(self, handler, mock_container):
         """Test successful retrieval of account data."""
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
-        
+
         # Setup mock account info
         mock_account = Mock()
         mock_account.cash = 10000.0
         mock_account.buying_power = 20000.0
         mock_account.portfolio_value = 30000.0
         mock_alpaca.get_account.return_value = mock_account
-        
+
         # Setup mock positions
         mock_position = Mock()
         mock_position.symbol = "AAPL"
         mock_position.market_value = 5000.0
         mock_alpaca.get_positions.return_value = [mock_position]
-        
+
         # Setup mock orders
         mock_order = Mock()
         mock_order.id = "order-123"
@@ -338,9 +335,9 @@ class TestPortfolioAnalysisHandler:
         mock_order.side = "buy"
         mock_order.qty = 10
         mock_alpaca.get_orders.return_value = [mock_order]
-        
+
         result = handler._get_comprehensive_account_data()
-        
+
         assert result is not None
         assert result["account_info"]["cash"] == Decimal("10000.0")
         assert result["current_positions"]["AAPL"] == Decimal("5000.0")
@@ -351,7 +348,7 @@ class TestPortfolioAnalysisHandler:
         """Test handling when account info cannot be retrieved."""
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
         mock_alpaca.get_account.return_value = None
-        
+
         with pytest.raises(DataProviderError):
             handler._get_comprehensive_account_data()
 
@@ -359,7 +356,7 @@ class TestPortfolioAnalysisHandler:
         """Test handling exceptions during account data retrieval."""
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
         mock_alpaca.get_account.side_effect = Exception("API error")
-        
+
         with pytest.raises(DataProviderError):
             handler._get_comprehensive_account_data()
 
@@ -381,23 +378,23 @@ class TestPortfolioAnalysisHandler:
             },
             signal_count=0,
         )
-        
+
         # Force an exception during processing
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
         mock_alpaca.get_account.side_effect = Exception("Test error")
-        
+
         # Mock is_workflow_failed to return False so emission isn't skipped
         mock_event_bus = mock_container.services.event_bus.return_value
         mock_event_bus.is_workflow_failed.return_value = False
-        
+
         # Track emitted events
         emitted_events = []
         handler.event_bus.publish = lambda event: emitted_events.append(event)
-        
+
         # Handle event - should raise PortfolioError
         with pytest.raises(PortfolioError):
             handler.handle_event(event)
-        
+
         # Verify WorkflowFailed was emitted
         assert len(emitted_events) == 1
         assert isinstance(emitted_events[0], WorkflowFailed)
@@ -426,11 +423,11 @@ class TestPortfolioAnalysisHandlerErrorPaths:
         """Test handling SignalGenerated when account data is missing."""
         mock_alpaca = mock_container.infrastructure.alpaca_manager.return_value
         mock_alpaca.get_account.return_value = None
-        
+
         # Mock is_workflow_failed to return False so emission isn't skipped
         mock_event_bus = mock_container.services.event_bus.return_value
         mock_event_bus.is_workflow_failed.return_value = False
-        
+
         event = SignalGenerated(
             event_id=str(uuid4()),
             correlation_id=str(uuid4()),
@@ -449,15 +446,15 @@ class TestPortfolioAnalysisHandlerErrorPaths:
             },
             signal_count=0,
         )
-        
+
         # Track emitted events
         emitted_events = []
         handler.event_bus.publish = lambda event: emitted_events.append(event)
-        
+
         # Should raise DataProviderError
         with pytest.raises(DataProviderError):
             handler.handle_event(event)
-        
+
         # Should emit WorkflowFailed
         assert len(emitted_events) == 1
         assert isinstance(emitted_events[0], WorkflowFailed)
@@ -474,11 +471,11 @@ class TestPortfolioAnalysisHandlerErrorPaths:
         mock_alpaca.get_account.return_value = mock_account
         mock_alpaca.get_positions.return_value = []
         mock_alpaca.get_orders.return_value = []
-        
+
         # Mock is_workflow_failed to return False so emission isn't skipped
         mock_event_bus = mock_container.services.event_bus.return_value
         mock_event_bus.is_workflow_failed.return_value = False
-        
+
         # Create event with empty target_allocations (invalid)
         event = SignalGenerated(
             event_id=str(uuid4()),
@@ -495,15 +492,15 @@ class TestPortfolioAnalysisHandlerErrorPaths:
             },
             signal_count=0,
         )
-        
+
         # Track emitted events
         emitted_events = []
         handler.event_bus.publish = lambda event: emitted_events.append(event)
-        
+
         # Should raise PortfolioError due to validation error
         with pytest.raises(PortfolioError):
             handler.handle_event(event)
-        
+
         # Should emit WorkflowFailed
         assert len(emitted_events) == 1
         assert isinstance(emitted_events[0], WorkflowFailed)
@@ -519,11 +516,11 @@ class TestPortfolioAnalysisHandlerErrorPaths:
         mock_alpaca.get_account.return_value = mock_account
         mock_alpaca.get_positions.return_value = []
         mock_alpaca.get_orders.return_value = []
-        
+
         # Mock is_workflow_failed to return False so emission isn't skipped
         mock_event_bus = mock_container.services.event_bus.return_value
         mock_event_bus.is_workflow_failed.return_value = False
-        
+
         # Create an event with a consistent event_id
         event_id = "test-event-123"
         event = SignalGenerated(
@@ -544,28 +541,28 @@ class TestPortfolioAnalysisHandlerErrorPaths:
             },
             signal_count=0,
         )
-        
+
         # Track how many times _handle_signal_generated is called
         original_handler = handler._handle_signal_generated
         call_count = 0
-        
+
         def counting_handler(event):
             nonlocal call_count
             call_count += 1
             return original_handler(event)
-        
+
         handler._handle_signal_generated = counting_handler
-        
+
         # Process the same event twice
         try:
             handler.handle_event(event)
         except Exception:
             pass  # First event may fail, but should still be marked as processed
-        
+
         first_call_count = call_count
-        
+
         # Process the same event again - should be skipped
         handler.handle_event(event)
-        
+
         # Second call should NOT increment call_count (event was already processed)
         assert call_count == first_call_count, "Duplicate event should be skipped"

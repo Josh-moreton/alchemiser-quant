@@ -5,10 +5,9 @@ Test market order executor functionality.
 Tests market order placement, validation, error handling without broker dependencies.
 """
 
-from datetime import UTC, datetime
+import uuid
 from decimal import Decimal
 from unittest.mock import Mock, patch
-import uuid
 
 import pytest
 
@@ -73,9 +72,7 @@ class TestMarketOrderExecutor:
             buying_power_service=mock_buying_power_service,
         )
 
-    def test_initialization(
-        self, mock_alpaca_manager, mock_validator, mock_buying_power_service
-    ):
+    def test_initialization(self, mock_alpaca_manager, mock_validator, mock_buying_power_service):
         """Test executor initializes with required dependencies."""
         executor = MarketOrderExecutor(
             alpaca_manager=mock_alpaca_manager,
@@ -157,9 +154,7 @@ class TestMarketOrderExecutor:
         assert result.success is True
         assert result.shares == Decimal("10")  # Adjusted quantity used
         # Verify broker was called with adjusted quantity
-        mock_alpaca_manager.place_market_order.assert_called_once_with(
-            "AAPL", "buy", Decimal("10")
-        )
+        mock_alpaca_manager.place_market_order.assert_called_once_with("AAPL", "buy", Decimal("10"))
 
     def test_execute_market_order_buying_power_check_buy(
         self, executor, mock_buying_power_service, mock_alpaca_manager
@@ -193,9 +188,7 @@ class TestMarketOrderExecutor:
         # Verify buying power was NOT checked for sell
         assert not mock_buying_power_service.verify_buying_power_available.called
 
-    def test_execute_market_order_broker_exception(
-        self, executor, mock_alpaca_manager
-    ):
+    def test_execute_market_order_broker_exception(self, executor, mock_alpaca_manager):
         """Test handling broker exception during order placement."""
         mock_alpaca_manager.place_market_order.side_effect = RuntimeError(
             "Broker connection failed"
@@ -250,9 +243,7 @@ class TestMarketOrderExecutor:
         assert result.success is True
         assert result.trade_amount == Decimal("7") * Decimal("150.00")
 
-    def test_execute_market_order_no_price_available(
-        self, executor, mock_alpaca_manager
-    ):
+    def test_execute_market_order_no_price_available(self, executor, mock_alpaca_manager):
         """Test market order when fill price is not available."""
         executed_order = _make_executed_order("AAPL")
         executed_order.filled_avg_price = None  # No price data
@@ -280,18 +271,14 @@ class TestMarketOrderExecutor:
         executed_order = _make_executed_order("AAPL")
         mock_alpaca_manager.place_market_order.return_value = executed_order
 
-        with patch(
-            "the_alchemiser.execution_v2.core.market_order_executor.logger"
-        ) as mock_logger:
+        with patch("the_alchemiser.execution_v2.core.market_order_executor.logger") as mock_logger:
             result = executor.execute_market_order("AAPL", "buy", Decimal("10"))
 
             assert result.success is True
             # Verify warnings were logged
             assert mock_logger.warning.call_count >= 2
 
-    def test_execute_market_order_decimal_precision(
-        self, executor, mock_alpaca_manager
-    ):
+    def test_execute_market_order_decimal_precision(self, executor, mock_alpaca_manager):
         """Test that Decimal precision is maintained throughout execution."""
         # Use precise Decimal values
         executed_order = _make_executed_order(
@@ -329,9 +316,7 @@ class TestMarketOrderExecutor:
         assert result.success is False
         assert "Insufficient buying power" in result.error_message
 
-    def test_execute_market_order_case_insensitive_side(
-        self, executor, mock_alpaca_manager
-    ):
+    def test_execute_market_order_case_insensitive_side(self, executor, mock_alpaca_manager):
         """Test that order side is case-insensitive."""
         executed_order = _make_executed_order("AAPL")
         mock_alpaca_manager.place_market_order.return_value = executed_order
@@ -347,9 +332,7 @@ class TestMarketOrderExecutor:
             assert result.success is True
             assert result.action == "SELL"  # Normalized to uppercase
 
-    def test_execute_market_order_with_correlation_id(
-        self, executor, mock_alpaca_manager
-    ):
+    def test_execute_market_order_with_correlation_id(self, executor, mock_alpaca_manager):
         """Test that correlation_id is propagated through order execution."""
         executed_order = _make_executed_order("AAPL")
         mock_alpaca_manager.place_market_order.return_value = executed_order

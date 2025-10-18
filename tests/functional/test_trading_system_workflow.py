@@ -6,24 +6,24 @@ Tests complete workflows with mocked external dependencies (Alpaca API, AWS, etc
 to validate end-to-end business logic without external service calls.
 """
 
-import pytest
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
-from typing import Dict, List, Any
+
+import pytest
 
 # Test imports
 try:
     from the_alchemiser.orchestration.system import TradingSystem
     from the_alchemiser.shared.config.container import ApplicationContainer
-    from the_alchemiser.shared.events.bus import EventBus
     from the_alchemiser.shared.events import (
-        StartupEvent,
         SignalGenerated,
+        StartupEvent,
         WorkflowCompleted,
         WorkflowFailed,
     )
+    from the_alchemiser.shared.events.bus import EventBus
     from the_alchemiser.shared.schemas.consolidated_portfolio import (
         ConsolidatedPortfolio,
     )
@@ -100,9 +100,7 @@ class TestTradingSystemWorkflow:
         self.correlation_id = f"func-test-{uuid.uuid4()}"
         self.test_timestamp = datetime.now(UTC)
 
-    @patch(
-        "the_alchemiser.orchestration.system.TradingSystem._initialize_event_orchestration"
-    )
+    @patch("the_alchemiser.orchestration.system.TradingSystem._initialize_event_orchestration")
     @patch("the_alchemiser.shared.utils.service_factory.ServiceFactory.initialize")
     @patch("the_alchemiser.orchestration.system.ApplicationContainer")
     @patch("the_alchemiser.orchestration.system.load_settings")
@@ -130,9 +128,7 @@ class TestTradingSystemWorkflow:
         mock_service_factory_initialize.assert_called_once_with(mock_container)
         mock_event_init.assert_called_once()
 
-    @patch(
-        "the_alchemiser.orchestration.system.TradingSystem._initialize_event_orchestration"
-    )
+    @patch("the_alchemiser.orchestration.system.TradingSystem._initialize_event_orchestration")
     @patch("the_alchemiser.shared.utils.service_factory.ServiceFactory.initialize")
     @patch("the_alchemiser.orchestration.system.ApplicationContainer")
     @patch("the_alchemiser.orchestration.system.load_settings")
@@ -229,9 +225,7 @@ class TestTradingSystemWorkflow:
                     signals_data={
                         "strategy_name": "mock_strategy",
                         "generated_at": datetime.now(UTC).isoformat(),
-                        "allocations": {
-                            k: str(v) for k, v in target_allocations.items()
-                        },
+                        "allocations": {k: str(v) for k, v in target_allocations.items()},
                     },
                     consolidated_portfolio=consolidated_portfolio.model_dump(),
                     signal_count=len(target_allocations),
@@ -317,9 +311,7 @@ class TestTradingSystemWorkflow:
             assert event.correlation_id == self.correlation_id
 
         # Verify final completion
-        completion_event = [
-            e for e in events_received if e.event_type == "WorkflowCompleted"
-        ][0]
+        completion_event = [e for e in events_received if e.event_type == "WorkflowCompleted"][0]
         assert completion_event.success is True
         assert completion_event.workflow_type == "portfolio_rebalance"
         assert "completed" in completion_event.summary["message"]
@@ -395,9 +387,7 @@ class TestTradingSystemWorkflow:
         assert len(events_received) == 2  # Startup -> Failure
 
         # Verify failure event
-        failure_event = [
-            e for e in events_received if e.event_type == "WorkflowFailed"
-        ][0]
+        failure_event = [e for e in events_received if e.event_type == "WorkflowFailed"][0]
         assert failure_event.workflow_type == "strategy_generation"
         assert failure_event.failure_reason == "Market data unavailable"
         assert failure_event.failure_step == "data_retrieval"

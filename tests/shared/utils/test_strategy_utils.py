@@ -41,9 +41,9 @@ class TestGetStrategyAllocations:
         allocations = get_strategy_allocations()
 
         for strategy, allocation in allocations.items():
-            assert isinstance(
-                allocation, float
-            ), f"Allocation for {strategy} must be float, got {type(allocation)}"
+            assert isinstance(allocation, float), (
+                f"Allocation for {strategy} must be float, got {type(allocation)}"
+            )
 
     @pytest.mark.unit
     def test_allocations_sum_to_one(self) -> None:
@@ -55,9 +55,7 @@ class TestGetStrategyAllocations:
         allocations = get_strategy_allocations()
         total = sum(allocations.values())
 
-        assert math.isclose(
-            total, 1.0, abs_tol=1e-9
-        ), f"Allocations must sum to 1.0, got {total}"
+        assert math.isclose(total, 1.0, abs_tol=1e-9), f"Allocations must sum to 1.0, got {total}"
 
     @pytest.mark.unit
     def test_all_allocations_non_negative(self) -> None:
@@ -68,9 +66,9 @@ class TestGetStrategyAllocations:
         allocations = get_strategy_allocations()
 
         for strategy, allocation in allocations.items():
-            assert (
-                allocation >= 0.0
-            ), f"Allocation for {strategy} must be non-negative, got {allocation}"
+            assert allocation >= 0.0, (
+                f"Allocation for {strategy} must be non-negative, got {allocation}"
+            )
 
     @pytest.mark.unit
     def test_all_allocations_at_most_one(self) -> None:
@@ -81,9 +79,7 @@ class TestGetStrategyAllocations:
         allocations = get_strategy_allocations()
 
         for strategy, allocation in allocations.items():
-            assert (
-                allocation <= 1.0
-            ), f"Allocation for {strategy} must be <= 1.0, got {allocation}"
+            assert allocation <= 1.0, f"Allocation for {strategy} must be <= 1.0, got {allocation}"
 
     @pytest.mark.unit
     def test_idempotency(self) -> None:
@@ -124,9 +120,7 @@ class TestGetStrategyAllocations:
         }
 
         for strategy in allocations:
-            assert (
-                strategy in valid_strategies
-            ), f"Strategy {strategy} is not a valid StrategyType"
+            assert strategy in valid_strategies, f"Strategy {strategy} is not a valid StrategyType"
 
     @pytest.mark.unit
     def test_docstring_example_consistency(self) -> None:
@@ -134,12 +128,10 @@ class TestGetStrategyAllocations:
         allocations = get_strategy_allocations()
 
         # Docstring claims: allocations[StrategyType.DSL] -> 1.0
-        assert (
-            StrategyType.DSL in allocations
-        ), "Docstring example references DSL - must exist"
-        assert (
-            allocations[StrategyType.DSL] == 1.0
-        ), "Docstring example shows DSL=1.0, must match implementation"
+        assert StrategyType.DSL in allocations, "Docstring example references DSL - must exist"
+        assert allocations[StrategyType.DSL] == 1.0, (
+            "Docstring example shows DSL=1.0, must match implementation"
+        )
 
     @pytest.mark.unit
     def test_return_type_annotation_correctness(self) -> None:

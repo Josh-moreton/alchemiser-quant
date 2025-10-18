@@ -9,7 +9,7 @@ ensuring proper validation, immutability, numerical correctness, and serializati
 # ruff: noqa: S101  # Allow asserts in tests
 # ruff: noqa: DTZ001  # Allow naive datetime for testing timezone conversion
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -304,7 +304,7 @@ class TestRebalancePlan:
     def test_create_valid_plan(self) -> None:
         """Test creating a valid rebalance plan."""
         items = [self._make_valid_item()]
-        
+
         plan = RebalancePlan(
             correlation_id="corr-123",
             causation_id="cause-123",
@@ -408,7 +408,7 @@ class TestRebalancePlan:
         """Test naive datetime is converted to UTC."""
         items = [self._make_valid_item()]
         naive_dt = datetime(2025, 1, 6, 12, 0, 0)  # No timezone
-        
+
         plan = RebalancePlan(
             correlation_id="corr-123",
             causation_id="cause-123",
@@ -427,7 +427,7 @@ class TestRebalancePlan:
         """Test timezone-aware datetime is preserved."""
         items = [self._make_valid_item()]
         aware_dt = datetime(2025, 1, 6, 12, 0, 0, tzinfo=UTC)
-        
+
         plan = RebalancePlan(
             correlation_id="corr-123",
             causation_id="cause-123",
@@ -470,7 +470,7 @@ class TestRebalancePlan:
             "rebalance_reason": "drift_exceeded",
             "risk_score": 0.75,
         }
-        
+
         plan = RebalancePlan(
             correlation_id="corr-123",
             causation_id="cause-123",
@@ -506,7 +506,7 @@ class TestRebalancePlanSerialization:
         """Helper to create a valid plan."""
         symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
         items = [self._make_valid_item(symbols[i % len(symbols)]) for i in range(num_items)]
-        
+
         return RebalancePlan(
             correlation_id="corr-123",
             causation_id="cause-123",
@@ -529,17 +529,17 @@ class TestRebalancePlanSerialization:
         assert data["plan_id"] == "plan-123"
         assert data["correlation_id"] == "corr-123"
         assert data["causation_id"] == "cause-123"
-        
+
         # Check datetime serialization
         assert isinstance(data["timestamp"], str)
         assert "2025-01-06" in data["timestamp"]
-        
+
         # Check Decimal serialization
         assert isinstance(data["total_portfolio_value"], str)
         assert data["total_portfolio_value"] == "10000.00"
         assert isinstance(data["total_trade_value"], str)
         assert data["total_trade_value"] == "2000.00"
-        
+
         # Check items serialization
         assert isinstance(data["items"], list)
         assert len(data["items"]) == 1
@@ -584,16 +584,16 @@ class TestRebalancePlanSerialization:
     def test_round_trip_serialization(self) -> None:
         """Test round-trip: plan -> to_dict -> from_dict -> to_dict."""
         plan1 = self._make_valid_plan()
-        
+
         # First serialization
         data1 = plan1.to_dict()
-        
+
         # Deserialize
         plan2 = RebalancePlan.from_dict(data1)
-        
+
         # Second serialization
         data2 = plan2.to_dict()
-        
+
         # Compare
         assert data1 == data2
         assert plan1.plan_id == plan2.plan_id
@@ -617,7 +617,7 @@ class TestRebalancePlanSerialization:
                 priority=1,
             )
         ]
-        
+
         plan = RebalancePlan(
             correlation_id="corr-123",
             causation_id="cause-123",
@@ -641,12 +641,12 @@ class TestRebalancePlanSerialization:
     def test_multiple_items_serialization(self) -> None:
         """Test serialization with multiple items."""
         plan = self._make_valid_plan(num_items=5)
-        
+
         data = plan.to_dict()
         restored = RebalancePlan.from_dict(data)
 
         assert len(restored.items) == 5
-        for orig_item, restored_item in zip(plan.items, restored.items):
+        for orig_item, restored_item in zip(plan.items, restored.items, strict=False):
             assert orig_item.symbol == restored_item.symbol
             assert orig_item.trade_amount == restored_item.trade_amount
 
@@ -659,7 +659,7 @@ class TestRebalancePlanSerialization:
             "risk_score": 0.75,
             "nested": {"key": "value"},
         }
-        
+
         items = [self._make_valid_item()]
         plan = RebalancePlan(
             correlation_id="corr-123",

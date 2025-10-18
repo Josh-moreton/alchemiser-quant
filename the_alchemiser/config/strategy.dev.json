@@ -3,22 +3,14 @@
     "foundation/grail.clj",
     "foundation/kmlm.clj",
     "foundation/semiconductors.clj",
-    "foundation/starburst.clj",
     "tactical/bitcoin.clj",
-    "tactical/juice.clj",
-    "tactical/manhattan.clj",
-    "tactical/nuclear.clj",
     "tactical/quantum.clj"
   ],
   "allocations": {
-    "foundation/grail.clj": 0.1875,
-    "foundation/kmlm.clj": 0.1875,
-    "foundation/semiconductors.clj": 0.1875,
-    "foundation/starburst.clj": 0.1875,
-    "tactical/bitcoin.clj": 0.05,
-    "tactical/juice.clj": 0.05,
-    "tactical/manhattan.clj": 0.05,
-    "tactical/nuclear.clj": 0.05,
-    "tactical/quantum.clj": 0.05
+    "foundation/grail.clj": 0.2,
+    "foundation/kmlm.clj": 0.2,
+    "foundation/semiconductors.clj": 0.2,
+    "tactical/bitcoin.clj": 0.2,
+    "tactical/quantum.clj": 0.2
   }
 }

@@ -6,10 +6,10 @@ Tests order finalization logic, status mapping, UUID validation,
 correlation_id tracking, trade value calculation, and error handling.
 """
 
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
-import uuid
 
 import pytest
 
@@ -19,7 +19,6 @@ from the_alchemiser.execution_v2.core.order_finalizer import (
 )
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
-
 
 # Test Helpers
 
@@ -176,8 +175,7 @@ class TestFinalizePhaseOrders:
             # Verify correlation_id is in log calls
             log_calls = mock_logger.info.call_args_list + mock_logger.debug.call_args_list
             assert any(
-                "correlation_id" in str(call) and correlation_id in str(call)
-                for call in log_calls
+                "correlation_id" in str(call) and correlation_id in str(call) for call in log_calls
             )
 
 
@@ -484,9 +482,7 @@ class TestGetOrderStatusAndPrice:
     def test_exception_returns_rejected(self, order_finalizer, mock_alpaca_manager):
         """Test that exception returns rejected status."""
         order_id = str(uuid.uuid4())
-        mock_alpaca_manager.get_order_execution_result = Mock(
-            side_effect=Exception("Broker error")
-        )
+        mock_alpaca_manager.get_order_execution_result = Mock(side_effect=Exception("Broker error"))
 
         status, price = order_finalizer._get_order_status_and_price(order_id)
 
@@ -518,9 +514,7 @@ class TestPollOrderCompletion:
     def test_successful_polling(self, order_finalizer, mock_alpaca_manager):
         """Test successful order completion polling."""
         order_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
-        mock_alpaca_manager.wait_for_order_completion = Mock(
-            return_value=Mock(status="completed")
-        )
+        mock_alpaca_manager.wait_for_order_completion = Mock(return_value=Mock(status="completed"))
 
         # Should not raise
         order_finalizer._poll_order_completion(order_ids, 30, "BUY")
@@ -532,9 +526,7 @@ class TestPollOrderCompletion:
     def test_warning_on_no_status(self, order_finalizer, mock_alpaca_manager):
         """Test warning when status is None."""
         order_ids = [str(uuid.uuid4())]
-        mock_alpaca_manager.wait_for_order_completion = Mock(
-            return_value=Mock(status=None)
-        )
+        mock_alpaca_manager.wait_for_order_completion = Mock(return_value=Mock(status=None))
 
         with patch("the_alchemiser.execution_v2.core.order_finalizer.logger") as mock_logger:
             order_finalizer._poll_order_completion(order_ids, 30, "BUY")
@@ -544,9 +536,7 @@ class TestPollOrderCompletion:
     def test_exception_handling(self, order_finalizer, mock_alpaca_manager):
         """Test exception handling during polling."""
         order_ids = [str(uuid.uuid4())]
-        mock_alpaca_manager.wait_for_order_completion = Mock(
-            side_effect=Exception("Network error")
-        )
+        mock_alpaca_manager.wait_for_order_completion = Mock(side_effect=Exception("Network error"))
 
         with patch("the_alchemiser.execution_v2.core.order_finalizer.logger") as mock_logger:
             # Should not raise
@@ -680,12 +670,11 @@ class TestIntegration:
                     avg_fill_price=Decimal("100"),
                     filled_qty=Decimal("10"),
                 )
-            else:
-                return Mock(
-                    status="rejected",
-                    avg_fill_price=None,
-                    filled_qty=Decimal("0"),
-                )
+            return Mock(
+                status="rejected",
+                avg_fill_price=None,
+                filled_qty=Decimal("0"),
+            )
 
         mock_alpaca_manager.get_order_execution_result = mock_get_result
 

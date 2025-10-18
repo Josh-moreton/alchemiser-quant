@@ -6,7 +6,6 @@ Validates that the core submodule properly exports its components
 following project standards for module initialization.
 """
 
-import pytest
 
 
 class TestPortfolioCoreModuleExports:
@@ -84,6 +83,8 @@ class TestPortfolioCoreModuleExports:
         )
         from the_alchemiser.portfolio_v2.core import (
             PortfolioServiceV2 as CorePortfolioServiceV2,
+        )
+        from the_alchemiser.portfolio_v2.core import (
             RebalancePlanCalculator as CoreRebalancePlanCalculator,
         )
 
@@ -115,7 +116,7 @@ class TestCoreModuleCompliance:
         assert source_file is not None
 
         # Read first line
-        with open(source_file, "r") as f:
+        with open(source_file) as f:
             first_line = f.readline().strip()
 
         assert first_line == "#!/usr/bin/env python3", (
@@ -135,7 +136,7 @@ class TestCoreModuleCompliance:
         source_file = inspect.getsourcefile(core)
         assert source_file is not None
 
-        with open(source_file, "r") as f:
+        with open(source_file) as f:
             content = f.read()
 
         assert "from __future__ import annotations" in content, (
@@ -159,14 +160,12 @@ class TestCoreModuleCompliance:
         source_file = inspect.getsourcefile(core)
         assert source_file is not None
 
-        with open(source_file, "r") as f:
+        with open(source_file) as f:
             lines = f.readlines()
 
         line_count = len(lines)
         # Core __init__.py should be minimal (well under 500 line soft limit)
-        assert line_count < 100, (
-            f"Core __init__.py should be minimal, got {line_count} lines"
-        )
+        assert line_count < 100, f"Core __init__.py should be minimal, got {line_count} lines"
 
     def test_core_module_no_wildcard_imports(self):
         """Test that core module doesn't use wildcard imports."""
@@ -177,7 +176,7 @@ class TestCoreModuleCompliance:
         source_file = inspect.getsourcefile(core)
         assert source_file is not None
 
-        with open(source_file, "r") as f:
+        with open(source_file) as f:
             content = f.read()
 
         assert "from * import" not in content, "Should not use wildcard imports"

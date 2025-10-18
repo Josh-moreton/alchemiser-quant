@@ -33,7 +33,7 @@ def _make_rebalance_plan_item(
     portfolio_value = Decimal("10000.00")
     target_value = portfolio_value * target_weight
     current_value = portfolio_value * current_weight
-    
+
     return RebalancePlanItem(
         symbol=symbol,
         action=action,
@@ -53,9 +53,9 @@ def _make_rebalance_plan(
     """Create a test rebalance plan."""
     if items is None:
         items = [_make_rebalance_plan_item()]
-    
+
     total_trade_value = sum(abs(item.trade_amount) for item in items)
-    
+
     return RebalancePlan(
         plan_id=plan_id or f"plan-{uuid.uuid4()}",
         items=items,
@@ -206,11 +206,11 @@ class TestExecutionTracker:
             # Should log failure count and details with structured fields
             warning_calls = mock_logger.warning.call_args_list
             assert len(warning_calls) == 2  # One for summary, one for failed order
-            
+
             # Check failure summary
             assert warning_calls[0][0][0] == "Failed orders detected"
             assert warning_calls[0][1]["failure_count"] == 1
-            
+
             # Check specific failure
             assert warning_calls[1][0][0] == "Order failed"
             assert warning_calls[1][1]["symbol"] == "MSFT"
@@ -307,4 +307,6 @@ class TestExecutionTracker:
             ExecutionTracker.check_execution_health(result)
 
             # Should still produce some logging output
-            assert mock_logger.info.called or mock_logger.warning.called or mock_logger.critical.called
+            assert (
+                mock_logger.info.called or mock_logger.warning.called or mock_logger.critical.called
+            )

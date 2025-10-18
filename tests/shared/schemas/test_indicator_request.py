@@ -8,14 +8,12 @@ validation, immutability, schema versioning, and event traceability.
 
 import math
 import uuid
-from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
 from the_alchemiser.shared.schemas.indicator_request import (
     IndicatorRequest,
-    IndicatorType,
     PortfolioFragment,
 )
 

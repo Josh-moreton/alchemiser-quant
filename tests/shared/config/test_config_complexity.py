@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -80,9 +79,7 @@ class TestStrategySettingsComplexityRefactor:
         """Test _apply_env_profile preserves explicit values."""
         explicit_files = ["custom.clj"]
         explicit_allocations = {"custom.clj": 1.0}
-        settings = StrategySettings(
-            dsl_files=explicit_files, dsl_allocations=explicit_allocations
-        )
+        settings = StrategySettings(dsl_files=explicit_files, dsl_allocations=explicit_allocations)
         # Values should be preserved
         assert settings.dsl_files == explicit_files
         assert settings.dsl_allocations == explicit_allocations

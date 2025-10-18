@@ -7,11 +7,12 @@ limit prices ABOVE the ask (crossing the spread) due to incorrect volume
 ratio logic.
 """
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -37,7 +38,7 @@ class TestCrossedMarketFix:
         - BUY limit should be ≤ 4.15 (at or below ask)
         - No crossed state warnings
         """
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         quote = QuoteModel(
             symbol="SOXS",
@@ -73,7 +74,7 @@ class TestCrossedMarketFix:
 
     def test_buy_order_never_crosses_ask(self, analyzer: LiquidityAnalyzer) -> None:
         """BUY limit price must never exceed ask price."""
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         quote = QuoteModel(
             symbol="TEST",

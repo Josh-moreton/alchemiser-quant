@@ -74,9 +74,7 @@ class TestGetAlpacaKeys:
 
         assert result == (None, None, None)
 
-    def test_returns_none_tuple_when_secret_missing(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_none_tuple_when_secret_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should return (None, None, None) when secret missing."""
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         # ALPACA_SECRET not set
@@ -85,9 +83,7 @@ class TestGetAlpacaKeys:
 
         assert result == (None, None, None)
 
-    def test_defaults_to_paper_endpoint_when_not_set(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_defaults_to_paper_endpoint_when_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should default to paper trading endpoint."""
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
@@ -119,9 +115,7 @@ class TestGetAlpacaKeys:
         assert secret_key == "test_secret"
         assert endpoint == "https://api.alpaca.markets"
 
-    def test_raises_error_for_empty_key_after_strip(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_raises_error_for_empty_key_after_strip(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should raise ConfigurationError for empty key after stripping."""
         monkeypatch.setenv("ALPACA_KEY", "   ")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
@@ -159,9 +153,7 @@ class TestGetAlpacaKeys:
         assert "ALPACA_KEY" in str(exc_info.value)
         assert "maximum length" in str(exc_info.value).lower()
 
-    def test_raises_error_for_invalid_endpoint_url(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_raises_error_for_invalid_endpoint_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should raise ConfigurationError for invalid endpoint URL format."""
         monkeypatch.setenv("ALPACA_KEY", "test_key")
         monkeypatch.setenv("ALPACA_SECRET", "test_secret")
@@ -181,7 +173,9 @@ class TestGetAlpacaKeys:
         result = get_alpaca_keys()
 
         assert result == (None, None, None)
-        assert any("Missing required Alpaca credentials" in record.message for record in caplog.records)
+        assert any(
+            "Missing required Alpaca credentials" in record.message for record in caplog.records
+        )
 
     def test_logs_debug_for_successful_load(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -193,7 +187,10 @@ class TestGetAlpacaKeys:
         with caplog.at_level("DEBUG"):
             get_alpaca_keys()
 
-        assert any("Successfully loaded Alpaca credential metadata" in record.message for record in caplog.records)
+        assert any(
+            "Successfully loaded Alpaca credential metadata" in record.message
+            for record in caplog.records
+        )
 
     def test_logs_info_for_default_endpoint(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -205,7 +202,9 @@ class TestGetAlpacaKeys:
 
         get_alpaca_keys()
 
-        assert any("defaulting to paper trading mode" in record.message for record in caplog.records)
+        assert any(
+            "defaulting to paper trading mode" in record.message for record in caplog.records
+        )
 
     def test_defaults_to_paper_for_empty_endpoint_after_strip(
         self, monkeypatch: pytest.MonkeyPatch
@@ -223,14 +222,14 @@ class TestGetAlpacaKeys:
 class TestGetEmailPassword:
     """Test email password loading."""
 
-    def test_loads_from_pydantic_config_preferred(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_loads_from_pydantic_config_preferred(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should prefer loading via load_settings()."""
         mock_config = Mock()
         mock_config.email.password = "pydantic_password"
 
-        with patch("the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config):
+        with patch(
+            "the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config
+        ):
             password = get_email_password()
 
         assert password == "pydantic_password"
@@ -242,7 +241,9 @@ class TestGetEmailPassword:
         mock_config = Mock()
         mock_config.email.password = "  pydantic_password  "
 
-        with patch("the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config):
+        with patch(
+            "the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config
+        ):
             password = get_email_password()
 
         assert password == "pydantic_password"
@@ -255,7 +256,9 @@ class TestGetEmailPassword:
         mock_config.email.password = "   "
         monkeypatch.setenv("EMAIL_PASSWORD", "fallback_password")
 
-        with patch("the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config):
+        with patch(
+            "the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config
+        ):
             password = get_email_password()
 
         assert password == "fallback_password"
@@ -279,9 +282,8 @@ class TestGetEmailPassword:
         with patch(
             "the_alchemiser.shared.config.secrets_adapter.load_settings",
             side_effect=ConfigurationError("Invalid config"),
-        ):
-            with pytest.raises(ConfigurationError, match="Invalid config"):
-                get_email_password()
+        ), pytest.raises(ConfigurationError, match="Invalid config"):
+            get_email_password()
 
     def test_tries_email__password_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should try EMAIL__PASSWORD env var."""
@@ -307,9 +309,7 @@ class TestGetEmailPassword:
 
         assert password == "email_pass"
 
-    def test_tries_email__smtp_password_env_var(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tries_email__smtp_password_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should try EMAIL__SMTP_PASSWORD env var."""
         monkeypatch.setenv("EMAIL__SMTP_PASSWORD", "smtp_pass")
 
@@ -333,9 +333,7 @@ class TestGetEmailPassword:
 
         assert password == "smtp_pass"
 
-    def test_prefers_email__password_over_others(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_prefers_email__password_over_others(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should prefer EMAIL__PASSWORD when multiple env vars set."""
         monkeypatch.setenv("EMAIL__PASSWORD", "preferred")
         monkeypatch.setenv("EMAIL_PASSWORD", "other1")
@@ -349,9 +347,7 @@ class TestGetEmailPassword:
 
         assert password == "preferred"
 
-    def test_strips_whitespace_from_env_var_password(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_strips_whitespace_from_env_var_password(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should strip whitespace from environment variable password."""
         monkeypatch.setenv("EMAIL_PASSWORD", "  env_password  ")
 
@@ -406,11 +402,16 @@ class TestGetEmailPassword:
         mock_config = Mock()
         mock_config.email.password = "pydantic_password"
 
-        with caplog.at_level("DEBUG"):
-            with patch("the_alchemiser.shared.config.secrets_adapter.load_settings", return_value=mock_config):
-                get_email_password()
+        with caplog.at_level("DEBUG"), patch(
+            "the_alchemiser.shared.config.secrets_adapter.load_settings",
+            return_value=mock_config,
+        ):
+            get_email_password()
 
-        assert any("Successfully loaded email password from Pydantic config" in record.message for record in caplog.records)
+        assert any(
+            "Successfully loaded email password from Pydantic config" in record.message
+            for record in caplog.records
+        )
 
     def test_logs_debug_for_env_var_success(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -418,14 +419,16 @@ class TestGetEmailPassword:
         """Should log debug message on env var success."""
         monkeypatch.setenv("EMAIL_PASSWORD", "env_password")
 
-        with caplog.at_level("DEBUG"):
-            with patch(
-                "the_alchemiser.shared.config.secrets_adapter.load_settings",
-                side_effect=Exception("No config"),
-            ):
-                get_email_password()
+        with caplog.at_level("DEBUG"), patch(
+            "the_alchemiser.shared.config.secrets_adapter.load_settings",
+            side_effect=Exception("No config"),
+        ):
+            get_email_password()
 
-        assert any("Successfully loaded email password from environment variables" in record.message for record in caplog.records)
+        assert any(
+            "Successfully loaded email password from environment variables" in record.message
+            for record in caplog.records
+        )
 
     def test_logs_debug_for_pydantic_failure(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -433,11 +436,13 @@ class TestGetEmailPassword:
         """Should log debug message when Pydantic config fails."""
         monkeypatch.setenv("EMAIL_PASSWORD", "env_password")
 
-        with caplog.at_level("DEBUG"):
-            with patch(
-                "the_alchemiser.shared.config.secrets_adapter.load_settings",
-                side_effect=ValueError("Test error"),
-            ):
-                get_email_password()
+        with caplog.at_level("DEBUG"), patch(
+            "the_alchemiser.shared.config.secrets_adapter.load_settings",
+            side_effect=ValueError("Test error"),
+        ):
+            get_email_password()
 
-        assert any("Could not load email password from Pydantic config" in record.message for record in caplog.records)
+        assert any(
+            "Could not load email password from Pydantic config" in record.message
+            for record in caplog.records
+        )

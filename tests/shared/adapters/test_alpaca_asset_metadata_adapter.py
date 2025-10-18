@@ -106,9 +106,7 @@ class TestAlpacaAssetMetadataAdapter:
 
         assert result == "unknown"
 
-    def test_should_use_notional_order_non_fractionable(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_should_use_notional_order_non_fractionable(self, adapter, mock_alpaca_manager):
         """Test should_use_notional_order for non-fractionable asset."""
         mock_alpaca_manager.is_fractionable.return_value = False
         symbol = Symbol("BERKB")
@@ -117,9 +115,7 @@ class TestAlpacaAssetMetadataAdapter:
 
         assert result is True
 
-    def test_should_use_notional_order_small_quantity(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_should_use_notional_order_small_quantity(self, adapter, mock_alpaca_manager):
         """Test should_use_notional_order for quantity < 1."""
         mock_alpaca_manager.is_fractionable.return_value = True
         symbol = Symbol("AAPL")
@@ -128,9 +124,7 @@ class TestAlpacaAssetMetadataAdapter:
 
         assert result is True
 
-    def test_should_use_notional_order_significant_fraction(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_should_use_notional_order_significant_fraction(self, adapter, mock_alpaca_manager):
         """Test should_use_notional_order for quantity with significant fraction."""
         mock_alpaca_manager.is_fractionable.return_value = True
         symbol = Symbol("AAPL")
@@ -140,9 +134,7 @@ class TestAlpacaAssetMetadataAdapter:
 
         assert result is True
 
-    def test_should_use_notional_order_false_whole_number(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_should_use_notional_order_false_whole_number(self, adapter, mock_alpaca_manager):
         """Test should_use_notional_order returns False for whole number."""
         mock_alpaca_manager.is_fractionable.return_value = True
         symbol = Symbol("AAPL")
@@ -151,9 +143,7 @@ class TestAlpacaAssetMetadataAdapter:
 
         assert result is False
 
-    def test_should_use_notional_order_false_small_fraction(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_should_use_notional_order_false_small_fraction(self, adapter, mock_alpaca_manager):
         """Test should_use_notional_order returns False for small fraction."""
         mock_alpaca_manager.is_fractionable.return_value = True
         symbol = Symbol("AAPL")
@@ -202,9 +192,7 @@ class TestAlpacaAssetMetadataAdapter:
         )
         assert result2 is False
 
-    def test_should_use_notional_order_negative_quantity(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_should_use_notional_order_negative_quantity(self, adapter, mock_alpaca_manager):
         """Test should_use_notional_order rejects negative quantity."""
         symbol = Symbol("AAPL")
 
@@ -220,30 +208,22 @@ class TestAlpacaAssetMetadataAdapter:
 
     def test_get_asset_class_handles_rate_limit(self, adapter, mock_alpaca_manager):
         """Test get_asset_class re-raises RateLimitError."""
-        mock_alpaca_manager.get_asset_info.side_effect = RateLimitError(
-            "Rate limit exceeded"
-        )
+        mock_alpaca_manager.get_asset_info.side_effect = RateLimitError("Rate limit exceeded")
         symbol = Symbol("AAPL")
 
         with pytest.raises(RateLimitError):
             adapter.get_asset_class(symbol)
 
-    def test_get_asset_class_handles_data_provider_error(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_get_asset_class_handles_data_provider_error(self, adapter, mock_alpaca_manager):
         """Test get_asset_class returns unknown for DataProviderError."""
-        mock_alpaca_manager.get_asset_info.side_effect = DataProviderError(
-            "Asset not found"
-        )
+        mock_alpaca_manager.get_asset_info.side_effect = DataProviderError("Asset not found")
         symbol = Symbol("UNKN")
 
         result = adapter.get_asset_class(symbol)
 
         assert result == "unknown"
 
-    def test_get_asset_class_handles_unexpected_error(
-        self, adapter, mock_alpaca_manager
-    ):
+    def test_get_asset_class_handles_unexpected_error(self, adapter, mock_alpaca_manager):
         """Test get_asset_class returns unknown for unexpected exceptions."""
         mock_alpaca_manager.get_asset_info.side_effect = RuntimeError("Unexpected error")
         symbol = Symbol("UNKN")

@@ -62,9 +62,7 @@ class TestServicesModuleInterface:
 
         for name in services.__all__:
             obj = getattr(services, name)
-            assert isinstance(
-                obj, type
-            ), f"{name} is not a class (got {type(obj).__name__})"
+            assert isinstance(obj, type), f"{name} is not a class (got {type(obj).__name__})"
 
     def test_trade_ledger_service_exported(self) -> None:
         """Test that TradeLedgerService is exported and is the correct type."""
@@ -81,7 +79,7 @@ class TestServicesModuleInterface:
 
     def test_no_unintended_exports(self) -> None:
         """Test that only items in __all__ are considered public exports.
-        
+
         Note: Python automatically makes submodules accessible when imported,
         so we specifically check that no non-submodule, non-dunder attributes
         are leaked beyond __all__.
@@ -90,24 +88,24 @@ class TestServicesModuleInterface:
 
         # Get all non-private attributes
         public_attrs = [
-            name
-            for name in dir(services)
-            if not name.startswith("_") and name != "annotations"
+            name for name in dir(services) if not name.startswith("_") and name != "annotations"
         ]
 
         # Filter out submodule names (these are expected Python behavior)
         # Submodules show up in dir() after import, which is standard Python
         import types
+
         non_submodule_attrs = [
-            name for name in public_attrs
+            name
+            for name in public_attrs
             if not isinstance(getattr(services, name), types.ModuleType)
         ]
 
         # All non-submodule public attributes should be in __all__
         for attr in non_submodule_attrs:
-            assert (
-                attr in services.__all__
-            ), f"{attr} is public but not in __all__ (unintended export)"
+            assert attr in services.__all__, (
+                f"{attr} is public but not in __all__ (unintended export)"
+            )
 
     def test_star_import_behavior(self) -> None:
         """Test that 'from services import *' only imports __all__ items."""
@@ -124,9 +122,9 @@ class TestServicesModuleInterface:
         assert "TradeLedgerService" in test_namespace
 
         # Verify private items are NOT imported
-        assert "__version__" not in test_namespace or hasattr(
-            services, "__version__"
-        ), "Private attributes should not be star-imported"
+        assert "__version__" not in test_namespace or hasattr(services, "__version__"), (
+            "Private attributes should not be star-imported"
+        )
 
     def test_imports_are_deterministic(self) -> None:
         """Test that imports are deterministic (same result on re-import)."""
@@ -169,9 +167,9 @@ class TestServicesModuleInterface:
 
         version_parts = services.__version__.split(".")
         assert len(version_parts) == 3, f"Version should be x.y.z, got {services.__version__}"
-        assert all(
-            part.isdigit() for part in version_parts
-        ), f"Version parts should be numeric, got {services.__version__}"
+        assert all(part.isdigit() for part in version_parts), (
+            f"Version parts should be numeric, got {services.__version__}"
+        )
 
     def test_future_import_present(self) -> None:
         """Test that module uses from __future__ import annotations."""
@@ -190,9 +188,7 @@ class TestModuleBoundaries:
         from the_alchemiser.execution_v2 import services
 
         # Check if any execution_v2.core modules are in sys.modules after import
-        core_modules = [
-            name for name in sys.modules.keys() if "execution_v2.core" in name
-        ]
+        core_modules = [name for name in sys.modules.keys() if "execution_v2.core" in name]
 
         # The services module itself should not trigger core imports
         # Core may be imported by tests or other code, but not by services/__init__
@@ -203,9 +199,7 @@ class TestModuleBoundaries:
         from the_alchemiser.execution_v2 import services
 
         # Check if any portfolio_v2 modules are in sys.modules after import
-        portfolio_modules = [
-            name for name in sys.modules.keys() if "portfolio_v2" in name
-        ]
+        portfolio_modules = [name for name in sys.modules.keys() if "portfolio_v2" in name]
 
         # Only allowed if they were already imported before this test
         assert services is not None  # Just to use the import
@@ -215,9 +209,7 @@ class TestModuleBoundaries:
         from the_alchemiser.execution_v2 import services
 
         # Check if any strategy_v2 modules are in sys.modules after import
-        strategy_modules = [
-            name for name in sys.modules.keys() if "strategy_v2" in name
-        ]
+        strategy_modules = [name for name in sys.modules.keys() if "strategy_v2" in name]
 
         # Only allowed if they were already imported before this test
         assert services is not None  # Just to use the import
@@ -230,9 +222,9 @@ class TestBackwardCompatibility:
         """Test that TradeLedgerService remains exported (backward compatibility)."""
         from the_alchemiser.execution_v2 import services
 
-        assert (
-            "TradeLedgerService" in services.__all__
-        ), "TradeLedgerService missing from __all__ (breaks backward compatibility)"
+        assert "TradeLedgerService" in services.__all__, (
+            "TradeLedgerService missing from __all__ (breaks backward compatibility)"
+        )
 
     def test_import_from_package_root_works(self) -> None:
         """Test that importing from package root still works (backward compatibility)."""
@@ -306,6 +298,7 @@ class TestImportPerformance:
 
         start = time.time()
         from the_alchemiser.execution_v2 import services
+
         end = time.time()
 
         # Import should be very fast (< 100ms even with dependencies)
