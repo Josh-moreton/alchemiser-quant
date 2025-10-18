@@ -146,19 +146,32 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def _hash_credentials(
         api_key: str, secret_key: str, *, paper: bool, base_url: str | None = None
     ) -> str:
-        """Hash credentials for secure storage in dictionary keys.
+        """Create deterministic instance key from credentials.
 
         Args:
-            api_key: API key (will be hashed)
-            secret_key: Secret key (will be hashed)
+            api_key: API key
+            secret_key: Secret key
             paper: Paper trading flag
             base_url: Optional base URL
 
         Returns:
-            SHA-256 hash of credentials
+            SHA-256 hash of credentials for use as dictionary key
 
-        Security:
-            This prevents credential exposure in memory dumps, logs, and debug output.
+        Security Note:
+            This is NOT a security measure. This method creates a deterministic
+            hash for singleton instance deduplication only. The credentials are
+            stored in memory in plain text (self._api_key, self._secret_key) for
+            SDK usage.
+
+            Purpose: Enable singleton pattern for connection pooling.
+            Threat Model: Does not protect credentials. If an attacker has memory
+            access to read this hash, they already have access to read the plain
+            text credentials stored in the same process.
+
+            The hash simply prevents credential exposure in:
+            - Dictionary key iteration/inspection
+            - Debug output of _instances dictionary
+            - Accidental logging of _instances keys
 
         """
         credentials_str = f"{api_key}:{secret_key}:{paper}:{base_url}"
