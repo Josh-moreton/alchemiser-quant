@@ -19,10 +19,8 @@ from typing import Any
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.strategy_signal import StrategySignal
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.strategy_value_objects import (
-    StrategySignal,
-)
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
 from the_alchemiser.strategy_v2.errors import ConfigurationError, StrategyExecutionError
