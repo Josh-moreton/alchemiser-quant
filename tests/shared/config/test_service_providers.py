@@ -8,7 +8,6 @@ Tests DI configuration for service layer components.
 
 from __future__ import annotations
 
-import pytest
 from dependency_injector import containers, providers
 
 from the_alchemiser.shared.config.service_providers import ServiceProviders

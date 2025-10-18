@@ -6,7 +6,6 @@ Validates that signal templates correctly handle both single-symbol
 and multi-symbol signals without data loss or truncation.
 """
 
-import pytest
 
 from the_alchemiser.shared.notifications.templates.signals import SignalsBuilder
 

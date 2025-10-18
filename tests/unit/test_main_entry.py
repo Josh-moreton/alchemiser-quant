@@ -430,9 +430,7 @@ class TestPnLAnalysis:
 
     @patch("the_alchemiser.shared.services.pnl_service.PnLService")
     @patch("the_alchemiser.main.get_logger")
-    def test_execute_pnl_exception(
-        self, mock_get_logger: Mock, mock_pnl_service_cls: Mock
-    ) -> None:
+    def test_execute_pnl_exception(self, mock_get_logger: Mock, mock_pnl_service_cls: Mock) -> None:
         """Test P&L analysis handles exceptions."""
         mock_logger = Mock()
         mock_get_logger.return_value = mock_logger

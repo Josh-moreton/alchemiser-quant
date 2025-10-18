@@ -12,7 +12,8 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
@@ -106,16 +107,12 @@ class TestStrategyAllocationValidation:
     def test_weight_sum_too_low_rejected(self):
         """Test that weights summing below 0.99 are rejected."""
         with pytest.raises(ValueError, match="must sum to"):
-            StrategyAllocation(
-                target_weights={"AAPL": Decimal("0.5")}, correlation_id="test"
-            )
+            StrategyAllocation(target_weights={"AAPL": Decimal("0.5")}, correlation_id="test")
 
     def test_weight_sum_too_high_rejected(self):
         """Test that weights summing above 1.01 are rejected."""
         with pytest.raises(Exception):  # Pydantic ValidationError or ValueError
-            StrategyAllocation(
-                target_weights={"AAPL": Decimal("1.02")}, correlation_id="test"
-            )
+            StrategyAllocation(target_weights={"AAPL": Decimal("1.02")}, correlation_id="test")
 
     def test_weight_sum_at_lower_tolerance_accepted(self):
         """Test that weights summing to exactly 0.99 are accepted."""
@@ -145,9 +142,7 @@ class TestStrategyAllocationValidation:
     def test_weight_above_one_rejected(self):
         """Test that weights above 1.0 are rejected."""
         with pytest.raises(ValueError, match="between 0 and 1"):
-            StrategyAllocation(
-                target_weights={"AAPL": Decimal("1.5")}, correlation_id="test"
-            )
+            StrategyAllocation(target_weights={"AAPL": Decimal("1.5")}, correlation_id="test")
 
     def test_zero_weight_accepted(self):
         """Test that zero weights are accepted (within sum constraint)."""
@@ -160,25 +155,19 @@ class TestStrategyAllocationValidation:
     def test_empty_correlation_id_rejected(self):
         """Test that empty correlation_id is rejected."""
         with pytest.raises(Exception):  # Pydantic ValidationError
-            StrategyAllocation(
-                target_weights={"AAPL": Decimal("1.0")}, correlation_id=""
-            )
+            StrategyAllocation(target_weights={"AAPL": Decimal("1.0")}, correlation_id="")
 
     def test_whitespace_only_correlation_id_rejected(self):
         """Test that whitespace-only correlation_id is rejected."""
         # Pydantic strips whitespace first via str_strip_whitespace, then validates min_length
         with pytest.raises(Exception):  # Pydantic ValidationError
-            StrategyAllocation(
-                target_weights={"AAPL": Decimal("1.0")}, correlation_id="   "
-            )
+            StrategyAllocation(target_weights={"AAPL": Decimal("1.0")}, correlation_id="   ")
 
     def test_long_correlation_id_rejected(self):
         """Test that correlation_id exceeding max length is rejected."""
         long_id = "x" * 101  # max_length=100
         with pytest.raises(ValueError):
-            StrategyAllocation(
-                target_weights={"AAPL": Decimal("1.0")}, correlation_id=long_id
-            )
+            StrategyAllocation(target_weights={"AAPL": Decimal("1.0")}, correlation_id=long_id)
 
     def test_negative_portfolio_value_rejected(self):
         """Test that negative portfolio_value is rejected."""
@@ -203,15 +192,14 @@ class TestStrategyAllocationValidation:
         # Pydantic strict mode will reject non-string keys at the type level
         with pytest.raises(Exception):  # Pydantic ValidationError
             StrategyAllocation(
-                target_weights={123: Decimal("1.0")}, correlation_id="test"  # type: ignore
+                target_weights={123: Decimal("1.0")},
+                correlation_id="test",  # type: ignore
             )
 
     def test_empty_symbol_rejected(self):
         """Test that empty string symbols are rejected."""
         with pytest.raises(ValueError, match="Invalid symbol"):
-            StrategyAllocation(
-                target_weights={"": Decimal("1.0")}, correlation_id="test"
-            )
+            StrategyAllocation(target_weights={"": Decimal("1.0")}, correlation_id="test")
 
 
 class TestStrategyAllocationNormalization:
@@ -454,9 +442,7 @@ class TestStrategyAllocationSerialization:
         )
         dumped = original.model_dump()
         # Convert Decimals to strings for from_dict
-        dumped["target_weights"] = {
-            k: str(v) for k, v in dumped["target_weights"].items()
-        }
+        dumped["target_weights"] = {k: str(v) for k, v in dumped["target_weights"].items()}
         if dumped["portfolio_value"] is not None:
             dumped["portfolio_value"] = str(dumped["portfolio_value"])
 
@@ -493,9 +479,7 @@ class TestStrategyAllocationEdgeCases:
         num_symbols = 10
         weight = Decimal("1.0") / num_symbols
         weights = {f"SYM{i}": weight for i in range(num_symbols)}
-        allocation = StrategyAllocation(
-            target_weights=weights, correlation_id="test-many"
-        )
+        allocation = StrategyAllocation(target_weights=weights, correlation_id="test-many")
         assert len(allocation.target_weights) == num_symbols
         total = sum(allocation.target_weights.values())
         # Should be within tolerance

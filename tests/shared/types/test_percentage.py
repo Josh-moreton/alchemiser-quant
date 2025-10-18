@@ -6,9 +6,11 @@ Tests Percentage value object operations with Decimal arithmetic and
 validation per project guardrails.
 """
 
-import pytest
 from decimal import Decimal
-from hypothesis import given, strategies as st, assume
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.types.percentage import Percentage
 
@@ -155,7 +157,7 @@ class TestPercentageRoundTrip:
         original_percent = 75.0
         p = Percentage.from_percent(original_percent)
         result_percent = p.to_percent()
-        
+
         assert result_percent == Decimal("75")
 
     @pytest.mark.unit
@@ -165,7 +167,7 @@ class TestPercentageRoundTrip:
         p = Percentage(original_value)
         percent = p.to_percent()
         p2 = Percentage.from_percent(float(percent))
-        
+
         assert p2.value == original_value
 
 
@@ -174,7 +176,9 @@ class TestPercentageProperties:
     """Property-based tests for Percentage value object."""
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4))
+    @given(
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4)
+    )
     def test_construction_preserves_range(self, value):
         """Property: constructed Percentage should always be in [0, 1]."""
         p = Percentage(value)
@@ -188,7 +192,9 @@ class TestPercentageProperties:
         assert Decimal("0") <= p.value <= Decimal("1")
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4))
+    @given(
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4)
+    )
     def test_to_percent_in_range(self, value):
         """Property: to_percent should return value in [0, 100]."""
         p = Percentage(value)
@@ -201,28 +207,32 @@ class TestPercentageProperties:
         """Property: round-trip from_percent -> to_percent should preserve value."""
         p = Percentage.from_percent(original_percent)
         result_percent = float(p.to_percent())
-        
+
         # Allow small rounding error due to Decimal conversion
         assert abs(result_percent - original_percent) < 0.01
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=2))
+    @given(
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=2)
+    )
     def test_roundtrip_value(self, original_value):
         """Property: round-trip value -> to_percent -> from_percent should preserve value."""
         p1 = Percentage(original_value)
         percent = p1.to_percent()
         p2 = Percentage.from_percent(float(percent))
-        
+
         # Allow small rounding error
         assert abs(p2.value - original_value) <= Decimal("0.01")
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4))
+    @given(
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4)
+    )
     def test_percent_conversion_linearity(self, value):
         """Property: to_percent should scale value by 100."""
         p = Percentage(value)
         percent = p.to_percent()
-        
+
         expected = value * Decimal("100")
         assert percent == expected
 
@@ -231,7 +241,7 @@ class TestPercentageProperties:
     def test_from_percent_conversion_linearity(self, percent):
         """Property: from_percent should divide by 100."""
         p = Percentage.from_percent(percent)
-        
+
         expected = Decimal(str(percent)) / Decimal("100")
         # Allow small rounding error
         assert abs(p.value - expected) <= Decimal("0.0001")
@@ -239,41 +249,45 @@ class TestPercentageProperties:
     @pytest.mark.property
     @given(
         st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4),
-        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4)
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4),
     )
     def test_ordering_preserved(self, value1, value2):
         """Property: if value1 < value2, then percent1 < percent2."""
         if value1 == value2:
             return
-        
+
         p1 = Percentage(value1)
         p2 = Percentage(value2)
-        
+
         percent1 = p1.to_percent()
         percent2 = p2.to_percent()
-        
+
         if value1 < value2:
             assert percent1 < percent2
         else:
             assert percent1 > percent2
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4))
+    @given(
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4)
+    )
     def test_zero_comparison(self, value):
         """Property: percentage comparisons with zero should be consistent."""
         p = Percentage(value)
-        
+
         if value == Decimal("0"):
             assert p.to_percent() == Decimal("0")
         else:
             assert p.to_percent() > Decimal("0")
 
     @pytest.mark.property
-    @given(st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4))
+    @given(
+        st.decimals(min_value="0", max_value="1", allow_nan=False, allow_infinity=False, places=4)
+    )
     def test_one_comparison(self, value):
         """Property: percentage comparisons with one (100%) should be consistent."""
         p = Percentage(value)
-        
+
         if value == Decimal("1"):
             assert p.to_percent() == Decimal("100")
         else:

@@ -14,7 +14,7 @@ Tests cover:
 """
 
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from hypothesis import given
@@ -70,7 +70,7 @@ class TestFractionabilityDetectorInitialization:
     def test_init_without_provider(self):
         """Test initialization without provider."""
         detector = FractionabilityDetector()
-        
+
         assert detector.asset_metadata_provider is None
         assert isinstance(detector._fractionability_cache, dict)
         assert len(detector._fractionability_cache) == 0
@@ -80,17 +80,17 @@ class TestFractionabilityDetectorInitialization:
         """Test initialization with provider."""
         mock_provider = Mock()
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         assert detector.asset_metadata_provider is mock_provider
         assert isinstance(detector._fractionability_cache, dict)
 
     def test_backup_set_is_immutable(self):
         """Test that backup set is immutable (frozenset)."""
         detector = FractionabilityDetector()
-        
+
         # Verify it's a frozenset
         assert isinstance(detector.backup_known_non_fractionable, frozenset)
-        
+
         # Verify we can't add to it
         with pytest.raises(AttributeError):
             detector.backup_known_non_fractionable.add("TEST")  # type: ignore
@@ -109,9 +109,9 @@ class TestIsFractionableMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.is_fractionable("AAPL")
-        
+
         assert result is True
         assert "AAPL" in detector._fractionability_cache
         assert detector._fractionability_cache["AAPL"] is True
@@ -121,9 +121,9 @@ class TestIsFractionableMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.is_fractionable("FNGU")
-        
+
         assert result is False
         assert "FNGU" in detector._fractionability_cache
         assert detector._fractionability_cache["FNGU"] is False
@@ -133,12 +133,12 @@ class TestIsFractionableMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # First call - should query provider
         result1 = detector.is_fractionable("AAPL")
         # Second call - should use cache
         result2 = detector.is_fractionable("AAPL")
-        
+
         assert result1 is True
         assert result2 is True
         # Provider should only be called once
@@ -149,12 +149,12 @@ class TestIsFractionableMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # First call with cache
         detector.is_fractionable("AAPL", use_cache=True)
         # Second call bypassing cache
         detector.is_fractionable("AAPL", use_cache=False)
-        
+
         # Provider should be called twice
         assert mock_provider.is_fractionable.call_count == 2
 
@@ -163,9 +163,9 @@ class TestIsFractionableMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         detector.is_fractionable("aapl")
-        
+
         # Should be cached as uppercase
         assert "AAPL" in detector._fractionability_cache
         assert "aapl" not in detector._fractionability_cache
@@ -175,10 +175,10 @@ class TestIsFractionableMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.side_effect = Exception("Provider error")
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Should fall back to prediction, not raise exception
         result = detector.is_fractionable("AAPL")
-        
+
         assert isinstance(result, bool)
         # Should use fallback (True for unknown symbols)
         assert result is True
@@ -186,11 +186,11 @@ class TestIsFractionableMethod:
     def test_fallback_when_no_provider(self):
         """Test fallback behavior when no provider is configured."""
         detector = FractionabilityDetector()
-        
+
         # Unknown symbol should default to fractionable
         result = detector.is_fractionable("AAPL")
         assert result is True
-        
+
         # Known non-fractionable should return False
         result = detector.is_fractionable("FNGU")
         assert result is False
@@ -198,20 +198,20 @@ class TestIsFractionableMethod:
     def test_known_non_fractionable_symbol(self):
         """Test that known non-fractionable symbols are handled."""
         detector = FractionabilityDetector()
-        
+
         result = detector.is_fractionable("FNGU")
-        
+
         assert result is False
 
     def test_fallback_result_is_cached(self):
         """Test that fallback results are also cached."""
         detector = FractionabilityDetector()
-        
+
         # First call uses fallback
         result1 = detector.is_fractionable("TEST")
         # Second call should use cache
         result2 = detector.is_fractionable("TEST")
-        
+
         assert result1 == result2
         assert "TEST" in detector._fractionability_cache
 
@@ -224,9 +224,9 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.get_asset_type("UNKNOWN")
-        
+
         assert result == AssetType.STOCK
 
     def test_etf_classification_spy(self):
@@ -234,9 +234,9 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.get_asset_type("SPY")
-        
+
         assert result == AssetType.ETF
 
     def test_etf_classification_qqq(self):
@@ -244,9 +244,9 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.get_asset_type("QQQ")
-        
+
         assert result == AssetType.ETF
 
     def test_etf_classification_vanguard_prefix(self):
@@ -254,7 +254,7 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         assert detector.get_asset_type("VTI") == AssetType.ETF
         assert detector.get_asset_type("VOO") == AssetType.ETF
 
@@ -263,9 +263,9 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.get_asset_type("TQQQ")
-        
+
         assert result == AssetType.LEVERAGED_ETF
 
     def test_symbol_normalization(self):
@@ -273,9 +273,9 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.get_asset_type("spy")
-        
+
         assert result == AssetType.ETF
 
     def test_all_hardcoded_etfs(self):
@@ -283,7 +283,7 @@ class TestGetAssetTypeMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         etf_symbols = ["SPY", "QQQ", "IWM", "VTI", "VOO", "VEA", "BIL"]
         for symbol in etf_symbols:
             assert detector.get_asset_type(symbol) == AssetType.ETF
@@ -297,9 +297,9 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.should_use_notional_order("FNGU", Decimal("10"))
-        
+
         assert result is True
 
     def test_fractional_less_than_one_returns_true(self):
@@ -307,9 +307,9 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.should_use_notional_order("AAPL", Decimal("0.5"))
-        
+
         assert result is True
 
     def test_significant_fractional_part_returns_true(self):
@@ -317,9 +317,9 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.should_use_notional_order("AAPL", Decimal("10.5"))
-        
+
         assert result is True
 
     def test_whole_shares_returns_false(self):
@@ -327,9 +327,9 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.should_use_notional_order("AAPL", Decimal("10"))
-        
+
         assert result is False
 
     def test_small_fractional_part_returns_false(self):
@@ -337,9 +337,9 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.should_use_notional_order("AAPL", Decimal("10.05"))
-        
+
         assert result is False
 
     def test_exactly_one_share(self):
@@ -347,9 +347,9 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result = detector.should_use_notional_order("AAPL", Decimal("1.0"))
-        
+
         assert result is False
 
     def test_boundary_at_point_one(self):
@@ -357,12 +357,12 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Exactly 0.1 should be False (not >0.1)
         result = detector.should_use_notional_order("AAPL", Decimal("10.1"))
         # Just over 0.1 should be True
         assert result is False  # 0.1 is not > 0.1
-        
+
         result = detector.should_use_notional_order("AAPL", Decimal("10.11"))
         assert result is True
 
@@ -371,10 +371,10 @@ class TestShouldUseNotionalOrderMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Should not raise exception with float input
         result = detector.should_use_notional_order("AAPL", 10.5)
-        
+
         assert result is True
 
 
@@ -386,11 +386,11 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         quantity, used_rounding = detector.convert_to_whole_shares(
             "AAPL", Decimal("10.5"), Decimal("150.00")
         )
-        
+
         assert quantity == Decimal("10.5")
         assert used_rounding is False
 
@@ -399,11 +399,11 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         quantity, used_rounding = detector.convert_to_whole_shares(
             "FNGU", Decimal("10.75"), Decimal("50.00")
         )
-        
+
         assert quantity == Decimal("10")
         assert used_rounding is True
 
@@ -412,11 +412,11 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         quantity, used_rounding = detector.convert_to_whole_shares(
             "FNGU", Decimal("10"), Decimal("50.00")
         )
-        
+
         assert quantity == Decimal("10")
         assert used_rounding is False
 
@@ -425,13 +425,13 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # With rounding
         _, used_rounding = detector.convert_to_whole_shares(
             "FNGU", Decimal("10.01"), Decimal("50.00")
         )
         assert used_rounding is True
-        
+
         # Without rounding
         _, used_rounding = detector.convert_to_whole_shares(
             "FNGU", Decimal("10.0"), Decimal("50.00")
@@ -443,11 +443,11 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         quantity, used_rounding = detector.convert_to_whole_shares(
             "FNGU", Decimal("0.99"), Decimal("50.00")
         )
-        
+
         assert quantity == Decimal("0")
         assert used_rounding is True
 
@@ -456,11 +456,11 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         quantity, used_rounding = detector.convert_to_whole_shares(
             "FNGU", Decimal("1.01"), Decimal("50.00")
         )
-        
+
         assert quantity == Decimal("1")
         assert used_rounding is True
 
@@ -469,11 +469,9 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
-        quantity, _ = detector.convert_to_whole_shares(
-            "FNGU", Decimal("10.5"), Decimal("50.00")
-        )
-        
+
+        quantity, _ = detector.convert_to_whole_shares("FNGU", Decimal("10.5"), Decimal("50.00"))
+
         assert isinstance(quantity, Decimal)
 
     def test_precision_with_various_prices(self):
@@ -481,17 +479,15 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Test with high price
         quantity, _ = detector.convert_to_whole_shares(
             "FNGU", Decimal("10.9999"), Decimal("500.123456")
         )
         assert quantity == Decimal("10")
-        
+
         # Test with low price
-        quantity, _ = detector.convert_to_whole_shares(
-            "FNGU", Decimal("100.5"), Decimal("0.01")
-        )
+        quantity, _ = detector.convert_to_whole_shares("FNGU", Decimal("100.5"), Decimal("0.01"))
         assert quantity == Decimal("100")
 
     def test_accepts_float_inputs(self):
@@ -499,12 +495,10 @@ class TestConvertToWholeSharesMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Should not raise exception with float inputs
-        quantity, used_rounding = detector.convert_to_whole_shares(
-            "FNGU", 10.75, 50.00
-        )
-        
+        quantity, used_rounding = detector.convert_to_whole_shares("FNGU", 10.75, 50.00)
+
         assert quantity == Decimal("10")
         assert used_rounding is True
 
@@ -515,9 +509,9 @@ class TestGetCacheStatsMethod:
     def test_empty_cache(self):
         """Test cache stats with empty cache."""
         detector = FractionabilityDetector()
-        
+
         stats = detector.get_cache_stats()
-        
+
         assert stats["cached_symbols"] == 0
         assert stats["fractionable_count"] == 0
         assert stats["non_fractionable_count"] == 0
@@ -526,14 +520,14 @@ class TestGetCacheStatsMethod:
         """Test cache stats with mixed fractionable/non-fractionable results."""
         mock_provider = Mock()
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Add some cached results
         detector._fractionability_cache["AAPL"] = True
         detector._fractionability_cache["TSLA"] = True
         detector._fractionability_cache["FNGU"] = False
-        
+
         stats = detector.get_cache_stats()
-        
+
         assert stats["cached_symbols"] == 3
         assert stats["fractionable_count"] == 2
         assert stats["non_fractionable_count"] == 1
@@ -543,13 +537,13 @@ class TestGetCacheStatsMethod:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Query some symbols
         detector.is_fractionable("AAPL")
         detector.is_fractionable("TSLA")
-        
+
         stats = detector.get_cache_stats()
-        
+
         assert stats["cached_symbols"] == 2
         assert stats["fractionable_count"] == 2
         assert stats["non_fractionable_count"] == 0
@@ -573,16 +567,18 @@ class TestGlobalInstance:
 class TestPropertyBasedTests:
     """Property-based tests using Hypothesis."""
 
-    @given(st.text(min_size=1, max_size=10, alphabet=st.characters(whitelist_categories=("Lu", "Ll"))))
+    @given(
+        st.text(min_size=1, max_size=10, alphabet=st.characters(whitelist_categories=("Lu", "Ll")))
+    )
     def test_symbol_normalization_idempotence(self, symbol: str):
         """Test that symbol normalization is idempotent."""
         detector = FractionabilityDetector()
-        
+
         # Normalize once
         normalized_once = symbol.upper()
         # Normalize twice
         normalized_twice = normalized_once.upper()
-        
+
         assert normalized_once == normalized_twice
 
     @given(st.decimals(min_value=0, max_value=1000, places=2))
@@ -591,9 +587,9 @@ class TestPropertyBasedTests:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = False
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         result, _ = detector.convert_to_whole_shares("FNGU", quantity, Decimal("50"))
-        
+
         # Result should be a whole number
         assert result == result.to_integral_value()
 
@@ -603,11 +599,11 @@ class TestPropertyBasedTests:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # Call twice with same input
         result1 = detector.should_use_notional_order("AAPL", quantity)
         result2 = detector.should_use_notional_order("AAPL", quantity)
-        
+
         assert result1 == result2
 
     @given(st.text(min_size=1, max_size=10, alphabet=st.characters(whitelist_categories=("Lu",))))
@@ -616,10 +612,10 @@ class TestPropertyBasedTests:
         mock_provider = Mock()
         mock_provider.is_fractionable.return_value = True
         detector = FractionabilityDetector(asset_metadata_provider=mock_provider)
-        
+
         # First call
         result1 = detector.is_fractionable(symbol)
         # Second call (should use cache)
         result2 = detector.is_fractionable(symbol)
-        
+
         assert result1 == result2

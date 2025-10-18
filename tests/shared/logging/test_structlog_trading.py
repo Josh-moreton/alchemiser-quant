@@ -26,17 +26,21 @@ from the_alchemiser.shared.logging.structlog_trading import (
 @pytest.fixture
 def _setup_structlog() -> None:
     """Set up structlog for tests that need it outside of patching.
-    
+
     Note: Most tests should configure structlog inside the patch context manager
     to ensure output is captured correctly.
     """
-    configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+    configure_structlog(
+        structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+    )
 
 
 def test_log_trade_event_basic() -> None:
     """Test that log_trade_event logs with proper structure."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_trade_event(logger, "order_placed", "AAPL", quantity=100, price=Decimal("150.25"))
 
@@ -54,7 +58,9 @@ def test_log_trade_event_basic() -> None:
 def test_log_order_flow_with_all_fields() -> None:
     """Test log_order_flow with all optional fields."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_order_flow(
             logger,
@@ -81,7 +87,9 @@ def test_log_order_flow_with_all_fields() -> None:
 def test_log_order_flow_without_optional_fields() -> None:
     """Test log_order_flow without optional fields."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_order_flow(logger, stage="submission", symbol="GOOG", quantity=Decimal("25"))
 
@@ -99,7 +107,9 @@ def test_log_order_flow_without_optional_fields() -> None:
 def test_log_repeg_operation() -> None:
     """Test log_repeg_operation with price improvement calculation."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_repeg_operation(
             logger,
@@ -129,7 +139,9 @@ def test_log_repeg_operation() -> None:
 def test_bind_trading_context_all_fields() -> None:
     """Test bind_trading_context with all fields."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         bound_logger = bind_trading_context(
             logger,
@@ -154,7 +166,9 @@ def test_bind_trading_context_all_fields() -> None:
 def test_bind_trading_context_partial_fields() -> None:
     """Test bind_trading_context with only some fields."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         bound_logger = bind_trading_context(logger, symbol="AMZN", strategy="value")
 
@@ -174,7 +188,9 @@ def test_log_data_integrity_checkpoint_with_valid_data() -> None:
     data = {"AAPL": 0.3, "MSFT": 0.3, "GOOG": 0.4}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(
             logger, stage="portfolio_allocation", data=data, context="rebalance"
@@ -194,7 +210,9 @@ def test_log_data_integrity_checkpoint_with_valid_data() -> None:
 def test_log_data_integrity_checkpoint_with_null_data() -> None:
     """Test log_data_integrity_checkpoint with null data."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="data_fetch", data=None, context="API call")
 
@@ -212,7 +230,9 @@ def test_log_data_integrity_checkpoint_warns_on_empty_data() -> None:
     data: dict[str, float] = {}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="processing", data=data)
 
@@ -237,7 +257,9 @@ def test_log_data_integrity_checkpoint_warns_on_allocation_anomaly() -> None:
     data = {"AAPL": 0.3, "MSFT": 0.5}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="allocation", data=data)
 
@@ -266,7 +288,9 @@ def test_log_data_integrity_checkpoint_with_decimal_values() -> None:
     }
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG
+        )
         logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="allocation", data=data)
 

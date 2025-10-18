@@ -138,7 +138,7 @@ class TestResultSubclassing:
 
     def test_subclass_inherits_success_error(self):
         """Test subclass inherits success/error fields."""
-        from pydantic import BaseModel, ConfigDict
+        from pydantic import ConfigDict
 
         class CustomResult(Result):
             model_config = ConfigDict(
@@ -156,7 +156,7 @@ class TestResultSubclassing:
 
     def test_subclass_can_add_fields(self):
         """Test subclass can add domain-specific fields."""
-        from pydantic import BaseModel, ConfigDict
+        from pydantic import ConfigDict
 
         class PriceResult(Result):
             model_config = ConfigDict(
@@ -174,7 +174,7 @@ class TestResultSubclassing:
 
     def test_subclass_immutability(self):
         """Test subclass inherits immutability."""
-        from pydantic import BaseModel, ConfigDict
+        from pydantic import ConfigDict
 
         class CustomResult(Result):
             model_config = ConfigDict(
@@ -194,7 +194,7 @@ class TestResultSubclassing:
 
     def test_subclass_strict_validation(self):
         """Test subclass inherits strict validation."""
-        from pydantic import BaseModel, ConfigDict
+        from pydantic import ConfigDict
 
         class CustomResult(Result):
             model_config = ConfigDict(
@@ -212,7 +212,7 @@ class TestResultSubclassing:
 
     def test_subclass_with_error(self):
         """Test subclass can use error field."""
-        from pydantic import BaseModel, ConfigDict
+        from pydantic import ConfigDict
 
         class OperationResult(Result):
             model_config = ConfigDict(
@@ -222,9 +222,7 @@ class TestResultSubclassing:
             )
             operation_id: str | None = None
 
-        result = OperationResult(
-            success=False, error="Operation failed", operation_id="op-123"
-        )
+        result = OperationResult(success=False, error="Operation failed", operation_id="op-123")
         assert result.success is False
         assert result.error == "Operation failed"
         assert result.operation_id == "op-123"

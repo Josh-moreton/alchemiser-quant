@@ -6,7 +6,7 @@ Tests validation, constraints, immutability, serialization, and edge cases
 for WebSocketStatus, WebSocketResult, and OrderExecutionResult.
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -92,12 +92,12 @@ class TestWebSocketResult:
             completed_order_ids=["order1"],
             metadata={"key": "value"},
         )
-        
+
         # Serialize to dict
         data = original.model_dump()
         assert data["status"] == "completed"
         assert data["message"] == "Test"
-        
+
         # Deserialize from dict
         restored = WebSocketResult.model_validate(data)
         assert restored.status == original.status
@@ -205,7 +205,7 @@ class TestOrderExecutionResult:
                 filled_qty=Decimal("-1.0"),
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert len(errors) == 1
         assert "filled_qty" in str(errors[0])
@@ -224,7 +224,7 @@ class TestOrderExecutionResult:
                 avg_fill_price=Decimal("0"),
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert len(errors) == 1
         assert "avg_fill_price" in str(errors[0])
@@ -243,7 +243,7 @@ class TestOrderExecutionResult:
                 avg_fill_price=Decimal("-100.50"),
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert len(errors) == 1
         assert "avg_fill_price" in str(errors[0])
@@ -274,10 +274,10 @@ class TestOrderExecutionResult:
             avg_fill_price=Decimal("100.0"),
             submitted_at=now,
         )
-        
+
         with pytest.raises(ValidationError):
             result.status = "rejected"
-        
+
         with pytest.raises(ValidationError):
             result.filled_qty = Decimal("20.0")
 
@@ -294,13 +294,13 @@ class TestOrderExecutionResult:
             submitted_at=now,
             completed_at=now,
         )
-        
+
         # Serialize to dict
         data = original.model_dump()
         assert data["order_id"] == "serialize123"
         assert data["status"] == "filled"
         assert data["filled_qty"] == Decimal("10.5")
-        
+
         # Deserialize from dict
         restored = OrderExecutionResult.model_validate(data)
         assert restored.order_id == original.order_id
@@ -314,7 +314,7 @@ class TestOrderExecutionResult:
     def test_result_base_class_fields(self):
         """Test that OrderExecutionResult inherits success/error from Result."""
         now = datetime.now(UTC)
-        
+
         # Success case
         success_result = OrderExecutionResult(
             success=True,
@@ -327,7 +327,7 @@ class TestOrderExecutionResult:
         assert success_result.success is True
         assert success_result.error is None
         assert success_result.is_success is True
-        
+
         # Error case
         error_result = OrderExecutionResult(
             success=False,
@@ -345,7 +345,7 @@ class TestOrderExecutionResult:
     def test_status_literals_enforced(self):
         """Test that only valid status literals are accepted."""
         now = datetime.now(UTC)
-        
+
         # Valid statuses with appropriate filled_qty
         test_cases = [
             ("accepted", Decimal("0"), None),
@@ -354,7 +354,7 @@ class TestOrderExecutionResult:
             ("rejected", Decimal("0"), None),
             ("canceled", Decimal("0"), None),
         ]
-        
+
         for status, qty, price in test_cases:
             result = OrderExecutionResult(
                 success=True,
@@ -365,7 +365,7 @@ class TestOrderExecutionResult:
                 submitted_at=now,
             )
             assert result.status == status
-        
+
         # Invalid status should fail
         with pytest.raises(ValidationError) as exc_info:
             OrderExecutionResult(
@@ -375,7 +375,7 @@ class TestOrderExecutionResult:
                 filled_qty=Decimal("0"),
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert len(errors) == 1
         assert "status" in str(errors[0])
@@ -384,11 +384,11 @@ class TestOrderExecutionResult:
     def test_decimal_precision_preserved(self):
         """Test that Decimal precision is maintained."""
         now = datetime.now(UTC)
-        
+
         # Use precise decimal values
         filled_qty = Decimal("10.123456789")
         avg_price = Decimal("150.9876543210")
-        
+
         result = OrderExecutionResult(
             success=True,
             order_id="precision123",
@@ -397,7 +397,7 @@ class TestOrderExecutionResult:
             avg_fill_price=avg_price,
             submitted_at=now,
         )
-        
+
         # Verify precision is maintained
         assert result.filled_qty == filled_qty
         assert result.avg_fill_price == avg_price
@@ -409,7 +409,7 @@ class TestOrderExecutionResult:
         """Test datetime field handling."""
         submitted = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
         completed = datetime(2025, 1, 15, 10, 30, 5, tzinfo=UTC)
-        
+
         result = OrderExecutionResult(
             success=True,
             order_id="datetime123",
@@ -419,7 +419,7 @@ class TestOrderExecutionResult:
             submitted_at=submitted,
             completed_at=completed,
         )
-        
+
         assert result.submitted_at == submitted
         assert result.completed_at == completed
         assert result.submitted_at.tzinfo == UTC
@@ -433,7 +433,7 @@ class TestOrderExecutionResultEdgeCases:
     def test_very_small_decimal_values(self):
         """Test handling of very small decimal values."""
         now = datetime.now(UTC)
-        
+
         result = OrderExecutionResult(
             success=True,
             order_id="small_decimal",
@@ -442,7 +442,7 @@ class TestOrderExecutionResultEdgeCases:
             avg_fill_price=Decimal("0.01"),
             submitted_at=now,
         )
-        
+
         assert result.filled_qty == Decimal("0.00000001")
         assert result.avg_fill_price == Decimal("0.01")
 
@@ -450,7 +450,7 @@ class TestOrderExecutionResultEdgeCases:
     def test_very_large_decimal_values(self):
         """Test handling of very large decimal values."""
         now = datetime.now(UTC)
-        
+
         result = OrderExecutionResult(
             success=True,
             order_id="large_decimal",
@@ -459,7 +459,7 @@ class TestOrderExecutionResultEdgeCases:
             avg_fill_price=Decimal("9999999.99"),
             submitted_at=now,
         )
-        
+
         assert result.filled_qty == Decimal("999999999.999999")
         assert result.avg_fill_price == Decimal("9999999.99")
 
@@ -467,7 +467,7 @@ class TestOrderExecutionResultEdgeCases:
     def test_empty_order_id(self):
         """Test that empty order_id is allowed (validation at business layer)."""
         now = datetime.now(UTC)
-        
+
         # Empty string is technically valid at DTO level
         result = OrderExecutionResult(
             success=True,
@@ -476,14 +476,14 @@ class TestOrderExecutionResultEdgeCases:
             filled_qty=Decimal("0"),
             submitted_at=now,
         )
-        
+
         assert result.order_id == ""
 
     @pytest.mark.unit
     def test_completed_at_none(self):
         """Test that completed_at can be None for pending orders."""
         now = datetime.now(UTC)
-        
+
         result = OrderExecutionResult(
             success=True,
             order_id="pending_order",
@@ -492,7 +492,7 @@ class TestOrderExecutionResultEdgeCases:
             submitted_at=now,
             completed_at=None,
         )
-        
+
         assert result.completed_at is None
 
 
@@ -504,7 +504,7 @@ class TestOrderExecutionResultNewValidations:
         """Test that submitted_at must be timezone-aware."""
         # Naive datetime should fail
         naive_dt = datetime(2025, 1, 15, 10, 30, 0)
-        
+
         with pytest.raises(ValidationError) as exc_info:
             OrderExecutionResult(
                 success=True,
@@ -513,7 +513,7 @@ class TestOrderExecutionResultNewValidations:
                 filled_qty=Decimal("0"),
                 submitted_at=naive_dt,
             )
-        
+
         errors = exc_info.value.errors()
         assert any("timezone-aware" in str(e).lower() for e in errors)
 
@@ -522,7 +522,7 @@ class TestOrderExecutionResultNewValidations:
         """Test that completed_at must be timezone-aware when provided."""
         now = datetime.now(UTC)
         naive_dt = datetime(2025, 1, 15, 10, 30, 5)
-        
+
         with pytest.raises(ValidationError) as exc_info:
             OrderExecutionResult(
                 success=True,
@@ -533,7 +533,7 @@ class TestOrderExecutionResultNewValidations:
                 submitted_at=now,
                 completed_at=naive_dt,
             )
-        
+
         errors = exc_info.value.errors()
         assert any("timezone-aware" in str(e).lower() for e in errors)
 
@@ -541,7 +541,7 @@ class TestOrderExecutionResultNewValidations:
     def test_filled_status_requires_positive_quantity(self):
         """Test that status='filled' requires filled_qty > 0."""
         now = datetime.now(UTC)
-        
+
         with pytest.raises(ValidationError) as exc_info:
             OrderExecutionResult(
                 success=True,
@@ -551,7 +551,7 @@ class TestOrderExecutionResultNewValidations:
                 avg_fill_price=Decimal("100.00"),
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert any("filled_qty > 0" in str(e) for e in errors)
 
@@ -559,7 +559,7 @@ class TestOrderExecutionResultNewValidations:
     def test_filled_status_requires_avg_price(self):
         """Test that status='filled' requires avg_fill_price."""
         now = datetime.now(UTC)
-        
+
         with pytest.raises(ValidationError) as exc_info:
             OrderExecutionResult(
                 success=True,
@@ -569,7 +569,7 @@ class TestOrderExecutionResultNewValidations:
                 avg_fill_price=None,
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert any("avg_fill_price" in str(e) for e in errors)
 
@@ -577,7 +577,7 @@ class TestOrderExecutionResultNewValidations:
     def test_accepted_status_requires_zero_quantity(self):
         """Test that status='accepted' should have filled_qty = 0."""
         now = datetime.now(UTC)
-        
+
         with pytest.raises(ValidationError) as exc_info:
             OrderExecutionResult(
                 success=True,
@@ -586,7 +586,7 @@ class TestOrderExecutionResultNewValidations:
                 filled_qty=Decimal("10"),
                 submitted_at=now,
             )
-        
+
         errors = exc_info.value.errors()
         assert any("filled_qty = 0" in str(e) for e in errors)
 
@@ -594,7 +594,7 @@ class TestOrderExecutionResultNewValidations:
     def test_schema_version_field_present(self):
         """Test that schema_version field is present with default value."""
         now = datetime.now(UTC)
-        
+
         result = OrderExecutionResult(
             success=True,
             order_id="test_schema",
@@ -602,7 +602,7 @@ class TestOrderExecutionResultNewValidations:
             filled_qty=Decimal("0"),
             submitted_at=now,
         )
-        
+
         assert hasattr(result, "schema_version")
         assert result.schema_version == "1.0"
 
@@ -613,6 +613,6 @@ class TestOrderExecutionResultNewValidations:
             status=WebSocketStatus.COMPLETED,
             message="Test",
         )
-        
+
         assert hasattr(result, "schema_version")
         assert result.schema_version == "1.0"

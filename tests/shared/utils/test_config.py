@@ -7,8 +7,6 @@ and proper initialization.
 
 from __future__ import annotations
 
-import pytest
-
 from the_alchemiser.shared.utils.config import (
     ModularConfig,
     get_global_config,
@@ -124,10 +122,10 @@ class TestLoadModuleConfig:
         """Test that multiple calls return independent instances."""
         config1 = load_module_config()
         config2 = load_module_config()
-        
+
         # Modify one instance
         config1.set("test", "value")
-        
+
         # Verify the other instance is unaffected
         assert config1.get("test") == "value"
         assert config2.get("test") is None
@@ -150,10 +148,10 @@ class TestGetGlobalConfig:
         """Test that multiple calls return independent instances."""
         config1 = get_global_config()
         config2 = get_global_config()
-        
+
         # Modify one instance
         config1.set("global", "setting")
-        
+
         # Verify the other instance is unaffected (no singleton behavior yet)
         assert config1.get("global") == "setting"
         assert config2.get("global") is None
@@ -165,7 +163,7 @@ class TestConfigTypeSafety:
     def test_accepts_any_type_for_value(self) -> None:
         """Test that config accepts values of any type."""
         config = ModularConfig()
-        
+
         # Various types should all be accepted
         config.set("string", "text")
         config.set("int", 123)
@@ -175,7 +173,7 @@ class TestConfigTypeSafety:
         config.set("dict", {"key": "value"})
         config.set("tuple", (1, 2))
         config.set("none", None)
-        
+
         # All should be retrievable
         assert config.get("string") == "text"
         assert config.get("int") == 123

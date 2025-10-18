@@ -474,7 +474,7 @@ class SignalsBuilder:
                 symbol = ", ".join(str(s) for s in symbols_list)
             else:
                 symbol = signal_data.get("symbol", "N/A")
-            
+
             action = signal_data.get("action", "UNKNOWN")
             reason = signal_data.get("reason", "No reason provided")
             timestamp = signal_data.get("timestamp", "")

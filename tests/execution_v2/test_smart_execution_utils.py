@@ -11,7 +11,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock
 
-import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -104,7 +103,7 @@ class TestCalculatePriceAdjustment:
     def test_adjustment_properties(self, original, target, factor):
         """Property test: result should be between original and target."""
         result = calculate_price_adjustment(original, target, factor)
-        
+
         # Result should be between original and target (inclusive)
         min_price = min(original, target)
         max_price = max(original, target)
@@ -126,10 +125,8 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        result = validate_repeg_price_with_history(
-            new_price, price_history, "BUY", quote
-        )
+
+        result = validate_repeg_price_with_history(new_price, price_history, "BUY", quote)
         assert result == new_price
 
     def test_empty_history_returns_unchanged(self):
@@ -143,7 +140,7 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         result = validate_repeg_price_with_history(new_price, [], "BUY", quote)
         assert result == new_price
 
@@ -158,7 +155,7 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         result = validate_repeg_price_with_history(new_price, None, "BUY", quote)
         assert result == new_price
 
@@ -174,7 +171,7 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         result = validate_repeg_price_with_history(
             new_price, price_history, "BUY", quote, min_improvement=Decimal("0.01")
         )
@@ -193,7 +190,7 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         result = validate_repeg_price_with_history(
             new_price, price_history, "SELL", quote, min_improvement=Decimal("0.01")
         )
@@ -212,7 +209,7 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         result = validate_repeg_price_with_history(
             new_price, price_history, "BUY", quote, min_improvement=Decimal("0.05")
         )
@@ -231,13 +228,9 @@ class TestValidateRepegPriceWithHistory:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
-        result_upper = validate_repeg_price_with_history(
-            new_price, price_history, "BUY", quote
-        )
-        result_lower = validate_repeg_price_with_history(
-            new_price, price_history, "buy", quote
-        )
+
+        result_upper = validate_repeg_price_with_history(new_price, price_history, "BUY", quote)
+        result_lower = validate_repeg_price_with_history(new_price, price_history, "buy", quote)
         assert result_upper == result_lower == Decimal("100.01")
 
 
@@ -274,7 +267,7 @@ class TestShouldConsiderRepeg:
         placement_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         current_time = datetime(2024, 1, 1, 12, 1, 0, tzinfo=UTC)  # 60 seconds later
         wait_seconds = 30.0
-        
+
         assert should_consider_repeg(placement_time, current_time, wait_seconds) is True
 
     def test_should_not_repeg_before_wait_period(self):
@@ -282,7 +275,7 @@ class TestShouldConsiderRepeg:
         placement_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         current_time = datetime(2024, 1, 1, 12, 0, 15, tzinfo=UTC)  # 15 seconds later
         wait_seconds = 30.0
-        
+
         assert should_consider_repeg(placement_time, current_time, wait_seconds) is False
 
     def test_should_repeg_exactly_at_wait_period(self):
@@ -290,7 +283,7 @@ class TestShouldConsiderRepeg:
         placement_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         current_time = datetime(2024, 1, 1, 12, 0, 30, tzinfo=UTC)  # Exactly 30 seconds
         wait_seconds = 30.0
-        
+
         assert should_consider_repeg(placement_time, current_time, wait_seconds) is True
 
     def test_zero_wait_seconds(self):
@@ -298,7 +291,7 @@ class TestShouldConsiderRepeg:
         placement_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         current_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)  # Same time
         wait_seconds = 0.0
-        
+
         assert should_consider_repeg(placement_time, current_time, wait_seconds) is True
 
     def test_fractional_seconds(self):
@@ -306,7 +299,7 @@ class TestShouldConsiderRepeg:
         placement_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         current_time = placement_time + timedelta(seconds=1.5)
         wait_seconds = 1.0
-        
+
         assert should_consider_repeg(placement_time, current_time, wait_seconds) is True
 
 
@@ -441,16 +434,14 @@ class TestFetchPriceForNotionalCheck:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         quote_provider = Mock()
         quote_provider.get_quote_with_validation.return_value = (quote, False)
-        
+
         alpaca_manager = Mock()
-        
-        result = fetch_price_for_notional_check(
-            "AAPL", "BUY", quote_provider, alpaca_manager
-        )
-        
+
+        result = fetch_price_for_notional_check("AAPL", "BUY", quote_provider, alpaca_manager)
+
         assert result == Decimal("100.50")  # Ask price for BUY
         quote_provider.get_quote_with_validation.assert_called_once_with("AAPL")
         alpaca_manager.get_current_price.assert_not_called()
@@ -465,16 +456,14 @@ class TestFetchPriceForNotionalCheck:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         quote_provider = Mock()
         quote_provider.get_quote_with_validation.return_value = (quote, False)
-        
+
         alpaca_manager = Mock()
-        
-        result = fetch_price_for_notional_check(
-            "AAPL", "SELL", quote_provider, alpaca_manager
-        )
-        
+
+        result = fetch_price_for_notional_check("AAPL", "SELL", quote_provider, alpaca_manager)
+
         assert result == Decimal("100.00")  # Bid price for SELL
         quote_provider.get_quote_with_validation.assert_called_once_with("AAPL")
 
@@ -482,14 +471,12 @@ class TestFetchPriceForNotionalCheck:
         """Test fallback to Alpaca REST API when quote is unavailable."""
         quote_provider = Mock()
         quote_provider.get_quote_with_validation.return_value = None
-        
+
         alpaca_manager = Mock()
         alpaca_manager.get_current_price.return_value = 99.75
-        
-        result = fetch_price_for_notional_check(
-            "AAPL", "BUY", quote_provider, alpaca_manager
-        )
-        
+
+        result = fetch_price_for_notional_check("AAPL", "BUY", quote_provider, alpaca_manager)
+
         assert result == Decimal("99.75")
         alpaca_manager.get_current_price.assert_called_once_with("AAPL")
 
@@ -497,27 +484,23 @@ class TestFetchPriceForNotionalCheck:
         """Test returns None when both quote provider and Alpaca fail."""
         quote_provider = Mock()
         quote_provider.get_quote_with_validation.return_value = None
-        
+
         alpaca_manager = Mock()
         alpaca_manager.get_current_price.return_value = None
-        
-        result = fetch_price_for_notional_check(
-            "AAPL", "BUY", quote_provider, alpaca_manager
-        )
-        
+
+        result = fetch_price_for_notional_check("AAPL", "BUY", quote_provider, alpaca_manager)
+
         assert result is None
 
     def test_handles_exception_gracefully(self):
         """Test that exceptions are handled gracefully."""
         quote_provider = Mock()
         quote_provider.get_quote_with_validation.side_effect = Exception("API error")
-        
+
         alpaca_manager = Mock()
-        
-        result = fetch_price_for_notional_check(
-            "AAPL", "BUY", quote_provider, alpaca_manager
-        )
-        
+
+        result = fetch_price_for_notional_check("AAPL", "BUY", quote_provider, alpaca_manager)
+
         assert result is None
 
     def test_case_insensitive_side_buy(self):
@@ -530,19 +513,15 @@ class TestFetchPriceForNotionalCheck:
             ask_size=100.0,
             timestamp=datetime.now(UTC),
         )
-        
+
         quote_provider = Mock()
         quote_provider.get_quote_with_validation.return_value = (quote, False)
-        
+
         alpaca_manager = Mock()
-        
-        result_upper = fetch_price_for_notional_check(
-            "AAPL", "BUY", quote_provider, alpaca_manager
-        )
-        result_lower = fetch_price_for_notional_check(
-            "AAPL", "buy", quote_provider, alpaca_manager
-        )
-        
+
+        result_upper = fetch_price_for_notional_check("AAPL", "BUY", quote_provider, alpaca_manager)
+        result_lower = fetch_price_for_notional_check("AAPL", "buy", quote_provider, alpaca_manager)
+
         assert result_upper == result_lower == Decimal("100.50")
 
 
@@ -554,14 +533,12 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.1")
         price = Decimal("5.00")  # Notional = 0.50
         min_notional = Decimal("1.00")
-        
+
         asset_info = Mock()
         asset_info.fractionable = True
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, asset_info, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional)
+
         assert result is True  # 0.50 < 1.00
 
     def test_fractionable_asset_above_minimum_notional(self):
@@ -569,14 +546,12 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.5")
         price = Decimal("5.00")  # Notional = 2.50
         min_notional = Decimal("1.00")
-        
+
         asset_info = Mock()
         asset_info.fractionable = True
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, asset_info, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional)
+
         assert result is False  # 2.50 > 1.00
 
     def test_non_fractionable_rounds_to_zero(self):
@@ -584,14 +559,12 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.4")  # Rounds to 0
         price = Decimal("100.00")
         min_notional = Decimal("1.00")
-        
+
         asset_info = Mock()
         asset_info.fractionable = False
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, asset_info, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional)
+
         assert result is True  # 0.4 rounds to 0
 
     def test_non_fractionable_rounds_to_one(self):
@@ -599,14 +572,12 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.6")  # Rounds to 1
         price = Decimal("100.00")
         min_notional = Decimal("1.00")
-        
+
         asset_info = Mock()
         asset_info.fractionable = False
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, asset_info, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional)
+
         assert result is False  # 0.6 rounds to 1
 
     def test_none_asset_info_with_small_quantity(self):
@@ -614,11 +585,9 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.3")
         price = Decimal("100.00")
         min_notional = Decimal("1.00")
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, None, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, None, price, min_notional)
+
         assert result is True  # Treated as non-fractionable, 0.3 rounds to 0
 
     def test_none_asset_info_with_adequate_quantity(self):
@@ -626,11 +595,9 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("1.0")
         price = Decimal("100.00")
         min_notional = Decimal("1.00")
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, None, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, None, price, min_notional)
+
         assert result is False
 
     def test_fractionable_with_none_price(self):
@@ -638,14 +605,12 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.1")
         price = None
         min_notional = Decimal("1.00")
-        
+
         asset_info = Mock()
         asset_info.fractionable = True
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, asset_info, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional)
+
         assert result is False  # Cannot calculate notional, so assume ok
 
     def test_edge_case_exactly_minimum_notional(self):
@@ -653,12 +618,10 @@ class TestIsRemainingQuantityTooSmall:
         remaining_qty = Decimal("0.2")
         price = Decimal("5.00")  # Notional = 1.00
         min_notional = Decimal("1.00")
-        
+
         asset_info = Mock()
         asset_info.fractionable = True
-        
-        result = is_remaining_quantity_too_small(
-            remaining_qty, asset_info, price, min_notional
-        )
-        
+
+        result = is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional)
+
         assert result is False  # 1.00 >= 1.00

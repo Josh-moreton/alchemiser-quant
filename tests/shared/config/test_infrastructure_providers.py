@@ -6,7 +6,6 @@ This test suite validates the infrastructure layer dependency injection
 configuration, ensuring proper wiring of external dependencies and services.
 """
 
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -74,7 +73,7 @@ class TestInfrastructureProviders:
 
         container.config.alpaca_api_key.override(test_api_key)
         container.config.alpaca_secret_key.override(test_secret_key)
-        container.config.paper_trading.override(test_paper_mode)  # noqa: FBT003
+        container.config.paper_trading.override(test_paper_mode)
 
         # Get the alpaca_manager instance
         alpaca_manager = container.alpaca_manager()

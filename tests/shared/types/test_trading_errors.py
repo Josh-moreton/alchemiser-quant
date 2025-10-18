@@ -174,6 +174,7 @@ class TestClassifyException:
 
     def test_classify_custom_exception(self):
         """Test classification of custom exception not in hierarchy."""
+
         class CustomError(Exception):
             pass
 
@@ -231,10 +232,9 @@ class TestOrderErrorIntegration:
         def process_order(order_type: str):
             if order_type == "order":
                 raise OrderError("Order failed", order_id="test-order")
-            elif order_type == "config":
+            if order_type == "config":
                 raise ConfigurationError("Config invalid")
-            else:
-                raise ValueError("Invalid type")
+            raise ValueError("Invalid type")
 
         # Test OrderError path
         try:

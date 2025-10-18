@@ -26,9 +26,7 @@ class TestCreateOrchestrator:
 
     @patch("the_alchemiser.strategy_v2.core.factory.AlpacaManager")
     @patch("the_alchemiser.strategy_v2.core.factory.StrategyMarketDataAdapter")
-    def test_create_orchestrator_success_paper_mode(
-        self, mock_adapter_class, mock_alpaca_class
-    ):
+    def test_create_orchestrator_success_paper_mode(self, mock_adapter_class, mock_alpaca_class):
         """Test successful orchestrator creation in paper mode."""
         api_key = "test_api_key_123"
         secret_key = "test_secret_key_456"
@@ -55,9 +53,7 @@ class TestCreateOrchestrator:
 
     @patch("the_alchemiser.strategy_v2.core.factory.AlpacaManager")
     @patch("the_alchemiser.strategy_v2.core.factory.StrategyMarketDataAdapter")
-    def test_create_orchestrator_success_live_mode(
-        self, mock_adapter_class, mock_alpaca_class
-    ):
+    def test_create_orchestrator_success_live_mode(self, mock_adapter_class, mock_alpaca_class):
         """Test successful orchestrator creation in live mode."""
         api_key = "test_api_key_123"
         secret_key = "test_secret_key_456"
@@ -186,9 +182,7 @@ class TestCreateOrchestratorWithAdapter:
         with pytest.raises(ValueError) as exc_info:
             create_orchestrator_with_adapter(invalid_adapter)
 
-        assert "market_data_adapter must be StrategyMarketDataAdapter" in str(
-            exc_info.value
-        )
+        assert "market_data_adapter must be StrategyMarketDataAdapter" in str(exc_info.value)
 
     def test_create_orchestrator_with_adapter_wrong_class(self):
         """Test that wrong class type raises ValueError."""
@@ -230,9 +224,7 @@ class TestFactoryIdempotency:
 
     @patch("the_alchemiser.strategy_v2.core.factory.AlpacaManager")
     @patch("the_alchemiser.strategy_v2.core.factory.StrategyMarketDataAdapter")
-    def test_create_orchestrator_multiple_calls(
-        self, mock_adapter_class, mock_alpaca_class
-    ):
+    def test_create_orchestrator_multiple_calls(self, mock_adapter_class, mock_alpaca_class):
         """Test that multiple calls create independent orchestrators."""
         mock_alpaca_class.return_value = Mock()
         mock_adapter_class.return_value = Mock()

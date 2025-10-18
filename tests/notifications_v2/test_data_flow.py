@@ -163,13 +163,13 @@ def test_consolidated_portfolio_flattening_with_decimals() -> None:
     # Verify flattening worked (Decimal values are acceptable for templates)
     assert "SPY" in adapter.consolidated_portfolio
     assert "BND" in adapter.consolidated_portfolio
-    
+
     spy_value = adapter.consolidated_portfolio["SPY"]
     bnd_value = adapter.consolidated_portfolio["BND"]
-    
+
     assert isinstance(spy_value, (int, float, Decimal))
     assert isinstance(bnd_value, (int, float, Decimal))
-    
+
     # Convert to float for comparison
     assert float(spy_value) == 0.6  # type: ignore[arg-type]
     assert float(bnd_value) == 0.4  # type: ignore[arg-type]

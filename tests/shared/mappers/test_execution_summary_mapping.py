@@ -63,7 +63,7 @@ class TestDictToAllocationSummary:
             "largest_position_pct": 25.0,
         }
         result = dict_to_allocation_summary(data)
-        
+
         assert isinstance(result, AllocationSummary)
         assert result.total_allocation == Decimal("95.5")
         assert result.num_positions == 5
@@ -73,7 +73,7 @@ class TestDictToAllocationSummary:
         """Test that missing fields use default values."""
         data: dict[str, float | int] = {}
         result = dict_to_allocation_summary(data)
-        
+
         assert result.total_allocation == Decimal("0.0")
         assert result.num_positions == 0
         assert result.largest_position_pct == Decimal("0.0")
@@ -86,7 +86,7 @@ class TestDictToAllocationSummary:
             "largest_position_pct": "25.5678",
         }
         result = dict_to_allocation_summary(data)
-        
+
         assert result.total_allocation == Decimal("95.1234")
         assert result.largest_position_pct == Decimal("25.5678")
 
@@ -98,7 +98,7 @@ class TestDictToAllocationSummary:
             "largest_position_pct": "25.0",
         }
         result = dict_to_allocation_summary(data)
-        
+
         assert result.total_allocation == Decimal("95.5")
         assert result.largest_position_pct == Decimal("25.0")
 
@@ -115,7 +115,7 @@ class TestDictToStrategyPnlSummary:
             "num_profitable": 3,
         }
         result = dict_to_strategy_pnl_summary(data)
-        
+
         assert isinstance(result, StrategyPnLSummary)
         assert result.total_pnl == Decimal("5000.0")
         assert result.best_performer == "momentum"
@@ -126,7 +126,7 @@ class TestDictToStrategyPnlSummary:
         """Test that missing fields use default values."""
         data: dict[str, float | int | None] = {}
         result = dict_to_strategy_pnl_summary(data)
-        
+
         assert result.total_pnl == Decimal("0.0")
         assert result.best_performer is None
         assert result.worst_performer is None
@@ -139,7 +139,7 @@ class TestDictToStrategyPnlSummary:
             "num_profitable": 0,
         }
         result = dict_to_strategy_pnl_summary(data)
-        
+
         assert result.total_pnl == Decimal("-2500.0")
 
 
@@ -155,7 +155,7 @@ class TestDictToStrategySummary:
             "pnl": 1500.0,
         }
         result = dict_to_strategy_summary(data)
-        
+
         assert isinstance(result, StrategySummary)
         assert result.strategy_name == "momentum"
         assert result.allocation_pct == Decimal("33.33")
@@ -170,7 +170,7 @@ class TestDictToStrategySummary:
             "pnl": 1500.0,
         }
         result = dict_to_strategy_summary(data)
-        
+
         assert result.strategy_name == "unknown"
 
     def test_negative_pnl_preserved(self):
@@ -182,7 +182,7 @@ class TestDictToStrategySummary:
             "pnl": -1500.0,
         }
         result = dict_to_strategy_summary(data)
-        
+
         assert result.pnl == Decimal("-1500.0")
 
 
@@ -198,7 +198,7 @@ class TestDictToTradingSummary:
             "total_value": 50000.0,
         }
         result = dict_to_trading_summary(data)
-        
+
         assert isinstance(result, TradingSummary)
         assert result.total_orders == 10
         assert result.orders_executed == 8
@@ -209,7 +209,7 @@ class TestDictToTradingSummary:
         """Test that missing fields use default values."""
         data: dict[str, int | float] = {}
         result = dict_to_trading_summary(data)
-        
+
         assert result.total_orders == 0
         assert result.orders_executed == 0
         assert result.success_rate == Decimal("0.0")
@@ -224,7 +224,7 @@ class TestDictToTradingSummary:
             "total_value": 0.0,
         }
         result = dict_to_trading_summary(data)
-        
+
         assert result.total_orders == 0
         assert result.orders_executed == 0
 
@@ -266,9 +266,9 @@ class TestDictToExecutionSummary:
             "engine_mode": "full",
             "error": None,
         }
-        
+
         result = dict_to_execution_summary(data)
-        
+
         assert isinstance(result, ExecutionSummary)
         assert result.mode == "paper"
         assert result.engine_mode == "full"
@@ -283,9 +283,9 @@ class TestDictToExecutionSummary:
             "account_info_after": sample_account_info,
             "mode": "paper",
         }
-        
+
         result = dict_to_execution_summary(data)
-        
+
         assert isinstance(result, ExecutionSummary)
         assert result.allocations.num_positions == 0
         assert len(result.strategy_summary) == 0  # Will fail validation
@@ -322,9 +322,9 @@ class TestDictToExecutionSummary:
             "account_info_after": sample_account_info,
             "mode": "paper",
         }
-        
+
         result = dict_to_execution_summary(data)
-        
+
         assert result.strategy_summary["momentum"].strategy_name == "momentum"
 
     def test_mode_unknown_fails_validation(self, sample_account_info):
@@ -359,7 +359,7 @@ class TestDictToExecutionSummary:
             "account_info_after": sample_account_info,
             "mode": "unknown",  # Invalid mode
         }
-        
+
         with pytest.raises(ValidationError):
             dict_to_execution_summary(data)
 
@@ -396,9 +396,9 @@ class TestDictToExecutionSummary:
             "account_info_after": sample_account_info,
             "mode": "paper",
         }
-        
+
         result = dict_to_execution_summary(data)
-        
+
         assert len(result.strategy_summary) == 1
         assert "momentum" in result.strategy_summary
         assert "invalid_entry" not in result.strategy_summary
@@ -410,14 +410,14 @@ class TestEdgeCases:
     def test_empty_dict_uses_all_defaults(self):
         """Test that empty dict uses all default values."""
         data: dict[str, float | int] = {}
-        
+
         # Individual functions should handle empty dicts
         alloc_result = dict_to_allocation_summary(data)
         assert alloc_result.num_positions == 0
-        
+
         pnl_result = dict_to_strategy_pnl_summary(data)
         assert pnl_result.total_pnl == Decimal("0.0")
-        
+
         trading_result = dict_to_trading_summary(data)
         assert trading_result.total_orders == 0
 
@@ -428,7 +428,7 @@ class TestEdgeCases:
             "num_positions": 5,
             "largest_position_pct": "25.987654321",
         }
-        
+
         # This should pass if precision validation allows it
         try:
             result = dict_to_allocation_summary(data)
@@ -445,5 +445,5 @@ class TestEdgeCases:
             "num_profitable": 100,
         }
         result = dict_to_strategy_pnl_summary(data)
-        
+
         assert result.total_pnl == Decimal("999999999.99")

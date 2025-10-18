@@ -7,26 +7,25 @@ using in-memory EventBus and mock adapters as specified in the
 event_driven_enforcement_plan.md.
 """
 
-import pytest
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock
-from typing import Dict, List, Any
+
+import pytest
 
 # Test imports with proper path setup
 try:
-    from the_alchemiser.shared.events.bus import EventBus
-    from the_alchemiser.shared.events.base import BaseEvent
-    from the_alchemiser.shared.events.handlers import EventHandler
     from the_alchemiser.shared.events import (
-        SignalGenerated,
         RebalancePlanned,
+        SignalGenerated,
         TradeExecuted,
         WorkflowCompleted,
         WorkflowFailed,
         WorkflowStarted,
     )
+    from the_alchemiser.shared.events.base import BaseEvent
+    from the_alchemiser.shared.events.bus import EventBus
+    from the_alchemiser.shared.events.handlers import EventHandler
     from the_alchemiser.shared.schemas.common import AllocationComparison
     from the_alchemiser.shared.schemas.consolidated_portfolio import (
         ConsolidatedPortfolio,
@@ -46,7 +45,7 @@ class EventCollector:
     """Event collector that implements the EventHandler protocol."""
 
     def __init__(self):
-        self.events_received: List[BaseEvent] = []
+        self.events_received: list[BaseEvent] = []
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle an event by collecting it."""
@@ -255,7 +254,6 @@ class TestEventDrivenWorkflow:
 
     def test_complete_event_chain_simulation(self):
         """Test complete event chain: Signal -> Rebalance -> Trade -> Completion."""
-
         # Create mock handlers
         portfolio_handler = MockPortfolioHandler(self.event_bus)
         execution_handler = MockExecutionHandler(self.event_bus)
@@ -314,19 +312,16 @@ class TestEventDrivenWorkflow:
             "TradeExecuted",
             "WorkflowCompleted",
         ]
-        assert (
-            event_types == expected_types
-        ), f"Expected {expected_types}, got {event_types}"
+        assert event_types == expected_types, f"Expected {expected_types}, got {event_types}"
 
         # Verify correlation ID propagation
         for event in self.events_received:
-            assert (
-                event.correlation_id == self.correlation_id
-            ), f"Correlation ID not propagated to {type(event).__name__}"
+            assert event.correlation_id == self.correlation_id, (
+                f"Correlation ID not propagated to {type(event).__name__}"
+            )
 
     def test_workflow_failure_scenario(self):
         """Test workflow failure handling and WorkflowFailed event."""
-
         failure_handler_called = False
 
         def mock_failing_portfolio_handler(event: SignalGenerated) -> None:
@@ -397,7 +392,6 @@ class TestEventDrivenWorkflow:
 
     def test_event_idempotency_replay_scenario(self):
         """Test event idempotency by replaying duplicate events."""
-
         handler_call_count = 0
 
         def counting_handler(event: SignalGenerated) -> None:
@@ -442,12 +436,10 @@ class TestEventDrivenWorkflow:
 
         # In a real implementation, idempotency would prevent multiple processing
         # For this test, we verify the events were received (idempotency would be handled at the handler level)
-        assert (
-            len(self.events_received) == 3
-        ), "All replay events should be received by the bus"
-        assert (
-            handler_call_count == 3
-        ), "Handler should be called for each event (idempotency handled at handler level)"
+        assert len(self.events_received) == 3, "All replay events should be received by the bus"
+        assert handler_call_count == 3, (
+            "Handler should be called for each event (idempotency handled at handler level)"
+        )
 
         # Verify all events have the same correlation ID and event ID
         for event in self.events_received:

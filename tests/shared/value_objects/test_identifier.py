@@ -8,9 +8,11 @@ validation, and immutability per project guardrails.
 
 from __future__ import annotations
 
-import pytest
-from hypothesis import given, strategies as st
 from uuid import UUID, uuid4
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.value_objects.identifier import Identifier
 

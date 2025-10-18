@@ -197,7 +197,10 @@ class TestConsolidatedPortfolioValidation:
 
     def test_empty_correlation_id_rejected(self):
         """Test empty correlation_id is rejected."""
-        with pytest.raises(Exception, match="String should have at least 1 character|Correlation ID cannot be empty"):
+        with pytest.raises(
+            Exception,
+            match="String should have at least 1 character|Correlation ID cannot be empty",
+        ):
             ConsolidatedPortfolio(
                 target_allocations={"AAPL": Decimal("1.0")},
                 correlation_id="",
@@ -207,7 +210,10 @@ class TestConsolidatedPortfolioValidation:
 
     def test_whitespace_only_correlation_id_rejected(self):
         """Test whitespace-only correlation_id is rejected."""
-        with pytest.raises(Exception, match="String should have at least 1 character|Correlation ID cannot be empty"):
+        with pytest.raises(
+            Exception,
+            match="String should have at least 1 character|Correlation ID cannot be empty",
+        ):
             ConsolidatedPortfolio(
                 target_allocations={"AAPL": Decimal("1.0")},
                 correlation_id="   ",
@@ -455,9 +461,7 @@ class TestConsolidatedPortfolioPropertyBased:
         total = sum(allocations.values())
         if total == 0:
             return
-        normalized_allocations = {
-            symbol: weight / total for symbol, weight in allocations.items()
-        }
+        normalized_allocations = {symbol: weight / total for symbol, weight in allocations.items()}
 
         try:
             portfolio = ConsolidatedPortfolio(
@@ -510,9 +514,8 @@ class TestConsolidatedPortfolioPropertyBased:
 
     @given(
         st.lists(st.text(min_size=1, max_size=10), min_size=1, max_size=5).filter(
-            lambda x: len(set(s.strip() for s in x if s.strip())) == len(
-                [s for s in x if s.strip()]
-            )
+            lambda x: len(set(s.strip() for s in x if s.strip()))
+            == len([s for s in x if s.strip()])
         )
     )
     def test_source_strategies_stripped(self, strategies: list[str]):

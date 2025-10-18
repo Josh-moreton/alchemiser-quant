@@ -23,13 +23,10 @@ from the_alchemiser.shared.schemas.execution_summary import (
     AllocationSummary,
     ExecutionSummary,
     StrategyPnLSummary,
-    StrategySummary,
     TradingSummary,
 )
-from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
-    OrderDetails,
     StrategySignal,
 )
 
@@ -264,9 +261,7 @@ class TestMultiStrategySummary:
         assert summary.enriched_account is None
         assert summary.closed_pnl_subset is None
 
-    def test_with_allocation_comparison(
-        self, valid_execution_result: MultiStrategyExecutionResult
-    ):
+    def test_with_allocation_comparison(self, valid_execution_result: MultiStrategyExecutionResult):
         """Test summary with allocation comparison."""
         comparison = AllocationComparison(
             target_values={"SPY": Decimal("50.0")},
@@ -280,9 +275,7 @@ class TestMultiStrategySummary:
         assert summary.allocation_comparison is not None
         assert summary.allocation_comparison.target_values["SPY"] == Decimal("50.0")
 
-    def test_with_enriched_account(
-        self, valid_execution_result: MultiStrategyExecutionResult
-    ):
+    def test_with_enriched_account(self, valid_execution_result: MultiStrategyExecutionResult):
         """Test summary with enriched account data."""
         summary = MultiStrategySummary(
             execution_result=valid_execution_result,
@@ -310,9 +303,7 @@ class TestConfiguration:
 
     def test_with_config_data(self):
         """Test creation with config_data."""
-        config = Configuration(
-            config_data={"stage": "paper", "region": "us-east-1"}
-        )
+        config = Configuration(config_data={"stage": "paper", "region": "us-east-1"})
         assert config.config_data["stage"] == "paper"
         assert config.config_data["region"] == "us-east-1"
 

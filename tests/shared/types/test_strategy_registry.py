@@ -7,7 +7,8 @@ during migration to strategy_v2 per project guardrails.
 """
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.types.strategy_registry import StrategyRegistry
 from the_alchemiser.shared.types.strategy_types import StrategyType
@@ -78,13 +79,13 @@ class TestStrategyRegistryGetDefaultAllocations:
         """Test that returned dict can be modified without affecting subsequent calls."""
         allocations1 = StrategyRegistry.get_default_allocations()
         original_length = len(allocations1)
-        
+
         # Modify the returned dict
         allocations1[StrategyType.NUCLEAR] = 0.5
-        
+
         # Get fresh allocations
         allocations2 = StrategyRegistry.get_default_allocations()
-        
+
         # Should still have original length (DSL only in current phase)
         assert len(allocations2) == original_length
 
@@ -140,13 +141,13 @@ class TestStrategyRegistryContract:
     @pytest.mark.unit
     def test_has_get_default_allocations_method(self):
         """Test that StrategyRegistry has get_default_allocations method."""
-        assert hasattr(StrategyRegistry, 'get_default_allocations')
+        assert hasattr(StrategyRegistry, "get_default_allocations")
         assert callable(StrategyRegistry.get_default_allocations)
 
     @pytest.mark.unit
     def test_has_is_strategy_enabled_method(self):
         """Test that StrategyRegistry has is_strategy_enabled method."""
-        assert hasattr(StrategyRegistry, 'is_strategy_enabled')
+        assert hasattr(StrategyRegistry, "is_strategy_enabled")
         assert callable(StrategyRegistry.is_strategy_enabled)
 
     @pytest.mark.unit

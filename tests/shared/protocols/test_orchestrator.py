@@ -17,7 +17,7 @@ from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
 # Mock implementations for testing
 class MockLiveOrchestrator:
     """Mock orchestrator for live trading mode.
-    
+
     Implements TradingModeProvider protocol with live trading enabled.
     """
 
@@ -26,7 +26,7 @@ class MockLiveOrchestrator:
 
 class MockPaperOrchestrator:
     """Mock orchestrator for paper trading mode.
-    
+
     Implements TradingModeProvider protocol with paper trading enabled.
     """
 
@@ -35,15 +35,16 @@ class MockPaperOrchestrator:
 
 class DynamicModeOrchestrator:
     """Mock orchestrator with dynamic trading mode.
-    
+
     Allows changing trading mode at runtime for testing state changes.
     """
 
     def __init__(self, live: bool = False) -> None:
         """Initialize orchestrator with specified mode.
-        
+
         Args:
             live: Whether to enable live trading (True) or paper trading (False)
+
         """
         self.live_trading = live
 
@@ -84,7 +85,7 @@ def test_multiple_implementations_coexist() -> None:
     live_orch: TradingModeProvider = MockLiveOrchestrator()
     paper_orch: TradingModeProvider = MockPaperOrchestrator()
     dynamic_orch: TradingModeProvider = DynamicModeOrchestrator(live=True)
-    
+
     assert live_orch.live_trading is True
     assert paper_orch.live_trading is False
     assert dynamic_orch.live_trading is True
@@ -92,10 +93,11 @@ def test_multiple_implementations_coexist() -> None:
 
 def test_protocol_usage_in_conditional() -> None:
     """Test protocol usage in conditional logic (realistic usage pattern)."""
+
     def determine_mode_string(orchestrator: TradingModeProvider) -> str:
         """Determine mode string from orchestrator (mimics real usage)."""
         return "LIVE" if orchestrator.live_trading else "PAPER"
-    
+
     assert determine_mode_string(MockLiveOrchestrator()) == "LIVE"
     assert determine_mode_string(MockPaperOrchestrator()) == "PAPER"
     assert determine_mode_string(DynamicModeOrchestrator(live=True)) == "LIVE"
@@ -128,10 +130,10 @@ def test_protocol_minimal_interface() -> None:
     """Test that protocol defines minimal interface (only live_trading)."""
     # This test documents that the protocol intentionally has only one attribute
     orchestrator: TradingModeProvider = MockLiveOrchestrator()
-    
+
     # Should have live_trading attribute
     assert hasattr(orchestrator, "live_trading")
-    
+
     # Protocol should not require additional attributes
     # (this documents the minimal design)
     assert isinstance(orchestrator.live_trading, bool)

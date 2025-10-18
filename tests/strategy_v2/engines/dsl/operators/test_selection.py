@@ -32,11 +32,12 @@ class TestSelectionOperators:
     @pytest.fixture
     def context(self):
         """Create mock context."""
+
         def evaluate_node(node, corr_id, trace):
             if node.is_atom():
                 return node.get_atom_value()
             return None
-        
+
         trace = Trace(
             trace_id="test-trace-id",
             correlation_id="test",
@@ -153,10 +154,10 @@ class TestSelectionOperators:
     def test_register_selection_operators(self):
         """Test registering all selection operators."""
         from the_alchemiser.strategy_v2.engines.dsl.dispatcher import DslDispatcher
-        
+
         dispatcher = DslDispatcher()
         register_selection_operators(dispatcher)
-        
+
         assert dispatcher.is_registered("select-top")
         assert dispatcher.is_registered("select-bottom")
 
@@ -181,11 +182,12 @@ class TestSelectionOperatorsPropertyBased:
 
     def _make_context(self):
         """Create mock context."""
+
         def evaluate_node(node, corr_id, trace):
             if node.is_atom():
                 return node.get_atom_value()
             return None
-        
+
         trace = Trace(
             trace_id="test-trace-id",
             correlation_id="test",
@@ -231,9 +233,7 @@ class TestSelectionOperatorsPropertyBased:
         result = select_bottom(args, context)
         assert isinstance(result, int)
 
-    @given(
-        n=st.integers(min_value=0, max_value=100)
-    )
+    @given(n=st.integers(min_value=0, max_value=100))
     def test_select_top_preserves_integer_value(self, n):
         """Property: select-top preserves integer values."""
         context = self._make_context()
@@ -241,9 +241,7 @@ class TestSelectionOperatorsPropertyBased:
         result = select_top(args, context)
         assert result == n
 
-    @given(
-        n=st.integers(min_value=0, max_value=100)
-    )
+    @given(n=st.integers(min_value=0, max_value=100))
     def test_select_bottom_preserves_integer_value(self, n):
         """Property: select-bottom preserves integer values."""
         context = self._make_context()

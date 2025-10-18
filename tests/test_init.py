@@ -96,15 +96,15 @@ class TestPackageRoot:
         import the_alchemiser
 
         # Get all attributes that don't start with underscore
-        public_attrs = [
-            attr for attr in dir(the_alchemiser) if not attr.startswith("_")
-        ]
+        public_attrs = [attr for attr in dir(the_alchemiser) if not attr.startswith("_")]
 
         # Should have no public exports except 'annotations' from __future__
         # 'annotations' is expected from "from __future__ import annotations"
         expected_attrs = {"annotations"}
         actual_attrs = set(public_attrs)
-        assert actual_attrs == expected_attrs, f"Unexpected exports: {actual_attrs - expected_attrs}"
+        assert actual_attrs == expected_attrs, (
+            f"Unexpected exports: {actual_attrs - expected_attrs}"
+        )
 
     def test_package_docstring_mentions_strategies(self):
         """Test docstring mentions all supported strategies."""
@@ -167,9 +167,7 @@ class TestPackageRoot:
 
         # Package root should import very quickly (< 100ms)
         # since it has no imports except __future__
-        assert (
-            duration < 0.1
-        ), f"Package import took {duration:.3f}s, expected < 0.1s"
+        assert duration < 0.1, f"Package import took {duration:.3f}s, expected < 0.1s"
 
     def test_package_in_sys_modules(self):
         """Test package is registered in sys.modules."""

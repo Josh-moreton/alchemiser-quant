@@ -35,23 +35,17 @@ class TestStrategyV2ModuleImports:
 
     def test_import_single_strategy_orchestrator(self) -> None:
         """Test importing SingleStrategyOrchestrator from module."""
-        from the_alchemiser.strategy_v2 import SingleStrategyOrchestrator
-
         assert SingleStrategyOrchestrator is not None
         assert hasattr(SingleStrategyOrchestrator, "__init__")
 
     def test_import_strategy_context(self) -> None:
         """Test importing StrategyContext from module."""
-        from the_alchemiser.strategy_v2 import StrategyContext
-
         assert StrategyContext is not None
         # StrategyContext is a dataclass, not a regular class
         assert hasattr(StrategyContext, "__dataclass_fields__")
 
     def test_import_registry_functions(self) -> None:
         """Test importing registry functions from module."""
-        from the_alchemiser.strategy_v2 import get_strategy, list_strategies, register_strategy
-
         assert get_strategy is not None
         assert callable(get_strategy)
         assert list_strategies is not None
@@ -61,36 +55,36 @@ class TestStrategyV2ModuleImports:
 
     def test_getattr_single_strategy_orchestrator(self) -> None:
         """Test __getattr__ for SingleStrategyOrchestrator."""
-        orchestrator_class = getattr(strategy_v2, "SingleStrategyOrchestrator")
+        orchestrator_class = strategy_v2.SingleStrategyOrchestrator
         assert orchestrator_class is not None
 
     def test_getattr_strategy_context(self) -> None:
         """Test __getattr__ for StrategyContext."""
-        context_class = getattr(strategy_v2, "StrategyContext")
+        context_class = strategy_v2.StrategyContext
         assert context_class is not None
 
     def test_getattr_get_strategy(self) -> None:
         """Test __getattr__ for get_strategy."""
-        func = getattr(strategy_v2, "get_strategy")
+        func = strategy_v2.get_strategy
         assert func is not None
         assert callable(func)
 
     def test_getattr_list_strategies(self) -> None:
         """Test __getattr__ for list_strategies."""
-        func = getattr(strategy_v2, "list_strategies")
+        func = strategy_v2.list_strategies
         assert func is not None
         assert callable(func)
 
     def test_getattr_register_strategy(self) -> None:
         """Test __getattr__ for register_strategy."""
-        func = getattr(strategy_v2, "register_strategy")
+        func = strategy_v2.register_strategy
         assert func is not None
         assert callable(func)
 
     def test_getattr_invalid_attribute(self) -> None:
         """Test __getattr__ raises AttributeError for invalid attributes."""
         with pytest.raises(AttributeError) as exc_info:
-            _ = getattr(strategy_v2, "NonExistentAttribute")
+            _ = strategy_v2.NonExistentAttribute
 
         assert "has no attribute" in str(exc_info.value)
         assert "NonExistentAttribute" in str(exc_info.value)
@@ -205,9 +199,7 @@ class TestRegisterStrategyHandlers:
         # Verify it can handle the correct event type
         assert handler.can_handle("StartupEvent") is True
 
-    def test_registered_handler_can_handle_workflow_started(
-        self, mock_container: Mock
-    ) -> None:
+    def test_registered_handler_can_handle_workflow_started(self, mock_container: Mock) -> None:
         """Test that registered handler can handle WorkflowStarted events."""
         mock_event_bus = mock_container.services.event_bus.return_value
 
@@ -260,9 +252,7 @@ class TestRegisterStrategyHandlers:
 
         assert "Container missing required 'services' attribute" in str(exc_info.value)
 
-    def test_register_strategy_handlers_handles_event_bus_error(
-        self, mock_container: Mock
-    ) -> None:
+    def test_register_strategy_handlers_handles_event_bus_error(self, mock_container: Mock) -> None:
         """Test that register_strategy_handlers handles errors from event_bus()."""
         # Make event_bus() raise an exception
         mock_container.services.event_bus.side_effect = RuntimeError("Event bus error")
@@ -276,8 +266,6 @@ class TestRegisterStrategyHandlers:
         self, mock_container: Mock
     ) -> None:
         """Test that register_strategy_handlers handles errors from handler initialization."""
-        from unittest.mock import patch
-
         # Mock SignalGenerationHandler to raise an error
         with patch(
             "the_alchemiser.strategy_v2.handlers.SignalGenerationHandler",
@@ -288,9 +276,7 @@ class TestRegisterStrategyHandlers:
 
             assert "Handler init error" in str(exc_info.value)
 
-    def test_register_strategy_handlers_handles_subscribe_error(
-        self, mock_container: Mock
-    ) -> None:
+    def test_register_strategy_handlers_handles_subscribe_error(self, mock_container: Mock) -> None:
         """Test that register_strategy_handlers handles errors from subscribe()."""
         mock_event_bus = mock_container.services.event_bus.return_value
         # Make subscribe() raise an exception

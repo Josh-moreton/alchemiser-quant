@@ -14,7 +14,6 @@ Validates:
 from __future__ import annotations
 
 import sys
-from typing import get_type_hints
 
 import pytest
 
@@ -53,9 +52,7 @@ class TestServicesModuleInterface:
 
         for name in services.__all__:
             obj = getattr(services, name)
-            assert isinstance(
-                obj, type
-            ), f"{name} is not a class (got {type(obj).__name__})"
+            assert isinstance(obj, type), f"{name} is not a class (got {type(obj).__name__})"
 
     def test_alpaca_trading_service_exported(self) -> None:
         """Test that AlpacaTradingService is exported and is the correct type."""
@@ -89,16 +86,14 @@ class TestServicesModuleInterface:
 
         # Get all non-private attributes
         public_attrs = [
-            name
-            for name in dir(services)
-            if not name.startswith("_") and name != "annotations"
+            name for name in dir(services) if not name.startswith("_") and name != "annotations"
         ]
 
         # All public attributes should be in __all__
         for attr in public_attrs:
-            assert (
-                attr in services.__all__
-            ), f"{attr} is public but not in __all__ (API surface leak)"
+            assert attr in services.__all__, (
+                f"{attr} is public but not in __all__ (API surface leak)"
+            )
 
     def test_imports_are_deterministic(self) -> None:
         """Test that imports are deterministic (same result on re-import)."""
@@ -138,9 +133,7 @@ class TestModuleBoundaries:
         from the_alchemiser.shared import services
 
         # Check if any execution_v2 modules are in sys.modules after import
-        execution_modules = [
-            name for name in sys.modules.keys() if "execution_v2" in name
-        ]
+        execution_modules = [name for name in sys.modules.keys() if "execution_v2" in name]
 
         # Only allowed if they were already imported before this test
         # The services module itself should not trigger execution_v2 imports
@@ -152,9 +145,7 @@ class TestModuleBoundaries:
         from the_alchemiser.shared import services
 
         # Check if any portfolio_v2 modules are in sys.modules after import
-        portfolio_modules = [
-            name for name in sys.modules.keys() if "portfolio_v2" in name
-        ]
+        portfolio_modules = [name for name in sys.modules.keys() if "portfolio_v2" in name]
 
         # Only allowed if they were already imported before this test
         assert services is not None  # Just to use the import
@@ -181,13 +172,8 @@ class TestTypePreservation:
         )
 
         # The exported class should have the same __module__ as the source
-        assert (
-            services.AlpacaTradingService.__module__
-            == AlpacaTradingService.__module__
-        )
-        assert (
-            services.AlpacaTradingService.__name__ == AlpacaTradingService.__name__
-        )
+        assert services.AlpacaTradingService.__module__ == AlpacaTradingService.__module__
+        assert services.AlpacaTradingService.__name__ == AlpacaTradingService.__name__
 
     def test_buying_power_service_preserves_types(self) -> None:
         """Test that BuyingPowerService type information is preserved."""
@@ -257,9 +243,9 @@ class TestBackwardCompatibility:
         required_exports = ["AlpacaTradingService", "BuyingPowerService"]
 
         for export in required_exports:
-            assert (
-                export in services.__all__
-            ), f"{export} missing from __all__ (breaks backward compatibility)"
+            assert export in services.__all__, (
+                f"{export} missing from __all__ (breaks backward compatibility)"
+            )
 
     def test_import_from_package_root_works(self) -> None:
         """Test that importing from package root still works (backward compatibility)."""

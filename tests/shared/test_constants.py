@@ -6,9 +6,11 @@ Tests validate type correctness, immutability, and value integrity
 of all constants defined in the_alchemiser.shared.constants module.
 """
 
-import pytest
 from decimal import Decimal
-from hypothesis import given, strategies as st
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.constants import (
     ACCOUNT_VALUE_LOGGING_DISABLED,
@@ -24,8 +26,8 @@ from the_alchemiser.shared.constants import (
     EVENT_SCHEMA_VERSION_DESCRIPTION,
     EVENT_TYPE_DESCRIPTION,
     EXECUTION_HANDLERS_MODULE,
-    MINIMUM_PRICE,
     MIN_TRADE_AMOUNT_USD,
+    MINIMUM_PRICE,
     NO_TRADES_REQUIRED,
     ORDER_SIDES,
     ORDER_TYPES,
@@ -187,29 +189,29 @@ class TestBusinessLogicConstants:
     def test_decimal_zero_type(self):
         """Test DECIMAL_ZERO is a Decimal type."""
         assert isinstance(DECIMAL_ZERO, Decimal)
-        assert DECIMAL_ZERO == Decimal("0")
+        assert Decimal("0") == DECIMAL_ZERO
 
     @pytest.mark.unit
     def test_min_trade_amount_usd_type(self):
         """Test MIN_TRADE_AMOUNT_USD is a Decimal."""
         assert isinstance(MIN_TRADE_AMOUNT_USD, Decimal)
-        assert MIN_TRADE_AMOUNT_USD > Decimal("0")
+        assert Decimal("0") < MIN_TRADE_AMOUNT_USD
 
     @pytest.mark.unit
     def test_min_trade_amount_usd_value(self):
         """Test MIN_TRADE_AMOUNT_USD has expected value."""
-        assert MIN_TRADE_AMOUNT_USD == Decimal("5")
+        assert Decimal("5") == MIN_TRADE_AMOUNT_USD
 
     @pytest.mark.unit
     def test_minimum_price_type(self):
         """Test MINIMUM_PRICE is a Decimal."""
         assert isinstance(MINIMUM_PRICE, Decimal)
-        assert MINIMUM_PRICE > Decimal("0")
+        assert Decimal("0") < MINIMUM_PRICE
 
     @pytest.mark.unit
     def test_minimum_price_value(self):
         """Test MINIMUM_PRICE has expected value (1 cent)."""
-        assert MINIMUM_PRICE == Decimal("0.01")
+        assert Decimal("0.01") == MINIMUM_PRICE
 
     @pytest.mark.unit
     def test_decimal_zero_immutable(self):
@@ -217,7 +219,7 @@ class TestBusinessLogicConstants:
         original_value = DECIMAL_ZERO
         # Attempt to modify (Decimal is immutable, so this creates a new object)
         _ = DECIMAL_ZERO + Decimal("1")
-        assert DECIMAL_ZERO == original_value
+        assert original_value == DECIMAL_ZERO
 
 
 class TestValidationConstants:
@@ -264,7 +266,7 @@ class TestValidationConstants:
     def test_signal_actions_values(self):
         """Test SIGNAL_ACTIONS contains expected values."""
         expected = {"BUY", "SELL", "HOLD"}
-        assert SIGNAL_ACTIONS == expected
+        assert expected == SIGNAL_ACTIONS
 
     @pytest.mark.unit
     def test_signal_actions_all_uppercase(self):
@@ -281,7 +283,7 @@ class TestValidationConstants:
     def test_alert_severities_values(self):
         """Test ALERT_SEVERITIES contains expected values."""
         expected = {"INFO", "WARNING", "ERROR"}
-        assert ALERT_SEVERITIES == expected
+        assert expected == ALERT_SEVERITIES
 
     @pytest.mark.unit
     def test_alert_severities_all_uppercase(self):
@@ -298,7 +300,7 @@ class TestValidationConstants:
     def test_order_types_values(self):
         """Test ORDER_TYPES contains expected values."""
         expected = {"market", "limit"}
-        assert ORDER_TYPES == expected
+        assert expected == ORDER_TYPES
 
     @pytest.mark.unit
     def test_order_types_all_lowercase(self):
@@ -315,7 +317,7 @@ class TestValidationConstants:
     def test_order_sides_values(self):
         """Test ORDER_SIDES contains expected values."""
         expected = {"buy", "sell"}
-        assert ORDER_SIDES == expected
+        assert expected == ORDER_SIDES
 
     @pytest.mark.unit
     def test_order_sides_all_lowercase(self):
@@ -365,9 +367,9 @@ class TestConstantsImmutability:
         _ = MINIMUM_PRICE / Decimal("10")
 
         # Originals unchanged
-        assert DECIMAL_ZERO == original_zero
-        assert MIN_TRADE_AMOUNT_USD == original_min_trade
-        assert MINIMUM_PRICE == original_min_price
+        assert original_zero == DECIMAL_ZERO
+        assert original_min_trade == MIN_TRADE_AMOUNT_USD
+        assert original_min_price == MINIMUM_PRICE
 
 
 class TestConstantsExports:
@@ -380,9 +382,7 @@ class TestConstantsExports:
 
         # Get all uppercase constants (convention for module-level constants)
         module_constants = {
-            name
-            for name in dir(constants)
-            if not name.startswith("_") and name.isupper()
+            name for name in dir(constants) if not name.startswith("_") and name.isupper()
         }
 
         # Expected exports from __all__

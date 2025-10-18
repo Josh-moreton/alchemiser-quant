@@ -11,7 +11,6 @@ from decimal import Decimal
 
 from the_alchemiser.shared.events.schemas import SignalGenerated
 from the_alchemiser.shared.notifications.templates.signals import SignalsBuilder
-from the_alchemiser.shared.schemas.consolidated_portfolio import ConsolidatedPortfolio
 
 
 class TestMultiSymbolSignalFlowIntegration:
@@ -118,9 +117,7 @@ class TestMultiSymbolSignalFlowIntegration:
         assert "SOXL" in html, "Second symbol missing from notification - DATA LOSS!"
 
         # Signal should show both symbols together
-        assert (
-            "BUY TQQQ, SOXL" in html
-        ), "Multi-symbol signal not displaying all symbols together"
+        assert "BUY TQQQ, SOXL" in html, "Multi-symbol signal not displaying all symbols together"
 
         # Consolidated portfolio should show both allocations
         assert "50.0%" in html, "TQQQ allocation missing"

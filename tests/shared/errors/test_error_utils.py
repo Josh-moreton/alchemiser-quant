@@ -4,7 +4,7 @@ Tests for error utility functions including retry and circuit breaker patterns.
 """
 
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 

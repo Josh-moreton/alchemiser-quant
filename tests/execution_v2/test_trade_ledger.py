@@ -5,9 +5,7 @@ Tests for trade ledger service.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService

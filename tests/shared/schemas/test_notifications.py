@@ -28,7 +28,7 @@ class TestEmailCredentials:
             email_password="secret123",
             recipient_email="recipient@example.com",
         )
-        
+
         assert creds.smtp_server == "smtp.example.com"
         assert creds.smtp_port == 587
         assert creds.email_address == "sender@example.com"
@@ -44,20 +44,21 @@ class TestEmailCredentials:
             email_password="secret123",
             recipient_email="recipient@example.com",
         )
-        
+
         repr_str = repr(creds)
         assert "secret123" not in repr_str
         assert "email_password" not in repr_str or "**" in repr_str
 
 
 # Import new DTOs for testing
+from decimal import Decimal
+
 from the_alchemiser.shared.schemas.notifications import (
     OrderNotificationDTO,
     OrderSide,
     StrategyDataDTO,
     TradingSummaryDTO,
 )
-from decimal import Decimal
 
 
 class TestOrderSide:
@@ -80,7 +81,7 @@ class TestOrderNotificationDTO:
             qty=Decimal("10.5"),
             estimated_value=Decimal("1500.50"),
         )
-        
+
         assert order.side == OrderSide.BUY
         assert order.symbol == "AAPL"
         assert order.qty == Decimal("10.5")
@@ -93,7 +94,7 @@ class TestOrderNotificationDTO:
             symbol="TSLA",
             qty=Decimal("5"),
         )
-        
+
         assert order.side == OrderSide.SELL
         assert order.estimated_value is None
 
@@ -104,7 +105,7 @@ class TestOrderNotificationDTO:
             symbol="AAPL",
             qty=Decimal("10"),
         )
-        
+
         with pytest.raises(ValidationError):
             order.symbol = "TSLA"
 
@@ -131,7 +132,7 @@ class TestTradingSummaryDTO:
             buy_orders=6,
             sell_orders=4,
         )
-        
+
         assert summary.total_trades == 10
         assert summary.total_buy_value == Decimal("50000")
         assert summary.net_value == Decimal("20000")
@@ -146,7 +147,7 @@ class TestTradingSummaryDTO:
             buy_orders=3,
             sell_orders=2,
         )
-        
+
         with pytest.raises(ValidationError):
             summary.total_trades = 10
 
@@ -174,7 +175,7 @@ class TestStrategyDataDTO:
             symbol="AAPL",
             reason="Strong momentum",
         )
-        
+
         assert strategy.allocation == 0.5
         assert strategy.signal == "BUY"
         assert strategy.symbol == "AAPL"
@@ -187,7 +188,7 @@ class TestStrategyDataDTO:
             signal="SELL",
             symbol="TSLA",
         )
-        
+
         assert strategy.reason == ""
 
     def test_strategy_data_allocation_bounds(self):
@@ -230,7 +231,7 @@ class TestStrategyDataDTO:
             signal="BUY",
             symbol="AAPL",
         )
-        
+
         with pytest.raises(ValidationError):
             strategy.allocation = 0.7
 
@@ -245,7 +246,7 @@ class TestStrategyDataDTO:
                 email_password="secret123",
                 recipient_email="recipient@example.com",
             )
-        
+
         # Port must be <= 65535
         with pytest.raises(ValidationError):
             EmailCredentials(
@@ -276,7 +277,7 @@ class TestStrategyDataDTO:
             email_password="secret123",
             recipient_email="recipient@example.com",
         )
-        
+
         with pytest.raises(ValidationError):
             creds.smtp_port = 465
 

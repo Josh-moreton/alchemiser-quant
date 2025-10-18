@@ -5,15 +5,15 @@ Global pytest configuration and fixtures for all test levels.
 Provides common fixtures for unit, integration, functional, and end-to-end tests.
 """
 
-import pytest
-import uuid
-from datetime import UTC, datetime
-from unittest.mock import Mock, MagicMock
-from typing import Any, Dict, Generator
+import os
 
 # Add the project root to Python path for imports
 import sys
-import os
+import uuid
+from datetime import UTC, datetime
+from unittest.mock import Mock
+
+import pytest
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
@@ -71,15 +71,9 @@ def test_timestamp() -> datetime:
 
 
 @pytest.fixture
-def sample_target_allocations() -> Dict[str, float]:
+def sample_target_allocations() -> dict[str, float]:
     """Sample target allocations for testing."""
-    return {
-        "AAPL": 0.3,
-        "GOOGL": 0.25, 
-        "MSFT": 0.2,
-        "TSLA": 0.15,
-        "NVDA": 0.1
-    }
+    return {"AAPL": 0.3, "GOOGL": 0.25, "MSFT": 0.2, "TSLA": 0.15, "NVDA": 0.1}
 
 
 @pytest.fixture
@@ -87,6 +81,7 @@ def event_bus_fixture():
     """Create an EventBus instance for testing."""
     try:
         from the_alchemiser.shared.events.bus import EventBus
+
         return EventBus()
     except ImportError:
         return Mock()
@@ -96,6 +91,7 @@ def event_bus_fixture():
 def disable_external_calls():
     """Disable external API calls during testing."""
     import os
+
     os.environ["TESTING"] = "true"
     os.environ["PAPER_TRADING"] = "true"
     yield

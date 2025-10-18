@@ -12,7 +12,6 @@ Tests cover:
 - Edge cases (special characters, whitespace handling)
 """
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -20,7 +19,7 @@ from pydantic import ValidationError
 
 # Ensure we can import the module directly without circular imports
 # This is necessary because schemas/__init__.py has circular dependencies
-if True:  # noqa: SIM108
+if True:
     # Import the module directly
     import importlib.util
 
