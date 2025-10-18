@@ -130,6 +130,47 @@ class TradingExecutionHandler:
             execution_config=ExecutionConfig(),
         )
 
+    def _check_market_status(self, correlation_id: str) -> bool:
+        """Check if market is currently open for trading.
+
+        Args:
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            True if market is open, False otherwise
+
+        """
+        try:
+            from the_alchemiser.shared.services.market_clock_service import (
+                MarketClockService,
+            )
+
+            # Get trading client from container
+            trading_client = self.container.infrastructure.alpaca_trading_client()
+            market_clock_service = MarketClockService(trading_client)
+
+            # Check if market is open
+            is_open = market_clock_service.is_market_open(correlation_id=correlation_id)
+
+            self.logger.info(
+                f"Market status check: {'OPEN' if is_open else 'CLOSED'}",
+                extra={"correlation_id": correlation_id, "market_is_open": is_open},
+            )
+
+            return is_open
+
+        except Exception as e:
+            # If market check fails, log warning and assume market is open
+            # to avoid blocking trading due to API issues
+            self.logger.warning(
+                f"Failed to check market status - assuming market is OPEN: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            return True
+
     def _generate_idempotency_key(self, event: RebalancePlanned) -> str:
         """Generate deterministic idempotency key for event deduplication.
 
@@ -207,6 +248,44 @@ class TradingExecutionHandler:
 
         # Mark event as being processed
         self._mark_event_processed(idempotency_key)
+
+        # Check market status before executing trades
+        market_is_open = self._check_market_status(event.correlation_id)
+
+        if not market_is_open:
+            self.logger.warning(
+                "⚠️ Market is closed - skipping order placement. Signal generation completed successfully.",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "event_id": event.event_id,
+                },
+            )
+
+            # Create result indicating signals generated but no orders placed due to market closure
+            rebalance_plan_data = event.rebalance_plan
+            execution_result = ExecutionResult(
+                success=True,
+                status=ExecutionStatus.SUCCESS,
+                plan_id=rebalance_plan_data.plan_id,
+                correlation_id=event.correlation_id,
+                orders=[],
+                orders_placed=0,
+                orders_succeeded=0,
+                total_trade_value=DECIMAL_ZERO,
+                execution_timestamp=datetime.now(UTC),
+                metadata={
+                    "scenario": "market_closed",
+                    "message": "Signal generation completed but order placement skipped - market is closed",
+                },
+            )
+
+            # Emit successful trade executed event (no orders placed but workflow successful)
+            self._emit_trade_executed_event(execution_result, success=True)
+
+            # Emit workflow completed event
+            self._emit_workflow_completed_event(event.correlation_id, execution_result)
+
+            return
 
         try:
             # Reconstruct RebalancePlan from event data
