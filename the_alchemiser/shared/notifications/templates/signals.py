@@ -470,7 +470,10 @@ class SignalsBuilder:
 
             # Get symbols list and join for display
             symbols_list = signal_data.get("symbols", [])
-            symbol = ", ".join(str(s) for s in symbols_list) if symbols_list else "N/A"
+            if isinstance(symbols_list, list):
+                symbol = ", ".join(str(s) for s in symbols_list) if symbols_list else "N/A"
+            else:
+                symbol = str(symbols_list) if symbols_list else "N/A"
 
             action = signal_data.get("action", "UNKNOWN")
             reason = signal_data.get("reason", "No reason provided")
@@ -704,7 +707,7 @@ class SignalsBuilder:
             if not signal_str:
                 action = str(signal_data.get("action", "UNKNOWN"))
                 symbols_list = signal_data.get("symbols", [])
-                if symbols_list:
+                if symbols_list and isinstance(symbols_list, list):
                     symbols_str = ", ".join(str(s) for s in symbols_list)
                     signal_str = f"{action} {symbols_str}"
                 else:

@@ -319,7 +319,7 @@ class SignalGenerationHandler:
                 return False
 
             # Check for required fields
-            required_fields = ["symbol", "action"]
+            required_fields = ["symbols", "action"]
             for field in required_fields:
                 if field not in signal_data:
                     self.logger.warning(
@@ -470,8 +470,9 @@ class SignalGenerationHandler:
 
     def _format_single_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
         """Format single symbol signal detail."""
-        symbol = data.get("symbol")
-        if isinstance(symbol, str) and symbol.strip():
+        symbols = data.get("symbols", [])
+        if symbols and len(symbols) == 1:
+            symbol = str(symbols[0])
             return f"{name}: {action} {symbol}"
         return f"{name}: {action}"
 
