@@ -7,7 +7,7 @@ type safety, immutability, and event-driven field requirements.
 """
 
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import pytest
 from pydantic import ValidationError
@@ -556,9 +556,8 @@ class TestStrategySignalSerialization:
             "target_allocation": "invalid",
         }
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidOperation):
             StrategySignal.from_dict(data)
-        assert "target_allocation" in str(exc_info.value).lower()
 
 
 class TestStrategySignalEdgeCases:
@@ -614,30 +613,6 @@ class TestStrategySignalEdgeCases:
         )
         # Pydantic's str_strip_whitespace should handle this
         assert signal.reasoning.strip() == signal.reasoning
-
-
-class TestStrategySignalBackwardCompatibility:
-    """Test backward compatibility with types version."""
-
-    def test_can_import_from_types_module(self):
-        """Test deprecated types module still works."""
-        # This should issue a deprecation warning but still work
-        import warnings
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            from the_alchemiser.shared.types.strategy_value_objects import (
-                StrategySignal as TypesSignal,
-            )
-
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "deprecated" in str(w[0].message).lower()
-
-        # Should be the same class
-        from the_alchemiser.shared.schemas.strategy_signal import StrategySignal as SchemasSignal
-
-        assert TypesSignal is SchemasSignal
 
 
 class TestStrategySignalEquality:

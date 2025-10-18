@@ -21,11 +21,11 @@ from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from the_alchemiser.shared.types.percentage import Percentage
-from the_alchemiser.shared.types.strategy_value_objects import (
+from the_alchemiser.shared.schemas.strategy_signal import (
     ActionLiteral,
     StrategySignal,
 )
+from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
@@ -176,17 +176,17 @@ class TestStrategySignalValidation:
         )
         assert signal.target_allocation is None
 
-    def test_timezone_naive_datetime_rejected(self) -> None:
-        """Test that timezone-naive datetime is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            StrategySignal(
-                **_default_signal_fields(
-                    symbol="AAPL",
-                    action="BUY",
-                    timestamp=datetime(2025, 1, 1, 12, 0, 0),  # No timezone
-                )
+    def test_timezone_naive_datetime_converted(self) -> None:
+        """Test that timezone-naive datetime is coerced to UTC."""
+        naive_timestamp = datetime(2025, 1, 1, 12, 0, 0)
+        signal = StrategySignal(
+            **_default_signal_fields(
+                symbol="AAPL",
+                action="BUY",
+                timestamp=naive_timestamp,
             )
-        assert "timezone-aware" in str(exc_info.value).lower()
+        )
+        assert signal.timestamp.tzinfo == UTC
 
     def test_timezone_aware_datetime_accepted(self) -> None:
         """Test that timezone-aware datetime is accepted."""
@@ -228,17 +228,17 @@ class TestStrategySignalValidation:
             )
         assert "reasoning" in str(exc_info.value).lower()
 
-    def test_reasoning_empty_string_accepted(self) -> None:
-        """Test empty reasoning is accepted."""
-        signal = StrategySignal(
-            **_default_signal_fields(
-                symbol="AAPL",
-                action="BUY",
-                reasoning="",
-                timestamp=datetime.now(UTC),
+    def test_reasoning_empty_string_rejected(self) -> None:
+        """Test empty reasoning raises validation error."""
+        with pytest.raises(ValidationError):
+            StrategySignal(
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    reasoning="",
+                    timestamp=datetime.now(UTC),
+                )
             )
-        )
-        assert signal.reasoning == ""
 
     def test_immutability(self) -> None:
         """Test that StrategySignal is immutable (frozen)."""
@@ -357,21 +357,16 @@ class TestStrategySignalInputFlexibility:
         )
         assert signal.target_allocation == alloc
 
-    def test_none_timestamp_defaults_to_now(self) -> None:
-        """Test None timestamp defaults to current UTC time."""
-        before = datetime.now(UTC)
-        signal = StrategySignal(
-            **_default_signal_fields(
-                symbol="AAPL",
-                action="BUY",
-                timestamp=None,
+    def test_none_timestamp_rejected(self) -> None:
+        """Test None timestamp raises validation error."""
+        with pytest.raises(ValidationError):
+            StrategySignal(
+                **_default_signal_fields(
+                    symbol="AAPL",
+                    action="BUY",
+                    timestamp=None,
+                )
             )
-        )
-        after = datetime.now(UTC)
-
-        assert signal.timestamp.tzinfo == UTC
-        # Should be between before and after (within a few seconds)
-        assert before <= signal.timestamp <= after
 
     def test_explicit_timestamp_used(self) -> None:
         """Test explicit timestamp is used when provided."""
@@ -480,7 +475,24 @@ class TestStrategySignalPropertyBased:
                 allow_infinity=False,
             ),
         ),
-        reasoning=st.text(max_size=1000),
+        reasoning=st.builds(
+            lambda left, core, right: left + core + right,
+            st.text(
+                alphabet=st.characters(whitelist_categories=("Zs",)),
+                max_size=10,
+            ),
+            st.text(
+                alphabet=st.characters(
+                    blacklist_categories=("Cc", "Cs", "Zs"),
+                ),
+                min_size=1,
+                max_size=980,
+            ),
+            st.text(
+                alphabet=st.characters(whitelist_categories=("Zs",)),
+                max_size=10,
+            ),
+        ),
     )
     def test_valid_inputs_always_succeed(
         self,
