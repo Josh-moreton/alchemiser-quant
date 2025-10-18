@@ -217,32 +217,49 @@ class SignalGenerationHandler:
     def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
         """Convert strategy signals to display format for notifications.
 
-        Each signal represents one .clj strategy file (grail, kmlm, etc.) and should be
-        displayed separately in the Signal Summary section.
+        Groups signals by strategy and shows all symbols allocated to by each strategy.
 
         Args:
-            signals: List of strategy signals from DSL engine (one per .clj file)
+            signals: List of strategy signals from DSL engine (one per symbol per strategy)
 
         Returns:
             Dictionary mapping strategy name to signal data
-            Example: {"grail": {...}, "kmlm": {...}}
+            Example: {"grail": {"symbols": ["TQQQ"], "action": "BUY", ...}}
 
         """
+        # Group signals by strategy
+        strategy_groups: dict[str, list[StrategySignal]] = {}
+        for signal in signals:
+            strategy_name = signal.strategy_name or "DSL"
+            if strategy_name not in strategy_groups:
+                strategy_groups[strategy_name] = []
+            strategy_groups[strategy_name].append(signal)
+
         strategy_signals: dict[str, Any] = {}
 
-        for signal in signals:
-            # Use the strategy name from the signal (e.g., "grail", "kmlm")
-            strategy_name = signal.strategy_name or "DSL"
+        for strategy_name, strategy_signals_list in strategy_groups.items():
+            # Collect all symbols and their allocations for this strategy
+            symbols_and_allocations = []
+            total_allocation = Decimal("0")
 
-            # Build signal display string showing all symbols for this strategy
-            # For multi-symbol strategies, show: "BUY TQQQ, TLT"
-            signal_display = f"{signal.action} {signal.symbol.value}"
+            for signal in strategy_signals_list:
+                symbols_and_allocations.append(f"{signal.symbol.value}")
+                if signal.target_allocation:
+                    total_allocation += signal.target_allocation
+
+            # Use first signal for action and reasoning (they should be the same for a strategy)
+            first_signal = strategy_signals_list[0]
+
+            # Build signal display string showing all symbols
+            symbols_str = ", ".join(symbols_and_allocations)
+            signal_display = f"{first_signal.action} {symbols_str}"
 
             strategy_signals[strategy_name] = {
-                "symbol": signal.symbol.value,
-                "action": signal.action,
-                "reasoning": signal.reasoning,
+                "symbols": symbols_and_allocations,
+                "action": first_signal.action,
+                "reasoning": first_signal.reasoning,
                 "signal": signal_display,
+                "total_allocation": float(total_allocation),
             }
 
         return strategy_signals
@@ -302,7 +319,7 @@ class SignalGenerationHandler:
                 return False
 
             # Check for required fields
-            required_fields = ["symbol", "action"]
+            required_fields = ["symbols", "action"]
             for field in required_fields:
                 if field not in signal_data:
                     self.logger.warning(
@@ -433,28 +450,17 @@ class SignalGenerationHandler:
             self.logger.info(f"  • {detail}")
 
     def _format_signal_detail(self, raw_name: str, data: dict[str, Any]) -> str:
-        """Format individual signal detail for logging."""
+        """Format individual signal detail for logging.
+
+        Handles both single and multi-symbol signals uniformly since symbols is always a list.
+        """
         name = str(raw_name)
         action = str(data.get("action", "")).upper() or "UNKNOWN"
 
-        if self._is_multi_symbol_signal(data):
-            return self._format_multi_symbol_detail(name, action, data)
-        return self._format_single_symbol_detail(name, action, data)
-
-    def _is_multi_symbol_signal(self, data: dict[str, Any]) -> bool:
-        """Check if signal data represents a multi-symbol signal."""
-        return bool(data.get("is_multi_symbol")) and isinstance(data.get("symbols"), list)
-
-    def _format_multi_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
-        """Format multi-symbol signal detail."""
-        symbols = ", ".join(str(symbol) for symbol in data["symbols"])
-        return f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
-
-    def _format_single_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
-        """Format single symbol signal detail."""
-        symbol = data.get("symbol")
-        if isinstance(symbol, str) and symbol.strip():
-            return f"{name}: {action} {symbol}"
+        symbols_list = data.get("symbols", [])
+        if symbols_list:
+            symbols_str = ", ".join(str(symbol) for symbol in symbols_list)
+            return f"{name}: {action} {symbols_str}"
         return f"{name}: {action}"
 
     def _log_portfolio_allocations(self, consolidated_portfolio: ConsolidatedPortfolio) -> None:

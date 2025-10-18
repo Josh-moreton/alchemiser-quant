@@ -148,10 +148,10 @@ class TestLambdaEventFormatValidation:
         """Test invalid month format is rejected."""
         invalid_months = [
             "2024-13",  # Invalid month
-            "24-01",    # Invalid year format
-            "2024-1",   # Missing leading zero
+            "24-01",  # Invalid year format
+            "2024-1",  # Missing leading zero
             "2024/01",  # Wrong separator
-            "202401",   # Missing separator
+            "202401",  # Missing separator
         ]
         for invalid_month in invalid_months:
             with pytest.raises(ValidationError) as exc_info:
@@ -170,11 +170,11 @@ class TestLambdaEventFormatValidation:
     def test_invalid_pnl_period_format_rejected(self) -> None:
         """Test invalid pnl_period format is rejected."""
         invalid_periods = [
-            "3X",    # Invalid unit
-            "W3",    # Wrong order
-            "3m",    # Lowercase unit
+            "3X",  # Invalid unit
+            "W3",  # Wrong order
+            "3m",  # Lowercase unit
             "3.5M",  # Decimal not supported
-            "M",     # Missing number
+            "M",  # Missing number
         ]
         for invalid_period in invalid_periods:
             with pytest.raises(ValidationError) as exc_info:
@@ -189,33 +189,21 @@ class TestLambdaEventRangeValidation:
     def test_valid_pnl_periods(self) -> None:
         """Test valid pnl_periods values are accepted."""
         for periods in [1, 3, 5, 10, 52]:
-            event = LambdaEvent(
-                action="pnl_analysis",
-                pnl_type="weekly",
-                pnl_periods=periods
-            )
+            event = LambdaEvent(action="pnl_analysis", pnl_type="weekly", pnl_periods=periods)
             assert event.pnl_periods == periods
 
     @pytest.mark.unit
     def test_zero_pnl_periods_rejected(self) -> None:
         """Test zero pnl_periods is rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            LambdaEvent(
-                action="pnl_analysis",
-                pnl_type="weekly",
-                pnl_periods=0
-            )
+            LambdaEvent(action="pnl_analysis", pnl_type="weekly", pnl_periods=0)
         assert "pnl_periods" in str(exc_info.value).lower()
 
     @pytest.mark.unit
     def test_negative_pnl_periods_rejected(self) -> None:
         """Test negative pnl_periods is rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            LambdaEvent(
-                action="pnl_analysis",
-                pnl_type="weekly",
-                pnl_periods=-1
-            )
+            LambdaEvent(action="pnl_analysis", pnl_type="weekly", pnl_periods=-1)
         assert "pnl_periods" in str(exc_info.value).lower()
 
 
@@ -237,7 +225,7 @@ class TestLambdaEventEmailValidation:
     @pytest.mark.unit
     def test_invalid_email_not_validated(self) -> None:
         """Test that invalid email is not validated at schema level.
-        
+
         Note: Email validation is intentionally NOT enforced in LambdaEvent schema.
         Validation happens at the notification service level where it's actually used.
         This design choice keeps the Lambda event schema lightweight and flexible.
@@ -275,11 +263,7 @@ class TestLambdaEventModelValidator:
     @pytest.mark.unit
     def test_pnl_analysis_with_both_valid(self) -> None:
         """Test pnl_analysis with both pnl_type and pnl_period is valid."""
-        event = LambdaEvent(
-            action="pnl_analysis",
-            pnl_type="weekly",
-            pnl_period="3M"
-        )
+        event = LambdaEvent(action="pnl_analysis", pnl_type="weekly", pnl_period="3M")
         assert event.action == "pnl_analysis"
         assert event.pnl_type == "weekly"
         assert event.pnl_period == "3M"
@@ -347,11 +331,7 @@ class TestLambdaEventObservabilityFields:
     @pytest.mark.unit
     def test_both_tracing_fields(self) -> None:
         """Test both correlation_id and causation_id."""
-        event = LambdaEvent(
-            mode="trade",
-            correlation_id="corr-123",
-            causation_id="cause-456"
-        )
+        event = LambdaEvent(mode="trade", correlation_id="corr-123", causation_id="cause-456")
         assert event.correlation_id == "corr-123"
         assert event.causation_id == "cause-456"
 
@@ -365,13 +345,13 @@ class TestLambdaEventBackwardCompatibility:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             from the_alchemiser.shared.schemas.lambda_event import LambdaEventDTO
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             assert "LambdaEventDTO is deprecated" in str(w[0].message)
             assert "use LambdaEvent instead" in str(w[0].message)
             assert "3.0.0" in str(w[0].message)
-            
+
             # Verify the alias still works
             assert LambdaEventDTO is LambdaEvent
 
@@ -400,7 +380,7 @@ class TestLambdaEventComplexScenarios:
             trading_mode="paper",
             arguments=["--force", "--verbose"],
             correlation_id="corr-123",
-            causation_id="cause-456"
+            causation_id="cause-456",
         )
         assert event.mode == "trade"
         assert event.trading_mode == "paper"
@@ -419,7 +399,7 @@ class TestLambdaEventComplexScenarios:
             to="admin@example.com",
             subject="Weekly P&L Report",
             dry_run=False,
-            correlation_id="corr-789"
+            correlation_id="corr-789",
         )
         assert event.action == "pnl_analysis"
         assert event.pnl_type == "weekly"

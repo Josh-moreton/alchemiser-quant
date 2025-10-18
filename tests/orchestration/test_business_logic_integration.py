@@ -7,17 +7,16 @@ without requiring full external broker connections.
 """
 
 import uuid
-from decimal import Decimal
 from datetime import UTC, datetime
-from unittest.mock import Mock
+from decimal import Decimal
 
 import pytest
 
-from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
 )
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 
 class TestBusinessLogicIntegration:
@@ -43,9 +42,7 @@ class TestBusinessLogicIntegration:
 
         # This would be input to portfolio module
         assert len(strategy_allocation.target_weights) == 2
-        assert all(
-            weight >= 0 for weight in strategy_allocation.target_weights.values()
-        )
+        assert all(weight >= 0 for weight in strategy_allocation.target_weights.values())
 
     def test_portfolio_to_execution_data_flow(self):
         """Test data flow from portfolio plan to execution."""
@@ -115,9 +112,9 @@ class TestBusinessLogicIntegration:
         )
 
         # Verify strategy output is valid
-        assert abs(
-            sum(strategy_allocation.target_weights.values()) - Decimal("1.0")
-        ) < Decimal("0.0001")
+        assert abs(sum(strategy_allocation.target_weights.values()) - Decimal("1.0")) < Decimal(
+            "0.0001"
+        )
 
         # Phase 2: Portfolio creates rebalance plan (simulated)
         total_portfolio_value = Decimal("10000.00")
@@ -241,9 +238,9 @@ class TestBusinessLogicIntegration:
             constraints={},
         )
 
-        assert abs(
-            sum(valid_allocation.target_weights.values()) - Decimal("1.0")
-        ) < Decimal("0.0001")
+        assert abs(sum(valid_allocation.target_weights.values()) - Decimal("1.0")) < Decimal(
+            "0.0001"
+        )
 
     def test_decimal_precision_handling(self):
         """Test that decimal precision is maintained throughout business logic."""
@@ -269,9 +266,7 @@ class TestBusinessLogicIntegration:
             target_value = portfolio_value * weight
             # Should maintain decimal precision
             assert isinstance(target_value, Decimal)
-            assert target_value.quantize(Decimal("0.01")) == target_value.quantize(
-                Decimal("0.01")
-            )
+            assert target_value.quantize(Decimal("0.01")) == target_value.quantize(Decimal("0.01"))
 
     def test_error_handling_integration(self):
         """Test error handling across business logic modules."""

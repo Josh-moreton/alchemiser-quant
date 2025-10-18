@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 import pytest
 
@@ -90,7 +89,7 @@ class TestParseTsFunction:
         # Just above threshold - treated as milliseconds
         just_above = 10**11 + 1
         result_above = _parse_ts(just_above)
-        
+
         # Both should parse successfully
         assert result_below is not None
         assert result_above is not None
@@ -115,7 +114,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         bar = result[0]
         assert bar.symbol == "AAPL"
@@ -140,7 +139,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         assert result[0].symbol == "AAPL"
         assert result[0].open == Decimal("150.00")
@@ -158,7 +157,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows, symbol="TSLA")
-        
+
         assert len(result) == 1
         assert result[0].symbol == "TSLA"
 
@@ -176,7 +175,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         bar = result[0]
         assert bar.open == Decimal("150.123456789")
@@ -199,7 +198,7 @@ class TestBarsToDomainFunction:
             },
         ]
         result = bars_to_domain(rows)
-        
+
         # First row should be skipped, only second row included
         assert len(result) == 1
         assert result[0].symbol == "MSFT"
@@ -227,7 +226,7 @@ class TestBarsToDomainFunction:
             },
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         assert result[0].symbol == "MSFT"
 
@@ -268,7 +267,7 @@ class TestBarsToDomainFunction:
             },
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 3
         assert result[0].timestamp < result[1].timestamp < result[2].timestamp
         assert all(bar.symbol == "AAPL" for bar in result)
@@ -284,7 +283,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         # Should skip rows with missing prices instead of defaulting to zero
         assert len(result) == 0
 
@@ -302,7 +301,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         assert result[0].volume == 0
 
@@ -319,7 +318,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         # Should skip rows with missing symbol when no default provided
         assert len(result) == 0
 
@@ -337,7 +336,7 @@ class TestBarsToDomainFunction:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         assert result[0].timestamp == datetime(2021, 1, 1, 10, 0, 0, tzinfo=UTC)
 
@@ -364,7 +363,7 @@ class TestBarsToDomainFunction:
             },
         ]
         result = bars_to_domain(rows)
-        
+
         # First row should be skipped due to conversion error
         assert len(result) == 1
         assert result[0].symbol == "MSFT"
@@ -376,14 +375,14 @@ class TestBarsToDomainFunction:
                 "t": "2024-01-01T10:00:00Z",
                 "S": "AAPL",
                 "o": 150.25,  # float
-                "h": 155,      # int
-                "l": 149.75,   # float
-                "c": 154.50,   # float
+                "h": 155,  # int
+                "l": 149.75,  # float
+                "c": 154.50,  # float
                 "v": 1000,
             }
         ]
         result = bars_to_domain(rows)
-        
+
         assert len(result) == 1
         bar = result[0]
         assert isinstance(bar.open, Decimal)
@@ -466,6 +465,7 @@ class TestQuoteToDomainFunction:
 
     def test_quote_to_domain_with_valid_data(self) -> None:
         """Test successful conversion of valid quote data."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -475,7 +475,7 @@ class TestQuoteToDomainFunction:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.symbol == "AAPL"
         assert result.timestamp == datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
@@ -491,6 +491,7 @@ class TestQuoteToDomainFunction:
 
     def test_quote_to_domain_missing_timestamp_returns_none(self) -> None:
         """Test that missing timestamp returns None (no fallback to current time)."""
+
         class MockQuote:
             symbol = "AAPL"
             bid_price = 150.25
@@ -500,12 +501,13 @@ class TestQuoteToDomainFunction:
             # No timestamp attribute
 
         result = quote_to_domain(MockQuote())
-        
+
         # Should return None instead of using datetime.now() for determinism
         assert result is None
 
     def test_quote_to_domain_invalid_timestamp_returns_none(self) -> None:
         """Test that invalid timestamp returns None (no fallback to current time)."""
+
         class MockQuote:
             timestamp = "invalid date"
             symbol = "AAPL"
@@ -515,12 +517,13 @@ class TestQuoteToDomainFunction:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         # Should return None for invalid timestamp (deterministic behavior)
         assert result is None
 
     def test_quote_to_domain_ensures_timezone_aware(self) -> None:
         """Test that naive timestamps are made timezone-aware."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0)  # naive
             symbol = "AAPL"
@@ -530,12 +533,13 @@ class TestQuoteToDomainFunction:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.timestamp.tzinfo == UTC
 
     def test_quote_to_domain_missing_bid_price_returns_none(self) -> None:
         """Test that missing bid price returns None."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -549,6 +553,7 @@ class TestQuoteToDomainFunction:
 
     def test_quote_to_domain_missing_ask_price_returns_none(self) -> None:
         """Test that missing ask price returns None."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -562,6 +567,7 @@ class TestQuoteToDomainFunction:
 
     def test_quote_to_domain_defaults_to_zero_sizes(self) -> None:
         """Test that missing sizes default to 0."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -570,13 +576,14 @@ class TestQuoteToDomainFunction:
             # No bid_size or ask_size
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.bid_size == Decimal("0")
         assert result.ask_size == Decimal("0")
 
     def test_quote_to_domain_defaults_to_unknown_symbol(self) -> None:
         """Test that missing symbol defaults to UNKNOWN."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             bid_price = 150.25
@@ -586,12 +593,13 @@ class TestQuoteToDomainFunction:
             # No symbol
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.symbol == "UNKNOWN"
 
     def test_quote_to_domain_preserves_decimal_precision(self) -> None:
         """Test that Decimal precision is maintained."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -601,13 +609,14 @@ class TestQuoteToDomainFunction:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.bid_price == Decimal("150.123456789")
         assert result.ask_price == Decimal("150.987654321")
 
     def test_quote_to_domain_handles_string_timestamp(self) -> None:
         """Test parsing string timestamp."""
+
         class MockQuote:
             timestamp = "2024-01-01T10:00:00Z"
             symbol = "AAPL"
@@ -617,12 +626,13 @@ class TestQuoteToDomainFunction:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.timestamp == datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
 
     def test_quote_to_domain_handles_unix_timestamp(self) -> None:
         """Test parsing Unix timestamp."""
+
         class MockQuote:
             timestamp = 1609502400  # 2021-01-01 10:00:00 UTC
             symbol = "AAPL"
@@ -632,12 +642,13 @@ class TestQuoteToDomainFunction:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert result.timestamp == datetime(2021, 1, 1, 10, 0, 0, tzinfo=UTC)
 
     def test_quote_to_domain_returns_none_on_conversion_error(self) -> None:
         """Test that conversion errors return None instead of raising."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -652,16 +663,17 @@ class TestQuoteToDomainFunction:
 
     def test_quote_to_domain_handles_numeric_prices(self) -> None:
         """Test that numeric prices are converted to Decimal."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
             bid_price = 150.25  # float
-            ask_price = 151     # int
+            ask_price = 151  # int
             bid_size = 100
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         assert result is not None
         assert isinstance(result.bid_price, Decimal)
         assert isinstance(result.ask_price, Decimal)
@@ -686,17 +698,18 @@ class TestIntegration:
             }
         ]
         result = bars_to_domain(rows)
-        
+
         # Verify it's a BarModel instance
         assert len(result) == 1
         assert isinstance(result[0], BarModel)
-        
+
         # Verify BarModel is frozen (immutable)
         with pytest.raises(AttributeError):
             result[0].open = Decimal("999")  # type: ignore
 
     def test_quote_to_domain_produces_valid_quote_model(self) -> None:
         """Test that quote_to_domain produces valid QuoteModel instances."""
+
         class MockQuote:
             timestamp = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
             symbol = "AAPL"
@@ -706,11 +719,11 @@ class TestIntegration:
             ask_size = 200
 
         result = quote_to_domain(MockQuote())
-        
+
         # Verify it's a QuoteModel instance
         assert result is not None
         assert isinstance(result, QuoteModel)
-        
+
         # Verify QuoteModel is frozen (immutable)
         with pytest.raises(AttributeError):
             result.bid_price = Decimal("999")  # type: ignore
@@ -738,9 +751,9 @@ class TestIntegration:
                 "v": 4123456,
             },
         ]
-        
+
         bars = bars_to_domain(alpaca_bars)
-        
+
         assert len(bars) == 2
         # All bars should have correct symbol
         assert all(bar.symbol == "AAPL" for bar in bars)
@@ -753,6 +766,7 @@ class TestIntegration:
 
     def test_end_to_end_quote_conversion_with_real_world_data(self) -> None:
         """Test realistic end-to-end conversion of quote data."""
+
         # Simulating quote data from Alpaca API
         class AlpacaQuote:
             timestamp = datetime(2024, 1, 1, 9, 30, 0, tzinfo=UTC)
@@ -763,7 +777,7 @@ class TestIntegration:
             ask_size = 300
 
         quote = quote_to_domain(AlpacaQuote())
-        
+
         assert quote is not None
         assert quote.symbol == "AAPL"
         assert isinstance(quote.bid_price, Decimal)

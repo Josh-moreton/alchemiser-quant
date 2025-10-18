@@ -8,6 +8,8 @@ public API for event-driven architecture and maintains proper module structure.
 
 from __future__ import annotations
 
+from datetime import UTC
+
 
 class TestEventsModuleInterface:
     """Test suite for events module public API."""
@@ -86,9 +88,7 @@ class TestEventsModuleInterface:
         assert hasattr(EventHandler, "handle_event"), (
             "EventHandler protocol should define handle_event"
         )
-        assert hasattr(EventHandler, "can_handle"), (
-            "EventHandler protocol should define can_handle"
-        )
+        assert hasattr(EventHandler, "can_handle"), "EventHandler protocol should define can_handle"
 
     def test_workflow_event_exports(self) -> None:
         """Test that workflow lifecycle events are properly exported."""
@@ -324,9 +324,7 @@ class TestEventsModuleInterface:
         assert "correlation_id" in BaseEvent.model_fields, (
             "BaseEvent should have correlation_id field"
         )
-        assert "causation_id" in BaseEvent.model_fields, (
-            "BaseEvent should have causation_id field"
-        )
+        assert "causation_id" in BaseEvent.model_fields, "BaseEvent should have causation_id field"
         assert "event_id" in BaseEvent.model_fields, "BaseEvent should have event_id field"
         assert "event_type" in BaseEvent.model_fields, "BaseEvent should have event_type field"
         assert "timestamp" in BaseEvent.model_fields, "BaseEvent should have timestamp field"
@@ -393,7 +391,7 @@ class TestEventBusIntegration:
 
     def test_can_create_and_publish_event(self) -> None:
         """Test basic event creation and publishing through exported classes."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from the_alchemiser.shared.events import BaseEvent, EventBus
 
@@ -406,7 +404,7 @@ class TestEventBusIntegration:
             causation_id="test-causation-456",
             event_id="test-event-789",
             event_type="TestEvent",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             source_module="test_module",
         )
 

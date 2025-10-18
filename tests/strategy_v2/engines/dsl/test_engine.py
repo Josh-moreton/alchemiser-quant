@@ -67,7 +67,7 @@ class TestDslEngine:
     def test_init_with_event_bus_subscribes(self, mock_event_bus):
         """Test initialization with event bus subscribes to events."""
         engine = DslEngine(event_bus=mock_event_bus)
-        
+
         # Verify subscription
         mock_event_bus.subscribe.assert_called_once_with("StrategyEvaluationRequested", engine)
         assert engine.event_bus is mock_event_bus
@@ -89,17 +89,17 @@ class TestDslEngine:
         event.correlation_id = str(uuid.uuid4())
         event.strategy_id = "test_strategy"
         event.strategy_config_path = "test.clj"
-        
+
         # First call should process
         with patch.object(engine, "_handle_evaluation_request") as mock_handler:
             engine.handle_event(event)
             mock_handler.assert_called_once_with(event)
-        
+
         # Second call with same event should be skipped
         with patch.object(engine, "_handle_evaluation_request") as mock_handler:
             engine.handle_event(event)
             mock_handler.assert_not_called()
-        
+
         # Verify event_id was tracked
         assert event.event_id in engine._processed_events
 
@@ -109,7 +109,7 @@ class TestDslEngine:
         event = Mock()
         event.event_id = str(uuid.uuid4())
         event.correlation_id = str(uuid.uuid4())
-        
+
         with patch.object(engine.logger, "warning") as mock_warning:
             engine.handle_event(event)
             mock_warning.assert_called_once()
@@ -119,7 +119,7 @@ class TestDslEngine:
         with patch.object(engine, "_parse_strategy_file") as mock_parse:
             mock_ast = ASTNode.atom("test")
             mock_parse.return_value = mock_ast
-            
+
             with patch.object(engine.evaluator, "evaluate") as mock_evaluate:
                 mock_allocation = StrategyAllocation(
                     target_weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
@@ -133,9 +133,9 @@ class TestDslEngine:
                     started_at=datetime.now(UTC),
                 )
                 mock_evaluate.return_value = (mock_allocation, mock_trace)
-                
+
                 allocation, trace = engine.evaluate_strategy("test.clj")
-                
+
                 # Verify correlation_id was generated
                 assert allocation.correlation_id is not None
                 assert trace.correlation_id is not None
@@ -143,11 +143,11 @@ class TestDslEngine:
     def test_evaluate_strategy_uses_provided_correlation_id(self, engine):
         """Test evaluate_strategy uses provided correlation_id."""
         correlation_id = str(uuid.uuid4())
-        
+
         with patch.object(engine, "_parse_strategy_file") as mock_parse:
             mock_ast = ASTNode.atom("test")
             mock_parse.return_value = mock_ast
-            
+
             with patch.object(engine.evaluator, "evaluate") as mock_evaluate:
                 mock_allocation = StrategyAllocation(
                     target_weights={"AAPL": Decimal("1.0")},
@@ -161,9 +161,9 @@ class TestDslEngine:
                     started_at=datetime.now(UTC),
                 )
                 mock_evaluate.return_value = (mock_allocation, mock_trace)
-                
+
                 allocation, trace = engine.evaluate_strategy("test.clj", correlation_id)
-                
+
                 # Verify correlation_id was passed through
                 assert allocation.correlation_id == correlation_id
                 assert trace.correlation_id == correlation_id
@@ -172,10 +172,10 @@ class TestDslEngine:
         """Test evaluate_strategy raises DslEngineError with context on failure."""
         with patch.object(engine, "_parse_strategy_file") as mock_parse:
             mock_parse.side_effect = Exception("Test error")
-            
+
             with pytest.raises(DslEngineError) as exc_info:
                 engine.evaluate_strategy("test.clj")
-            
+
             # Verify exception has context
             assert "Test error" in str(exc_info.value)
             assert exc_info.value.module == "strategy_v2.engines.dsl"
@@ -184,7 +184,7 @@ class TestDslEngine:
         """Test _parse_strategy_file raises error for non-existent file."""
         with pytest.raises(DslEngineError) as exc_info:
             engine._parse_strategy_file("nonexistent.clj")
-        
+
         assert "Strategy file not found" in str(exc_info.value)
 
     def test_resolve_strategy_path_uses_provided_path(self, engine):
@@ -197,10 +197,10 @@ class TestDslEngine:
         # Create temporary strategy file
         strategy_file = tmp_path / "test_strategy.clj"
         strategy_file.write_text("(portfolio [])")
-        
+
         # Create engine with temp directory
         engine = DslEngine(strategy_config_path=str(tmp_path))
-        
+
         # Resolve should find the file
         path = engine._resolve_strategy_path("", "test_strategy")
         assert "test_strategy.clj" in path
@@ -222,32 +222,32 @@ class TestDslEngine:
             strategy_id="test_strategy",
             strategy_config_path="test.clj",
         )
-        
+
         allocation = StrategyAllocation(
             target_weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
             correlation_id=request_event.correlation_id,
             as_of=datetime.now(UTC),
         )
-        
+
         trace = Trace(
             trace_id=str(uuid.uuid4()),
             correlation_id=request_event.correlation_id,
             strategy_id="test_strategy",
             started_at=datetime.now(UTC),
         ).mark_completed(success=True)
-        
+
         engine_with_bus._publish_completion_events(request_event, allocation, trace)
-        
+
         # Verify two events were published
         assert mock_event_bus.publish.call_count == 2
-        
+
         # Check first event is StrategyEvaluated
         first_event = mock_event_bus.publish.call_args_list[0][0][0]
         assert isinstance(first_event, StrategyEvaluated)
         assert first_event.correlation_id == request_event.correlation_id
         assert first_event.causation_id == request_event.event_id
         assert first_event.success is True
-        
+
         # Check second event is PortfolioAllocationProduced
         second_event = mock_event_bus.publish.call_args_list[1][0][0]
         assert isinstance(second_event, PortfolioAllocationProduced)
@@ -259,7 +259,7 @@ class TestDslEngine:
         request_event = Mock(spec=StrategyEvaluationRequested)
         allocation = Mock(spec=StrategyAllocation)
         trace = Mock(spec=Trace)
-        
+
         # Should not raise
         engine._publish_completion_events(request_event, allocation, trace)
 
@@ -274,14 +274,14 @@ class TestDslEngine:
             strategy_id="test_strategy",
             strategy_config_path="test.clj",
         )
-        
+
         error_message = "Test error message"
-        
+
         engine_with_bus._publish_error_events(request_event, error_message)
-        
+
         # Verify one event was published
         assert mock_event_bus.publish.call_count == 1
-        
+
         # Check event is StrategyEvaluated with error
         event = mock_event_bus.publish.call_args[0][0]
         assert isinstance(event, StrategyEvaluated)
@@ -294,7 +294,7 @@ class TestDslEngine:
         """Test _publish_error_events does nothing without event bus."""
         request_event = Mock(spec=StrategyEvaluationRequested)
         error_message = "Test error"
-        
+
         # Should not raise
         engine._publish_error_events(request_event, error_message)
 
@@ -309,26 +309,26 @@ class TestDslEngine:
             strategy_id="test_strategy",
             strategy_config_path="test.clj",
         )
-        
+
         allocation = StrategyAllocation(
             target_weights={"CASH": Decimal("1.0")},
             correlation_id=request_event.correlation_id,
             as_of=datetime.now(UTC),
         )
-        
+
         trace = Trace(
             trace_id=str(uuid.uuid4()),
             correlation_id=request_event.correlation_id,
             strategy_id="test_strategy",
             started_at=datetime.now(UTC),
         ).mark_completed(success=True)
-        
+
         engine_with_bus._publish_completion_events(request_event, allocation, trace)
-        
+
         # Get timestamps from both events
         first_event = mock_event_bus.publish.call_args_list[0][0][0]
         second_event = mock_event_bus.publish.call_args_list[1][0][0]
-        
+
         # Timestamps should be identical
         assert first_event.timestamp == second_event.timestamp
 
@@ -342,38 +342,39 @@ class TestDslEngine:
               [(asset "AAPL" "Apple Inc.")]
               [(asset "MSFT" "Microsoft Corp.")])]))
         """
-        
+
         # Write to a temp file
         import tempfile
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".clj", delete=False) as f:
             f.write(strategy_code)
             temp_path = f.name
-        
+
         try:
             # Evaluate the strategy
             allocation, trace = engine.evaluate_strategy(temp_path, str(uuid.uuid4()))
-            
+
             # Check that decision_path is in trace metadata
             assert "decision_path" in trace.metadata
             decision_path = trace.metadata["decision_path"]
-            
+
             # Should have at least one decision
             assert len(decision_path) > 0
-            
+
             # Check decision node structure
             decision_node = decision_path[0]
             assert "condition" in decision_node
             assert "result" in decision_node
             assert "branch" in decision_node
             assert "values" in decision_node
-            
+
             # The condition should have been True (5 > 3)
             assert decision_node["result"] is True
             assert decision_node["branch"] == "then"
-            
+
             # Allocation should be for AAPL (since condition was true)
             assert "AAPL" in allocation.target_weights
-            
+
         finally:
             # Clean up temp file
             Path(temp_path).unlink(missing_ok=True)

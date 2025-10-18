@@ -6,21 +6,20 @@ Tests statistical and mathematical functions for trading strategies including
 return calculations, moving averages, and safe division.
 """
 
-import pytest
+
 import pandas as pd
-import numpy as np
-from decimal import Decimal
-from hypothesis import given, strategies as st, assume
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.math.math_utils import (
-    calculate_stdev_returns,
+    calculate_ensemble_score,
     calculate_moving_average,
     calculate_moving_average_return,
     calculate_percentage_change,
-    calculate_rolling_metric,
-    safe_division,
+    calculate_stdev_returns,
     normalize_to_range,
-    calculate_ensemble_score,
+    safe_division,
 )
 
 
@@ -32,7 +31,7 @@ class TestCalculateStdevReturns:
         """Test that sufficient data returns proper stdev."""
         prices = pd.Series([100.0, 102.0, 101.0, 103.0, 105.0, 104.0])
         result = calculate_stdev_returns(prices, window=3)
-        
+
         # Should return a reasonable volatility value
         assert isinstance(result, float)
         assert 0.0 < result < 1.0
@@ -42,7 +41,7 @@ class TestCalculateStdevReturns:
         """Test that insufficient data returns 0.1 fallback."""
         prices = pd.Series([100.0, 102.0])
         result = calculate_stdev_returns(prices, window=5)
-        
+
         assert result == 0.1
 
     @pytest.mark.unit
@@ -50,7 +49,7 @@ class TestCalculateStdevReturns:
         """Test with exactly window+1 data points."""
         prices = pd.Series([100.0, 102.0, 101.0, 103.0])
         result = calculate_stdev_returns(prices, window=3)
-        
+
         assert isinstance(result, float)
         assert result > 0.0
 
@@ -59,7 +58,7 @@ class TestCalculateStdevReturns:
         """Test that constant prices return near-zero or fallback volatility."""
         prices = pd.Series([100.0] * 10)
         result = calculate_stdev_returns(prices, window=3)
-        
+
         # Constant prices produce zero returns, which may return 0.0 or fallback
         assert result >= 0.0
 
@@ -68,7 +67,7 @@ class TestCalculateStdevReturns:
         """Test with steadily increasing prices."""
         prices = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0, 105.0])
         result = calculate_stdev_returns(prices, window=3)
-        
+
         assert isinstance(result, float)
         assert result > 0.0
 
@@ -81,7 +80,7 @@ class TestCalculateMovingAverage:
         """Test basic moving average calculation."""
         prices = pd.Series([100.0, 102.0, 104.0, 106.0, 108.0])
         result = calculate_moving_average(prices, window=3)
-        
+
         # Last 3 prices: 104, 106, 108 -> MA = 106
         assert result == 106.0
 
@@ -90,7 +89,7 @@ class TestCalculateMovingAverage:
         """Test that insufficient data returns current price."""
         prices = pd.Series([100.0, 102.0])
         result = calculate_moving_average(prices, window=5)
-        
+
         assert result == 102.0
 
     @pytest.mark.unit
@@ -98,7 +97,7 @@ class TestCalculateMovingAverage:
         """Test with exactly window size data."""
         prices = pd.Series([100.0, 102.0, 104.0])
         result = calculate_moving_average(prices, window=3)
-        
+
         assert result == 102.0
 
     @pytest.mark.unit
@@ -106,7 +105,7 @@ class TestCalculateMovingAverage:
         """Test with single price point."""
         prices = pd.Series([100.0])
         result = calculate_moving_average(prices, window=3)
-        
+
         assert result == 100.0
 
     @pytest.mark.unit
@@ -114,7 +113,7 @@ class TestCalculateMovingAverage:
         """Test with constant prices."""
         prices = pd.Series([100.0] * 10)
         result = calculate_moving_average(prices, window=5)
-        
+
         assert result == 100.0
 
 
@@ -126,7 +125,7 @@ class TestCalculateMovingAverageReturn:
         """Test that increasing MA returns positive value."""
         prices = pd.Series([100.0, 102.0, 104.0, 106.0, 108.0, 110.0])
         result = calculate_moving_average_return(prices, window=3)
-        
+
         assert result > 0.0
 
     @pytest.mark.unit
@@ -134,7 +133,7 @@ class TestCalculateMovingAverageReturn:
         """Test that decreasing MA returns negative value."""
         prices = pd.Series([110.0, 108.0, 106.0, 104.0, 102.0, 100.0])
         result = calculate_moving_average_return(prices, window=3)
-        
+
         assert result < 0.0
 
     @pytest.mark.unit
@@ -142,7 +141,7 @@ class TestCalculateMovingAverageReturn:
         """Test that constant prices return zero."""
         prices = pd.Series([100.0] * 10)
         result = calculate_moving_average_return(prices, window=3)
-        
+
         assert result == 0.0
 
     @pytest.mark.unit
@@ -150,7 +149,7 @@ class TestCalculateMovingAverageReturn:
         """Test that insufficient data returns 0.0."""
         prices = pd.Series([100.0, 102.0])
         result = calculate_moving_average_return(prices, window=5)
-        
+
         assert result == 0.0
 
 
@@ -218,13 +217,13 @@ class TestSafeDivision:
     @pytest.mark.unit
     def test_nan_numerator_returns_fallback(self):
         """Test that NaN numerator returns fallback."""
-        result = safe_division(float('nan'), 2.0, fallback=99.0)
+        result = safe_division(float("nan"), 2.0, fallback=99.0)
         assert result == 99.0
 
     @pytest.mark.unit
     def test_nan_denominator_returns_fallback(self):
         """Test that NaN denominator returns fallback."""
-        result = safe_division(10.0, float('nan'), fallback=99.0)
+        result = safe_division(10.0, float("nan"), fallback=99.0)
         assert result == 99.0
 
     @pytest.mark.unit
@@ -312,13 +311,13 @@ class TestCalculateEnsembleScore:
     @pytest.mark.unit
     def test_nan_metrics_filtered(self):
         """Test that NaN metrics are filtered out."""
-        result = calculate_ensemble_score([0.5, float('nan'), 1.0])
+        result = calculate_ensemble_score([0.5, float("nan"), 1.0])
         assert result == 0.75
 
     @pytest.mark.unit
     def test_all_nan_metrics_returns_zero(self):
         """Test that all NaN metrics return 0.0."""
-        result = calculate_ensemble_score([float('nan'), float('nan')])
+        result = calculate_ensemble_score([float("nan"), float("nan")])
         assert result == 0.0
 
 
@@ -327,14 +326,11 @@ class TestMathUtilsProperties:
     """Property-based tests for math utilities."""
 
     @pytest.mark.property
-    @given(
-        st.floats(min_value=0.1, max_value=1000.0),
-        st.floats(min_value=0.1, max_value=1000.0)
-    )
+    @given(st.floats(min_value=0.1, max_value=1000.0), st.floats(min_value=0.1, max_value=1000.0))
     def test_percentage_change_inverse(self, original, changed):
         """Property: applying percentage change forward and back should return original."""
         pct_change = calculate_percentage_change(changed, original)
-        
+
         if abs(pct_change) < 1e6:  # Avoid overflow
             # Apply inverse: original * (1 + pct/100) should equal changed
             result = original * (1 + pct_change / 100)
@@ -343,7 +339,7 @@ class TestMathUtilsProperties:
     @pytest.mark.property
     @given(
         st.floats(min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-        st.floats(min_value=0.1, max_value=1000.0, allow_nan=False, allow_infinity=False)
+        st.floats(min_value=0.1, max_value=1000.0, allow_nan=False, allow_infinity=False),
     )
     def test_safe_division_never_raises(self, numerator, denominator):
         """Property: safe_division should never raise exception."""
@@ -354,17 +350,17 @@ class TestMathUtilsProperties:
     @given(
         st.floats(min_value=0.0, max_value=100.0),
         st.floats(min_value=0.0, max_value=100.0),
-        st.floats(min_value=0.0, max_value=100.0)
+        st.floats(min_value=0.0, max_value=100.0),
     )
     def test_normalize_preserves_order(self, min_val, max_val, value):
         """Property: normalization should preserve ordering."""
         if min_val >= max_val:
             return
-        
+
         value = min(max(value, min_val), max_val)  # Clamp to range
-        
+
         result = normalize_to_range(value, min_val, max_val)
-        
+
         # Result should be in [0, 1]
         assert 0.0 <= result <= 1.0
 
@@ -374,9 +370,9 @@ class TestMathUtilsProperties:
         """Property: ensemble score should be within range of input metrics."""
         if not metrics:
             return
-        
+
         result = calculate_ensemble_score(metrics)
-        
+
         valid_metrics = [m for m in metrics if not pd.isna(m)]
         if valid_metrics:
             assert min(valid_metrics) <= result <= max(valid_metrics)
@@ -384,16 +380,16 @@ class TestMathUtilsProperties:
     @pytest.mark.property
     @given(
         st.lists(st.floats(min_value=90.0, max_value=110.0), min_size=10, max_size=20),
-        st.integers(min_value=3, max_value=10)
+        st.integers(min_value=3, max_value=10),
     )
     def test_moving_average_smooths_data(self, prices, window):
         """Property: moving average should smooth volatility."""
         if len(prices) < window:
             return
-        
+
         price_series = pd.Series(prices)
         ma = calculate_moving_average(price_series, window)
-        
+
         # MA should be within the range of recent prices
         recent_prices = prices[-window:]
         assert min(recent_prices) <= ma <= max(recent_prices)

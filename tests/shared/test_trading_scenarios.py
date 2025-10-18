@@ -7,10 +7,8 @@ for actual trading situations without requiring external broker connections.
 """
 
 import uuid
-from decimal import Decimal
 from datetime import UTC, datetime
-
-import pytest
+from decimal import Decimal
 
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
@@ -256,9 +254,7 @@ class TestTradingScenarios:
         # Business validation - more conservative allocation
         equity_allocation = defensive_targets["VTI"] / post_drop_value
         bond_allocation = defensive_targets["BND"] / post_drop_value
-        cash_allocation = (
-            defensive_targets["VMOT"] + defensive_targets["CASH"]
-        ) / post_drop_value
+        cash_allocation = (defensive_targets["VMOT"] + defensive_targets["CASH"]) / post_drop_value
 
         assert equity_allocation == Decimal("0.3")  # 30% equity
         assert bond_allocation == Decimal("0.4")  # 40% bonds
@@ -361,9 +357,7 @@ class TestTradingScenarios:
 
         # Business validation
         total_reinvested = sum(reinvestment_allocation.values())
-        expected_reinvested = total_dividends * Decimal(
-            "0.9"
-        )  # 90% (excluding cash weight)
+        expected_reinvested = total_dividends * Decimal("0.9")  # 90% (excluding cash weight)
 
         assert abs(total_reinvested - expected_reinvested) < Decimal("0.01")
         assert reinvestment_allocation["AAPL"] == Decimal("140.00")

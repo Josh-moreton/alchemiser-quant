@@ -5,9 +5,9 @@ Simple business logic validation tests.
 Tests basic business logic validation without complex model dependencies.
 """
 
-from decimal import Decimal
-from datetime import UTC, datetime
 import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 
@@ -29,8 +29,10 @@ class TestBusinessLogicValidation:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
-        assert abs(sum(valid_allocation.target_weights.values()) - Decimal("1.0")) < Decimal("0.0001")
+
+        assert abs(sum(valid_allocation.target_weights.values()) - Decimal("1.0")) < Decimal(
+            "0.0001"
+        )
 
     def test_strategy_allocation_invalid_weights_sum(self):
         """Test that invalid weight sums are rejected."""
@@ -81,10 +83,10 @@ class TestBusinessLogicValidation:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # Test portfolio value calculations
         portfolio_value = Decimal("10000.00")
-        
+
         for symbol, weight in allocation.target_weights.items():
             target_value = portfolio_value * weight
             # Should maintain precision
@@ -99,7 +101,7 @@ class TestBusinessLogicValidation:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # Should have valid UUID correlation ID
         assert len(allocation.correlation_id) > 0
         assert "-" in allocation.correlation_id  # UUID format
@@ -116,7 +118,7 @@ class TestBusinessLogicValidation:
                 "sector_limit": 0.3,
             },
         )
-        
+
         # Should preserve constraints
         assert allocation.constraints["strategy_id"] == "test_strategy"
         assert allocation.constraints["max_positions"] == 10
@@ -134,7 +136,7 @@ class TestBusinessLogicValidation:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # Should have valid symbols
         for symbol in allocation.target_weights.keys():
             assert len(symbol) > 0
@@ -150,7 +152,7 @@ class TestBusinessLogicValidation:
             constraints={},
         )
         assert len(single_allocation.target_weights) == 1
-        
+
         # Diversified allocation
         diversified_allocation = StrategyAllocation(
             target_weights={
@@ -164,7 +166,7 @@ class TestBusinessLogicValidation:
             constraints={},
         )
         assert len(diversified_allocation.target_weights) == 4
-        
+
         # All weights should be equal
         for weight in diversified_allocation.target_weights.values():
             assert weight == Decimal("0.25")
@@ -180,7 +182,7 @@ class TestBusinessLogicValidation:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # Test with various portfolio values
         test_values = [
             Decimal("1000.00"),
@@ -188,15 +190,17 @@ class TestBusinessLogicValidation:
             Decimal("100000.00"),
             Decimal("1000000.00"),
         ]
-        
+
         for portfolio_value in test_values:
             total_allocated = Decimal("0")
             for symbol, weight in allocation.target_weights.items():
                 target_value = portfolio_value * weight
                 total_allocated += target_value
-                
+
                 # Should maintain two decimal places for money
-                assert target_value.quantize(Decimal("0.01")) == target_value.quantize(Decimal("0.01"))
-            
+                assert target_value.quantize(Decimal("0.01")) == target_value.quantize(
+                    Decimal("0.01")
+                )
+
             # Should allocate full portfolio value
             assert abs(total_allocated - portfolio_value) < Decimal("0.01")

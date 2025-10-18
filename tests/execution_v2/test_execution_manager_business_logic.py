@@ -6,10 +6,10 @@ Tests the core business logic of trade execution coordination without external
 broker dependencies, focusing on execution flow, result processing, and error handling.
 """
 
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock, patch
-import uuid
 
 import pytest
 
@@ -140,9 +140,7 @@ class TestExecutionManagerBusinessLogic:
             ],
         )
 
-    def test_execution_manager_initialization(
-        self, mock_alpaca_manager, execution_config
-    ):
+    def test_execution_manager_initialization(self, mock_alpaca_manager, execution_config):
         """Test execution manager initialization."""
         with patch(
             "the_alchemiser.execution_v2.core.execution_manager.Executor"
@@ -214,9 +212,7 @@ class TestExecutionManagerBusinessLogic:
         assert result.total_trade_value == Decimal("3750.00")
 
         # Should have called executor with correct plan
-        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
-            sample_rebalance_plan
-        )
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(sample_rebalance_plan)
 
     def test_execute_rebalance_plan_partial_success(
         self, mock_alpaca_manager, execution_config, sample_rebalance_plan
@@ -272,9 +268,7 @@ class TestExecutionManagerBusinessLogic:
         assert len(failure_orders) == 1
         assert "MSFT order rejected" in failure_orders[0].error_message
 
-        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
-            sample_rebalance_plan
-        )
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(sample_rebalance_plan)
 
     def test_execute_rebalance_plan_failure(
         self, mock_alpaca_manager, execution_config, sample_rebalance_plan
@@ -298,9 +292,7 @@ class TestExecutionManagerBusinessLogic:
             with pytest.raises(RuntimeError, match="Market data unavailable"):
                 execution_manager.execute_rebalance_plan(sample_rebalance_plan)
 
-        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
-            sample_rebalance_plan
-        )
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(sample_rebalance_plan)
 
     def test_execution_config_validation(self, mock_alpaca_manager):
         """Test that execution configuration is properly validated."""
@@ -323,9 +315,7 @@ class TestExecutionManagerBusinessLogic:
         assert manager.enable_smart_execution is True
         mock_executor_class.assert_called_once()
 
-    def test_smart_execution_status_reflects_executor(
-        self, mock_alpaca_manager, execution_config
-    ):
+    def test_smart_execution_status_reflects_executor(self, mock_alpaca_manager, execution_config):
         """Execution manager exposes executor smart execution availability."""
         with patch(
             "the_alchemiser.execution_v2.core.execution_manager.Executor"
@@ -405,9 +395,7 @@ class TestExecutionManagerBusinessLogic:
         assert order.shares == Decimal("10")
         assert order.price == Decimal("150.00")
 
-        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
-            sample_rebalance_plan
-        )
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(sample_rebalance_plan)
 
     def test_empty_rebalance_plan_handling(self, mock_alpaca_manager, execution_config):
         """Test handling of rebalance plan with only HOLD actions (effectively empty)."""
@@ -486,9 +474,7 @@ class TestExecutionManagerBusinessLogic:
             with pytest.raises(ConnectionError, match="Broker API unavailable"):
                 execution_manager.execute_rebalance_plan(sample_rebalance_plan)
 
-        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
-            sample_rebalance_plan
-        )
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(sample_rebalance_plan)
 
     def test_execution_correlation_id_preservation(
         self, mock_alpaca_manager, execution_config, sample_rebalance_plan
@@ -524,6 +510,4 @@ class TestExecutionManagerBusinessLogic:
             if hasattr(result, "correlation_id"):
                 assert result.correlation_id == correlation_id
 
-        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
-            sample_rebalance_plan
-        )
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(sample_rebalance_plan)

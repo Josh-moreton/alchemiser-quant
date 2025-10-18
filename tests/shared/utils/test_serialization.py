@@ -87,9 +87,7 @@ class TestToSerializable:
     def test_pydantic_model_with_decimal(self) -> None:
         """Test Pydantic model containing Decimal field."""
         inner = SimplePydanticModel(name="inner", value=10)
-        model = NestedPydanticModel(
-            title="outer", amount=Decimal("99.99"), nested=inner
-        )
+        model = NestedPydanticModel(title="outer", amount=Decimal("99.99"), nested=inner)
         result = to_serializable(model)
         assert isinstance(result, dict)
         assert result["amount"] == "99.99"
@@ -355,10 +353,11 @@ class TestCompliance:
 
     def test_no_silent_exception_catching(self) -> None:
         """Verify exception fallback logs or handles errors appropriately.
-        
+
         Note: The current implementation has a defensive fallback with pragma: no cover.
         This is acceptable for boundary serialization but should be monitored.
         """
+
         # This test documents the defensive behavior
         class BrokenModel:
             def model_dump(self) -> dict[str, Any]:

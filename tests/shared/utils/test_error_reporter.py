@@ -6,8 +6,6 @@ Tests for utils error_reporter module with security and observability features.
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
-import pytest
-
 from the_alchemiser.shared.errors.exceptions import SecurityError
 from the_alchemiser.shared.utils.error_reporter import (
     ErrorReporter,
@@ -232,9 +230,7 @@ class TestErrorReporterSummary:
         """Test error summary includes critical errors."""
         reporter = ErrorReporter()
 
-        reporter.report_error(
-            SecurityError("Critical"), context={"operation": "security_check"}
-        )
+        reporter.report_error(SecurityError("Critical"), context={"operation": "security_check"})
 
         summary = reporter.get_error_summary()
 

@@ -170,10 +170,7 @@ class TestQuoteProviderSuspiciousValidation:
             timestamp=datetime.now(UTC),
         )
 
-        assert (
-            quote_provider._is_streaming_quote_suspicious(suspicious_quote, "TEST")
-            is True
-        )
+        assert quote_provider._is_streaming_quote_suspicious(suspicious_quote, "TEST") is True
 
         # Test with normal quote
         normal_quote = QuoteModel(
@@ -185,9 +182,7 @@ class TestQuoteProviderSuspiciousValidation:
             timestamp=datetime.now(UTC),
         )
 
-        assert (
-            quote_provider._is_streaming_quote_suspicious(normal_quote, "TEST") is False
-        )
+        assert quote_provider._is_streaming_quote_suspicious(normal_quote, "TEST") is False
 
     def test_rest_validation_handles_rest_failure(self, quote_provider):
         """Test that REST validation handles REST API failures gracefully."""
@@ -203,9 +198,7 @@ class TestQuoteProviderSuspiciousValidation:
             timestamp=datetime.now(UTC),
         )
 
-        result = quote_provider._validate_suspicious_quote_with_rest(
-            suspicious_quote, "COST"
-        )
+        result = quote_provider._validate_suspicious_quote_with_rest(suspicious_quote, "COST")
 
         # Should return None when REST fails
         assert result is None

@@ -31,12 +31,12 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 
 def _default_signal_fields(**overrides: Any) -> dict[str, Any]:
     """Helper to create StrategySignal fields with required correlation/causation IDs.
-    
+
     Provides default values for:
     - correlation_id: "test-correlation-id"
     - causation_id: "test-causation-id"
     - reasoning: "Test signal reasoning"
-    
+
     All defaults can be overridden via kwargs.
     """
     defaults = {

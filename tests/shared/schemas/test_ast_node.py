@@ -21,7 +21,7 @@ class TestASTNodeFactoryMethods:
     def test_symbol_factory_creates_symbol_node(self):
         """Test symbol() factory creates correct node."""
         node = ASTNode.symbol("test-symbol")
-        
+
         assert node.node_type == "symbol"
         assert node.value == "test-symbol"
         assert node.children == []
@@ -31,7 +31,7 @@ class TestASTNodeFactoryMethods:
         """Test symbol() factory with metadata."""
         metadata = {"line": 1, "column": 5}
         node = ASTNode.symbol("test-symbol", metadata=metadata)
-        
+
         assert node.node_type == "symbol"
         assert node.value == "test-symbol"
         assert node.metadata == metadata
@@ -39,7 +39,7 @@ class TestASTNodeFactoryMethods:
     def test_atom_factory_with_string_value(self):
         """Test atom() factory with string value."""
         node = ASTNode.atom("test-string")
-        
+
         assert node.node_type == "atom"
         assert node.value == "test-string"
         assert node.children == []
@@ -49,7 +49,7 @@ class TestASTNodeFactoryMethods:
         """Test atom() factory with Decimal value."""
         value = Decimal("42.5")
         node = ASTNode.atom(value)
-        
+
         assert node.node_type == "atom"
         assert node.value == value
         assert node.children == []
@@ -58,14 +58,14 @@ class TestASTNodeFactoryMethods:
         """Test atom() factory with negative Decimal."""
         value = Decimal("-10.25")
         node = ASTNode.atom(value)
-        
+
         assert node.node_type == "atom"
         assert node.value == value
 
     def test_list_node_factory_empty(self):
         """Test list_node() factory with empty children."""
         node = ASTNode.list_node([])
-        
+
         assert node.node_type == "list"
         assert node.value is None
         assert node.children == []
@@ -75,7 +75,7 @@ class TestASTNodeFactoryMethods:
         child1 = ASTNode.symbol("child1")
         child2 = ASTNode.atom(Decimal("42"))
         node = ASTNode.list_node([child1, child2])
-        
+
         assert node.node_type == "list"
         assert node.value is None
         assert len(node.children) == 2
@@ -86,7 +86,7 @@ class TestASTNodeFactoryMethods:
         """Test list_node() factory with nested children."""
         inner_list = ASTNode.list_node([ASTNode.symbol("inner")])
         outer_list = ASTNode.list_node([inner_list])
-        
+
         assert outer_list.node_type == "list"
         assert len(outer_list.children) == 1
         assert outer_list.children[0].node_type == "list"
@@ -190,14 +190,14 @@ class TestASTNodeImmutability:
     def test_cannot_modify_node_type(self):
         """Test that node_type cannot be modified after creation."""
         node = ASTNode.symbol("test")
-        
+
         with pytest.raises(ValidationError):
             node.node_type = "atom"  # type: ignore
 
     def test_cannot_modify_value(self):
         """Test that value cannot be modified after creation."""
         node = ASTNode.atom("original")
-        
+
         with pytest.raises(ValidationError):
             node.value = "modified"  # type: ignore
 
@@ -205,7 +205,7 @@ class TestASTNodeImmutability:
         """Test that children list cannot be reassigned after creation."""
         child = ASTNode.symbol("child")
         node = ASTNode.list_node([child])
-        
+
         with pytest.raises(ValidationError):
             node.children = [ASTNode.symbol("new")]  # type: ignore
 
@@ -213,7 +213,7 @@ class TestASTNodeImmutability:
         """Test that metadata cannot be modified after creation."""
         metadata = {"line": 1}
         node = ASTNode.symbol("test", metadata=metadata)
-        
+
         with pytest.raises(ValidationError):
             node.metadata = {"line": 2}  # type: ignore
 
@@ -257,7 +257,7 @@ class TestASTNodeSerialization:
         original = ASTNode.symbol("test-symbol")
         dumped = original.model_dump()
         restored = ASTNode.model_validate(dumped)
-        
+
         assert restored.node_type == original.node_type
         assert restored.value == original.value
         assert restored.children == original.children
@@ -267,7 +267,7 @@ class TestASTNodeSerialization:
         original = ASTNode.atom(Decimal("42.5"))
         dumped = original.model_dump()
         restored = ASTNode.model_validate(dumped)
-        
+
         assert restored.node_type == original.node_type
         assert restored.value == original.value
 
@@ -276,10 +276,10 @@ class TestASTNodeSerialization:
         child1 = ASTNode.symbol("child1")
         child2 = ASTNode.atom(Decimal("42"))
         original = ASTNode.list_node([child1, child2])
-        
+
         dumped = original.model_dump()
         restored = ASTNode.model_validate(dumped)
-        
+
         assert restored.node_type == original.node_type
         assert len(restored.children) == 2
         assert restored.children[0].get_symbol_name() == "child1"
@@ -290,10 +290,10 @@ class TestASTNodeSerialization:
         inner = ASTNode.list_node([ASTNode.atom(Decimal("1"))])
         middle = ASTNode.list_node([inner])
         outer = ASTNode.list_node([middle])
-        
+
         dumped = outer.model_dump()
         restored = ASTNode.model_validate(dumped)
-        
+
         assert restored.is_list()
         assert restored.children[0].is_list()
         assert restored.children[0].children[0].is_list()
@@ -362,7 +362,7 @@ class TestASTNodeProperties:
             ASTNode.symbol("another-symbol"),
             ASTNode.symbol(":keyword"),
         ]
-        
+
         for symbol in symbols:
             assert isinstance(symbol.value, str)
             assert symbol.get_symbol_name() is not None
@@ -374,7 +374,7 @@ class TestASTNodeProperties:
             ASTNode.atom(Decimal("42")),
             ASTNode.atom(Decimal("-10.5")),
         ]
-        
+
         for atom in atoms:
             assert atom.value is not None
             assert atom.get_atom_value() is not None
@@ -386,7 +386,7 @@ class TestASTNodeProperties:
             ASTNode.list_node([ASTNode.symbol("x")]),
             ASTNode.list_node([ASTNode.atom(Decimal("1")), ASTNode.atom(Decimal("2"))]),
         ]
-        
+
         for list_node in lists:
             assert list_node.value is None
 
@@ -397,7 +397,7 @@ class TestASTNodeProperties:
             ASTNode.atom("test"),
             ASTNode.list_node([]),
         ]
-        
+
         for node in nodes:
             type_checks = [node.is_symbol(), node.is_atom(), node.is_list()]
             assert sum(type_checks) == 1  # Exactly one should be True
@@ -405,20 +405,24 @@ class TestASTNodeProperties:
     def test_tree_structure_preserved_through_serialization(self):
         """Test that tree structure is preserved through serialization."""
         # Build a tree: (+ (- 5 3) 2)
-        inner = ASTNode.list_node([
-            ASTNode.symbol("-"),
-            ASTNode.atom(Decimal("5")),
-            ASTNode.atom(Decimal("3")),
-        ])
-        outer = ASTNode.list_node([
-            ASTNode.symbol("+"),
-            inner,
-            ASTNode.atom(Decimal("2")),
-        ])
-        
+        inner = ASTNode.list_node(
+            [
+                ASTNode.symbol("-"),
+                ASTNode.atom(Decimal("5")),
+                ASTNode.atom(Decimal("3")),
+            ]
+        )
+        outer = ASTNode.list_node(
+            [
+                ASTNode.symbol("+"),
+                inner,
+                ASTNode.atom(Decimal("2")),
+            ]
+        )
+
         # Serialize and deserialize
         restored = ASTNode.model_validate(outer.model_dump())
-        
+
         # Verify structure is preserved
         assert restored.is_list()
         assert len(restored.children) == 3

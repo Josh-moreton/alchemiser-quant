@@ -39,35 +39,38 @@ class TestDslDispatcher:
 
     def test_register_simple_operator(self, dispatcher):
         """Test registering a simple operator."""
+
         def test_op(args, context):
             return "test_result"
-        
+
         dispatcher.register("test-op", test_op)
         assert dispatcher.is_registered("test-op")
         assert "test-op" in dispatcher.list_symbols()
 
     def test_register_multiple_operators(self, dispatcher):
         """Test registering multiple operators."""
+
         def op1(args, context):
             return 1
-        
+
         def op2(args, context):
             return 2
-        
+
         dispatcher.register("op1", op1)
         dispatcher.register("op2", op2)
-        
+
         assert dispatcher.is_registered("op1")
         assert dispatcher.is_registered("op2")
         assert len(dispatcher.list_symbols()) == 2
 
     def test_dispatch_simple_operator(self, dispatcher, mock_context):
         """Test dispatching to a simple operator."""
+
         def test_op(args, context):
             return len(args)
-        
+
         dispatcher.register("test-op", test_op)
-        
+
         args = [ASTNode.atom("1"), ASTNode.atom("2")]
         result = dispatcher.dispatch("test-op", args, mock_context)
         assert result == 2
@@ -75,14 +78,14 @@ class TestDslDispatcher:
     def test_dispatch_with_context(self, dispatcher, mock_context):
         """Test that context is passed to operator."""
         called_with_context = []
-        
+
         def test_op(args, context):
             called_with_context.append(context)
             return "done"
-        
+
         dispatcher.register("test-op", test_op)
         dispatcher.dispatch("test-op", [], mock_context)
-        
+
         assert len(called_with_context) == 1
         assert called_with_context[0] is mock_context
 
@@ -109,7 +112,7 @@ class TestDslDispatcher:
         dispatcher.register("op1", lambda args, ctx: None)
         dispatcher.register("op2", lambda args, ctx: None)
         dispatcher.register("op3", lambda args, ctx: None)
-        
+
         symbols = dispatcher.list_symbols()
         assert len(symbols) == 3
         assert "op1" in symbols
@@ -118,25 +121,27 @@ class TestDslDispatcher:
 
     def test_register_overwrites_existing(self, dispatcher, mock_context):
         """Test that registering same symbol overwrites previous."""
+
         def op1(args, context):
             return "first"
-        
+
         def op2(args, context):
             return "second"
-        
+
         dispatcher.register("test", op1)
         dispatcher.register("test", op2)
-        
+
         result = dispatcher.dispatch("test", [], mock_context)
         assert result == "second"
 
     def test_dispatch_with_exception(self, dispatcher, mock_context):
         """Test that operator exceptions propagate."""
+
         def failing_op(args, context):
             raise ValueError("Test error")
-        
+
         dispatcher.register("fail", failing_op)
-        
+
         with pytest.raises(ValueError, match="Test error"):
             dispatcher.dispatch("fail", [], mock_context)
 
@@ -145,27 +150,27 @@ class TestDslDispatcher:
         ops = [">", "<", ">=", "<=", "="]
         for op in ops:
             dispatcher.register(op, lambda args, ctx: True)
-        
+
         for op in ops:
             assert dispatcher.is_registered(op)
 
     def test_dispatch_preserves_args(self, dispatcher, mock_context):
         """Test that args are passed unchanged to operator."""
         received_args = []
-        
+
         def test_op(args, context):
             received_args.extend(args)
-            return None
-        
+            return
+
         dispatcher.register("test", test_op)
-        
+
         args = [
             ASTNode.atom("1"),
             ASTNode.symbol("test"),
             ASTNode.list_node([ASTNode.atom("2")]),
         ]
         dispatcher.dispatch("test", args, mock_context)
-        
+
         assert len(received_args) == 3
         assert received_args[0] is args[0]
         assert received_args[1] is args[1]

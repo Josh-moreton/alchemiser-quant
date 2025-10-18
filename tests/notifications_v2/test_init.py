@@ -78,9 +78,7 @@ class TestRegisterNotificationHandlers:
         """Test registration function creates service and registers handlers."""
         from the_alchemiser.notifications_v2 import register_notification_handlers
 
-        with patch(
-            "the_alchemiser.notifications_v2.NotificationService"
-        ) as MockService:
+        with patch("the_alchemiser.notifications_v2.NotificationService") as MockService:
             mock_service_instance = Mock()
             MockService.return_value = mock_service_instance
 
@@ -112,33 +110,23 @@ class TestRegisterNotificationHandlers:
         ]
         assert sorted(call_args_list) == sorted(expected_events)
 
-    def test_register_propagates_initialization_errors(
-        self, mock_container: Mock
-    ) -> None:
+    def test_register_propagates_initialization_errors(self, mock_container: Mock) -> None:
         """Test that registration errors propagate to caller."""
         from the_alchemiser.notifications_v2 import register_notification_handlers
 
         # Simulate event bus initialization failure
-        mock_container.services.event_bus.side_effect = RuntimeError(
-            "Event bus unavailable"
-        )
+        mock_container.services.event_bus.side_effect = RuntimeError("Event bus unavailable")
 
         with pytest.raises(RuntimeError, match="Event bus unavailable"):
             register_notification_handlers(mock_container)
 
-    def test_register_propagates_handler_registration_errors(
-        self, mock_container: Mock
-    ) -> None:
+    def test_register_propagates_handler_registration_errors(self, mock_container: Mock) -> None:
         """Test that handler registration errors propagate to caller."""
         from the_alchemiser.notifications_v2 import register_notification_handlers
 
-        with patch(
-            "the_alchemiser.notifications_v2.NotificationService"
-        ) as MockService:
+        with patch("the_alchemiser.notifications_v2.NotificationService") as MockService:
             mock_service_instance = Mock()
-            mock_service_instance.register_handlers.side_effect = ValueError(
-                "Registration failed"
-            )
+            mock_service_instance.register_handlers.side_effect = ValueError("Registration failed")
             MockService.return_value = mock_service_instance
 
             with pytest.raises(ValueError, match="Registration failed"):

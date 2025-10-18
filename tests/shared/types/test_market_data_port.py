@@ -28,9 +28,7 @@ class TestMarketDataPortProtocol:
         # This test verifies @runtime_checkable decorator is present
 
         class MockPort:
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 return []
 
             def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
@@ -46,10 +44,9 @@ class TestMarketDataPortProtocol:
         """Test that classes missing methods don't satisfy protocol."""
 
         class IncompletePort:
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 return []
+
             # Missing get_latest_quote and get_mid_price
 
         incomplete = IncompletePort()
@@ -64,7 +61,6 @@ class TestMarketDataPortProtocol:
         assert hasattr(MarketDataPort, "get_mid_price")
 
         # Verify they're protocol methods (not implemented)
-        import inspect
 
         # Protocol methods should not have implementation
         assert not hasattr(MarketDataPort.get_bars, "__func__")
@@ -86,9 +82,7 @@ class TestMarketDataPortImplementation:
                 self.quote_calls = []
                 self.mid_price_calls = []
 
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 """Mock get_bars returning test data."""
                 self.bars_calls.append((symbol, period, timeframe))
 
@@ -168,9 +162,7 @@ class TestMarketDataPortImplementation:
         """Test that returning empty list for get_bars is valid."""
 
         class EmptyPort:
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 return []  # No data available
 
             def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
@@ -194,9 +186,7 @@ class TestMarketDataPortTypes:
         """Test get_bars returns list not None."""
 
         class StrictPort:
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 # Must return list, never None
                 return []
 
@@ -214,9 +204,7 @@ class TestMarketDataPortTypes:
         """Test get_latest_quote returning None is valid."""
 
         class NonePort:
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 return []
 
             def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
@@ -233,9 +221,7 @@ class TestMarketDataPortTypes:
         """Test get_mid_price returning None is valid."""
 
         class NoMidPort:
-            def get_bars(
-                self, symbol: Symbol, period: str, timeframe: str
-            ) -> list[BarModel]:
+            def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
                 return []
 
             def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:

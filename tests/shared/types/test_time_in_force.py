@@ -13,10 +13,10 @@ NOTE: Tests import directly from module file to avoid pandas dependency
 in the package __init__.py that would break test collection.
 """
 
-import sys
 import importlib.util
-from pathlib import Path
+import sys
 import warnings
+from pathlib import Path
 
 import pytest
 
@@ -119,7 +119,6 @@ class TestTimeInForceConstruction:
 
         # To test runtime validation, we'd need to bypass type checking:
         # This is why the __post_init__ validation is marked with pragma: no cover
-        pass
 
 
 class TestTimeInForceEquality:

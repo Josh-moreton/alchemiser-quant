@@ -6,8 +6,6 @@ Tests for error reporter module with rate monitoring and aggregation.
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
 
-import pytest
-
 from the_alchemiser.shared.errors.error_reporter import (
     ERROR_COUNTS_CLEANUP_WINDOW_SECONDS,
     ERROR_RATE_THRESHOLD_PER_MIN,
@@ -130,11 +128,13 @@ class TestEnhancedErrorReporterRateMonitoring:
 
         # Add an old error (more than 5 minutes ago)
         old_timestamp = datetime.now(UTC) - timedelta(minutes=10)
-        reporter.recent_errors.append({
-            "timestamp": old_timestamp.isoformat(),
-            "error_type": "OldError",
-            "message": "Old error",
-        })
+        reporter.recent_errors.append(
+            {
+                "timestamp": old_timestamp.isoformat(),
+                "error_type": "OldError",
+                "message": "Old error",
+            }
+        )
 
         # Add a recent error
         error = ValueError("Recent error")
@@ -151,11 +151,13 @@ class TestEnhancedErrorReporterRateMonitoring:
 
         # Add many errors quickly (more than 10 per minute)
         for i in range(60):
-            reporter.recent_errors.append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "error_type": "TestError",
-                "message": f"Error {i}",
-            })
+            reporter.recent_errors.append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "error_type": "TestError",
+                    "message": f"Error {i}",
+                }
+            )
 
         reporter._check_error_rates()
 
@@ -171,11 +173,13 @@ class TestEnhancedErrorReporterRateMonitoring:
 
         # Add a small number of errors
         for i in range(5):
-            reporter.recent_errors.append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "error_type": "TestError",
-                "message": f"Error {i}",
-            })
+            reporter.recent_errors.append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "error_type": "TestError",
+                    "message": f"Error {i}",
+                }
+            )
 
         reporter._check_error_rates()
 
@@ -370,11 +374,13 @@ class TestEnhancedErrorReporterIntegration:
         recent_time = datetime.now(UTC)
 
         # Add old error directly
-        reporter.recent_errors.append({
-            "timestamp": old_time.isoformat(),
-            "error_type": "OldError",
-            "message": "Old",
-        })
+        reporter.recent_errors.append(
+            {
+                "timestamp": old_time.isoformat(),
+                "error_type": "OldError",
+                "message": "Old",
+            }
+        )
 
         # Add recent error through normal flow
         reporter.report_error_with_context(
@@ -609,10 +615,12 @@ class TestEnhancedErrorReporterCriticalErrorsTracking:
         )
 
         # Manually add critical error to list (without triggering handler)
-        reporter.critical_errors.append({
-            "timestamp": datetime.now(UTC).isoformat(),
-            "is_critical": True,
-        })
+        reporter.critical_errors.append(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "is_critical": True,
+            }
+        )
 
         summary = reporter.get_error_summary()
         assert summary["critical_errors_count"] == 1
@@ -623,10 +631,12 @@ class TestEnhancedErrorReporterCriticalErrorsTracking:
 
         # Add old critical error
         old_time = datetime.now(UTC) - timedelta(hours=2)
-        reporter.critical_errors.append({
-            "timestamp": old_time.isoformat(),
-            "is_critical": True,
-        })
+        reporter.critical_errors.append(
+            {
+                "timestamp": old_time.isoformat(),
+                "is_critical": True,
+            }
+        )
 
         # Add recent error (triggers cleanup)
         reporter.report_error_with_context(ValueError("Test"), operation="test")
@@ -695,10 +705,12 @@ class TestEnhancedErrorReporterTimestampParsing:
         reporter = EnhancedErrorReporter()
 
         # Add error with malformed timestamp
-        reporter.recent_errors.append({
-            "timestamp": "not-a-timestamp",
-            "error_type": "TestError",
-        })
+        reporter.recent_errors.append(
+            {
+                "timestamp": "not-a-timestamp",
+                "error_type": "TestError",
+            }
+        )
 
         # Should not crash when cleaning up
         reporter.report_error_with_context(ValueError("Test"), operation="test")
@@ -711,9 +723,11 @@ class TestEnhancedErrorReporterTimestampParsing:
         reporter = EnhancedErrorReporter()
 
         # Add error without timestamp
-        reporter.recent_errors.append({
-            "error_type": "TestError",
-        })
+        reporter.recent_errors.append(
+            {
+                "error_type": "TestError",
+            }
+        )
 
         # Should not crash
         reporter.report_error_with_context(ValueError("Test"), operation="test")

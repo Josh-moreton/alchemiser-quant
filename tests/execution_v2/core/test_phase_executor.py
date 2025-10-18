@@ -8,19 +8,18 @@ callback integration, and error handling.
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, Mock, patch
-import uuid
+from unittest.mock import Mock
 
 import pytest
-from hypothesis import given, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from the_alchemiser.execution_v2.core.phase_executor import PhaseExecutor
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
-
 # Test Helpers
+
 
 def _make_rebalance_item(
     symbol: str = "AAPL",
@@ -74,6 +73,7 @@ def _make_order_result(
 
 # Test Fixtures
 
+
 @pytest.fixture
 def mock_alpaca_manager():
     """Mock Alpaca manager."""
@@ -113,6 +113,7 @@ def phase_executor(mock_alpaca_manager, mock_position_utils, mock_execution_conf
 
 
 # Test Classes
+
 
 class TestPhaseExecutorInitialization:
     """Test PhaseExecutor initialization."""
@@ -254,7 +255,9 @@ class TestExecuteBuyPhase:
         """Test that buy phase skips micro orders below minimum notional."""
         # Create a micro order (very small amount)
         micro_item = _make_rebalance_item(
-            "AAPL", action="BUY", trade_amount=Decimal("0.50")  # Below $1 minimum
+            "AAPL",
+            action="BUY",
+            trade_amount=Decimal("0.50"),  # Below $1 minimum
         )
 
         # Mock price estimation to return $100
@@ -275,7 +278,9 @@ class TestExecuteBuyPhase:
     async def test_execute_buy_phase_processes_valid_orders(self, phase_executor):
         """Test that valid orders are processed (not skipped)."""
         valid_item = _make_rebalance_item(
-            "AAPL", action="BUY", trade_amount=Decimal("1000")  # Well above minimum
+            "AAPL",
+            action="BUY",
+            trade_amount=Decimal("1000"),  # Well above minimum
         )
 
         async def mock_execute_callback(item):
@@ -294,9 +299,7 @@ class TestExecuteBuyPhase:
 class TestMicroOrderValidation:
     """Test micro-order validation logic."""
 
-    def test_check_micro_order_skip_with_fractional_asset_below_minimum(
-        self, phase_executor
-    ):
+    def test_check_micro_order_skip_with_fractional_asset_below_minimum(self, phase_executor):
         """Test that fractional assets below minimum are skipped."""
         item = _make_rebalance_item("AAPL", trade_amount=Decimal("0.50"))
 
@@ -311,9 +314,7 @@ class TestMicroOrderValidation:
         assert result.success is False
         assert "Skipped" in result.error_message
 
-    def test_check_micro_order_skip_with_fractional_asset_above_minimum(
-        self, phase_executor
-    ):
+    def test_check_micro_order_skip_with_fractional_asset_above_minimum(self, phase_executor):
         """Test that fractional assets above minimum are not skipped."""
         item = _make_rebalance_item("AAPL", trade_amount=Decimal("1000"))
 
@@ -460,9 +461,7 @@ class TestErrorHandling:
         # Mock to raise ValueError
         phase_executor._determine_shares_to_trade = Mock(side_effect=ValueError("Invalid value"))
 
-        result = await phase_executor._execute_single_item(
-            item, phase_executor._logger_bound()
-        )
+        result = await phase_executor._execute_single_item(item, phase_executor._logger_bound())
 
         assert result.success is False
         assert "Value error" in result.error_message
@@ -474,13 +473,9 @@ class TestErrorHandling:
         item = _make_rebalance_item("AAPL")
 
         # Mock to raise generic exception
-        phase_executor._determine_shares_to_trade = Mock(
-            side_effect=Exception("Unexpected error")
-        )
+        phase_executor._determine_shares_to_trade = Mock(side_effect=Exception("Unexpected error"))
 
-        result = await phase_executor._execute_single_item(
-            item, phase_executor._logger_bound()
-        )
+        result = await phase_executor._execute_single_item(item, phase_executor._logger_bound())
 
         assert result.success is False
         assert "Unexpected error" in result.error_message
@@ -501,10 +496,10 @@ class TestPropertyBasedTests:
             places=2,
         ),
     )
-    @settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_share_calculation_always_positive(
-        self, trade_amount, price, phase_executor
-    ):
+    @settings(
+        max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    def test_share_calculation_always_positive(self, trade_amount, price, phase_executor):
         """Test that share calculations always produce non-negative values."""
         phase_executor.position_utils.get_price_for_estimation.return_value = price
         phase_executor.position_utils.adjust_quantity_for_fractionability.side_effect = (
@@ -717,6 +712,7 @@ class TestIdempotency:
 def _logger_bound(self):
     """Get logger instance for testing. In production, logger is bound inline."""
     from the_alchemiser.shared.logging import get_logger
+
     return get_logger(__name__)
 
 

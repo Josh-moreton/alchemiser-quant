@@ -15,7 +15,7 @@ def test_templates_module_exports() -> None:
 
     # Verify __all__ attribute exists and contains expected exports
     assert hasattr(templates, "__all__")
-    
+
     # Verify all expected exports are present (after H1 fix)
     expected_exports = {
         "BaseEmailTemplate",
@@ -27,7 +27,7 @@ def test_templates_module_exports() -> None:
         "build_multi_strategy_email_html",
         "build_trading_report_html",
     }
-    
+
     actual_exports = set(templates.__all__)
     assert actual_exports == expected_exports, (
         f"Export mismatch. Expected: {expected_exports}, Got: {actual_exports}"
@@ -40,7 +40,7 @@ def test_base_template_import() -> None:
 
     # Verify it's a class
     assert isinstance(BaseEmailTemplate, type)
-    
+
     # Verify the class has expected methods
     assert hasattr(BaseEmailTemplate, "wrap_content")
     assert hasattr(BaseEmailTemplate, "get_header")
@@ -56,7 +56,7 @@ def test_email_templates_import() -> None:
 
     # Verify it's a class
     assert isinstance(EmailTemplates, type)
-    
+
     # Verify facade methods exist
     assert hasattr(EmailTemplates, "error_notification")
     assert hasattr(EmailTemplates, "successful_trading_run")
@@ -83,7 +83,7 @@ def test_build_error_email_html_basic() -> None:
     from the_alchemiser.shared.notifications.templates import build_error_email_html
 
     html = build_error_email_html("Test Error", "This is a test error message")
-    
+
     # Verify basic HTML structure
     assert html.startswith("<!DOCTYPE html>")
     assert "Test Error" in html
@@ -120,8 +120,7 @@ def test_templates_module_structure() -> None:
 def test_module_has_no_external_dependencies() -> None:
     """Verify the __init__.py only imports from internal modules."""
     from the_alchemiser.shared.notifications import templates
-    import sys
-    
+
     # Get module's imports (this is indirect verification)
     # The module should only import from .base and .email_facade
     # This test verifies no unexpected third-party dependencies leaked in
@@ -142,33 +141,25 @@ def test_all_exports_are_accessible() -> None:
 
 def test_base_template_static_methods() -> None:
     """Test BaseEmailTemplate has expected static methods."""
-    from the_alchemiser.shared.notifications.templates import BaseEmailTemplate
     import inspect
 
+    from the_alchemiser.shared.notifications.templates import BaseEmailTemplate
+
     # Verify key methods are static
-    assert isinstance(
-        inspect.getattr_static(BaseEmailTemplate, "wrap_content"),
-        staticmethod
-    )
-    assert isinstance(
-        inspect.getattr_static(BaseEmailTemplate, "get_header"),
-        staticmethod
-    )
+    assert isinstance(inspect.getattr_static(BaseEmailTemplate, "wrap_content"), staticmethod)
+    assert isinstance(inspect.getattr_static(BaseEmailTemplate, "get_header"), staticmethod)
 
 
 def test_email_templates_has_static_methods() -> None:
     """Test EmailTemplates facade uses static methods."""
-    from the_alchemiser.shared.notifications.templates import EmailTemplates
     import inspect
 
+    from the_alchemiser.shared.notifications.templates import EmailTemplates
+
     # Verify facade methods are static (no self parameter needed)
+    assert isinstance(inspect.getattr_static(EmailTemplates, "error_notification"), staticmethod)
     assert isinstance(
-        inspect.getattr_static(EmailTemplates, "error_notification"),
-        staticmethod
-    )
-    assert isinstance(
-        inspect.getattr_static(EmailTemplates, "successful_trading_run"),
-        staticmethod
+        inspect.getattr_static(EmailTemplates, "successful_trading_run"), staticmethod
     )
 
 
@@ -196,10 +187,10 @@ def test_builder_classes_have_expected_methods() -> None:
 
     # PortfolioBuilder should have build methods
     assert hasattr(PortfolioBuilder, "build_account_summary_neutral")
-    
+
     # SignalsBuilder should have build methods
     # (exact method names may vary, just verify it's a proper class)
     assert hasattr(SignalsBuilder, "__dict__") or hasattr(SignalsBuilder, "__class__")
-    
+
     # MultiStrategyReportBuilder should have build methods
     assert hasattr(MultiStrategyReportBuilder, "build_multi_strategy_report_neutral")

@@ -6,11 +6,9 @@ Tests the fundamental business rules that apply across all trading operations,
 including position sizing, risk limits, and data validation.
 """
 
-from decimal import Decimal
-from datetime import UTC, datetime
 import uuid
-
-import pytest
+from datetime import UTC, datetime
+from decimal import Decimal
 
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
@@ -139,8 +137,7 @@ class TestTradingBusinessRules:
 
         # Calculate drift
         max_drift = max(
-            abs(current_weights[symbol] - target_weights[symbol])
-            for symbol in target_weights
+            abs(current_weights[symbol] - target_weights[symbol]) for symbol in target_weights
         )
 
         # Small drift should not trigger rebalancing
@@ -178,9 +175,7 @@ class TestTradingBusinessRules:
         portfolio_value = Decimal("100000.00")
         cash_reserve_percentage = Decimal("0.05")  # 5% cash reserve
 
-        available_for_investment = portfolio_value * (
-            Decimal("1") - cash_reserve_percentage
-        )
+        available_for_investment = portfolio_value * (Decimal("1") - cash_reserve_percentage)
         cash_reserve = portfolio_value * cash_reserve_percentage
 
         # Should maintain cash reserve

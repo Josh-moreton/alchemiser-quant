@@ -136,7 +136,7 @@ class TestOrderResultSummary:
     def test_order_id_redacted_length_constraint(self):
         """Test that order_id_redacted must be exactly 6 characters."""
         now = datetime.now(UTC)
-        
+
         # Valid 6-character redacted ID
         result = OrderResultSummary(
             symbol="AAPL",
@@ -658,7 +658,7 @@ class TestTypeAliases:
         """Test OrderAction type alias."""
         action: OrderAction = "BUY"
         assert action == "BUY"
-        
+
         action = "SELL"
         assert action == "SELL"
 
@@ -666,10 +666,10 @@ class TestTypeAliases:
         """Test ExecutionStatus type alias."""
         status: ExecutionStatus = "SUCCESS"
         assert status == "SUCCESS"
-        
+
         status = "FAILURE"
         assert status == "FAILURE"
-        
+
         status = "PARTIAL"
         assert status == "PARTIAL"
 
@@ -677,6 +677,6 @@ class TestTypeAliases:
         """Test TradingMode type alias."""
         mode: TradingMode = "PAPER"
         assert mode == "PAPER"
-        
+
         mode = "LIVE"
         assert mode == "LIVE"

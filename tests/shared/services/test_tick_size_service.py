@@ -9,14 +9,15 @@ ensuring correctness of limit price calculations in execution flow.
 
 from __future__ import annotations
 
-import math
+from decimal import Decimal
+
 import pytest
-from decimal import Decimal, InvalidOperation
-from hypothesis import given, strategies as st, assume
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
 from the_alchemiser.shared.services.tick_size_service import (
-    TickSizeService,
     DynamicTickSizeService,
+    TickSizeService,
 )
 
 
@@ -107,11 +108,11 @@ class TestTickSizeService:
     def test_dynamic_tick_size_service_alias(self):
         """Test that DynamicTickSizeService is an alias for TickSizeService."""
         assert DynamicTickSizeService is TickSizeService
-        
+
         # Should work identically
         service1 = TickSizeService()
         service2 = DynamicTickSizeService()
-        
+
         tick1 = service1.get_tick_size("TEST", Decimal("100.00"))
         tick2 = service2.get_tick_size("TEST", Decimal("100.00"))
         assert tick1 == tick2
@@ -121,7 +122,7 @@ class TestTickSizeService:
         """Test that tick size calculation is deterministic."""
         service = TickSizeService()
         price = Decimal("123.45")
-        
+
         # Call multiple times, should always get same result
         results = [service.get_tick_size("TEST", price) for _ in range(10)]
         assert all(r == results[0] for r in results)
@@ -139,10 +140,10 @@ class TestTickSizeService:
         """Test that returned Decimal maintains proper precision."""
         service = TickSizeService()
         tick_size = service.get_tick_size("TEST", Decimal("100.00"))
-        
+
         # Check Decimal properties
         assert tick_size.as_tuple().exponent == -2  # 0.01 has exponent -2
-        
+
         tick_size_sub = service.get_tick_size("TEST", Decimal("0.50"))
         assert tick_size_sub.as_tuple().exponent == -4  # 0.0001 has exponent -4
 
@@ -153,7 +154,7 @@ class TestTickSizeServiceEdgeCases:
     @pytest.mark.unit
     def test_zero_price(self):
         """Test behavior with zero price.
-        
+
         Note: Current implementation doesn't validate, but zero price
         would use sub-dollar tick size (< 1.00 condition).
         """
@@ -162,10 +163,10 @@ class TestTickSizeServiceEdgeCases:
         tick_size = service.get_tick_size("TEST", Decimal("0"))
         assert tick_size == Decimal("0.0001")
 
-    @pytest.mark.unit 
+    @pytest.mark.unit
     def test_negative_price(self):
         """Test behavior with negative price.
-        
+
         Note: Current implementation doesn't validate, but negative price
         would use sub-dollar tick size (< 1.00 condition).
         """
@@ -187,10 +188,7 @@ class TestTickSizeServiceEdgeCases:
         """Test price with excessive decimal precision."""
         service = TickSizeService()
         # Should handle arbitrary precision without error
-        tick_size = service.get_tick_size(
-            "TEST", 
-            Decimal("100.123456789012345678901234567890")
-        )
+        tick_size = service.get_tick_size("TEST", Decimal("100.123456789012345678901234567890"))
         assert tick_size == Decimal("0.01")
 
     @pytest.mark.unit
@@ -318,14 +316,12 @@ class TestTickSizeServiceIntegration:
     @pytest.mark.unit
     def test_compatible_with_tick_size_provider_protocol(self):
         """Test that TickSizeService implements TickSizeProvider protocol."""
-        from the_alchemiser.shared.math.trading_math import TickSizeProvider
-        
         service = TickSizeService()
-        
+
         # Should have the required method
         assert hasattr(service, "get_tick_size")
         assert callable(service.get_tick_size)
-        
+
         # Should work as a TickSizeProvider
         tick_size = service.get_tick_size("TEST", Decimal("100.00"))
         assert isinstance(tick_size, Decimal)
@@ -334,11 +330,11 @@ class TestTickSizeServiceIntegration:
     def test_usage_in_calculate_dynamic_limit_price_with_symbol(self):
         """Test integration with calculate_dynamic_limit_price_with_symbol."""
         from the_alchemiser.shared.math.trading_math import (
-            calculate_dynamic_limit_price_with_symbol
+            calculate_dynamic_limit_price_with_symbol,
         )
-        
+
         service = TickSizeService()
-        
+
         # Use service as tick_size_provider
         price = calculate_dynamic_limit_price_with_symbol(
             side_is_buy=True,
@@ -348,7 +344,7 @@ class TestTickSizeServiceIntegration:
             step=0,
             tick_size_provider=service,
         )
-        
+
         # Should return a float price
         assert isinstance(price, float)
         assert price > 0

@@ -7,7 +7,7 @@ is already in a terminal state and returns appropriate results to prevent
 duplicate order placement.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -34,16 +34,16 @@ class TestOrderCancellationTerminalStates:
         return AlpacaTradingService(
             trading_client=mock_trading_client,
             websocket_manager=mock_websocket_manager,
-            paper_trading=True
+            paper_trading=True,
         )
 
     def test_cancel_order_success(self, trading_service, mock_trading_client):
         """Test successful order cancellation."""
         order_id = "test-order-123"
         mock_trading_client.cancel_order_by_id.return_value = None
-        
+
         result = trading_service.cancel_order(order_id)
-        
+
         assert isinstance(result, OrderCancellationResult)
         assert result.success is True
         assert result.error is None
@@ -56,9 +56,9 @@ class TestOrderCancellationTerminalStates:
         # Simulate the error from the issue
         error = Exception('{"code":42210000,"message":"order is already in \\"filled\\" state"}')
         mock_trading_client.cancel_order_by_id.side_effect = error
-        
+
         result = trading_service.cancel_order(order_id)
-        
+
         assert isinstance(result, OrderCancellationResult)
         assert result.success is True  # Success because order is complete
         assert result.error == "already_filled"
@@ -69,9 +69,9 @@ class TestOrderCancellationTerminalStates:
         order_id = "test-order-123"
         error = Exception('order is already in "canceled" state')
         mock_trading_client.cancel_order_by_id.side_effect = error
-        
+
         result = trading_service.cancel_order(order_id)
-        
+
         assert isinstance(result, OrderCancellationResult)
         assert result.success is True
         assert result.error == "already_cancelled"
@@ -82,9 +82,9 @@ class TestOrderCancellationTerminalStates:
         order_id = "test-order-123"
         error = Exception('order is already in "rejected" state')
         mock_trading_client.cancel_order_by_id.side_effect = error
-        
+
         result = trading_service.cancel_order(order_id)
-        
+
         assert isinstance(result, OrderCancellationResult)
         assert result.success is True
         assert result.error == "already_rejected"
@@ -95,9 +95,9 @@ class TestOrderCancellationTerminalStates:
         order_id = "test-order-123"
         error = Exception("Insufficient permissions")
         mock_trading_client.cancel_order_by_id.side_effect = error
-        
+
         result = trading_service.cancel_order(order_id)
-        
+
         assert isinstance(result, OrderCancellationResult)
         assert result.success is False
         assert result.error == "Insufficient permissions"
@@ -108,9 +108,9 @@ class TestOrderCancellationTerminalStates:
         order_id = "test-order-123"
         error = Exception("Connection timeout")
         mock_trading_client.cancel_order_by_id.side_effect = error
-        
+
         result = trading_service.cancel_order(order_id)
-        
+
         assert isinstance(result, OrderCancellationResult)
         assert result.success is False
         assert "Connection timeout" in result.error

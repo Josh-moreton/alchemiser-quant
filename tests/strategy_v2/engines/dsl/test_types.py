@@ -11,9 +11,9 @@ from decimal import Decimal
 
 import pytest
 
-from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.errors.exceptions import AlchemiserError, StrategyExecutionError
-from the_alchemiser.strategy_v2.engines.dsl.types import DSLValue, DslEvaluationError
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
+from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError, DSLValue
 
 
 @pytest.mark.unit

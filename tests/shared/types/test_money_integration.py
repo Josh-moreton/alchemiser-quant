@@ -6,8 +6,9 @@ These tests validate that Money is properly used for monetary calculations
 across portfolio and P&L computations, ensuring type safety and precision.
 """
 
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.utils.portfolio_calculations import build_allocation_comparison
@@ -32,9 +33,7 @@ class TestMoneyIntegration:
         positions_dict = {}
 
         # Execute
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Verify: Target values should have Money-level precision (2 decimals)
         target_values = result["target_values"]
@@ -85,9 +84,7 @@ class TestMoneyIntegration:
         account_dict = {"portfolio_value": 10000.00}
         positions_dict = {"AAPL": 4000.00, "MSFT": 5000.00}
 
-        result = build_allocation_comparison(
-            consolidated_portfolio, account_dict, positions_dict
-        )
+        result = build_allocation_comparison(consolidated_portfolio, account_dict, positions_dict)
 
         # Verify deltas maintain precision
         deltas = result["deltas"]
