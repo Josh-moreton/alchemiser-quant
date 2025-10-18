@@ -9,7 +9,7 @@ error handler facade, error categorization, and detailed error reporting.
 
 from __future__ import annotations
 
-# Re-export public API from decomposed modules for backward compatibility
+# Re-export public API from decomposed modules
 from .error_details import ErrorDetails
 from .error_handler import (
     TradingSystemErrorHandler,
@@ -34,44 +34,16 @@ from .error_utils import (
     categorize_error_severity,
     retry_with_backoff,
 )
-
-# Import common exception types from local exceptions module
-try:
-    from .exceptions import (
-        AlchemiserError,
-        BuyingPowerError,
-        ConfigurationError,
-        DataProviderError,
-        EventBusError,
-        HandlerInvocationError,
-        MarketDataError,
-        OrderExecutionError,
-    )
-except ImportError:
-    # Fallback if types module not available
-    class AlchemiserError(Exception):  # type: ignore[no-redef]
-        """Fallback AlchemiserError."""
-
-    class ConfigurationError(AlchemiserError):  # type: ignore[no-redef]
-        """Fallback ConfigurationError."""
-
-    class DataProviderError(AlchemiserError):  # type: ignore[no-redef]
-        """Fallback DataProviderError."""
-
-    class MarketDataError(AlchemiserError):  # type: ignore[no-redef]
-        """Fallback MarketDataError."""
-
-    class OrderExecutionError(AlchemiserError):  # type: ignore[no-redef]
-        """Fallback OrderExecutionError."""
-
-    class BuyingPowerError(OrderExecutionError):  # type: ignore[no-redef]
-        """Fallback BuyingPowerError."""
-
-    class EventBusError(AlchemiserError):  # type: ignore[no-redef]
-        """Fallback EventBusError."""
-
-    class HandlerInvocationError(EventBusError):  # type: ignore[no-redef]
-        """Fallback HandlerInvocationError."""
+from .exceptions import (
+    AlchemiserError,
+    BuyingPowerError,
+    ConfigurationError,
+    DataProviderError,
+    EventBusError,
+    HandlerInvocationError,
+    MarketDataError,
+    OrderExecutionError,
+)
 
 
 __all__ = [
