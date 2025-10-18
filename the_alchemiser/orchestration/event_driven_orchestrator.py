@@ -191,7 +191,7 @@ class EventDrivenOrchestrator:
                 )
 
                 # Get trading client from container
-                trading_client = self.container.infrastructure.alpaca_trading_client()
+                trading_client = self.container.infrastructure.alpaca_manager().trading_client
                 market_clock_service = MarketClockService(trading_client)
 
                 # Check if market is open
