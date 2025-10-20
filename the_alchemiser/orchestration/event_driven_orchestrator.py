@@ -182,6 +182,45 @@ class EventDrivenOrchestrator:
         self.logger.info(f"🚀 Starting event-driven trading workflow: {workflow_correlation_id}")
 
         try:
+            # Check market status before starting workflow
+            market_is_open = False
+            market_status = "unknown"
+            try:
+                from the_alchemiser.shared.services.market_clock_service import (
+                    MarketClockService,
+                )
+
+                # Get trading client from container
+                trading_client = self.container.infrastructure.alpaca_manager().trading_client
+                market_clock_service = MarketClockService(trading_client)
+
+                # Check if market is open
+                market_is_open = market_clock_service.is_market_open(
+                    correlation_id=workflow_correlation_id
+                )
+                market_status = "open" if market_is_open else "closed"
+
+                if not market_is_open:
+                    self.logger.warning(
+                        "⚠️  Market is currently closed - signal generation will proceed "
+                        "but order placement will be skipped",
+                        correlation_id=workflow_correlation_id,
+                        market_status=market_status,
+                    )
+                else:
+                    self.logger.info(
+                        "✅ Market is open - full trading workflow will execute",
+                        correlation_id=workflow_correlation_id,
+                        market_status=market_status,
+                    )
+            except Exception as market_check_error:
+                # Don't fail workflow if market check fails - log and continue
+                self.logger.warning(
+                    f"Failed to check market status: {market_check_error}",
+                    correlation_id=workflow_correlation_id,
+                    error_type=type(market_check_error).__name__,
+                )
+
             # Emit WorkflowStarted event to trigger the domain handlers
             workflow_event = WorkflowStarted(
                 correlation_id=workflow_correlation_id,
@@ -194,6 +233,8 @@ class EventDrivenOrchestrator:
                 requested_by="TradingSystem",
                 configuration={
                     "live_trading": not self.container.config.paper_trading(),
+                    "market_is_open": market_is_open,
+                    "market_status": market_status,
                 },
             )
 

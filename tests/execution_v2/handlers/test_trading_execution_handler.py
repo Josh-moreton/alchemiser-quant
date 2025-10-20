@@ -575,3 +575,86 @@ class TestPartialExecutionHandling:
             with patch.object(handler, "_emit_workflow_failure") as mock_failure:
                 handler._handle_rebalance_planned(sample_rebalance_planned_event)
                 mock_failure.assert_called_once()
+
+
+class TestMarketClosureHandling:
+    """Test market closure detection and conditional execution."""
+
+    def test_skips_order_placement_when_market_closed(
+        self, handler, sample_rebalance_planned_event
+    ):
+        """Test that order placement is skipped when market is closed."""
+        # Mock market check to return False (market closed)
+        with patch.object(handler, "_check_market_status", return_value=False):
+            with patch.object(handler, "_emit_trade_executed_event") as mock_trade_event:
+                with patch.object(handler, "_emit_workflow_completed_event") as mock_complete:
+                    handler._handle_rebalance_planned(sample_rebalance_planned_event)
+
+                    # Verify TradeExecuted event was emitted
+                    assert mock_trade_event.call_count == 1
+                    # Extract arguments - first arg is ExecutionResult, success is keyword arg
+                    execution_result = mock_trade_event.call_args[0][0]
+                    success = mock_trade_event.call_args[1]["success"]
+                    assert success is True
+                    assert execution_result.orders_placed == 0
+                    assert execution_result.orders_succeeded == 0
+                    assert execution_result.metadata["scenario"] == "market_closed"
+                    assert "market is closed" in execution_result.metadata["message"].lower()
+
+                    # Verify WorkflowCompleted event was emitted
+                    mock_complete.assert_called_once()
+
+    def test_proceeds_with_execution_when_market_open(
+        self, handler, sample_rebalance_planned_event, mock_container
+    ):
+        """Test that order placement proceeds when market is open."""
+        mock_manager = Mock()
+        mock_execution_result = ExecutionResult(
+            success=True,
+            status=ExecutionStatus.SUCCESS,
+            plan_id="test-plan",
+            correlation_id="test-corr",
+            orders=[
+                OrderResult(
+                    symbol="AAPL",
+                    action="BUY",
+                    trade_amount=Decimal("1000"),
+                    shares=Decimal("10"),
+                    success=True,
+                    timestamp=datetime.now(UTC),
+                )
+            ],
+            orders_placed=1,
+            orders_succeeded=1,
+            total_trade_value=Decimal("1000"),
+            execution_timestamp=datetime.now(UTC),
+        )
+        mock_manager.execute_rebalance_plan.return_value = mock_execution_result
+
+        # Mock market check to return True (market open)
+        with patch.object(handler, "_check_market_status", return_value=True):
+            with patch.object(handler, "_create_execution_manager", return_value=mock_manager):
+                with patch.object(handler, "_emit_trade_executed_event") as mock_trade_event:
+                    with patch.object(handler, "_emit_workflow_completed_event"):
+                        handler._handle_rebalance_planned(sample_rebalance_planned_event)
+
+                        # Verify execution happened
+                        mock_manager.execute_rebalance_plan.assert_called_once()
+
+                        # Verify TradeExecuted event was emitted with actual results
+                        assert mock_trade_event.call_count == 1
+                        execution_result = mock_trade_event.call_args[0][0]
+                        success = mock_trade_event.call_args[1]["success"]
+                        assert success is True
+                        assert execution_result.orders_placed == 1
+                        assert execution_result.orders_succeeded == 1
+
+    def test_market_check_returns_true_on_failure(self, handler):
+        """Test that _check_market_status returns True when market check fails."""
+        # Mock trading client to raise exception
+        handler.container.infrastructure.alpaca_trading_client.side_effect = Exception("API error")
+
+        # Should return True (defaults to open on error)
+        result = handler._check_market_status("test-correlation-id")
+        assert result is True
+
