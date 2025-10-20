@@ -88,7 +88,7 @@ confidence_level = "MEDIUM"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0.0"
-alpaca-py = "0.42.2"
+alpaca-py = "0.43.0"
 numpy = "1.26.4"
 pandas = "^2.2.0"
 python-dateutil = "2.9.0.post0"
