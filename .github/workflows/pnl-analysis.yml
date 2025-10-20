@@ -94,18 +94,31 @@ jobs:
           echo "command=${command}" >> $GITHUB_OUTPUT
           echo "description=${description}" >> $GITHUB_OUTPUT
 
-      - name: Run P&L Analysis
-        id: run_pnl
+      - name: Prepare environment variables
         env:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
-          ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           EMAIL__FROM_EMAIL: ${{ vars.EMAIL__FROM_EMAIL }}
           EMAIL__TO_EMAIL: ${{ vars.EMAIL__TO_EMAIL }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           APP__STAGE: prod
           LOGGING__CONSOLE_LEVEL: INFO
           LOGGING__LEVEL: INFO
+        run: |
+          echo "Exporting Alpaca credentials for P&L analysis"
+          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__FROM_EMAIL" ]; then echo "EMAIL__FROM_EMAIL=$EMAIL__FROM_EMAIL" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__TO_EMAIL" ]; then echo "EMAIL__TO_EMAIL=$EMAIL__TO_EMAIL" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          echo "APP__STAGE=$APP__STAGE" >> $GITHUB_ENV
+          echo "LOGGING__CONSOLE_LEVEL=$LOGGING__CONSOLE_LEVEL" >> $GITHUB_ENV
+          echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV
+
+      - name: Run P&L Analysis
+        id: run_pnl
         run: |
           echo "🔍 Running ${{ steps.pnl_command.outputs.description }}"
           echo "📊 Command: python -m the_alchemiser ${{ steps.pnl_command.outputs.command }}"
