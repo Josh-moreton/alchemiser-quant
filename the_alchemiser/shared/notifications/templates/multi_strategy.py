@@ -113,6 +113,11 @@ class MultiStrategyReportBuilder:
             """
             content_sections.append(summary_html)
 
+        # Strategy signals (neutral mode) - MOVED UP before portfolio rebalancing
+        if strategy_signals:
+            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
+            content_sections.append(neutral_signals_html)
+
         # Portfolio rebalancing table (percentages only) - with improved header
         rebalancing_html = BaseEmailTemplate.create_section(
             "Portfolio Rebalancing Plan",
@@ -124,11 +129,6 @@ class MultiStrategyReportBuilder:
         market_regime_html = SignalsBuilder.build_market_regime_analysis(strategy_signals)
         if market_regime_html:
             content_sections.append(market_regime_html)
-
-        # Strategy signals (neutral mode)
-        if strategy_signals:
-            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
-            content_sections.append(neutral_signals_html)
 
         # Orders executed (detailed table, no values) - with improved header
         orders = getattr(result, "orders_executed", [])
