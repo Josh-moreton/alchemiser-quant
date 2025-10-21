@@ -654,6 +654,95 @@ class SignalsBuilder:
             return 0.0
 
     @staticmethod
+    def _parse_dsl_reasoning_to_human_readable(reasoning: str) -> str:
+        """Parse DSL reasoning into human-readable text.
+
+        Converts technical DSL expressions like:
+        "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation"
+
+        Into human-friendly text like:
+        "Grail strategy triggered: RSI conditions met on SPY vs TQQQ, allocation set to 75.0%"
+
+        Args:
+            reasoning: Raw DSL reasoning string with technical expressions
+
+        Returns:
+            Human-readable summary string
+
+        """
+        if not reasoning:
+            return ""
+
+        # Extract strategy name if present (text before first colon)
+        strategy_name = ""
+        content = reasoning
+        if ":" in reasoning:
+            parts = reasoning.split(":", 1)
+            strategy_name = parts[0].strip()
+            content = parts[1].strip()
+
+        # Extract allocation percentage if present
+        allocation = ""
+        if "%" in content and "allocation" in content.lower():
+            # Find the percentage value
+            import re
+
+            match = re.search(r"(\d+\.?\d*)\s*%\s*allocation", content, re.IGNORECASE)
+            if match:
+                allocation = f"allocation set to {match.group(1)}%"
+
+        # Parse condition checks (✓ symbol)
+        conditions = []
+        parts = content.split("→")
+        for part in parts:
+            part = part.strip()
+            if "✓" in part:
+                # Remove checkmark and clean up
+                condition = part.replace("✓", "").strip()
+                # Skip if it's just the allocation text
+                if "allocation" not in condition.lower() and condition:
+                    # Extract key info: symbol and indicator
+                    # Example: "SPY RSI(10)>79" -> "SPY RSI conditions met"
+                    if "rsi" in condition.lower():
+                        # Extract symbols from the condition (excluding RSI itself)
+                        import re
+
+                        # Match symbol patterns before "rsi"
+                        symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
+                        if symbols:
+                            conditions.append(f"RSI conditions met on {' and '.join(symbols)}")
+                    elif "max-drawdown" in condition.lower() or "drawdown" in condition.lower():
+                        import re
+
+                        symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
+                        # Filter out common words
+                        symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
+                        if symbols:
+                            conditions.append(
+                                f"{symbols[0]} exceeded max drawdown threshold"
+                                if len(symbols) == 1
+                                else f"drawdown check on {', '.join(symbols)}"
+                            )
+                    else:
+                        # Generic condition
+                        conditions.append("conditions satisfied")
+
+        # Build human-readable summary
+        parts = []
+        if strategy_name:
+            parts.append(f"{strategy_name} strategy triggered")
+        if conditions:
+            parts.append(", ".join(conditions))
+        if allocation:
+            parts.append(allocation)
+
+        if parts:
+            return ": ".join(parts[:1]) + (": " if len(parts) > 1 else "") + ", ".join(parts[1:])
+
+        # Fallback to truncated original if parsing fails
+        return SignalsBuilder._truncate_reason(reasoning, MAX_REASON_LENGTH_SUMMARY)
+
+    @staticmethod
     def build_signal_summary(
         strategy_signals: dict[str | StrategyType, SignalData],
         consolidated_portfolio: dict[str, float],
@@ -713,16 +802,17 @@ class SignalsBuilder:
                 else:
                     signal_str = action
 
-            # Format as: strategy_name: reasoning → signal
-            # Truncate reasoning for summary display
-            truncated_reason = ""
+            # Parse DSL reasoning into human-readable text
+            human_readable_reason = ""
             if reasoning:
-                truncated_reason = SignalsBuilder._truncate_reason(
-                    reasoning, MAX_REASON_LENGTH_SUMMARY
+                human_readable_reason = SignalsBuilder._parse_dsl_reasoning_to_human_readable(
+                    reasoning
                 )
 
             # Build the row: "grail: <reasoning> → BUY TQQQ"
-            display_line = f"{truncated_reason} → {signal_str}" if truncated_reason else signal_str
+            display_line = (
+                f"{human_readable_reason} → {signal_str}" if human_readable_reason else signal_str
+            )
 
             strategy_rows.append(
                 f"""

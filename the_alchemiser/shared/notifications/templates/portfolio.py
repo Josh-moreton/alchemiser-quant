@@ -99,10 +99,50 @@ class PortfolioBuilder:
             Dictionary mapping symbols to position data
 
         """
+        # First try final_portfolio_state.positions (preferred)
+        final_state = data.get("final_portfolio_state", {})
+        if isinstance(final_state, dict) and final_state.get("positions"):
+            positions_list = final_state.get("positions", [])
+            current_positions: dict[str, Any] = {}
+            if isinstance(positions_list, list):
+                for pos in positions_list:
+                    if isinstance(pos, dict) and pos.get("symbol"):
+                        current_positions[pos["symbol"]] = pos
+                    # Handle Position DTO objects
+                    elif hasattr(pos, "symbol"):
+                        current_positions[pos.symbol] = {
+                            "symbol": pos.symbol,
+                            "market_value": getattr(pos, "market_value", 0),
+                            "quantity": getattr(pos, "quantity", 0),
+                        }
+            if current_positions:
+                return current_positions
+
+        # Fallback to account_info_before (before trade execution)
+        account_before = data.get("account_info_before", {})
+        if isinstance(account_before, dict):
+            # Try positions field directly if available
+            if account_before.get("positions"):
+                positions_list = account_before.get("positions", [])
+                current_positions = {}
+                if isinstance(positions_list, list):
+                    for pos in positions_list:
+                        if isinstance(pos, dict) and pos.get("symbol"):
+                            current_positions[pos["symbol"]] = pos
+                        elif hasattr(pos, "symbol"):
+                            current_positions[pos.symbol] = {
+                                "symbol": pos.symbol,
+                                "market_value": getattr(pos, "market_value", 0),
+                                "quantity": getattr(pos, "quantity", 0),
+                            }
+                if current_positions:
+                    return current_positions
+
+        # Legacy fallback: account_info_after.open_positions
         account_after = data.get("account_info_after", {})
         if isinstance(account_after, dict) and account_after.get("open_positions"):
             open_positions = account_after.get("open_positions", [])
-            current_positions: dict[str, Any] = {}
+            current_positions = {}
             if isinstance(open_positions, list):
                 for pos in open_positions:
                     if isinstance(pos, dict) and pos.get("symbol"):
