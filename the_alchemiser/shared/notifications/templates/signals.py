@@ -705,15 +705,13 @@ class SignalsBuilder:
                     # Example: "SPY RSI(10)>79" -> "SPY RSI conditions met"
                     if "rsi" in condition.lower():
                         # Extract symbols from the condition (excluding RSI itself)
-                        import re
+
 
                         # Match symbol patterns before "rsi"
                         symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
                         if symbols:
                             conditions.append(f"RSI conditions met on {' and '.join(symbols)}")
                     elif "max-drawdown" in condition.lower() or "drawdown" in condition.lower():
-                        import re
-
                         symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
                         # Filter out common words
                         symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
