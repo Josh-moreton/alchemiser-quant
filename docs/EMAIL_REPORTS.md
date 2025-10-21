@@ -156,10 +156,9 @@ This ordering allows readers to quickly understand:
 ## Data Accuracy Notes
 
 ### Current % Calculation
-The "Current %" in the Portfolio Rebalancing Plan is calculated from:
-1. **First choice**: `final_portfolio_state.positions` (after execution)
-2. **Fallback**: `account_info_before.positions` (before execution)
-3. **Legacy fallback**: `account_info_after.open_positions`
+The "Current %" in the Portfolio Rebalancing Plan represents the **pre-execution** portfolio state. It is calculated from:
+1. **First choice**: `account_info_before.positions` (pre-execution state - preferred)
+2. **Legacy fallback**: `account_info_after.open_positions` (kept for backward compatibility)
 
 The system calculates:
 ```
@@ -167,6 +166,8 @@ Current % = (Symbol Market Value) / (Total Portfolio Value)
 ```
 
 If no position data is available, Current % defaults to 0.0%.
+
+**Important**: The "Current %" shows what the portfolio looked like BEFORE the rebalancing occurred, allowing users to understand what changed during execution.
 
 ### Signal Reasoning Parsing
 DSL strategy reasoning strings are automatically parsed into human-readable text:

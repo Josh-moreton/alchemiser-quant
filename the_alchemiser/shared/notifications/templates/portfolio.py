@@ -92,6 +92,10 @@ class PortfolioBuilder:
     def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
         """Extract current positions from execution result data.
 
+        The "Current %" represents the pre-execution portfolio state, so we check
+        account_info_before first to ensure we're showing what the portfolio looked
+        like BEFORE the rebalancing occurred.
+
         Args:
             data: Execution result dictionary containing account information
 
@@ -99,32 +103,13 @@ class PortfolioBuilder:
             Dictionary mapping symbols to position data
 
         """
-        # First try final_portfolio_state.positions (preferred)
-        final_state = data.get("final_portfolio_state", {})
-        if isinstance(final_state, dict) and final_state.get("positions"):
-            positions_list = final_state.get("positions", [])
-            current_positions: dict[str, Any] = {}
-            if isinstance(positions_list, list):
-                for pos in positions_list:
-                    if isinstance(pos, dict) and pos.get("symbol"):
-                        current_positions[pos["symbol"]] = pos
-                    # Handle Position DTO objects
-                    elif hasattr(pos, "symbol"):
-                        current_positions[pos.symbol] = {
-                            "symbol": pos.symbol,
-                            "market_value": getattr(pos, "market_value", 0),
-                            "quantity": getattr(pos, "quantity", 0),
-                        }
-            if current_positions:
-                return current_positions
-
-        # Fallback to account_info_before (before trade execution)
+        # First try account_info_before (pre-execution state - preferred for "Current %")
         account_before = data.get("account_info_before", {})
         if isinstance(account_before, dict):
             # Try positions field directly if available
             if account_before.get("positions"):
                 positions_list = account_before.get("positions", [])
-                current_positions = {}
+                current_positions: dict[str, Any] = {}
                 if isinstance(positions_list, list):
                     for pos in positions_list:
                         if isinstance(pos, dict) and pos.get("symbol"):
@@ -139,6 +124,8 @@ class PortfolioBuilder:
                     return current_positions
 
         # Legacy fallback: account_info_after.open_positions
+        # Note: This is not ideal as it shows post-execution state, but kept for
+        # backward compatibility if account_info_before is not available
         account_after = data.get("account_info_after", {})
         if isinstance(account_after, dict) and account_after.get("open_positions"):
             open_positions = account_after.get("open_positions", [])
