@@ -735,7 +735,10 @@ class SignalsBuilder:
             parts.append(allocation)
 
         if parts:
-            return ": ".join(parts[:1]) + (": " if len(parts) > 1 else "") + ", ".join(parts[1:])
+            if len(parts) == 1:
+                return parts[0]
+            else:
+                return f"{parts[0]}: {', '.join(parts[1:])}"
 
         # Fallback to truncated original if parsing fails
         return SignalsBuilder._truncate_reason(reasoning, MAX_REASON_LENGTH_SUMMARY)
