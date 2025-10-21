@@ -108,7 +108,7 @@ class PortfolioBuilder:
         if isinstance(account_before, dict):
             # Try positions field directly if available
             if account_before.get("positions"):
-                positions_list = account_before.get("positions", [])
+                positions_list = account_before["positions"]
                 current_positions: dict[str, Any] = {}
                 if isinstance(positions_list, list):
                     for pos in positions_list:
