@@ -654,6 +654,73 @@ class SignalsBuilder:
             return 0.0
 
     @staticmethod
+    def _extract_strategy_name_and_content(reasoning: str) -> tuple[str, str]:
+        """Extract strategy name and content from reasoning string.
+
+        Args:
+            reasoning: Raw DSL reasoning string
+
+        Returns:
+            Tuple of (strategy_name, content)
+
+        """
+        if ":" in reasoning:
+            parts = reasoning.split(":", 1)
+            return parts[0].strip(), parts[1].strip()
+        return "", reasoning
+
+    @staticmethod
+    def _extract_allocation(content: str) -> str:
+        """Extract allocation percentage from content string.
+
+        Args:
+            content: Content portion of reasoning string
+
+        Returns:
+            Human-readable allocation string or empty string
+
+        """
+        if "%" in content and "allocation" in content.lower():
+            import re
+
+            match = re.search(r"(\d+\.?\d*)\s*%\s*allocation", content, re.IGNORECASE)
+            if match:
+                return f"allocation set to {match.group(1)}%"
+        return ""
+
+    @staticmethod
+    def _parse_condition(condition: str) -> str | None:
+        """Parse a single condition into human-readable text.
+
+        Args:
+            condition: Condition string to parse
+
+        Returns:
+            Human-readable condition string or None if should be skipped
+
+        """
+        import re
+
+        # Skip allocation text
+        if "allocation" in condition.lower() or not condition:
+            return None
+
+        if "rsi" in condition.lower():
+            symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
+            if symbols:
+                return f"RSI conditions met on {' and '.join(symbols)}"
+
+        if "max-drawdown" in condition.lower() or "drawdown" in condition.lower():
+            symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
+            symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
+            if symbols:
+                if len(symbols) == 1:
+                    return f"{symbols[0]} exceeded max drawdown threshold"
+                return f"drawdown check on {', '.join(symbols)}"
+
+        return "conditions satisfied"
+
+    @staticmethod
     def _parse_dsl_reasoning_to_human_readable(reasoning: str) -> str:
         """Parse DSL reasoning into human-readable text.
 
@@ -673,23 +740,8 @@ class SignalsBuilder:
         if not reasoning:
             return ""
 
-        # Extract strategy name if present (text before first colon)
-        strategy_name = ""
-        content = reasoning
-        if ":" in reasoning:
-            parts = reasoning.split(":", 1)
-            strategy_name = parts[0].strip()
-            content = parts[1].strip()
-
-        # Extract allocation percentage if present
-        allocation = ""
-        if "%" in content and "allocation" in content.lower():
-            # Find the percentage value
-            import re
-
-            match = re.search(r"(\d+\.?\d*)\s*%\s*allocation", content, re.IGNORECASE)
-            if match:
-                allocation = f"allocation set to {match.group(1)}%"
+        strategy_name, content = SignalsBuilder._extract_strategy_name_and_content(reasoning)
+        allocation = SignalsBuilder._extract_allocation(content)
 
         # Parse condition checks (✓ symbol)
         conditions = []
@@ -697,48 +749,24 @@ class SignalsBuilder:
         for part in parts:
             part = part.strip()
             if "✓" in part:
-                # Remove checkmark and clean up
                 condition = part.replace("✓", "").strip()
-                # Skip if it's just the allocation text
-                if "allocation" not in condition.lower() and condition:
-                    # Extract key info: symbol and indicator
-                    # Example: "SPY RSI(10)>79" -> "SPY RSI conditions met"
-                    if "rsi" in condition.lower():
-                        # Extract symbols from the condition (excluding RSI itself)
-
-
-                        # Match symbol patterns before "rsi"
-                        symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
-                        if symbols:
-                            conditions.append(f"RSI conditions met on {' and '.join(symbols)}")
-                    elif "max-drawdown" in condition.lower() or "drawdown" in condition.lower():
-                        symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
-                        # Filter out common words
-                        symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
-                        if symbols:
-                            conditions.append(
-                                f"{symbols[0]} exceeded max drawdown threshold"
-                                if len(symbols) == 1
-                                else f"drawdown check on {', '.join(symbols)}"
-                            )
-                    else:
-                        # Generic condition
-                        conditions.append("conditions satisfied")
+                parsed = SignalsBuilder._parse_condition(condition)
+                if parsed:
+                    conditions.append(parsed)
 
         # Build human-readable summary
-        parts = []
+        summary_parts = []
         if strategy_name:
-            parts.append(f"{strategy_name} strategy triggered")
+            summary_parts.append(f"{strategy_name} strategy triggered")
         if conditions:
-            parts.append(", ".join(conditions))
+            summary_parts.append(", ".join(conditions))
         if allocation:
-            parts.append(allocation)
+            summary_parts.append(allocation)
 
-        if parts:
-            if len(parts) == 1:
-                return parts[0]
-            else:
-                return f"{parts[0]}: {', '.join(parts[1:])}"
+        if summary_parts:
+            if len(summary_parts) == 1:
+                return summary_parts[0]
+            return f"{summary_parts[0]}: {', '.join(summary_parts[1:])}"
 
         # Fallback to truncated original if parsing fails
         return SignalsBuilder._truncate_reason(reasoning, MAX_REASON_LENGTH_SUMMARY)

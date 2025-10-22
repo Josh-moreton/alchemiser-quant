@@ -105,23 +105,21 @@ class PortfolioBuilder:
         """
         # First try account_info_before (pre-execution state - preferred for "Current %")
         account_before = data.get("account_info_before", {})
-        if isinstance(account_before, dict):
-            # Try positions field directly if available
-            if account_before.get("positions"):
-                positions_list = account_before["positions"]
-                current_positions: dict[str, Any] = {}
-                if isinstance(positions_list, list):
-                    for pos in positions_list:
-                        if isinstance(pos, dict) and pos.get("symbol"):
-                            current_positions[pos["symbol"]] = pos
-                        elif hasattr(pos, "symbol"):
-                            current_positions[pos.symbol] = {
-                                "symbol": pos.symbol,
-                                "market_value": getattr(pos, "market_value", 0),
-                                "quantity": getattr(pos, "quantity", 0),
-                            }
-                if current_positions:
-                    return current_positions
+        if isinstance(account_before, dict) and account_before.get("positions"):
+            positions_list = account_before["positions"]
+            current_positions: dict[str, Any] = {}
+            if isinstance(positions_list, list):
+                for pos in positions_list:
+                    if isinstance(pos, dict) and pos.get("symbol"):
+                        current_positions[pos["symbol"]] = pos
+                    elif hasattr(pos, "symbol"):
+                        current_positions[pos.symbol] = {
+                            "symbol": pos.symbol,
+                            "market_value": getattr(pos, "market_value", 0),
+                            "quantity": getattr(pos, "quantity", 0),
+                        }
+            if current_positions:
+                return current_positions
 
         # Legacy fallback: account_info_after.open_positions
         # Note: This is not ideal as it shows post-execution state, but kept for
