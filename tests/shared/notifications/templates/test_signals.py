@@ -692,3 +692,173 @@ class TestConstants:
         # Verify ordering
         assert RSI_OVERBOUGHT_CRITICAL > RSI_OVERBOUGHT_WARNING
         assert RSI_OVERBOUGHT_WARNING > RSI_OVERSOLD
+
+
+class TestRSIClassification:
+    """Tests for RSI classification labels."""
+
+    def test_rsi_classification_critically_overbought(self) -> None:
+        """Test RSI classification for critically overbought (>80)."""
+        assert SignalsBuilder._get_rsi_classification(85.0) == "critically overbought"
+        assert SignalsBuilder._get_rsi_classification(80.1) == "critically overbought"
+
+    def test_rsi_classification_overbought(self) -> None:
+        """Test RSI classification for overbought (70-80)."""
+        assert SignalsBuilder._get_rsi_classification(75.0) == "overbought"
+        assert SignalsBuilder._get_rsi_classification(70.1) == "overbought"
+        assert SignalsBuilder._get_rsi_classification(80.0) == "overbought"
+
+    def test_rsi_classification_oversold(self) -> None:
+        """Test RSI classification for oversold (<20)."""
+        assert SignalsBuilder._get_rsi_classification(15.0) == "oversold"
+        assert SignalsBuilder._get_rsi_classification(19.9) == "oversold"
+
+    def test_rsi_classification_neutral(self) -> None:
+        """Test RSI classification for neutral (20-70)."""
+        assert SignalsBuilder._get_rsi_classification(50.0) == "neutral"
+        assert SignalsBuilder._get_rsi_classification(20.0) == "neutral"
+        assert SignalsBuilder._get_rsi_classification(70.0) == "neutral"
+
+
+class TestEnhancedParseCondition:
+    """Tests for enhanced condition parsing with technical indicators."""
+
+    def test_parse_rsi_condition_with_indicators(self) -> None:
+        """Test parsing RSI condition with actual indicator values."""
+        technical_indicators = {"SPY": {"rsi_10": 82.5}}
+        result = SignalsBuilder._parse_condition("SPY RSI(10)>79", technical_indicators)
+        assert result is not None
+        assert "SPY RSI(10) is **82.5**" in result
+        assert "above the **79** threshold" in result
+        assert "critically overbought" in result
+
+    def test_parse_rsi_condition_without_indicators(self) -> None:
+        """Test parsing RSI condition without indicator values (fallback)."""
+        result = SignalsBuilder._parse_condition("SPY RSI(10)>79", None)
+        assert result is not None
+        assert "SPY RSI(10) above 79" in result
+
+    def test_parse_rsi_condition_below_threshold(self) -> None:
+        """Test parsing RSI condition with below operator."""
+        technical_indicators = {"TQQQ": {"rsi_10": 18.2}}
+        result = SignalsBuilder._parse_condition("TQQQ RSI(10)<20", technical_indicators)
+        assert result is not None
+        assert "TQQQ RSI(10) is **18.2**" in result
+        assert "below the **20** threshold" in result
+        assert "oversold" in result
+
+    def test_parse_rsi_condition_overbought_warning(self) -> None:
+        """Test parsing RSI condition in overbought warning zone."""
+        technical_indicators = {"QQQ": {"rsi_10": 75.0}}
+        result = SignalsBuilder._parse_condition("QQQ RSI(10)>70", technical_indicators)
+        assert result is not None
+        assert "QQQ RSI(10) is **75.0**" in result
+        assert "overbought" in result
+
+    def test_parse_drawdown_condition_with_threshold(self) -> None:
+        """Test parsing max-drawdown condition with threshold percentage."""
+        result = SignalsBuilder._parse_condition("TMF max-drawdown > 7%", None)
+        assert result is not None
+        assert "TMF exceeded max drawdown threshold" in result
+        assert "**7%**" in result
+
+    def test_parse_condition_skips_allocation(self) -> None:
+        """Test that allocation text is skipped."""
+        result = SignalsBuilder._parse_condition("75.0% allocation", None)
+        assert result is None
+
+
+class TestEnhancedDSLParsing:
+    """Tests for enhanced DSL reasoning parsing with deduplication."""
+
+    def test_parse_dsl_with_technical_indicators(self) -> None:
+        """Test DSL parsing includes actual RSI values from indicators."""
+        reasoning = "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation"
+        technical_indicators = {
+            "SPY": {"rsi_10": 82.5},
+            "TQQQ": {"rsi_10": 78.0},
+        }
+        result = SignalsBuilder._parse_dsl_reasoning_to_human_readable(
+            reasoning, technical_indicators
+        )
+        assert "Nuclear strategy triggered" in result
+        assert "82.5" in result  # SPY actual RSI
+        assert "78.0" in result  # TQQQ actual RSI
+        assert "allocation set to 75.0%" in result
+
+    def test_parse_dsl_deduplicates_conditions(self) -> None:
+        """Test that duplicate conditions are removed."""
+        reasoning = "Test: ✓ SPY RSI(10)>79 → ✓ SPY RSI(10)>79 → allocation"
+        technical_indicators = {"SPY": {"rsi_10": 82.5}}
+        result = SignalsBuilder._parse_dsl_reasoning_to_human_readable(
+            reasoning, technical_indicators
+        )
+        # Should only contain SPY RSI condition once
+        count = result.count("SPY RSI(10)")
+        assert count == 1
+
+    def test_parse_dsl_without_indicators(self) -> None:
+        """Test DSL parsing falls back gracefully without indicators."""
+        reasoning = "Nuclear: ✓ SPY RSI(10)>79 → 75.0% allocation"
+        result = SignalsBuilder._parse_dsl_reasoning_to_human_readable(reasoning, None)
+        assert "Nuclear strategy triggered" in result
+        assert "allocation set to 75.0%" in result
+
+
+class TestPriceActionGauge:
+    """Tests for price action gauge generation."""
+
+    def test_build_price_action_gauge_with_data(self) -> None:
+        """Test building price action gauge with valid data."""
+        strategy_signals = {
+            "STRATEGY1": {
+                "technical_indicators": {
+                    "SPY": {
+                        "rsi_10": 82.5,
+                        "current_price": 505.10,
+                        "ma_200": 487.50,
+                    },
+                    "TMF": {
+                        "rsi_10": 19.8,
+                        "current_price": 45.20,
+                        "ma_200": 50.00,
+                    },
+                }
+            }
+        }
+        result = SignalsBuilder.build_price_action_gauge(strategy_signals)
+        assert "Price Action Gauge" in result
+        assert "SPY" in result
+        assert "TMF" in result
+        assert "82.5" in result  # SPY RSI
+        assert "19.8" in result  # TMF RSI
+        # Should show gauge classification
+        assert "Bullish" in result or "Bearish" in result
+
+    def test_build_price_action_gauge_empty(self) -> None:
+        """Test building price action gauge with no data."""
+        result = SignalsBuilder.build_price_action_gauge({})
+        assert result == ""
+
+    def test_build_price_action_gauge_no_indicators(self) -> None:
+        """Test building price action gauge when signals have no indicators."""
+        strategy_signals = {"STRATEGY1": {"symbol": "SPY", "action": "BUY"}}
+        result = SignalsBuilder.build_price_action_gauge(strategy_signals)
+        assert result == ""
+
+    def test_price_action_gauge_shows_conflict_warning(self) -> None:
+        """Test that price action gauge shows conflict warning for mixed signals."""
+        strategy_signals = {
+            "STRATEGY1": {
+                "technical_indicators": {
+                    # RSI oversold but price above MA (conflicting)
+                    "SPY": {
+                        "rsi_10": 18.0,
+                        "current_price": 500.0,
+                        "ma_200": 450.0,
+                    },
+                }
+            }
+        }
+        result = SignalsBuilder.build_price_action_gauge(strategy_signals)
+        assert "⚠️" in result  # Conflict indicator

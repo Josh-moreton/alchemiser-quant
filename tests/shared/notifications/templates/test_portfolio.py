@@ -377,3 +377,53 @@ class TestRebalancingActionLogic:
             action = "SELL"
 
         assert action == "SELL"
+
+
+class TestMissingPositionHandling:
+    """Tests for handling missing pre-execution position data."""
+
+    def test_rebalancing_table_with_missing_positions(self):
+        """Test that rebalancing table shows '—' for current % when positions missing."""
+        from the_alchemiser.shared.notifications.templates.portfolio import (
+            PortfolioBuilder,
+        )
+
+        # Execution result with target portfolio but no position data
+        result = {
+            "consolidated_portfolio": {"SPY": 0.6, "TMF": 0.4},
+            "account_info_before": {"positions": []},  # Empty positions
+            "account_info_after": {"portfolio_value": 10000.0},
+        }
+
+        html = PortfolioBuilder.build_portfolio_rebalancing_table(result)
+        assert "—" in html  # Should show em dash for current %
+        assert "60.0%" in html  # Target % should still show
+        assert "40.0%" in html
+
+    def test_rebalancing_table_with_valid_positions(self):
+        """Test that rebalancing table shows actual % when positions available."""
+        from the_alchemiser.shared.notifications.templates.portfolio import (
+            PortfolioBuilder,
+        )
+
+        # Execution result with both target and current position data
+        result = {
+            "consolidated_portfolio": {"SPY": 0.6, "TMF": 0.4},
+            "account_info_before": {
+                "positions": [
+                    {"symbol": "SPY", "market_value": 5000, "quantity": 10},
+                    {"symbol": "TMF", "market_value": 5000, "quantity": 100},
+                ]
+            },
+            "account_info_after": {"portfolio_value": 10000.0},
+        }
+
+        html = PortfolioBuilder.build_portfolio_rebalancing_table(result)
+        # Should show actual percentages, not em dash
+        assert "50.0%" in html  # Current % for both symbols
+        # Should not have em dash when we have position data
+        lines_with_dash = [line for line in html.split("\n") if "—" in line]
+        # Em dash might appear in general text but not in percentage cells
+        assert len(lines_with_dash) == 0 or all(
+            "padding:12px 16px" not in line for line in lines_with_dash
+        )
