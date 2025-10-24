@@ -126,3 +126,11 @@ class ConfigProviders(containers.DeclarativeContainer):
 
     # Execution configuration
     execution = providers.Factory(lambda settings: settings.execution, settings=settings)
+
+    # Snapshot configuration
+    snapshot_enabled = providers.Factory(
+        lambda settings: settings.snapshot.enabled, settings=settings
+    )
+    snapshot_bucket_name = providers.Factory(
+        lambda settings: settings.snapshot.bucket_name, settings=settings
+    )

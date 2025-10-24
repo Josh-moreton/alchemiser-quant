@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.events import (
+    AccountSnapshotGenerated,
     BaseEvent,
     EventBus,
     RebalancePlanned,
@@ -802,6 +803,9 @@ class EventDrivenOrchestrator:
                 },
             )
 
+        # Generate account snapshot after successful workflow completion
+        self._generate_account_snapshot(event)
+
         # Update workflow state
         self.workflow_state["last_successful_workflow"] = event.workflow_type
         self.workflow_state["active_correlations"].discard(event.correlation_id)
@@ -830,6 +834,95 @@ class EventDrivenOrchestrator:
                 "workflow_state": WorkflowState.COMPLETED.value,
             },
         )
+
+    def _generate_account_snapshot(self, event: WorkflowCompleted) -> None:
+        """Generate and persist account snapshot after workflow completion.
+
+        Args:
+            event: The WorkflowCompleted event
+
+        """
+        # Only generate snapshots if enabled in configuration
+        if not self.container.config.snapshot_enabled():
+            self.logger.debug("Snapshot generation disabled in configuration")
+            return
+
+        try:
+            # Import here to avoid circular dependencies
+            from the_alchemiser.shared.services.account_snapshot_service import (
+                AccountSnapshotService,
+            )
+
+            # Get required services from container
+            alpaca_account_service = self.container.services.alpaca_account_service()
+            trade_ledger_service = self.container.services.trade_ledger_service()
+
+            # Create snapshot service
+            snapshot_service = AccountSnapshotService(
+                alpaca_account_service=alpaca_account_service,
+                trade_ledger_service=trade_ledger_service,
+            )
+
+            # Determine period boundaries
+            start_time = self.workflow_state["workflow_start_times"].get(event.correlation_id)
+            period_start = start_time if start_time else event.timestamp
+            period_end = event.timestamp
+
+            # Generate snapshot
+            self.logger.info(
+                "Generating account snapshot",
+                correlation_id=event.correlation_id,
+            )
+
+            snapshot = snapshot_service.generate_snapshot(
+                correlation_id=event.correlation_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+            # Persist to S3
+            bucket_name = self.container.config.snapshot_bucket_name()
+            s3_uri = snapshot_service.persist_to_s3(snapshot, bucket_name)
+
+            # Emit AccountSnapshotGenerated event
+            snapshot_event = AccountSnapshotGenerated(
+                correlation_id=event.correlation_id,
+                causation_id=event.event_id,
+                event_id=f"snapshot-generated-{uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration.event_driven_orchestrator",
+                source_component="EventDrivenOrchestrator",
+                snapshot_id=snapshot.snapshot_id,
+                account_id=snapshot.account_id,
+                snapshot_s3_uri=s3_uri,
+                snapshot_version=snapshot.snapshot_version,
+                checksum=snapshot.checksum,
+                period_start=snapshot.period_start.isoformat(),
+                period_end=snapshot.period_end.isoformat(),
+                metadata={
+                    "total_positions": len(snapshot.alpaca_positions),
+                    "total_orders": len(snapshot.alpaca_orders),
+                    "total_ledger_trades": snapshot.internal_ledger.total_trades,
+                    "workflow_type": event.workflow_type,
+                },
+            )
+
+            self.event_bus.publish(snapshot_event)
+
+            self.logger.info(
+                "Account snapshot generated and persisted successfully",
+                snapshot_id=snapshot.snapshot_id,
+                s3_uri=s3_uri,
+                correlation_id=event.correlation_id,
+            )
+
+        except Exception as e:
+            # Log error but don't fail the workflow
+            self.logger.error(
+                f"Failed to generate account snapshot: {e}",
+                correlation_id=event.correlation_id,
+                error_type=type(e).__name__,
+            )
 
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
         """Handle WorkflowFailed event for error handling and recovery.

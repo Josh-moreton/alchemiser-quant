@@ -18,6 +18,7 @@ from .base import BaseEvent
 from .bus import EventBus
 from .handlers import EventHandler
 from .schemas import (
+    AccountSnapshotGenerated,
     AllocationComparisonCompleted,
     BulkSettlementCompleted,
     ErrorNotificationRequested,
@@ -37,6 +38,7 @@ from .schemas import (
 )
 
 __all__ = [
+    "AccountSnapshotGenerated",
     "AllocationComparisonCompleted",
     "BaseEvent",
     "BulkSettlementCompleted",

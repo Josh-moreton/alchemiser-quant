@@ -365,6 +365,14 @@ class TradeLedgerSettings(BaseModel):
     enabled: bool = True  # Enable/disable S3 persistence
 
 
+class SnapshotSettings(BaseModel):
+    """Account snapshot persistence configuration."""
+
+    bucket_name: str = "the-alchemiser-s3"  # S3 bucket name for snapshot storage
+    enabled: bool = True  # Enable/disable snapshot generation and persistence
+    include_order_history_limit: int = 100  # Max orders to include in snapshot
+
+
 class ExecutionSettings(BaseModel):
     """Trading execution parameters and safe defaults.
 
@@ -401,6 +409,7 @@ class Settings(BaseSettings):
     data: DataSettings = DataSettings()
     tracking: TrackingSettings = TrackingSettings()
     trade_ledger: TradeLedgerSettings = TradeLedgerSettings()
+    snapshot: SnapshotSettings = SnapshotSettings()
     execution: ExecutionSettings = ExecutionSettings()
 
     model_config = SettingsConfigDict(

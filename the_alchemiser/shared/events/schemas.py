@@ -133,6 +133,33 @@ class TradeExecutionStarted(BaseEvent):
     )
 
 
+class AccountSnapshotGenerated(BaseEvent):
+    """Event emitted when account snapshot is generated and persisted.
+
+    Contains snapshot metadata and S3 location for downstream reporting.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="AccountSnapshotGenerated", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+
+    # Snapshot fields
+    snapshot_id: str = Field(..., description="Unique snapshot identifier")
+    account_id: str = Field(..., description="Account identifier")
+    snapshot_s3_uri: str | None = Field(default=None, description="S3 URI of persisted snapshot")
+    snapshot_version: str = Field(..., description="Snapshot schema version")
+    checksum: str | None = Field(default=None, description="Snapshot checksum for integrity")
+
+    # Period information
+    period_start: Any = Field(..., description="Start of trading period (ISO string or datetime)")
+    period_end: Any = Field(..., description="End of trading period (ISO string or datetime)")
+
+    # Metadata
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional snapshot metadata"
+    )
+
+
 class PortfolioStateChanged(BaseEvent):
     """Event emitted when portfolio state changes significantly.
 
