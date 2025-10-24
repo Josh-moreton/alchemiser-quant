@@ -315,31 +315,43 @@ class PortfolioBuilder:
                 logger.debug(f"Failed to parse market_value for {sym}")
                 continue
         total_value = sum(current_values.values())
+
+        # Check if we have any position data - if total_value is 0, positions are missing
+        has_position_data = total_value > 0
+
         rows: list[str] = []
         for symbol in sorted(target_portfolio.keys()):
             # Convert target weight to Decimal for precise comparison
             target_weight = Decimal(str(target_portfolio.get(symbol, 0.0)))
-            if total_value > 0:
+
+            if has_position_data:
                 current_weight = current_values.get(symbol, Decimal("0")) / total_value
+                diff = target_weight - current_weight
+                # Use math.isclose for float comparison with explicit tolerance
+                if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
+                    action, color = "HOLD", "#6B7280"
+                elif diff > 0:
+                    action, color = "BUY", "#10B981"
+                else:
+                    action, color = "SELL", "#EF4444"
+                # Convert to float for display formatting
+                current_pct = float(current_weight)
+                current_pct_display = f"{current_pct:.1%}"
             else:
-                current_weight = Decimal("0")
-            diff = target_weight - current_weight
-            # Use math.isclose for float comparison with explicit tolerance
-            if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
-                action, color = "HOLD", "#6B7280"
-            elif diff > 0:
-                action, color = "BUY", "#10B981"
-            else:
-                action, color = "SELL", "#EF4444"
-            # Convert to float for display formatting
+                # No position data available - display N/A and default to BUY for non-zero targets
+                current_pct_display = "—"
+                if target_weight > 0:
+                    action, color = "BUY", "#10B981"
+                else:
+                    action, color = "HOLD", "#6B7280"
+
             target_pct = float(target_weight)
-            current_pct = float(current_weight)
             rows.append(
                 f"""
                 <tr>
                     <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;font-weight:600;color:#1F2937;\">{symbol}</td>
                     <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#059669;\">{target_pct:.1%}</td>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_pct:.1%}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_pct_display}</td>
                     <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;font-weight:600;color:{color};\">{action}</td>
                 </tr>
                 """

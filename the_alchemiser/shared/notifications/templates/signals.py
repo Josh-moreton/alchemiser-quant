@@ -632,6 +632,137 @@ class SignalsBuilder:
         """
 
     @staticmethod
+    def build_price_action_gauge(strategy_signals: dict[Any, SignalData]) -> str:
+        """Build price action gauge table showing RSI and price vs MA for all symbols.
+
+        Creates a comprehensive gauge showing technical indicators for each symbol
+        to help classify market conditions (overbought/oversold, bullish/bearish).
+
+        Args:
+            strategy_signals: Dictionary mapping strategy types to signal data
+
+        Returns:
+            HTML string containing price action gauge table, or empty string
+            if no technical indicator data is available
+
+        Note:
+            Conflicting indicators (e.g., RSI oversold but price above MA) are
+            indicated in the gauge classification.
+
+        """
+        if not strategy_signals:
+            logger.debug("build_price_action_gauge_skipped", reason="no_signals")
+            return ""
+
+        # Collect all unique symbols and their indicators
+        symbol_indicators: dict[str, TechnicalIndicators] = {}
+        for signal_data in strategy_signals.values():
+            technical_indicators = signal_data.get("technical_indicators", {})
+            for symbol, indicators in technical_indicators.items():
+                if symbol not in symbol_indicators:
+                    symbol_indicators[symbol] = indicators
+
+        if not symbol_indicators:
+            logger.debug("build_price_action_gauge_skipped", reason="no_indicator_data")
+            return ""
+
+        logger.debug(
+            "building_price_action_gauge",
+            symbol_count=len(symbol_indicators),
+        )
+
+        # Build gauge rows
+        gauge_rows = []
+        for symbol in sorted(symbol_indicators.keys()):
+            indicators = symbol_indicators[symbol]
+            rsi_10 = indicators.get("rsi_10")
+            current_price = indicators.get("current_price")
+            ma_200 = indicators.get("ma_200")
+
+            # Skip symbols with missing required indicators
+            if rsi_10 is None or current_price is None or ma_200 is None:
+                logger.debug(
+                    "Skipping symbol due to missing indicator(s)",
+                    symbol=symbol,
+                    rsi_10=rsi_10,
+                    current_price=current_price,
+                    ma_200=ma_200,
+                )
+                continue
+
+            # Get RSI classification
+            rsi_classification = SignalsBuilder._get_rsi_classification(rsi_10)
+            rsi_color = SignalsBuilder._get_rsi_color(rsi_10)
+
+            # Get price vs MA info
+            price_vs_ma_label, price_vs_ma_color = SignalsBuilder._get_price_vs_ma_info(
+                current_price, ma_200
+            )
+
+            # Build composite gauge classification
+            trend = "Bullish" if current_price > ma_200 else "Bearish"
+
+            # Check for conflicting signals
+            conflict_note = ""
+            if (rsi_10 < RSI_OVERSOLD and current_price > ma_200) or (
+                rsi_10 > RSI_OVERBOUGHT_CRITICAL and current_price < ma_200
+            ):
+                conflict_note = " ⚠️"
+
+            gauge_classification = f"{rsi_classification.title()} / {trend}{conflict_note}"
+
+            gauge_rows.append(
+                f"""
+                <tr>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
+                        {symbol}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {rsi_color}; font-weight: 600;">
+                        {rsi_10:.1f}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {price_vs_ma_color}; font-weight: 600;">
+                        {price_vs_ma_label}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: left; color: #374151;">
+                        {gauge_classification}
+                    </td>
+                </tr>
+                """
+            )
+
+        gauge_table = "".join(gauge_rows)
+
+        return f"""
+        <div style="margin: 24px 0;">
+            <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">Price Action Gauge</h3>
+            <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <thead>
+                    <tr style="background-color: #F9FAFB;">
+                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                            Symbol
+                        </th>
+                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                            RSI(10)
+                        </th>
+                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                            Price vs 200-MA
+                        </th>
+                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                            Gauge
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {gauge_table}
+                </tbody>
+            </table>
+            <div style="margin-top: 8px; padding: 8px; background-color: #FEF3C7; border-radius: 6px; font-size: 12px; color: #92400E;">
+                ⚠️ indicates conflicting indicators (e.g., RSI oversold but price above MA or vice versa)
+            </div>
+        </div>
+        """
+
+    @staticmethod
     def _safe_float_conversion(value: float | int | str, context: str = "") -> float:
         """Safely convert a value to float with error handling.
 
@@ -689,14 +820,41 @@ class SignalsBuilder:
         return ""
 
     @staticmethod
-    def _parse_condition(condition: str) -> str | None:
-        """Parse a single condition into human-readable text.
+    def _get_rsi_classification(rsi_value: float) -> str:
+        """Get RSI classification label based on value.
 
         Args:
-            condition: Condition string to parse
+            rsi_value: RSI indicator value (0-100)
 
         Returns:
-            Human-readable condition string or None if should be skipped
+            Classification label (overbought/oversold/neutral)
+
+        """
+        if rsi_value > RSI_OVERBOUGHT_CRITICAL:
+            return "critically overbought"
+        if rsi_value > RSI_OVERBOUGHT_WARNING:
+            return "overbought"
+        if rsi_value < RSI_OVERSOLD:
+            return "oversold"
+        return "neutral"
+
+    @staticmethod
+    def _parse_condition(
+        condition: str,
+        technical_indicators: dict[str, TechnicalIndicators] | None = None,
+    ) -> str | None:
+        """Parse a single condition into human-readable text with actual indicator values.
+
+        Args:
+            condition: Condition string to parse (e.g., "SPY RSI(10)>79")
+            technical_indicators: Optional dict mapping symbols to their technical indicators
+
+        Returns:
+            Human-readable condition string with actual values, or None if should be skipped
+
+        Examples:
+            >>> _parse_condition("SPY RSI(10)>79", {"SPY": {"rsi_10": 82.5}})
+            "SPY RSI(10) is 82.5, above the 79 threshold (critically overbought)"
 
         """
         import re
@@ -705,36 +863,83 @@ class SignalsBuilder:
         if "allocation" in condition.lower() or not condition:
             return None
 
+        # Parse RSI conditions with thresholds
         if "rsi" in condition.lower():
+            # Extract symbol, RSI period, operator, and threshold
+            # Matches patterns like: "SPY RSI(10)>79" or "TQQQ RSI(20)<30"
+            match = re.search(
+                r"\b([A-Z]{2,5})\s+RSI\((\d+)\)\s*([<>]=?)\s*(\d+\.?\d*)",
+                condition,
+                re.IGNORECASE,
+            )
+
+            if match:
+                symbol = match.group(1)
+                rsi_period = match.group(2)
+                operator = match.group(3)
+                threshold = match.group(4)
+
+                # Get actual RSI value if available
+                if technical_indicators and symbol in technical_indicators:
+                    indicators = technical_indicators[symbol]
+                    # Map RSI period to field name
+                    rsi_field = f"rsi_{rsi_period}"
+                    actual_rsi = indicators.get(rsi_field)
+
+                    if actual_rsi is not None and isinstance(actual_rsi, (int, float)):
+                        classification = SignalsBuilder._get_rsi_classification(float(actual_rsi))
+                        operator_word = "above" if ">" in operator else "below"
+                        return (
+                            f"{symbol} RSI({rsi_period}) is **{actual_rsi:.1f}**, "
+                            f"{operator_word} the **{threshold}** threshold "
+                            f"(**{classification}**)"
+                        )
+
+                # Fallback without actual value
+                operator_word = "above" if ">" in operator else "below"
+                return f"{symbol} RSI({rsi_period}) {operator_word} {threshold}"
+
+            # Fallback for simple RSI mentions without thresholds
             symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
             if symbols:
                 return f"RSI conditions met on {' and '.join(symbols)}"
 
+        # Parse max-drawdown conditions
         if "max-drawdown" in condition.lower() or "drawdown" in condition.lower():
             symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
             symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
+
+            # Try to extract threshold percentage
+            threshold_match = re.search(r"(\d+\.?\d*)%", condition)
+            threshold_text = f" **{threshold_match.group(1)}%**" if threshold_match else ""
+
             if symbols:
                 if len(symbols) == 1:
-                    return f"{symbols[0]} exceeded max drawdown threshold"
-                return f"drawdown check on {', '.join(symbols)}"
+                    return f"{symbols[0]} exceeded max drawdown threshold{threshold_text}"
+                return f"drawdown check on {', '.join(symbols)}{threshold_text}"
 
         return "conditions satisfied"
 
     @staticmethod
-    def _parse_dsl_reasoning_to_human_readable(reasoning: str) -> str:
-        """Parse DSL reasoning into human-readable text.
+    def _parse_dsl_reasoning_to_human_readable(
+        reasoning: str,
+        technical_indicators: dict[str, TechnicalIndicators] | None = None,
+    ) -> str:
+        """Parse DSL reasoning into human-readable text with actual indicator values.
 
         Converts technical DSL expressions like:
         "Nuclear: ✓ SPY RSI(10)>79 → ✓ TQQQ RSI(10)<81 → 75.0% allocation"
 
-        Into human-friendly text like:
-        "Grail strategy triggered: RSI conditions met on SPY vs TQQQ, allocation set to 75.0%"
+        Into enriched human-friendly text with actual values like:
+        "Nuclear strategy triggered: SPY RSI(10) is 82.5, above the 79 threshold (overbought),
+        allocation set to 75.0%"
 
         Args:
             reasoning: Raw DSL reasoning string with technical expressions
+            technical_indicators: Optional dict mapping symbols to their technical indicators
 
         Returns:
-            Human-readable summary string
+            Human-readable summary string with actual indicator values
 
         """
         if not reasoning:
@@ -750,16 +955,24 @@ class SignalsBuilder:
             part = part.strip()
             if "✓" in part:
                 condition = part.replace("✓", "").strip()
-                parsed = SignalsBuilder._parse_condition(condition)
+                parsed = SignalsBuilder._parse_condition(condition, technical_indicators)
                 if parsed:
                     conditions.append(parsed)
+
+        # Deduplicate conditions while preserving order
+        seen = set()
+        unique_conditions = []
+        for cond in conditions:
+            if cond not in seen:
+                seen.add(cond)
+                unique_conditions.append(cond)
 
         # Build human-readable summary
         summary_parts = []
         if strategy_name:
             summary_parts.append(f"{strategy_name} strategy triggered")
-        if conditions:
-            summary_parts.append(", ".join(conditions))
+        if unique_conditions:
+            summary_parts.append(", ".join(unique_conditions))
         if allocation:
             summary_parts.append(allocation)
 
@@ -820,6 +1033,7 @@ class SignalsBuilder:
             # Get signal data
             reasoning = str(signal_data.get("reasoning", signal_data.get("reason", "")))
             signal_str = str(signal_data.get("signal", ""))
+            technical_indicators = signal_data.get("technical_indicators", {})
 
             # Fallback: build signal from symbols/action if not provided
             if not signal_str:
@@ -831,11 +1045,12 @@ class SignalsBuilder:
                 else:
                     signal_str = action
 
-            # Parse DSL reasoning into human-readable text
+            # Parse DSL reasoning into human-readable text with technical indicators
             human_readable_reason = ""
             if reasoning:
                 human_readable_reason = SignalsBuilder._parse_dsl_reasoning_to_human_readable(
-                    reasoning
+                    reasoning,
+                    technical_indicators,
                 )
 
             # Build the row: "grail: <reasoning> → BUY TQQQ"
