@@ -20,11 +20,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 __all__ = [
-    "AlpacaAccountData",
-    "AlpacaPositionData",
-    "AlpacaOrderData",
-    "InternalLedgerData",
     "AccountSnapshot",
+    "AlpacaAccountData",
+    "AlpacaOrderData",
+    "AlpacaPositionData",
+    "InternalLedgerData",
 ]
 
 
@@ -155,8 +155,7 @@ class AlpacaOrderData(BaseModel):
         """Ensure timestamps are timezone-aware."""
         if v is None:
             return None
-        result = ensure_timezone_aware(v)
-        return result
+        return ensure_timezone_aware(v)
 
 
 class InternalLedgerData(BaseModel):
