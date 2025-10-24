@@ -675,9 +675,20 @@ class SignalsBuilder:
         gauge_rows = []
         for symbol in sorted(symbol_indicators.keys()):
             indicators = symbol_indicators[symbol]
-            rsi_10 = indicators.get("rsi_10", 0)
-            current_price = indicators.get("current_price", 0)
-            ma_200 = indicators.get("ma_200", 0)
+            rsi_10 = indicators.get("rsi_10")
+            current_price = indicators.get("current_price")
+            ma_200 = indicators.get("ma_200")
+
+            # Skip symbols with missing required indicators
+            if rsi_10 is None or current_price is None or ma_200 is None:
+                logger.debug(
+                    "Skipping symbol due to missing indicator(s)",
+                    symbol=symbol,
+                    rsi_10=rsi_10,
+                    current_price=current_price,
+                    ma_200=ma_200,
+                )
+                continue
 
             # Get RSI classification
             rsi_classification = SignalsBuilder._get_rsi_classification(rsi_10)
