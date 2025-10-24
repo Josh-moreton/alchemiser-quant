@@ -32,7 +32,9 @@ from the_alchemiser.shared.schemas import StrategySignal
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
+from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
+from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
 
 class SignalGenerationHandler:
@@ -254,15 +256,132 @@ class SignalGenerationHandler:
             symbols_str = ", ".join(symbols_and_allocations)
             signal_display = f"{first_signal.action} {symbols_str}"
 
+            # Extract technical indicators for all symbols in this strategy
+            symbol_list = [signal.symbol.value for signal in strategy_signals_list]
+            technical_indicators = self._extract_technical_indicators_for_symbols(symbol_list)
+
             strategy_signals[strategy_name] = {
                 "symbols": symbols_and_allocations,
                 "action": first_signal.action,
                 "reasoning": first_signal.reasoning,
                 "signal": signal_display,
                 "total_allocation": float(total_allocation),
+                "technical_indicators": technical_indicators,
             }
 
         return strategy_signals
+
+    def _extract_technical_indicators_for_symbols(
+        self, symbols: list[str]
+    ) -> dict[str, dict[str, float]]:
+        """Extract current technical indicators for given symbols.
+
+        Fetches RSI(10), RSI(20), current price, and 200-day MA for each symbol
+        to enable detailed email content with actual indicator values.
+
+        Args:
+            symbols: List of trading symbols to get indicators for
+
+        Returns:
+            Dict mapping symbol to technical indicators:
+            {
+                "SPY": {
+                    "rsi_10": 82.5,
+                    "rsi_20": 78.3,
+                    "current_price": 505.10,
+                    "ma_200": 487.50
+                },
+                ...
+            }
+
+        Note:
+            Falls back to 0.0 values if indicator fetch fails for a symbol.
+            This ensures email generation doesn't break on data issues.
+
+        """
+        indicators: dict[str, dict[str, float]] = {}
+
+        # Get market data service from container
+        market_data_port = self.container.infrastructure.market_data_service()
+        indicator_service = IndicatorService(market_data_port)
+
+        for symbol in symbols:
+            try:
+                # Create indicator requests
+                correlation_id = str(uuid.uuid4())
+                request_id_base = str(uuid.uuid4())
+
+                rsi_10_request = IndicatorRequest(
+                    request_id=f"{request_id_base}-rsi10",
+                    indicator_type="rsi",
+                    symbol=symbol,
+                    parameters={"window": 10},
+                    correlation_id=correlation_id,
+                )
+
+                rsi_20_request = IndicatorRequest(
+                    request_id=f"{request_id_base}-rsi20",
+                    indicator_type="rsi",
+                    symbol=symbol,
+                    parameters={"window": 20},
+                    correlation_id=correlation_id,
+                )
+
+                price_request = IndicatorRequest(
+                    request_id=f"{request_id_base}-price",
+                    indicator_type="current_price",
+                    symbol=symbol,
+                    parameters={},
+                    correlation_id=correlation_id,
+                )
+
+                ma_200_request = IndicatorRequest(
+                    request_id=f"{request_id_base}-ma200",
+                    indicator_type="moving_average",
+                    symbol=symbol,
+                    parameters={"window": 200},
+                    correlation_id=correlation_id,
+                )
+
+                # Fetch indicators
+                rsi_10_ind = indicator_service.get_indicator(rsi_10_request)
+                rsi_20_ind = indicator_service.get_indicator(rsi_20_request)
+                price_ind = indicator_service.get_indicator(price_request)
+                ma_200_ind = indicator_service.get_indicator(ma_200_request)
+
+                # Build indicators dict
+                indicators[symbol] = {
+                    "rsi_10": float(rsi_10_ind.rsi_10 or 0.0),
+                    "rsi_20": float(rsi_20_ind.rsi_20 or 0.0),
+                    "current_price": float(price_ind.current_price or 0.0),
+                    "ma_200": float(ma_200_ind.ma_200 or 0.0),
+                }
+
+                self.logger.debug(
+                    f"Fetched technical indicators for {symbol}",
+                    extra={
+                        "symbol": symbol,
+                        "rsi_10": indicators[symbol]["rsi_10"],
+                        "rsi_20": indicators[symbol]["rsi_20"],
+                        "current_price": indicators[symbol]["current_price"],
+                        "ma_200": indicators[symbol]["ma_200"],
+                    },
+                )
+
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to fetch technical indicators for {symbol}: {e}",
+                    extra={"symbol": symbol, "error": str(e)},
+                )
+                # Fallback to zero values so email generation doesn't break
+                indicators[symbol] = {
+                    "rsi_10": 0.0,
+                    "rsi_20": 0.0,
+                    "current_price": 0.0,
+                    "ma_200": 0.0,
+                }
+
+        return indicators
 
     def _build_consolidated_portfolio(
         self, signals: list[StrategySignal]
