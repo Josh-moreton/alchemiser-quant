@@ -113,8 +113,7 @@ class TestTradingExecutionHandlerInitialization:
         assert handler.container == mock_container
         assert handler.logger is not None
         assert handler.event_bus is not None
-        assert isinstance(handler._processed_keys, set)
-        assert len(handler._processed_keys) == 0
+        assert handler._idempotency_service is not None
 
     def test_event_bus_retrieved_from_container(self, mock_container):
         """Test event bus is retrieved from container services."""
@@ -164,9 +163,10 @@ class TestEventHandling:
         self, handler, sample_rebalance_planned_event
     ):
         """Test handle_event emits WorkflowFailed on exception."""
-        with patch.object(
-            handler, "_handle_rebalance_planned", side_effect=Exception("Test error")
-        ), patch.object(handler, "_emit_workflow_failure") as mock_emit:
+        with (
+            patch.object(handler, "_handle_rebalance_planned", side_effect=Exception("Test error")),
+            patch.object(handler, "_emit_workflow_failure") as mock_emit,
+        ):
             handler.handle_event(sample_rebalance_planned_event)
             mock_emit.assert_called_once()
             args = mock_emit.call_args[0]
@@ -217,13 +217,17 @@ class TestIdempotencyKey:
         handler._mark_event_processed("processed-key-456")
         assert handler._is_duplicate_event("processed-key-456") is True
 
-    def test_mark_event_processed_adds_to_set(self, handler):
-        """Test mark_event_processed adds key to processed set."""
-        initial_count = len(handler._processed_keys)
-        handler._mark_event_processed("new-key-789")
+    def test_mark_event_processed_sets_key(self, handler):
+        """Test mark_event_processed marks key as processed."""
+        key = "new-key-789"
+        # Initially should not be duplicate
+        assert handler._is_duplicate_event(key) is False
 
-        assert len(handler._processed_keys) == initial_count + 1
-        assert "new-key-789" in handler._processed_keys
+        # Mark as processed
+        handler._mark_event_processed(key)
+
+        # Now should be duplicate
+        assert handler._is_duplicate_event(key) is True
 
     def test_duplicate_event_skips_execution(self, handler, sample_rebalance_planned_event):
         """Test duplicate event is skipped without executing trades."""
@@ -657,4 +661,3 @@ class TestMarketClosureHandling:
         # Should return True (defaults to open on error)
         result = handler._check_market_status("test-correlation-id")
         assert result is True
-

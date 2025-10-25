@@ -23,6 +23,7 @@ from the_alchemiser.lambda_handler import (
     _determine_trading_mode,
     _extract_correlation_id,
     _has_correlation_id,
+    _reset_idempotency_service_for_testing,
     lambda_handler,
     parse_event_mode,
 )
@@ -32,6 +33,19 @@ from the_alchemiser.shared.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
+
+
+@pytest.fixture(autouse=True)
+def reset_idempotency_service():
+    """Reset idempotency service before each test.
+
+    This fixture ensures that the idempotency service state is cleared
+    between tests to prevent test interference.
+    """
+    _reset_idempotency_service_for_testing()
+    yield
+    # Optionally reset after test as well
+    _reset_idempotency_service_for_testing()
 
 
 class TestEventParsing:

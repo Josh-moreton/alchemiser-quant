@@ -33,6 +33,7 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
+from the_alchemiser.shared.services.idempotency_service import IdempotencyService
 
 # Constants
 MS_PER_SECOND = 1000  # Milliseconds per second for duration calculations
@@ -58,10 +59,9 @@ class TradingExecutionHandler:
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
 
-        # Track processed idempotency keys for replay protection
-        # Note: In production, this should be backed by a distributed cache (Redis/DynamoDB)
-        # For now, using in-memory set for stateless Lambda invocations
-        self._processed_keys: set[str] = set()
+        # Initialize idempotency service for event deduplication
+        # For production: configure with DynamoDB backend for persistent deduplication
+        self._idempotency_service = IdempotencyService()
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle events for trade execution.
@@ -199,30 +199,32 @@ class TradingExecutionHandler:
     def _is_duplicate_event(self, idempotency_key: str) -> bool:
         """Check if event has already been processed.
 
+        Uses idempotency service to check for duplicate events across
+        Lambda invocations. For production deployments, configure the
+        service with a DynamoDB backend for persistent deduplication.
+
         Args:
             idempotency_key: The idempotency key to check
 
         Returns:
             True if event has been processed before, False otherwise
 
-        Note:
-            In production, this should query a distributed cache (Redis/DynamoDB)
-            for persistent deduplication across Lambda invocations.
-
         """
-        return idempotency_key in self._processed_keys
+        return self._idempotency_service.is_duplicate(idempotency_key)
 
     def _mark_event_processed(self, idempotency_key: str) -> None:
         """Mark event as processed.
 
+        Uses idempotency service to mark event as processed. For production
+        deployments, configure the service with a DynamoDB backend with
+        appropriate TTL settings.
+
         Args:
             idempotency_key: The idempotency key to mark as processed
 
-        Note:
-            In production, this should store in a distributed cache with TTL.
-
         """
-        self._processed_keys.add(idempotency_key)
+        # Use 24-hour TTL for event deduplication to handle retries and replays
+        self._idempotency_service.mark_processed(idempotency_key, ttl_seconds=86400)
 
     def _handle_rebalance_planned(self, event: RebalancePlanned) -> None:
         """Handle RebalancePlanned event by executing trades.

@@ -34,14 +34,36 @@ from the_alchemiser.shared.logging import (
     set_request_id,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
+from the_alchemiser.shared.services.idempotency_service import IdempotencyService
 
 # Set up logging
 logger = get_logger(__name__)
+
+# Initialize idempotency service with in-memory backend
+# For production with distributed Lambda invocations, configure with DynamoDB backend
+_idempotency_service = IdempotencyService()
+
+
+def _reset_idempotency_service_for_testing() -> None:
+    """Reset idempotency service state for testing.
+
+    This function is intended for use in unit tests only to clear the
+    idempotency cache between test runs. In production, the service
+    should never be reset.
+
+    Warning:
+        This function should only be called from test code.
+
+    """
+    global _idempotency_service
+    _idempotency_service = IdempotencyService()
+
 
 # Public API
 __all__ = [
     "_execute_trading_command",
     "_log_and_handle_error",
+    "_reset_idempotency_service_for_testing",
     "lambda_handler",
     "parse_event_mode",
 ]
@@ -518,10 +540,20 @@ def lambda_handler(
         event_has_correlation_id=_has_correlation_id(event),
     )
 
-    # TODO: Add idempotency check using DynamoDB or EventBridge event deduplication
-    # if _is_duplicate_request(correlation_id):
-    #     logger.warning("Duplicate request detected; skipping execution", correlation_id=correlation_id)
-    #     return {"status": "skipped", "message": "Duplicate request", "request_id": request_id}
+    # Check for duplicate request using idempotency service
+    # For production: configure service with DynamoDB backend for distributed deduplication
+    if not _idempotency_service.check_and_mark(correlation_id, ttl_seconds=86400):  # 24 hour TTL
+        logger.warning(
+            "Duplicate request detected; skipping execution",
+            correlation_id=correlation_id,
+            request_id=request_id,
+        )
+        return {
+            "status": "skipped",
+            "message": "Duplicate request - already processed",
+            "request_id": request_id,
+            "correlation_id": correlation_id,
+        }
 
     mode = "unknown"
     trading_mode = "unknown"
