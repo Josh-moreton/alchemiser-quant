@@ -5,7 +5,6 @@ Test for suspicious quote validation utilities.
 This test focuses on the core validation logic without external dependencies.
 """
 
-
 from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
 
 

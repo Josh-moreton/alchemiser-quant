@@ -361,8 +361,7 @@ class TrackingSettings(BaseModel):
 class TradeLedgerSettings(BaseModel):
     """Trade ledger persistence configuration."""
 
-    bucket_name: str = ""  # S3 bucket name for trade ledger storage
-    enabled: bool = True  # Enable/disable S3 persistence
+    table_name: str = Field(default="", description="DynamoDB table name for trade ledger storage")
 
 
 class ExecutionSettings(BaseModel):

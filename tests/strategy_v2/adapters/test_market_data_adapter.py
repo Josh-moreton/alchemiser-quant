@@ -203,11 +203,14 @@ class TestGetBarsErrorHandling:
         self, adapter: StrategyMarketDataAdapter
     ) -> None:
         """Test that unexpected errors are raised as MarketDataError."""
-        with patch.object(
-            adapter._market_data_service,
-            "get_historical_bars",
-            side_effect=TypeError("Unexpected error"),
-        ), pytest.raises(MarketDataError, match="Unexpected error fetching bars"):
+        with (
+            patch.object(
+                adapter._market_data_service,
+                "get_historical_bars",
+                side_effect=TypeError("Unexpected error"),
+            ),
+            pytest.raises(MarketDataError, match="Unexpected error fetching bars"),
+        ):
             adapter.get_bars(symbols=["AAPL"], timeframe="1D", lookback_days=30)
 
     def test_invalid_bar_data_skipped(self, adapter: StrategyMarketDataAdapter) -> None:
@@ -346,11 +349,14 @@ class TestGetCurrentPricesErrorHandling:
         self, adapter: StrategyMarketDataAdapter
     ) -> None:
         """Test that unexpected errors raise DataProviderError."""
-        with patch.object(
-            adapter._market_data_service,
-            "get_quote",
-            side_effect=TypeError("Unexpected error"),
-        ), pytest.raises(DataProviderError, match="Unexpected error fetching price"):
+        with (
+            patch.object(
+                adapter._market_data_service,
+                "get_quote",
+                side_effect=TypeError("Unexpected error"),
+            ),
+            pytest.raises(DataProviderError, match="Unexpected error fetching price"),
+        ):
             adapter.get_current_prices(symbols=["AAPL"])
 
     def test_multiple_symbols_partial_failure(self, adapter: StrategyMarketDataAdapter) -> None:

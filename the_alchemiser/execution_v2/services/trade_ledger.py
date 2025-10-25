@@ -6,7 +6,7 @@ This service captures trade execution details including fill price, bid/ask spre
 quantities, and strategy attribution. It handles cases where market data may not be
 fully available without blocking the recording of core trade information.
 
-Trade ledger entries are persisted to S3 for historical analysis and audit purposes.
+Trade ledger entries are persisted to DynamoDB for historical analysis and audit purposes.
 
 FEATURES IMPLEMENTED:
 =====================
@@ -15,21 +15,23 @@ FEATURES IMPLEMENTED:
 - Fill timestamp: Uses filled_at when available, falls back to order placement timestamp
 - Strategy attribution: Multi-strategy aggregation support
 - Validation: Zero quantity, invalid actions, price checks
-- S3 persistence: Automatic ledger archival with graceful degradation
+- DynamoDB persistence: Single-table design with GSIs for efficient querying
 """
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import ValidationError
 
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
+    DynamoDBTradeLedgerRepository,
+)
 from the_alchemiser.shared.schemas.trade_ledger import TradeLedger, TradeLedgerEntry
 
 if TYPE_CHECKING:
@@ -41,18 +43,10 @@ logger = get_logger(__name__)
 
 __all__ = ["TradeLedgerService"]
 
+# Import boto3 exceptions for DynamoDB error handling
+from botocore.exceptions import BotoCoreError, ClientError
 
-class S3ClientProtocol(Protocol):
-    """Protocol for boto3 S3 client interface (subset used)."""
-
-    def put_object(
-        self,
-        bucket: str,
-        key: str,
-        body: str,
-        content_type: str,
-    ) -> dict[str, Any]: ...
-
+DynamoDBException = (ClientError, BotoCoreError)
 
 class TradeLedgerService:
     """Service for recording filled orders to trade ledger.
@@ -61,18 +55,24 @@ class TradeLedgerService:
     when available. Supports multi-strategy aggregation where multiple strategies
     suggest the same symbol.
 
-    Persists trade ledger entries to S3 for historical analysis and audit purposes.
+    Persists trade ledger entries to DynamoDB for historical analysis and audit purposes.
     """
 
     def __init__(self) -> None:
         """Initialize the trade ledger service."""
         self._ledger_id = str(uuid.uuid4())
-        self._entries: list[TradeLedgerEntry] = []
+        self._entries: list[TradeLedgerEntry] = []  # In-memory for current run
+        self._created_at = datetime.now(UTC)
         self._settings = load_settings()
-        self._s3_client: S3ClientProtocol | None = None  # Lazy initialization
-        self._s3_init_failed: bool = False  # Track S3 initialization failures
-        self._created_at = datetime.now(UTC)  # Capture creation time once
-        self._persisted_correlation_ids: set[str] = set()  # Track persisted runs for idempotency
+
+        # Initialize DynamoDB repository
+        table_name = self._settings.trade_ledger.table_name
+        if not table_name:
+            logger.warning("TRADE_LEDGER__TABLE_NAME not set - trade ledger disabled")
+            self._repository = None
+        else:
+            self._repository = DynamoDBTradeLedgerRepository(table_name)
+            logger.info("Trade ledger initialized", table=table_name)
 
     def record_filled_order(
         self,
@@ -82,6 +82,10 @@ class TradeLedgerService:
         quote_at_fill: QuoteModel | None = None,
     ) -> TradeLedgerEntry | None:
         """Record a filled order to the trade ledger.
+
+        Writes to both:
+        1. In-memory list (for current run queries)
+        2. DynamoDB (persistent storage)
 
         Args:
             order_result: The order execution result
@@ -110,7 +114,7 @@ class TradeLedgerService:
         fill_timestamp = order_result.filled_at or order_result.timestamp
 
         # Create and record ledger entry
-        return self._create_and_record_entry(
+        entry = self._create_entry(
             order_result=order_result,
             correlation_id=correlation_id,
             bid_at_fill=bid_at_fill,
@@ -120,6 +124,25 @@ class TradeLedgerService:
             strategy_names=strategy_names,
             strategy_weights=strategy_weights,
         )
+
+        if not entry:
+            return None
+
+        # Store in-memory
+        self._entries.append(entry)
+
+        # Write to DynamoDB
+        if self._repository:
+            try:
+                self._repository.put_trade(entry, self._ledger_id)
+            except DynamoDBException as e:
+                logger.error(
+                    "Failed to write trade to DynamoDB - trade in memory only",
+                    order_id=entry.order_id,
+                    error=str(e),
+                )
+
+        return entry
 
     def _is_order_recordable(self, order_result: OrderResult, correlation_id: str) -> bool:
         """Check if order meets criteria for ledger recording.
@@ -211,7 +234,7 @@ class TradeLedgerService:
 
         return bid_at_fill, ask_at_fill
 
-    def _create_and_record_entry(
+    def _create_entry(
         self,
         order_result: OrderResult,
         correlation_id: str,
@@ -222,7 +245,7 @@ class TradeLedgerService:
         strategy_names: list[str],
         strategy_weights: dict[str, Decimal] | None,
     ) -> TradeLedgerEntry | None:
-        """Create TradeLedgerEntry and append to ledger.
+        """Create TradeLedgerEntry DTO.
 
         Args:
             order_result: The order execution result
@@ -258,27 +281,20 @@ class TradeLedgerService:
                 strategy_weights=strategy_weights,
             )
 
-            self._entries.append(entry)
-
             logger.info(
-                "Recorded trade to ledger",
+                "Trade ledger entry created",
                 order_id=entry.order_id,
                 symbol=entry.symbol,
                 direction=entry.direction,
-                filled_qty=str(entry.filled_qty),
-                fill_price=str(entry.fill_price),
                 strategies=strategy_names,
-                correlation_id=correlation_id,
             )
 
             return entry
 
         except ValidationError as e:
             logger.error(
-                "Failed to record trade to ledger: DTO validation error",
+                "Failed to create trade ledger entry",
                 symbol=order_result.symbol,
-                order_id=order_result.order_id,
-                correlation_id=correlation_id,
                 error=str(e),
                 validation_errors=e.errors(),
             )
@@ -327,7 +343,7 @@ class TradeLedgerService:
         )
 
     def get_entries_for_symbol(self, symbol: str) -> list[TradeLedgerEntry]:
-        """Get all ledger entries for a specific symbol.
+        """Get all ledger entries for a specific symbol from current run.
 
         Args:
             symbol: Trading symbol
@@ -339,7 +355,7 @@ class TradeLedgerService:
         return [entry for entry in self._entries if entry.symbol == symbol.upper()]
 
     def get_entries_for_strategy(self, strategy_name: str) -> list[TradeLedgerEntry]:
-        """Get all ledger entries attributed to a specific strategy.
+        """Get all ledger entries attributed to a specific strategy from current run.
 
         Args:
             strategy_name: Strategy name
@@ -352,108 +368,5 @@ class TradeLedgerService:
 
     @property
     def total_entries(self) -> int:
-        """Get total number of entries recorded."""
+        """Get total number of entries recorded in current run."""
         return len(self._entries)
-
-    def _get_s3_client(self) -> S3ClientProtocol | None:
-        """Get or create S3 client (lazy initialization).
-
-        Returns:
-            boto3 S3 client instance or None if initialization failed
-
-        """
-        if self._s3_client is None and not self._s3_init_failed:
-            try:
-                import boto3
-
-                self._s3_client = boto3.client("s3")
-            except Exception as e:
-                logger.error("Failed to initialize S3 client", error=str(e))
-                self._s3_init_failed = True
-        return self._s3_client
-
-    def persist_to_s3(self, correlation_id: str | None = None) -> bool:
-        """Persist the trade ledger to S3 (idempotent per correlation_id).
-
-        Note: Returns True when there are no entries to persist (nothing to do).
-        This is considered a success case as there's no error condition.
-
-        Args:
-            correlation_id: Optional correlation ID for the execution run
-
-        Returns:
-            True if persistence was successful or there were no entries to persist,
-            False if an error occurred during persistence
-
-        """
-        if not self._settings.trade_ledger.enabled:
-            logger.debug("Trade ledger S3 persistence is disabled")
-            return False
-
-        if not self._settings.trade_ledger.bucket_name:
-            logger.warning("Trade ledger bucket name not configured, skipping S3 persistence")
-            return False
-
-        if not self._entries:
-            logger.debug("No trade ledger entries to persist")
-            return True
-
-        # Idempotency check
-        if correlation_id and correlation_id in self._persisted_correlation_ids:
-            logger.debug(
-                "Trade ledger already persisted for correlation_id",
-                correlation_id=correlation_id,
-                ledger_id=self._ledger_id,
-            )
-            return True
-
-        s3_client = self._get_s3_client()
-        if s3_client is None:
-            logger.error("S3 client not available, cannot persist trade ledger")
-            return False
-
-        try:
-            # Create ledger with all entries
-            ledger = self.get_ledger()
-
-            # Generate S3 key with timestamp and correlation ID
-            timestamp = datetime.now(UTC).strftime("%Y/%m/%d/%H%M%S")
-            correlation_suffix = f"-{correlation_id}" if correlation_id else ""
-            s3_key = f"trade-ledgers/{timestamp}-{self._ledger_id}{correlation_suffix}.json"
-
-            # Convert ledger to JSON (handle Decimal serialization)
-            ledger_data = json.loads(
-                ledger.model_dump_json()
-            )  # Pydantic handles Decimal -> str conversion
-
-            # Upload to S3
-            # Note: boto3 uses PascalCase parameter names (AWS API convention)
-            # type ignore comment allows compatibility with our snake_case Protocol
-            s3_client.put_object(  # type: ignore[call-arg]
-                Bucket=self._settings.trade_ledger.bucket_name,
-                Key=s3_key,
-                Body=json.dumps(ledger_data, indent=2),
-                ContentType="application/json",
-            )
-
-            # Mark as persisted
-            if correlation_id:
-                self._persisted_correlation_ids.add(correlation_id)
-
-            logger.info(
-                "Trade ledger persisted to S3",
-                bucket=self._settings.trade_ledger.bucket_name,
-                key=s3_key,
-                entries=ledger.total_entries,
-                ledger_id=self._ledger_id,
-            )
-            return True
-
-        except Exception as e:
-            logger.error(
-                "Failed to persist trade ledger to S3",
-                ledger_id=self._ledger_id,
-                entries=len(self._entries),
-                error=str(e),
-            )
-            return False
