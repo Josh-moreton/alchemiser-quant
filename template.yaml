@@ -132,7 +132,7 @@ Globals:
         ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
 
         # Trade ledger DynamoDB table
-        TRADE_LEDGER_TABLE_NAME: !Ref TradeLedgerTable
+        TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
 
   # Strategy configuration now packaged with code; env overrides optional
 
