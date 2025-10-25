@@ -172,14 +172,6 @@ class TestAccountSnapshotRepository:
                 },
                 "alpaca_positions": [],
                 "alpaca_orders": [],
-                "internal_ledger": {
-                    "ledger_id": "ledger-123",
-                    "total_trades": 5,
-                    "total_buy_value": "3000.00",
-                    "total_sell_value": "3100.00",
-                    "strategies_active": ["nuclear"],
-                    "strategy_performance": {},
-                },
                 "checksum": "abc123",
                 "ttl": 1234567890,
             }
