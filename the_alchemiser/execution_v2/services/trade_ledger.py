@@ -44,14 +44,9 @@ logger = get_logger(__name__)
 __all__ = ["TradeLedgerService"]
 
 # Import boto3 exceptions for DynamoDB error handling
-try:
-    from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
-    DynamoDBException = (ClientError, BotoCoreError)
-except ImportError:
-    # If boto3/botocore not installed, fall back to catching all exceptions
-    DynamoDBException = Exception  # type: ignore[assignment]
-
+DynamoDBException = (ClientError, BotoCoreError)
 
 class TradeLedgerService:
     """Service for recording filled orders to trade ledger.
