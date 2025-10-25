@@ -803,7 +803,9 @@ class EventDrivenOrchestrator:
             )
 
         # Generate account snapshot for reporting
-        self._generate_account_snapshot(event.correlation_id, start_time or event.timestamp, event.timestamp)
+        self._generate_account_snapshot(
+            event.correlation_id, start_time or event.timestamp, event.timestamp
+        )
 
         # Update workflow state
         self.workflow_state["last_successful_workflow"] = event.workflow_type
@@ -909,7 +911,6 @@ class EventDrivenOrchestrator:
                 f"Failed to generate account snapshot: {e}",
                 extra={"correlation_id": correlation_id},
             )
-
 
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
         """Handle WorkflowFailed event for error handling and recovery.

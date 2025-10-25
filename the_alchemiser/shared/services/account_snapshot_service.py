@@ -304,9 +304,7 @@ class AccountSnapshotService:
             canceled_at=order.canceled_at,
         )
 
-    def _fetch_internal_ledger(
-        self, ledger_id: str, correlation_id: str
-    ) -> InternalLedgerSummary:
+    def _fetch_internal_ledger(self, ledger_id: str, correlation_id: str) -> InternalLedgerSummary:
         """Fetch and aggregate internal trade ledger data.
 
         Args:

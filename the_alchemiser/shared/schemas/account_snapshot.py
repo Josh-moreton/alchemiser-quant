@@ -48,9 +48,7 @@ class AlpacaAccountData(BaseModel):
         default=None, description="Short positions market value"
     )
     initial_margin: Decimal | None = Field(default=None, ge=0, description="Initial margin")
-    maintenance_margin: Decimal | None = Field(
-        default=None, ge=0, description="Maintenance margin"
-    )
+    maintenance_margin: Decimal | None = Field(default=None, ge=0, description="Maintenance margin")
 
 
 class AlpacaPositionData(BaseModel):
@@ -64,7 +62,9 @@ class AlpacaPositionData(BaseModel):
 
     symbol: str = Field(..., min_length=1, description="Trading symbol")
     qty: Decimal = Field(..., description="Quantity held")
-    qty_available: Decimal | None = Field(default=None, description="Quantity available for trading")
+    qty_available: Decimal | None = Field(
+        default=None, description="Quantity available for trading"
+    )
     avg_entry_price: Decimal = Field(..., gt=0, description="Average entry price")
     current_price: Decimal = Field(..., gt=0, description="Current market price")
     market_value: Decimal = Field(..., description="Current market value")
@@ -135,7 +135,9 @@ class StrategyPerformanceData(BaseModel):
     total_buy_value: Decimal = Field(default=Decimal("0"), ge=0, description="Total buy value")
     total_sell_value: Decimal = Field(default=Decimal("0"), ge=0, description="Total sell value")
     gross_pnl: Decimal = Field(default=Decimal("0"), description="Gross P/L (sell - buy)")
-    realized_pnl: Decimal = Field(default=Decimal("0"), description="Realized P/L from FIFO matching")
+    realized_pnl: Decimal = Field(
+        default=Decimal("0"), description="Realized P/L from FIFO matching"
+    )
     symbols_traded: list[str] = Field(
         default_factory=list, description="List of symbols traded by strategy"
     )
@@ -219,7 +221,7 @@ class AccountSnapshot(BaseModel):
             raise ValueError("Timestamp cannot be None")
         return result
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def ttl_timestamp(self) -> int:
         """Compute TTL timestamp for DynamoDB (90 days from creation).

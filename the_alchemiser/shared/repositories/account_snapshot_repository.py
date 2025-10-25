@@ -75,7 +75,9 @@ class AccountSnapshotRepository:
             "alpaca_positions": [
                 self._serialize_nested_data(pos) for pos in snapshot.alpaca_positions
             ],
-            "alpaca_orders": [self._serialize_nested_data(order) for order in snapshot.alpaca_orders],
+            "alpaca_orders": [
+                self._serialize_nested_data(order) for order in snapshot.alpaca_orders
+            ],
             "internal_ledger": self._serialize_nested_data(snapshot.internal_ledger),
             "checksum": snapshot.checksum,
             "ttl": snapshot.ttl_timestamp,
@@ -123,7 +125,7 @@ class AccountSnapshotRepository:
         """
         from decimal import Decimal
 
-        result = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, Decimal):
                 result[key] = str(value)
@@ -306,7 +308,9 @@ class AccountSnapshotRepository:
         )
 
         # Deserialize alpaca_account
-        alpaca_account = AlpacaAccountData(**self._convert_strings_to_decimals(item["alpaca_account"]))
+        alpaca_account = AlpacaAccountData(
+            **self._convert_strings_to_decimals(item["alpaca_account"])
+        )
 
         # Deserialize alpaca_positions
         alpaca_positions = [
@@ -359,7 +363,7 @@ class AccountSnapshotRepository:
         """
         from decimal import Decimal
 
-        result = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             # Convert string to Decimal for known decimal fields
             if key in {
