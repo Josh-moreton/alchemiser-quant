@@ -107,9 +107,12 @@ class TestTradingSystemDIInitialization:
 
     def test_initialize_di_creates_container(self):
         """Test that _initialize_di creates ApplicationContainer."""
-        with patch("the_alchemiser.orchestration.system.load_settings"), patch(
-            "the_alchemiser.orchestration.system.ApplicationContainer"
-        ) as mock_container_class:
+        with (
+            patch("the_alchemiser.orchestration.system.load_settings"),
+            patch(
+                "the_alchemiser.orchestration.system.ApplicationContainer"
+            ) as mock_container_class,
+        ):
             mock_container_instance = Mock()
             mock_container_class.create_for_environment.return_value = mock_container_instance
 

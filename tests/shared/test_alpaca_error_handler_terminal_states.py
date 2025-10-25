@@ -7,7 +7,6 @@ order placement when an order has already been filled or reached another
 terminal state.
 """
 
-
 from the_alchemiser.shared.schemas.operations import TerminalOrderError
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 

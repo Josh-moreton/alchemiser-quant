@@ -6,7 +6,6 @@ Tests module structure, documentation, and accessibility patterns.
 """
 
 
-
 class TestEnginesInit:
     """Test strategy_v2/engines __init__.py module structure."""
 

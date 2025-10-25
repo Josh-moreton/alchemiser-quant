@@ -379,3 +379,30 @@ class SystemNotificationRequested(BaseEvent):
     html_content: str = Field(..., description="HTML email content")
     text_content: str | None = Field(default=None, description="Optional plain text content")
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+
+class ReportReady(BaseEvent):
+    """Event emitted when a PDF report has been successfully generated.
+
+    Contains metadata about the generated report for downstream actions.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="ReportReady", description=EVENT_TYPE_DESCRIPTION)
+    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+
+    # Report fields
+    report_id: str = Field(..., description="Unique identifier for the report")
+    account_id: str = Field(..., description="Account ID for which the report was generated")
+    report_type: str = Field(..., description="Type of report (e.g., 'account_summary')")
+    period_start: str = Field(..., description="Report period start (ISO 8601)")
+    period_end: str = Field(..., description="Report period end (ISO 8601)")
+    s3_bucket: str = Field(..., description="S3 bucket where report is stored")
+    s3_key: str = Field(..., description="S3 key (path) to the report PDF")
+    s3_uri: str = Field(..., description="Full S3 URI to the report")
+    file_size_bytes: int = Field(..., description="Size of the generated PDF in bytes")
+    generation_time_ms: int = Field(..., description="Time taken to generate report in milliseconds")
+    snapshot_id: str = Field(..., description="Snapshot ID used to generate the report")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional report metadata"
+    )

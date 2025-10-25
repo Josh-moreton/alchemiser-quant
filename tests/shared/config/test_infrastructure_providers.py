@@ -6,7 +6,6 @@ This test suite validates the infrastructure layer dependency injection
 configuration, ensuring proper wiring of external dependencies and services.
 """
 
-
 import pytest
 
 from the_alchemiser.shared.config.infrastructure_providers import (

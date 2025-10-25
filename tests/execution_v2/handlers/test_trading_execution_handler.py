@@ -164,9 +164,10 @@ class TestEventHandling:
         self, handler, sample_rebalance_planned_event
     ):
         """Test handle_event emits WorkflowFailed on exception."""
-        with patch.object(
-            handler, "_handle_rebalance_planned", side_effect=Exception("Test error")
-        ), patch.object(handler, "_emit_workflow_failure") as mock_emit:
+        with (
+            patch.object(handler, "_handle_rebalance_planned", side_effect=Exception("Test error")),
+            patch.object(handler, "_emit_workflow_failure") as mock_emit,
+        ):
             handler.handle_event(sample_rebalance_planned_event)
             mock_emit.assert_called_once()
             args = mock_emit.call_args[0]
@@ -657,4 +658,3 @@ class TestMarketClosureHandling:
         # Should return True (defaults to open on error)
         result = handler._check_market_status("test-correlation-id")
         assert result is True
-
