@@ -20,13 +20,9 @@ logger = get_logger(__name__)
 __all__ = ["DynamoDBTradeLedgerRepository"]
 
 # Import boto3 exceptions for type hints and exception handling
-try:
-    from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
-    DynamoDBException = (ClientError, BotoCoreError)
-except ImportError:
-    # If boto3/botocore not installed, fall back to catching all exceptions
-    DynamoDBException = Exception  # type: ignore[assignment]
+DynamoDBException = (ClientError, BotoCoreError)
 
 
 class DynamoDBTradeLedgerRepository:
