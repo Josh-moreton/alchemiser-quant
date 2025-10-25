@@ -270,6 +270,17 @@ class DynamoDBTradeLedgerRepository:
         realized gains/losses. This implementation operates on weighted
         strategy trade values.
 
+        Assumptions:
+        - Each trade in the list represents a complete position entry/exit
+        - Trades are matched 1:1 (one sell matched to one buy)
+        - strategy_trade_value already accounts for weighted quantities
+        - Partial fills are not tracked; each trade is treated as atomic
+
+        Note: A more sophisticated implementation could track quantities and
+        handle partial position closes, but this simplified approach is
+        appropriate for strategy-level P&L tracking where weighted values
+        are already computed.
+
         Args:
             items: List of strategy-trade items with direction, value, and timestamp
 
