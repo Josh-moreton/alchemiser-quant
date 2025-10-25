@@ -73,7 +73,7 @@ class TradeLedgerService:
         # Initialize DynamoDB repository
         table_name = self._settings.trade_ledger.table_name
         if not table_name:
-            logger.warning("TRADE_LEDGER_TABLE_NAME not set - trade ledger disabled")
+            logger.warning("TRADE_LEDGER__TABLE_NAME not set - trade ledger disabled")
             self._repository = None
         else:
             self._repository = DynamoDBTradeLedgerRepository(table_name)
