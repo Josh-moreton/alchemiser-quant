@@ -23,12 +23,14 @@ from the_alchemiser.shared.schemas.account_snapshot import (
     AlpacaOrderData,
     AlpacaPositionData,
     InternalLedgerData,
+    StrategyPerformance,
 )
 
 if TYPE_CHECKING:
     from alpaca.trading.models import Order, Position, TradeAccount
 
     from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
+    from the_alchemiser.shared.schemas.trade_ledger import TradeLedger
     from the_alchemiser.shared.services.alpaca_account_service import (
         AlpacaAccountService,
     )
@@ -238,6 +240,9 @@ class AccountSnapshotService:
                 if strategy and strategy not in strategies_active:
                     strategies_active.append(strategy)
 
+        # Compute per-strategy performance metrics
+        strategy_performance = self._compute_strategy_performance(ledger)
+
         # Note: strategy allocations would come from configuration or metadata
         # For now, we'll leave it empty or extract from available data
         strategy_allocations: dict[str, Decimal] = {}
@@ -249,8 +254,111 @@ class AccountSnapshotService:
             total_sell_value=ledger.total_sell_value,
             strategies_active=strategies_active,
             strategy_allocations=strategy_allocations,
+            strategy_performance=strategy_performance,
             recent_trades=recent_trades,
         )
+
+    def _compute_strategy_performance(
+        self, ledger: TradeLedger
+    ) -> dict[str, StrategyPerformance]:
+        """Compute per-strategy performance metrics from trade ledger.
+
+        Args:
+            ledger: Trade ledger with entries
+
+        Returns:
+            Dictionary mapping strategy name to performance metrics
+
+        """
+        from collections import defaultdict
+
+        # Track metrics per strategy
+        strategy_data: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_trades": 0,
+                "buy_trades": 0,
+                "sell_trades": 0,
+                "total_buy_value": Decimal("0"),
+                "total_sell_value": Decimal("0"),
+                "symbols": set(),
+                "first_trade_at": None,
+                "last_trade_at": None,
+            }
+        )
+
+        # Process each trade entry
+        for entry in ledger.entries:
+            # Handle multi-strategy attribution
+            if entry.strategy_names:
+                # Use strategy weights if available, otherwise equal distribution
+                if entry.strategy_weights:
+                    weights = entry.strategy_weights
+                else:
+                    # Equal weight distribution if no weights specified
+                    num_strategies = len(entry.strategy_names)
+                    weights = {
+                        name: Decimal("1") / Decimal(str(num_strategies))
+                        for name in entry.strategy_names
+                    }
+
+                # Allocate metrics to each strategy based on weights
+                for strategy_name in entry.strategy_names:
+                    weight = weights.get(strategy_name, Decimal("0"))
+                    if weight == 0:
+                        continue
+
+                    data = strategy_data[strategy_name]
+                    data["total_trades"] += 1
+
+                    trade_value = entry.filled_qty * entry.fill_price
+
+                    if entry.direction == "BUY":
+                        data["buy_trades"] += 1
+                        data["total_buy_value"] += trade_value * weight
+                    else:  # SELL
+                        data["sell_trades"] += 1
+                        data["total_sell_value"] += trade_value * weight
+
+                    data["symbols"].add(entry.symbol)
+
+                    # Track timing
+                    if (
+                        data["first_trade_at"] is None
+                        or entry.fill_timestamp < data["first_trade_at"]
+                    ):
+                        data["first_trade_at"] = entry.fill_timestamp
+                    if (
+                        data["last_trade_at"] is None
+                        or entry.fill_timestamp > data["last_trade_at"]
+                    ):
+                        data["last_trade_at"] = entry.fill_timestamp
+
+        # Build StrategyPerformance DTOs
+        performance_map = {}
+        for strategy_name, data in strategy_data.items():
+            # Compute P&L metrics
+            gross_pnl = data["total_sell_value"] - data["total_buy_value"]
+
+            # Realized P&L is the same as gross P&L for completed trades
+            # (more sophisticated P&L calculation would require position tracking)
+            realized_pnl = gross_pnl
+
+            performance_map[strategy_name] = StrategyPerformance(
+                strategy_name=strategy_name,
+                total_trades=data["total_trades"],
+                buy_trades=data["buy_trades"],
+                sell_trades=data["sell_trades"],
+                total_buy_value=data["total_buy_value"],
+                total_sell_value=data["total_sell_value"],
+                realized_pnl=realized_pnl,
+                gross_pnl=gross_pnl,
+                symbols_traded=sorted(data["symbols"]),
+                allocation_weight=None,  # Would need to come from config
+                first_trade_at=data["first_trade_at"],
+                last_trade_at=data["last_trade_at"],
+            )
+
+        return performance_map
 
     def generate_snapshot(
         self,

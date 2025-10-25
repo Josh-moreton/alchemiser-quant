@@ -25,6 +25,7 @@ __all__ = [
     "AlpacaOrderData",
     "AlpacaPositionData",
     "InternalLedgerData",
+    "StrategyPerformance",
 ]
 
 
@@ -158,6 +159,62 @@ class AlpacaOrderData(BaseModel):
         return ensure_timezone_aware(v)
 
 
+class StrategyPerformance(BaseModel):
+    """DTO for per-strategy performance metrics.
+
+    Captures performance data for a single strategy based on trade ledger analysis.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    strategy_name: str = Field(..., min_length=1, description="Strategy name")
+
+    # Trade counts
+    total_trades: int = Field(..., ge=0, description="Total number of trades for this strategy")
+    buy_trades: int = Field(..., ge=0, description="Number of buy trades")
+    sell_trades: int = Field(..., ge=0, description="Number of sell trades")
+
+    # Trade volumes
+    total_buy_value: Decimal = Field(..., ge=0, description="Total value of buy trades")
+    total_sell_value: Decimal = Field(..., ge=0, description="Total value of sell trades")
+
+    # P&L metrics (computed from matched buy/sell pairs)
+    realized_pnl: Decimal = Field(
+        default=Decimal("0"),
+        description="Realized P&L from completed buy/sell pairs",
+    )
+    gross_pnl: Decimal = Field(
+        default=Decimal("0"),
+        description="Gross P&L (sell value - buy value)",
+    )
+
+    # Additional metrics
+    symbols_traded: list[str] = Field(
+        default_factory=list,
+        description="List of symbols traded by this strategy",
+    )
+    allocation_weight: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Current allocation weight for this strategy (0-1)",
+    )
+
+    # Time range for these metrics
+    first_trade_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of first trade for this strategy",
+    )
+    last_trade_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of last trade for this strategy",
+    )
+
+
 class InternalLedgerData(BaseModel):
     """DTO for internal ledger information in snapshot.
 
@@ -185,6 +242,12 @@ class InternalLedgerData(BaseModel):
     strategy_allocations: dict[str, Decimal] = Field(
         default_factory=dict,
         description="Strategy allocation weights",
+    )
+
+    # Per-strategy performance metrics
+    strategy_performance: dict[str, StrategyPerformance] = Field(
+        default_factory=dict,
+        description="Performance metrics for each strategy (strategy_name -> metrics)",
     )
 
     # Most recent trades (limited sample for audit)

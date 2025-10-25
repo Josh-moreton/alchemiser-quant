@@ -21,6 +21,7 @@ from the_alchemiser.shared.schemas.account_snapshot import (
     AlpacaOrderData,
     AlpacaPositionData,
     InternalLedgerData,
+    StrategyPerformance,
 )
 
 
@@ -149,8 +150,107 @@ class TestAlpacaOrderData:
             )
 
 
+class TestStrategyPerformance:
+    """Test suite for StrategyPerformance DTO."""
+
+    def test_create_valid_strategy_performance(self) -> None:
+        """Test creating valid strategy performance metrics."""
+        perf = StrategyPerformance(
+            strategy_name="nuclear",
+            total_trades=10,
+            buy_trades=5,
+            sell_trades=5,
+            total_buy_value=Decimal("25000.00"),
+            total_sell_value=Decimal("27000.00"),
+            realized_pnl=Decimal("2000.00"),
+            gross_pnl=Decimal("2000.00"),
+            symbols_traded=["AAPL", "GOOGL"],
+            first_trade_at=datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
+            last_trade_at=datetime(2024, 1, 15, 16, 0, 0, tzinfo=UTC),
+        )
+
+        assert perf.strategy_name == "nuclear"
+        assert perf.total_trades == 10
+        assert perf.realized_pnl == Decimal("2000.00")
+        assert len(perf.symbols_traded) == 2
+
+    def test_strategy_performance_is_frozen(self) -> None:
+        """Test that StrategyPerformance is immutable."""
+        perf = StrategyPerformance(
+            strategy_name="nuclear",
+            total_trades=10,
+            buy_trades=5,
+            sell_trades=5,
+            total_buy_value=Decimal("25000.00"),
+            total_sell_value=Decimal("27000.00"),
+        )
+
+        with pytest.raises(ValidationError):
+            perf.total_trades = 20  # type: ignore
+
+
 class TestInternalLedgerData:
     """Test suite for InternalLedgerData DTO."""
+
+    def test_create_valid_ledger_data(self) -> None:
+        """Test creating valid internal ledger data."""
+        ledger = InternalLedgerData(
+            ledger_id="ledger-123",
+            total_trades=10,
+            total_buy_value=Decimal("50000.00"),
+            total_sell_value=Decimal("30000.00"),
+            strategies_active=["nuclear", "tecl"],
+            strategy_allocations={"nuclear": Decimal("0.3"), "tecl": Decimal("0.7")},
+        )
+
+        assert ledger.total_trades == 10
+        assert len(ledger.strategies_active) == 2
+
+    def test_ledger_data_with_strategy_performance(self) -> None:
+        """Test ledger data with per-strategy performance metrics."""
+        nuclear_perf = StrategyPerformance(
+            strategy_name="nuclear",
+            total_trades=5,
+            buy_trades=3,
+            sell_trades=2,
+            total_buy_value=Decimal("15000.00"),
+            total_sell_value=Decimal("16000.00"),
+            realized_pnl=Decimal("1000.00"),
+            gross_pnl=Decimal("1000.00"),
+            symbols_traded=["AAPL"],
+        )
+
+        tecl_perf = StrategyPerformance(
+            strategy_name="tecl",
+            total_trades=5,
+            buy_trades=2,
+            sell_trades=3,
+            total_buy_value=Decimal("35000.00"),
+            total_sell_value=Decimal("34000.00"),
+            realized_pnl=Decimal("-1000.00"),
+            gross_pnl=Decimal("-1000.00"),
+            symbols_traded=["TECL"],
+        )
+
+        ledger = InternalLedgerData(
+            ledger_id="ledger-123",
+            total_trades=10,
+            total_buy_value=Decimal("50000.00"),
+            total_sell_value=Decimal("50000.00"),
+            strategies_active=["nuclear", "tecl"],
+            strategy_performance={
+                "nuclear": nuclear_perf,
+                "tecl": tecl_perf,
+            },
+        )
+
+        assert len(ledger.strategy_performance) == 2
+        assert ledger.strategy_performance["nuclear"].realized_pnl == Decimal("1000.00")
+        assert ledger.strategy_performance["tecl"].realized_pnl == Decimal("-1000.00")
+
+
+class TestInternalLedgerData_Legacy:
+    """Test suite for InternalLedgerData DTO (legacy tests)."""
 
     def test_create_valid_ledger_data(self) -> None:
         """Test creating valid internal ledger data."""
