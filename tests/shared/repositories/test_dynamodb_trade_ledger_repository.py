@@ -51,6 +51,10 @@ class TestDynamoDBTradeLedgerRepository:
         repo.query_trades_by_strategy = (
             DynamoDBTradeLedgerRepository.query_trades_by_strategy.__get__(repo)
         )
+        repo._group_trades_by_symbol = (
+            DynamoDBTradeLedgerRepository._group_trades_by_symbol.__get__(repo)
+        )
+        repo._match_trades_fifo = DynamoDBTradeLedgerRepository._match_trades_fifo.__get__(repo)
         repo._calculate_realized_pnl_fifo = (
             DynamoDBTradeLedgerRepository._calculate_realized_pnl_fifo.__get__(repo)
         )
