@@ -17,7 +17,6 @@ from the_alchemiser.shared.repositories.account_snapshot_repository import (
 from the_alchemiser.shared.schemas.account_snapshot import (
     AccountSnapshot,
     AlpacaAccountData,
-    InternalLedgerSummary,
 )
 
 
