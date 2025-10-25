@@ -253,30 +253,40 @@ class TestAccountSnapshot:
 
     def test_checksum_verification(self, sample_account, sample_ledger_summary):
         """Test checksum calculation and verification."""
-        snapshot_data = {
-            "snapshot_id": "snap-123",
-            "snapshot_version": "1.0",
-            "account_id": "test-account",
-            "period_start": datetime(2025, 1, 15, 0, 0, 0, tzinfo=UTC).isoformat(),
-            "period_end": datetime(2025, 1, 15, 23, 59, 59, tzinfo=UTC).isoformat(),
-            "correlation_id": "corr-123",
-            "created_at": datetime.now(UTC).isoformat(),
-            "alpaca_account": sample_account.model_dump(),
-            "alpaca_positions": [],
-            "alpaca_orders": [],
-            "internal_ledger": sample_ledger_summary.model_dump(),
-        }
+        # Use fixed timestamp to ensure consistency
+        created_at = datetime(2025, 1, 15, 14, 30, 0, tzinfo=UTC)
+        period_start = datetime(2025, 1, 15, 0, 0, 0, tzinfo=UTC)
+        period_end = datetime(2025, 1, 15, 23, 59, 59, tzinfo=UTC)
 
-        checksum = AccountSnapshot.calculate_checksum(snapshot_data)
-
+        # Create snapshot first to get consistent serialization
         snapshot = AccountSnapshot(
             snapshot_id="snap-123",
             snapshot_version="1.0",
             account_id="test-account",
-            period_start=datetime(2025, 1, 15, 0, 0, 0, tzinfo=UTC),
-            period_end=datetime(2025, 1, 15, 23, 59, 59, tzinfo=UTC),
+            period_start=period_start,
+            period_end=period_end,
             correlation_id="corr-123",
-            created_at=datetime.now(UTC),
+            created_at=created_at,
+            alpaca_account=sample_account,
+            alpaca_positions=[],
+            alpaca_orders=[],
+            internal_ledger=sample_ledger_summary,
+            checksum="placeholder",  # Temporary placeholder
+        )
+
+        # Calculate checksum from model_dump (excluding ttl_timestamp and checksum)
+        snapshot_dict = snapshot.model_dump(exclude={"ttl_timestamp", "checksum"})
+        checksum = AccountSnapshot.calculate_checksum(snapshot_dict)
+
+        # Create final snapshot with correct checksum
+        snapshot_final = AccountSnapshot(
+            snapshot_id="snap-123",
+            snapshot_version="1.0",
+            account_id="test-account",
+            period_start=period_start,
+            period_end=period_end,
+            correlation_id="corr-123",
+            created_at=created_at,
             alpaca_account=sample_account,
             alpaca_positions=[],
             alpaca_orders=[],
@@ -284,7 +294,7 @@ class TestAccountSnapshot:
             checksum=checksum,
         )
 
-        assert snapshot.verify_checksum()
+        assert snapshot_final.verify_checksum()
 
     def test_ttl_timestamp_calculation(self, sample_account, sample_ledger_summary):
         """Test TTL timestamp calculation (90 days from creation)."""

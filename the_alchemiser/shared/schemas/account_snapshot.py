@@ -262,6 +262,7 @@ class AccountSnapshot(BaseModel):
             True if checksum is valid, False otherwise
 
         """
-        snapshot_dict = self.model_dump()
+        # Exclude computed fields from checksum calculation
+        snapshot_dict = self.model_dump(exclude={"ttl_timestamp"})
         calculated = self.calculate_checksum(snapshot_dict)
         return calculated == self.checksum
