@@ -48,6 +48,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 DynamoDBException = (ClientError, BotoCoreError)
 
+
 class TradeLedgerService:
     """Service for recording filled orders to trade ledger.
 
