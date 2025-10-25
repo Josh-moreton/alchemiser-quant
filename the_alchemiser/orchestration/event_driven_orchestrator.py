@@ -852,9 +852,6 @@ class EventDrivenOrchestrator:
             from the_alchemiser.shared.repositories.account_snapshot_repository import (
                 AccountSnapshotRepository,
             )
-            from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
-                DynamoDBTradeLedgerRepository,
-            )
             from the_alchemiser.shared.services.account_snapshot_service import (
                 AccountSnapshotService,
             )
@@ -873,10 +870,7 @@ class EventDrivenOrchestrator:
 
             # Create repositories and service
             snapshot_repository = AccountSnapshotRepository(table_name)
-            ledger_repository = DynamoDBTradeLedgerRepository(table_name)
-            snapshot_service = AccountSnapshotService(
-                alpaca_manager, snapshot_repository, ledger_repository
-            )
+            snapshot_service = AccountSnapshotService(alpaca_manager, snapshot_repository)
 
             # Get account ID from Alpaca
             account = alpaca_manager.get_account_object()
@@ -889,13 +883,12 @@ class EventDrivenOrchestrator:
 
             account_id = str(account.id)
 
-            # Generate snapshot with ledger_id matching correlation_id for this cycle
+            # Generate snapshot (correlation_id enables querying trade ledger at report time)
             snapshot = snapshot_service.generate_snapshot(
                 account_id=account_id,
                 correlation_id=correlation_id,
                 period_start=period_start,
                 period_end=period_end,
-                ledger_id=correlation_id,  # Use correlation_id as ledger_id for this cycle
             )
 
             self.logger.info(

@@ -119,69 +119,11 @@ class AlpacaOrderData(BaseModel):
         return result
 
 
-class StrategyPerformanceData(BaseModel):
-    """DTO for strategy-level performance metrics in snapshot."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    strategy_name: str = Field(..., min_length=1, description="Strategy name")
-    total_trades: int = Field(default=0, ge=0, description="Total number of trades")
-    buy_trades: int = Field(default=0, ge=0, description="Number of buy trades")
-    sell_trades: int = Field(default=0, ge=0, description="Number of sell trades")
-    total_buy_value: Decimal = Field(default=Decimal("0"), ge=0, description="Total buy value")
-    total_sell_value: Decimal = Field(default=Decimal("0"), ge=0, description="Total sell value")
-    gross_pnl: Decimal = Field(default=Decimal("0"), description="Gross P/L (sell - buy)")
-    realized_pnl: Decimal = Field(
-        default=Decimal("0"), description="Realized P/L from FIFO matching"
-    )
-    symbols_traded: list[str] = Field(
-        default_factory=list, description="List of symbols traded by strategy"
-    )
-    first_trade_at: datetime | None = Field(default=None, description="First trade timestamp")
-    last_trade_at: datetime | None = Field(default=None, description="Last trade timestamp")
-
-    @field_validator("first_trade_at", "last_trade_at")
-    @classmethod
-    def ensure_timezone_aware_timestamps(cls, v: datetime | None) -> datetime | None:
-        """Ensure all timestamps are timezone-aware."""
-        if v is None:
-            return None
-        result = ensure_timezone_aware(v)
-        if result is None:
-            raise ValueError("Timestamp cannot be None after timezone conversion")
-        return result
-
-
-class InternalLedgerSummary(BaseModel):
-    """DTO for internal trade ledger summary in snapshot."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    ledger_id: str = Field(..., min_length=1, description="Ledger identifier")
-    total_trades: int = Field(default=0, ge=0, description="Total trades recorded")
-    total_buy_value: Decimal = Field(default=Decimal("0"), ge=0, description="Total buy value")
-    total_sell_value: Decimal = Field(default=Decimal("0"), ge=0, description="Total sell value")
-    strategies_active: list[str] = Field(
-        default_factory=list, description="List of active strategies"
-    )
-    strategy_performance: dict[str, StrategyPerformanceData] = Field(
-        default_factory=dict, description="Per-strategy performance metrics"
-    )
-
-
 class AccountSnapshot(BaseModel):
     """Complete account snapshot for deterministic reporting.
 
-    Consolidates Alpaca account data with internal trade ledger data
-    to provide a complete, reproducible view of account state.
+    Consolidates Alpaca account data to provide a complete, reproducible view of account state.
+    Trade ledger data can be queried separately using the correlation_id.
     """
 
     model_config = ConfigDict(
@@ -196,18 +138,17 @@ class AccountSnapshot(BaseModel):
     account_id: str = Field(..., min_length=1, description="Account identifier")
     period_start: datetime = Field(..., description="Period start timestamp")
     period_end: datetime = Field(..., description="Period end timestamp")
-    correlation_id: str = Field(..., min_length=1, description="Workflow correlation ID")
+    correlation_id: str = Field(
+        ..., min_length=1, description="Workflow correlation ID for querying trade ledger"
+    )
     created_at: datetime = Field(..., description="Snapshot creation timestamp")
 
-    # Alpaca data
+    # Alpaca data (external API data that changes over time)
     alpaca_account: AlpacaAccountData = Field(..., description="Alpaca account data")
     alpaca_positions: list[AlpacaPositionData] = Field(
         default_factory=list, description="Alpaca positions"
     )
     alpaca_orders: list[AlpacaOrderData] = Field(default_factory=list, description="Alpaca orders")
-
-    # Internal ledger data
-    internal_ledger: InternalLedgerSummary = Field(..., description="Internal ledger summary")
 
     # Integrity
     checksum: str = Field(..., min_length=1, description="SHA-256 checksum for integrity")

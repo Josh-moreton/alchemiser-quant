@@ -2,31 +2,27 @@
 
 Service for generating deterministic account snapshots.
 
-This service orchestrates the collection of data from Alpaca and internal
-trade ledger to create complete, reproducible account snapshots for reporting.
+This service orchestrates the collection of data from Alpaca to create complete,
+reproducible account snapshots for reporting. Trade ledger data is queried separately
+at report generation time using the correlation_id.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.repositories.account_snapshot_repository import (
     AccountSnapshotRepository,
 )
-from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
-    DynamoDBTradeLedgerRepository,
-)
 from the_alchemiser.shared.schemas.account_snapshot import (
     AccountSnapshot,
     AlpacaAccountData,
     AlpacaOrderData,
     AlpacaPositionData,
-    InternalLedgerSummary,
-    StrategyPerformanceData,
 )
 
 if TYPE_CHECKING:
@@ -42,27 +38,25 @@ __all__ = ["AccountSnapshotService"]
 class AccountSnapshotService:
     """Service for generating and storing account snapshots.
 
-    This service combines data from Alpaca API and internal DynamoDB trade ledger
-    to create deterministic snapshots for downstream reporting without live API calls.
+    This service collects data from Alpaca API to create deterministic snapshots
+    for downstream reporting without live API calls. Trade ledger data is queried
+    separately at report generation time using the correlation_id.
     """
 
     def __init__(
         self,
         alpaca_manager: AlpacaManager,
         snapshot_repository: AccountSnapshotRepository,
-        ledger_repository: DynamoDBTradeLedgerRepository,
     ) -> None:
         """Initialize snapshot service.
 
         Args:
             alpaca_manager: Alpaca broker manager for API access
             snapshot_repository: Repository for storing snapshots
-            ledger_repository: Repository for querying trade ledger
 
         """
         self._alpaca_manager = alpaca_manager
         self._snapshot_repository = snapshot_repository
-        self._ledger_repository = ledger_repository
 
     def generate_snapshot(
         self,
@@ -70,16 +64,14 @@ class AccountSnapshotService:
         correlation_id: str,
         period_start: datetime,
         period_end: datetime,
-        ledger_id: str,
     ) -> AccountSnapshot:
         """Generate a complete account snapshot.
 
         Args:
             account_id: Account identifier
-            correlation_id: Workflow correlation ID
+            correlation_id: Workflow correlation ID (used to query trade ledger at report time)
             period_start: Period start timestamp
             period_end: Period end timestamp
-            ledger_id: Trade ledger identifier
 
         Returns:
             Generated AccountSnapshot
@@ -102,9 +94,6 @@ class AccountSnapshotService:
             alpaca_positions_data = self._fetch_alpaca_positions()
             alpaca_orders_data = self._fetch_alpaca_orders()
 
-            # Fetch internal ledger data
-            internal_ledger_data = self._fetch_internal_ledger(ledger_id, correlation_id)
-
             # Create snapshot
             snapshot_id = str(uuid4())
             created_at = datetime.now(UTC)
@@ -121,7 +110,6 @@ class AccountSnapshotService:
                 "alpaca_account": alpaca_account_data.model_dump(),
                 "alpaca_positions": [pos.model_dump() for pos in alpaca_positions_data],
                 "alpaca_orders": [order.model_dump() for order in alpaca_orders_data],
-                "internal_ledger": internal_ledger_data.model_dump(),
             }
 
             # Calculate checksum
@@ -139,7 +127,6 @@ class AccountSnapshotService:
                 alpaca_account=alpaca_account_data,
                 alpaca_positions=alpaca_positions_data,
                 alpaca_orders=alpaca_orders_data,
-                internal_ledger=internal_ledger_data,
                 checksum=checksum,
             )
 
@@ -302,101 +289,4 @@ class AccountSnapshotService:
             filled_at=order.filled_at,
             expired_at=order.expired_at,
             canceled_at=order.canceled_at,
-        )
-
-    def _fetch_internal_ledger(self, ledger_id: str, correlation_id: str) -> InternalLedgerSummary:
-        """Fetch and aggregate internal trade ledger data.
-
-        Args:
-            ledger_id: Trade ledger identifier
-            correlation_id: Workflow correlation ID
-
-        Returns:
-            InternalLedgerSummary DTO
-
-        """
-        # Query all trades for this correlation_id
-        trades = self._ledger_repository.query_trades_by_correlation(correlation_id)
-
-        if not trades:
-            # Return empty summary if no trades
-            return InternalLedgerSummary(
-                ledger_id=ledger_id,
-                total_trades=0,
-                total_buy_value=Decimal("0"),
-                total_sell_value=Decimal("0"),
-                strategies_active=[],
-                strategy_performance={},
-            )
-
-        # Extract unique strategies from trades
-        strategies_active = set()
-        for trade in trades:
-            if "strategy_names" in trade and trade["strategy_names"]:
-                strategies_active.update(trade["strategy_names"])
-
-        # Compute per-strategy performance
-        strategy_performance = {}
-        for strategy_name in strategies_active:
-            perf_data = self._ledger_repository.compute_strategy_performance(strategy_name)
-            strategy_performance[strategy_name] = self._convert_performance_to_dto(perf_data)
-
-        # Calculate aggregate metrics
-        total_buy_value = sum(
-            (
-                Decimal(trade["filled_qty"]) * Decimal(trade["fill_price"])
-                for trade in trades
-                if trade["direction"] == "BUY"
-            ),
-            Decimal("0"),
-        )
-
-        total_sell_value = sum(
-            (
-                Decimal(trade["filled_qty"]) * Decimal(trade["fill_price"])
-                for trade in trades
-                if trade["direction"] == "SELL"
-            ),
-            Decimal("0"),
-        )
-
-        return InternalLedgerSummary(
-            ledger_id=ledger_id,
-            total_trades=len(trades),
-            total_buy_value=total_buy_value,
-            total_sell_value=total_sell_value,
-            strategies_active=sorted(strategies_active),
-            strategy_performance=strategy_performance,
-        )
-
-    def _convert_performance_to_dto(self, perf_data: dict[str, Any]) -> StrategyPerformanceData:
-        """Convert strategy performance dict to DTO.
-
-        Args:
-            perf_data: Strategy performance data from repository
-
-        Returns:
-            StrategyPerformanceData DTO
-
-        """
-        return StrategyPerformanceData(
-            strategy_name=perf_data["strategy_name"],
-            total_trades=perf_data["total_trades"],
-            buy_trades=perf_data["buy_trades"],
-            sell_trades=perf_data["sell_trades"],
-            total_buy_value=perf_data["total_buy_value"],
-            total_sell_value=perf_data["total_sell_value"],
-            gross_pnl=perf_data["gross_pnl"],
-            realized_pnl=perf_data["realized_pnl"],
-            symbols_traded=perf_data["symbols_traded"],
-            first_trade_at=(
-                datetime.fromisoformat(perf_data["first_trade_at"])
-                if perf_data["first_trade_at"]
-                else None
-            ),
-            last_trade_at=(
-                datetime.fromisoformat(perf_data["last_trade_at"])
-                if perf_data["last_trade_at"]
-                else None
-            ),
         )

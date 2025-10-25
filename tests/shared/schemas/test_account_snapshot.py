@@ -15,8 +15,6 @@ from the_alchemiser.shared.schemas.account_snapshot import (
     AlpacaAccountData,
     AlpacaOrderData,
     AlpacaPositionData,
-    InternalLedgerSummary,
-    StrategyPerformanceData,
 )
 
 
@@ -115,63 +113,6 @@ class TestAlpacaOrderData:
         assert order.filled_qty == Decimal("10")
 
 
-class TestStrategyPerformanceData:
-    """Test suite for StrategyPerformanceData DTO."""
-
-    def test_valid_strategy_performance(self):
-        """Test creation with valid strategy performance data."""
-        perf = StrategyPerformanceData(
-            strategy_name="nuclear",
-            total_trades=10,
-            buy_trades=5,
-            sell_trades=5,
-            total_buy_value=Decimal("5000.00"),
-            total_sell_value=Decimal("5200.00"),
-            gross_pnl=Decimal("200.00"),
-            realized_pnl=Decimal("180.00"),
-            symbols_traded=["AAPL", "GOOGL"],
-            first_trade_at=datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC),
-            last_trade_at=datetime(2025, 1, 15, 16, 0, 0, tzinfo=UTC),
-        )
-
-        assert perf.strategy_name == "nuclear"
-        assert perf.total_trades == 10
-        assert perf.gross_pnl == Decimal("200.00")
-        assert len(perf.symbols_traded) == 2
-
-
-class TestInternalLedgerSummary:
-    """Test suite for InternalLedgerSummary DTO."""
-
-    def test_valid_ledger_summary(self):
-        """Test creation with valid ledger summary."""
-        perf = StrategyPerformanceData(
-            strategy_name="nuclear",
-            total_trades=5,
-            buy_trades=3,
-            sell_trades=2,
-            total_buy_value=Decimal("3000.00"),
-            total_sell_value=Decimal("3100.00"),
-            gross_pnl=Decimal("100.00"),
-            realized_pnl=Decimal("90.00"),
-            symbols_traded=["AAPL"],
-        )
-
-        summary = InternalLedgerSummary(
-            ledger_id="ledger-123",
-            total_trades=5,
-            total_buy_value=Decimal("3000.00"),
-            total_sell_value=Decimal("3100.00"),
-            strategies_active=["nuclear"],
-            strategy_performance={"nuclear": perf},
-        )
-
-        assert summary.ledger_id == "ledger-123"
-        assert summary.total_trades == 5
-        assert len(summary.strategies_active) == 1
-        assert "nuclear" in summary.strategy_performance
-
-
 class TestAccountSnapshot:
     """Test suite for AccountSnapshot DTO."""
 
@@ -202,19 +143,7 @@ class TestAccountSnapshot:
             side="long",
         )
 
-    @pytest.fixture
-    def sample_ledger_summary(self):
-        """Create sample ledger summary."""
-        return InternalLedgerSummary(
-            ledger_id="ledger-123",
-            total_trades=5,
-            total_buy_value=Decimal("3000.00"),
-            total_sell_value=Decimal("3100.00"),
-            strategies_active=["nuclear"],
-            strategy_performance={},
-        )
-
-    def test_valid_snapshot_creation(self, sample_account, sample_position, sample_ledger_summary):
+    def test_valid_snapshot_creation(self, sample_account, sample_position):
         """Test creation of valid snapshot."""
         snapshot_data = {
             "snapshot_id": "snap-123",
@@ -227,7 +156,6 @@ class TestAccountSnapshot:
             "alpaca_account": sample_account.model_dump(),
             "alpaca_positions": [sample_position.model_dump()],
             "alpaca_orders": [],
-            "internal_ledger": sample_ledger_summary.model_dump(),
         }
 
         checksum = AccountSnapshot.calculate_checksum(snapshot_data)
@@ -243,7 +171,6 @@ class TestAccountSnapshot:
             alpaca_account=sample_account,
             alpaca_positions=[sample_position],
             alpaca_orders=[],
-            internal_ledger=sample_ledger_summary,
             checksum=checksum,
         )
 
@@ -251,7 +178,7 @@ class TestAccountSnapshot:
         assert snapshot.account_id == "test-account"
         assert len(snapshot.alpaca_positions) == 1
 
-    def test_checksum_verification(self, sample_account, sample_ledger_summary):
+    def test_checksum_verification(self, sample_account):
         """Test checksum calculation and verification."""
         # Use fixed timestamp to ensure consistency
         created_at = datetime(2025, 1, 15, 14, 30, 0, tzinfo=UTC)
@@ -271,7 +198,6 @@ class TestAccountSnapshot:
             alpaca_account=sample_account,
             alpaca_positions=[],
             alpaca_orders=[],
-            internal_ledger=sample_ledger_summary,
             checksum="temp-checksum-to-be-replaced",  # Temporary value for serialization
         )
 
@@ -291,13 +217,12 @@ class TestAccountSnapshot:
             alpaca_account=sample_account,
             alpaca_positions=[],
             alpaca_orders=[],
-            internal_ledger=sample_ledger_summary,
             checksum=checksum,
         )
 
         assert snapshot_final.verify_checksum()
 
-    def test_ttl_timestamp_calculation(self, sample_account, sample_ledger_summary):
+    def test_ttl_timestamp_calculation(self, sample_account):
         """Test TTL timestamp calculation (90 days from creation)."""
         created_at = datetime(2025, 1, 15, 0, 0, 0, tzinfo=UTC)
         snapshot_data = {
@@ -311,7 +236,6 @@ class TestAccountSnapshot:
             "alpaca_account": sample_account.model_dump(),
             "alpaca_positions": [],
             "alpaca_orders": [],
-            "internal_ledger": sample_ledger_summary.model_dump(),
         }
 
         checksum = AccountSnapshot.calculate_checksum(snapshot_data)
@@ -327,7 +251,6 @@ class TestAccountSnapshot:
             alpaca_account=sample_account,
             alpaca_positions=[],
             alpaca_orders=[],
-            internal_ledger=sample_ledger_summary,
             checksum=checksum,
         )
 
@@ -337,7 +260,7 @@ class TestAccountSnapshot:
         expected_ttl = created_at + timedelta(days=90)
         assert snapshot.ttl_timestamp == int(expected_ttl.timestamp())
 
-    def test_frozen_snapshot(self, sample_account, sample_ledger_summary):
+    def test_frozen_snapshot(self, sample_account):
         """Test that snapshot is immutable (frozen)."""
         snapshot_data = {
             "snapshot_id": "snap-123",
@@ -350,7 +273,6 @@ class TestAccountSnapshot:
             "alpaca_account": sample_account.model_dump(),
             "alpaca_positions": [],
             "alpaca_orders": [],
-            "internal_ledger": sample_ledger_summary.model_dump(),
         }
 
         checksum = AccountSnapshot.calculate_checksum(snapshot_data)
@@ -366,7 +288,6 @@ class TestAccountSnapshot:
             alpaca_account=sample_account,
             alpaca_positions=[],
             alpaca_orders=[],
-            internal_ledger=sample_ledger_summary,
             checksum=checksum,
         )
 

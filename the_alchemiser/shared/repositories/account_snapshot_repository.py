@@ -78,7 +78,6 @@ class AccountSnapshotRepository:
             "alpaca_orders": [
                 self._serialize_nested_data(order) for order in snapshot.alpaca_orders
             ],
-            "internal_ledger": self._serialize_nested_data(snapshot.internal_ledger),
             "checksum": snapshot.checksum,
             "ttl": snapshot.ttl_timestamp,
             # GSI4 for correlation_id queries
@@ -297,14 +296,10 @@ class AccountSnapshotRepository:
             AccountSnapshot instance
 
         """
-        from decimal import Decimal
-
         from the_alchemiser.shared.schemas.account_snapshot import (
             AlpacaAccountData,
             AlpacaOrderData,
             AlpacaPositionData,
-            InternalLedgerSummary,
-            StrategyPerformanceData,
         )
 
         # Deserialize alpaca_account
@@ -324,17 +319,6 @@ class AccountSnapshotRepository:
             for order in item.get("alpaca_orders", [])
         ]
 
-        # Deserialize internal_ledger with strategy_performance
-        internal_ledger_data = self._convert_strings_to_decimals(item["internal_ledger"])
-        strategy_performance = {}
-        if "strategy_performance" in internal_ledger_data:
-            for strategy_name, perf_data in internal_ledger_data["strategy_performance"].items():
-                strategy_performance[strategy_name] = StrategyPerformanceData(
-                    **self._convert_strings_to_decimals(perf_data)
-                )
-        internal_ledger_data["strategy_performance"] = strategy_performance
-        internal_ledger = InternalLedgerSummary(**internal_ledger_data)
-
         # Build AccountSnapshot
         return AccountSnapshot(
             snapshot_id=item["snapshot_id"],
@@ -347,7 +331,6 @@ class AccountSnapshotRepository:
             alpaca_account=alpaca_account,
             alpaca_positions=alpaca_positions,
             alpaca_orders=alpaca_orders,
-            internal_ledger=internal_ledger,
             checksum=item["checksum"],
         )
 
