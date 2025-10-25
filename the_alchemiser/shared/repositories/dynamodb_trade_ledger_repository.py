@@ -1,0 +1,326 @@
+"""Business Unit: shared | Status: current.
+
+DynamoDB repository for trade ledger.
+
+Implements single-table design with global secondary indexes for efficient
+querying by correlation_id, symbol, and strategy name.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any
+
+from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.trade_ledger import TradeLedgerEntry
+
+logger = get_logger(__name__)
+
+__all__ = ["DynamoDBTradeLedgerRepository"]
+
+
+class DynamoDBTradeLedgerRepository:
+    """Repository for trade ledger using DynamoDB single-table design.
+
+    Table structure:
+    - Main table: PK (partition key), SK (sort key)
+    - GSI1: Query by correlation_id + timestamp
+    - GSI2: Query by symbol + timestamp
+    - GSI3: Query by strategy + timestamp
+
+    Entity types:
+    - TRADE: Main trade record
+    - STRATEGY_TRADE: Strategy attribution link
+    """
+
+    def __init__(self, table_name: str) -> None:
+        """Initialize repository.
+
+        Args:
+            table_name: DynamoDB table name
+
+        """
+        import boto3
+
+        self._dynamodb = boto3.resource("dynamodb")
+        self._table = self._dynamodb.Table(table_name)
+        logger.debug("Initialized DynamoDB trade ledger repository", table=table_name)
+
+    def put_trade(self, entry: TradeLedgerEntry, ledger_id: str) -> None:
+        """Write a trade entry to DynamoDB.
+
+        Writes:
+        1. Main trade item (PK=TRADE#{order_id}, SK=METADATA)
+        2. Strategy link items for each strategy (PK=STRATEGY#{name}, SK=TRADE#{timestamp}#{order_id})
+
+        Args:
+            entry: Trade ledger entry
+            ledger_id: Ledger identifier
+
+        """
+        timestamp_str = entry.fill_timestamp.isoformat()
+
+        # Main trade item
+        trade_item: dict[str, Any] = {
+            "PK": f"TRADE#{entry.order_id}",
+            "SK": "METADATA",
+            "EntityType": "TRADE",
+            "order_id": entry.order_id,
+            "correlation_id": entry.correlation_id,
+            "ledger_id": ledger_id,
+            "symbol": entry.symbol,
+            "direction": entry.direction,
+            "filled_qty": str(entry.filled_qty),
+            "fill_price": str(entry.fill_price),
+            "fill_timestamp": timestamp_str,
+            "order_type": entry.order_type,
+            "strategy_names": entry.strategy_names if entry.strategy_names else [],
+            "created_at": datetime.now(UTC).isoformat(),
+            # GSI keys for access patterns
+            "GSI1PK": f"CORR#{entry.correlation_id}",
+            "GSI1SK": f"TRADE#{timestamp_str}#{entry.order_id}",
+            "GSI2PK": f"SYMBOL#{entry.symbol}",
+            "GSI2SK": f"TRADE#{timestamp_str}#{entry.order_id}",
+        }
+
+        # Optional fields
+        if entry.bid_at_fill:
+            trade_item["bid_at_fill"] = str(entry.bid_at_fill)
+        if entry.ask_at_fill:
+            trade_item["ask_at_fill"] = str(entry.ask_at_fill)
+        if entry.strategy_weights:
+            # Store as dict[str, str] for DynamoDB
+            trade_item["strategy_weights"] = {k: str(v) for k, v in entry.strategy_weights.items()}
+
+        # Write main trade item
+        self._table.put_item(Item=trade_item)
+
+        # Write strategy link items
+        if entry.strategy_names:
+            self._write_strategy_links(entry, timestamp_str)
+
+        logger.info(
+            "Trade written to DynamoDB",
+            order_id=entry.order_id,
+            symbol=entry.symbol,
+            strategies=entry.strategy_names,
+        )
+
+    def _write_strategy_links(self, entry: TradeLedgerEntry, timestamp_str: str) -> None:
+        """Write strategy-trade link items for multi-strategy attribution.
+
+        Args:
+            entry: Trade ledger entry
+            timestamp_str: ISO formatted timestamp
+
+        """
+        trade_value = entry.filled_qty * entry.fill_price
+
+        for strategy_name in entry.strategy_names:
+            weight = (
+                entry.strategy_weights.get(strategy_name, Decimal("1.0"))
+                if entry.strategy_weights
+                else Decimal("1.0")
+            )
+            strategy_trade_value = trade_value * weight
+
+            strategy_item = {
+                "PK": f"STRATEGY#{strategy_name}",
+                "SK": f"TRADE#{timestamp_str}#{entry.order_id}",
+                "EntityType": "STRATEGY_TRADE",
+                "strategy_name": strategy_name,
+                "order_id": entry.order_id,
+                "symbol": entry.symbol,
+                "direction": entry.direction,
+                "weight": str(weight),
+                "strategy_trade_value": str(strategy_trade_value),
+                "fill_timestamp": timestamp_str,
+                "created_at": datetime.now(UTC).isoformat(),
+                # GSI3 for strategy queries
+                "GSI3PK": f"STRATEGY#{strategy_name}",
+                "GSI3SK": f"TRADE#{timestamp_str}#{entry.order_id}",
+            }
+
+            self._table.put_item(Item=strategy_item)
+
+    def get_trade(self, order_id: str) -> dict[str, Any] | None:
+        """Get a trade by order_id.
+
+        Args:
+            order_id: Order identifier
+
+        Returns:
+            Trade item dict or None
+
+        """
+        try:
+            response = self._table.get_item(Key={"PK": f"TRADE#{order_id}", "SK": "METADATA"})
+            item = response.get("Item")
+            return dict(item) if item else None
+        except Exception as e:
+            logger.error("Failed to get trade", order_id=order_id, error=str(e))
+            return None
+
+    def query_trades_by_correlation(
+        self, correlation_id: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Query trades by correlation_id using GSI1.
+
+        Args:
+            correlation_id: Correlation identifier
+            limit: Max items to return
+
+        Returns:
+            List of trade items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI1-CorrelationIndex",
+                "KeyConditionExpression": "GSI1PK = :pk",
+                "ExpressionAttributeValues": {":pk": f"CORR#{correlation_id}"},
+                "ScanIndexForward": False,  # Most recent first
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except Exception as e:
+            logger.error(
+                "Failed to query trades by correlation",
+                correlation_id=correlation_id,
+                error=str(e),
+            )
+            return []
+
+    def query_trades_by_symbol(self, symbol: str, limit: int | None = None) -> list[dict[str, Any]]:
+        """Query trades by symbol using GSI2.
+
+        Args:
+            symbol: Trading symbol
+            limit: Max items to return
+
+        Returns:
+            List of trade items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI2-SymbolIndex",
+                "KeyConditionExpression": "GSI2PK = :pk",
+                "ExpressionAttributeValues": {":pk": f"SYMBOL#{symbol.upper()}"},
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except Exception as e:
+            logger.error("Failed to query trades by symbol", symbol=symbol, error=str(e))
+            return []
+
+    def query_trades_by_strategy(
+        self, strategy_name: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Query strategy-trade links by strategy name.
+
+        Args:
+            strategy_name: Strategy name
+            limit: Max items to return
+
+        Returns:
+            List of strategy-trade link items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "KeyConditionExpression": "PK = :pk AND begins_with(SK, :sk)",
+                "ExpressionAttributeValues": {
+                    ":pk": f"STRATEGY#{strategy_name}",
+                    ":sk": "TRADE#",
+                },
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except Exception as e:
+            logger.error(
+                "Failed to query trades by strategy",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            return []
+
+    def compute_strategy_performance(self, strategy_name: str) -> dict[str, Any]:
+        """Compute performance metrics for a strategy.
+
+        Queries all strategy-trade links and aggregates in-memory.
+
+        Args:
+            strategy_name: Strategy name
+
+        Returns:
+            Performance metrics dict
+
+        """
+        items = self.query_trades_by_strategy(strategy_name)
+
+        if not items:
+            return {
+                "strategy_name": strategy_name,
+                "total_trades": 0,
+                "buy_trades": 0,
+                "sell_trades": 0,
+                "total_buy_value": Decimal("0"),
+                "total_sell_value": Decimal("0"),
+                "gross_pnl": Decimal("0"),
+                "symbols_traded": [],
+                "first_trade_at": None,
+                "last_trade_at": None,
+            }
+
+        buy_count = 0
+        sell_count = 0
+        buy_value = Decimal("0")
+        sell_value = Decimal("0")
+        symbols = set()
+        timestamps = []
+
+        for item in items:
+            direction = item["direction"]
+            value = Decimal(item["strategy_trade_value"])
+            symbols.add(item["symbol"])
+            timestamps.append(item["fill_timestamp"])
+
+            if direction == "BUY":
+                buy_count += 1
+                buy_value += value
+            else:
+                sell_count += 1
+                sell_value += value
+
+        return {
+            "strategy_name": strategy_name,
+            "total_trades": len(items),
+            "buy_trades": buy_count,
+            "sell_trades": sell_count,
+            "total_buy_value": buy_value,
+            "total_sell_value": sell_value,
+            "gross_pnl": sell_value - buy_value,
+            "realized_pnl": Decimal("0"),  # TODO: Implement matched-pair logic
+            "symbols_traded": sorted(symbols),
+            "first_trade_at": min(timestamps) if timestamps else None,
+            "last_trade_at": max(timestamps) if timestamps else None,
+        }

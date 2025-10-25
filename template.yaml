@@ -131,29 +131,91 @@ Globals:
         # DSL parallelism configuration
         ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
 
-        # Trade ledger S3 bucket
-        TRADE_LEDGER__BUCKET_NAME: !Ref TradeLedgerBucket
+        # Trade ledger DynamoDB table
+        TRADE_LEDGER_TABLE_NAME: !Ref TradeLedgerTable
 
   # Strategy configuration now packaged with code; env overrides optional
 
   # (no additional Globals keys)
 
 Resources:
-  # S3 Bucket for trade ledger persistence
-  TradeLedgerBucket:
-    Type: AWS::S3::Bucket
+  # DynamoDB Table for trade ledger persistence
+  TradeLedgerTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      BucketName: !If 
+      TableName: !If 
         - UseStackNameForResources
         - !Sub "${StackName}-trade-ledger"
-        - !Sub "the-alchemiser-v2-trade-ledger-${Stage}"
-      VersioningConfiguration:
-        Status: Enabled
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+        - !Sub "alchemiser-trade-ledger-${Stage}"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+        - AttributeName: GSI3PK
+          AttributeType: S
+        - AttributeName: GSI3SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      GlobalSecondaryIndexes:
+        # GSI1: Query by correlation_id
+        - IndexName: GSI1-CorrelationIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI2: Query by symbol
+        - IndexName: GSI2-SymbolIndex
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI3: Query by strategy
+        - IndexName: GSI3-StrategyIndex
+          KeySchema:
+            - AttributeName: GSI3PK
+              KeyType: HASH
+            - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: trade-ledger
 
   # Lambda Layer for dependencies
   DependenciesLayer:
@@ -339,15 +401,16 @@ Resources:
               - logs:DescribeLogGroups
             Resource: "*"
 
-          # S3 access for trade ledger
+          # DynamoDB access for trade ledger
           - Effect: Allow
             Action:
-              - s3:PutObject
-              - s3:GetObject
-              - s3:ListBucket
+              - dynamodb:PutItem
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:BatchWriteItem
             Resource:
-              - !GetAtt TradeLedgerBucket.Arn
-              - !Sub "${TradeLedgerBucket.Arn}/*"
+              - !GetAtt TradeLedgerTable.Arn
+              - !Sub "${TradeLedgerTable.Arn}/index/*"
 
 
   # CloudWatch Log Group with retention
@@ -372,9 +435,14 @@ Outputs:
       - !Sub "/aws/lambda/${StackName}-lambda"
       - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
 
-  TradeLedgerBucketName:
-    Description: "S3 bucket for trade ledger persistence"
-    Value: !Ref TradeLedgerBucket
+  TradeLedgerTableName:
+    Description: "DynamoDB table for trade ledger persistence"
+    Value: !Ref TradeLedgerTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-TradeLedgerTable"
+        - !Sub "the-alchemiser-v2-${Stage}-TradeLedgerTable"
 
   DeploymentStage:
     Description: "Deployed stage"
