@@ -7,7 +7,6 @@ following project standards for module initialization.
 """
 
 
-
 class TestPortfolioCoreModuleExports:
     """Test portfolio_v2.core module initialization and exports."""
 

@@ -3,7 +3,6 @@
 Tests for error context data module.
 """
 
-
 from the_alchemiser.shared.errors.context import ErrorContextData
 
 

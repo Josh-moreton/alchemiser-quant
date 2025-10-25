@@ -3,7 +3,6 @@
 Tests for error handler module covering error handling and tracking.
 """
 
-
 from the_alchemiser.shared.errors.error_handler import (
     TradingSystemErrorHandler,
 )

@@ -279,10 +279,13 @@ class TestGetEmailPassword:
 
     def test_reraises_configuration_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Should re-raise ConfigurationError from load_settings."""
-        with patch(
-            "the_alchemiser.shared.config.secrets_adapter.load_settings",
-            side_effect=ConfigurationError("Invalid config"),
-        ), pytest.raises(ConfigurationError, match="Invalid config"):
+        with (
+            patch(
+                "the_alchemiser.shared.config.secrets_adapter.load_settings",
+                side_effect=ConfigurationError("Invalid config"),
+            ),
+            pytest.raises(ConfigurationError, match="Invalid config"),
+        ):
             get_email_password()
 
     def test_tries_email__password_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -402,9 +405,12 @@ class TestGetEmailPassword:
         mock_config = Mock()
         mock_config.email.password = "pydantic_password"
 
-        with caplog.at_level("DEBUG"), patch(
-            "the_alchemiser.shared.config.secrets_adapter.load_settings",
-            return_value=mock_config,
+        with (
+            caplog.at_level("DEBUG"),
+            patch(
+                "the_alchemiser.shared.config.secrets_adapter.load_settings",
+                return_value=mock_config,
+            ),
         ):
             get_email_password()
 
@@ -419,9 +425,12 @@ class TestGetEmailPassword:
         """Should log debug message on env var success."""
         monkeypatch.setenv("EMAIL_PASSWORD", "env_password")
 
-        with caplog.at_level("DEBUG"), patch(
-            "the_alchemiser.shared.config.secrets_adapter.load_settings",
-            side_effect=Exception("No config"),
+        with (
+            caplog.at_level("DEBUG"),
+            patch(
+                "the_alchemiser.shared.config.secrets_adapter.load_settings",
+                side_effect=Exception("No config"),
+            ),
         ):
             get_email_password()
 
@@ -436,9 +445,12 @@ class TestGetEmailPassword:
         """Should log debug message when Pydantic config fails."""
         monkeypatch.setenv("EMAIL_PASSWORD", "env_password")
 
-        with caplog.at_level("DEBUG"), patch(
-            "the_alchemiser.shared.config.secrets_adapter.load_settings",
-            side_effect=ValueError("Test error"),
+        with (
+            caplog.at_level("DEBUG"),
+            patch(
+                "the_alchemiser.shared.config.secrets_adapter.load_settings",
+                side_effect=ValueError("Test error"),
+            ),
         ):
             get_email_password()
 
