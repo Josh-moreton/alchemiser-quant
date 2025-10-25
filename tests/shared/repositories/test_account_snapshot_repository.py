@@ -96,7 +96,6 @@ class TestAccountSnapshotRepository:
             "alpaca_account": account_data.model_dump(),
             "alpaca_positions": [],
             "alpaca_orders": [],
-            "internal_ledger": ledger_summary.model_dump(),
         }
 
         checksum = AccountSnapshot.calculate_checksum(snapshot_data)
