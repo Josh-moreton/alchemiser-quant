@@ -84,7 +84,7 @@ class TestAccountSnapshotService:
     def service(self, mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository):
         """Create AccountSnapshotService with mocked dependencies."""
         return AccountSnapshotService(
-            mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository
+            mock_alpaca_manager, mock_snapshot_repository
         )
 
     def test_generate_snapshot_creates_valid_snapshot(
