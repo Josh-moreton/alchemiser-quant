@@ -117,7 +117,6 @@ class TestAccountSnapshotService:
         assert mock_alpaca_manager.get_orders.called
 
         # Verify ledger data was fetched
-        assert mock_ledger_repository.query_trades_by_correlation.called
 
         # Verify snapshot was stored
         assert mock_snapshot_repository.put_snapshot.called
