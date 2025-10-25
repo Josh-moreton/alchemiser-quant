@@ -111,7 +111,6 @@ class TestAccountSnapshotRepository:
             alpaca_account=account_data,
             alpaca_positions=[],
             alpaca_orders=[],
-            internal_ledger=ledger_summary,
             checksum=checksum,
         )
 
