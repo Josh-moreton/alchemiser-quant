@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -50,6 +50,13 @@ class TestDynamoDBTradeLedgerRepository:
         )
         repo.query_trades_by_strategy = (
             DynamoDBTradeLedgerRepository.query_trades_by_strategy.__get__(repo)
+        )
+        repo._group_trades_by_symbol = (
+            DynamoDBTradeLedgerRepository._group_trades_by_symbol.__get__(repo)
+        )
+        repo._match_trades_fifo = DynamoDBTradeLedgerRepository._match_trades_fifo.__get__(repo)
+        repo._calculate_realized_pnl_fifo = (
+            DynamoDBTradeLedgerRepository._calculate_realized_pnl_fifo.__get__(repo)
         )
         repo.compute_strategy_performance = (
             DynamoDBTradeLedgerRepository.compute_strategy_performance.__get__(repo)
@@ -274,3 +281,195 @@ class TestDynamoDBTradeLedgerRepository:
         results = repository.query_trades_by_correlation("corr-123")
 
         assert results == []
+
+    def test_realized_pnl_single_matched_pair(self, repository, mock_dynamodb_table):
+        """Test realized P&L calculation with a single matched buy-sell pair."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1000.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-15T14:30:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1200.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T10:00:00Z",
+                },
+            ]
+        }
+
+        performance = repository.compute_strategy_performance("nuclear")
+
+        # Realized P&L should be sell value - buy value
+        assert performance["realized_pnl"] == Decimal("200.00")
+        assert performance["gross_pnl"] == Decimal("200.00")
+        assert performance["total_trades"] == 2
+
+    def test_realized_pnl_multiple_matched_pairs(self, repository, mock_dynamodb_table):
+        """Test realized P&L calculation with multiple matched pairs."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1000.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-15T14:30:00Z",
+                },
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1500.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T09:00:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1200.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T10:00:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1800.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-17T15:00:00Z",
+                },
+            ]
+        }
+
+        performance = repository.compute_strategy_performance("nuclear")
+
+        # First pair: 1200 - 1000 = 200
+        # Second pair: 1800 - 1500 = 300
+        # Total realized P&L: 500
+        assert performance["realized_pnl"] == Decimal("500.00")
+        assert performance["gross_pnl"] == Decimal("500.00")
+
+    def test_realized_pnl_unmatched_trades(self, repository, mock_dynamodb_table):
+        """Test realized P&L with unmatched trades (open positions)."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1000.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-15T14:30:00Z",
+                },
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1500.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T09:00:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1200.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T10:00:00Z",
+                },
+            ]
+        }
+
+        performance = repository.compute_strategy_performance("nuclear")
+
+        # Only one matched pair: 1200 - 1000 = 200
+        # Second buy (1500) remains unmatched (open position)
+        assert performance["realized_pnl"] == Decimal("200.00")
+        # Gross P&L includes all trades: (1200) - (1000 + 1500) = -1300
+        assert performance["gross_pnl"] == Decimal("-1300.00")
+
+    def test_realized_pnl_multiple_symbols(self, repository, mock_dynamodb_table):
+        """Test realized P&L calculation with trades across multiple symbols."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1000.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-15T14:30:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1100.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T10:00:00Z",
+                },
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "2000.00",
+                    "symbol": "TSLA",
+                    "fill_timestamp": "2025-01-15T15:00:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1900.00",
+                    "symbol": "TSLA",
+                    "fill_timestamp": "2025-01-16T11:00:00Z",
+                },
+            ]
+        }
+
+        performance = repository.compute_strategy_performance("nuclear")
+
+        # AAPL: 1100 - 1000 = 100
+        # TSLA: 1900 - 2000 = -100
+        # Total realized P&L: 0
+        assert performance["realized_pnl"] == Decimal("0.00")
+
+    def test_realized_pnl_fifo_ordering(self, repository, mock_dynamodb_table):
+        """Test that FIFO ordering is correctly applied for matched pairs."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1000.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-15T14:30:00Z",
+                },
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "1200.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T09:00:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1150.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-17T15:00:00Z",
+                },
+            ]
+        }
+
+        performance = repository.compute_strategy_performance("nuclear")
+
+        # FIFO: First sell should match against first buy
+        # 1150 - 1000 = 150 (not 1150 - 1200 = -50)
+        assert performance["realized_pnl"] == Decimal("150.00")
+
+    def test_realized_pnl_loss_scenario(self, repository, mock_dynamodb_table):
+        """Test realized P&L calculation with a loss scenario."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "direction": "BUY",
+                    "strategy_trade_value": "2000.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-15T14:30:00Z",
+                },
+                {
+                    "direction": "SELL",
+                    "strategy_trade_value": "1500.00",
+                    "symbol": "AAPL",
+                    "fill_timestamp": "2025-01-16T10:00:00Z",
+                },
+            ]
+        }
+
+        performance = repository.compute_strategy_performance("nuclear")
+
+        # Realized loss: 1500 - 2000 = -500
+        assert performance["realized_pnl"] == Decimal("-500.00")
+        assert performance["gross_pnl"] == Decimal("-500.00")

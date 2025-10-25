@@ -263,10 +263,109 @@ class DynamoDBTradeLedgerRepository:
             )
             return []
 
+    def _group_trades_by_symbol(
+        self, items: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Group trades by symbol for per-symbol FIFO matching.
+
+        Args:
+            items: List of sorted strategy-trade items
+
+        Returns:
+            Dictionary mapping symbol to list of trades for that symbol
+
+        """
+        trades_by_symbol: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            symbol = item["symbol"]
+            if symbol not in trades_by_symbol:
+                trades_by_symbol[symbol] = []
+            trades_by_symbol[symbol].append(item)
+        return trades_by_symbol
+
+    def _match_trades_fifo(self, symbol_trades: list[dict[str, Any]]) -> Decimal:
+        """Match SELL trades against BUY trades using FIFO for a single symbol.
+
+        Args:
+            symbol_trades: List of trades for a single symbol (chronologically sorted)
+
+        Returns:
+            Total realized P&L from matched buy-sell pairs for this symbol
+
+        """
+        # Separate into buy and sell queues
+        buy_queue: list[dict[str, Any]] = []
+        sell_queue: list[dict[str, Any]] = []
+
+        for trade in symbol_trades:
+            if trade["direction"] == "BUY":
+                buy_queue.append(trade)
+            else:
+                sell_queue.append(trade)
+
+        # Match sells against buys using FIFO
+        realized_pnl = Decimal("0")
+        buy_idx = 0
+        sell_idx = 0
+
+        while buy_idx < len(buy_queue) and sell_idx < len(sell_queue):
+            buy_value = Decimal(buy_queue[buy_idx]["strategy_trade_value"])
+            sell_value = Decimal(sell_queue[sell_idx]["strategy_trade_value"])
+
+            # For this simplified implementation, we match full trade values
+            # A more sophisticated approach would track partial fills
+            realized_pnl += sell_value - buy_value
+
+            buy_idx += 1
+            sell_idx += 1
+
+        return realized_pnl
+
+    def _calculate_realized_pnl_fifo(self, items: list[dict[str, Any]]) -> Decimal:
+        """Calculate realized P&L using FIFO (First-In-First-Out) matching.
+
+        Matches SELL trades against BUY trades chronologically to compute
+        realized gains/losses. This implementation operates on weighted
+        strategy trade values.
+
+        Assumptions:
+        - Each trade in the list represents a complete position entry/exit
+        - Trades are matched 1:1 (one sell matched to one buy)
+        - strategy_trade_value already accounts for weighted quantities
+        - Partial fills are not tracked; each trade is treated as atomic
+
+        Note: A more sophisticated implementation could track quantities and
+        handle partial position closes, but this simplified approach is
+        appropriate for strategy-level P&L tracking where weighted values
+        are already computed.
+
+        Args:
+            items: List of strategy-trade items with direction, value, and timestamp
+
+        Returns:
+            Total realized P&L from matched buy-sell pairs
+
+        """
+        # Sort items by timestamp to ensure chronological FIFO matching.
+        # ISO 8601 format strings (e.g., '2025-01-15T14:30:00Z') sort correctly
+        # lexicographically, ensuring proper chronological order.
+        sorted_items = sorted(items, key=lambda x: x["fill_timestamp"])
+
+        # Group trades by symbol for per-symbol FIFO matching
+        trades_by_symbol = self._group_trades_by_symbol(sorted_items)
+
+        # Process each symbol independently and sum realized P&L
+        total_realized_pnl = Decimal("0")
+        for symbol_trades in trades_by_symbol.values():
+            total_realized_pnl += self._match_trades_fifo(symbol_trades)
+
+        return total_realized_pnl
+
     def compute_strategy_performance(self, strategy_name: str) -> dict[str, Any]:
         """Compute performance metrics for a strategy.
 
         Queries all strategy-trade links and aggregates in-memory.
+        Calculates realized P&L using FIFO matched-pair logic.
 
         Args:
             strategy_name: Strategy name
@@ -286,6 +385,7 @@ class DynamoDBTradeLedgerRepository:
                 "total_buy_value": Decimal("0"),
                 "total_sell_value": Decimal("0"),
                 "gross_pnl": Decimal("0"),
+                "realized_pnl": Decimal("0"),
                 "symbols_traded": [],
                 "first_trade_at": None,
                 "last_trade_at": None,
@@ -311,6 +411,9 @@ class DynamoDBTradeLedgerRepository:
                 sell_count += 1
                 sell_value += value
 
+        # Calculate realized P&L using FIFO matched-pair logic
+        realized_pnl = self._calculate_realized_pnl_fifo(items)
+
         return {
             "strategy_name": strategy_name,
             "total_trades": len(items),
@@ -319,7 +422,7 @@ class DynamoDBTradeLedgerRepository:
             "total_buy_value": buy_value,
             "total_sell_value": sell_value,
             "gross_pnl": sell_value - buy_value,
-            "realized_pnl": Decimal("0"),  # TODO: Implement matched-pair logic
+            "realized_pnl": realized_pnl,
             "symbols_traded": sorted(symbols),
             "first_trade_at": min(timestamps) if timestamps else None,
             "last_trade_at": max(timestamps) if timestamps else None,
