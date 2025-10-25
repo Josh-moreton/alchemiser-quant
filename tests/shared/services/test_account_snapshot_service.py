@@ -187,9 +187,9 @@ class TestAccountSnapshotService:
         )
 
         # Verify both strategies are captured
-        assert len(snapshot.internal_ledger.strategies_active) == 2
-        assert "nuclear" in snapshot.internal_ledger.strategies_active
-        assert "tecl" in snapshot.internal_ledger.strategies_active
+        assert len(snapshot.strategies_active) == 2
+        assert "nuclear" in snapshot.strategies_active
+        assert "tecl" in snapshot.strategies_active
 
     def test_generate_snapshot_fails_without_account(
         self, service, mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository
