@@ -166,6 +166,10 @@ Resources:
           AttributeType: S
         - AttributeName: GSI3SK
           AttributeType: S
+        - AttributeName: GSI4PK
+          AttributeType: S
+        - AttributeName: GSI4SK
+          AttributeType: S
       
       KeySchema:
         - AttributeName: PK
@@ -200,6 +204,16 @@ Resources:
             - AttributeName: GSI3PK
               KeyType: HASH
             - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI4: Query snapshots by correlation_id
+        - IndexName: GSI4-CorrelationSnapshotIndex
+          KeySchema:
+            - AttributeName: GSI4PK
+              KeyType: HASH
+            - AttributeName: GSI4SK
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
@@ -283,6 +297,135 @@ Resources:
         - !Sub "the-alchemiser-dlq-${Stage}"
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
+
+  # S3 Bucket for PDF Reports
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-reports"
+        - !Sub "the-alchemiser-reports-${Stage}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldReports
+            Status: Enabled
+            ExpirationInDays: 365  # Keep reports for 1 year
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: reports
+
+  # Lambda Function for Report Generation
+  ReportGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-report-generator"
+        - !Sub "the-alchemiser-report-generator-${Stage}"
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: ./
+      Handler: the_alchemiser.reporting.lambda_handler.lambda_handler
+      Role: !GetAtt ReportGeneratorExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 300  # 5 minutes for PDF generation
+      MemorySize: 1024  # More memory for Playwright
+      Environment:
+        Variables:
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          REPORTS_S3_BUCKET: !Ref ReportsBucket
+          LOGGING__LEVEL: !Ref LoggingLevel
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.html'
+          - 'the_alchemiser/**/*.css'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  # IAM Role for Report Generator Lambda
+  ReportGeneratorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Policy for Report Generator Lambda
+  ReportGeneratorExecutionRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ReportGeneratorPolicy
+      Roles:
+        - !Ref ReportGeneratorExecutionRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # CloudWatch Logs
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: "*"
+
+          # DynamoDB access for snapshots (read-only)
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt TradeLedgerTable.Arn
+              - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+          # S3 access for reports (write-only)
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Resource: !Sub "${ReportsBucket.Arn}/*"
+
+  # CloudWatch Log Group for Report Generator
+  ReportGeneratorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !If
+        - UseStackNameForResources
+        - !Sub "/aws/lambda/${StackName}-report-generator"
+        - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"
+      RetentionInDays: !If [ IsEphemeral, 3, 30 ]
 
   # EventBridge Scheduler with proper timezone support and reduced retry policy
   TradingSystemSchedule:
@@ -451,3 +594,23 @@ Outputs:
   StackNameUsed:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "the-alchemiser-v2-${Stage}" ]
+
+  ReportGeneratorFunctionArn:
+    Description: "Report Generator Lambda Function ARN"
+    Value: !GetAtt ReportGeneratorFunction.Arn
+
+  ReportsBucketName:
+    Description: "S3 bucket for PDF reports"
+    Value: !Ref ReportsBucket
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-ReportsBucket"
+        - !Sub "the-alchemiser-v2-${Stage}-ReportsBucket"
+
+  ReportGeneratorLogGroupName:
+    Description: "CloudWatch Log Group for Report Generator"
+    Value: !If
+      - UseStackNameForResources
+      - !Sub "/aws/lambda/${StackName}-report-generator"
+      - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"
