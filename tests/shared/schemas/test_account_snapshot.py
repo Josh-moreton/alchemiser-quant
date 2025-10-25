@@ -259,6 +259,7 @@ class TestAccountSnapshot:
         period_end = datetime(2025, 1, 15, 23, 59, 59, tzinfo=UTC)
 
         # Create snapshot first to get consistent serialization
+        # Use a temporary checksum that will be replaced
         snapshot = AccountSnapshot(
             snapshot_id="snap-123",
             snapshot_version="1.0",
@@ -271,7 +272,7 @@ class TestAccountSnapshot:
             alpaca_positions=[],
             alpaca_orders=[],
             internal_ledger=sample_ledger_summary,
-            checksum="placeholder",  # Temporary placeholder
+            checksum="temp-checksum-to-be-replaced",  # Temporary value for serialization
         )
 
         # Calculate checksum from model_dump (excluding ttl_timestamp and checksum)
