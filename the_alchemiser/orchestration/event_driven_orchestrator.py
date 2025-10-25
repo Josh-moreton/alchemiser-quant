@@ -802,6 +802,9 @@ class EventDrivenOrchestrator:
                 },
             )
 
+        # Generate account snapshot for reporting
+        self._generate_account_snapshot(event.correlation_id, start_time or event.timestamp, event.timestamp)
+
         # Update workflow state
         self.workflow_state["last_successful_workflow"] = event.workflow_type
         self.workflow_state["active_correlations"].discard(event.correlation_id)
@@ -830,6 +833,83 @@ class EventDrivenOrchestrator:
                 "workflow_state": WorkflowState.COMPLETED.value,
             },
         )
+
+    def _generate_account_snapshot(
+        self, correlation_id: str, period_start: datetime, period_end: datetime
+    ) -> None:
+        """Generate and store account snapshot for reporting.
+
+        Args:
+            correlation_id: Workflow correlation ID
+            period_start: Period start timestamp
+            period_end: Period end timestamp
+
+        """
+        try:
+            from the_alchemiser.shared.config.config import load_settings
+            from the_alchemiser.shared.repositories.account_snapshot_repository import (
+                AccountSnapshotRepository,
+            )
+            from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
+                DynamoDBTradeLedgerRepository,
+            )
+            from the_alchemiser.shared.services.account_snapshot_service import (
+                AccountSnapshotService,
+            )
+
+            # Get dependencies
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            settings = load_settings()
+            table_name = settings.trade_ledger.table_name
+
+            if not table_name:
+                self.logger.warning(
+                    "Trade ledger table name not configured - skipping snapshot generation",
+                    correlation_id=correlation_id,
+                )
+                return
+
+            # Create repositories and service
+            snapshot_repository = AccountSnapshotRepository(table_name)
+            ledger_repository = DynamoDBTradeLedgerRepository(table_name)
+            snapshot_service = AccountSnapshotService(
+                alpaca_manager, snapshot_repository, ledger_repository
+            )
+
+            # Get account ID from Alpaca
+            account = alpaca_manager.get_account_object()
+            if not account:
+                self.logger.warning(
+                    "Failed to fetch account for snapshot generation",
+                    correlation_id=correlation_id,
+                )
+                return
+
+            account_id = str(account.id)
+
+            # Generate snapshot with ledger_id matching correlation_id for this cycle
+            snapshot = snapshot_service.generate_snapshot(
+                account_id=account_id,
+                correlation_id=correlation_id,
+                period_start=period_start,
+                period_end=period_end,
+                ledger_id=correlation_id,  # Use correlation_id as ledger_id for this cycle
+            )
+
+            self.logger.info(
+                "📸 Account snapshot generated successfully",
+                snapshot_id=snapshot.snapshot_id,
+                account_id=account_id,
+                correlation_id=correlation_id,
+            )
+
+        except Exception as e:
+            # Don't let snapshot generation failure break the workflow
+            self.logger.error(
+                f"Failed to generate account snapshot: {e}",
+                extra={"correlation_id": correlation_id},
+            )
+
 
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
         """Handle WorkflowFailed event for error handling and recovery.
