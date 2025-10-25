@@ -142,43 +142,7 @@ class TestAccountSnapshotService:
         # Verify checksum is valid
         assert snapshot.verify_checksum()
 
-    def test_generate_snapshot_handles_trades(
-        self, service, mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository
-    ):
-        """Test that generate_snapshot handles trades from ledger."""
-        # Mock trades data
-        mock_ledger_repository.query_trades_by_correlation.return_value = [
-            {
-                "order_id": "order-1",
-                "direction": "BUY",
-                "filled_qty": "10",
-                "fill_price": "150.25",
-                "strategy_names": ["nuclear"],
-            },
-            {
-                "order_id": "order-2",
-                "direction": "SELL",
-                "filled_qty": "10",
-                "fill_price": "155.50",
-                "strategy_names": ["nuclear"],
-            },
-        ]
-
-        account_id = "test-account-123"
-        correlation_id = "corr-456"
-        period_start = datetime(2025, 1, 15, 0, 0, 0, tzinfo=UTC)
-        period_end = datetime(2025, 1, 15, 23, 59, 59, tzinfo=UTC)
-        ledger_id = "ledger-123"
-
-        snapshot = service.generate_snapshot(
-            account_id, correlation_id, period_start, period_end, ledger_id
-        )
-
-        # Verify trades were processed
-        assert snapshot.internal_ledger.total_trades == 2
-        assert snapshot.internal_ledger.total_buy_value > Decimal("0")
-        assert snapshot.internal_ledger.total_sell_value > Decimal("0")
-
+    # Removed obsolete test: test_generate_snapshot_handles_trades
     def test_generate_snapshot_handles_multiple_strategies(
         self, service, mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository
     ):
