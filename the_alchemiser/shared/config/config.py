@@ -361,7 +361,7 @@ class TrackingSettings(BaseModel):
 class TradeLedgerSettings(BaseModel):
     """Trade ledger persistence configuration."""
 
-    table_name: str = ""  # DynamoDB table name for trade ledger storage
+    table_name: str = Field(default="", description="DynamoDB table name for trade ledger storage")
 
 
 class ExecutionSettings(BaseModel):

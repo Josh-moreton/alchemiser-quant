@@ -20,7 +20,6 @@ FEATURES IMPLEMENTED:
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -28,6 +27,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import ValidationError
 
+from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
     DynamoDBTradeLedgerRepository,
@@ -59,9 +59,10 @@ class TradeLedgerService:
         self._ledger_id = str(uuid.uuid4())
         self._entries: list[TradeLedgerEntry] = []  # In-memory for current run
         self._created_at = datetime.now(UTC)
+        self._settings = load_settings()
 
         # Initialize DynamoDB repository
-        table_name = os.environ.get("TRADE_LEDGER_TABLE_NAME")
+        table_name = self._settings.trade_ledger.table_name
         if not table_name:
             logger.warning("TRADE_LEDGER_TABLE_NAME not set - trade ledger disabled")
             self._repository = None
