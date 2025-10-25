@@ -317,8 +317,13 @@ class DynamoDBTradeLedgerRepository:
             buy_value = Decimal(buy_queue[buy_idx]["strategy_trade_value"])
             sell_value = Decimal(sell_queue[sell_idx]["strategy_trade_value"])
 
-            # For this simplified implementation, we match full trade values
-            # A more sophisticated approach would track partial fills
+            # For this simplified implementation, we match full trade values and enforce 1:1 matching.
+            # A more sophisticated approach would track partial fills.
+            if buy_value != sell_value:
+                raise ValueError(
+                    f"Trade value mismatch in FIFO matching: buy_value={buy_value}, sell_value={sell_value}. "
+                    "Trades must be matched 1:1. Ensure input data is pre-aggregated or weighted appropriately."
+                )
             realized_pnl += sell_value - buy_value
 
             buy_idx += 1
