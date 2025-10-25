@@ -19,6 +19,15 @@ logger = get_logger(__name__)
 
 __all__ = ["DynamoDBTradeLedgerRepository"]
 
+# Import boto3 exceptions for type hints and exception handling
+try:
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    DynamoDBException = (ClientError, BotoCoreError)
+except ImportError:
+    # If boto3/botocore not installed, fall back to catching all exceptions
+    DynamoDBException = Exception  # type: ignore[assignment]
+
 
 class DynamoDBTradeLedgerRepository:
     """Repository for trade ledger using DynamoDB single-table design.
@@ -158,7 +167,7 @@ class DynamoDBTradeLedgerRepository:
             response = self._table.get_item(Key={"PK": f"TRADE#{order_id}", "SK": "METADATA"})
             item = response.get("Item")
             return dict(item) if item else None
-        except Exception as e:
+        except DynamoDBException as e:
             logger.error("Failed to get trade", order_id=order_id, error=str(e))
             return None
 
@@ -189,7 +198,7 @@ class DynamoDBTradeLedgerRepository:
             response = self._table.query(**kwargs)
             items = response.get("Items", [])
             return [dict(item) for item in items]
-        except Exception as e:
+        except DynamoDBException as e:
             logger.error(
                 "Failed to query trades by correlation",
                 correlation_id=correlation_id,
@@ -222,7 +231,7 @@ class DynamoDBTradeLedgerRepository:
             response = self._table.query(**kwargs)
             items = response.get("Items", [])
             return [dict(item) for item in items]
-        except Exception as e:
+        except DynamoDBException as e:
             logger.error("Failed to query trades by symbol", symbol=symbol, error=str(e))
             return []
 
@@ -255,7 +264,7 @@ class DynamoDBTradeLedgerRepository:
             response = self._table.query(**kwargs)
             items = response.get("Items", [])
             return [dict(item) for item in items]
-        except Exception as e:
+        except DynamoDBException as e:
             logger.error(
                 "Failed to query trades by strategy",
                 strategy_name=strategy_name,

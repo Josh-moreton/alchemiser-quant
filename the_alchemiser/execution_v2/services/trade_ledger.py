@@ -43,6 +43,15 @@ logger = get_logger(__name__)
 
 __all__ = ["TradeLedgerService"]
 
+# Import boto3 exceptions for DynamoDB error handling
+try:
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    DynamoDBException = (ClientError, BotoCoreError)
+except ImportError:
+    # If boto3/botocore not installed, fall back to catching all exceptions
+    DynamoDBException = Exception  # type: ignore[assignment]
+
 
 class TradeLedgerService:
     """Service for recording filled orders to trade ledger.
@@ -131,7 +140,7 @@ class TradeLedgerService:
         if self._repository:
             try:
                 self._repository.put_trade(entry, self._ledger_id)
-            except Exception as e:
+            except DynamoDBException as e:
                 logger.error(
                     "Failed to write trade to DynamoDB - trade in memory only",
                     order_id=entry.order_id,
