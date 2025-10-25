@@ -102,7 +102,7 @@ class TestAccountSnapshotService:
         ledger_id = "ledger-123"
 
         snapshot = service.generate_snapshot(
-            account_id, correlation_id, period_start, period_end, ledger_id
+            account_id, correlation_id, period_start, period_end
         )
 
         # Verify snapshot properties
