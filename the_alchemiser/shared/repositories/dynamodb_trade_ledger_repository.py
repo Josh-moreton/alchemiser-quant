@@ -314,18 +314,22 @@ class DynamoDBTradeLedgerRepository:
         sell_idx = 0
 
         while buy_idx < len(buy_queue) and sell_idx < len(sell_queue):
-            buy_value = Decimal(buy_queue[buy_idx]["strategy_trade_value"])
-            sell_value = Decimal(sell_queue[sell_idx]["strategy_trade_value"])
+            buy_trade = buy_queue[buy_idx]
+            sell_trade = sell_queue[sell_idx]
 
-            # For this simplified implementation, we match full trade values and enforce 1:1 matching.
-            # A more sophisticated approach would track partial fills.
-            if buy_value != sell_value:
+            buy_qty = Decimal(buy_trade.get("quantity"))
+            sell_qty = Decimal(sell_trade.get("quantity"))
+            buy_price = Decimal(buy_trade.get("price"))
+            sell_price = Decimal(sell_trade.get("price"))
+
+            # Enforce 1:1 matching by quantity
+            if buy_qty != sell_qty:
                 raise ValueError(
-                    f"Trade value mismatch in FIFO matching: buy_value={buy_value}, sell_value={sell_value}. "
-                    "Trades must be matched 1:1. Ensure input data is pre-aggregated or weighted appropriately."
+                    f"Trade quantity mismatch in FIFO matching: buy_qty={buy_qty}, sell_qty={sell_qty}. "
+                    "Trades must be matched 1:1 by quantity. Ensure input data is pre-aggregated or weighted appropriately."
                 )
-            realized_pnl += sell_value - buy_value
 
+            realized_pnl += (sell_price - buy_price) * buy_qty
             buy_idx += 1
             sell_idx += 1
 
