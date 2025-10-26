@@ -255,6 +255,16 @@ release-beta:
 		echo "❌ Tag $$TAG already exists!"; \
 		exit 1; \
 	fi; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
 	echo "🔍 Checking for uncommitted changes..."; \
 	if ! git diff --quiet || ! git diff --cached --quiet; then \
 		echo "❌ You have uncommitted changes!"; \
@@ -263,9 +273,14 @@ release-beta:
 	fi; \
 	echo "📝 Creating beta tag $$TAG..."; \
 	git tag -a "$$TAG" -m "Beta release $$TAG for dev deployment"; \
-	echo "📤 Pushing tag to origin (will trigger dev deployment)..."; \
+	echo "📤 Pushing tag to origin..."; \
 	git push origin "$$TAG"; \
-	echo "✅ Beta tag $$TAG created and pushed!"; \
+	echo "🚀 Creating GitHub pre-release..."; \
+	gh release create "$$TAG" \
+		--title "Beta Release $$TAG" \
+		--notes "Beta release $$TAG for dev environment deployment" \
+		--prerelease; \
+	echo "✅ Beta pre-release $$TAG created successfully!"; \
 	echo "🚀 Dev deployment will start automatically via GitHub Actions"
 
 deploy-dev: release-beta
