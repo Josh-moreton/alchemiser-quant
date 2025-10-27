@@ -287,12 +287,8 @@ def _format_binary_operator(condition: ASTNode) -> str:
     left = _format_condition(condition.children[1])
     right = _format_condition(condition.children[2])
 
-    # Map Clojure operators to readable format
+    # Map Clojure operators to readable format (only operators needing transformation)
     op_map = {
-        ">": ">",
-        "<": "<",
-        ">=": ">=",
-        "<=": "<=",
         "=": "==",
         "and": "AND",
         "or": "OR",
