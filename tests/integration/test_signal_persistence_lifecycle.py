@@ -321,3 +321,42 @@ class TestSignalPersistenceLifecycle:
         ignored_signal = next(s for s in signals if s["lifecycle_state"] == "IGNORED")
         assert ignored_signal["executed_trade_ids"] == []
         assert ignored_signal["symbol"] == "SPY"
+
+    def test_atomic_append_prevents_race_conditions(self, repository, mock_dynamodb_table):
+        """Test that atomic append prevents race conditions in concurrent trade updates.
+
+        This test verifies that the list_append operation is used, which ensures
+        that multiple trades updating the same signal concurrently will not lose
+        trade IDs due to read-modify-write races.
+        """
+        signal_id = "sig-concurrent-test"
+
+        # Mock get_item to return a signal with existing trade
+        mock_dynamodb_table.get_item.return_value = {
+            "Item": {
+                "PK": f"SIGNAL#{signal_id}",
+                "SK": "METADATA",
+                "signal_id": signal_id,
+                "timestamp": "2025-01-15T14:00:00+00:00",
+                "lifecycle_state": "GENERATED",
+                "executed_trade_ids": ["order-existing"],
+            }
+        }
+
+        # Simulate concurrent update - append new trade ID
+        repository.update_signal_lifecycle(signal_id, "EXECUTED", ["order-new"])
+
+        # Verify update_item was called with list_append
+        update_call = mock_dynamodb_table.update_item.call_args
+        assert update_call is not None
+
+        # Verify the UpdateExpression uses list_append for atomic operation
+        update_expr = update_call.kwargs["UpdateExpression"]
+        assert "list_append" in update_expr
+        assert "if_not_exists(executed_trade_ids" in update_expr
+
+        # Verify the expression values include empty list for initialization
+        expr_values = update_call.kwargs["ExpressionAttributeValues"]
+        assert ":empty_list" in expr_values
+        assert expr_values[":empty_list"] == []
+        assert expr_values[":trade_ids"] == ["order-new"]
