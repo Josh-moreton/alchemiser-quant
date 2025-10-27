@@ -504,3 +504,273 @@ class HandlerInvocationError(EventBusError):
         if original_error:
             self.context["original_error"] = str(original_error)
             self.context["original_error_type"] = type(original_error).__name__
+
+
+class MarketDataServiceError(MarketDataError):
+    """Raised when market data service operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        operation: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize market data service error with context.
+
+        Args:
+            message: Error message
+            symbol: Symbol being processed
+            operation: Operation that failed
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(message, symbol=symbol)
+        self.operation = operation
+        self.correlation_id = correlation_id
+        if operation:
+            self.context["operation"] = operation
+        if correlation_id:
+            self.context["correlation_id"] = correlation_id
+
+
+class TradingServiceError(TradingClientError):
+    """Raised when trading service operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        operation: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize trading service error with context.
+
+        Args:
+            message: Error message
+            symbol: Symbol being processed
+            operation: Operation that failed
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(message)
+        self.symbol = symbol
+        self.operation = operation
+        self.correlation_id = correlation_id
+        if symbol:
+            self.context["symbol"] = symbol
+        if operation:
+            self.context["operation"] = operation
+        if correlation_id:
+            self.context["correlation_id"] = correlation_id
+
+
+class PriceValidationError(ValidationError):
+    """Raised when price validation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        price: float | None = None,
+        field_name: str | None = None,
+    ) -> None:
+        """Initialize price validation error with context.
+
+        Args:
+            message: Error message
+            symbol: Symbol being validated
+            price: Price value that failed validation
+            field_name: Name of the price field
+
+        """
+        super().__init__(message, field_name=field_name, value=price)
+        self.symbol = symbol
+        self.price = price
+        if symbol:
+            self.context["symbol"] = symbol
+        if price is not None:
+            self.context["price"] = price
+
+
+class SettlementError(OrderExecutionError):
+    """Raised when order settlement monitoring fails."""
+
+    def __init__(
+        self,
+        message: str,
+        order_id: str | None = None,
+        symbol: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        """Initialize settlement error with context.
+
+        Args:
+            message: Error message
+            order_id: Order ID being monitored
+            symbol: Symbol being settled
+            timeout_seconds: Timeout duration that was exceeded
+
+        """
+        super().__init__(message, symbol=symbol, order_id=order_id)
+        self.timeout_seconds = timeout_seconds
+        if timeout_seconds is not None:
+            self.context["timeout_seconds"] = timeout_seconds
+
+
+class ExecutionManagerError(OrderExecutionError):
+    """Raised when execution manager operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        operation: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize execution manager error with context.
+
+        Args:
+            message: Error message
+            operation: Operation that failed
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(message)
+        self.operation = operation
+        self.correlation_id = correlation_id
+        if operation:
+            self.context["operation"] = operation
+        if correlation_id:
+            self.context["correlation_id"] = correlation_id
+
+
+class SchemaValidationError(ValidationError):
+    """Raised when schema validation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        schema_name: str | None = None,
+        field_name: str | None = None,
+        value: str | int | float | None = None,
+    ) -> None:
+        """Initialize schema validation error with context.
+
+        Args:
+            message: Error message
+            schema_name: Name of the schema being validated
+            field_name: Name of the field that failed validation
+            value: Value that failed validation
+
+        """
+        super().__init__(message, field_name=field_name, value=value)
+        self.schema_name = schema_name
+        if schema_name:
+            self.context["schema_name"] = schema_name
+
+
+class TypeConversionError(AlchemiserError):
+    """Raised when type conversion fails."""
+
+    def __init__(
+        self,
+        message: str,
+        source_type: str | None = None,
+        target_type: str | None = None,
+        value: str | None = None,
+    ) -> None:
+        """Initialize type conversion error with context.
+
+        Args:
+            message: Error message
+            source_type: Source type being converted from
+            target_type: Target type being converted to
+            value: Value that failed conversion
+
+        """
+        context: dict[str, Any] = {}
+        if source_type:
+            context["source_type"] = source_type
+        if target_type:
+            context["target_type"] = target_type
+        if value is not None:
+            context["value"] = str(value)
+
+        super().__init__(message, context)
+        self.source_type = source_type
+        self.target_type = target_type
+        self.value = value
+
+
+class WebSocketConnectionError(WebSocketError):
+    """Raised when WebSocket connection issues occur."""
+
+    def __init__(
+        self,
+        message: str,
+        url: str | None = None,
+        retry_count: int = 0,
+    ) -> None:
+        """Initialize WebSocket connection error with context.
+
+        Args:
+            message: Error message
+            url: WebSocket URL that failed
+            retry_count: Number of retries attempted
+
+        """
+        super().__init__(message)
+        self.url = url
+        self.retry_count = retry_count
+        if url:
+            self.context["url"] = url
+        if retry_count > 0:
+            self.context["retry_count"] = retry_count
+
+
+class SymbolValidationError(ValidationError):
+    """Raised when symbol validation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """Initialize symbol validation error with context.
+
+        Args:
+            message: Error message
+            symbol: Symbol that failed validation
+            reason: Reason for validation failure
+
+        """
+        super().__init__(message, field_name="symbol", value=symbol)
+        self.symbol = symbol
+        self.reason = reason
+        if reason:
+            self.context["reason"] = reason
+
+
+class TimeframeValidationError(ValidationError):
+    """Raised when timeframe validation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        timeframe: str | None = None,
+        valid_timeframes: list[str] | None = None,
+    ) -> None:
+        """Initialize timeframe validation error with context.
+
+        Args:
+            message: Error message
+            timeframe: Timeframe that failed validation
+            valid_timeframes: List of valid timeframe options
+
+        """
+        super().__init__(message, field_name="timeframe", value=timeframe)
+        self.timeframe = timeframe
+        self.valid_timeframes = valid_timeframes
+        if valid_timeframes:
+            self.context["valid_timeframes"] = valid_timeframes
