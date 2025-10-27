@@ -613,6 +613,38 @@ class SignalGenerationHandler:
         except (TypeError, ValueError):
             return 0.0
 
+    @staticmethod
+    def _convert_floats_to_decimal_in_dict(data: dict[str, Any]) -> dict[str, Any]:
+        """Recursively convert float values to Decimal in a dictionary for DynamoDB compatibility.
+
+        DynamoDB does not support native float types and requires Decimal for numeric values.
+
+        Args:
+            data: Dictionary potentially containing floats
+
+        Returns:
+            Dictionary with all floats converted to Decimal
+
+        """
+        result: dict[str, Any] = {}
+        for key, value in data.items():
+            if isinstance(value, dict):
+                result[key] = SignalGenerationHandler._convert_floats_to_decimal_in_dict(value)
+            elif isinstance(value, list):
+                result[key] = [
+                    SignalGenerationHandler._convert_floats_to_decimal_in_dict(item)
+                    if isinstance(item, dict)
+                    else Decimal(str(item))
+                    if isinstance(item, float)
+                    else item
+                    for item in value
+                ]
+            elif isinstance(value, float):
+                result[key] = Decimal(str(value))
+            else:
+                result[key] = value
+        return result
+
     def _persist_signals(
         self,
         raw_signals: list[StrategySignal],
@@ -655,6 +687,16 @@ class SignalGenerationHandler:
                     "technical_indicators", {}
                 )
 
+                # Convert floats to Decimal for DynamoDB compatibility
+                technical_indicators_safe: dict[str, Any] | None = (
+                    self._convert_floats_to_decimal_in_dict(technical_indicators)
+                    if technical_indicators
+                    else None
+                )
+                signal_dto_safe: dict[str, Any] = self._convert_floats_to_decimal_in_dict(
+                    signal.to_dict()
+                )
+
                 # Create signal ledger entry
                 signal_entry = SignalLedgerEntry(
                     signal_id=signal_id,
@@ -669,8 +711,8 @@ class SignalGenerationHandler:
                     signal_strength=signal.signal_strength,
                     reasoning=signal.reasoning,
                     lifecycle_state="GENERATED",
-                    technical_indicators=technical_indicators if technical_indicators else None,
-                    signal_dto=signal.to_dict(),
+                    technical_indicators=technical_indicators_safe,
+                    signal_dto=signal_dto_safe,
                     created_at=datetime.now(UTC),
                 )
 
