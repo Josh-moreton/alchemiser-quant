@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
+from the_alchemiser.shared.errors import StrategyExecutionError
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ...shared.types.market_data_port import MarketDataPort
@@ -63,12 +64,16 @@ class StrategyRegistry:
             Strategy engine implementation
 
         Raises:
-            KeyError: If strategy not found
+            StrategyExecutionError: If strategy not found
 
         """
         if strategy_id not in self._strategies:
             available = list(self._strategies.keys())
-            raise KeyError(f"Strategy '{strategy_id}' not found. Available strategies: {available}")
+            raise StrategyExecutionError(
+                f"Strategy '{strategy_id}' not found. Available strategies: {available}",
+                strategy_name=strategy_id,
+                operation="get_strategy",
+            )
         return self._strategies[strategy_id]
 
     def list_strategies(self) -> list[str]:

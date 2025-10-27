@@ -10,7 +10,7 @@ strategy orchestrators with market data adapters.
 from __future__ import annotations
 
 from ...shared.brokers.alpaca_manager import AlpacaManager
-from ...shared.errors.exceptions import ConfigurationError
+from ...shared.errors import ConfigurationError, ValidationError
 from ...shared.logging import get_logger
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from .orchestrator import SingleStrategyOrchestrator
@@ -114,7 +114,9 @@ def create_orchestrator_with_adapter(
             "None market_data_adapter provided to create_orchestrator_with_adapter",
             extra={"component": _COMPONENT},
         )
-        raise ValueError("market_data_adapter must not be None")
+        raise ValidationError(
+            "market_data_adapter must not be None", field_name="market_data_adapter"
+        )
 
     if not isinstance(market_data_adapter, StrategyMarketDataAdapter):
         logger.error(
@@ -124,9 +126,10 @@ def create_orchestrator_with_adapter(
                 "provided_type": type(market_data_adapter).__name__,
             },
         )
-        raise ValueError(
+        raise ValidationError(
             f"market_data_adapter must be StrategyMarketDataAdapter, "
-            f"got {type(market_data_adapter).__name__}"
+            f"got {type(market_data_adapter).__name__}",
+            field_name="market_data_adapter",
         )
 
     logger.info(
