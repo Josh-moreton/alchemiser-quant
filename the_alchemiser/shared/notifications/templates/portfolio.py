@@ -89,6 +89,88 @@ class PortfolioBuilder:
 
     # ---------------------- internal helpers ---------------------- #
     @staticmethod
+    def _parse_position_item(pos: Any) -> tuple[str | None, dict[str, Any]]:
+        """Parse a single position item into (symbol, position_data).
+
+        Args:
+            pos: Position item (can be dict or object)
+
+        Returns:
+            Tuple of (symbol, position_dict) or (None, {}) if invalid
+
+        """
+        if isinstance(pos, dict) and pos.get("symbol"):
+            return pos["symbol"], pos
+        if hasattr(pos, "symbol"):
+            return pos.symbol, {
+                "symbol": pos.symbol,
+                "market_value": getattr(pos, "market_value", 0),
+                "quantity": getattr(pos, "quantity", 0),
+            }
+        return None, {}
+
+    @staticmethod
+    def _extract_positions_from_list(positions_list: Any) -> dict[str, Any]:
+        """Extract positions dictionary from a list of position items.
+
+        Args:
+            positions_list: List of position items
+
+        Returns:
+            Dictionary mapping symbols to position data
+
+        """
+        if not isinstance(positions_list, list):
+            return {}
+
+        positions: dict[str, Any] = {}
+        for pos in positions_list:
+            symbol, pos_data = PortfolioBuilder._parse_position_item(pos)
+            if symbol is not None:
+                positions[symbol] = pos_data
+        return positions
+
+    @staticmethod
+    def _try_extract_from_account_before(data: dict[str, Any]) -> dict[str, Any]:
+        """Try to extract positions from account_info_before.
+
+        Args:
+            data: Execution result dictionary
+
+        Returns:
+            Dictionary mapping symbols to position data, or empty dict if unavailable
+
+        """
+        account_before = data.get("account_info_before", {})
+        if not isinstance(account_before, dict):
+            return {}
+        if not account_before.get("positions"):
+            return {}
+
+        positions_list = account_before["positions"]
+        return PortfolioBuilder._extract_positions_from_list(positions_list)
+
+    @staticmethod
+    def _try_extract_from_account_after(data: dict[str, Any]) -> dict[str, Any]:
+        """Try to extract positions from account_info_after (legacy fallback).
+
+        Args:
+            data: Execution result dictionary
+
+        Returns:
+            Dictionary mapping symbols to position data, or empty dict if unavailable
+
+        """
+        account_after = data.get("account_info_after", {})
+        if not isinstance(account_after, dict):
+            return {}
+        if not account_after.get("open_positions"):
+            return {}
+
+        open_positions = account_after.get("open_positions", [])
+        return PortfolioBuilder._extract_positions_from_list(open_positions)
+
+    @staticmethod
     def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
         """Extract current positions from execution result data.
 
@@ -104,36 +186,14 @@ class PortfolioBuilder:
 
         """
         # First try account_info_before (pre-execution state - preferred for "Current %")
-        account_before = data.get("account_info_before", {})
-        if isinstance(account_before, dict) and account_before.get("positions"):
-            positions_list = account_before["positions"]
-            current_positions: dict[str, Any] = {}
-            if isinstance(positions_list, list):
-                for pos in positions_list:
-                    if isinstance(pos, dict) and pos.get("symbol"):
-                        current_positions[pos["symbol"]] = pos
-                    elif hasattr(pos, "symbol"):
-                        current_positions[pos.symbol] = {
-                            "symbol": pos.symbol,
-                            "market_value": getattr(pos, "market_value", 0),
-                            "quantity": getattr(pos, "quantity", 0),
-                        }
-            if current_positions:
-                return current_positions
+        positions = PortfolioBuilder._try_extract_from_account_before(data)
+        if positions:
+            return positions
 
         # Legacy fallback: account_info_after.open_positions
         # Note: This is not ideal as it shows post-execution state, but kept for
         # backward compatibility if account_info_before is not available
-        account_after = data.get("account_info_after", {})
-        if isinstance(account_after, dict) and account_after.get("open_positions"):
-            open_positions = account_after.get("open_positions", [])
-            current_positions = {}
-            if isinstance(open_positions, list):
-                for pos in open_positions:
-                    if isinstance(pos, dict) and pos.get("symbol"):
-                        current_positions[pos["symbol"]] = pos
-            return current_positions
-        return {}
+        return PortfolioBuilder._try_extract_from_account_after(data)
 
     @staticmethod
     def _extract_portfolio_value(data: dict[str, Any]) -> Decimal:
@@ -242,6 +302,125 @@ class PortfolioBuilder:
             pass
         return "—"
 
+    # ------- rebalancing table helpers ------- #
+    @staticmethod
+    def _build_current_values_map(positions: dict[str, Any]) -> dict[str, Decimal]:
+        """Build map of symbol to market value from positions.
+
+        Args:
+            positions: Dictionary of positions by symbol
+
+        Returns:
+            Dictionary mapping symbols to Decimal market values
+
+        """
+        current_values: dict[str, Decimal] = {}
+        for sym, pos in positions.items():
+            try:
+                market_val = Decimal(str(pos.get("market_value", 0) or 0))
+                current_values[sym] = market_val
+            except (TypeError, ValueError, ArithmeticError):  # pragma: no cover
+                logger.debug(f"Failed to parse market_value for {sym}")
+                continue
+        return current_values
+
+    @staticmethod
+    def _determine_rebalancing_action(
+        target_weight: Decimal, current_weight: Decimal
+    ) -> tuple[str, str]:
+        """Determine rebalancing action (BUY/SELL/HOLD) based on weight difference.
+
+        Args:
+            target_weight: Target portfolio weight for the symbol
+            current_weight: Current portfolio weight for the symbol
+
+        Returns:
+            Tuple of (action, color) for display
+
+        """
+        diff = target_weight - current_weight
+        # Use math.isclose for float comparison with explicit tolerance
+        if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
+            return "HOLD", "#6B7280"
+        if diff > 0:
+            return "BUY", "#10B981"
+        return "SELL", "#EF4444"
+
+    @staticmethod
+    def _format_rebalancing_row_with_data(
+        symbol: str,
+        target_weight: Decimal,
+        current_weight: Decimal,
+    ) -> str:
+        """Format a rebalancing table row when position data is available.
+
+        Args:
+            symbol: Stock symbol
+            target_weight: Target portfolio weight
+            current_weight: Current portfolio weight
+
+        Returns:
+            HTML table row string
+
+        """
+        action, color = PortfolioBuilder._determine_rebalancing_action(
+            target_weight, current_weight
+        )
+        target_pct = float(target_weight)
+        current_pct = float(current_weight)
+        current_pct_display = f"{current_pct:.1%}"
+        return f"""
+                <tr>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;font-weight:600;color:#1F2937;\">{symbol}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#059669;\">{target_pct:.1%}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_pct_display}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;font-weight:600;color:{color};\">{action}</td>
+                </tr>
+                """
+
+    @staticmethod
+    def _format_rebalancing_row_without_data(symbol: str, target_weight: Decimal) -> str:
+        """Format a rebalancing table row when position data is unavailable.
+
+        Args:
+            symbol: Stock symbol
+            target_weight: Target portfolio weight
+
+        Returns:
+            HTML table row string
+
+        """
+        # No position data available - display N/A and default to BUY for non-zero targets
+        current_pct_display = "—"
+        if target_weight > 0:
+            action, color = "BUY", "#10B981"
+        else:
+            action, color = "HOLD", "#6B7280"
+
+        target_pct = float(target_weight)
+        return f"""
+                <tr>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;font-weight:600;color:#1F2937;\">{symbol}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#059669;\">{target_pct:.1%}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_pct_display}</td>
+                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;font-weight:600;color:{color};\">{action}</td>
+                </tr>
+                """
+
+    @staticmethod
+    def _build_rebalancing_table_html(body: str) -> str:
+        """Build the complete HTML table structure for rebalancing.
+
+        Args:
+            body: HTML table body rows
+
+        Returns:
+            Complete HTML table string
+
+        """
+        return f"""
+        <table style=\"width:100%;border-collapse:collapse;background-color:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);margin:16px 0;\">\n            <thead>\n                <tr style=\"background-color:#F9FAFB;\">\n                    <th style=\"padding:12px 16px;text-align:left;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Symbol</th>\n                    <th style=\"padding:12px 16px;text-align:center;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Target %</th>\n                    <th style=\"padding:12px 16px;text-align:center;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Current %</th>\n                    <th style=\"padding:12px 16px;text-align:center;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Action</th>\n                </tr>\n            </thead>\n            <tbody>{body}</tbody>\n        </table>\n        """
+
     # ---------------------- neutral public builders ---------------------- #
     @staticmethod
     def build_account_summary_neutral(account_info: Mapping[str, Any]) -> str:
@@ -303,17 +482,10 @@ class PortfolioBuilder:
         )
         if not target_portfolio:
             return "<p>No target portfolio data available</p>"
+
         current_positions = PortfolioBuilder._extract_current_positions(data)
         # Build current value map if present (market_value fields) for weight estimation
-        # Use Decimal for financial calculations to avoid float precision issues
-        current_values: dict[str, Decimal] = {}
-        for sym, pos in current_positions.items():
-            try:
-                market_val = Decimal(str(pos.get("market_value", 0) or 0))
-                current_values[sym] = market_val
-            except (TypeError, ValueError, ArithmeticError):  # pragma: no cover
-                logger.debug(f"Failed to parse market_value for {sym}")
-                continue
+        current_values = PortfolioBuilder._build_current_values_map(current_positions)
         total_value = sum(current_values.values())
 
         # Check if we have any position data - if total_value is 0, positions are missing
@@ -326,39 +498,16 @@ class PortfolioBuilder:
 
             if has_position_data:
                 current_weight = current_values.get(symbol, Decimal("0")) / total_value
-                diff = target_weight - current_weight
-                # Use math.isclose for float comparison with explicit tolerance
-                if math.isclose(float(diff), 0.0, abs_tol=float(REBALANCE_TOLERANCE)):
-                    action, color = "HOLD", "#6B7280"
-                elif diff > 0:
-                    action, color = "BUY", "#10B981"
-                else:
-                    action, color = "SELL", "#EF4444"
-                # Convert to float for display formatting
-                current_pct = float(current_weight)
-                current_pct_display = f"{current_pct:.1%}"
+                row = PortfolioBuilder._format_rebalancing_row_with_data(
+                    symbol, target_weight, current_weight
+                )
             else:
-                # No position data available - display N/A and default to BUY for non-zero targets
-                current_pct_display = "—"
-                if target_weight > 0:
-                    action, color = "BUY", "#10B981"
-                else:
-                    action, color = "HOLD", "#6B7280"
+                row = PortfolioBuilder._format_rebalancing_row_without_data(symbol, target_weight)
 
-            target_pct = float(target_weight)
-            rows.append(
-                f"""
-                <tr>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;font-weight:600;color:#1F2937;\">{symbol}</td>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#059669;\">{target_pct:.1%}</td>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;color:#374151;\">{current_pct_display}</td>
-                    <td style=\"padding:12px 16px;border-bottom:1px solid #E5E7EB;text-align:center;font-weight:600;color:{color};\">{action}</td>
-                </tr>
-                """
-            )
+            rows.append(row)
+
         body = "".join(rows)
-        return f"""
-        <table style=\"width:100%;border-collapse:collapse;background-color:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);margin:16px 0;\">\n            <thead>\n                <tr style=\"background-color:#F9FAFB;\">\n                    <th style=\"padding:12px 16px;text-align:left;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Symbol</th>\n                    <th style=\"padding:12px 16px;text-align:center;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Target %</th>\n                    <th style=\"padding:12px 16px;text-align:center;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Current %</th>\n                    <th style=\"padding:12px 16px;text-align:center;font-weight:600;color:#374151;border-bottom:2px solid #E5E7EB;\">Action</th>\n                </tr>\n            </thead>\n            <tbody>{body}</tbody>\n        </table>\n        """
+        return PortfolioBuilder._build_rebalancing_table_html(body)
 
     @staticmethod
     def build_orders_table_neutral(orders: list[Any]) -> str:
