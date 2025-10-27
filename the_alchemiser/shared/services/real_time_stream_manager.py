@@ -489,6 +489,40 @@ class RealTimeStreamManager:
         should_continue = retry_count < self._config.max_retries
         return retry_count, should_continue
 
+    def _attempt_stream_connection(self, retry_count: int) -> tuple[int, bool]:
+        """Attempt a single stream connection.
+
+        Args:
+            retry_count: Current retry attempt count
+
+        Returns:
+            Tuple of (updated_retry_count, should_break_loop)
+
+        """
+        # Setup stream for this attempt
+        symbols_to_subscribe = self._wait_for_symbols()
+        if symbols_to_subscribe is None:
+            return retry_count, False
+
+        # Create and configure stream
+        if not self._setup_stream_with_symbols(symbols_to_subscribe):
+            return retry_count + 1, False
+
+        # Check circuit breaker
+        if not self._check_circuit_breaker(retry_count):
+            return retry_count + 1, False
+
+        self.logger.info("Attempting to start stream", attempt=retry_count + 1)
+
+        # Execute the stream run
+        if not self._execute_stream_run():
+            return retry_count + 1, False
+
+        # If we get here, stream stopped normally
+        self._circuit_breaker.record_success()
+        self.logger.info("Stream closed normally")
+        return retry_count, True
+
     def _run_stream_blocking(self) -> None:
         """Run the WebSocket stream using SDK's public blocking API.
 
@@ -505,32 +539,9 @@ class RealTimeStreamManager:
 
         while self._should_reconnect and retry_count < self._config.max_retries:
             try:
-                # Setup stream for this attempt
-                symbols_to_subscribe = self._wait_for_symbols()
-                if symbols_to_subscribe is None:
-                    continue
-
-                # Create and configure stream
-                if not self._setup_stream_with_symbols(symbols_to_subscribe):
-                    retry_count += 1
-                    continue
-
-                # Check circuit breaker
-                if not self._check_circuit_breaker(retry_count):
-                    retry_count += 1
-                    continue
-
-                self.logger.info("Attempting to start stream", attempt=retry_count + 1)
-
-                # Execute the stream run
-                if not self._execute_stream_run():
-                    retry_count += 1
-                    continue
-
-                # If we get here, stream stopped normally
-                self._circuit_breaker.record_success()
-                self.logger.info("Stream closed normally")
-                break
+                retry_count, should_break = self._attempt_stream_connection(retry_count)
+                if should_break:
+                    break
 
             except KeyboardInterrupt:
                 self.logger.info("Stream interrupted by user")
