@@ -187,11 +187,16 @@ class AccountSnapshot(BaseModel):
             SHA-256 hex digest
 
         """
+        from ..utils.serialization import to_serializable
+
         # Create a copy without checksum field
         data_for_hash = {k: v for k, v in snapshot_data.items() if k != "checksum"}
 
+        # Convert Decimal and other non-JSON-serializable types to proper strings
+        serialized_data = to_serializable(data_for_hash)
+
         # Sort keys for deterministic serialization
-        json_str = json.dumps(data_for_hash, sort_keys=True, default=str)
+        json_str = json.dumps(serialized_data, sort_keys=True)
 
         # Calculate SHA-256 hash
         return hashlib.sha256(json_str.encode()).hexdigest()

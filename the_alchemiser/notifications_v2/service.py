@@ -404,6 +404,8 @@ class NotificationService:
 
         import boto3
 
+        from the_alchemiser.shared.utils.serialization import to_serializable
+
         stage = os.environ.get("STAGE", "dev")
         lambda_function_name = f"the-alchemiser-report-generator-{stage}"
 
@@ -423,11 +425,14 @@ class NotificationService:
             },
         )
 
+        # Convert Decimal and other non-JSON-serializable types to strings
+        serialized_event = to_serializable(lambda_event)
+
         lambda_client = boto3.client("lambda")
         response = lambda_client.invoke(
             FunctionName=lambda_function_name,
             InvocationType="RequestResponse",
-            Payload=json.dumps(lambda_event),
+            Payload=json.dumps(serialized_event),
         )
 
         response_payload = json.loads(response["Payload"].read())
