@@ -37,6 +37,25 @@ DEFAULT_INDICATOR_WINDOWS = {
     "max-drawdown": 60,
 }
 
+# Recognized indicators for symbol injection
+RECOGNIZED_INDICATORS = {
+    "rsi",
+    "moving-average-price",
+    "moving-average-return",
+    "cumulative-return",
+    "exponential-moving-average-price",
+    "stdev-return",
+    "max-drawdown",
+}
+
+# Indicators that commonly appear in decision conditions
+DECISION_INDICATORS = {
+    "rsi",
+    "moving-average-price",
+    "moving-average-return",
+    "current-price",
+}
+
 
 def defsymphony(args: list[ASTNode], context: DslContext) -> DSLValue:
     """Evaluate defsymphony - main strategy definition.
@@ -240,7 +259,7 @@ def _evaluate_branch(
 
 def _log_branch_result(
     context: DslContext,
-    branch_taken: str,
+    branch_taken: Literal["then", "else"],
     result: DSLValue,
 ) -> None:
     """Log branch evaluation result.
@@ -265,7 +284,7 @@ def _log_branch_result(
 def _capture_decision(
     condition: ASTNode,
     condition_result: DSLValue,
-    branch_taken: str,
+    branch_taken: Literal["then", "else"],
     context: DslContext,
 ) -> None:
     """Capture decision node in context for signal reasoning.
@@ -491,6 +510,9 @@ def _extract_from_indicator_call(child: ASTNode, values: dict[str, Any]) -> None
 def _is_indicator_function(func_name: str) -> bool:
     """Check if a function name is a recognized indicator function.
 
+    Used for detecting indicator functions in decision conditions
+    to extract their values for signal reasoning.
+
     Args:
         func_name: The function name to check
 
@@ -498,12 +520,7 @@ def _is_indicator_function(func_name: str) -> bool:
         True if the function is an indicator function
 
     """
-    return func_name in {
-        "rsi",
-        "moving-average-price",
-        "moving-average-return",
-        "current-price",
-    }
+    return func_name in DECISION_INDICATORS
 
 
 def _extract_symbol_from_call(child: ASTNode) -> str:
@@ -578,6 +595,9 @@ def _is_valid_indicator_expr(indicator_expr: ASTNode) -> bool:
 def _is_recognized_indicator(func_name: str) -> bool:
     """Check if function name is a recognized indicator.
 
+    Used for validating indicators that can have symbols injected
+    during expression transformation.
+
     Args:
         func_name: The function name to check
 
@@ -585,15 +605,7 @@ def _is_recognized_indicator(func_name: str) -> bool:
         True if the function is a recognized indicator
 
     """
-    return func_name in {
-        "rsi",
-        "moving-average-price",
-        "moving-average-return",
-        "cumulative-return",
-        "exponential-moving-average-price",
-        "stdev-return",
-        "max-drawdown",
-    }
+    return func_name in RECOGNIZED_INDICATORS
 
 
 def _build_indicator_node(
