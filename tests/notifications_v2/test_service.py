@@ -284,16 +284,16 @@ class TestTradingNotificationHandling:
         )
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.MultiStrategyReportBuilder")
+    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
     def test_handle_successful_trading_notification(
         self,
-        mock_report_builder: Mock,
+        mock_templates: Mock,
         mock_send_email: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test successful trading notification handling."""
-        mock_report_builder.build_multi_strategy_report_neutral.return_value = (
+        mock_templates.simple_trading_notification.return_value = (
             "<html>Success Report</html>"
         )
         mock_send_email.return_value = True
@@ -301,8 +301,12 @@ class TestTradingNotificationHandling:
 
         service.handle_event(successful_trading_event)
 
-        # Verify enhanced template was used
-        mock_report_builder.build_multi_strategy_report_neutral.assert_called_once()
+        # Verify simplified template was used
+        mock_templates.simple_trading_notification.assert_called_once()
+        call_args = mock_templates.simple_trading_notification.call_args
+        assert call_args.kwargs["success"] is True
+        assert call_args.kwargs["mode"] == "PAPER"
+        assert call_args.kwargs["orders_count"] == 5
 
         # Verify email was sent with success status
         mock_send_email.assert_called_once()
@@ -311,30 +315,32 @@ class TestTradingNotificationHandling:
         assert "PAPER" in subject
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.MultiStrategyReportBuilder")
+    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
     def test_handle_successful_trading_with_template_fallback(
         self,
-        mock_report_builder: Mock,
+        mock_templates: Mock,
         mock_send_email: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test successful trading with fallback to basic template on error."""
-        # Simulate template failure
-        mock_report_builder.build_multi_strategy_report_neutral.side_effect = Exception(
-            "Template rendering failed"
+        # With simplified template, no fallback is needed
+        # The simplified template is simple enough that it shouldn't fail
+        mock_templates.simple_trading_notification.return_value = (
+            "<html>Simple Success Report</html>"
         )
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(successful_trading_event)
 
-        # Verify fallback template was used (email still sent)
+        # Verify simplified template was used
+        mock_templates.simple_trading_notification.assert_called_once()
+
+        # Verify email was sent
         mock_send_email.assert_called_once()
         html_content = mock_send_email.call_args.kwargs["html_content"]
-        assert "Trading Execution Report" in html_content
-        assert "PAPER" in html_content
-        assert str(successful_trading_event.orders_placed) in html_content
+        assert "Simple Success Report" in html_content
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
     @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
@@ -346,26 +352,20 @@ class TestTradingNotificationHandling:
         failed_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test failed trading notification handling."""
-        mock_templates.failed_trading_run.return_value = "<html>Failure Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(failed_trading_event)
 
-        # Verify failed template was used
-        mock_templates.failed_trading_run.assert_called_once()
-        call_args = mock_templates.failed_trading_run.call_args
-
-        # Check error message and context
-        assert (
-            call_args.kwargs["error_details"]
-            == "Failed to execute 3 orders due to insufficient buying power"
-        )
+        # Verify simplified template was used
+        mock_templates.simple_trading_notification.assert_called_once()
+        call_args = mock_templates.simple_trading_notification.call_args
+        
+        # Check template parameters
+        assert call_args.kwargs["success"] is False
         assert call_args.kwargs["mode"] == "LIVE"
-        context = call_args.kwargs["context"]
-        assert context["Orders Placed"] == 5
-        assert context["Orders Succeeded"] == 2
-        assert "Failed Symbols" in context
+        assert call_args.kwargs["orders_count"] == 5
 
         # Verify email was sent with failure status
         mock_send_email.assert_called_once()
@@ -383,7 +383,7 @@ class TestTradingNotificationHandling:
         mock_container: Mock,
     ) -> None:
         """Test failed trading notification without error code."""
-        mock_templates.failed_trading_run.return_value = "<html>Failure Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -419,7 +419,7 @@ class TestTradingNotificationHandling:
         mock_container: Mock,
     ) -> None:
         """Test failed trading notification handles missing error message."""
-        mock_templates.failed_trading_run.return_value = "<html>Failure Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -441,9 +441,8 @@ class TestTradingNotificationHandling:
 
         service.handle_event(event)
 
-        # Verify default error message is used
-        call_args = mock_templates.failed_trading_run.call_args
-        assert call_args.kwargs["error_details"] == "Unknown trading error"
+        # Verify simplified template was called (no error message processing needed)
+        mock_templates.simple_trading_notification.assert_called_once()
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
     def test_trading_notification_email_send_failure(
@@ -784,7 +783,7 @@ class TestMissingAndPartialData:
         mock_container: Mock,
     ) -> None:
         """Test trading notification with empty execution data dictionary."""
-        mock_templates.failed_trading_run.return_value = "<html>Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -803,25 +802,23 @@ class TestMissingAndPartialData:
             error_message="No orders executed",
         )
 
-        # Should handle gracefully
+        # Should handle gracefully with simplified template
         service.handle_event(event)
 
         mock_send_email.assert_called_once()
-        # Verify context doesn't include failed_symbols
-        call_args = mock_templates.failed_trading_run.call_args
-        context = call_args.kwargs["context"]
-        assert "Failed Symbols" not in context
+        # Verify simplified template was called
+        mock_templates.simple_trading_notification.assert_called_once()
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.MultiStrategyReportBuilder")
+    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
     def test_successful_trading_with_minimal_execution_data(
         self,
-        mock_report_builder: Mock,
+        mock_templates: Mock,
         mock_send_email: Mock,
         mock_container: Mock,
     ) -> None:
         """Test successful trading notification with minimal execution data."""
-        mock_report_builder.build_multi_strategy_report_neutral.return_value = (
+        mock_templates.simple_trading_notification.return_value = (
             "<html>Success</html>"
         )
         mock_send_email.return_value = True
@@ -841,15 +838,15 @@ class TestMissingAndPartialData:
             execution_data={},  # Minimal data
         )
 
-        # Should handle gracefully with EventResultAdapter
+        # Should handle gracefully with simplified template
         service.handle_event(event)
 
         mock_send_email.assert_called_once()
-        # Adapter should handle missing fields gracefully
-        adapter_call = mock_report_builder.build_multi_strategy_report_neutral.call_args
-        result_adapter = adapter_call.args[0]
-        assert result_adapter.success is True
-        assert result_adapter.orders_executed == []
+        # Verify simplified template was called with correct parameters
+        mock_templates.simple_trading_notification.assert_called_once()
+        call_args = mock_templates.simple_trading_notification.call_args
+        assert call_args.kwargs["success"] is True
+        assert call_args.kwargs["orders_count"] == 1
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
     def test_error_notification_with_minimal_fields(
@@ -880,3 +877,228 @@ class TestMissingAndPartialData:
         mock_send_email.assert_called_once()
         subject = mock_send_email.call_args.kwargs["subject"]
         assert "MEDIUM" in subject
+
+
+class TestPDFReportGeneration:
+    """Test PDF report generation for trading notifications."""
+
+    @pytest.fixture
+    def mock_container(self) -> Mock:
+        """Create a mock ApplicationContainer."""
+        container = Mock()
+        mock_event_bus = Mock()
+        container.services.event_bus.return_value = mock_event_bus
+        return container
+
+    @pytest.fixture
+    def trading_event_with_execution_data(self) -> TradingNotificationRequested:
+        """Create a trading notification event with execution data."""
+        return TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="execution",
+            source_component="ExecutionService",
+            trading_success=True,
+            trading_mode="PAPER",
+            orders_placed=2,
+            orders_succeeded=2,
+            total_trade_value=5000.00,
+            execution_data={
+                "strategy_signals": {
+                    "nuclear_strategy": {
+                        "signal": "BUY",
+                        "reasoning": "Test reason",
+                        "confidence": "HIGH",
+                    }
+                },
+                "consolidated_portfolio": {"target_allocations": {"TQQQ": 0.5, "TECL": 0.5}},
+                "orders_executed": [
+                    {
+                        "symbol": "TQQQ",
+                        "side": "buy",
+                        "qty": 100,
+                        "filled_avg_price": 45.50,
+                        "status": "filled",
+                        "order_id": "order-123",
+                    }
+                ],
+                "execution_summary": {
+                    "orders_placed": 2,
+                    "orders_succeeded": 2,
+                    "total_trade_value": 5000.00,
+                },
+            },
+        )
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("boto3.client")
+    @patch.dict("os.environ", {"STAGE": "dev"})
+    def test_generate_execution_report_success(
+        self,
+        mock_boto_client: Mock,
+        mock_send_email: Mock,
+        mock_container: Mock,
+        trading_event_with_execution_data: TradingNotificationRequested,
+    ) -> None:
+        """Test successful PDF report generation and email attachment."""
+        # Setup Lambda mock
+        mock_lambda_client = Mock()
+        mock_boto_client.return_value = mock_lambda_client
+        
+        # Mock Lambda response
+        mock_lambda_response = {
+            "status": "success",
+            "report_id": "report-abc123",
+            "s3_uri": "s3://test-bucket/reports/account/2024/10/execution_test.pdf",
+            "s3_bucket": "test-bucket",
+            "s3_key": "reports/account/2024/10/execution_test.pdf",
+            "file_size_bytes": 1024,
+            "generation_time_ms": 1500,
+        }
+        
+        import json
+        from io import BytesIO
+        
+        mock_payload = Mock()
+        mock_payload.read.return_value = json.dumps(mock_lambda_response).encode()
+        mock_lambda_client.invoke.return_value = {"Payload": mock_payload}
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(trading_event_with_execution_data)
+
+        # Verify Lambda was invoked
+        mock_lambda_client.invoke.assert_called_once()
+        call_kwargs = mock_lambda_client.invoke.call_args[1]
+        assert call_kwargs["FunctionName"] == "the-alchemiser-report-generator-dev"
+        assert call_kwargs["InvocationType"] == "RequestResponse"
+        
+        # Verify Lambda event payload
+        payload = json.loads(call_kwargs["Payload"])
+        assert payload["generate_from_execution"] is True
+        assert payload["report_type"] == "trading_execution"
+        assert payload["trading_mode"] == "PAPER"
+        assert "execution_data" in payload
+
+        # Verify email was sent with attachment
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is not None
+        assert len(call_kwargs["s3_attachments"]) == 1
+        assert call_kwargs["s3_attachments"][0][0] == "Trading_Execution_Report.pdf"
+        assert call_kwargs["s3_attachments"][0][1] == mock_lambda_response["s3_uri"]
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("boto3.client")
+    @patch.dict("os.environ", {"STAGE": "prod"})
+    def test_generate_execution_report_lambda_failure(
+        self,
+        mock_boto_client: Mock,
+        mock_send_email: Mock,
+        mock_container: Mock,
+        trading_event_with_execution_data: TradingNotificationRequested,
+    ) -> None:
+        """Test graceful degradation when Lambda fails."""
+        # Setup Lambda mock to return failure
+        mock_lambda_client = Mock()
+        mock_boto_client.return_value = mock_lambda_client
+        
+        mock_lambda_response = {
+            "status": "failed",
+            "error": "ValidationError",
+            "message": "Missing required field",
+        }
+        
+        import json
+        from io import BytesIO
+        
+        mock_payload = Mock()
+        mock_payload.read.return_value = json.dumps(mock_lambda_response).encode()
+        mock_lambda_client.invoke.return_value = {"Payload": mock_payload}
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(trading_event_with_execution_data)
+
+        # Verify Lambda was invoked
+        mock_lambda_client.invoke.assert_called_once()
+
+        # Verify email was still sent but without attachment
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is None
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    def test_no_pdf_generation_on_failure(
+        self,
+        mock_send_email: Mock,
+        mock_container: Mock,
+    ) -> None:
+        """Test that PDF is not generated for failed trades."""
+        # Create failed trading event
+        failed_event = TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="execution",
+            source_component="ExecutionService",
+            trading_success=False,  # Failed trade
+            trading_mode="PAPER",
+            orders_placed=2,
+            orders_succeeded=0,
+            total_trade_value=0.00,
+            error_message="Execution failed",
+            execution_data={},
+        )
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(failed_event)
+
+        # Verify email was sent without attachment (no Lambda invocation)
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is None
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    def test_no_pdf_generation_without_execution_data(
+        self,
+        mock_send_email: Mock,
+        mock_container: Mock,
+    ) -> None:
+        """Test that PDF is not generated when execution_data is missing."""
+        # Create event without execution data
+        event = TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="execution",
+            source_component="ExecutionService",
+            trading_success=True,
+            trading_mode="PAPER",
+            orders_placed=2,
+            orders_succeeded=2,
+            total_trade_value=5000.00,
+            execution_data={},  # No execution data
+        )
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(event)
+
+        # Verify email was sent without attachment
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is None

@@ -703,3 +703,245 @@ class TestTradeLedger:
         assert isinstance(json_str, str)
         assert "ledger-123" in json_str
         assert "order-123" in json_str
+
+
+class TestSignalLedgerEntry:
+    """Test suite for SignalLedgerEntry DTO."""
+
+    def test_create_valid_signal_entry(self) -> None:
+        """Test creating a valid signal ledger entry."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime(2025, 1, 15, 14, 0, 0, tzinfo=UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            signal_strength=Decimal("0.85"),
+            reasoning="Strong momentum detected",
+            signal_dto={
+                "symbol": "TQQQ",
+                "action": "BUY",
+                "target_allocation": "0.5",
+            },
+            created_at=datetime(2025, 1, 15, 14, 0, 0, tzinfo=UTC),
+        )
+
+        assert entry.signal_id == "sig-123"
+        assert entry.correlation_id == "corr-456"
+        assert entry.strategy_name == "Nuclear"
+        assert entry.symbol == "TQQQ"
+        assert entry.action == "BUY"
+        assert entry.target_allocation == Decimal("0.5")
+        assert entry.lifecycle_state == "GENERATED"
+
+    def test_signal_entry_is_frozen(self) -> None:
+        """Test that SignalLedgerEntry is immutable."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime.now(UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            reasoning="Test signal",
+            signal_dto={"symbol": "TQQQ"},
+            created_at=datetime.now(UTC),
+        )
+
+        with pytest.raises(ValidationError):
+            entry.symbol = "SPY"  # type: ignore
+
+    def test_signal_symbol_normalized_to_uppercase(self) -> None:
+        """Test signal symbol is normalized to uppercase."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime.now(UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="tqqq",  # lowercase
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            reasoning="Test signal",
+            signal_dto={"symbol": "tqqq"},
+            created_at=datetime.now(UTC),
+        )
+
+        assert entry.symbol == "TQQQ"  # Should be uppercase
+
+    def test_signal_invalid_action_rejected(self) -> None:
+        """Test invalid action values are rejected."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        with pytest.raises(ValidationError):
+            SignalLedgerEntry(
+                signal_id="sig-123",
+                correlation_id="corr-456",
+                causation_id="cause-789",
+                timestamp=datetime.now(UTC),
+                strategy_name="Nuclear",
+                data_source="dsl_engine:1-KMLM.clj",
+                symbol="TQQQ",
+                action="INVALID",  # type: ignore[arg-type]
+                target_allocation=Decimal("0.5"),
+                reasoning="Test signal",
+                signal_dto={"symbol": "TQQQ"},
+                created_at=datetime.now(UTC),
+            )
+
+    def test_signal_target_allocation_bounds(self) -> None:
+        """Test target_allocation must be between 0 and 1."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        # Test upper bound violation
+        with pytest.raises(ValidationError):
+            SignalLedgerEntry(
+                signal_id="sig-123",
+                correlation_id="corr-456",
+                causation_id="cause-789",
+                timestamp=datetime.now(UTC),
+                strategy_name="Nuclear",
+                data_source="dsl_engine:1-KMLM.clj",
+                symbol="TQQQ",
+                action="BUY",
+                target_allocation=Decimal("1.5"),  # > 1
+                reasoning="Test signal",
+                signal_dto={"symbol": "TQQQ"},
+                created_at=datetime.now(UTC),
+            )
+
+        # Test lower bound violation
+        with pytest.raises(ValidationError):
+            SignalLedgerEntry(
+                signal_id="sig-123",
+                correlation_id="corr-456",
+                causation_id="cause-789",
+                timestamp=datetime.now(UTC),
+                strategy_name="Nuclear",
+                data_source="dsl_engine:1-KMLM.clj",
+                symbol="TQQQ",
+                action="BUY",
+                target_allocation=Decimal("-0.1"),  # < 0
+                reasoning="Test signal",
+                signal_dto={"symbol": "TQQQ"},
+                created_at=datetime.now(UTC),
+            )
+
+    def test_signal_with_technical_indicators(self) -> None:
+        """Test signal with technical indicators."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        indicators = {
+            "TQQQ": {
+                "rsi_10": 75.0,
+                "rsi_20": 70.0,
+                "current_price": 50.0,
+                "ma_200": 45.0,
+            }
+        }
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime.now(UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            reasoning="Test signal",
+            technical_indicators=indicators,
+            signal_dto={"symbol": "TQQQ"},
+            created_at=datetime.now(UTC),
+        )
+
+        assert entry.technical_indicators is not None
+        assert "TQQQ" in entry.technical_indicators
+        assert entry.technical_indicators["TQQQ"]["rsi_10"] == 75.0
+
+    def test_signal_default_lifecycle_state(self) -> None:
+        """Test signal has default lifecycle state of GENERATED."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime.now(UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            reasoning="Test signal",
+            signal_dto={"symbol": "TQQQ"},
+            created_at=datetime.now(UTC),
+        )
+
+        assert entry.lifecycle_state == "GENERATED"
+        assert entry.executed_trade_ids == []
+
+    def test_signal_with_executed_trades(self) -> None:
+        """Test signal with executed trade IDs."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime.now(UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            reasoning="Test signal",
+            lifecycle_state="EXECUTED",
+            executed_trade_ids=["trade-1", "trade-2"],
+            signal_dto={"symbol": "TQQQ"},
+            created_at=datetime.now(UTC),
+        )
+
+        assert entry.lifecycle_state == "EXECUTED"
+        assert len(entry.executed_trade_ids) == 2
+        assert "trade-1" in entry.executed_trade_ids
+
+    def test_signal_timezone_aware_timestamps(self) -> None:
+        """Test signal timestamps are timezone-aware."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        # Naive datetime should be converted to UTC
+        naive_dt = datetime(2025, 1, 15, 14, 0, 0)
+
+        entry = SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=naive_dt,
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            reasoning="Test signal",
+            signal_dto={"symbol": "TQQQ"},
+            created_at=naive_dt,
+        )
+
+        assert entry.timestamp.tzinfo is not None
+        assert entry.created_at.tzinfo is not None

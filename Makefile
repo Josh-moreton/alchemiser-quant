@@ -1,18 +1,11 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade deploy format type-check import-check migration-check release bump-patch bump-minor bump-major version release-beta deploy-dev deploy-prod deploy-ephemeral destroy-ephemeral list-ephemeral
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check release bump-patch bump-minor bump-major version release-beta deploy-dev deploy-prod deploy-ephemeral destroy-ephemeral list-ephemeral
 
 # Default target
 help:
 	@echo "🧪 The Alchemiser - Development Commands"
-	@echo ""
-	@echo "Setup & Installation:"
-	@echo "  install         Install package in development mode"
-	@echo "  dev             Install with development dependencies"
-	@echo ""
-	@echo "Trading Commands:"
-	@echo "  run-trade       Execute trading via python -m the_alchemiser"
 	@echo ""
 	@echo "P&L Analysis Commands:"
 	@echo "  run-pnl-weekly  Show weekly P&L report"
@@ -27,7 +20,6 @@ help:
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment:"
-	@echo "  deploy          Deploy to AWS Lambda (deprecated - use deploy-dev or deploy-prod)"
 	@echo "  deploy-dev      Create and push beta tag to trigger dev deployment"
 	@echo "  deploy-prod     Create and push release tag to trigger prod deployment"
 	@echo "  deploy-ephemeral Deploy ephemeral stack (TTL_HOURS=24, optionally BRANCH=...)"
@@ -44,20 +36,9 @@ help:
 	@echo "  version         Show current version"
 
 # Setup & Installation
-install:
-	@echo "🔧 Installing The Alchemiser with Poetry..."
-	poetry install
-
-dev:
-	@echo "🔧 Installing The Alchemiser with development dependencies (Poetry groups)..."
-	poetry install --with dev
 
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade
-
-run-trade:
-	@echo "💰 Running trading (mode determined by stage)..."
-	poetry run python -m the_alchemiser
 
 # P&L Analysis Commands
 run-pnl-weekly:

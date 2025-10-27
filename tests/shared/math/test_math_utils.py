@@ -6,7 +6,6 @@ Tests statistical and mathematical functions for trading strategies including
 return calculations, moving averages, and safe division.
 """
 
-
 import pandas as pd
 import pytest
 from hypothesis import given

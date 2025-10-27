@@ -1,28 +1,30 @@
-alpaca-py==0.43.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-annotated-types==0.7.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-cachetools==6.2.1 ; python_version >= "3.12" and python_full_version < "4.0.0"
-certifi==2025.10.5 ; python_version >= "3.12" and python_full_version < "4.0.0"
-charset-normalizer==3.4.4 ; python_version >= "3.12" and python_full_version < "4.0.0"
-colorama==0.4.6 ; python_version >= "3.12" and python_full_version < "4.0.0" and platform_system == "Windows"
-dependency-injector==4.48.2 ; python_version >= "3.12" and python_full_version < "4.0.0"
-idna==3.11 ; python_version >= "3.12" and python_full_version < "4.0.0"
-msgpack==1.1.2 ; python_version >= "3.12" and python_full_version < "4.0.0"
-numpy==1.26.4 ; python_version >= "3.12" and python_full_version < "4.0.0"
-pandas==2.3.3 ; python_version >= "3.12" and python_full_version < "4.0.0"
-pydantic-settings==2.11.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-pydantic==2.12.3 ; python_version >= "3.12" and python_full_version < "4.0.0"
-python-dateutil==2.9.0.post0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-python-dotenv==1.1.1 ; python_version >= "3.12" and python_full_version < "4.0.0"
-pytz==2025.2 ; python_version >= "3.12" and python_full_version < "4.0.0"
-pyyaml==6.0.3 ; python_version >= "3.12" and python_full_version < "4.0.0"
-requests==2.32.5 ; python_version >= "3.12" and python_full_version < "4.0.0"
-setuptools==80.9.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-six==1.17.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-sseclient-py==1.8.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-structlog==25.4.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-tqdm==4.67.1 ; python_version >= "3.12" and python_full_version < "4.0.0"
-typing-extensions==4.15.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-typing-inspection==0.4.2 ; python_version >= "3.12" and python_full_version < "4.0.0"
-tzdata==2025.2 ; python_version >= "3.12" and python_full_version < "4.0.0"
-urllib3==2.5.0 ; python_version >= "3.12" and python_full_version < "4.0.0"
-websockets==15.0.1 ; python_version >= "3.12" and python_full_version < "4.0.0"
+alpaca-py==0.43.0
+annotated-types==0.7.0
+cachetools==6.2.1
+certifi==2025.10.5
+charset-normalizer==3.4.4
+colorama==0.4.6
+dependency-injector==4.48.2
+idna==3.11
+jinja2==3.1.6
+markupsafe==3.0.2
+msgpack==1.1.2
+numpy==1.26.4
+pandas==2.3.3
+pydantic-settings==2.11.0
+pydantic==2.12.3
+python-dateutil==2.9.0.post0
+python-dotenv==1.1.1
+pytz==2025.2
+pyyaml==6.0.3
+requests==2.32.5
+setuptools==80.9.0
+six==1.17.0
+sseclient-py==1.8.0
+structlog==25.4.0
+tqdm==4.67.1
+typing-extensions==4.15.0
+typing-inspection==0.4.2
+tzdata==2025.2
+urllib3==2.5.0
+websockets==15.0.1

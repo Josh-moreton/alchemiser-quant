@@ -579,8 +579,7 @@ class Executor:
                 f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
             )
 
-        # Persist trade ledger to S3
-        self.trade_ledger.persist_to_s3(correlation_id=plan.correlation_id)
+        # Trade ledger automatically persists to DynamoDB (no explicit call needed)
 
         # Cache result for idempotency
         self._execution_cache[plan.plan_id] = execution_result

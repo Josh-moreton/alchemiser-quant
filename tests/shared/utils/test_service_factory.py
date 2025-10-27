@@ -131,9 +131,12 @@ class TestServiceFactoryCreateExecutionManagerViaDI:
 
         ServiceFactory.initialize(mock_container)
 
-        with patch("the_alchemiser.shared.utils.service_factory.logger"), pytest.raises(
-            ConfigurationError,
-            match="Failed to get execution_manager provider.*execution_manager is None",
+        with (
+            patch("the_alchemiser.shared.utils.service_factory.logger"),
+            pytest.raises(
+                ConfigurationError,
+                match="Failed to get execution_manager provider.*execution_manager is None",
+            ),
         ):
             ServiceFactory.create_execution_manager()
 
@@ -279,9 +282,12 @@ class TestServiceFactoryImportErrorHandling:
 
         mock_module = Mock(spec=[])  # Module without ExecutionManager attribute
 
-        with patch("importlib.import_module", return_value=mock_module), pytest.raises(
-            ConfigurationError,
-            match="ExecutionManager class not found in module",
+        with (
+            patch("importlib.import_module", return_value=mock_module),
+            pytest.raises(
+                ConfigurationError,
+                match="ExecutionManager class not found in module",
+            ),
         ):
             ServiceFactory.create_execution_manager(api_key="key", secret_key="secret")
 
@@ -295,8 +301,9 @@ class TestServiceFactoryImportErrorHandling:
         mock_module = Mock()
         mock_module.ExecutionManager = mock_execution_manager_class
 
-        with patch("importlib.import_module", return_value=mock_module), pytest.raises(
-            ConfigurationError, match="Unexpected error creating ExecutionManager"
+        with (
+            patch("importlib.import_module", return_value=mock_module),
+            pytest.raises(ConfigurationError, match="Unexpected error creating ExecutionManager"),
         ):
             ServiceFactory.create_execution_manager(api_key="key", secret_key="secret")
 

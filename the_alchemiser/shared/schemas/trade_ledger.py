@@ -3,14 +3,15 @@
 Trade ledger schemas for recording filled order information.
 
 This module provides DTOs for tracking filled orders with strategy attribution,
-market data at execution time, and comprehensive order details.
+market data at execution time, and comprehensive order details. Also includes
+signal persistence schemas for recording strategy signals to DynamoDB.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -155,3 +156,92 @@ class TradeLedger(BaseModel):
             ),
             Decimal("0"),
         )
+
+
+class SignalLedgerEntry(BaseModel):
+    """DTO for signal ledger entry.
+
+    Records a strategy signal with full context for persistence to DynamoDB.
+    Enables complete audit trail from signal generation through trade execution.
+
+    Attributes:
+        signal_id: Unique signal identifier
+        correlation_id: Workflow correlation ID for traceability
+        causation_id: Event causation ID for event chain tracking
+        timestamp: Signal generation timestamp (timezone-aware UTC)
+        strategy_name: Name of strategy that generated the signal
+        data_source: Data source identifier (e.g., "dsl_engine:1-KMLM.clj")
+        symbol: Trading symbol
+        action: Trading action (BUY, SELL, HOLD)
+        target_allocation: Target portfolio allocation (0.0-1.0)
+        signal_strength: Raw signal strength value (optional)
+        reasoning: Human-readable signal reasoning
+        lifecycle_state: Current lifecycle state of signal
+        executed_trade_ids: List of trade IDs that executed based on this signal
+        technical_indicators: Market context indicators at signal generation time
+        signal_dto: Full StrategySignal DTO serialization for replay capability
+        created_at: Record creation timestamp
+
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    # Core signal identification
+    signal_id: str = Field(..., min_length=1, description="Unique signal identifier")
+    correlation_id: str = Field(..., min_length=1, description="Correlation ID for traceability")
+    causation_id: str = Field(..., min_length=1, description="Causation ID for event tracing")
+    timestamp: datetime = Field(..., description="Signal generation timestamp")
+
+    # Strategy context
+    strategy_name: str = Field(..., min_length=1, description="Strategy that generated signal")
+    data_source: str = Field(
+        ..., min_length=1, description="Data source (e.g., 'dsl_engine:1-KMLM.clj')"
+    )
+
+    # Signal details
+    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    action: Literal["BUY", "SELL", "HOLD"] = Field(..., description="Trading action")
+    target_allocation: Decimal = Field(..., ge=0, le=1, description="Target allocation (0-1)")
+    signal_strength: Decimal | None = Field(
+        default=None, ge=0, description="Raw signal strength value"
+    )
+    reasoning: str = Field(..., min_length=1, max_length=1000, description="Signal reasoning")
+
+    # Lifecycle management
+    lifecycle_state: Literal["GENERATED", "EXECUTED", "IGNORED", "SUPERSEDED"] = Field(
+        default="GENERATED", description="Signal lifecycle state"
+    )
+    executed_trade_ids: list[str] = Field(
+        default_factory=list, description="Trade IDs that executed based on this signal"
+    )
+
+    # Market context
+    technical_indicators: dict[str, Any] | None = Field(
+        default=None, description="Technical indicators at signal generation time"
+    )
+
+    # Full signal serialization for replay
+    signal_dto: dict[str, Any] = Field(..., description="Full StrategySignal DTO serialization")
+
+    # Metadata
+    created_at: datetime = Field(..., description="Record creation timestamp")
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, v: str) -> str:
+        """Normalize symbol to uppercase."""
+        return v.strip().upper()
+
+    @field_validator("timestamp", "created_at")
+    @classmethod
+    def ensure_timezone_aware_timestamps(cls, v: datetime) -> datetime:
+        """Ensure timestamps are timezone-aware."""
+        result = ensure_timezone_aware(v)
+        if result is None:
+            raise ValueError("Timestamp cannot be None")
+        return result
