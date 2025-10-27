@@ -522,8 +522,8 @@ class TestExecutionSummary:
                 engine_mode="invalid",  # type: ignore[arg-type]
             )
 
-    def test_empty_strategy_summary_rejected(self, sample_account_info):
-        """Test that empty strategy_summary dict is rejected."""
+    def test_empty_strategy_summary_allowed(self, sample_account_info):
+        """Test that empty strategy_summary dict is allowed for initialization/error states."""
         allocations = AllocationSummary(
             total_allocation=Decimal("95.50"),
             num_positions=5,
@@ -542,16 +542,17 @@ class TestExecutionSummary:
             num_profitable=1,
         )
 
-        with pytest.raises(ValidationError, match="cannot be empty"):
-            ExecutionSummary(
-                allocations=allocations,
-                strategy_summary={},  # Empty dict
-                trading_summary=trading_summary,
-                pnl_summary=pnl_summary,
-                account_info_before=sample_account_info,
-                account_info_after=sample_account_info,
-                mode="paper",
-            )
+        # Empty strategy_summary is now allowed for cases like initialization or error states
+        summary = ExecutionSummary(
+            allocations=allocations,
+            strategy_summary={},  # Empty dict allowed
+            trading_summary=trading_summary,
+            pnl_summary=pnl_summary,
+            account_info_before=sample_account_info,
+            account_info_after=sample_account_info,
+            mode="paper",
+        )
+        assert summary.strategy_summary == {}
 
     def test_strategy_summary_key_mismatch_rejected(self, sample_account_info):
         """Test that mismatched keys and strategy names are rejected."""
