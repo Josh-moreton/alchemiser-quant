@@ -273,7 +273,6 @@ class ReportRenderer:
         metadata = {
             "generation_time_ms": generation_time_ms,
             "file_size_bytes": file_size_bytes,
-            "generated_at": datetime.now(UTC).isoformat(),
         }
 
         # Save to file if path provided

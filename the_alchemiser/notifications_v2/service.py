@@ -330,7 +330,7 @@ class NotificationService:
         try:
             # Generate PDF report from execution data
             pdf_s3_uri = None
-            if event.trading_success and event.execution_data and len(event.execution_data) > 0:
+            if event.trading_success and event.execution_data:
                 try:
                     pdf_s3_uri = self._generate_execution_report(
                         execution_data=event.execution_data,
