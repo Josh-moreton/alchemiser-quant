@@ -18,6 +18,7 @@ from the_alchemiser.shared.errors import (
     BuyingPowerError,
     DataProviderError,
     OrderExecutionError,
+    ValidationError,
 )
 from the_alchemiser.shared.logging import get_logger, log_order_flow
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
@@ -197,12 +198,14 @@ class MarketOrderExecutor:
             Normalized side as "BUY" or "SELL"
 
         Raises:
-            ValueError: If side is not "buy" or "sell"
+            ValidationError: If side is not "buy" or "sell"
 
         """
         side_upper = side.upper()
         if side_upper not in ("BUY", "SELL"):
-            raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
+            raise ValidationError(
+                f"Invalid side: {side}. Must be 'buy' or 'sell'", field_name="side", value=side
+            )
         return side_upper
 
     def _ensure_buying_power(

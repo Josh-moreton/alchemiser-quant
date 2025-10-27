@@ -19,6 +19,11 @@ from typing import TYPE_CHECKING, Any, NoReturn
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
+from the_alchemiser.shared.errors import (
+    MarketDataServiceError,
+    TimeframeValidationError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
@@ -424,7 +429,7 @@ class MarketDataService(MarketDataPort):
             symbol: Symbol being queried
 
         Raises:
-            RuntimeError: Always raises with formatted message
+            MarketDataServiceError: Always raises with formatted message
 
         """
         is_rate_limit = "429" in str(error) or "rate limit" in str(error).lower()
@@ -439,7 +444,7 @@ class MarketDataService(MarketDataPort):
             is_rate_limit=is_rate_limit,
             error=str(error),
         )
-        raise RuntimeError(error_msg) from error
+        raise MarketDataServiceError(error_msg, symbol=symbol, operation="get_quote") from error
 
     def _handle_network_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle network errors.
@@ -449,7 +454,7 @@ class MarketDataService(MarketDataPort):
             symbol: Symbol being queried
 
         Raises:
-            RuntimeError: Always raises with formatted message
+            MarketDataServiceError: Always raises with formatted message
 
         """
         error_msg = f"Network error getting quote for {symbol}: {error}"
@@ -458,7 +463,7 @@ class MarketDataService(MarketDataPort):
             symbol=symbol,
             error=str(error),
         )
-        raise RuntimeError(error_msg) from error
+        raise MarketDataServiceError(error_msg, symbol=symbol, operation="get_quote") from error
 
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
@@ -531,7 +536,9 @@ class MarketDataService(MarketDataPort):
             if self._should_raise_missing_data_error_core(start_date, end_date, timeframe, symbol):
                 error_msg = f"No historical data returned for {symbol}"
                 # Treat as transient in retry path, many times this is upstream glitch
-                raise RuntimeError(error_msg)
+                raise MarketDataServiceError(
+                    error_msg, symbol=symbol, operation="get_historical_bars"
+                )
             return []
 
         # Convert bars to dictionaries and return
@@ -564,7 +571,7 @@ class MarketDataService(MarketDataPort):
                 attempt=attempt,
                 max_retries=MAX_RETRIES,
             )
-            raise RuntimeError(msg) from error
+            raise MarketDataServiceError(msg, symbol=symbol, operation="fetch_bars") from error
 
         return True
 
@@ -619,7 +626,11 @@ class MarketDataService(MarketDataPort):
 
         # If no mapping found, raise error for invalid input
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
-        raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
+        raise TimeframeValidationError(
+            f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}",
+            timeframe=timeframe,
+            valid_timeframes=list(TIMEFRAME_MAP.keys()),
+        )
 
     def _period_to_dates(self, period: str) -> tuple[str, str]:
         """Convert period string to start and end dates.
@@ -640,32 +651,40 @@ class MarketDataService(MarketDataPort):
         # Parse period string with validation
         period_upper = period.upper().strip()
         if not period_upper:
-            raise ValueError("Period string cannot be empty")
+            raise ValidationError("Period string cannot be empty", field_name="period")
 
         try:
             if "Y" in period_upper:
                 years = int(period_upper.replace("Y", ""))
                 if years <= 0:
-                    raise ValueError("Years must be positive")
+                    raise ValidationError(
+                        "Years must be positive", field_name="period", value=period
+                    )
                 days = years * 365
             elif "M" in period_upper:
                 months = int(period_upper.replace("M", ""))
                 if months <= 0:
-                    raise ValueError("Months must be positive")
+                    raise ValidationError(
+                        "Months must be positive", field_name="period", value=period
+                    )
                 days = months * 30
             elif "D" in period_upper:
                 days = int(period_upper.replace("D", ""))
                 if days <= 0:
-                    raise ValueError("Days must be positive")
+                    raise ValidationError(
+                        "Days must be positive", field_name="period", value=period
+                    )
             else:
-                raise ValueError(
-                    f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')"
+                raise ValidationError(
+                    f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')",
+                    field_name="period",
+                    value=period,
                 )
         except (ValueError, AttributeError) as e:
-            if "positive" in str(e) or "format" in str(e):
-                raise
-            raise ValueError(
-                f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')"
+            raise ValidationError(
+                f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')",
+                field_name="period",
+                value=period,
             ) from e
 
         start_date = end_date - timedelta(days=days)
@@ -690,7 +709,11 @@ class MarketDataService(MarketDataPort):
             return TIMEFRAME_MAP[timeframe_lower][1]  # Return TimeFrame object
 
         valid_timeframes = ", ".join(TIMEFRAME_MAP.keys())
-        raise ValueError(f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}")
+        raise TimeframeValidationError(
+            f"Unsupported timeframe: {timeframe}. Valid options: {valid_timeframes}",
+            timeframe=timeframe,
+            valid_timeframes=list(TIMEFRAME_MAP.keys()),
+        )
 
     def _extract_bars_from_response_core(
         self, response: object, symbol: str
@@ -821,4 +844,7 @@ class MarketDataService(MarketDataPort):
             )
 
         # This should not happen with clean Pydantic model_dump() data
-        raise ValueError(f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}")
+        raise ValidationError(
+            f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}",
+            field_name="bar_data",
+        )

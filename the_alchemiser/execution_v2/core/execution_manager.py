@@ -25,6 +25,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors import ExecutionManagerError, ValidationError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
@@ -59,12 +60,12 @@ class ExecutionManager:
             execution_config: Configuration for smart execution strategies
 
         Raises:
-            ValueError: If alpaca_manager is None
-            RuntimeError: If Executor initialization fails
+            ValidationError: If alpaca_manager is None
+            ExecutionManagerError: If Executor initialization fails
 
         """
         if alpaca_manager is None:
-            raise ValueError("alpaca_manager cannot be None")
+            raise ValidationError("alpaca_manager cannot be None", field_name="alpaca_manager")
 
         self.alpaca_manager = alpaca_manager
 
@@ -80,7 +81,9 @@ class ExecutionManager:
                 "Failed to initialize Executor",
                 extra={"error": str(e), "error_type": type(e).__name__},
             )
-            raise RuntimeError(f"Executor initialization failed: {e}") from e
+            raise ExecutionManagerError(
+                f"Executor initialization failed: {e}", operation="initialization"
+            ) from e
 
     def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute rebalance plan using executor.
@@ -95,13 +98,13 @@ class ExecutionManager:
             ExecutionResult with execution results
 
         Raises:
-            ValueError: If plan is None or invalid
-            RuntimeError: If async execution fails
+            ValidationError: If plan is None or invalid
+            ExecutionManagerError: If async execution fails
             ConnectionError: If broker connection fails
 
         """
         if plan is None:
-            raise ValueError("plan cannot be None")
+            raise ValidationError("plan cannot be None", field_name="plan")
 
         correlation_id = plan.correlation_id
         logger.info(
@@ -253,13 +256,13 @@ class ExecutionManager:
             ExecutionManager instance with configured smart execution
 
         Raises:
-            ValueError: If api_key or secret_key is empty or None
+            ValidationError: If api_key or secret_key is empty or None
 
         """
         if not api_key or not api_key.strip():
-            raise ValueError("api_key cannot be empty")
+            raise ValidationError("api_key cannot be empty", field_name="api_key")
         if not secret_key or not secret_key.strip():
-            raise ValueError("secret_key cannot be empty")
+            raise ValidationError("secret_key cannot be empty", field_name="secret_key")
 
         try:
             alpaca_manager = AlpacaManager(
@@ -276,4 +279,6 @@ class ExecutionManager:
                 "Failed to create ExecutionManager",
                 extra={"error": str(e), "error_type": type(e).__name__, "paper": paper},
             )
-            raise RuntimeError(f"Failed to create ExecutionManager: {e}") from e
+            raise ExecutionManagerError(
+                f"Failed to create ExecutionManager: {e}", operation="creation"
+            ) from e

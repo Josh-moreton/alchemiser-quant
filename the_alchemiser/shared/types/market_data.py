@@ -28,6 +28,11 @@ from decimal import Decimal
 import pandas as pd
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
+from the_alchemiser.shared.errors import (
+    PriceValidationError,
+    SymbolValidationError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.value_objects.core_types import (
     MarketDataPoint,
@@ -112,12 +117,14 @@ class BarModel:
         # Validate symbol
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
-            raise ValueError(_ERR_SYMBOL_EMPTY)
+            raise SymbolValidationError(
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+            )
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
         if not timestamp_raw:
-            raise ValueError(_ERR_TIMESTAMP_EMPTY)
+            raise ValidationError(_ERR_TIMESTAMP_EMPTY, field_name="timestamp")
 
         try:
             # Handle both 'Z' suffix and '+00:00' suffix
@@ -128,7 +135,11 @@ class BarModel:
                 f"Invalid timestamp format: {timestamp_raw}",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            raise ValueError(f"Invalid timestamp format: {timestamp_raw}") from e
+            raise ValidationError(
+                f"Invalid timestamp format: {timestamp_raw}",
+                field_name="timestamp",
+                value=timestamp_raw,
+            ) from e
 
         # Ensure timezone-aware
         if timestamp_parsed.tzinfo is None:
@@ -149,19 +160,25 @@ class BarModel:
                 f"Invalid price data for {symbol}",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            raise ValueError(f"Invalid price data: {e}") from e
+            raise PriceValidationError(
+                f"Invalid price data: {e}", symbol=symbol, field_name="ohlc_prices"
+            ) from e
 
         # Validate prices are non-negative
         if any(p < 0 for p in [open_price, high_price, low_price, close_price]):
-            raise ValueError(
+            raise PriceValidationError(
                 f"Prices cannot be negative: "
-                f"open={open_price}, high={high_price}, low={low_price}, close={close_price}"
+                f"open={open_price}, high={high_price}, low={low_price}, close={close_price}",
+                symbol=symbol,
+                field_name="ohlc_prices",
             )
 
         # Validate volume
         volume = data["volume"]
         if volume < 0:
-            raise ValueError(f"Volume cannot be negative: {volume}")
+            raise ValidationError(
+                f"Volume cannot be negative: {volume}", field_name="volume", value=volume
+            )
 
         bar = cls(
             symbol=symbol,
@@ -278,20 +295,22 @@ class QuoteModel:
             QuoteModel instance
 
         Raises:
-            ValueError: If timestamp format is invalid
-            ValueError: If symbol is empty
-            ValueError: If prices or sizes are negative
-            ValueError: If bid_price > ask_price (inverted quote)
+            ValidationError: If timestamp format is invalid
+            SymbolValidationError: If symbol is empty
+            PriceValidationError: If prices or sizes are negative
+            PriceValidationError: If bid_price > ask_price (inverted quote)
 
         """
         # Validate symbol
         if not symbol or not symbol.strip():
-            raise ValueError(_ERR_SYMBOL_EMPTY)
+            raise SymbolValidationError(
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+            )
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
         if not timestamp_raw:
-            raise ValueError(_ERR_TIMESTAMP_EMPTY)
+            raise ValidationError(_ERR_TIMESTAMP_EMPTY, field_name="timestamp")
 
         try:
             timestamp_str = timestamp_raw.replace("Z", UTC_TIMEZONE_SUFFIX)
@@ -301,7 +320,11 @@ class QuoteModel:
                 f"Invalid timestamp format: {timestamp_raw}",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            raise ValueError(f"Invalid timestamp format: {timestamp_raw}") from e
+            raise ValidationError(
+                f"Invalid timestamp format: {timestamp_raw}",
+                field_name="timestamp",
+                value=timestamp_raw,
+            ) from e
 
         # Ensure timezone-aware
         if timestamp_parsed.tzinfo is None:
@@ -322,13 +345,22 @@ class QuoteModel:
                 f"Invalid quote data for {symbol}",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            raise ValueError(f"Invalid quote data: {e}") from e
+            raise PriceValidationError(
+                f"Invalid quote data: {e}", symbol=symbol, field_name="quote_data"
+            ) from e
 
         # Validate prices and sizes are non-negative
         if bid_price < 0 or ask_price < 0:
-            raise ValueError(f"Prices cannot be negative: bid={bid_price}, ask={ask_price}")
+            raise PriceValidationError(
+                f"Prices cannot be negative: bid={bid_price}, ask={ask_price}",
+                symbol=symbol,
+                field_name="quote_prices",
+            )
         if bid_size < 0 or ask_size < 0:
-            raise ValueError(f"Sizes cannot be negative: bid_size={bid_size}, ask_size={ask_size}")
+            raise ValidationError(
+                f"Sizes cannot be negative: bid_size={bid_size}, ask_size={ask_size}",
+                field_name="quote_sizes",
+            )
 
         # Validate bid <= ask (normal quote)
         if bid_price > ask_price:
@@ -406,7 +438,7 @@ def _validate_and_convert_optional_price(
         Decimal value if input is not None, otherwise None
 
     Raises:
-        ValueError: If value is invalid or negative
+        PriceValidationError: If value is invalid or negative
 
     """
     if value is None:
@@ -415,14 +447,21 @@ def _validate_and_convert_optional_price(
     try:
         decimal_val = Decimal(str(value))
         if decimal_val < 0:
-            raise ValueError(f"{price_name} cannot be negative: {decimal_val}")
+            raise PriceValidationError(
+                f"{price_name} cannot be negative: {decimal_val}",
+                symbol=symbol,
+                price=float(decimal_val),
+                field_name=price_name,
+            )
         return decimal_val
     except (ValueError, TypeError) as e:
         logger.error(
             f"Invalid {price_name.lower()} for {symbol}",
             extra={"symbol": symbol, "error": str(e)},
         )
-        raise ValueError(f"Invalid {price_name.lower()}: {e}") from e
+        raise PriceValidationError(
+            f"Invalid {price_name.lower()}: {e}", symbol=symbol, field_name=price_name
+        ) from e
 
 
 @dataclass(frozen=True)
@@ -469,21 +508,23 @@ class PriceDataModel:
             PriceDataModel instance
 
         Raises:
-            ValueError: If timestamp format is invalid
-            ValueError: If symbol is empty
-            ValueError: If price is negative
-            ValueError: If bid or ask are negative (when present)
+            ValidationError: If timestamp format is invalid
+            SymbolValidationError: If symbol is empty
+            PriceValidationError: If price is negative
+            PriceValidationError: If bid or ask are negative (when present)
 
         """
         # Validate symbol
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
-            raise ValueError(_ERR_SYMBOL_EMPTY)
+            raise SymbolValidationError(
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+            )
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
         if not timestamp_raw:
-            raise ValueError(_ERR_TIMESTAMP_EMPTY)
+            raise ValidationError(_ERR_TIMESTAMP_EMPTY, field_name="timestamp")
 
         try:
             timestamp_str = timestamp_raw.replace("Z", UTC_TIMEZONE_SUFFIX)
@@ -493,7 +534,11 @@ class PriceDataModel:
                 f"Invalid timestamp format: {timestamp_raw}",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            raise ValueError(f"Invalid timestamp format: {timestamp_raw}") from e
+            raise ValidationError(
+                f"Invalid timestamp format: {timestamp_raw}",
+                field_name="timestamp",
+                value=timestamp_raw,
+            ) from e
 
         # Ensure timezone-aware
         if timestamp_parsed.tzinfo is None:
@@ -511,10 +556,17 @@ class PriceDataModel:
                 f"Invalid price for {symbol}",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            raise ValueError(f"Invalid price data: {e}") from e
+            raise PriceValidationError(
+                f"Invalid price data: {e}", symbol=symbol, field_name="price"
+            ) from e
 
         if price < 0:
-            raise ValueError(f"Price cannot be negative: {price}")
+            raise PriceValidationError(
+                f"Price cannot be negative: {price}",
+                symbol=symbol,
+                price=float(price),
+                field_name="price",
+            )
 
         # Handle optional bid/ask using helper function
         bid_decimal = _validate_and_convert_optional_price(data.get("bid"), "Bid price", symbol)

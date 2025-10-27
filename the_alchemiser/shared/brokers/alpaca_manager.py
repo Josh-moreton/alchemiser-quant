@@ -59,6 +59,7 @@ from the_alchemiser.shared.brokers.alpaca_utils import (
     create_data_client,
     create_trading_client,
 )
+from the_alchemiser.shared.errors import SymbolValidationError, ValidationError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
@@ -437,19 +438,27 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     ) -> tuple[str, str]:
         """Validate market order parameters."""
         if not symbol or not symbol.strip():
-            raise ValueError("Symbol cannot be empty")
+            raise SymbolValidationError(
+                "Symbol cannot be empty", symbol=symbol, reason="Empty or whitespace"
+            )
         if qty is None and notional is None:
-            raise ValueError("Either qty or notional must be specified")
+            raise ValidationError(
+                "Either qty or notional must be specified", field_name="qty_or_notional"
+            )
         if qty is not None and notional is not None:
-            raise ValueError("Cannot specify both qty and notional")
+            raise ValidationError(
+                "Cannot specify both qty and notional", field_name="qty_and_notional"
+            )
         if qty is not None and qty <= 0:
-            raise ValueError("Quantity must be positive")
+            raise ValidationError("Quantity must be positive", field_name="qty", value=qty)
         if notional is not None and notional <= 0:
-            raise ValueError("Notional amount must be positive")
+            raise ValidationError(
+                "Notional amount must be positive", field_name="notional", value=notional
+            )
 
         side_normalized = side.lower().strip()
         if side_normalized not in ["buy", "sell"]:
-            raise ValueError("Side must be 'buy' or 'sell'")
+            raise ValidationError("Side must be 'buy' or 'sell'", field_name="side", value=side)
 
         return symbol.upper(), side_normalized
 

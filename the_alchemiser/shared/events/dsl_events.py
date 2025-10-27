@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from pydantic import ValidationInfo
 
 from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
+from ..errors import ValidationError
 from ..schemas.ast_node import ASTNode
 from ..schemas.indicator_request import PortfolioFragment
 from ..schemas.strategy_allocation import StrategyAllocation
@@ -211,14 +212,14 @@ class TopNSelected(BaseEvent):
             The validated n_selected value
 
         Raises:
-            ValueError: If n_selected doesn't match length of selected_symbols
+            ValidationError: If n_selected doesn't match length of selected_symbols
 
         """
         if hasattr(info, "data") and "selected_symbols" in info.data:
             selected = info.data["selected_symbols"]
             if v != len(selected):
                 msg = f"n_selected ({v}) must match length of selected_symbols ({len(selected)})"
-                raise ValueError(msg)
+                raise ValidationError(msg, field_name="n_selected", value=v)
         return v
 
 

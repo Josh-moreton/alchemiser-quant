@@ -31,6 +31,10 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
 )
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors import (
+    SymbolValidationError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger, log_order_flow
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
@@ -110,11 +114,11 @@ class Executor:
             execution_config: Execution configuration
 
         Raises:
-            ValueError: If alpaca_manager is None
+            ValidationError: If alpaca_manager is None
 
         """
         if alpaca_manager is None:
-            raise ValueError("alpaca_manager cannot be None")
+            raise ValidationError("alpaca_manager cannot be None", field_name="alpaca_manager")
 
         self.alpaca_manager = alpaca_manager
         self.execution_config = execution_config
@@ -302,7 +306,11 @@ class Executor:
             # Normalize side to uppercase and cast to Literal type
             normalized_side = side.upper()
             if normalized_side not in ("BUY", "SELL"):
-                raise ValueError(f"Invalid side: {side}. Must be 'buy' or 'sell'")
+                raise ValidationError(
+                    f"Invalid side: {side}. Must be 'buy' or 'sell'",
+                    field_name="side",
+                    value=side,
+                )
 
             request = SmartOrderRequest(
                 symbol=symbol,
@@ -424,12 +432,12 @@ class Executor:
             ExecutionResult with execution results
 
         Raises:
-            ValueError: If plan is None
+            ValidationError: If plan is None
             asyncio.TimeoutError: If execution exceeds timeout (default 900 seconds)
 
         """
         if plan is None:
-            raise ValueError("plan cannot be None")
+            raise ValidationError("plan cannot be None", field_name="plan")
 
         # Idempotency check
         if plan.plan_id in self._execution_cache:
@@ -793,12 +801,16 @@ class Executor:
             OrderResult with execution results
 
         Raises:
-            ValueError: If item.symbol is None or empty
+            SymbolValidationError: If item.symbol is None or empty
 
         """
         # Validate symbol
         if not item.symbol or not item.symbol.strip():
-            raise ValueError(f"Invalid symbol in rebalance plan item: {item.symbol!r}")
+            raise SymbolValidationError(
+                f"Invalid symbol in rebalance plan item: {item.symbol!r}",
+                symbol=item.symbol,
+                reason="Symbol is None or empty",
+            )
 
         try:
             side = "buy" if item.action == "BUY" else "sell"
