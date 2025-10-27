@@ -1146,11 +1146,11 @@ class SignalsBuilder:
         if allocation:
             summary_parts.append(allocation)
 
-        if not summary_parts:
-            return ""
-        if len(summary_parts) == 1:
-            return summary_parts[0]
-        return f"{summary_parts[0]}: {', '.join(summary_parts[1:])}"
+        if summary_parts:
+            if len(summary_parts) == 1:
+                return summary_parts[0]
+            return f"{summary_parts[0]}: {', '.join(summary_parts[1:])}"
+        return ""
 
     @staticmethod
     def _parse_dsl_reasoning_to_human_readable(
