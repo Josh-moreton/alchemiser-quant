@@ -174,3 +174,101 @@ class TestReportRenderer:
 
         assert output_path.exists()
         assert output_path.read_bytes() == mock_pdf_bytes
+
+    @patch("the_alchemiser.reporting.renderer.ReportRenderer._html_to_pdf_with_playwright")
+    def test_render_execution_pdf_mock(
+        self, mock_pdf_gen: MagicMock
+    ) -> None:
+        """Test execution PDF rendering with mocked Playwright."""
+        mock_pdf_bytes = b"fake-execution-pdf-content"
+        mock_pdf_gen.return_value = mock_pdf_bytes
+
+        renderer = ReportRenderer()
+        
+        # Create execution context
+        context = {
+            "trading_mode": "PAPER",
+            "timestamp": "2024-10-27 12:00:00 UTC",
+            "correlation_id": "corr-123",
+            "report_id": "report-abc123",
+            "success": True,
+            "strategy_signals": [
+                {
+                    "strategy_name": "nuclear_strategy",
+                    "signal": "BUY",
+                    "reasoning": "Market conditions favorable",
+                    "confidence": "HIGH",
+                }
+            ],
+            "portfolio_allocations": [
+                {"symbol": "TQQQ", "target_allocation": 0.5},
+                {"symbol": "TECL", "target_allocation": 0.5},
+            ],
+            "orders": [
+                {
+                    "symbol": "TQQQ",
+                    "side": "buy",
+                    "quantity": 100,
+                    "price": 45.50,
+                    "status": "filled",
+                    "order_id": "order-123",
+                }
+            ],
+            "execution_summary": {
+                "total_orders": 1,
+                "successful_orders": 1,
+                "failed_orders": 0,
+                "total_value": 4550.00,
+                "execution_time": 1250,
+            },
+            "generated_at": "2024-10-27 12:00:00 UTC",
+        }
+
+        pdf_bytes, metadata = renderer.render_execution_pdf(context)
+
+        assert isinstance(pdf_bytes, bytes)
+        assert len(pdf_bytes) > 0
+        assert "generation_time_ms" in metadata
+        assert "file_size_bytes" in metadata
+        assert metadata["file_size_bytes"] == len(mock_pdf_bytes)
+        
+        # Verify the template was used
+        mock_pdf_gen.assert_called_once()
+        html_arg = mock_pdf_gen.call_args[0][0]
+        assert "Trading Execution Report" in html_arg
+        assert "PAPER" in html_arg
+
+    @patch("the_alchemiser.reporting.renderer.ReportRenderer._html_to_pdf_with_playwright")
+    def test_render_execution_pdf_with_output_path(
+        self, mock_pdf_gen: MagicMock, tmp_path: Path
+    ) -> None:
+        """Test execution PDF rendering with output file path."""
+        mock_pdf_bytes = b"fake-execution-pdf-content"
+        mock_pdf_gen.return_value = mock_pdf_bytes
+
+        renderer = ReportRenderer()
+        output_path = tmp_path / "test_execution_report.pdf"
+        
+        context = {
+            "trading_mode": "LIVE",
+            "timestamp": "2024-10-27 12:00:00 UTC",
+            "correlation_id": "corr-456",
+            "report_id": "report-def456",
+            "success": True,
+            "strategy_signals": [],
+            "portfolio_allocations": [],
+            "orders": [],
+            "execution_summary": {
+                "total_orders": 0,
+                "successful_orders": 0,
+                "failed_orders": 0,
+                "total_value": 0,
+                "execution_time": 0,
+            },
+            "generated_at": "2024-10-27 12:00:00 UTC",
+        }
+
+        pdf_bytes, metadata = renderer.render_execution_pdf(context, output_path=output_path)
+
+        assert output_path.exists()
+        assert output_path.read_bytes() == mock_pdf_bytes

@@ -877,3 +877,228 @@ class TestMissingAndPartialData:
         mock_send_email.assert_called_once()
         subject = mock_send_email.call_args.kwargs["subject"]
         assert "MEDIUM" in subject
+
+
+class TestPDFReportGeneration:
+    """Test PDF report generation for trading notifications."""
+
+    @pytest.fixture
+    def mock_container(self) -> Mock:
+        """Create a mock ApplicationContainer."""
+        container = Mock()
+        mock_event_bus = Mock()
+        container.services.event_bus.return_value = mock_event_bus
+        return container
+
+    @pytest.fixture
+    def trading_event_with_execution_data(self) -> TradingNotificationRequested:
+        """Create a trading notification event with execution data."""
+        return TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="execution",
+            source_component="ExecutionService",
+            trading_success=True,
+            trading_mode="PAPER",
+            orders_placed=2,
+            orders_succeeded=2,
+            total_trade_value=5000.00,
+            execution_data={
+                "strategy_signals": {
+                    "nuclear_strategy": {
+                        "signal": "BUY",
+                        "reasoning": "Test reason",
+                        "confidence": "HIGH",
+                    }
+                },
+                "consolidated_portfolio": {"target_allocations": {"TQQQ": 0.5, "TECL": 0.5}},
+                "orders_executed": [
+                    {
+                        "symbol": "TQQQ",
+                        "side": "buy",
+                        "qty": 100,
+                        "filled_avg_price": 45.50,
+                        "status": "filled",
+                        "order_id": "order-123",
+                    }
+                ],
+                "execution_summary": {
+                    "orders_placed": 2,
+                    "orders_succeeded": 2,
+                    "total_trade_value": 5000.00,
+                },
+            },
+        )
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("boto3.client")
+    @patch.dict("os.environ", {"STAGE": "dev"})
+    def test_generate_execution_report_success(
+        self,
+        mock_boto_client: Mock,
+        mock_send_email: Mock,
+        mock_container: Mock,
+        trading_event_with_execution_data: TradingNotificationRequested,
+    ) -> None:
+        """Test successful PDF report generation and email attachment."""
+        # Setup Lambda mock
+        mock_lambda_client = Mock()
+        mock_boto_client.return_value = mock_lambda_client
+        
+        # Mock Lambda response
+        mock_lambda_response = {
+            "status": "success",
+            "report_id": "report-abc123",
+            "s3_uri": "s3://test-bucket/reports/account/2024/10/execution_test.pdf",
+            "s3_bucket": "test-bucket",
+            "s3_key": "reports/account/2024/10/execution_test.pdf",
+            "file_size_bytes": 1024,
+            "generation_time_ms": 1500,
+        }
+        
+        import json
+        from io import BytesIO
+        
+        mock_payload = Mock()
+        mock_payload.read.return_value = json.dumps(mock_lambda_response).encode()
+        mock_lambda_client.invoke.return_value = {"Payload": mock_payload}
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(trading_event_with_execution_data)
+
+        # Verify Lambda was invoked
+        mock_lambda_client.invoke.assert_called_once()
+        call_kwargs = mock_lambda_client.invoke.call_args[1]
+        assert call_kwargs["FunctionName"] == "the-alchemiser-report-generator-dev"
+        assert call_kwargs["InvocationType"] == "RequestResponse"
+        
+        # Verify Lambda event payload
+        payload = json.loads(call_kwargs["Payload"])
+        assert payload["generate_from_execution"] is True
+        assert payload["report_type"] == "trading_execution"
+        assert payload["trading_mode"] == "PAPER"
+        assert "execution_data" in payload
+
+        # Verify email was sent with attachment
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is not None
+        assert len(call_kwargs["s3_attachments"]) == 1
+        assert call_kwargs["s3_attachments"][0][0] == "Trading_Execution_Report.pdf"
+        assert call_kwargs["s3_attachments"][0][1] == mock_lambda_response["s3_uri"]
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("boto3.client")
+    @patch.dict("os.environ", {"STAGE": "prod"})
+    def test_generate_execution_report_lambda_failure(
+        self,
+        mock_boto_client: Mock,
+        mock_send_email: Mock,
+        mock_container: Mock,
+        trading_event_with_execution_data: TradingNotificationRequested,
+    ) -> None:
+        """Test graceful degradation when Lambda fails."""
+        # Setup Lambda mock to return failure
+        mock_lambda_client = Mock()
+        mock_boto_client.return_value = mock_lambda_client
+        
+        mock_lambda_response = {
+            "status": "failed",
+            "error": "ValidationError",
+            "message": "Missing required field",
+        }
+        
+        import json
+        from io import BytesIO
+        
+        mock_payload = Mock()
+        mock_payload.read.return_value = json.dumps(mock_lambda_response).encode()
+        mock_lambda_client.invoke.return_value = {"Payload": mock_payload}
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(trading_event_with_execution_data)
+
+        # Verify Lambda was invoked
+        mock_lambda_client.invoke.assert_called_once()
+
+        # Verify email was still sent but without attachment
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is None
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    def test_no_pdf_generation_on_failure(
+        self,
+        mock_send_email: Mock,
+        mock_container: Mock,
+    ) -> None:
+        """Test that PDF is not generated for failed trades."""
+        # Create failed trading event
+        failed_event = TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="execution",
+            source_component="ExecutionService",
+            trading_success=False,  # Failed trade
+            trading_mode="PAPER",
+            orders_placed=2,
+            orders_succeeded=0,
+            total_trade_value=0.00,
+            error_message="Execution failed",
+            execution_data={},
+        )
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(failed_event)
+
+        # Verify email was sent without attachment (no Lambda invocation)
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is None
+
+    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    def test_no_pdf_generation_without_execution_data(
+        self,
+        mock_send_email: Mock,
+        mock_container: Mock,
+    ) -> None:
+        """Test that PDF is not generated when execution_data is missing."""
+        # Create event without execution data
+        event = TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="execution",
+            source_component="ExecutionService",
+            trading_success=True,
+            trading_mode="PAPER",
+            orders_placed=2,
+            orders_succeeded=2,
+            total_trade_value=5000.00,
+            execution_data={},  # No execution data
+        )
+        
+        mock_send_email.return_value = True
+
+        # Create service and handle event
+        service = NotificationService(mock_container)
+        service._handle_trading_notification(event)
+
+        # Verify email was sent without attachment
+        mock_send_email.assert_called_once()
+        call_kwargs = mock_send_email.call_args[1]
+        assert call_kwargs["s3_attachments"] is None
