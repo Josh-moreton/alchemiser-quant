@@ -24,38 +24,44 @@ Related:
 
 from __future__ import annotations
 
-# Strategy file name constants
+# Strategy file name constants (nested structure)
 # These represent DSL strategy files (Clojure) that define trading logic
-STRATEGY_KMLM = "1-KMLM.clj"  # KMLM strategy: Momentum-based allocation
-STRATEGY_NUCLEAR = "2-Nuclear.clj"  # Nuclear strategy: High-growth tech focus
-STRATEGY_STARBURST = "3-Starburst.clj"  # Starburst strategy: Diversified growth
-STRATEGY_WHAT = "4-What.clj"  # What strategy: Experimental allocation
-STRATEGY_COIN = "5-Coin.clj"  # Coin strategy: Cryptocurrency exposure
-STRATEGY_TQQQ_FLT = "6-TQQQ-FLT.clj"  # TQQQ-FLT strategy: Leveraged tech ETF
-STRATEGY_PHOENIX = "7-Phoenix.clj"  # Phoenix strategy: Recovery-focused allocation
+# Foundation strategies: Core, stable strategies
+STRATEGY_GRAIL = "foundation/grail.clj"  # Grail strategy: High-conviction growth
+STRATEGY_KMLM = "foundation/kmlm.clj"  # KMLM strategy: Momentum-based allocation
+STRATEGY_SEMICONDUCTORS = "foundation/semiconductors.clj"  # Semiconductors strategy: Chip sector focus
+
+# Tactical strategies: Opportunistic, higher-risk strategies
+STRATEGY_BITCOIN = "tactical/bitcoin.clj"  # Bitcoin strategy: Cryptocurrency exposure
+STRATEGY_QUANTUM = "tactical/quantum.clj"  # Quantum strategy: Quantum computing sector
+
+# Legacy strategy name constants (for backward compatibility)
+# These are deprecated and will be removed in a future version
+STRATEGY_NUCLEAR = "2-Nuclear.clj"  # Legacy: Use STRATEGY_SEMICONDUCTORS instead
+STRATEGY_STARBURST = "3-Starburst.clj"  # Legacy: Deprecated
+STRATEGY_WHAT = "4-What.clj"  # Legacy: Deprecated
+STRATEGY_COIN = "5-Coin.clj"  # Legacy: Use STRATEGY_BITCOIN instead
+STRATEGY_TQQQ_FLT = "6-TQQQ-FLT.clj"  # Legacy: Deprecated
+STRATEGY_PHOENIX = "7-Phoenix.clj"  # Legacy: Deprecated
 
 # Development environment strategy configuration
-# Includes all strategies for testing and evaluation
+# Includes all active strategies for testing and evaluation
 DEV_DSL_FILES: list[str] = [
+    STRATEGY_GRAIL,
     STRATEGY_KMLM,
-    STRATEGY_NUCLEAR,
-    STRATEGY_STARBURST,
-    STRATEGY_WHAT,
-    STRATEGY_COIN,
-    STRATEGY_TQQQ_FLT,
-    STRATEGY_PHOENIX,
+    STRATEGY_SEMICONDUCTORS,
+    STRATEGY_BITCOIN,
+    STRATEGY_QUANTUM,
 ]
 
 # Development environment allocation weights (must sum to 1.0)
-# Spreads risk across all strategies for testing
+# Equal distribution across all strategies for balanced testing
 DEV_DSL_ALLOCATIONS: dict[str, float] = {
+    STRATEGY_GRAIL: 0.2,
     STRATEGY_KMLM: 0.2,
-    STRATEGY_NUCLEAR: 0.15,
-    STRATEGY_STARBURST: 0.15,
-    STRATEGY_WHAT: 0.1,
-    STRATEGY_COIN: 0.1,
-    STRATEGY_TQQQ_FLT: 0.15,
-    STRATEGY_PHOENIX: 0.15,
+    STRATEGY_SEMICONDUCTORS: 0.2,
+    STRATEGY_BITCOIN: 0.2,
+    STRATEGY_QUANTUM: 0.2,
 }
 # Total: 1.0 (100%) - Validated by tests
 
@@ -63,18 +69,16 @@ DEV_DSL_ALLOCATIONS: dict[str, float] = {
 # Includes only proven, stable strategies with higher confidence
 PROD_DSL_FILES: list[str] = [
     STRATEGY_KMLM,
-    STRATEGY_NUCLEAR,
-    STRATEGY_COIN,
-    STRATEGY_TQQQ_FLT,
+    STRATEGY_SEMICONDUCTORS,
+    STRATEGY_BITCOIN,
 ]
 
 # Production environment allocation weights (must sum to 1.0)
-# Higher allocations to proven strategies with strong performance
+# Higher allocations to proven foundation strategies
 PROD_DSL_ALLOCATIONS: dict[str, float] = {
     STRATEGY_KMLM: 0.4,
-    STRATEGY_NUCLEAR: 0.25,
-    STRATEGY_COIN: 0.1,
-    STRATEGY_TQQQ_FLT: 0.25,
+    STRATEGY_SEMICONDUCTORS: 0.4,
+    STRATEGY_BITCOIN: 0.2,
 }
 # Total: 1.0 (100%) - Validated by tests
 
@@ -86,9 +90,14 @@ __all__ = [
     # Production configuration
     "PROD_DSL_ALLOCATIONS",
     "PROD_DSL_FILES",
-    # Strategy name constants
-    "STRATEGY_COIN",
+    # Active strategy name constants
+    "STRATEGY_BITCOIN",
+    "STRATEGY_GRAIL",
     "STRATEGY_KMLM",
+    "STRATEGY_QUANTUM",
+    "STRATEGY_SEMICONDUCTORS",
+    # Legacy strategy name constants (deprecated)
+    "STRATEGY_COIN",
     "STRATEGY_NUCLEAR",
     "STRATEGY_PHOENIX",
     "STRATEGY_STARBURST",

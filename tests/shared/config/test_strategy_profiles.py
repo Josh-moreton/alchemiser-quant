@@ -24,43 +24,35 @@ def test_strategy_profiles_module_imports():
 
 @pytest.mark.unit
 def test_strategy_name_constants_are_defined():
-    """Verify all strategy name constants are defined with correct types."""
+    """Verify all active strategy name constants are defined with correct types."""
     from the_alchemiser.shared.config.strategy_profiles import (
-        STRATEGY_COIN,
+        STRATEGY_BITCOIN,
+        STRATEGY_GRAIL,
         STRATEGY_KMLM,
-        STRATEGY_NUCLEAR,
-        STRATEGY_PHOENIX,
-        STRATEGY_STARBURST,
-        STRATEGY_TQQQ_FLT,
-        STRATEGY_WHAT,
+        STRATEGY_QUANTUM,
+        STRATEGY_SEMICONDUCTORS,
     )
 
     # All should be strings
+    assert isinstance(STRATEGY_GRAIL, str)
     assert isinstance(STRATEGY_KMLM, str)
-    assert isinstance(STRATEGY_NUCLEAR, str)
-    assert isinstance(STRATEGY_STARBURST, str)
-    assert isinstance(STRATEGY_WHAT, str)
-    assert isinstance(STRATEGY_COIN, str)
-    assert isinstance(STRATEGY_TQQQ_FLT, str)
-    assert isinstance(STRATEGY_PHOENIX, str)
+    assert isinstance(STRATEGY_SEMICONDUCTORS, str)
+    assert isinstance(STRATEGY_BITCOIN, str)
+    assert isinstance(STRATEGY_QUANTUM, str)
 
     # All should end with .clj (Clojure DSL files)
+    assert STRATEGY_GRAIL.endswith(".clj")
     assert STRATEGY_KMLM.endswith(".clj")
-    assert STRATEGY_NUCLEAR.endswith(".clj")
-    assert STRATEGY_STARBURST.endswith(".clj")
-    assert STRATEGY_WHAT.endswith(".clj")
-    assert STRATEGY_COIN.endswith(".clj")
-    assert STRATEGY_TQQQ_FLT.endswith(".clj")
-    assert STRATEGY_PHOENIX.endswith(".clj")
+    assert STRATEGY_SEMICONDUCTORS.endswith(".clj")
+    assert STRATEGY_BITCOIN.endswith(".clj")
+    assert STRATEGY_QUANTUM.endswith(".clj")
 
-    # Should have numeric prefixes for ordering
-    assert STRATEGY_KMLM.startswith("1-")
-    assert STRATEGY_NUCLEAR.startswith("2-")
-    assert STRATEGY_STARBURST.startswith("3-")
-    assert STRATEGY_WHAT.startswith("4-")
-    assert STRATEGY_COIN.startswith("5-")
-    assert STRATEGY_TQQQ_FLT.startswith("6-")
-    assert STRATEGY_PHOENIX.startswith("7-")
+    # Should have nested directory structure (foundation/ or tactical/)
+    assert STRATEGY_GRAIL.startswith("foundation/")
+    assert STRATEGY_KMLM.startswith("foundation/")
+    assert STRATEGY_SEMICONDUCTORS.startswith("foundation/")
+    assert STRATEGY_BITCOIN.startswith("tactical/")
+    assert STRATEGY_QUANTUM.startswith("tactical/")
 
 
 @pytest.mark.unit
@@ -71,8 +63,8 @@ def test_dev_dsl_files_list():
     # Should be a list
     assert isinstance(DEV_DSL_FILES, list)
 
-    # Should contain all 7 dev strategies
-    assert len(DEV_DSL_FILES) == 7
+    # Should contain all 5 dev strategies
+    assert len(DEV_DSL_FILES) == 5
 
     # All items should be strings
     assert all(isinstance(item, str) for item in DEV_DSL_FILES)
@@ -81,13 +73,11 @@ def test_dev_dsl_files_list():
     assert all(item.endswith(".clj") for item in DEV_DSL_FILES)
 
     # Should contain expected strategies (order preserved)
-    assert "1-KMLM.clj" in DEV_DSL_FILES
-    assert "2-Nuclear.clj" in DEV_DSL_FILES
-    assert "3-Starburst.clj" in DEV_DSL_FILES
-    assert "4-What.clj" in DEV_DSL_FILES
-    assert "5-Coin.clj" in DEV_DSL_FILES
-    assert "6-TQQQ-FLT.clj" in DEV_DSL_FILES
-    assert "7-Phoenix.clj" in DEV_DSL_FILES
+    assert "foundation/grail.clj" in DEV_DSL_FILES
+    assert "foundation/kmlm.clj" in DEV_DSL_FILES
+    assert "foundation/semiconductors.clj" in DEV_DSL_FILES
+    assert "tactical/bitcoin.clj" in DEV_DSL_FILES
+    assert "tactical/quantum.clj" in DEV_DSL_FILES
 
     # No duplicates
     assert len(DEV_DSL_FILES) == len(set(DEV_DSL_FILES))
@@ -104,8 +94,8 @@ def test_dev_dsl_allocations_dict():
     # Should be a dict
     assert isinstance(DEV_DSL_ALLOCATIONS, dict)
 
-    # Should have 7 entries (one per dev strategy)
-    assert len(DEV_DSL_ALLOCATIONS) == 7
+    # Should have 5 entries (one per dev strategy)
+    assert len(DEV_DSL_ALLOCATIONS) == 5
 
     # All keys should be strings (strategy filenames)
     assert all(isinstance(k, str) for k in DEV_DSL_ALLOCATIONS.keys())
@@ -142,23 +132,19 @@ def test_dev_allocations_individual_values():
     """Verify DEV_DSL_ALLOCATIONS has expected allocation values."""
     from the_alchemiser.shared.config.strategy_profiles import (
         DEV_DSL_ALLOCATIONS,
-        STRATEGY_COIN,
+        STRATEGY_BITCOIN,
+        STRATEGY_GRAIL,
         STRATEGY_KMLM,
-        STRATEGY_NUCLEAR,
-        STRATEGY_PHOENIX,
-        STRATEGY_STARBURST,
-        STRATEGY_TQQQ_FLT,
-        STRATEGY_WHAT,
+        STRATEGY_QUANTUM,
+        STRATEGY_SEMICONDUCTORS,
     )
 
-    # Verify each strategy has expected allocation
+    # Verify each strategy has expected allocation (equal weight in dev)
+    assert DEV_DSL_ALLOCATIONS[STRATEGY_GRAIL] == 0.2  # 20%
     assert DEV_DSL_ALLOCATIONS[STRATEGY_KMLM] == 0.2  # 20%
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_NUCLEAR] == 0.15  # 15%
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_STARBURST] == 0.15  # 15%
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_WHAT] == 0.1  # 10%
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_COIN] == 0.1  # 10%
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_TQQQ_FLT] == 0.15  # 15%
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_PHOENIX] == 0.15  # 15%
+    assert DEV_DSL_ALLOCATIONS[STRATEGY_SEMICONDUCTORS] == 0.2  # 20%
+    assert DEV_DSL_ALLOCATIONS[STRATEGY_BITCOIN] == 0.2  # 20%
+    assert DEV_DSL_ALLOCATIONS[STRATEGY_QUANTUM] == 0.2  # 20%
 
 
 @pytest.mark.unit
@@ -172,8 +158,8 @@ def test_prod_dsl_files_list():
     # Should be a list
     assert isinstance(PROD_DSL_FILES, list)
 
-    # Should contain 4 prod strategies (subset of dev)
-    assert len(PROD_DSL_FILES) == 4
+    # Should contain 3 prod strategies (subset of dev)
+    assert len(PROD_DSL_FILES) == 3
 
     # All items should be strings
     assert all(isinstance(item, str) for item in PROD_DSL_FILES)
@@ -182,16 +168,15 @@ def test_prod_dsl_files_list():
     assert all(item.endswith(".clj") for item in PROD_DSL_FILES)
 
     # Should contain expected strategies
-    assert "1-KMLM.clj" in PROD_DSL_FILES
-    assert "2-Nuclear.clj" in PROD_DSL_FILES
-    assert "5-Coin.clj" in PROD_DSL_FILES
-    assert "6-TQQQ-FLT.clj" in PROD_DSL_FILES
+    assert "foundation/kmlm.clj" in PROD_DSL_FILES
+    assert "foundation/semiconductors.clj" in PROD_DSL_FILES
+    assert "tactical/bitcoin.clj" in PROD_DSL_FILES
 
     # No duplicates
     assert len(PROD_DSL_FILES) == len(set(PROD_DSL_FILES))
 
     # All prod strategies should be in dev strategies (prod is subset)
-    assert all(strategy in DEV_DSL_FILES for strategy in PROD_DSL_FILES)
+    assert set(PROD_DSL_FILES).issubset(set(DEV_DSL_FILES))
 
 
 @pytest.mark.unit
@@ -205,8 +190,8 @@ def test_prod_dsl_allocations_dict():
     # Should be a dict
     assert isinstance(PROD_DSL_ALLOCATIONS, dict)
 
-    # Should have 4 entries (one per prod strategy)
-    assert len(PROD_DSL_ALLOCATIONS) == 4
+    # Should have 3 entries (one per prod strategy)
+    assert len(PROD_DSL_ALLOCATIONS) == 3
 
     # All keys should be strings (strategy filenames)
     assert all(isinstance(k, str) for k in PROD_DSL_ALLOCATIONS.keys())
@@ -243,17 +228,15 @@ def test_prod_allocations_individual_values():
     """Verify PROD_DSL_ALLOCATIONS has expected allocation values."""
     from the_alchemiser.shared.config.strategy_profiles import (
         PROD_DSL_ALLOCATIONS,
-        STRATEGY_COIN,
+        STRATEGY_BITCOIN,
         STRATEGY_KMLM,
-        STRATEGY_NUCLEAR,
-        STRATEGY_TQQQ_FLT,
+        STRATEGY_SEMICONDUCTORS,
     )
 
     # Verify each strategy has expected allocation
     assert PROD_DSL_ALLOCATIONS[STRATEGY_KMLM] == 0.4  # 40%
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_NUCLEAR] == 0.25  # 25%
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_COIN] == 0.1  # 10%
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_TQQQ_FLT] == 0.25  # 25%
+    assert PROD_DSL_ALLOCATIONS[STRATEGY_SEMICONDUCTORS] == 0.4  # 40%
+    assert PROD_DSL_ALLOCATIONS[STRATEGY_BITCOIN] == 0.2  # 20%
 
 
 @pytest.mark.unit
@@ -262,10 +245,9 @@ def test_prod_allocations_differ_from_dev():
     from the_alchemiser.shared.config.strategy_profiles import (
         DEV_DSL_ALLOCATIONS,
         PROD_DSL_ALLOCATIONS,
-        STRATEGY_COIN,
+        STRATEGY_BITCOIN,
         STRATEGY_KMLM,
-        STRATEGY_NUCLEAR,
-        STRATEGY_TQQQ_FLT,
+        STRATEGY_SEMICONDUCTORS,
     )
 
     # KMLM has higher allocation in prod (40% vs 20%)
@@ -273,43 +255,34 @@ def test_prod_allocations_differ_from_dev():
     assert PROD_DSL_ALLOCATIONS[STRATEGY_KMLM] == 0.4
     assert DEV_DSL_ALLOCATIONS[STRATEGY_KMLM] == 0.2
 
-    # Nuclear has higher allocation in prod (25% vs 15%)
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_NUCLEAR] > DEV_DSL_ALLOCATIONS[STRATEGY_NUCLEAR]
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_NUCLEAR] == 0.25
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_NUCLEAR] == 0.15
+    # Semiconductors has higher allocation in prod (40% vs 20%)
+    assert PROD_DSL_ALLOCATIONS[STRATEGY_SEMICONDUCTORS] > DEV_DSL_ALLOCATIONS[STRATEGY_SEMICONDUCTORS]
+    assert PROD_DSL_ALLOCATIONS[STRATEGY_SEMICONDUCTORS] == 0.4
+    assert DEV_DSL_ALLOCATIONS[STRATEGY_SEMICONDUCTORS] == 0.2
 
-    # TQQQ-FLT has higher allocation in prod (25% vs 15%)
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_TQQQ_FLT] > DEV_DSL_ALLOCATIONS[STRATEGY_TQQQ_FLT]
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_TQQQ_FLT] == 0.25
-    assert DEV_DSL_ALLOCATIONS[STRATEGY_TQQQ_FLT] == 0.15
-
-    # Coin has same allocation (10% in both)
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_COIN] == DEV_DSL_ALLOCATIONS[STRATEGY_COIN]
-    assert PROD_DSL_ALLOCATIONS[STRATEGY_COIN] == 0.1
+    # Bitcoin has same allocation (20% in both)
+    assert PROD_DSL_ALLOCATIONS[STRATEGY_BITCOIN] == DEV_DSL_ALLOCATIONS[STRATEGY_BITCOIN]
+    assert PROD_DSL_ALLOCATIONS[STRATEGY_BITCOIN] == 0.2
 
 
 @pytest.mark.unit
 def test_strategy_constants_match_files():
-    """Verify strategy constants match what's in the FILES lists."""
+    """Verify active strategy constants match what's in the FILES lists."""
     from the_alchemiser.shared.config.strategy_profiles import (
         DEV_DSL_FILES,
-        STRATEGY_COIN,
+        STRATEGY_BITCOIN,
+        STRATEGY_GRAIL,
         STRATEGY_KMLM,
-        STRATEGY_NUCLEAR,
-        STRATEGY_PHOENIX,
-        STRATEGY_STARBURST,
-        STRATEGY_TQQQ_FLT,
-        STRATEGY_WHAT,
+        STRATEGY_QUANTUM,
+        STRATEGY_SEMICONDUCTORS,
     )
 
-    # All strategy constants should be in dev files
+    # All active strategy constants should be in dev files
+    assert STRATEGY_GRAIL in DEV_DSL_FILES
     assert STRATEGY_KMLM in DEV_DSL_FILES
-    assert STRATEGY_NUCLEAR in DEV_DSL_FILES
-    assert STRATEGY_STARBURST in DEV_DSL_FILES
-    assert STRATEGY_WHAT in DEV_DSL_FILES
-    assert STRATEGY_COIN in DEV_DSL_FILES
-    assert STRATEGY_TQQQ_FLT in DEV_DSL_FILES
-    assert STRATEGY_PHOENIX in DEV_DSL_FILES
+    assert STRATEGY_SEMICONDUCTORS in DEV_DSL_FILES
+    assert STRATEGY_BITCOIN in DEV_DSL_FILES
+    assert STRATEGY_QUANTUM in DEV_DSL_FILES
 
 
 @pytest.mark.unit

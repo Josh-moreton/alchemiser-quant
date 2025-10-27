@@ -24,7 +24,7 @@ class TestStrategySettingsComplexityRefactor:
         assert len(files) > 0
         assert len(allocations) > 0
         # Verify it's production profile by checking for prod-specific strategies
-        assert "1-KMLM.clj" in files
+        assert "foundation/kmlm.clj" in files
 
     def test_get_stage_profile_dev(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test _get_stage_profile returns dev profile."""
@@ -35,7 +35,7 @@ class TestStrategySettingsComplexityRefactor:
         assert len(files) > 0
         assert len(allocations) > 0
         # Dev has more strategies than prod
-        assert "1-KMLM.clj" in files
+        assert "foundation/kmlm.clj" in files
 
     def test_get_stage_profile_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test _get_stage_profile defaults to dev when no stage set."""
