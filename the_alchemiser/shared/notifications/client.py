@@ -42,7 +42,8 @@ class EmailClient:
         html_content: str,
         text_content: str | None = None,
         recipient_email: str | None = None,
-        attachments: list[tuple[str, str, str]] | None = None,
+        attachments: list[tuple[str, bytes, str]] | None = None,
+        s3_attachments: list[tuple[str, str, str]] | None = None,
     ) -> bool:
         """Send an email notification with HTML content.
 
@@ -51,7 +52,8 @@ class EmailClient:
             html_content: HTML email content
             text_content: Plain text fallback (optional)
             recipient_email: Override recipient email (optional)
-            attachments: List of (filename, content, mime_type) tuples (optional)
+            attachments: List of (filename, content_bytes, mime_type) tuples (optional)
+            s3_attachments: List of (filename, s3_uri, mime_type) tuples to download and attach (optional)
 
         Returns:
             True if sent successfully, False otherwise
@@ -91,12 +93,56 @@ class EmailClient:
 
             # Add attachments if provided
             if attachments:
-                for filename, content, mime_type in attachments:
+                for filename, content_bytes, mime_type in attachments:
                     attachment = MIMEBase(*mime_type.split("/"))
-                    attachment.set_payload(content)
+                    attachment.set_payload(content_bytes)
                     encoders.encode_base64(attachment)
                     attachment.add_header("Content-Disposition", f"attachment; filename={filename}")
                     msg.attach(attachment)
+
+            # Download and add S3 attachments if provided
+            if s3_attachments:
+                import boto3
+                from botocore.exceptions import ClientError
+
+                s3_client = boto3.client("s3")
+
+                for filename, s3_uri, mime_type in s3_attachments:
+                    try:
+                        # Parse S3 URI (s3://bucket/key)
+                        if not s3_uri.startswith("s3://"):
+                            logger.warning(f"Invalid S3 URI format: {s3_uri}")
+                            continue
+
+                        uri_parts = s3_uri[5:].split("/", 1)
+                        if len(uri_parts) != 2:
+                            logger.warning(f"Invalid S3 URI format: {s3_uri}")
+                            continue
+
+                        bucket, key = uri_parts
+
+                        # Download file from S3
+                        logger.debug(f"Downloading attachment from S3: {s3_uri}")
+                        response = s3_client.get_object(Bucket=bucket, Key=key)
+                        content_bytes = response["Body"].read()
+
+                        # Attach to email
+                        attachment = MIMEBase(*mime_type.split("/"))
+                        attachment.set_payload(content_bytes)
+                        encoders.encode_base64(attachment)
+                        attachment.add_header(
+                            "Content-Disposition", f"attachment; filename={filename}"
+                        )
+                        msg.attach(attachment)
+
+                        logger.debug(f"Successfully attached {filename} from S3")
+
+                    except ClientError as e:
+                        logger.error(f"Failed to download S3 attachment {s3_uri}: {e}")
+                        # Continue with other attachments
+                    except Exception as e:
+                        logger.error(f"Error processing S3 attachment {s3_uri}: {e}")
+                        # Continue with other attachments
 
             # Send email
             with smtplib.SMTP(smtp_server, smtp_port) as server:
@@ -142,11 +188,24 @@ def send_email_notification(
     html_content: str,
     text_content: str | None = None,
     recipient_email: str | None = None,
+    s3_attachments: list[tuple[str, str, str]] | None = None,
 ) -> bool:
-    """Send an email notification (backward compatibility function)."""
+    """Send an email notification (backward compatibility function).
+
+    Args:
+        subject: Email subject line
+        html_content: HTML email content
+        text_content: Plain text fallback (optional)
+        recipient_email: Override recipient email (optional)
+        s3_attachments: List of (filename, s3_uri, mime_type) tuples (optional)
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
     return _email_client.send_notification(
         subject=subject,
         html_content=html_content,
         text_content=text_content,
         recipient_email=recipient_email,
+        s3_attachments=s3_attachments,
     )

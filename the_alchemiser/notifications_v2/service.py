@@ -321,16 +321,22 @@ class NotificationService:
         )
 
         try:
-            # Build email content based on success/failure
-            if event.trading_success:
-                html_content = self._build_success_trading_email(event)
-            else:
-                html_content = self._build_failure_trading_email(event)
+            # Use simplified email template (Hargreaves Lansdown style)
+            # TODO: Generate PDF report from execution data and attach to email
+            # For now, sending simplified email without PDF attachment
+            html_content = EmailTemplates.simple_trading_notification(
+                success=event.trading_success,
+                mode=event.trading_mode,
+                orders_count=event.orders_placed,
+                correlation_id=event.correlation_id,
+                pdf_attached=False,  # TODO: Set to True once PDF generation is implemented
+            )
 
             # Build subject line
             subject = self._build_trading_subject(event)
 
             # Send notification
+            # TODO: Add s3_attachments parameter once PDF generation is implemented
             success = send_email_notification(
                 subject=subject,
                 html_content=html_content,
@@ -341,7 +347,7 @@ class NotificationService:
             if success:
                 self._log_event_context(
                     event,
-                    f"Trading notification sent successfully (success={event.trading_success})",
+                    f"Simplified trading notification sent successfully (success={event.trading_success})",
                 )
             else:
                 self._log_event_context(event, "Failed to send trading notification email", "error")

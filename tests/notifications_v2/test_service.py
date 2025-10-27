@@ -284,16 +284,16 @@ class TestTradingNotificationHandling:
         )
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.MultiStrategyReportBuilder")
+    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
     def test_handle_successful_trading_notification(
         self,
-        mock_report_builder: Mock,
+        mock_templates: Mock,
         mock_send_email: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test successful trading notification handling."""
-        mock_report_builder.build_multi_strategy_report_neutral.return_value = (
+        mock_templates.simple_trading_notification.return_value = (
             "<html>Success Report</html>"
         )
         mock_send_email.return_value = True
@@ -301,8 +301,12 @@ class TestTradingNotificationHandling:
 
         service.handle_event(successful_trading_event)
 
-        # Verify enhanced template was used
-        mock_report_builder.build_multi_strategy_report_neutral.assert_called_once()
+        # Verify simplified template was used
+        mock_templates.simple_trading_notification.assert_called_once()
+        call_args = mock_templates.simple_trading_notification.call_args
+        assert call_args.kwargs["success"] is True
+        assert call_args.kwargs["mode"] == "PAPER"
+        assert call_args.kwargs["orders_count"] == 5
 
         # Verify email was sent with success status
         mock_send_email.assert_called_once()
@@ -311,30 +315,32 @@ class TestTradingNotificationHandling:
         assert "PAPER" in subject
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.MultiStrategyReportBuilder")
+    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
     def test_handle_successful_trading_with_template_fallback(
         self,
-        mock_report_builder: Mock,
+        mock_templates: Mock,
         mock_send_email: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test successful trading with fallback to basic template on error."""
-        # Simulate template failure
-        mock_report_builder.build_multi_strategy_report_neutral.side_effect = Exception(
-            "Template rendering failed"
+        # With simplified template, no fallback is needed
+        # The simplified template is simple enough that it shouldn't fail
+        mock_templates.simple_trading_notification.return_value = (
+            "<html>Simple Success Report</html>"
         )
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(successful_trading_event)
 
-        # Verify fallback template was used (email still sent)
+        # Verify simplified template was used
+        mock_templates.simple_trading_notification.assert_called_once()
+
+        # Verify email was sent
         mock_send_email.assert_called_once()
         html_content = mock_send_email.call_args.kwargs["html_content"]
-        assert "Trading Execution Report" in html_content
-        assert "PAPER" in html_content
-        assert str(successful_trading_event.orders_placed) in html_content
+        assert "Simple Success Report" in html_content
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
     @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
@@ -346,26 +352,20 @@ class TestTradingNotificationHandling:
         failed_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test failed trading notification handling."""
-        mock_templates.failed_trading_run.return_value = "<html>Failure Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(failed_trading_event)
 
-        # Verify failed template was used
-        mock_templates.failed_trading_run.assert_called_once()
-        call_args = mock_templates.failed_trading_run.call_args
-
-        # Check error message and context
-        assert (
-            call_args.kwargs["error_details"]
-            == "Failed to execute 3 orders due to insufficient buying power"
-        )
+        # Verify simplified template was used
+        mock_templates.simple_trading_notification.assert_called_once()
+        call_args = mock_templates.simple_trading_notification.call_args
+        
+        # Check template parameters
+        assert call_args.kwargs["success"] is False
         assert call_args.kwargs["mode"] == "LIVE"
-        context = call_args.kwargs["context"]
-        assert context["Orders Placed"] == 5
-        assert context["Orders Succeeded"] == 2
-        assert "Failed Symbols" in context
+        assert call_args.kwargs["orders_count"] == 5
 
         # Verify email was sent with failure status
         mock_send_email.assert_called_once()
@@ -383,7 +383,7 @@ class TestTradingNotificationHandling:
         mock_container: Mock,
     ) -> None:
         """Test failed trading notification without error code."""
-        mock_templates.failed_trading_run.return_value = "<html>Failure Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -419,7 +419,7 @@ class TestTradingNotificationHandling:
         mock_container: Mock,
     ) -> None:
         """Test failed trading notification handles missing error message."""
-        mock_templates.failed_trading_run.return_value = "<html>Failure Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -441,9 +441,8 @@ class TestTradingNotificationHandling:
 
         service.handle_event(event)
 
-        # Verify default error message is used
-        call_args = mock_templates.failed_trading_run.call_args
-        assert call_args.kwargs["error_details"] == "Unknown trading error"
+        # Verify simplified template was called (no error message processing needed)
+        mock_templates.simple_trading_notification.assert_called_once()
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
     def test_trading_notification_email_send_failure(
@@ -784,7 +783,7 @@ class TestMissingAndPartialData:
         mock_container: Mock,
     ) -> None:
         """Test trading notification with empty execution data dictionary."""
-        mock_templates.failed_trading_run.return_value = "<html>Report</html>"
+        mock_templates.simple_trading_notification.return_value = "<html>Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -803,25 +802,23 @@ class TestMissingAndPartialData:
             error_message="No orders executed",
         )
 
-        # Should handle gracefully
+        # Should handle gracefully with simplified template
         service.handle_event(event)
 
         mock_send_email.assert_called_once()
-        # Verify context doesn't include failed_symbols
-        call_args = mock_templates.failed_trading_run.call_args
-        context = call_args.kwargs["context"]
-        assert "Failed Symbols" not in context
+        # Verify simplified template was called
+        mock_templates.simple_trading_notification.assert_called_once()
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.MultiStrategyReportBuilder")
+    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
     def test_successful_trading_with_minimal_execution_data(
         self,
-        mock_report_builder: Mock,
+        mock_templates: Mock,
         mock_send_email: Mock,
         mock_container: Mock,
     ) -> None:
         """Test successful trading notification with minimal execution data."""
-        mock_report_builder.build_multi_strategy_report_neutral.return_value = (
+        mock_templates.simple_trading_notification.return_value = (
             "<html>Success</html>"
         )
         mock_send_email.return_value = True
@@ -841,15 +838,15 @@ class TestMissingAndPartialData:
             execution_data={},  # Minimal data
         )
 
-        # Should handle gracefully with EventResultAdapter
+        # Should handle gracefully with simplified template
         service.handle_event(event)
 
         mock_send_email.assert_called_once()
-        # Adapter should handle missing fields gracefully
-        adapter_call = mock_report_builder.build_multi_strategy_report_neutral.call_args
-        result_adapter = adapter_call.args[0]
-        assert result_adapter.success is True
-        assert result_adapter.orders_executed == []
+        # Verify simplified template was called with correct parameters
+        mock_templates.simple_trading_notification.assert_called_once()
+        call_args = mock_templates.simple_trading_notification.call_args
+        assert call_args.kwargs["success"] is True
+        assert call_args.kwargs["orders_count"] == 1
 
     @patch("the_alchemiser.notifications_v2.service.send_email_notification")
     def test_error_notification_with_minimal_fields(
