@@ -573,7 +573,7 @@ def create_indicator_with_symbol(indicator_expr: ASTNode, symbol: str) -> ASTNod
         return indicator_expr
 
     func_name = indicator_expr.children[0].get_symbol_name()
-    if not func_name or not _is_recognized_indicator(func_name):
+    if not _is_recognized_indicator(func_name):
         return indicator_expr
 
     return _build_indicator_node(indicator_expr, func_name, symbol)
