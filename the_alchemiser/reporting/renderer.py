@@ -1,14 +1,12 @@
 """Business Unit: reporting | Status: current.
 
-PDF report renderer using Playwright and Jinja2.
+PDF report renderer using WeasyPrint and Jinja2.
 
 Handles HTML template rendering and PDF generation from account snapshots.
 """
 
 from __future__ import annotations
 
-import contextlib
-import tempfile
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -28,7 +26,7 @@ __all__ = ["ReportRenderer"]
 
 
 class ReportRenderer:
-    """Render PDF reports from account snapshots using Playwright."""
+    """Render PDF reports from account snapshots using WeasyPrint."""
 
     def __init__(self) -> None:
         """Initialize the report renderer."""
@@ -90,8 +88,8 @@ class ReportRenderer:
         # Render HTML first
         html_content = self.render_html(snapshot, report_metadata)
 
-        # Use Playwright to convert HTML to PDF
-        pdf_bytes = self._html_to_pdf_with_playwright(html_content)
+        # Use WeasyPrint to convert HTML to PDF
+        pdf_bytes = self._html_to_pdf_with_weasyprint(html_content)
 
         # Calculate generation time and file size
         generation_time_ms = int((time.time() - start_time) * 1000)
@@ -120,8 +118,8 @@ class ReportRenderer:
 
         return pdf_bytes, metadata
 
-    def _html_to_pdf_with_playwright(self, html_content: str) -> bytes:
-        """Convert HTML to PDF using Playwright.
+    def _html_to_pdf_with_weasyprint(self, html_content: str) -> bytes:
+        """Convert HTML to PDF using WeasyPrint.
 
         Args:
             html_content: HTML string to convert
@@ -130,43 +128,15 @@ class ReportRenderer:
             PDF bytes
 
         """
-        from playwright.sync_api import sync_playwright
+        from weasyprint import HTML  # type: ignore[import-not-found]
 
-        logger.debug("Converting HTML to PDF with Playwright")
+        logger.debug("Converting HTML to PDF with WeasyPrint")
 
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page()
+        # Convert HTML string to PDF bytes
+        pdf_bytes: bytes = HTML(string=html_content).write_pdf()
 
-            # Write HTML to temp file to avoid inline HTML issues
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".html", delete=False, encoding="utf-8"
-            ) as temp_file:
-                temp_file.write(html_content)
-                temp_path = temp_file.name
-
-            try:
-                # Load HTML from file URL
-                page.goto(f"file://{temp_path}")
-
-                # Wait for page to load
-                page.wait_for_load_state("networkidle")
-
-                # Generate PDF with A4 format
-                pdf_bytes_result = page.pdf(
-                    format="A4",
-                    print_background=True,
-                    margin={"top": "0.5cm", "right": "0.5cm", "bottom": "0.5cm", "left": "0.5cm"},
-                )
-
-                logger.debug("PDF generated", size_bytes=len(pdf_bytes_result))
-                return bytes(pdf_bytes_result)
-
-            finally:
-                browser.close()
-                # Clean up temp file
-                with contextlib.suppress(OSError):
-                    Path(temp_path).unlink()
+        logger.debug("PDF generated", size_bytes=len(pdf_bytes))
+        return pdf_bytes
 
     def _prepare_template_context(
         self, snapshot: AccountSnapshot, report_metadata: dict[str, Any]
@@ -263,8 +233,8 @@ class ReportRenderer:
         template = self.jinja_env.get_template("execution_report.html")
         html_content = str(template.render(**context))
 
-        # Convert to PDF using Playwright
-        pdf_bytes = self._html_to_pdf_with_playwright(html_content)
+        # Convert to PDF using WeasyPrint
+        pdf_bytes = self._html_to_pdf_with_weasyprint(html_content)
 
         # Calculate generation time and file size
         generation_time_ms = int((time.time() - start_time) * 1000)
