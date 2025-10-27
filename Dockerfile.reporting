@@ -27,11 +27,11 @@ COPY the_alchemiser/ ${LAMBDA_TASK_ROOT}/the_alchemiser/
 COPY pyproject.toml poetry.lock ${LAMBDA_TASK_ROOT}/
 
 # Install Python dependencies and Playwright in a single layer
-RUN pip install --no-cache-dir poetry && \
+RUN pip install --no-cache-dir poetry poetry-plugin-export && \
     cd ${LAMBDA_TASK_ROOT} && \
     poetry export --without-hashes --only main -o requirements.txt && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y poetry && \
+    pip uninstall -y poetry poetry-plugin-export && \
     rm requirements.txt pyproject.toml poetry.lock && \
     # Install Playwright browsers (Chromium only for size optimization)
     pip install --no-cache-dir playwright==1.55.0 && \
