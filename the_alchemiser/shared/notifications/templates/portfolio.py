@@ -89,7 +89,7 @@ class PortfolioBuilder:
 
     # ---------------------- internal helpers ---------------------- #
     @staticmethod
-    def _parse_position_item(pos: Any) -> tuple[str | None, dict[str, Any]]:
+    def _parse_position_item(pos: dict[str, Any] | object) -> tuple[str | None, dict[str, Any]]:
         """Parse a single position item into (symbol, position_data).
 
         Args:
@@ -110,7 +110,7 @@ class PortfolioBuilder:
         return None, {}
 
     @staticmethod
-    def _extract_positions_from_list(positions_list: Any) -> dict[str, Any]:
+    def _extract_positions_from_list(positions_list: list[Any]) -> dict[str, Any]:
         """Extract positions dictionary from a list of position items.
 
         Args:

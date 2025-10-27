@@ -12,7 +12,7 @@ Implements DSL control flow and conditional operators:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import structlog
 
@@ -155,12 +155,12 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
     _log_condition_evaluation(context, condition_result, else_expr)
 
     branch_taken, result = _evaluate_branch(condition_result, then_expr, else_expr, context)
-    _log_branch_result(context, branch_taken, result)
+    _log_branch_result(context, branch_taken, cast(DSLValue, result))
 
     _capture_decision(condition, condition_result, branch_taken, context)
     _publish_decision_event(condition, condition_result, branch_taken, result, context)
 
-    return result
+    return cast(DSLValue, result)
 
 
 def _validate_if_args(args: list[ASTNode], context: DslContext) -> None:
@@ -231,7 +231,7 @@ def _evaluate_branch(
     then_expr: ASTNode,
     else_expr: ASTNode | None,
     context: DslContext,
-) -> tuple[Literal["then", "else"], DSLValue]:
+) -> tuple[Literal["then", "else"], Any]:
     """Evaluate the appropriate branch based on condition result.
 
     Args:
@@ -245,7 +245,7 @@ def _evaluate_branch(
 
     """
     if condition_result:
-        branch_taken = "then"
+        branch_taken: Literal["then", "else"] = "then"
         result = context.evaluate_node(then_expr, context.correlation_id, context.trace)
         return branch_taken, result
 
@@ -573,7 +573,7 @@ def create_indicator_with_symbol(indicator_expr: ASTNode, symbol: str) -> ASTNod
         return indicator_expr
 
     func_name = indicator_expr.children[0].get_symbol_name()
-    if not _is_recognized_indicator(func_name):
+    if func_name is None or not _is_recognized_indicator(func_name):
         return indicator_expr
 
     return _build_indicator_node(indicator_expr, func_name, symbol)
