@@ -13,12 +13,16 @@ Note:
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TypedDict
+import re
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
 
 from ...errors.exceptions import TemplateGenerationError
 from ...logging import get_logger
 from ...types.strategy_types import StrategyType
 from .base import BaseEmailTemplate
+
+if TYPE_CHECKING:
+    from re import Match
 
 # Module logger
 logger = get_logger(__name__)
@@ -203,6 +207,35 @@ class SignalsBuilder:
         return reason
 
     @staticmethod
+    def _truncate_with_arrows(parts: list[str], max_length: int) -> str:
+        """Truncate decision path parts while preserving complete nodes.
+
+        Args:
+            parts: List of decision path parts split by arrows
+            max_length: Maximum length before truncation
+
+        Returns:
+            Truncated string with preserved nodes and ellipsis
+
+        """
+        result_parts: list[str] = []
+        current_length = 0
+
+        for part in parts:
+            # Account for arrow separator (3 chars: " → ")
+            part_length = len(part) + (3 if result_parts else 0)
+
+            if current_length + part_length <= max_length - 3:  # Reserve 3 for "..."
+                result_parts.append(part)
+                current_length += part_length
+            else:
+                break
+
+        if result_parts:
+            return " → ".join(result_parts) + "..."
+        return ""
+
+    @staticmethod
     def _format_decision_path_for_table(reason: str, max_length: int) -> str:
         """Format decision path for table display with smart truncation.
 
@@ -230,25 +263,10 @@ class SignalsBuilder:
 
         # For decision paths with arrows, try to keep complete decision nodes
         if "→" in reason:
-            # Split by arrows to preserve decision node boundaries
             parts = reason.split(" → ")
-
-            # Try to fit as many complete nodes as possible
-            result_parts: list[str] = []
-            current_length = 0
-
-            for part in parts:
-                # Account for arrow separator (3 chars: " → ")
-                part_length = len(part) + (3 if result_parts else 0)
-
-                if current_length + part_length <= max_length - 3:  # Reserve 3 for "..."
-                    result_parts.append(part)
-                    current_length += part_length
-                else:
-                    break
-
-            if result_parts:
-                return " → ".join(result_parts) + "..."
+            truncated = SignalsBuilder._truncate_with_arrows(parts, max_length)
+            if truncated:
+                return truncated
 
         # Fallback to simple truncation if no arrow or can't preserve nodes
         return reason[:max_length] + "..."
@@ -902,6 +920,130 @@ class SignalsBuilder:
                 """
 
     @staticmethod
+    def _parse_rsi_condition_with_value(
+        symbol: str,
+        rsi_period: str,
+        operator: str,
+        threshold: str,
+        indicators: TechnicalIndicators,
+    ) -> str | None:
+        """Parse RSI condition with actual value from indicators.
+
+        Args:
+            symbol: Stock symbol
+            rsi_period: RSI period (e.g., "10", "20")
+            operator: Comparison operator (">", "<", ">=", "<=")
+            threshold: Threshold value
+            indicators: Technical indicators for the symbol
+
+        Returns:
+            Formatted condition string with actual RSI value, or None if not available
+
+        """
+        rsi_field = f"rsi_{rsi_period}"
+        actual_rsi = indicators.get(rsi_field)
+
+        if actual_rsi is not None and isinstance(actual_rsi, (int, float)):
+            classification = SignalsBuilder._get_rsi_classification(float(actual_rsi))
+            operator_word = "above" if ">" in operator else "below"
+            return (
+                f"{symbol} RSI({rsi_period}) is **{actual_rsi:.1f}**, "
+                f"{operator_word} the **{threshold}** threshold "
+                f"(**{classification}**)"
+            )
+        return None
+
+    @staticmethod
+    def _parse_rsi_condition_match(
+        match: Match[str],
+        technical_indicators: dict[str, TechnicalIndicators] | None,
+    ) -> str:
+        """Parse matched RSI condition into human-readable text.
+
+        Args:
+            match: Regex match object with RSI condition parts
+            technical_indicators: Optional dict of technical indicators
+
+        Returns:
+            Formatted condition string
+
+        """
+        symbol = match.group(1)
+        rsi_period = match.group(2)
+        operator = match.group(3)
+        threshold = match.group(4)
+
+        # Try to get actual RSI value if indicators available
+        if technical_indicators and symbol in technical_indicators:
+            indicators = technical_indicators[symbol]
+            with_value = SignalsBuilder._parse_rsi_condition_with_value(
+                symbol, rsi_period, operator, threshold, indicators
+            )
+            if with_value:
+                return with_value
+
+        # Fallback without actual value
+        operator_word = "above" if ">" in operator else "below"
+        return f"{symbol} RSI({rsi_period}) {operator_word} {threshold}"
+
+    @staticmethod
+    def _parse_rsi_condition(
+        condition: str,
+        technical_indicators: dict[str, TechnicalIndicators] | None,
+    ) -> str | None:
+        """Parse RSI condition into human-readable text.
+
+        Args:
+            condition: Condition string containing RSI
+            technical_indicators: Optional dict of technical indicators
+
+        Returns:
+            Parsed condition string or None
+
+        """
+        # Extract symbol, RSI period, operator, and threshold
+        match = re.search(
+            r"\b([A-Z]{2,5})\s+RSI\((\d+)\)\s*([<>]=?)\s*(\d+\.?\d*)",
+            condition,
+            re.IGNORECASE,
+        )
+
+        if match:
+            return SignalsBuilder._parse_rsi_condition_match(match, technical_indicators)
+
+        # Fallback for simple RSI mentions without thresholds
+        symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
+        if symbols:
+            return f"RSI conditions met on {' and '.join(symbols)}"
+
+        return None
+
+    @staticmethod
+    def _parse_drawdown_condition(condition: str) -> str | None:
+        """Parse drawdown condition into human-readable text.
+
+        Args:
+            condition: Condition string containing drawdown
+
+        Returns:
+            Parsed condition string or None
+
+        """
+        symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
+        symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
+
+        # Try to extract threshold percentage
+        threshold_match = re.search(r"(\d+\.?\d*)%", condition)
+        threshold_text = f" **{threshold_match.group(1)}%**" if threshold_match else ""
+
+        if symbols:
+            if len(symbols) == 1:
+                return f"{symbols[0]} exceeded max drawdown threshold{threshold_text}"
+            return f"drawdown check on {', '.join(symbols)}{threshold_text}"
+
+        return None
+
+    @staticmethod
     def _parse_condition(
         condition: str,
         technical_indicators: dict[str, TechnicalIndicators] | None = None,
@@ -920,68 +1062,95 @@ class SignalsBuilder:
             "SPY RSI(10) is 82.5, above the 79 threshold (critically overbought)"
 
         """
-        import re
-
         # Skip allocation text
         if "allocation" in condition.lower() or not condition:
             return None
 
         # Parse RSI conditions with thresholds
         if "rsi" in condition.lower():
-            # Extract symbol, RSI period, operator, and threshold
-            # Matches patterns like: "SPY RSI(10)>79" or "TQQQ RSI(20)<30"
-            match = re.search(
-                r"\b([A-Z]{2,5})\s+RSI\((\d+)\)\s*([<>]=?)\s*(\d+\.?\d*)",
-                condition,
-                re.IGNORECASE,
-            )
-
-            if match:
-                symbol = match.group(1)
-                rsi_period = match.group(2)
-                operator = match.group(3)
-                threshold = match.group(4)
-
-                # Get actual RSI value if available
-                if technical_indicators and symbol in technical_indicators:
-                    indicators = technical_indicators[symbol]
-                    # Map RSI period to field name
-                    rsi_field = f"rsi_{rsi_period}"
-                    actual_rsi = indicators.get(rsi_field)
-
-                    if actual_rsi is not None and isinstance(actual_rsi, (int, float)):
-                        classification = SignalsBuilder._get_rsi_classification(float(actual_rsi))
-                        operator_word = "above" if ">" in operator else "below"
-                        return (
-                            f"{symbol} RSI({rsi_period}) is **{actual_rsi:.1f}**, "
-                            f"{operator_word} the **{threshold}** threshold "
-                            f"(**{classification}**)"
-                        )
-
-                # Fallback without actual value
-                operator_word = "above" if ">" in operator else "below"
-                return f"{symbol} RSI({rsi_period}) {operator_word} {threshold}"
-
-            # Fallback for simple RSI mentions without thresholds
-            symbols = re.findall(r"\b([A-Z]{2,5})\s+(?:rsi|RSI)", condition)
-            if symbols:
-                return f"RSI conditions met on {' and '.join(symbols)}"
+            return SignalsBuilder._parse_rsi_condition(condition, technical_indicators)
 
         # Parse max-drawdown conditions
         if "max-drawdown" in condition.lower() or "drawdown" in condition.lower():
-            symbols = re.findall(r"\b[A-Z]{2,5}\b", condition)
-            symbols = [s for s in symbols if s not in ("RSI", "MAX", "AND", "OR")]
-
-            # Try to extract threshold percentage
-            threshold_match = re.search(r"(\d+\.?\d*)%", condition)
-            threshold_text = f" **{threshold_match.group(1)}%**" if threshold_match else ""
-
-            if symbols:
-                if len(symbols) == 1:
-                    return f"{symbols[0]} exceeded max drawdown threshold{threshold_text}"
-                return f"drawdown check on {', '.join(symbols)}{threshold_text}"
+            return SignalsBuilder._parse_drawdown_condition(condition)
 
         return "conditions satisfied"
+
+    @staticmethod
+    def _deduplicate_conditions(conditions: list[str]) -> list[str]:
+        """Deduplicate conditions while preserving order.
+
+        Args:
+            conditions: List of condition strings
+
+        Returns:
+            List of unique conditions in original order
+
+        """
+        seen = set()
+        unique_conditions = []
+        for cond in conditions:
+            if cond not in seen:
+                seen.add(cond)
+                unique_conditions.append(cond)
+        return unique_conditions
+
+    @staticmethod
+    def _extract_conditions_from_dsl(
+        content: str,
+        technical_indicators: dict[str, TechnicalIndicators] | None,
+    ) -> list[str]:
+        """Extract and parse conditions from DSL content.
+
+        Args:
+            content: DSL content string with conditions
+            technical_indicators: Optional dict mapping symbols to their technical indicators
+
+        Returns:
+            List of parsed condition strings
+
+        """
+        conditions = []
+        parts = content.split("→")
+        for part in parts:
+            part = part.strip()
+            if "✓" in part:
+                condition = part.replace("✓", "").strip()
+                parsed = SignalsBuilder._parse_condition(condition, technical_indicators)
+                if parsed:
+                    conditions.append(parsed)
+        return conditions
+
+    @staticmethod
+    def _build_summary_text(
+        strategy_name: str,
+        unique_conditions: list[str],
+        allocation: str,
+    ) -> str:
+        """Build final summary text from components.
+
+        Args:
+            strategy_name: Name of the strategy
+            unique_conditions: List of parsed conditions
+            allocation: Allocation text
+
+        Returns:
+            Formatted summary string
+
+        """
+        summary_parts = []
+        if strategy_name:
+            summary_parts.append(f"{strategy_name} strategy triggered")
+        if unique_conditions:
+            summary_parts.append(", ".join(unique_conditions))
+        if allocation:
+            summary_parts.append(allocation)
+
+        if summary_parts:
+            if len(summary_parts) == 1:
+                return summary_parts[0]
+            return f"{summary_parts[0]}: {', '.join(summary_parts[1:])}"
+        return ""
 
     @staticmethod
     def _parse_dsl_reasoning_to_human_readable(
@@ -1011,41 +1180,152 @@ class SignalsBuilder:
         strategy_name, content = SignalsBuilder._extract_strategy_name_and_content(reasoning)
         allocation = SignalsBuilder._extract_allocation(content)
 
-        # Parse condition checks (✓ symbol)
-        conditions = []
-        parts = content.split("→")
-        for part in parts:
-            part = part.strip()
-            if "✓" in part:
-                condition = part.replace("✓", "").strip()
-                parsed = SignalsBuilder._parse_condition(condition, technical_indicators)
-                if parsed:
-                    conditions.append(parsed)
+        # Extract and parse conditions
+        conditions = SignalsBuilder._extract_conditions_from_dsl(content, technical_indicators)
+        unique_conditions = SignalsBuilder._deduplicate_conditions(conditions)
 
-        # Deduplicate conditions while preserving order
-        seen = set()
-        unique_conditions = []
-        for cond in conditions:
-            if cond not in seen:
-                seen.add(cond)
-                unique_conditions.append(cond)
-
-        # Build human-readable summary
-        summary_parts = []
-        if strategy_name:
-            summary_parts.append(f"{strategy_name} strategy triggered")
-        if unique_conditions:
-            summary_parts.append(", ".join(unique_conditions))
-        if allocation:
-            summary_parts.append(allocation)
-
-        if summary_parts:
-            if len(summary_parts) == 1:
-                return summary_parts[0]
-            return f"{summary_parts[0]}: {', '.join(summary_parts[1:])}"
+        # Build summary
+        summary = SignalsBuilder._build_summary_text(strategy_name, unique_conditions, allocation)
+        if summary:
+            return summary
 
         # Fallback to truncated original if parsing fails
         return SignalsBuilder._truncate_reason(reasoning, MAX_REASON_LENGTH_SUMMARY)
+
+    @staticmethod
+    def _format_strategy_display_name(strategy_name: str | StrategyType) -> str:
+        """Format strategy name for display.
+
+        Args:
+            strategy_name: Strategy name (enum or string)
+
+        Returns:
+            Formatted display name
+
+        """
+        if hasattr(strategy_name, "name"):
+            return strategy_name.name.replace("_", " ").title()
+        return str(strategy_name).title()
+
+    @staticmethod
+    def _build_signal_string_from_data(signal_data: dict[str, Any] | SignalData) -> str:
+        """Build signal string from signal data.
+
+        Args:
+            signal_data: Dictionary containing signal information
+
+        Returns:
+            Formatted signal string
+
+        """
+        signal_str = str(signal_data.get("signal", ""))
+        if signal_str:
+            return signal_str
+
+        # Fallback: build signal from symbols/action
+        action = str(signal_data.get("action", "UNKNOWN"))
+        symbols_list = signal_data.get("symbols", [])
+        if symbols_list and isinstance(symbols_list, list):
+            symbols_str = ", ".join(str(s) for s in symbols_list)
+            return f"{action} {symbols_str}"
+        return action
+
+    @staticmethod
+    def _build_strategy_row_html(
+        strategy_display_name: str,
+        display_line: str,
+    ) -> str:
+        """Build HTML for a single strategy row.
+
+        Args:
+            strategy_display_name: Formatted strategy name
+            display_line: Display line with reasoning and signal
+
+        Returns:
+            HTML string for the row
+
+        """
+        return f"""
+                <div style="padding: 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
+                    <strong style="color: #1F2937;">{strategy_display_name}:</strong> {display_line}
+                </div>
+                """
+
+    @staticmethod
+    def _build_strategy_rows(
+        strategy_signals: dict[str | StrategyType, SignalData],
+    ) -> list[str]:
+        """Build HTML rows for individual strategy signals.
+
+        Args:
+            strategy_signals: Dictionary mapping strategy names to signal data
+
+        Returns:
+            List of HTML row strings
+
+        """
+        strategy_rows = []
+        for strategy_name, signal_data in strategy_signals.items():
+            if not isinstance(signal_data, dict):
+                continue
+
+            strategy_display_name = SignalsBuilder._format_strategy_display_name(strategy_name)
+
+            # Get signal components
+            reasoning = str(signal_data.get("reasoning", signal_data.get("reason", "")))
+            signal_str = SignalsBuilder._build_signal_string_from_data(signal_data)
+            technical_indicators = signal_data.get("technical_indicators", {})
+
+            # Parse DSL reasoning into human-readable text
+            human_readable_reason = ""
+            if reasoning:
+                human_readable_reason = SignalsBuilder._parse_dsl_reasoning_to_human_readable(
+                    reasoning,
+                    technical_indicators,
+                )
+
+            # Build display line
+            display_line = (
+                f"{human_readable_reason} → {signal_str}" if human_readable_reason else signal_str
+            )
+
+            strategy_rows.append(
+                SignalsBuilder._build_strategy_row_html(strategy_display_name, display_line)
+            )
+
+        return strategy_rows
+
+    @staticmethod
+    def _build_consolidated_string(consolidated_portfolio: dict[str, float]) -> str:
+        """Build consolidated allocation string from portfolio.
+
+        Args:
+            consolidated_portfolio: Dictionary mapping symbols to allocations
+
+        Returns:
+            Formatted allocation string
+
+        """
+        if not consolidated_portfolio:
+            return ""
+
+        sorted_allocations = sorted(
+            consolidated_portfolio.items(),
+            key=lambda x: SignalsBuilder._safe_float_conversion(x[1], x[0]),
+            reverse=True,
+        )
+
+        allocation_parts = []
+        for symbol, weight in sorted_allocations:
+            try:
+                float_weight = float(weight)
+            except (ValueError, TypeError):
+                logger.warning("Invalid allocation value", symbol=symbol, value=weight)
+                continue
+            if float_weight > 0:
+                allocation_parts.append(f"{float_weight:.1%} {symbol}")
+
+        return " / ".join(allocation_parts) if allocation_parts else "No allocation"
 
     @staticmethod
     def build_signal_summary(
@@ -1082,75 +1362,11 @@ class SignalsBuilder:
         )
 
         # Build individual strategy signal rows
-        strategy_rows = []
-        for strategy_name, signal_data in strategy_signals.items():
-            if not isinstance(signal_data, dict):
-                continue
-
-            # Format strategy name (simple title case, no enum prefix stripping)
-            if hasattr(strategy_name, "name"):
-                strategy_display_name = strategy_name.name.replace("_", " ").title()
-            else:
-                strategy_display_name = str(strategy_name).title()
-
-            # Get signal data
-            reasoning = str(signal_data.get("reasoning", signal_data.get("reason", "")))
-            signal_str = str(signal_data.get("signal", ""))
-            technical_indicators = signal_data.get("technical_indicators", {})
-
-            # Fallback: build signal from symbols/action if not provided
-            if not signal_str:
-                action = str(signal_data.get("action", "UNKNOWN"))
-                symbols_list = signal_data.get("symbols", [])
-                if symbols_list and isinstance(symbols_list, list):
-                    symbols_str = ", ".join(str(s) for s in symbols_list)
-                    signal_str = f"{action} {symbols_str}"
-                else:
-                    signal_str = action
-
-            # Parse DSL reasoning into human-readable text with technical indicators
-            human_readable_reason = ""
-            if reasoning:
-                human_readable_reason = SignalsBuilder._parse_dsl_reasoning_to_human_readable(
-                    reasoning,
-                    technical_indicators,
-                )
-
-            # Build the row: "grail: <reasoning> → BUY TQQQ"
-            display_line = (
-                f"{human_readable_reason} → {signal_str}" if human_readable_reason else signal_str
-            )
-
-            strategy_rows.append(
-                f"""
-                <div style="padding: 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
-                    <strong style="color: #1F2937;">{strategy_display_name}:</strong> {display_line}
-                </div>
-                """
-            )
+        strategy_rows = SignalsBuilder._build_strategy_rows(strategy_signals)
+        strategy_section = "".join(strategy_rows) if strategy_rows else ""
 
         # Build consolidated signal from portfolio
-        consolidated_str = ""
-        if consolidated_portfolio:
-            # Sort by allocation descending with safe float conversion
-            sorted_allocations = sorted(
-                consolidated_portfolio.items(),
-                key=lambda x: SignalsBuilder._safe_float_conversion(x[1], x[0]),
-                reverse=True,
-            )
-            allocation_parts = []
-            for symbol, weight in sorted_allocations:
-                try:
-                    float_weight = float(weight)
-                except (ValueError, TypeError):
-                    logger.warning("Invalid allocation value", symbol=symbol, value=weight)
-                    continue
-                if float_weight > 0:
-                    allocation_parts.append(f"{float_weight:.1%} {symbol}")
-            consolidated_str = " / ".join(allocation_parts) if allocation_parts else "No allocation"
-
-        # Build the complete signal summary section
-        strategy_section = "".join(strategy_rows) if strategy_rows else ""
+        consolidated_str = SignalsBuilder._build_consolidated_string(consolidated_portfolio)
 
         return f"""
         <div style="margin: 0 0 28px 0; padding: 20px; background-color: #F0F9FF; border-left: 4px solid #3B82F6; border-radius: 8px;">
