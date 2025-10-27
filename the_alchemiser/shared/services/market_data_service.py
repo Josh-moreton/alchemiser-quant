@@ -444,9 +444,7 @@ class MarketDataService(MarketDataPort):
             is_rate_limit=is_rate_limit,
             error=str(error),
         )
-        raise MarketDataServiceError(
-            error_msg, symbol=symbol, operation="get_quote"
-        ) from error
+        raise MarketDataServiceError(error_msg, symbol=symbol, operation="get_quote") from error
 
     def _handle_network_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle network errors.
@@ -465,9 +463,7 @@ class MarketDataService(MarketDataPort):
             symbol=symbol,
             error=str(error),
         )
-        raise MarketDataServiceError(
-            error_msg, symbol=symbol, operation="get_quote"
-        ) from error
+        raise MarketDataServiceError(error_msg, symbol=symbol, operation="get_quote") from error
 
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
@@ -575,9 +571,7 @@ class MarketDataService(MarketDataPort):
                 attempt=attempt,
                 max_retries=MAX_RETRIES,
             )
-            raise MarketDataServiceError(
-                msg, symbol=symbol, operation="fetch_bars"
-            ) from error
+            raise MarketDataServiceError(msg, symbol=symbol, operation="fetch_bars") from error
 
         return True
 
@@ -687,8 +681,6 @@ class MarketDataService(MarketDataPort):
                     value=period,
                 )
         except (ValueError, AttributeError) as e:
-            if isinstance(e, ValidationError):
-                raise
             raise ValidationError(
                 f"Invalid period format: {period}. Expected format: <number><Y|M|D> (e.g., '1Y', '6M', '30D')",
                 field_name="period",

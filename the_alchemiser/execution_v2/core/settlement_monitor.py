@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 from the_alchemiser.execution_v2.models.settlement_details import SettlementDetails
 from the_alchemiser.shared.errors import (
     DataProviderError,
-    SettlementError,
     TradingClientError,
     ValidationError,
 )

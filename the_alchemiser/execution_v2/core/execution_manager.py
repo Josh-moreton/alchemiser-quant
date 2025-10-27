@@ -65,9 +65,7 @@ class ExecutionManager:
 
         """
         if alpaca_manager is None:
-            raise ValidationError(
-                "alpaca_manager cannot be None", field_name="alpaca_manager"
-            )
+            raise ValidationError("alpaca_manager cannot be None", field_name="alpaca_manager")
 
         self.alpaca_manager = alpaca_manager
 

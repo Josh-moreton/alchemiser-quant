@@ -48,8 +48,6 @@ from typing import Any, ClassVar
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.trading.client import TradingClient
-
-from the_alchemiser.shared.errors import SymbolValidationError, ValidationError
 from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import (
     LimitOrderRequest,
@@ -61,6 +59,7 @@ from the_alchemiser.shared.brokers.alpaca_utils import (
     create_data_client,
     create_trading_client,
 )
+from the_alchemiser.shared.errors import SymbolValidationError, ValidationError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
@@ -459,9 +458,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         side_normalized = side.lower().strip()
         if side_normalized not in ["buy", "sell"]:
-            raise ValidationError(
-                "Side must be 'buy' or 'sell'", field_name="side", value=side
-            )
+            raise ValidationError("Side must be 'buy' or 'sell'", field_name="side", value=side)
 
         return symbol.upper(), side_normalized
 

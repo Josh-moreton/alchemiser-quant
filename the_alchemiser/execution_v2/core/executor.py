@@ -31,7 +31,10 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
 )
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.errors import ExecutionManagerError, SymbolValidationError, ValidationError
+from the_alchemiser.shared.errors import (
+    SymbolValidationError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger, log_order_flow
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
@@ -115,9 +118,7 @@ class Executor:
 
         """
         if alpaca_manager is None:
-            raise ValidationError(
-                "alpaca_manager cannot be None", field_name="alpaca_manager"
-            )
+            raise ValidationError("alpaca_manager cannot be None", field_name="alpaca_manager")
 
         self.alpaca_manager = alpaca_manager
         self.execution_config = execution_config

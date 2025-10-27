@@ -28,7 +28,11 @@ from decimal import Decimal
 import pandas as pd
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
-from the_alchemiser.shared.errors import PriceValidationError, SymbolValidationError, ValidationError
+from the_alchemiser.shared.errors import (
+    PriceValidationError,
+    SymbolValidationError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.value_objects.core_types import (
     MarketDataPoint,
@@ -113,7 +117,9 @@ class BarModel:
         # Validate symbol
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
-            raise SymbolValidationError(_ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace")
+            raise SymbolValidationError(
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+            )
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
@@ -297,7 +303,9 @@ class QuoteModel:
         """
         # Validate symbol
         if not symbol or not symbol.strip():
-            raise SymbolValidationError(_ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace")
+            raise SymbolValidationError(
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+            )
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]
@@ -446,8 +454,6 @@ def _validate_and_convert_optional_price(
                 field_name=price_name,
             )
         return decimal_val
-    except PriceValidationError:
-        raise
     except (ValueError, TypeError) as e:
         logger.error(
             f"Invalid {price_name.lower()} for {symbol}",
@@ -511,7 +517,9 @@ class PriceDataModel:
         # Validate symbol
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
-            raise SymbolValidationError(_ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace")
+            raise SymbolValidationError(
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+            )
 
         # Parse and validate timestamp
         timestamp_raw = data["timestamp"]

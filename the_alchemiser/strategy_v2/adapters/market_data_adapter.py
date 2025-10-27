@@ -131,9 +131,7 @@ class StrategyMarketDataAdapter:
         """
         # Input validation
         if not symbols:
-            raise SymbolValidationError(
-                "symbols list cannot be empty", reason="Empty symbols list"
-            )
+            raise SymbolValidationError("symbols list cannot be empty", reason="Empty symbols list")
         if lookback_days <= 0:
             raise ValidationError(
                 f"lookback_days must be > 0, got {lookback_days}",
@@ -141,9 +139,7 @@ class StrategyMarketDataAdapter:
                 value=lookback_days,
             )
         if not timeframe or not timeframe.strip():
-            raise TimeframeValidationError(
-                "timeframe cannot be empty", timeframe=timeframe
-            )
+            raise TimeframeValidationError("timeframe cannot be empty", timeframe=timeframe)
 
         if end_date is None:
             end_date = datetime.now(UTC)
@@ -253,9 +249,7 @@ class StrategyMarketDataAdapter:
         """
         # Input validation
         if not symbols:
-            raise SymbolValidationError(
-                "symbols list cannot be empty", reason="Empty symbols list"
-            )
+            raise SymbolValidationError("symbols list cannot be empty", reason="Empty symbols list")
 
         result: dict[str, Decimal | None] = {}
 
