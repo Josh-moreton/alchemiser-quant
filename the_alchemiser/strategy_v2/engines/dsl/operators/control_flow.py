@@ -250,36 +250,67 @@ def _format_condition(condition: ASTNode) -> str:
         return symbol_name if symbol_name else ""
 
     if condition.is_list() and condition.children:
-        # Handle comparison operators like (> (rsi "SPY" {:window 10}) 79)
-        if len(condition.children) >= 3:
-            op = (
-                condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
-            )
-            left = _format_condition(condition.children[1])
-            right = _format_condition(condition.children[2])
-
-            # Map Clojure operators to readable format
-            op_map = {
-                ">": ">",
-                "<": "<",
-                ">=": ">=",
-                "<=": "<=",
-                "=": "==",
-                "and": "AND",
-                "or": "OR",
-            }
-            readable_op = op_map.get(op, op) if op else ""
-
-            return f"{left} {readable_op} {right}"
-
-        # Fallback: format as function call
-        func_name = (
-            condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
-        )
-        args = [_format_condition(child) for child in condition.children[1:]]
-        return f"{func_name}({', '.join(args)})"
+        return _format_list_condition(condition)
 
     return str(condition)
+
+
+def _format_list_condition(condition: ASTNode) -> str:
+    """Format a list condition node as a human-readable string.
+
+    Args:
+        condition: The list condition AST node to format
+
+    Returns:
+        Human-readable string representation of the list condition
+
+    """
+    # Handle comparison operators like (> (rsi "SPY" {:window 10}) 79)
+    if len(condition.children) >= 3:
+        return _format_binary_operator(condition)
+
+    # Fallback: format as function call
+    return _format_function_call(condition)
+
+
+def _format_binary_operator(condition: ASTNode) -> str:
+    """Format a binary operator expression.
+
+    Args:
+        condition: The binary operator AST node to format
+
+    Returns:
+        Human-readable string representation like "left OP right"
+
+    """
+    op = condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
+    left = _format_condition(condition.children[1])
+    right = _format_condition(condition.children[2])
+
+    # Map Clojure operators to readable format (only operators needing transformation)
+    op_map = {
+        "=": "==",
+        "and": "AND",
+        "or": "OR",
+    }
+    readable_op = op_map.get(op, op) if op else ""
+
+    return f"{left} {readable_op} {right}"
+
+
+def _format_function_call(condition: ASTNode) -> str:
+    """Format a function call expression.
+
+    Args:
+        condition: The function call AST node to format
+
+    Returns:
+        Human-readable string representation like "func(arg1, arg2)"
+
+    """
+    func_name = condition.children[0].get_symbol_name() if condition.children[0].is_symbol() else ""
+    args = [_format_condition(child) for child in condition.children[1:]]
+    return f"{func_name}({', '.join(args)})"
 
 
 def _extract_indicator_values(condition: ASTNode, context: DslContext) -> dict[str, Any]:
@@ -303,36 +334,82 @@ def _extract_indicator_values(condition: ASTNode, context: DslContext) -> dict[s
 
     # Look for indicator function calls in the condition tree
     for child in condition.children:
-        if child.is_list() and child.children:
-            func_name = child.children[0].get_symbol_name() if child.children[0].is_symbol() else ""
-
-            # Check if it's an indicator function
-            if func_name in {
-                "rsi",
-                "moving-average-price",
-                "moving-average-return",
-                "current-price",
-            }:
-                # Extract symbol if present
-                symbol = ""
-                if len(child.children) > 1 and child.children[1].is_atom():
-                    atom_val = child.children[1].get_atom_value()
-                    if isinstance(atom_val, str):
-                        symbol = atom_val
-
-                # Build a key for this indicator
-                if symbol:
-                    key = f"{symbol}_{func_name.replace('-', '_')}"
-                    # Note: We don't have the actual computed value here without re-evaluating
-                    # Mark that this indicator was referenced in the decision
-                    values[key] = "<computed>"
-
-        # Recursively check nested conditions
-        if child.is_list():
-            nested_values = _extract_indicator_values(child, context)
-            values.update(nested_values)
+        _process_child_node(child, values, context)
 
     return values
+
+
+def _process_child_node(child: ASTNode, values: dict[str, Any], context: DslContext) -> None:
+    """Process a child node to extract indicator values.
+
+    Args:
+        child: The child AST node to process
+        values: Dictionary to update with extracted values
+        context: DSL evaluation context
+
+    """
+    if child.is_list() and child.children:
+        _extract_from_indicator_call(child, values)
+
+    # Recursively check nested conditions
+    if child.is_list():
+        nested_values = _extract_indicator_values(child, context)
+        values.update(nested_values)
+
+
+def _extract_from_indicator_call(child: ASTNode, values: dict[str, Any]) -> None:
+    """Extract indicator value from a function call node.
+
+    Args:
+        child: The function call AST node
+        values: Dictionary to update with extracted values
+
+    """
+    func_name = child.children[0].get_symbol_name() if child.children[0].is_symbol() else ""
+
+    # Check if it's an indicator function
+    if func_name and _is_indicator_function(func_name):
+        symbol = _extract_symbol_from_call(child)
+        if symbol:
+            key = f"{symbol}_{func_name.replace('-', '_')}"
+            # Note: We don't have the actual computed value here without re-evaluating
+            # Mark that this indicator was referenced in the decision
+            values[key] = "<computed>"
+
+
+def _is_indicator_function(func_name: str) -> bool:
+    """Check if a function name is a recognized indicator function.
+
+    Args:
+        func_name: The function name to check
+
+    Returns:
+        True if the function is an indicator function
+
+    """
+    return func_name in {
+        "rsi",
+        "moving-average-price",
+        "moving-average-return",
+        "current-price",
+    }
+
+
+def _extract_symbol_from_call(child: ASTNode) -> str:
+    """Extract symbol parameter from an indicator function call.
+
+    Args:
+        child: The function call AST node
+
+    Returns:
+        The symbol string if found, empty string otherwise
+
+    """
+    if len(child.children) > 1 and child.children[1].is_atom():
+        atom_val = child.children[1].get_atom_value()
+        if isinstance(atom_val, str):
+            return atom_val
+    return ""
 
 
 def create_indicator_with_symbol(indicator_expr: ASTNode, symbol: str) -> ASTNode:
