@@ -343,6 +343,7 @@ Resources:
       Role: !GetAtt ReportGeneratorExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
+        - arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
       Timeout: 300  # 5 minutes for PDF generation
       MemorySize: 1024
       Environment:
@@ -350,6 +351,8 @@ Resources:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           REPORTS_S3_BUCKET: !Ref ReportsBucket
           LOGGING__LEVEL: !Ref LoggingLevel
+          LD_LIBRARY_PATH: "/opt/lib"
+          FONTCONFIG_PATH: "/opt/fonts"
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -359,6 +362,7 @@ Resources:
           - 'the_alchemiser/**/*.css'
           - 'the_alchemiser/config/*.json'
           - 'the_alchemiser/py.typed'
+          - 'logo.png'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
