@@ -655,12 +655,7 @@ class SignalsBuilder:
             return ""
 
         # Collect all unique symbols and their indicators
-        symbol_indicators: dict[str, TechnicalIndicators] = {}
-        for signal_data in strategy_signals.values():
-            technical_indicators = signal_data.get("technical_indicators", {})
-            for symbol, indicators in technical_indicators.items():
-                if symbol not in symbol_indicators:
-                    symbol_indicators[symbol] = indicators
+        symbol_indicators = SignalsBuilder._collect_symbol_indicators(strategy_signals)
 
         if not symbol_indicators:
             logger.debug("build_price_action_gauge_skipped", reason="no_indicator_data")
@@ -690,7 +685,7 @@ class SignalsBuilder:
                 )
                 continue
 
-            # Get RSI classification
+            # Get RSI classification and color
             rsi_classification = SignalsBuilder._get_rsi_classification(rsi_10)
             rsi_color = SignalsBuilder._get_rsi_color(rsi_10)
 
@@ -701,33 +696,23 @@ class SignalsBuilder:
 
             # Build composite gauge classification
             trend = "Bullish" if current_price > ma_200 else "Bearish"
-
-            # Check for conflicting signals
-            conflict_note = ""
-            if (rsi_10 < RSI_OVERSOLD and current_price > ma_200) or (
-                rsi_10 > RSI_OVERBOUGHT_CRITICAL and current_price < ma_200
-            ):
-                conflict_note = " ⚠️"
-
+            conflict_note = (
+                " ⚠️"
+                if SignalsBuilder._has_conflicting_indicators(rsi_10, current_price, ma_200)
+                else ""
+            )
             gauge_classification = f"{rsi_classification.title()} / {trend}{conflict_note}"
 
+            # Build and append gauge row
             gauge_rows.append(
-                f"""
-                <tr>
-                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
-                        {symbol}
-                    </td>
-                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {rsi_color}; font-weight: 600;">
-                        {rsi_10:.1f}
-                    </td>
-                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {price_vs_ma_color}; font-weight: 600;">
-                        {price_vs_ma_label}
-                    </td>
-                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: left; color: #374151;">
-                        {gauge_classification}
-                    </td>
-                </tr>
-                """
+                SignalsBuilder._build_gauge_row(
+                    symbol,
+                    rsi_10,
+                    rsi_color,
+                    price_vs_ma_label,
+                    price_vs_ma_color,
+                    gauge_classification,
+                )
             )
 
         gauge_table = "".join(gauge_rows)
@@ -837,6 +822,84 @@ class SignalsBuilder:
         if rsi_value < RSI_OVERSOLD:
             return "oversold"
         return "neutral"
+
+    @staticmethod
+    def _collect_symbol_indicators(
+        strategy_signals: dict[Any, SignalData],
+    ) -> dict[str, TechnicalIndicators]:
+        """Collect all unique symbols and their technical indicators.
+
+        Args:
+            strategy_signals: Dictionary mapping strategy types to signal data
+
+        Returns:
+            Dictionary mapping symbols to their technical indicators
+
+        """
+        symbol_indicators: dict[str, TechnicalIndicators] = {}
+        for signal_data in strategy_signals.values():
+            technical_indicators = signal_data.get("technical_indicators", {})
+            for symbol, indicators in technical_indicators.items():
+                if symbol not in symbol_indicators:
+                    symbol_indicators[symbol] = indicators
+        return symbol_indicators
+
+    @staticmethod
+    def _has_conflicting_indicators(rsi_10: float, current_price: float, ma_200: float) -> bool:
+        """Check if RSI and price vs MA indicators conflict.
+
+        Args:
+            rsi_10: RSI(10) value
+            current_price: Current asset price
+            ma_200: 200-day moving average
+
+        Returns:
+            True if indicators conflict (e.g., RSI oversold but price above MA)
+
+        """
+        oversold_but_bullish = rsi_10 < RSI_OVERSOLD and current_price > ma_200
+        overbought_but_bearish = rsi_10 > RSI_OVERBOUGHT_CRITICAL and current_price < ma_200
+        return oversold_but_bullish or overbought_but_bearish
+
+    @staticmethod
+    def _build_gauge_row(
+        symbol: str,
+        rsi_10: float,
+        rsi_color: str,
+        price_vs_ma_label: str,
+        price_vs_ma_color: str,
+        gauge_classification: str,
+    ) -> str:
+        """Build a single gauge table row.
+
+        Args:
+            symbol: Stock symbol
+            rsi_10: RSI(10) value
+            rsi_color: Color for RSI display
+            price_vs_ma_label: Label for price vs MA comparison
+            price_vs_ma_color: Color for price vs MA display
+            gauge_classification: Composite gauge classification text
+
+        Returns:
+            HTML table row string
+
+        """
+        return f"""
+                <tr>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
+                        {symbol}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {rsi_color}; font-weight: 600;">
+                        {rsi_10:.1f}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {price_vs_ma_color}; font-weight: 600;">
+                        {price_vs_ma_label}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: left; color: #374151;">
+                        {gauge_classification}
+                    </td>
+                </tr>
+                """
 
     @staticmethod
     def _parse_condition(
