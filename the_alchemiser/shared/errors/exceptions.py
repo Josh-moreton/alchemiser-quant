@@ -320,7 +320,7 @@ class DataUnavailableError(MarketDataError):
         self.available_end_date = available_end_date
 
 
-class ValidationError(AlchemiserError):
+class ValidationError(AlchemiserError, ValueError):
     """Raised when data validation fails."""
 
     def __init__(
