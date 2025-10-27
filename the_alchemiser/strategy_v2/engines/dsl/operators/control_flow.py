@@ -129,6 +129,32 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
         - Captures decision node with condition, result, and branch info
 
     """
+    _validate_if_args(args, context)
+    condition, then_expr, else_expr = _parse_if_args(args)
+
+    condition_result = context.evaluate_node(condition, context.correlation_id, context.trace)
+    _log_condition_evaluation(context, condition_result, else_expr)
+
+    branch_taken, result = _evaluate_branch(condition_result, then_expr, else_expr, context)
+    _log_branch_result(context, branch_taken, result)
+
+    _capture_decision(condition, condition_result, branch_taken, context)
+    _publish_decision_event(condition, condition_result, branch_taken, result, context)
+
+    return result
+
+
+def _validate_if_args(args: list[ASTNode], context: DslContext) -> None:
+    """Validate if condition arguments.
+
+    Args:
+        args: List of AST nodes to validate
+        context: DSL evaluation context for logging
+
+    Raises:
+        DslEvaluationError: If fewer than 2 arguments provided
+
+    """
     if len(args) < 2:
         logger.error(
             "if requires at least 2 arguments",
@@ -140,13 +166,36 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
         )
         raise DslEvaluationError("if requires at least 2 arguments")
 
+
+def _parse_if_args(args: list[ASTNode]) -> tuple[ASTNode, ASTNode, ASTNode | None]:
+    """Parse if condition arguments.
+
+    Args:
+        args: List of AST nodes [condition, then_expr, else_expr?]
+
+    Returns:
+        Tuple of (condition, then_expr, else_expr)
+
+    """
     condition = args[0]
     then_expr = args[1]
     else_expr = args[2] if len(args) > 2 else None
+    return condition, then_expr, else_expr
 
-    # Evaluate condition
-    condition_result = context.evaluate_node(condition, context.correlation_id, context.trace)
 
+def _log_condition_evaluation(
+    context: DslContext,
+    condition_result: DSLValue,
+    else_expr: ASTNode | None,
+) -> None:
+    """Log condition evaluation details.
+
+    Args:
+        context: DSL evaluation context
+        condition_result: Result of evaluating the condition
+        else_expr: Optional else expression
+
+    """
     logger.debug(
         "Evaluating conditional expression",
         extra={
@@ -157,18 +206,51 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
         },
     )
 
-    # Determine branch
-    branch_taken: Literal["then", "else"]
+
+def _evaluate_branch(
+    condition_result: DSLValue,
+    then_expr: ASTNode,
+    else_expr: ASTNode | None,
+    context: DslContext,
+) -> tuple[Literal["then", "else"], DSLValue]:
+    """Evaluate the appropriate branch based on condition result.
+
+    Args:
+        condition_result: Result of evaluating the condition
+        then_expr: Expression to evaluate if condition is truthy
+        else_expr: Optional expression to evaluate if condition is falsy
+        context: DSL evaluation context
+
+    Returns:
+        Tuple of (branch_taken, result)
+
+    """
     if condition_result:
-        branch_taken = "then"
+        branch_taken: Literal["then", "else"] = "then"
         result = context.evaluate_node(then_expr, context.correlation_id, context.trace)
-    elif else_expr:
+        return branch_taken, result
+
+    if else_expr:
         branch_taken = "else"
         result = context.evaluate_node(else_expr, context.correlation_id, context.trace)
-    else:
-        branch_taken = "else"
-        result = None
+        return branch_taken, result
 
+    return "else", None
+
+
+def _log_branch_result(
+    context: DslContext,
+    branch_taken: str,
+    result: DSLValue,
+) -> None:
+    """Log branch evaluation result.
+
+    Args:
+        context: DSL evaluation context
+        branch_taken: Which branch was taken ("then" or "else")
+        result: Result of evaluating the branch
+
+    """
     logger.debug(
         "Conditional branch evaluated",
         extra={
@@ -179,22 +261,51 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
         },
     )
 
-    # Capture decision node for signal reasoning
+
+def _capture_decision(
+    condition: ASTNode,
+    condition_result: DSLValue,
+    branch_taken: str,
+    context: DslContext,
+) -> None:
+    """Capture decision node in context for signal reasoning.
+
+    Args:
+        condition: The condition AST node that was evaluated
+        condition_result: Result of evaluating the condition
+        branch_taken: Which branch was taken ("then" or "else")
+        context: DSL evaluation context
+
+    """
     decision_node = _build_decision_node(condition, bool(condition_result), branch_taken, context)
-    # Convert TypedDict to dict for storage in evaluator's decision_path list
     context.decision_path.append(dict(decision_node))
 
-    # Publish decision event for observability
+
+def _publish_decision_event(
+    condition: ASTNode,
+    condition_result: DSLValue,
+    branch_taken: Literal["then", "else"],
+    result: DSLValue,
+    context: DslContext,
+) -> None:
+    """Publish decision evaluated event for observability.
+
+    Args:
+        condition: The condition AST node that was evaluated
+        condition_result: Result of evaluating the condition
+        branch_taken: Which branch was taken ("then" or "else")
+        result: Result of evaluating the selected branch
+        context: DSL evaluation context
+
+    """
     context.event_publisher.publish_decision_evaluated(
         decision_expression=condition,
         condition_result=bool(condition_result),
         branch_taken=branch_taken,
         branch_result=(result if isinstance(result, PortfolioFragment) else None),
         correlation_id=context.correlation_id,
-        causation_id=context.correlation_id,  # Explicitly set causation_id
+        causation_id=context.correlation_id,
     )
-
-    return result
 
 
 def _build_decision_node(
@@ -441,12 +552,40 @@ def create_indicator_with_symbol(indicator_expr: ASTNode, symbol: str) -> ASTNod
         - Adds default window parameter if missing (per indicator type)
 
     """
-    if not indicator_expr.is_list() or not indicator_expr.children:
+    if not _is_valid_indicator_expr(indicator_expr):
         return indicator_expr
 
-    # For RSI indicator, create: (rsi "SYMBOL" {:window N})
     func_name = indicator_expr.children[0].get_symbol_name()
-    if func_name in {
+    if not func_name or not _is_recognized_indicator(func_name):
+        return indicator_expr
+
+    return _build_indicator_node(indicator_expr, func_name, symbol)
+
+
+def _is_valid_indicator_expr(indicator_expr: ASTNode) -> bool:
+    """Check if expression is a valid indicator expression.
+
+    Args:
+        indicator_expr: AST node to check
+
+    Returns:
+        True if the expression is a non-empty list node
+
+    """
+    return indicator_expr.is_list() and bool(indicator_expr.children)
+
+
+def _is_recognized_indicator(func_name: str) -> bool:
+    """Check if function name is a recognized indicator.
+
+    Args:
+        func_name: The function name to check
+
+    Returns:
+        True if the function is a recognized indicator
+
+    """
+    return func_name in {
         "rsi",
         "moving-average-price",
         "moving-average-return",
@@ -454,28 +593,53 @@ def create_indicator_with_symbol(indicator_expr: ASTNode, symbol: str) -> ASTNod
         "exponential-moving-average-price",
         "stdev-return",
         "max-drawdown",
-    }:
-        children = [ASTNode.symbol(func_name), ASTNode.atom(symbol)]
-        # Add parameters if present
-        if len(indicator_expr.children) > 1:
-            children.append(indicator_expr.children[1])
-        else:
-            # Add default window parameter per indicator
-            default_window = DEFAULT_INDICATOR_WINDOWS.get(func_name, 10)
+    }
 
-            children.append(
-                ASTNode.list_node(
-                    [
-                        ASTNode.symbol(":window"),
-                        ASTNode.atom(Decimal(str(default_window))),
-                    ],
-                    metadata={"node_subtype": "map"},
-                )
-            )
 
-        return ASTNode.list_node(children)
+def _build_indicator_node(
+    indicator_expr: ASTNode,
+    func_name: str,
+    symbol: str,
+) -> ASTNode:
+    """Build a new indicator node with symbol injected.
 
-    return indicator_expr
+    Args:
+        indicator_expr: Original indicator expression
+        func_name: Name of the indicator function
+        symbol: Stock symbol to inject
+
+    Returns:
+        New ASTNode with symbol and parameters
+
+    """
+    children = [ASTNode.symbol(func_name), ASTNode.atom(symbol)]
+
+    if len(indicator_expr.children) > 1:
+        children.append(indicator_expr.children[1])
+    else:
+        children.append(_create_default_window_param(func_name))
+
+    return ASTNode.list_node(children)
+
+
+def _create_default_window_param(func_name: str) -> ASTNode:
+    """Create default window parameter node for an indicator.
+
+    Args:
+        func_name: Name of the indicator function
+
+    Returns:
+        ASTNode representing default window parameter map
+
+    """
+    default_window = DEFAULT_INDICATOR_WINDOWS.get(func_name, 10)
+    return ASTNode.list_node(
+        [
+            ASTNode.symbol(":window"),
+            ASTNode.atom(Decimal(str(default_window))),
+        ],
+        metadata={"node_subtype": "map"},
+    )
 
 
 def register_control_flow_operators(dispatcher: DslDispatcher) -> None:
