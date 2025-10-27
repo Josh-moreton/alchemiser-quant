@@ -235,7 +235,7 @@ class EventBus:
                 raise TypeConversionError(
                     "Unsupported handler type",
                     source_type=type(handler).__name__,
-                    target_type="EventHandler or Callable",
+                    target_type="EventHandler | Callable",
                 )
             return (True, False)  # Successfully invoked, no error
 

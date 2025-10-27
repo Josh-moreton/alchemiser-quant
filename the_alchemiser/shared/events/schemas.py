@@ -359,9 +359,10 @@ class TradingNotificationRequested(BaseEvent):
             return Decimal(str(v))
         if isinstance(v, str):
             return Decimal(v)
+        type_name = type(v).__name__
         raise TypeConversionError(
-            f"Cannot convert {type(v).__name__} to Decimal",
-            source_type=type(v).__name__,
+            f"Cannot convert {type_name} to Decimal",
+            source_type=type_name,
             target_type="Decimal",
             value=str(v),
         )

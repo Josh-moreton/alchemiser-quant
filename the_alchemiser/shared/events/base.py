@@ -92,16 +92,17 @@ class BaseEvent(BaseModel):
         """
         # Convert string timestamp back to datetime
         if "timestamp" in data and isinstance(data["timestamp"], str):
+            timestamp_value = data["timestamp"]
             try:
-                timestamp_str = data["timestamp"]
+                timestamp_str = timestamp_value
                 if timestamp_str.endswith("Z"):
                     timestamp_str = timestamp_str[:-1] + UTC_TIMEZONE_SUFFIX
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
                 raise ValidationError(
-                    f"Invalid timestamp format: {data['timestamp']}",
+                    f"Invalid timestamp format: {timestamp_value}",
                     field_name="timestamp",
-                    value=data["timestamp"],
+                    value=timestamp_value,
                 ) from e
 
         return cls(**data)
