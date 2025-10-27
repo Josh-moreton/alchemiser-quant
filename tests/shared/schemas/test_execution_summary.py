@@ -523,7 +523,14 @@ class TestExecutionSummary:
             )
 
     def test_empty_strategy_summary_allowed(self, sample_account_info):
-        """Test that empty strategy_summary dict is allowed for initialization/error states."""
+        """Test that empty strategy_summary dict is allowed for initialization/error states.
+
+        Empty strategy_summary is valid in scenarios such as:
+        - System initialization before strategies are executed
+        - Error states where strategy execution failed before generating summaries
+        - Partial execution where strategy data is not yet available
+        This allows MultiStrategyExecutionResult to be created in these edge cases.
+        """
         allocations = AllocationSummary(
             total_allocation=Decimal("95.50"),
             num_positions=5,
