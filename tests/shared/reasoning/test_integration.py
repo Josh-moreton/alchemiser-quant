@@ -7,6 +7,9 @@ import pytest
 
 from the_alchemiser.shared.reasoning import NaturalLanguageGenerator
 
+# Maximum reasoning length constraint from StrategySignal.reasoning field
+MAX_REASONING_LENGTH = 1000
+
 
 @pytest.mark.integration
 class TestNaturalLanguageGenerationIntegration:
@@ -208,8 +211,10 @@ class TestNaturalLanguageGenerationIntegration:
 
         result = generator.generate_reasoning(decision_path, allocation, "Strategy")
 
-        # Should be reasonably concise (under 1000 chars as per StrategySignal.reasoning)
-        assert len(result) < 1000, "Reasoning should be under 1000 characters"
+        # Should be reasonably concise (under MAX_REASONING_LENGTH as per StrategySignal.reasoning)
+        assert (
+            len(result) < MAX_REASONING_LENGTH
+        ), f"Reasoning should be under {MAX_REASONING_LENGTH} characters"
 
     def test_special_characters_handling(self, generator):
         """Test handling of special characters in conditions."""
