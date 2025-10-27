@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence, Set
 from dataclasses import asdict, is_dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Protocol, cast
 
@@ -35,6 +36,7 @@ def to_serializable(value: object) -> object:
 
     Policy:
     - Decimal -> str (exact representation)
+    - datetime/date -> ISO8601 string
     - Objects with model_dump() -> recurse over dumped dict
     - Dataclass instances -> asdict() then recurse
     - Mapping -> recurse key/values
@@ -43,6 +45,12 @@ def to_serializable(value: object) -> object:
     """
     if isinstance(value, Decimal):
         return str(value)
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    if isinstance(value, date):
+        return value.isoformat()
 
     if _is_model_dump_obj(value):  # Pydantic or similar
         try:
