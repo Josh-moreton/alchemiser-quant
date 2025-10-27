@@ -408,12 +408,10 @@ class TradeLedgerService:
                 ):
                     signal_id = signal.get("signal_id")
                     if signal_id:
-                        # Get existing trade IDs and append this one
-                        existing_trade_ids = signal.get("executed_trade_ids", [])
-                        updated_trade_ids = existing_trade_ids + [entry.order_id]
-
+                        # Atomically append this trade ID to the signal's executed_trade_ids
+                        # The repository uses list_append to prevent race conditions
                         self._repository.update_signal_lifecycle(
-                            signal_id, "EXECUTED", updated_trade_ids
+                            signal_id, "EXECUTED", [entry.order_id]
                         )
 
                         logger.debug(

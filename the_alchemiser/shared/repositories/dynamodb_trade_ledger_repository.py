@@ -677,14 +677,23 @@ class DynamoDBTradeLedgerRepository:
             return []
 
     def update_signal_lifecycle(
-        self, signal_id: str, new_state: str, trade_ids: list[str] | None = None
+        self,
+        signal_id: str,
+        new_state: str,
+        trade_ids: list[str] | None = None,
     ) -> None:
         """Update signal lifecycle state and optionally link to executed trades.
+
+        Uses atomic list append to prevent race conditions when multiple trades
+        execute concurrently for the same signal. The list_append operation ensures
+        that trade IDs are appended atomically without read-modify-write races.
 
         Args:
             signal_id: Signal identifier
             new_state: New lifecycle state
-            trade_ids: Optional list of trade IDs to link to this signal
+            trade_ids: Optional list of trade IDs to atomically append to the signal's
+                      executed_trade_ids list. Each trade ID will be appended individually
+                      to support concurrent updates.
 
         """
         try:
@@ -705,8 +714,14 @@ class DynamoDBTradeLedgerRepository:
             expression_values[":gsi4sk"] = f"SIGNAL#{timestamp_str}#{signal_id}"
 
             if trade_ids is not None:
-                update_expression += ", executed_trade_ids = :trade_ids"
+                # Use SET with list_append for atomic append operation
+                # This prevents race conditions when multiple trades execute concurrently
+                update_expression += (
+                    ", executed_trade_ids = "
+                    "list_append(if_not_exists(executed_trade_ids, :empty_list), :trade_ids)"
+                )
                 expression_values[":trade_ids"] = trade_ids
+                expression_values[":empty_list"] = []
 
             self._table.update_item(
                 Key={"PK": f"SIGNAL#{signal_id}", "SK": "METADATA"},
