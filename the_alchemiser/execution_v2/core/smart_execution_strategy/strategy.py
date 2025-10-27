@@ -577,7 +577,6 @@ class SmartExecutionStrategy:
                 "order_id": result.order_id,
                 "price": str(optimal_price),
                 "strategy": analysis_metadata["strategy_recommendation"],
-                "confidence": analysis_metadata["confidence"],
                 "correlation_id": request.correlation_id,
             },
         )
