@@ -247,6 +247,22 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
+  # Minimal Lambda Layer for Report Generator dependencies
+  ReportDependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-report-dependencies"
+        - !Sub "the-alchemiser-report-dependencies-${Stage}"
+      Description: Minimal dependencies for Report Generator (jinja2, pydantic, di, structlog)
+      ContentUri: dependencies-report/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   TradingSystemFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -344,7 +360,7 @@ Resources:
       Architectures:
         - x86_64
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref ReportDependenciesLayer
         - arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
       Timeout: 300  # 5 minutes for PDF generation
       MemorySize: 1024
