@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.shared.errors import ReportGenerationError
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
     ErrorNotificationRequested,
@@ -347,9 +348,7 @@ class NotificationService:
             # Build S3 attachments list
             s3_attachments = None
             if pdf_s3_uri:
-                s3_attachments = [
-                    ("Trading_Execution_Report.pdf", pdf_s3_uri, "application/pdf")
-                ]
+                s3_attachments = [("Trading_Execution_Report.pdf", pdf_s3_uri, "application/pdf")]
 
             # Use simplified email template (Hargreaves Lansdown style)
             html_content = EmailTemplates.simple_trading_notification(
@@ -435,11 +434,19 @@ class NotificationService:
 
         if response_payload.get("status") != "success":
             error_msg = response_payload.get("message", "Unknown error")
-            raise Exception(f"Report generation failed: {error_msg}")
+            raise ReportGenerationError(
+                f"Report generation failed: {error_msg}",
+                report_type="trading_execution",
+                correlation_id=correlation_id,
+            )
 
         s3_uri_value = response_payload.get("s3_uri")
         if not s3_uri_value or not isinstance(s3_uri_value, str):
-            raise Exception("Report generation did not return a valid S3 URI")
+            raise ReportGenerationError(
+                "Report generation did not return a valid S3 URI",
+                report_type="trading_execution",
+                correlation_id=correlation_id,
+            )
 
         s3_uri: str = s3_uri_value
         self.logger.info(

@@ -239,9 +239,7 @@ class ExecutionReportService:
 
         return formatted_signals
 
-    def _format_portfolio_allocations(
-        self, portfolio: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _format_portfolio_allocations(self, portfolio: dict[str, Any]) -> list[dict[str, Any]]:
         """Format portfolio allocations for template.
 
         Args:

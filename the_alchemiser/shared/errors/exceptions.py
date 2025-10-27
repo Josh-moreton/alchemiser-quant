@@ -504,3 +504,31 @@ class HandlerInvocationError(EventBusError):
         if original_error:
             self.context["original_error"] = str(original_error)
             self.context["original_error_type"] = type(original_error).__name__
+
+
+class ReportGenerationError(AlchemiserError):
+    """Raised when PDF report generation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        report_type: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize report generation error with context.
+
+        Args:
+            message: Error message
+            report_type: Type of report being generated (e.g., "trading_execution", "account_summary")
+            correlation_id: Correlation ID for tracing
+
+        """
+        context: dict[str, Any] = {}
+        if report_type:
+            context["report_type"] = report_type
+        if correlation_id:
+            context["correlation_id"] = correlation_id
+
+        super().__init__(message, context)
+        self.report_type = report_type
+        self.correlation_id = correlation_id
