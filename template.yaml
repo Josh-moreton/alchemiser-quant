@@ -336,38 +336,19 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-report-generator"
         - !Sub "the-alchemiser-report-generator-${Stage}"
-      PackageType: Zip
-      Runtime: python3.12
-      CodeUri: ./
-      Handler: the_alchemiser.reporting.lambda_handler.lambda_handler
+      PackageType: Image
       Role: !GetAtt ReportGeneratorExecutionRole.Arn
-      Layers:
-        - !Ref DependenciesLayer
       Timeout: 300  # 5 minutes for PDF generation
-      MemorySize: 1024  # More memory for Playwright
+      MemorySize: 2048  # More memory for Playwright + browser
       Environment:
         Variables:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           REPORTS_S3_BUCKET: !Ref ReportsBucket
           LOGGING__LEVEL: !Ref LoggingLevel
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.html'
-          - 'the_alchemiser/**/*.css'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      Dockerfile: Dockerfile.reporting
+      DockerContext: ./
+      DockerTag: python3.12-v1
 
   # IAM Role for Report Generator Lambda
   ReportGeneratorExecutionRole:
