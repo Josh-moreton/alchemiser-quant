@@ -523,6 +523,26 @@ class RealTimeStreamManager:
         self.logger.info("Stream closed normally")
         return retry_count, True
 
+    def _process_stream_exception(self, exception: Exception, retry_count: int) -> tuple[int, bool]:
+        """Process exceptions from stream connection attempts.
+
+        Args:
+            exception: The exception that occurred
+            retry_count: Current retry attempt count
+
+        Returns:
+            Tuple of (updated_retry_count, should_continue)
+
+        """
+        if isinstance(exception, KeyboardInterrupt):
+            self.logger.info("Stream interrupted by user")
+            return retry_count, False
+
+        if isinstance(exception, (OSError, RuntimeError)):
+            return self._handle_stream_error(exception, retry_count)
+
+        return self._handle_unexpected_error(exception, retry_count)
+
     def _run_stream_blocking(self) -> None:
         """Run the WebSocket stream using SDK's public blocking API.
 
@@ -542,18 +562,8 @@ class RealTimeStreamManager:
                 retry_count, should_break = self._attempt_stream_connection(retry_count)
                 if should_break:
                     break
-
-            except KeyboardInterrupt:
-                self.logger.info("Stream interrupted by user")
-                break
-
-            except (OSError, RuntimeError) as e:
-                retry_count, should_continue = self._handle_stream_error(e, retry_count)
-                if not should_continue:
-                    break
-
             except Exception as e:
-                retry_count, should_continue = self._handle_unexpected_error(e, retry_count)
+                retry_count, should_continue = self._process_stream_exception(e, retry_count)
                 if not should_continue:
                     break
 
