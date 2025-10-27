@@ -135,6 +135,8 @@ class TradeLedgerService:
         if self._repository:
             try:
                 self._repository.put_trade(entry, self._ledger_id)
+                # Update linked signals to EXECUTED state
+                self._update_signal_lifecycle(entry, correlation_id)
             except DynamoDBException as e:
                 logger.error(
                     "Failed to write trade to DynamoDB - trade in memory only",
@@ -370,3 +372,62 @@ class TradeLedgerService:
     def total_entries(self) -> int:
         """Get total number of entries recorded in current run."""
         return len(self._entries)
+
+    def _update_signal_lifecycle(self, entry: TradeLedgerEntry, correlation_id: str) -> None:
+        """Update signal lifecycle state to EXECUTED after trade is recorded.
+
+        Links the trade to originating signals via correlation_id.
+
+        Args:
+            entry: Trade ledger entry that was just recorded
+            correlation_id: Correlation ID linking trade to signals
+
+        """
+        if not self._repository:
+            return
+
+        try:
+            # Query signals for this correlation_id
+            signals = self._repository.query_signals_by_correlation(correlation_id)
+
+            if not signals:
+                logger.debug(
+                    "No signals found for correlation_id - trade may not have originated from signal",
+                    correlation_id=correlation_id,
+                    order_id=entry.order_id,
+                )
+                return
+
+            # Update signals matching this trade's symbol and action
+            for signal in signals:
+                # Only update signals that match this trade
+                if (
+                    signal.get("symbol") == entry.symbol
+                    and signal.get("action") == entry.direction
+                    and signal.get("lifecycle_state") == "GENERATED"
+                ):
+                    signal_id = signal.get("signal_id")
+                    if signal_id:
+                        # Get existing trade IDs and append this one
+                        existing_trade_ids = signal.get("executed_trade_ids", [])
+                        updated_trade_ids = existing_trade_ids + [entry.order_id]
+
+                        self._repository.update_signal_lifecycle(
+                            signal_id, "EXECUTED", updated_trade_ids
+                        )
+
+                        logger.debug(
+                            "Updated signal lifecycle to EXECUTED",
+                            signal_id=signal_id,
+                            order_id=entry.order_id,
+                            symbol=entry.symbol,
+                        )
+
+        except Exception as e:
+            # Log error but don't fail the trade recording
+            logger.warning(
+                f"Failed to update signal lifecycle: {e}",
+                correlation_id=correlation_id,
+                order_id=entry.order_id,
+                error_type=type(e).__name__,
+            )

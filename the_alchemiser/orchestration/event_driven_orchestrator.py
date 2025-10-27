@@ -807,6 +807,9 @@ class EventDrivenOrchestrator:
             event.correlation_id, start_time or event.timestamp, event.timestamp
         )
 
+        # Mark unexecuted signals as IGNORED
+        self._mark_ignored_signals(event.correlation_id)
+
         # Update workflow state
         self.workflow_state["last_successful_workflow"] = event.workflow_type
         self.workflow_state["active_correlations"].discard(event.correlation_id)
@@ -903,6 +906,66 @@ class EventDrivenOrchestrator:
             self.logger.error(
                 f"Failed to generate account snapshot: {e}",
                 extra={"correlation_id": correlation_id},
+            )
+
+    def _mark_ignored_signals(self, correlation_id: str) -> None:
+        """Mark unexecuted signals as IGNORED at workflow completion.
+
+        Args:
+            correlation_id: Workflow correlation ID
+
+        """
+        try:
+            from the_alchemiser.shared.config.config import load_settings
+            from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
+                DynamoDBTradeLedgerRepository,
+            )
+
+            # Get table name from settings
+            settings = load_settings()
+            table_name = settings.trade_ledger.table_name
+
+            if not table_name:
+                self.logger.debug(
+                    "Trade ledger table not configured - skipping signal lifecycle updates",
+                    correlation_id=correlation_id,
+                )
+                return
+
+            # Create repository
+            repository = DynamoDBTradeLedgerRepository(table_name)
+
+            # Query all signals for this correlation_id
+            signals = repository.query_signals_by_correlation(correlation_id)
+
+            if not signals:
+                self.logger.debug(
+                    "No signals found for correlation_id",
+                    correlation_id=correlation_id,
+                )
+                return
+
+            # Mark GENERATED signals as IGNORED (EXECUTED signals are already updated)
+            ignored_count = 0
+            for signal in signals:
+                if signal.get("lifecycle_state") == "GENERATED":
+                    signal_id = signal.get("signal_id")
+                    if signal_id:
+                        repository.update_signal_lifecycle(signal_id, "IGNORED", None)
+                        ignored_count += 1
+
+            if ignored_count > 0:
+                self.logger.info(
+                    f"Marked {ignored_count} unexecuted signals as IGNORED",
+                    correlation_id=correlation_id,
+                    ignored_count=ignored_count,
+                )
+
+        except Exception as e:
+            # Don't fail workflow on signal lifecycle update errors
+            self.logger.warning(
+                f"Failed to mark ignored signals: {e}",
+                extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
             )
 
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
