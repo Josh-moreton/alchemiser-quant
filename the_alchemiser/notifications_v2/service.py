@@ -315,6 +315,19 @@ class NotificationService:
         Args:
             event: The trading notification event
 
+        Note:
+            This implementation uses simplified email templates in the style of
+            Hargreaves Lansdown notifications - clean, professional, and minimal.
+            
+            TODO: Implement PDF report generation from execution data
+            - Create ReportGeneratorService method to generate PDFs from execution data
+            - Store PDF in S3 and get S3 URI
+            - Pass S3 URI to send_email_notification via s3_attachments parameter
+            - Set pdf_attached=True in simple_trading_notification call
+            
+            This will provide detailed execution information in a PDF attachment
+            while keeping the email body simple and clean.
+
         """
         self._log_event_context(
             event, f"Sending trading notification: success={event.trading_success}"
