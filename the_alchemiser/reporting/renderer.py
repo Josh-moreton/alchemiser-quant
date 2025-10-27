@@ -238,3 +238,54 @@ class ReportRenderer:
             "recent_orders": recent_orders,
             "report_version": report_metadata.get("report_version", "1.0"),
         }
+
+    def render_execution_pdf(
+        self,
+        context: dict[str, Any],
+        output_path: str | Path | None = None,
+    ) -> tuple[bytes, dict[str, Any]]:
+        """Render execution report PDF from context.
+
+        Args:
+            context: Execution report context with strategy signals, orders, etc.
+            output_path: Optional path to save PDF locally
+
+        Returns:
+            Tuple of (pdf_bytes, metadata) where metadata includes:
+            - file_size_bytes: Size of PDF
+            - generation_time_ms: Time taken to generate
+
+        """
+        start_time = time.time()
+        logger.info("Rendering execution PDF report")
+
+        # Load execution report template
+        template = self.jinja_env.get_template("execution_report.html")
+        html_content = str(template.render(**context))
+
+        # Convert to PDF using Playwright
+        pdf_bytes = self._html_to_pdf_with_playwright(html_content)
+
+        # Calculate generation time and file size
+        generation_time_ms = int((time.time() - start_time) * 1000)
+        file_size_bytes = len(pdf_bytes)
+
+        metadata = {
+            "generation_time_ms": generation_time_ms,
+            "file_size_bytes": file_size_bytes,
+        }
+
+        # Save to file if path provided
+        if output_path:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(pdf_bytes)
+            logger.info("Execution PDF saved to file", path=str(output_path))
+
+        logger.info(
+            "Execution PDF rendered successfully",
+            generation_time_ms=generation_time_ms,
+            file_size_bytes=file_size_bytes,
+        )
+
+        return pdf_bytes, metadata

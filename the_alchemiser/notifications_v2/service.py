@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.shared.errors import ReportGenerationError
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
     ErrorNotificationRequested,
@@ -319,14 +320,8 @@ class NotificationService:
             This implementation uses simplified email templates in the style of
             Hargreaves Lansdown notifications - clean, professional, and minimal.
 
-            TODO: Implement PDF report generation from execution data
-            - Create ReportGeneratorService method to generate PDFs from execution data
-            - Store PDF in S3 and get S3 URI
-            - Pass S3 URI to send_email_notification via s3_attachments parameter
-            - Set pdf_attached=True in simple_trading_notification call
-
-            This will provide detailed execution information in a PDF attachment
-            while keeping the email body simple and clean.
+            Generates PDF report from execution data if available and attaches
+            to the notification email.
 
         """
         self._log_event_context(
@@ -334,39 +329,132 @@ class NotificationService:
         )
 
         try:
+            # Generate PDF report from execution data
+            pdf_s3_uri = None
+            if event.trading_success and event.execution_data:
+                try:
+                    pdf_s3_uri = self._generate_execution_report(
+                        execution_data=event.execution_data,
+                        trading_mode=event.trading_mode,
+                        correlation_id=event.correlation_id,
+                    )
+                except Exception as pdf_error:
+                    # Log but don't fail the notification
+                    self.logger.warning(
+                        f"Failed to generate PDF report: {pdf_error}",
+                        extra={"correlation_id": event.correlation_id},
+                    )
+
+            # Build S3 attachments list
+            s3_attachments = None
+            if pdf_s3_uri:
+                s3_attachments = [("Trading_Execution_Report.pdf", pdf_s3_uri, "application/pdf")]
+
             # Use simplified email template (Hargreaves Lansdown style)
-            # TODO: Generate PDF report from execution data and attach to email
-            # For now, sending simplified email without PDF attachment
             html_content = EmailTemplates.simple_trading_notification(
                 success=event.trading_success,
                 mode=event.trading_mode,
                 orders_count=event.orders_placed,
                 correlation_id=event.correlation_id,
-                pdf_attached=False,  # TODO: Set to True once PDF generation is implemented
+                pdf_attached=(pdf_s3_uri is not None),
             )
 
             # Build subject line
             subject = self._build_trading_subject(event)
 
             # Send notification
-            # TODO: Add s3_attachments parameter once PDF generation is implemented
             success = send_email_notification(
                 subject=subject,
                 html_content=html_content,
                 text_content=f"Trading execution completed. Success: {event.trading_success}",
                 recipient_email=event.recipient_override,
+                s3_attachments=s3_attachments,
             )
 
             if success:
                 self._log_event_context(
                     event,
-                    f"Simplified trading notification sent successfully (success={event.trading_success})",
+                    f"Simplified trading notification sent successfully (success={event.trading_success}, pdf_attached={pdf_s3_uri is not None})",
                 )
             else:
                 self._log_event_context(event, "Failed to send trading notification email", "error")
 
         except Exception as e:
             self._log_event_context(event, f"Failed to send trading notification: {e}", "error")
+
+    def _generate_execution_report(
+        self, execution_data: dict[str, object], trading_mode: str, correlation_id: str
+    ) -> str:
+        """Generate PDF report via reporting Lambda.
+
+        Args:
+            execution_data: Execution data to generate report from
+            trading_mode: Trading mode (PAPER or LIVE)
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            S3 URI of the generated PDF report
+
+        Raises:
+            Exception: If report generation fails
+
+        """
+        import json
+        import os
+
+        import boto3
+
+        stage = os.environ.get("STAGE", "dev")
+        lambda_function_name = f"the-alchemiser-report-generator-{stage}"
+
+        lambda_event = {
+            "report_type": "trading_execution",
+            "execution_data": execution_data,
+            "trading_mode": trading_mode,
+            "correlation_id": correlation_id,
+            "generate_from_execution": True,
+        }
+
+        self.logger.info(
+            "Invoking reporting Lambda",
+            extra={
+                "lambda_function": lambda_function_name,
+                "correlation_id": correlation_id,
+            },
+        )
+
+        lambda_client = boto3.client("lambda")
+        response = lambda_client.invoke(
+            FunctionName=lambda_function_name,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(lambda_event),
+        )
+
+        response_payload = json.loads(response["Payload"].read())
+
+        if response_payload.get("status") != "success":
+            error_msg = response_payload.get("message", "Unknown error")
+            raise ReportGenerationError(
+                f"Report generation failed: {error_msg}",
+                report_type="trading_execution",
+                correlation_id=correlation_id,
+            )
+
+        s3_uri_value = response_payload.get("s3_uri")
+        if not s3_uri_value or not isinstance(s3_uri_value, str):
+            raise ReportGenerationError(
+                "Report generation did not return a valid S3 URI",
+                report_type="trading_execution",
+                correlation_id=correlation_id,
+            )
+
+        s3_uri: str = s3_uri_value
+        self.logger.info(
+            "PDF report generated successfully",
+            extra={"s3_uri": s3_uri, "correlation_id": correlation_id},
+        )
+
+        return s3_uri
 
     def _build_success_trading_email(self, event: TradingNotificationRequested) -> str:
         """Build HTML content for successful trading notification.
