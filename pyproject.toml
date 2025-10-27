@@ -126,7 +126,7 @@ max-complexity = 15
 known-first-party = [ "the_alchemiser",]
 
 [tool.poetry.group.dev.dependencies]
-pyarrow = "^21.0.0"
+pyarrow = "^22.0.0"
 ruff = ">=0.1.0"
 mypy = ">=1.0.0"
 pre-commit = "^4.3.0"
