@@ -22,9 +22,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.settlement_details import SettlementDetails
-from the_alchemiser.shared.errors.exceptions import (
+from the_alchemiser.shared.errors import (
     DataProviderError,
+    SettlementError,
     TradingClientError,
+    ValidationError,
 )
 from the_alchemiser.shared.events import (
     BulkSettlementCompleted,
@@ -67,15 +69,23 @@ class SettlementMonitor:
         """
         # Validate timeout parameters
         if polling_interval_seconds <= 0:
-            raise ValueError(
-                f"polling_interval_seconds must be positive, got {polling_interval_seconds}"
+            raise ValidationError(
+                f"polling_interval_seconds must be positive, got {polling_interval_seconds}",
+                field_name="polling_interval_seconds",
+                value=polling_interval_seconds,
             )
         if max_wait_seconds <= 0:
-            raise ValueError(f"max_wait_seconds must be positive, got {max_wait_seconds}")
+            raise ValidationError(
+                f"max_wait_seconds must be positive, got {max_wait_seconds}",
+                field_name="max_wait_seconds",
+                value=max_wait_seconds,
+            )
         if polling_interval_seconds >= max_wait_seconds:
-            raise ValueError(
+            raise ValidationError(
                 f"polling_interval_seconds ({polling_interval_seconds}) must be less than "
-                f"max_wait_seconds ({max_wait_seconds})"
+                f"max_wait_seconds ({max_wait_seconds})",
+                field_name="polling_interval_seconds",
+                value=polling_interval_seconds,
             )
 
         self.alpaca_manager = alpaca_manager
