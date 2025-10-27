@@ -45,6 +45,18 @@ Each audit includes:
 - Prioritized action plan with phases
 - Links to full detailed report
 
+## 📁 Directory Structure
+
+### [2025-10](2025-10/)
+October 2025 audits.
+
+### [2025-01](2025-01/)
+January 2025 audits.
+- [WebSocket Connection Manager (2025-01-07)](2025-01/)
+
+### [Archive](archive/)
+Historical audits from previous years.
+
 ## Current Audits
 
 ### 1. WebSocket Connection Manager (2025-01-07)
