@@ -256,7 +256,10 @@ class DslStrategyEngine:
                 # Falls back to simple allocation string if no decision path
                 if _decision_path:
                     # Use decision path reasoning for contextual explanation
-                    reasoning = self._build_decision_reasoning(_decision_path, weight)
+                    # Pass full allocation and strategy name for better context
+                    reasoning = self._build_decision_reasoning(
+                        _decision_path, weight, per_file_weights, strategy_name
+                    )
                 else:
                     # Fallback: show symbol allocation
                     reasoning = f"{strategy_name} allocation: {weight:.1%}"
@@ -325,7 +328,9 @@ class DslStrategyEngine:
                 else:
                     strategy_display = primary_strategy
                     # Build reasoning from decision path if available
-                    reasoning = self._build_decision_reasoning(decision_path, weight)
+                    reasoning = self._build_decision_reasoning(
+                        decision_path, weight, consolidated, primary_strategy
+                    )
 
                 signals.append(
                     StrategySignal(
@@ -597,12 +602,16 @@ class DslStrategyEngine:
         self,
         decision_path: list[dict[str, Any]] | None,
         weight: float,
+        allocation: dict[str, float] | None = None,
+        strategy_name: str | None = None,
     ) -> str:
         """Build human-readable reasoning from decision path.
 
         Args:
             decision_path: List of decision nodes captured during evaluation
             weight: Allocation weight
+            allocation: Optional full allocation dict for context
+            strategy_name: Optional strategy name for context
 
         Returns:
             Human-readable reasoning string (max 1000 chars)
@@ -612,7 +621,50 @@ class DslStrategyEngine:
         if not decision_path:
             return f"{weight:.1%} allocation"
 
-        # Build reasoning from decision path
+        # Try natural language generation
+        try:
+            from the_alchemiser.shared.reasoning import NaturalLanguageGenerator
+
+            nl_generator = NaturalLanguageGenerator()
+
+            # Build allocation dict if not provided (single symbol case)
+            if allocation is None:
+                allocation = {}  # Will be handled by generator
+
+            narrative = nl_generator.generate_reasoning(
+                decision_path=decision_path,
+                allocation=allocation,
+                strategy_name=strategy_name or "Strategy",
+            )
+
+            # Use narrative if it looks good (no technical symbols)
+            if narrative and "✓" not in narrative and "→" not in narrative:
+                return narrative[:1000]  # Truncate to max length
+
+        except (ImportError, Exception) as e:
+            self.logger.warning(
+                f"Natural language generation failed, using legacy format: {e}",
+                extra={"error_type": type(e).__name__},
+            )
+
+        # Fallback to legacy format
+        return self._build_legacy_reasoning(decision_path, weight)
+
+    def _build_legacy_reasoning(
+        self,
+        decision_path: list[dict[str, Any]],
+        weight: float,
+    ) -> str:
+        """Build reasoning using legacy format (backward compatibility).
+
+        Args:
+            decision_path: List of decision nodes
+            weight: Allocation weight
+
+        Returns:
+            Legacy format reasoning string
+
+        """
         reasoning_parts = []
 
         # Add key decisions (limit to most important ones to stay under 1000 chars)

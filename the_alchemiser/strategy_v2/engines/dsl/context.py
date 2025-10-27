@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class DecisionNode(TypedDict):
+class DecisionNode(TypedDict, total=False):
     """Represents a single decision point in strategy evaluation.
 
     Attributes:
@@ -38,13 +38,31 @@ class DecisionNode(TypedDict):
         values: Dictionary mapping indicator references to their values.
             Values may be placeholder strings like "<computed>" when actual
             values are not available without re-evaluation.
+        condition_type: Type of condition (e.g., "rsi_check", "ma_comparison", "price_check")
+        symbols_involved: List of symbols referenced in condition (e.g., ["SPY", "TQQQ"])
+        operator_type: Type of comparison operator (e.g., "greater_than", "less_than", "and", "or")
+        threshold: Numeric threshold value for comparisons (e.g., 79.0 for "RSI > 79")
+        indicator_name: Name of indicator function (e.g., "rsi", "moving_average", "current_price")
+        indicator_params: Parameters passed to indicator function (e.g., {"window": 10})
+        market_context: Overall market sentiment (e.g., "bullish", "bearish", "neutral", "volatile")
+        strategic_intent: Strategic positioning (e.g., "risk_on", "risk_off", "defensive")
 
     """
 
+    # Required fields
     condition: str
     result: bool
     branch: str
     values: dict[str, Any]
+    # Optional fields for natural language generation
+    condition_type: str
+    symbols_involved: list[str]
+    operator_type: str
+    threshold: float | None
+    indicator_name: str | None
+    indicator_params: dict[str, Any] | None
+    market_context: str | None
+    strategic_intent: str | None
 
 
 class DslContext:
