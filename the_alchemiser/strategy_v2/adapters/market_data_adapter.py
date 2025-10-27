@@ -14,7 +14,13 @@ from decimal import Decimal
 from typing import Protocol
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.errors.exceptions import DataProviderError, MarketDataError
+from the_alchemiser.shared.errors import (
+    DataProviderError,
+    MarketDataError,
+    SymbolValidationError,
+    TimeframeValidationError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.shared.services.market_data_service import MarketDataService
@@ -125,11 +131,15 @@ class StrategyMarketDataAdapter:
         """
         # Input validation
         if not symbols:
-            raise ValueError("symbols list cannot be empty")
+            raise SymbolValidationError("symbols list cannot be empty", reason="Empty symbols list")
         if lookback_days <= 0:
-            raise ValueError(f"lookback_days must be > 0, got {lookback_days}")
+            raise ValidationError(
+                f"lookback_days must be > 0, got {lookback_days}",
+                field_name="lookback_days",
+                value=lookback_days,
+            )
         if not timeframe or not timeframe.strip():
-            raise ValueError("timeframe cannot be empty")
+            raise TimeframeValidationError("timeframe cannot be empty", timeframe=timeframe)
 
         if end_date is None:
             end_date = datetime.now(UTC)
@@ -227,7 +237,7 @@ class StrategyMarketDataAdapter:
             None value indicates price is unavailable for that symbol.
 
         Raises:
-            ValueError: If symbols list is empty
+            SymbolValidationError: If symbols list is empty
             DataProviderError: If critical API failure occurs affecting all symbols
 
         Note:
@@ -239,7 +249,7 @@ class StrategyMarketDataAdapter:
         """
         # Input validation
         if not symbols:
-            raise ValueError("symbols list cannot be empty")
+            raise SymbolValidationError("symbols list cannot be empty", reason="Empty symbols list")
 
         result: dict[str, Decimal | None] = {}
 

@@ -22,6 +22,7 @@ from ..constants import (
     EVENT_TYPE_DESCRIPTION,
     RECIPIENT_OVERRIDE_DESCRIPTION,
 )
+from ..errors import TypeConversionError
 from ..schemas.common import AllocationComparison
 from ..schemas.portfolio_state import PortfolioState
 from ..schemas.rebalance_plan import RebalancePlan
@@ -358,7 +359,13 @@ class TradingNotificationRequested(BaseEvent):
             return Decimal(str(v))
         if isinstance(v, str):
             return Decimal(v)
-        raise ValueError(f"Cannot convert {type(v).__name__} to Decimal")
+        type_name = type(v).__name__
+        raise TypeConversionError(
+            f"Cannot convert {type_name} to Decimal",
+            source_type=type_name,
+            target_type="Decimal",
+            value=str(v),
+        )
 
 
 class SystemNotificationRequested(BaseEvent):
