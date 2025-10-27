@@ -67,10 +67,10 @@ Not Exported (Internal Use):
 **Related docs/specs**:
 - [Copilot Instructions](/.github/copilot-instructions.md)
 - [Execution v2 README](/the_alchemiser/execution_v2/README.md)
-- [FILE_REVIEW_execution_v2_init.md](/docs/file_reviews/FILE_REVIEW_execution_v2_init.md)
-- [FILE_REVIEW_execution_v2_core_init.md](/docs/file_reviews/FILE_REVIEW_execution_v2_core_init.md)
-- [FILE_REVIEW_shared_utils_init.md](/docs/file_reviews/FILE_REVIEW_shared_utils_init.md) - Reference example
-- [FILE_REVIEW_types_init.md](/docs/file_reviews/FILE_REVIEW_types_init.md) - Reference example
+- [execution_v2_init.md](/docs/code-reviews/2025-10/execution_v2/2025-10-26_execution_v2_init.md)
+- [execution_v2_core_init.md](/docs/code-reviews/2025-10/execution_v2/2025-10-26_execution_v2_core_init.md)
+- [shared_utils_init.md](/docs/code-reviews/2025-10/shared/2025-10-26_shared_utils_init.md) - Reference example
+- [types_init.md](/docs/code-reviews/2025-10/shared/2025-10-26_file_review_types_init.md) - Reference example
 
 ---
 

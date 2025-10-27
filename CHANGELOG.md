@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [2.30.0] - 2025-10-27
+
+### Changed
+- **Documentation Reorganization**: Comprehensive restructuring of `docs/` folder (392 files)
+  - Created hierarchical structure with 47 directories and 14 README indexes
+  - Organized former file_reviews/ (324 files) into code-reviews/2025-10/ by module (strategy_v2, portfolio_v2, execution_v2, shared, orchestration)
+  - Applied consistent naming: YYYY-MM-DD_ prefix for dated documents
+  - Moved root-level docs to appropriate categories: architecture/, guides/, bug-fixes/, analysis/, etc.
+  - Created comprehensive main docs/README.md with navigation
+  - Generated code-reviews/index-by-file.md for easy file lookup across all reviews
+  - Preserved git history with `git mv` commands
+  - Improved discoverability: find any document within 2 clicks
+  - Living documents (guides, architecture) have no dates; historical docs (bug fixes, reviews) are dated
+  - Updated internal documentation links in current files to new paths (historical CHANGELOG references to old paths remain as-is for accuracy)
+
 ## [2.23.1] - 2025-10-13
 
 ### Changed
