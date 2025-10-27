@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Alchemiser - Trading Execution Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+            background-color: #fff;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #2c3e50;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28pt;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 12pt;
+        }
+        
+        .status-banner {
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+        
+        .status-banner.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .status-banner.failure {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .meta-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .meta-card {
+            background-color: #ecf0f1;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .meta-label {
+            font-size: 9pt;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .meta-value {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 5px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 16pt;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        thead {
+            background-color: #34495e;
+            color: white;
+        }
+        
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10pt;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+            font-size: 10pt;
+        }
+        
+        tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .signal-buy {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .signal-sell {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .signal-hold {
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+        
+        .status-filled {
+            color: #27ae60;
+            font-weight: 600;
+        }
+        
+        .status-failed {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            color: #f39c12;
+            font-weight: 600;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .summary-label {
+            font-size: 10pt;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .summary-value {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+            text-align: center;
+            font-size: 9pt;
+            color: #7f8c8d;
+        }
+        
+        .positive {
+            color: #27ae60;
+        }
+        
+        .negative {
+            color: #e74c3c;
+        }
+        
+        .allocation-increase {
+            color: #27ae60;
+        }
+        
+        .allocation-decrease {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>The Alchemiser</h1>
+        <div class="subtitle">Trading Execution Report</div>
+    </div>
+    
+    {% if success %}
+    <div class="status-banner success">
+        ✓ EXECUTION SUCCESSFUL
+    </div>
+    {% else %}
+    <div class="status-banner failure">
+        ✗ EXECUTION FAILED
+    </div>
+    {% endif %}
+    
+    <div class="meta-info">
+        <div class="meta-card">
+            <div class="meta-label">Trading Mode</div>
+            <div class="meta-value">{{ trading_mode }}</div>
+        </div>
+        <div class="meta-card">
+            <div class="meta-label">Timestamp</div>
+            <div class="meta-value">{{ timestamp }}</div>
+        </div>
+        <div class="meta-card">
+            <div class="meta-label">Correlation ID</div>
+            <div class="meta-value" style="font-size: 9pt;">{{ correlation_id }}</div>
+        </div>
+    </div>
+    
+    {% if strategy_signals %}
+    <div class="section">
+        <h2 class="section-title">Strategy Signals</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Strategy</th>
+                    <th>Signal</th>
+                    <th>Reasoning</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for signal in strategy_signals %}
+                <tr>
+                    <td>{{ signal.strategy_name }}</td>
+                    <td>
+                        {% if signal.signal == 'BUY' %}
+                        <span class="signal-buy">{{ signal.signal }}</span>
+                        {% elif signal.signal == 'SELL' %}
+                        <span class="signal-sell">{{ signal.signal }}</span>
+                        {% else %}
+                        <span class="signal-hold">{{ signal.signal }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ signal.reasoning }}</td>
+                    <td>{{ signal.confidence }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    {% if portfolio_allocations %}
+    <div class="section">
+        <h2 class="section-title">Portfolio Allocations</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Target Allocation</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for allocation in portfolio_allocations %}
+                <tr>
+                    <td>{{ allocation.symbol }}</td>
+                    <td>{{ "%.2f"|format(allocation.target_allocation * 100) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    {% if orders %}
+    <div class="section">
+        <h2 class="section-title">Order Execution Details</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Side</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Order ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.symbol }}</td>
+                    <td>{{ order.side|upper }}</td>
+                    <td>{{ order.quantity }}</td>
+                    <td>${{ "%.2f"|format(order.price) }}</td>
+                    <td>
+                        {% if order.status == 'filled' %}
+                        <span class="status-filled">{{ order.status|upper }}</span>
+                        {% elif order.status in ['failed', 'canceled', 'rejected'] %}
+                        <span class="status-failed">{{ order.status|upper }}</span>
+                        {% else %}
+                        <span class="status-pending">{{ order.status|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 8pt;">{{ order.order_id[:16] }}...</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <div class="section">
+        <h2 class="section-title">Execution Summary</h2>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Total Orders</div>
+                <div class="summary-value">{{ execution_summary.total_orders }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Successful Orders</div>
+                <div class="summary-value positive">{{ execution_summary.successful_orders }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Failed Orders</div>
+                <div class="summary-value {% if execution_summary.failed_orders > 0 %}negative{% endif %}">{{ execution_summary.failed_orders }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Total Trade Value</div>
+                <div class="summary-value">${{ "%.2f"|format(execution_summary.total_value) }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Generated: {{ generated_at }}</p>
+        <p>Report ID: {{ report_id }}</p>
+        <p>The Alchemiser - Advanced Multi-Strategy Quantitative Trading System</p>
+    </div>
+</body>
+</html>

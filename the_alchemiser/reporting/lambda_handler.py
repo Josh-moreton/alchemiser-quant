@@ -3,7 +3,8 @@
 AWS Lambda handler for PDF report generation.
 
 This Lambda is triggered by Step Functions or direct invocation
-and generates PDF reports from account snapshots stored in DynamoDB.
+and generates PDF reports from account snapshots stored in DynamoDB
+or from execution data for trading notifications.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from the_alchemiser.shared.repositories.account_snapshot_repository import (
     AccountSnapshotRepository,
 )
 
+from .execution_report_service import ExecutionReportService
 from .service import ReportGeneratorService
 
 logger = get_logger(__name__)
@@ -54,23 +56,41 @@ def _validate_event(event: dict[str, Any]) -> None:
         ValueError: If required fields are missing
 
     """
-    required_fields = ["account_id"]
-    missing_fields = [field for field in required_fields if field not in event]
-
-    if missing_fields:
-        raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
+    # Check if this is an execution report generation
+    if event.get("generate_from_execution", False):
+        required_fields = ["execution_data", "trading_mode"]
+        missing_fields = [field for field in required_fields if field not in event]
+        if missing_fields:
+            raise ValueError(
+                f"Missing required fields for execution report: {', '.join(missing_fields)}"
+            )
+    else:
+        # Account snapshot report
+        required_fields = ["account_id"]
+        missing_fields = [field for field in required_fields if field not in event]
+        if missing_fields:
+            raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
 
 def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict[str, Any]:
     """AWS Lambda handler for PDF report generation.
 
-    Expected event structure:
+    Expected event structure for account reports:
     {
         "account_id": "account123",        # Required
         "snapshot_id": "2024-...",         # Optional (ISO timestamp)
         "report_type": "account_summary",  # Optional (default: account_summary)
         "correlation_id": "req-123",       # Optional (for tracing)
         "use_latest": true                 # Optional (use latest snapshot if true)
+    }
+
+    Expected event structure for execution reports:
+    {
+        "generate_from_execution": true,   # Required for execution reports
+        "report_type": "trading_execution",# Optional (default: trading_execution)
+        "execution_data": {...},           # Required - execution data payload
+        "trading_mode": "PAPER",           # Required - PAPER or LIVE
+        "correlation_id": "req-123"        # Optional (for tracing)
     }
 
     Args:
@@ -90,10 +110,11 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
         >>> print(result['status'])
         'success'
 
-        Generate report from latest snapshot:
+        Generate report from execution data:
         >>> event = {
-        ...     "account_id": "PA123",
-        ...     "use_latest": True
+        ...     "generate_from_execution": True,
+        ...     "execution_data": {...},
+        ...     "trading_mode": "PAPER"
         ... }
         >>> result = lambda_handler(event, None)
 
@@ -116,6 +137,11 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
         # Validate event
         _validate_event(event)
 
+        # Check if this is an execution report
+        if event.get("generate_from_execution", False):
+            return _handle_execution_report(event, request_id, correlation_id)
+
+        # Otherwise, handle as account snapshot report
         # Extract parameters
         account_id = event["account_id"]
         snapshot_id = event.get("snapshot_id")
@@ -206,6 +232,71 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
             "correlation_id": correlation_id,
             "request_id": request_id,
         }
+
+
+def _handle_execution_report(
+    event: dict[str, Any], request_id: str, correlation_id: str
+) -> dict[str, Any]:
+    """Handle execution report generation from trading data.
+
+    Args:
+        event: Lambda event containing execution data
+        request_id: AWS request ID
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Dictionary with status and report metadata
+
+    Raises:
+        ValueError: If execution data is invalid
+
+    """
+    execution_data = event["execution_data"]
+    trading_mode = event["trading_mode"]
+    report_type = event.get("report_type", "trading_execution")
+
+    # Get S3 bucket from environment
+    s3_bucket = os.environ.get("REPORTS_S3_BUCKET", "the-alchemiser-reports")
+
+    logger.info(
+        "Generating execution report",
+        trading_mode=trading_mode,
+        report_type=report_type,
+        correlation_id=correlation_id,
+    )
+
+    # Initialize services
+    container = ApplicationContainer()
+    event_bus = container.services.event_bus()
+
+    execution_report_service = ExecutionReportService(
+        event_bus=event_bus,
+        s3_bucket=s3_bucket,
+    )
+
+    # Generate execution report
+    report_ready_event = execution_report_service.generate_execution_report(
+        execution_data=execution_data,
+        trading_mode=trading_mode,
+        correlation_id=correlation_id,
+    )
+
+    # Build success response
+    response = {
+        "status": "success",
+        "report_id": report_ready_event.report_id,
+        "s3_uri": report_ready_event.s3_uri,
+        "s3_bucket": report_ready_event.s3_bucket,
+        "s3_key": report_ready_event.s3_key,
+        "file_size_bytes": report_ready_event.file_size_bytes,
+        "generation_time_ms": report_ready_event.generation_time_ms,
+        "snapshot_id": report_ready_event.snapshot_id,
+        "correlation_id": correlation_id,
+        "request_id": request_id,
+    }
+
+    logger.info("Execution report generation completed successfully", response=response)
+    return response
 
 
 def _handle_error(

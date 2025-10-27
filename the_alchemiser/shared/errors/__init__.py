@@ -43,6 +43,7 @@ from .exceptions import (
     HandlerInvocationError,
     MarketDataError,
     OrderExecutionError,
+    ReportGenerationError,
 )
 
 __all__ = [
@@ -61,6 +62,7 @@ __all__ = [
     "HandlerInvocationError",
     "MarketDataError",
     "OrderExecutionError",
+    "ReportGenerationError",
     "TradingSystemErrorHandler",
     "categorize_error_severity",
     "get_enhanced_error_reporter",

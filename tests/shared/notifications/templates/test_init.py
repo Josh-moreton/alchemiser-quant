@@ -84,8 +84,8 @@ def test_build_error_email_html_basic() -> None:
 
     html = build_error_email_html("Test Error", "This is a test error message")
 
-    # Verify basic HTML structure
-    assert html.startswith("<!DOCTYPE html>")
+    # Verify basic HTML structure (strip leading whitespace for assertion)
+    assert html.strip().startswith("<!DOCTYPE html>")
     assert "Test Error" in html
     assert "This is a test error message" in html
     assert "</html>" in html

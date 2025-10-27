@@ -292,3 +292,120 @@ class EmailTemplates:
             ),
             "The Alchemiser - Monthly Summary (Deprecated)",
         )
+
+    # ================ SIMPLIFIED EMAIL TEMPLATES (Issue: simplify email content - PDF Reports) ================
+
+    @staticmethod
+    def simple_trading_notification(
+        *,
+        success: bool,
+        mode: str = "PAPER",
+        orders_count: int = 0,
+        correlation_id: str | None = None,
+        pdf_attached: bool = False,
+    ) -> str:
+        """Generate simplified trading notification email - Hargreaves Lansdown style.
+
+        Simple, clean, professional email notifying success or failure with reference
+        to attached PDF report for details.
+
+        Args:
+            success: Whether trading was successful
+            mode: Trading mode (PAPER/LIVE)
+            orders_count: Number of orders executed
+            correlation_id: Correlation ID for tracking
+            pdf_attached: Whether a PDF report is attached
+
+        Returns:
+            HTML email content for simple trading notification
+
+        """
+        # Status-specific content
+        if success:
+            status_color = "#059669"
+            status_emoji = "✅"
+            status_text = "Execution Completed Successfully"
+            greeting = "Dear Investor,"
+            main_message = f"""
+            <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
+                In accordance with your automated trading strategy, we are pleased to confirm
+                that we have today completed {orders_count} rebalancing order{"s" if orders_count != 1 else ""}
+                in your {mode.upper()} trading account.
+            </p>
+            """
+        else:
+            status_color = "#DC2626"
+            status_emoji = "❌"
+            status_text = "Execution Failed"
+            greeting = "Dear Investor,"
+            main_message = f"""
+            <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
+                We regret to inform you that the automated trading execution for your
+                {mode.upper()} account encountered an error and could not be completed.
+            </p>
+            """
+
+        # PDF reference section
+        if pdf_attached:
+            pdf_section = """
+            <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
+                A detailed execution report is attached to this email as a PDF document.
+                The report contains comprehensive information about your portfolio rebalancing,
+                including strategy signals, allocation changes, and order execution details.
+            </p>
+            """
+        else:
+            pdf_section = """
+            <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
+                For detailed execution information, please review the system logs or contact support.
+            </p>
+            """
+
+        # Support contact section
+        support_section = """
+        <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
+            Please review the execution details carefully. If you believe any of the
+            information is incorrect or have any questions, please contact our support team.
+        </p>
+        """
+
+        # Tracking information (if available)
+        tracking_info = ""
+        if correlation_id:
+            tracking_info = f"""
+            <p style="margin: 0; color: #6B7280; font-size: 13px; line-height: 1.6;">
+                <strong>Correlation ID:</strong> {html.escape(correlation_id)}
+            </p>
+            """
+
+        # Build complete email
+        header = BaseEmailTemplate.get_header(APPLICATION_NAME)
+        status_banner = BaseEmailTemplate.get_status_banner(
+            f"{mode.upper()} Trading Execution",
+            status_text,
+            status_color,
+            status_emoji,
+        )
+        footer = BaseEmailTemplate.get_footer()
+
+        content = f"""
+        {header}
+        {status_banner}
+        <tr>
+            <td style="padding: 32px 24px; background-color: white;">
+                <p style="margin: 0 0 24px 0; color: #1F2937; font-size: 15px; font-weight: 500;">
+                    {greeting}
+                </p>
+                {main_message}
+                {pdf_section}
+                {support_section}
+                {tracking_info}
+            </td>
+        </tr>
+        {footer}
+        """
+
+        return BaseEmailTemplate.wrap_content(
+            content,
+            f"The Alchemiser - {mode.upper()} Trading Execution {'Completed' if success else 'Failed'}",
+        )
