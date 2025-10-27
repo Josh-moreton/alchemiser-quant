@@ -406,6 +406,7 @@ Resources:
             Action:
               - dynamodb:GetItem
               - dynamodb:Query
+              - dynamodb:UpdateItem
             Resource:
               - !GetAtt TradeLedgerTable.Arn
               - !Sub "${TradeLedgerTable.Arn}/index/*"
@@ -544,12 +545,19 @@ Resources:
               - logs:DescribeLogGroups
             Resource: "*"
 
+          # Lambda invocation for report generator
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt ReportGeneratorFunction.Arn
+
           # DynamoDB access for trade ledger
           - Effect: Allow
             Action:
               - dynamodb:PutItem
               - dynamodb:GetItem
               - dynamodb:Query
+              - dynamodb:UpdateItem
               - dynamodb:BatchWriteItem
             Resource:
               - !GetAtt TradeLedgerTable.Arn
