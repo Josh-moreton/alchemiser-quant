@@ -297,6 +297,7 @@ class EmailTemplates:
 
     @staticmethod
     def simple_trading_notification(
+        *,
         success: bool,
         mode: str = "PAPER",
         orders_count: int = 0,
@@ -324,11 +325,11 @@ class EmailTemplates:
             status_color = "#059669"
             status_emoji = "✅"
             status_text = "Execution Completed Successfully"
-            greeting = f"Dear Investor,"
+            greeting = "Dear Investor,"
             main_message = f"""
             <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
-                In accordance with your automated trading strategy, we are pleased to confirm 
-                that we have today completed {orders_count} rebalancing order{"s" if orders_count != 1 else ""} 
+                In accordance with your automated trading strategy, we are pleased to confirm
+                that we have today completed {orders_count} rebalancing order{"s" if orders_count != 1 else ""}
                 in your {mode.upper()} trading account.
             </p>
             """
@@ -336,10 +337,10 @@ class EmailTemplates:
             status_color = "#DC2626"
             status_emoji = "❌"
             status_text = "Execution Failed"
-            greeting = f"Dear Investor,"
+            greeting = "Dear Investor,"
             main_message = f"""
             <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
-                We regret to inform you that the automated trading execution for your 
+                We regret to inform you that the automated trading execution for your
                 {mode.upper()} account encountered an error and could not be completed.
             </p>
             """
@@ -348,8 +349,8 @@ class EmailTemplates:
         if pdf_attached:
             pdf_section = """
             <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
-                A detailed execution report is attached to this email as a PDF document. 
-                The report contains comprehensive information about your portfolio rebalancing, 
+                A detailed execution report is attached to this email as a PDF document.
+                The report contains comprehensive information about your portfolio rebalancing,
                 including strategy signals, allocation changes, and order execution details.
             </p>
             """
@@ -363,7 +364,7 @@ class EmailTemplates:
         # Support contact section
         support_section = """
         <p style="margin: 0 0 18px 0; color: #1F2937; line-height: 1.7; font-size: 15px;">
-            Please review the execution details carefully. If you believe any of the 
+            Please review the execution details carefully. If you believe any of the
             information is incorrect or have any questions, please contact our support team.
         </p>
         """

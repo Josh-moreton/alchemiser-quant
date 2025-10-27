@@ -201,6 +201,7 @@ def send_email_notification(
 
     Returns:
         True if sent successfully, False otherwise
+
     """
     return _email_client.send_notification(
         subject=subject,
