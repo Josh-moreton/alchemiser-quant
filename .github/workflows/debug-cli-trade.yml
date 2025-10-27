@@ -61,7 +61,7 @@ jobs:
           echo "=== Exit Code: $exit_code ==="
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: trading-debug-logs
           path: trading_output.log

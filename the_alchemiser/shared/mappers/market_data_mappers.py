@@ -125,7 +125,7 @@ def _validate_bar_prices(
         )
 
 
-def _extract_timestamp_from_row(
+def _extract_timestamp_from_row(  # NOSONAR python:S1172 - row_index used for logging
     row: dict[str, Any], row_index: int, correlation_id: str | None
 ) -> datetime | None:
     """Extract and parse timestamp from bar row.
