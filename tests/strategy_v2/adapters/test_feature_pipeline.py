@@ -36,7 +36,7 @@ def sample_bars():
             symbol="AAPL",
             timeframe="1D",
             open_price=Decimal("100.00"),
-            high_price=Decimal("105.00"),
+            high_price=Decimal("130.00"),  # Expanded range to accommodate close prices
             low_price=Decimal("99.00"),
             close_price=Decimal(f"{100 + i}.00"),
             volume=1000000,
@@ -100,7 +100,7 @@ class TestComputeReturns:
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("100.00"),
-                high_price=Decimal("105.00"),
+                high_price=Decimal("110.00"),  # Must be >= close_price
                 low_price=Decimal("99.00"),
                 close_price=Decimal("110.00"),  # 10% gain
                 volume=1000000,
@@ -580,7 +580,7 @@ class TestEdgeCases:
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("1e10"),
-                high_price=Decimal("1.05e10"),
+                high_price=Decimal("1.2e10"),  # Expanded to accommodate close prices
                 low_price=Decimal("0.95e10"),
                 close_price=Decimal(f"{1e10 + i * 1e8}"),
                 volume=1000000,
@@ -601,7 +601,7 @@ class TestEdgeCases:
                 symbol="AAPL",
                 timeframe="1D",
                 open_price=Decimal("0.01"),
-                high_price=Decimal("0.0105"),
+                high_price=Decimal("0.012"),  # Expanded to accommodate close prices
                 low_price=Decimal("0.0095"),
                 close_price=Decimal(f"{0.01 + i * 0.0001}"),
                 volume=1000000,

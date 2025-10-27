@@ -215,10 +215,8 @@ class ExecutionSummary(BaseModel):
     def validate_strategy_summary_keys(
         cls, v: dict[str, StrategySummary]
     ) -> dict[str, StrategySummary]:
-        """Ensure strategy_summary dict is not empty and keys match strategy names."""
-        if not v:
-            msg = "strategy_summary cannot be empty"
-            raise ValueError(msg)
+        """Ensure strategy_summary keys match strategy names when present."""
+        # Allow empty strategy_summary for initialization/error states
         for key, summary in v.items():
             if key != summary.strategy_name:
                 msg = (
