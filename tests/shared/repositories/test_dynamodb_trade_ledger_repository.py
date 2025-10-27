@@ -473,3 +473,268 @@ class TestDynamoDBTradeLedgerRepository:
         # Realized loss: 1500 - 2000 = -500
         assert performance["realized_pnl"] == Decimal("-500.00")
         assert performance["gross_pnl"] == Decimal("-500.00")
+
+
+class TestDynamoDBSignalPersistence:
+    """Test suite for signal persistence in DynamoDB trade ledger repository."""
+
+    @pytest.fixture
+    def mock_dynamodb_table(self):
+        """Create a mock DynamoDB table."""
+        mock_table = MagicMock()
+        mock_table.put_item = MagicMock()
+        mock_table.get_item = MagicMock()
+        mock_table.query = MagicMock()
+        mock_table.update_item = MagicMock()
+        return mock_table
+
+    @pytest.fixture
+    def repository(self, mock_dynamodb_table):
+        """Create repository instance with mocked DynamoDB."""
+        repo = MagicMock(spec=DynamoDBTradeLedgerRepository)
+        repo._table = mock_dynamodb_table
+
+        # Bind signal methods to the mock
+        repo.put_signal = DynamoDBTradeLedgerRepository.put_signal.__get__(repo)
+        repo.query_signals_by_correlation = (
+            DynamoDBTradeLedgerRepository.query_signals_by_correlation.__get__(repo)
+        )
+        repo.query_signals_by_symbol = (
+            DynamoDBTradeLedgerRepository.query_signals_by_symbol.__get__(repo)
+        )
+        repo.query_signals_by_strategy = (
+            DynamoDBTradeLedgerRepository.query_signals_by_strategy.__get__(repo)
+        )
+        repo.query_signals_by_state = DynamoDBTradeLedgerRepository.query_signals_by_state.__get__(
+            repo
+        )
+        repo.update_signal_lifecycle = (
+            DynamoDBTradeLedgerRepository.update_signal_lifecycle.__get__(repo)
+        )
+        repo.compute_signal_execution_rate = (
+            DynamoDBTradeLedgerRepository.compute_signal_execution_rate.__get__(repo)
+        )
+
+        return repo
+
+    @pytest.fixture
+    def sample_signal(self):
+        """Create a sample signal ledger entry."""
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        return SignalLedgerEntry(
+            signal_id="sig-123",
+            correlation_id="corr-456",
+            causation_id="cause-789",
+            timestamp=datetime(2025, 1, 15, 14, 0, 0, tzinfo=UTC),
+            strategy_name="Nuclear",
+            data_source="dsl_engine:1-KMLM.clj",
+            symbol="TQQQ",
+            action="BUY",
+            target_allocation=Decimal("0.5"),
+            signal_strength=Decimal("0.85"),
+            reasoning="Strong momentum detected",
+            lifecycle_state="GENERATED",
+            technical_indicators={
+                "TQQQ": {"rsi_10": 75.0, "rsi_20": 70.0, "current_price": 50.0, "ma_200": 45.0}
+            },
+            signal_dto={
+                "symbol": "TQQQ",
+                "action": "BUY",
+                "target_allocation": "0.5",
+                "reasoning": "Strong momentum detected",
+            },
+            created_at=datetime(2025, 1, 15, 14, 0, 0, tzinfo=UTC),
+        )
+
+    def test_put_signal_creates_signal_item(self, repository, mock_dynamodb_table, sample_signal):
+        """Test that put_signal creates a signal item with correct structure."""
+        repository.put_signal(sample_signal, "ledger-123")
+
+        # Verify put_item was called
+        assert mock_dynamodb_table.put_item.call_count == 1
+
+        # Get the call
+        call = mock_dynamodb_table.put_item.call_args
+        item = call.kwargs["Item"]
+
+        # Verify signal item structure
+        assert item["PK"] == "SIGNAL#sig-123"
+        assert item["SK"] == "METADATA"
+        assert item["EntityType"] == "SIGNAL"
+        assert item["signal_id"] == "sig-123"
+        assert item["correlation_id"] == "corr-456"
+        assert item["causation_id"] == "cause-789"
+        assert item["strategy_name"] == "Nuclear"
+        assert item["symbol"] == "TQQQ"
+        assert item["action"] == "BUY"
+        assert item["target_allocation"] == "0.5"
+        assert item["lifecycle_state"] == "GENERATED"
+        assert item["executed_trade_ids"] == []
+
+        # Verify GSI keys
+        assert item["GSI1PK"] == "CORR#corr-456"
+        assert item["GSI2PK"] == "SYMBOL#TQQQ"
+        assert item["GSI3PK"] == "STRATEGY#Nuclear"
+        assert item["GSI4PK"] == "STATE#GENERATED"
+
+    def test_put_signal_with_technical_indicators(
+        self, repository, mock_dynamodb_table, sample_signal
+    ):
+        """Test that technical indicators are serialized correctly."""
+        repository.put_signal(sample_signal, "ledger-123")
+
+        call = mock_dynamodb_table.put_item.call_args
+        item = call.kwargs["Item"]
+
+        # Verify technical indicators are present and serialized
+        assert "technical_indicators" in item
+        indicators = item["technical_indicators"]
+        assert "TQQQ" in indicators
+        assert indicators["TQQQ"]["rsi_10"] == 75.0
+
+    def test_query_signals_by_correlation(self, repository, mock_dynamodb_table):
+        """Test querying signals by correlation_id."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "signal_id": "sig-1",
+                    "correlation_id": "corr-123",
+                    "symbol": "TQQQ",
+                    "lifecycle_state": "GENERATED",
+                }
+            ]
+        }
+
+        signals = repository.query_signals_by_correlation("corr-123")
+
+        # Verify query was called with correct parameters
+        call_kwargs = mock_dynamodb_table.query.call_args.kwargs
+        assert call_kwargs["IndexName"] == "GSI1-CorrelationIndex"
+        assert call_kwargs["ExpressionAttributeValues"][":pk"] == "CORR#corr-123"
+        assert call_kwargs["ExpressionAttributeValues"][":sk"] == "SIGNAL#"
+
+        # Verify results
+        assert len(signals) == 1
+        assert signals[0]["signal_id"] == "sig-1"
+
+    def test_query_signals_by_symbol(self, repository, mock_dynamodb_table):
+        """Test querying signals by symbol."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {
+                    "signal_id": "sig-1",
+                    "symbol": "TQQQ",
+                    "strategy_name": "Nuclear",
+                    "lifecycle_state": "EXECUTED",
+                }
+            ]
+        }
+
+        signals = repository.query_signals_by_symbol("TQQQ")
+
+        # Verify query parameters
+        call_kwargs = mock_dynamodb_table.query.call_args.kwargs
+        assert call_kwargs["IndexName"] == "GSI2-SymbolIndex"
+        assert call_kwargs["ExpressionAttributeValues"][":pk"] == "SYMBOL#TQQQ"
+
+        assert len(signals) == 1
+
+    def test_query_signals_by_strategy(self, repository, mock_dynamodb_table):
+        """Test querying signals by strategy name."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {"signal_id": "sig-1", "strategy_name": "Nuclear", "lifecycle_state": "EXECUTED"},
+                {"signal_id": "sig-2", "strategy_name": "Nuclear", "lifecycle_state": "IGNORED"},
+            ]
+        }
+
+        signals = repository.query_signals_by_strategy("Nuclear")
+
+        # Verify query parameters
+        call_kwargs = mock_dynamodb_table.query.call_args.kwargs
+        assert call_kwargs["IndexName"] == "GSI3-StrategyIndex"
+        assert call_kwargs["ExpressionAttributeValues"][":pk"] == "STRATEGY#Nuclear"
+
+        assert len(signals) == 2
+
+    def test_query_signals_by_state(self, repository, mock_dynamodb_table):
+        """Test querying signals by lifecycle state."""
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {"signal_id": "sig-1", "lifecycle_state": "EXECUTED"},
+                {"signal_id": "sig-2", "lifecycle_state": "EXECUTED"},
+            ]
+        }
+
+        signals = repository.query_signals_by_state("EXECUTED")
+
+        # Verify query parameters
+        call_kwargs = mock_dynamodb_table.query.call_args.kwargs
+        assert call_kwargs["IndexName"] == "GSI4-StateIndex"
+        assert call_kwargs["ExpressionAttributeValues"][":pk"] == "STATE#EXECUTED"
+
+        assert len(signals) == 2
+
+    def test_update_signal_lifecycle(self, repository, mock_dynamodb_table):
+        """Test updating signal lifecycle state."""
+        # Mock get_item to return existing signal
+        mock_dynamodb_table.get_item.return_value = {
+            "Item": {
+                "PK": "SIGNAL#sig-123",
+                "SK": "METADATA",
+                "signal_id": "sig-123",
+                "timestamp": "2025-01-15T14:00:00+00:00",
+                "lifecycle_state": "GENERATED",
+            }
+        }
+
+        repository.update_signal_lifecycle("sig-123", "EXECUTED", ["trade-1", "trade-2"])
+
+        # Verify update_item was called
+        assert mock_dynamodb_table.update_item.call_count == 1
+
+        call_kwargs = mock_dynamodb_table.update_item.call_args.kwargs
+        assert call_kwargs["Key"] == {"PK": "SIGNAL#sig-123", "SK": "METADATA"}
+        assert ":state" in call_kwargs["ExpressionAttributeValues"]
+        assert call_kwargs["ExpressionAttributeValues"][":state"] == "EXECUTED"
+        assert call_kwargs["ExpressionAttributeValues"][":trade_ids"] == ["trade-1", "trade-2"]
+
+    def test_compute_signal_execution_rate(self, repository, mock_dynamodb_table):
+        """Test computing signal execution rate for a strategy."""
+        # Mock query to return signals with various states
+        mock_dynamodb_table.query.return_value = {
+            "Items": [
+                {"signal_id": "sig-1", "lifecycle_state": "EXECUTED"},
+                {"signal_id": "sig-2", "lifecycle_state": "EXECUTED"},
+                {"signal_id": "sig-3", "lifecycle_state": "IGNORED"},
+                {"signal_id": "sig-4", "lifecycle_state": "GENERATED"},
+            ]
+        }
+
+        # Bind query method for this test
+        repository.query_signals_by_strategy = (
+            DynamoDBTradeLedgerRepository.query_signals_by_strategy.__get__(repository)
+        )
+
+        metrics = repository.compute_signal_execution_rate("Nuclear")
+
+        assert metrics["strategy_name"] == "Nuclear"
+        assert metrics["total_signals"] == 4
+        assert metrics["executed_signals"] == 2
+        assert metrics["ignored_signals"] == 1
+        assert metrics["execution_rate"] == Decimal("0.5")  # 2/4 = 0.5
+
+    def test_compute_signal_execution_rate_no_signals(self, repository, mock_dynamodb_table):
+        """Test computing execution rate with no signals."""
+        mock_dynamodb_table.query.return_value = {"Items": []}
+
+        repository.query_signals_by_strategy = (
+            DynamoDBTradeLedgerRepository.query_signals_by_strategy.__get__(repository)
+        )
+
+        metrics = repository.compute_signal_execution_rate("Nuclear")
+
+        assert metrics["total_signals"] == 0
+        assert metrics["executed_signals"] == 0
+        assert metrics["execution_rate"] == Decimal("0")

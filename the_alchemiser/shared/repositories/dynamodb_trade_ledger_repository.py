@@ -15,7 +15,7 @@ from typing import Any
 from botocore.exceptions import BotoCoreError, ClientError
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.trade_ledger import TradeLedgerEntry
+from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry, TradeLedgerEntry
 
 logger = get_logger(__name__)
 
@@ -455,4 +455,331 @@ class DynamoDBTradeLedgerRepository:
             "symbols_traded": sorted(symbols),
             "first_trade_at": min(timestamps) if timestamps else None,
             "last_trade_at": max(timestamps) if timestamps else None,
+        }
+
+    def put_signal(
+        self,
+        signal: SignalLedgerEntry,
+        ledger_id: str,
+    ) -> None:
+        """Write a strategy signal to DynamoDB.
+
+        Writes signal item with GSI keys for efficient querying by correlation_id,
+        symbol, strategy, and lifecycle state.
+
+        Args:
+            signal: Signal ledger entry
+            ledger_id: Ledger identifier
+
+        """
+        timestamp_str = signal.timestamp.isoformat()
+
+        # Main signal item
+        signal_item: dict[str, Any] = {
+            "PK": f"SIGNAL#{signal.signal_id}",
+            "SK": "METADATA",
+            "EntityType": "SIGNAL",
+            "signal_id": signal.signal_id,
+            "correlation_id": signal.correlation_id,
+            "causation_id": signal.causation_id,
+            "timestamp": timestamp_str,
+            "strategy_name": signal.strategy_name,
+            "data_source": signal.data_source,
+            "symbol": signal.symbol,
+            "action": signal.action,
+            "target_allocation": str(signal.target_allocation),
+            "reasoning": signal.reasoning,
+            "lifecycle_state": signal.lifecycle_state,
+            "executed_trade_ids": signal.executed_trade_ids,
+            "signal_dto": signal.signal_dto,
+            "created_at": signal.created_at.isoformat(),
+            "ledger_id": ledger_id,
+            # GSI keys for query patterns
+            "GSI1PK": f"CORR#{signal.correlation_id}",
+            "GSI1SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI2PK": f"SYMBOL#{signal.symbol}",
+            "GSI2SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI3PK": f"STRATEGY#{signal.strategy_name}",
+            "GSI3SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI4PK": f"STATE#{signal.lifecycle_state}",
+            "GSI4SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+        }
+
+        # Optional fields
+        if signal.signal_strength is not None:
+            signal_item["signal_strength"] = str(signal.signal_strength)
+        if signal.technical_indicators:
+            # Convert Decimal values to strings for DynamoDB
+            indicators_serialized = {}
+            for symbol_key, indicators in signal.technical_indicators.items():
+                indicators_serialized[symbol_key] = {
+                    k: str(v) if isinstance(v, Decimal) else v for k, v in indicators.items()
+                }
+            signal_item["technical_indicators"] = indicators_serialized
+
+        # Write signal item
+        self._table.put_item(Item=signal_item)
+
+        logger.info(
+            "Signal written to DynamoDB",
+            signal_id=signal.signal_id,
+            symbol=signal.symbol,
+            strategy=signal.strategy_name,
+            state=signal.lifecycle_state,
+        )
+
+    def query_signals_by_correlation(
+        self, correlation_id: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Query signals by correlation_id using GSI1.
+
+        Args:
+            correlation_id: Correlation identifier
+            limit: Max items to return
+
+        Returns:
+            List of signal items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI1-CorrelationIndex",
+                "KeyConditionExpression": "GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
+                "ExpressionAttributeValues": {
+                    ":pk": f"CORR#{correlation_id}",
+                    ":sk": "SIGNAL#",
+                },
+                "ScanIndexForward": False,  # Most recent first
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to query signals by correlation",
+                correlation_id=correlation_id,
+                error=str(e),
+            )
+            return []
+
+    def query_signals_by_symbol(
+        self, symbol: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Query signals by symbol using GSI2.
+
+        Args:
+            symbol: Trading symbol
+            limit: Max items to return
+
+        Returns:
+            List of signal items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI2-SymbolIndex",
+                "KeyConditionExpression": "GSI2PK = :pk AND begins_with(GSI2SK, :sk)",
+                "ExpressionAttributeValues": {
+                    ":pk": f"SYMBOL#{symbol.upper()}",
+                    ":sk": "SIGNAL#",
+                },
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error("Failed to query signals by symbol", symbol=symbol, error=str(e))
+            return []
+
+    def query_signals_by_strategy(
+        self, strategy_name: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Query signals by strategy name using GSI3.
+
+        Args:
+            strategy_name: Strategy name
+            limit: Max items to return
+
+        Returns:
+            List of signal items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI3-StrategyIndex",
+                "KeyConditionExpression": "GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
+                "ExpressionAttributeValues": {
+                    ":pk": f"STRATEGY#{strategy_name}",
+                    ":sk": "SIGNAL#",
+                },
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to query signals by strategy",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            return []
+
+    def query_signals_by_state(
+        self, lifecycle_state: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Query signals by lifecycle state using GSI4.
+
+        Args:
+            lifecycle_state: Lifecycle state (GENERATED, EXECUTED, IGNORED, SUPERSEDED)
+            limit: Max items to return
+
+        Returns:
+            List of signal items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI4-StateIndex",
+                "KeyConditionExpression": "GSI4PK = :pk AND begins_with(GSI4SK, :sk)",
+                "ExpressionAttributeValues": {
+                    ":pk": f"STATE#{lifecycle_state}",
+                    ":sk": "SIGNAL#",
+                },
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to query signals by state",
+                lifecycle_state=lifecycle_state,
+                error=str(e),
+            )
+            return []
+
+    def update_signal_lifecycle(
+        self,
+        signal_id: str,
+        new_state: str,
+        trade_ids: list[str] | None = None,
+    ) -> None:
+        """Update signal lifecycle state and optionally link to executed trades.
+
+        Uses atomic list append to prevent race conditions when multiple trades
+        execute concurrently for the same signal. The list_append operation ensures
+        that trade IDs are appended atomically without read-modify-write races.
+
+        Args:
+            signal_id: Signal identifier
+            new_state: New lifecycle state
+            trade_ids: Optional list of trade IDs to atomically append to the signal's
+                      executed_trade_ids list. Each trade ID will be appended individually
+                      to support concurrent updates.
+
+        """
+        try:
+            update_expression = "SET lifecycle_state = :state, GSI4PK = :gsi4pk, GSI4SK = :gsi4sk"
+            expression_values: dict[str, Any] = {
+                ":state": new_state,
+                ":gsi4pk": f"STATE#{new_state}",
+            }
+
+            # Get current item to extract timestamp for GSI4SK
+            response = self._table.get_item(Key={"PK": f"SIGNAL#{signal_id}", "SK": "METADATA"})
+            item = response.get("Item")
+            if not item:
+                logger.warning(f"Signal {signal_id} not found for lifecycle update")
+                return
+
+            timestamp_str = item.get("timestamp", datetime.now(UTC).isoformat())
+            expression_values[":gsi4sk"] = f"SIGNAL#{timestamp_str}#{signal_id}"
+
+            if trade_ids is not None:
+                # Use SET with list_append for atomic append operation
+                # This prevents race conditions when multiple trades execute concurrently
+                update_expression += (
+                    ", executed_trade_ids = "
+                    "list_append(if_not_exists(executed_trade_ids, :empty_list), :trade_ids)"
+                )
+                expression_values[":trade_ids"] = trade_ids
+                expression_values[":empty_list"] = []
+
+            self._table.update_item(
+                Key={"PK": f"SIGNAL#{signal_id}", "SK": "METADATA"},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values,
+            )
+
+            logger.info(
+                "Signal lifecycle updated",
+                signal_id=signal_id,
+                new_state=new_state,
+                trade_count=len(trade_ids) if trade_ids else 0,
+            )
+
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to update signal lifecycle",
+                signal_id=signal_id,
+                new_state=new_state,
+                error=str(e),
+            )
+
+    def compute_signal_execution_rate(self, strategy_name: str) -> dict[str, Any]:
+        """Compute signal execution rate for a strategy.
+
+        Calculates the percentage of signals that resulted in trades.
+
+        Args:
+            strategy_name: Strategy name
+
+        Returns:
+            Dictionary with execution rate metrics
+
+        """
+        signals = self.query_signals_by_strategy(strategy_name)
+
+        if not signals:
+            return {
+                "strategy_name": strategy_name,
+                "total_signals": 0,
+                "executed_signals": 0,
+                "ignored_signals": 0,
+                "execution_rate": Decimal("0"),
+            }
+
+        executed_count = sum(1 for s in signals if s.get("lifecycle_state") == "EXECUTED")
+        ignored_count = sum(1 for s in signals if s.get("lifecycle_state") == "IGNORED")
+
+        execution_rate = (
+            Decimal(str(executed_count)) / Decimal(str(len(signals)))
+            if len(signals) > 0
+            else Decimal("0")
+        )
+
+        return {
+            "strategy_name": strategy_name,
+            "total_signals": len(signals),
+            "executed_signals": executed_count,
+            "ignored_signals": ignored_count,
+            "execution_rate": execution_rate,
         }

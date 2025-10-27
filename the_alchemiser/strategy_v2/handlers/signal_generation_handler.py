@@ -126,7 +126,9 @@ class SignalGenerationHandler:
 
         try:
             # Generate signals using domain logic
-            strategy_signals, consolidated_portfolio = self._generate_signals()
+            strategy_signals, consolidated_portfolio, raw_signals = self._generate_signals(
+                event.correlation_id
+            )
 
             if not strategy_signals:
                 raise DataProviderError("Failed to generate strategy signals")
@@ -136,6 +138,9 @@ class SignalGenerationHandler:
                 raise DataProviderError(
                     "Signal analysis failed validation - no meaningful data available"
                 )
+
+            # Persist signals to DynamoDB for historical tracking
+            self._persist_signals(raw_signals, event.correlation_id, strategy_signals)
 
             # Emit SignalGenerated event
             self._emit_signal_generated_event(
@@ -168,11 +173,16 @@ class SignalGenerationHandler:
             self._emit_workflow_failure(event, str(e))
             raise
 
-    def _generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolio]:
+    def _generate_signals(
+        self, correlation_id: str
+    ) -> tuple[dict[str, Any], ConsolidatedPortfolio, list[StrategySignal]]:
         """Generate strategy signals and consolidated portfolio allocation.
 
+        Args:
+            correlation_id: Correlation ID for traceability
+
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolio)
+            Tuple of (strategy_signals dict, ConsolidatedPortfolio, raw_signals list)
 
         """
         # Use DSL strategy engine directly for signal generation
@@ -210,11 +220,11 @@ class SignalGenerationHandler:
         }
         consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=allocation_dict_float,
-            correlation_id=f"signal_handler_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+            correlation_id=correlation_id,
             source_strategies=contributing_strategies,
         )
 
-        return strategy_signals, consolidated_portfolio
+        return strategy_signals, consolidated_portfolio, signals
 
     def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
         """Convert strategy signals to display format for notifications.
@@ -602,3 +612,85 @@ class SignalGenerationHandler:
             return float(allocation) * 100
         except (TypeError, ValueError):
             return 0.0
+
+    def _persist_signals(
+        self,
+        raw_signals: list[StrategySignal],
+        correlation_id: str,
+        strategy_signals: dict[str, Any],
+    ) -> None:
+        """Persist strategy signals to DynamoDB for historical tracking.
+
+        Args:
+            raw_signals: Raw strategy signals from DSL engine
+            correlation_id: Workflow correlation ID
+            strategy_signals: Display format signals with technical indicators
+
+        """
+        from the_alchemiser.shared.config.config import load_settings
+        from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
+            DynamoDBTradeLedgerRepository,
+        )
+        from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry
+
+        # Check if signal persistence is enabled
+        settings = load_settings()
+        table_name = settings.trade_ledger.table_name
+        if not table_name:
+            self.logger.debug("Signal persistence disabled - TRADE_LEDGER__TABLE_NAME not set")
+            return
+
+        try:
+            repository = DynamoDBTradeLedgerRepository(table_name)
+            ledger_id = f"ledger_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+
+            # Persist each signal
+            for signal in raw_signals:
+                # Generate unique signal ID
+                signal_id = f"sig_{uuid.uuid4()}"
+
+                # Extract technical indicators for this symbol
+                symbol_str = signal.symbol.value
+                technical_indicators = strategy_signals.get(signal.strategy_name or "DSL", {}).get(
+                    "technical_indicators", {}
+                )
+
+                # Create signal ledger entry
+                signal_entry = SignalLedgerEntry(
+                    signal_id=signal_id,
+                    correlation_id=correlation_id,
+                    causation_id=correlation_id,  # Signal caused by workflow start
+                    timestamp=signal.timestamp,
+                    strategy_name=signal.strategy_name or "DSL",
+                    data_source=f"dsl_engine:{signal.strategy_name or 'unknown'}",
+                    symbol=symbol_str,
+                    action=signal.action,
+                    target_allocation=signal.target_allocation or Decimal("0"),
+                    signal_strength=signal.signal_strength,
+                    reasoning=signal.reasoning,
+                    lifecycle_state="GENERATED",
+                    technical_indicators=technical_indicators if technical_indicators else None,
+                    signal_dto=signal.to_dict(),
+                    created_at=datetime.now(UTC),
+                )
+
+                # Persist to DynamoDB
+                repository.put_signal(signal_entry, ledger_id)
+
+            self.logger.info(
+                f"Persisted {len(raw_signals)} signals to DynamoDB",
+                extra={
+                    "correlation_id": correlation_id,
+                    "signal_count": len(raw_signals),
+                },
+            )
+
+        except Exception as e:
+            # Log error but don't fail the workflow - signal persistence is non-critical
+            self.logger.warning(
+                f"Failed to persist signals to DynamoDB: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
