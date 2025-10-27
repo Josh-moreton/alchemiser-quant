@@ -427,6 +427,68 @@ class RealTimeStreamManager:
         time.sleep(delay)
         return retry_count, True
 
+    def _wait_for_symbols(self) -> list[str] | None:
+        """Wait for symbols to be available for subscription.
+
+        Returns:
+            List of symbols if available, None if no symbols available
+
+        """
+        symbols_to_subscribe = self._get_symbols()
+
+        if not symbols_to_subscribe:
+            self.logger.info("No symbols to subscribe to, waiting...")
+            import time
+
+            time.sleep(self._config.subscription_poll_interval)
+            return None
+
+        return symbols_to_subscribe
+
+    def _execute_stream_run(self) -> bool:
+        """Execute the stream run and handle stream lifecycle.
+
+        Returns:
+            True if stream ran successfully, False otherwise
+
+        """
+        if not self._stream:
+            self.logger.error("Stream is None, cannot run")
+            return False
+
+        self._connected_event.set()
+        self.logger.info("Connection signaled - starting SDK run()")
+
+        # Run the stream - this blocks until stream stops
+        # The SDK handles connection establishment and maintains it
+        self._stream.run()
+
+        # If we get here, stream stopped
+        self._connected_event.clear()
+        return True
+
+    def _handle_unexpected_error(self, e: Exception, retry_count: int) -> tuple[int, bool]:
+        """Handle unexpected errors during stream execution.
+
+        Args:
+            e: The exception that occurred
+            retry_count: Current retry attempt count
+
+        Returns:
+            Tuple of (updated_retry_count, should_continue)
+
+        """
+        self._connected_event.clear()
+        self.logger.error(
+            "Unexpected error in stream",
+            error=str(e),
+            error_type=type(e).__name__,
+            retry_count=retry_count,
+        )
+        retry_count += 1
+        should_continue = retry_count < self._config.max_retries
+        return retry_count, should_continue
+
     def _run_stream_blocking(self) -> None:
         """Run the WebSocket stream using SDK's public blocking API.
 
@@ -444,14 +506,8 @@ class RealTimeStreamManager:
         while self._should_reconnect and retry_count < self._config.max_retries:
             try:
                 # Setup stream for this attempt
-                symbols_to_subscribe = self._get_symbols()
-
-                if not symbols_to_subscribe:
-                    # Wait for symbols to be available
-                    self.logger.info("No symbols to subscribe to, waiting...")
-                    import time
-
-                    time.sleep(self._config.subscription_poll_interval)
+                symbols_to_subscribe = self._wait_for_symbols()
+                if symbols_to_subscribe is None:
                     continue
 
                 # Create and configure stream
@@ -466,21 +522,8 @@ class RealTimeStreamManager:
 
                 self.logger.info("Attempting to start stream", attempt=retry_count + 1)
 
-                # Signal connection immediately before calling run()
-                # The SDK's run() method establishes the WebSocket connection synchronously,
-                # so if we reach this point with subscriptions set up, we're connected
-                if self._stream:
-                    self._connected_event.set()
-                    self.logger.info("Connection signaled - starting SDK run()")
-
-                    # Run the stream - this blocks until stream stops
-                    # The SDK handles connection establishment and maintains it
-                    self._stream.run()
-
-                    # If we get here, stream stopped
-                    self._connected_event.clear()
-                else:
-                    self.logger.error("Stream is None, cannot run")
+                # Execute the stream run
+                if not self._execute_stream_run():
                     retry_count += 1
                     continue
 
@@ -499,16 +542,8 @@ class RealTimeStreamManager:
                     break
 
             except Exception as e:
-                # Catch-all for unexpected errors
-                self._connected_event.clear()
-                self.logger.error(
-                    "Unexpected error in stream",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    retry_count=retry_count,
-                )
-                retry_count += 1
-                if retry_count >= self._config.max_retries:
+                retry_count, should_continue = self._handle_unexpected_error(e, retry_count)
+                if not should_continue:
                     break
 
         self.logger.info("Stream thread exiting", retry_count=retry_count)
