@@ -128,7 +128,7 @@ class ReportRenderer:
             PDF bytes
 
         """
-        from weasyprint import HTML  # type: ignore[import-not-found]
+        from weasyprint import HTML  # type: ignore[import-untyped]
 
         logger.debug("Converting HTML to PDF with WeasyPrint")
 
@@ -151,6 +151,11 @@ class ReportRenderer:
             Dictionary of template context variables
 
         """
+        # Get logo path (absolute path to logo.png in project root)
+        from pathlib import Path
+
+        logo_path = Path(__file__).parent.parent.parent / "logo.png"
+
         # Serialize snapshot data for metrics computation
         snapshot_dict = {
             "alpaca_account": snapshot.alpaca_account.model_dump(),
@@ -197,6 +202,7 @@ class ReportRenderer:
 
         # Build template context
         return {
+            "logo_path": str(logo_path.absolute()),
             "account_id": snapshot.account_id,
             "snapshot_id": snapshot.snapshot_id,
             "snapshot_version": snapshot.snapshot_version,
@@ -228,6 +234,10 @@ class ReportRenderer:
         """
         start_time = time.time()
         logger.info("Rendering execution PDF report")
+
+        # Add logo path to context
+        logo_path = Path(__file__).parent.parent.parent / "logo.png"
+        context["logo_path"] = str(logo_path.absolute())
 
         # Load execution report template
         template = self.jinja_env.get_template("execution_report.html")
