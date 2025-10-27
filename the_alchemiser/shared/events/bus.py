@@ -19,7 +19,7 @@ from collections.abc import Callable
 from inspect import signature
 from typing import Protocol
 
-from ..errors import EventBusError, HandlerInvocationError
+from ..errors import EventBusError, HandlerInvocationError, TypeConversionError, ValidationError
 from ..logging import get_logger
 from .base import BaseEvent
 from .handlers import EventHandler
@@ -80,16 +80,19 @@ class EventBus:
             handler: The handler to receive events (EventHandler or callable accepting BaseEvent)
 
         Raises:
-            ValueError: If event_type is empty or handler is invalid
+            ValidationError: If event_type is empty or handler is invalid
             EventBusError: If handler signature validation fails
 
         """
         if not event_type or not event_type.strip():
-            raise ValueError("Event type cannot be empty")
+            raise ValidationError("Event type cannot be empty", field_name="event_type")
 
         # Accept either an EventHandler implementation or a plain callable(event)
         if not (isinstance(handler, EventHandler) or callable(handler)):
-            raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
+            raise ValidationError(
+                "Handler must implement EventHandler protocol or be a callable(event)",
+                field_name="handler",
+            )
 
         # Validate callable signature if it's a plain callable
         if callable(handler) and not isinstance(handler, EventHandler):
@@ -111,12 +114,15 @@ class EventBus:
             handler: The handler to receive all events
 
         Raises:
-            ValueError: If handler is invalid
+            ValidationError: If handler is invalid
             EventBusError: If handler signature validation fails
 
         """
         if not (isinstance(handler, EventHandler) or callable(handler)):
-            raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
+            raise ValidationError(
+                "Handler must implement EventHandler protocol or be a callable(event)",
+                field_name="handler",
+            )
 
         # Validate callable signature if it's a plain callable
         if callable(handler) and not isinstance(handler, EventHandler):
@@ -226,7 +232,11 @@ class EventBus:
                 handler(event)
             else:
                 # Unknown handler type
-                raise TypeError("Unsupported handler type")
+                raise TypeConversionError(
+                    "Unsupported handler type",
+                    source_type=type(handler).__name__,
+                    target_type="EventHandler or Callable",
+                )
             return (True, False)  # Successfully invoked, no error
 
         except Exception as e:
@@ -319,11 +329,13 @@ class EventBus:
             event: The event to publish
 
         Raises:
-            ValueError: If event is invalid (not a BaseEvent instance)
+            ValidationError: If event is invalid (not a BaseEvent instance)
 
         """
         if not isinstance(event, BaseEvent):
-            raise ValueError("Event must be a BaseEvent instance")
+            raise ValidationError(
+                "Event must be a BaseEvent instance", field_name="event", value=type(event).__name__
+            )
 
         self._event_count += 1
         event_type = event.event_type

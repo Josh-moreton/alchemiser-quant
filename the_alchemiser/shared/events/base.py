@@ -15,6 +15,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
+from ..errors import ValidationError
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -97,6 +98,10 @@ class BaseEvent(BaseModel):
                     timestamp_str = timestamp_str[:-1] + UTC_TIMEZONE_SUFFIX
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
-                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+                raise ValidationError(
+                    f"Invalid timestamp format: {data['timestamp']}",
+                    field_name="timestamp",
+                    value=data["timestamp"],
+                ) from e
 
         return cls(**data)
