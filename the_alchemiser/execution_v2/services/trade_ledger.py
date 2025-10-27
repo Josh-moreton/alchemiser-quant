@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Literal
 
+from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import ValidationError
 
 from the_alchemiser.shared.config.config import load_settings
@@ -43,9 +44,7 @@ logger = get_logger(__name__)
 
 __all__ = ["TradeLedgerService"]
 
-# Import boto3 exceptions for DynamoDB error handling
-from botocore.exceptions import BotoCoreError, ClientError
-
+# DynamoDB exception types for error handling
 DynamoDBException = (ClientError, BotoCoreError)
 
 

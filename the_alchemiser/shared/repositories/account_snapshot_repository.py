@@ -8,8 +8,10 @@ using partition key (PK) and sort key (SK) for efficient querying.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
+
+from botocore.exceptions import BotoCoreError, ClientError
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.account_snapshot import AccountSnapshot
@@ -18,9 +20,7 @@ logger = get_logger(__name__)
 
 __all__ = ["AccountSnapshotRepository"]
 
-# Import boto3 exceptions for type hints and exception handling
-from botocore.exceptions import BotoCoreError, ClientError
-
+# DynamoDB exception types for error handling
 DynamoDBException = (ClientError, BotoCoreError)
 
 
@@ -95,7 +95,7 @@ class AccountSnapshotRepository:
             period_end=timestamp_str,
         )
 
-    def _serialize_nested_data(self, data: Any) -> dict[str, Any]:
+    def _serialize_nested_data(self, data: dict[str, Any] | object) -> dict[str, Any]:
         """Serialize Pydantic model to dict with string representation of Decimals.
 
         Args:

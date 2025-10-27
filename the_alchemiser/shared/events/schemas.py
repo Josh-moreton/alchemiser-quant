@@ -401,8 +401,8 @@ class ReportReady(BaseEvent):
     s3_key: str = Field(..., description="S3 key (path) to the report PDF")
     s3_uri: str = Field(..., description="Full S3 URI to the report")
     file_size_bytes: int = Field(..., description="Size of the generated PDF in bytes")
-    generation_time_ms: int = Field(..., description="Time taken to generate report in milliseconds")
-    snapshot_id: str = Field(..., description="Snapshot ID used to generate the report")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional report metadata"
+    generation_time_ms: int = Field(
+        ..., description="Time taken to generate report in milliseconds"
     )
+    snapshot_id: str = Field(..., description="Snapshot ID used to generate the report")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional report metadata")

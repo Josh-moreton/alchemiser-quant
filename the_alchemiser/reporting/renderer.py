@@ -7,7 +7,7 @@ Handles HTML template rendering and PDF generation from account snapshots.
 
 from __future__ import annotations
 
-import os
+import contextlib
 import tempfile
 import time
 from datetime import UTC, datetime
@@ -165,10 +165,8 @@ class ReportRenderer:
             finally:
                 browser.close()
                 # Clean up temp file
-                try:
-                    os.unlink(temp_path)
-                except OSError:
-                    pass
+                with contextlib.suppress(OSError):
+                    Path(temp_path).unlink()
 
     def _prepare_template_context(
         self, snapshot: AccountSnapshot, report_metadata: dict[str, Any]
@@ -228,7 +226,7 @@ class ReportRenderer:
             )
 
         # Build template context
-        context = {
+        return {
             "account_id": snapshot.account_id,
             "snapshot_id": snapshot.snapshot_id,
             "snapshot_version": snapshot.snapshot_version,
@@ -240,5 +238,3 @@ class ReportRenderer:
             "recent_orders": recent_orders,
             "report_version": report_metadata.get("report_version", "1.0"),
         }
-
-        return context

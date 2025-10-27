@@ -14,8 +14,6 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
 
 from the_alchemiser.shared.events import EventBus, ReportReady
 from the_alchemiser.shared.logging import generate_request_id, get_logger

@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from botocore.exceptions import BotoCoreError, ClientError
+
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.trade_ledger import TradeLedgerEntry
 
@@ -19,9 +21,7 @@ logger = get_logger(__name__)
 
 __all__ = ["DynamoDBTradeLedgerRepository"]
 
-# Import boto3 exceptions for type hints and exception handling
-from botocore.exceptions import BotoCoreError, ClientError
-
+# DynamoDB exception types for error handling
 DynamoDBException = (ClientError, BotoCoreError)
 
 
@@ -317,10 +317,25 @@ class DynamoDBTradeLedgerRepository:
             buy_trade = buy_queue[buy_idx]
             sell_trade = sell_queue[sell_idx]
 
-            buy_qty = Decimal(buy_trade.get("quantity"))
-            sell_qty = Decimal(sell_trade.get("quantity"))
-            buy_price = Decimal(buy_trade.get("price"))
-            sell_price = Decimal(sell_trade.get("price"))
+            # Extract and validate quantities and prices
+            buy_qty_raw = buy_trade.get("quantity")
+            sell_qty_raw = sell_trade.get("quantity")
+            buy_price_raw = buy_trade.get("price")
+            sell_price_raw = sell_trade.get("price")
+
+            if buy_qty_raw is None or sell_qty_raw is None:
+                raise ValueError(
+                    f"Missing quantity in trade data: buy={buy_qty_raw}, sell={sell_qty_raw}"
+                )
+            if buy_price_raw is None or sell_price_raw is None:
+                raise ValueError(
+                    f"Missing price in trade data: buy={buy_price_raw}, sell={sell_price_raw}"
+                )
+
+            buy_qty = Decimal(buy_qty_raw)
+            sell_qty = Decimal(sell_qty_raw)
+            buy_price = Decimal(buy_price_raw)
+            sell_price = Decimal(sell_price_raw)
 
             # Enforce 1:1 matching by quantity
             if buy_qty != sell_qty:
