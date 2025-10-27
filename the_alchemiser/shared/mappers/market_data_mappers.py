@@ -228,6 +228,7 @@ def _extract_prices_from_row(
                 "correlation_id": correlation_id,
                 "symbol": bar_symbol,
                 "timestamp": ts_parsed.isoformat(),
+                "row_index": row_index,
                 "missing_fields": missing_fields,
             },
         )
