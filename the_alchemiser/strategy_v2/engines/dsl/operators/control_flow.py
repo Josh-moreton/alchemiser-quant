@@ -245,7 +245,7 @@ def _evaluate_branch(
 
     """
     if condition_result:
-        branch_taken: Literal["then", "else"] = "then"
+        branch_taken = "then"
         result = context.evaluate_node(then_expr, context.correlation_id, context.trace)
         return branch_taken, result
 
