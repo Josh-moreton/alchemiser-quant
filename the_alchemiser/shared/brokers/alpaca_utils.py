@@ -22,7 +22,7 @@ from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 from alpaca.trading.client import TradingClient
 from alpaca.trading.stream import TradingStream
 
-from the_alchemiser.shared.errors.exceptions import ConfigurationError
+from the_alchemiser.shared.errors.exceptions import ConfigurationError, ValidationError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -82,11 +82,24 @@ def create_stock_bars_request(**kwargs: str | int | bool | None) -> StockBarsReq
     """
     try:
         return StockBarsRequest(**kwargs)
+    except (ValueError, TypeError, KeyError) as e:
+        logger.error(
+            "Failed to create StockBarsRequest due to parameter error",
+            error=str(e),
+            error_type=type(e).__name__,
+            kwargs_keys=list(kwargs.keys()) if kwargs else [],
+        )
+        raise ConfigurationError(
+            f"Failed to create StockBarsRequest: {e}",
+            config_key="stock_bars_request",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create StockBarsRequest",
+            "Failed to create StockBarsRequest due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
             kwargs_keys=list(kwargs.keys()) if kwargs else [],
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to create StockBarsRequest: {e}",
@@ -115,10 +128,36 @@ def create_stock_latest_quote_request(
 
     """
     try:
+
         return StockLatestQuoteRequest(**kwargs)
-    except Exception as e:
+
+    except (ValueError, TypeError, KeyError) as e:
+
         logger.error(
-            "Failed to create StockLatestQuoteRequest",
+
+            "Failed to create StockLatestQuoteRequest due to parameter error",
+
+            error=str(e),
+
+            error_type=type(e).__name__,
+
+            kwargs_keys=list(kwargs.keys()) if kwargs else [],
+
+        )
+
+        raise ConfigurationError(
+
+            f"Failed to create StockLatestQuoteRequest: {e}",
+
+            config_key="stock_latest_quote_request",
+
+        ) from e
+
+    except Exception as e:
+
+        logger.error(
+
+            "Failed to create StockLatestQuoteRequest due to unexpected error",
             error=str(e),
             kwargs_keys=list(kwargs.keys()) if kwargs else [],
         )
