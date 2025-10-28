@@ -702,7 +702,11 @@ def _extract_condition_type(condition: ASTNode) -> str:
             )
             if func_name == "rsi":
                 return "rsi_check"
-            elif func_name and ("moving-average" in func_name or "ma" in func_name):
+            elif func_name and (
+                func_name.startswith("moving-average")
+                or func_name.startswith("exponential-moving-average")
+                or func_name == "ma"
+            ):
                 return "ma_comparison"
             elif func_name and func_name in DECISION_INDICATORS:
                 return f"{func_name}_check"
