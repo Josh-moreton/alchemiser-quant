@@ -224,7 +224,7 @@ class PortfolioAnalysisHandler:
                 correlation_id=event.correlation_id,
             ) from e
         except Exception as e:
-            # Wrap unexpected errors in PortfolioError
+            # Unexpected errors - wrap in PortfolioError and emit failure
             self.logger.error(
                 f"PortfolioAnalysisHandler event handling failed with unexpected error for {event.event_type}: {e}",
                 exc_info=True,
@@ -365,7 +365,7 @@ class PortfolioAnalysisHandler:
                 correlation_id=event.correlation_id,
             ) from e
         except Exception as e:
-            # Wrap unexpected errors
+            # Unexpected errors - wrap in PortfolioError and emit failure
             self.logger.error(
                 f"Portfolio analysis failed with unexpected error: {e}",
                 exc_info=True,
