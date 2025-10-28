@@ -25,7 +25,12 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.errors import ExecutionManagerError, ValidationError
+from the_alchemiser.shared.errors import (
+    ConfigurationError,
+    ExecutionManagerError,
+    TradingClientError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
@@ -76,9 +81,20 @@ class ExecutionManager:
                 execution_config=execution_config,
             )
             self.enable_smart_execution = self.executor.enable_smart_execution
-        except Exception as e:
+        except (ValidationError, ConfigurationError) as e:
+            # Configuration or validation errors during executor initialization
             logger.error(
-                "Failed to initialize Executor",
+                "Failed to initialize Executor due to configuration error",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+            raise ExecutionManagerError(
+                f"Executor initialization failed: {e}", operation="initialization"
+            ) from e
+        except Exception as e:
+            # Unexpected errors during executor initialization
+            logger.error(
+                "Failed to initialize Executor due to unexpected error",
+                exc_info=True,
                 extra={"error": str(e), "error_type": type(e).__name__},
             )
             raise ExecutionManagerError(
@@ -143,11 +159,22 @@ class ExecutionManager:
                     "TradingStream initialization completed",
                     extra={"correlation_id": correlation_id},
                 )
-            except OSError as e:
-                # Network-related errors that shouldn't stop execution (includes ConnectionError, TimeoutError)
+            except (OSError, TimeoutError, ConnectionError) as e:
+                # Network-related errors that shouldn't stop execution
                 stream_init_error = e
                 logger.warning(
-                    "TradingStream background initialization failed (non-critical)",
+                    "TradingStream background initialization failed (non-critical network error)",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+            except (TradingClientError, ConfigurationError) as e:
+                # Trading client or configuration errors - log but don't crash
+                stream_init_error = e
+                logger.warning(
+                    "TradingStream initialization failed (non-critical client error)",
                     extra={
                         "correlation_id": correlation_id,
                         "error": str(e),
@@ -159,12 +186,12 @@ class ExecutionManager:
                 stream_init_error = e
                 logger.error(
                     "Unexpected error in TradingStream initialization",
+                    exc_info=True,
                     extra={
                         "correlation_id": correlation_id,
                         "error": str(e),
                         "error_type": type(e).__name__,
                     },
-                    exc_info=True,
                 )
             finally:
                 stream_init_event.set()
@@ -183,16 +210,29 @@ class ExecutionManager:
         # We use asyncio.run() to create a new event loop for this execution
         try:
             result = asyncio.run(self.executor.execute_rebalance_plan(plan))
-        except Exception as e:
+        except (ValidationError, ExecutionManagerError) as e:
+            # Known execution errors - log and reraise
             logger.error(
-                "Execution failed with error",
+                "Execution failed with known error",
                 extra={
                     "correlation_id": correlation_id,
                     "plan_id": plan.plan_id,
                     "error": str(e),
                     "error_type": type(e).__name__,
                 },
+            )
+            raise
+        except Exception as e:
+            # Unexpected errors during execution - log and reraise
+            logger.error(
+                "Execution failed with unexpected error",
                 exc_info=True,
+                extra={
+                    "correlation_id": correlation_id,
+                    "plan_id": plan.plan_id,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
             )
             raise
 
@@ -230,8 +270,18 @@ class ExecutionManager:
             if hasattr(self, "executor") and self.executor:
                 self.executor.shutdown()
                 logger.debug("ExecutionManager: Executor shutdown completed")
+        except (AttributeError, RuntimeError) as e:
+            # Expected errors during shutdown (resource cleanup issues)
+            logger.warning(
+                f"ExecutionManager: Error during shutdown (non-critical): {e}",
+                extra={"error_type": type(e).__name__},
+            )
         except Exception as e:
-            logger.warning(f"ExecutionManager: Error during shutdown: {e}")
+            # Unexpected errors during shutdown - log but don't crash
+            logger.warning(
+                f"ExecutionManager: Unexpected error during shutdown: {e}",
+                extra={"error_type": type(e).__name__},
+            )
 
     @classmethod
     def create_with_config(
@@ -274,9 +324,20 @@ class ExecutionManager:
                 alpaca_manager=alpaca_manager,
                 execution_config=execution_config,
             )
-        except Exception as e:
+        except (ValidationError, ConfigurationError, TradingClientError) as e:
+            # Known errors during manager creation
             logger.error(
-                "Failed to create ExecutionManager",
+                "Failed to create ExecutionManager due to known error",
+                extra={"error": str(e), "error_type": type(e).__name__, "paper": paper},
+            )
+            raise ExecutionManagerError(
+                f"Failed to create ExecutionManager: {e}", operation="creation"
+            ) from e
+        except Exception as e:
+            # Unexpected errors during manager creation
+            logger.error(
+                "Failed to create ExecutionManager due to unexpected error",
+                exc_info=True,
                 extra={"error": str(e), "error_type": type(e).__name__, "paper": paper},
             )
             raise ExecutionManagerError(
