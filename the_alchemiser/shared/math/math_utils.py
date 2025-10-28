@@ -86,8 +86,17 @@ def calculate_moving_average(close_prices: pd.Series, window: int) -> float:
             return float(ma.iloc[-1])
         # Fallback to current price if MA calculation fails
         return float(close_prices.iloc[-1])
+    except (AttributeError, KeyError, IndexError) as e:
+        # Data access errors
+        logger.warning(f"Data access error calculating MA({window}): {e}, using current price", error_type=type(e).__name__)
+        return float(close_prices.iloc[-1]) if len(close_prices) > 0 else 0.0
+    except (ValueError, TypeError) as e:
+        # Type or conversion errors
+        logger.warning(f"Conversion error calculating MA({window}): {e}, using current price", error_type=type(e).__name__)
+        return float(close_prices.iloc[-1]) if len(close_prices) > 0 else 0.0
     except Exception as e:
-        logger.warning(f"Error calculating MA({window}): {e}, using current price")
+        # Last-resort catch for unexpected errors
+        logger.warning(f"Unexpected error calculating MA({window}): {e}, using current price", error_type=type(e).__name__, exc_info=True)
         return float(close_prices.iloc[-1]) if len(close_prices) > 0 else 0.0
 
 
@@ -121,8 +130,17 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
             if not floats_equal(prev_ma, 0.0):
                 return float(((current_ma - prev_ma) / prev_ma) * 100)
         return 0.0
+    except (AttributeError, KeyError, IndexError) as e:
+        # Data access errors
+        logger.warning(f"Data access error calculating MA return({window}): {e}", error_type=type(e).__name__)
+        return 0.0
+    except (ValueError, TypeError, ZeroDivisionError) as e:
+        # Conversion or mathematical errors
+        logger.warning(f"Calculation error in MA return({window}): {e}", error_type=type(e).__name__)
+        return 0.0
     except Exception as e:
-        logger.warning(f"Error calculating MA return({window}): {e}")
+        # Last-resort catch for unexpected errors
+        logger.warning(f"Unexpected error calculating MA return({window}): {e}", error_type=type(e).__name__, exc_info=True)
         return 0.0
 
 
@@ -188,8 +206,17 @@ def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean")
         rolling_result = getattr(data.rolling(window=window), metric)()
         result = rolling_result.iloc[-1]
         return float(result) if not pd.isna(result) else 0.0
+    except (AttributeError, KeyError, IndexError) as e:
+        # Data access errors or invalid metric
+        logger.warning(f"Data access error calculating rolling {metric}: {e}", error_type=type(e).__name__)
+        return 0.0
+    except (ValueError, TypeError) as e:
+        # Conversion or type errors
+        logger.warning(f"Conversion error calculating rolling {metric}: {e}", error_type=type(e).__name__)
+        return 0.0
     except Exception as e:
-        logger.warning(f"Error calculating rolling {metric}: {e}")
+        # Last-resort catch for unexpected errors
+        logger.warning(f"Unexpected error calculating rolling {metric}: {e}", error_type=type(e).__name__, exc_info=True)
         return 0.0
 
 
@@ -317,5 +344,11 @@ def calculate_ensemble_score(
         min_val = min(metrics)
         max_val = max(metrics)
         return _clamp_result_to_range(result, min_val, max_val)
-    except Exception:
+    except (ValueError, ZeroDivisionError) as e:
+        # Mathematical errors during ensemble calculation
+        logger.debug(f"Calculation error in ensemble score: {e}", error_type=type(e).__name__)
+        return 0.0
+    except Exception as e:
+        # Last-resort catch for unexpected errors
+        logger.debug(f"Unexpected error in ensemble score: {e}", error_type=type(e).__name__, exc_info=True)
         return 0.0

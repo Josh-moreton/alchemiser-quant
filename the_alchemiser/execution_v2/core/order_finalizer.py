@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors.exceptions import TradingClientError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
@@ -135,10 +136,18 @@ class OrderFinalizer:
                         DEFAULT_ORDER_COMPLETION_TIMEOUT_SECONDS,
                     )
                 )
-        except Exception as exc:
+        except (AttributeError, ValueError, TypeError) as exc:
+            # Configuration access or conversion errors - use default
             logger.debug(
                 f"Error deriving max wait seconds: {exc}",
                 extra={"error_type": type(exc).__name__},
+            )
+        except Exception as exc:
+            # Last-resort catch for unexpected errors - use default
+            logger.debug(
+                f"Unexpected error deriving max wait seconds: {exc}",
+                extra={"error_type": type(exc).__name__},
+                exc_info=True,
             )
         return DEFAULT_ORDER_COMPLETION_TIMEOUT_SECONDS
 
@@ -246,14 +255,26 @@ class OrderFinalizer:
                     f"⚠️ {phase_type} phase: Could not determine completion status via polling",
                     extra=log_extra,
                 )
-        except Exception as exc:
+        except TradingClientError as exc:
+            # Alpaca API errors during order completion polling
             logger.warning(
-                f"{phase_type} phase: error while polling for completion: {exc}",
+                f"{phase_type} phase: trading client error while polling for completion: {exc}",
                 extra={
                     **log_extra,
                     "error_type": type(exc).__name__,
                     "error_message": str(exc),
                 },
+            )
+        except Exception as exc:
+            # Last-resort catch for unexpected errors during polling
+            logger.warning(
+                f"{phase_type} phase: unexpected error while polling for completion: {exc}",
+                extra={
+                    **log_extra,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                },
+                exc_info=True,
             )
 
     def _build_final_status_map(
@@ -317,14 +338,38 @@ class OrderFinalizer:
                     )
 
             return status_str, avg_price
-        except Exception as exc:
+        except TradingClientError as exc:
+            # Alpaca API errors during order refresh
             logger.warning(
-                f"Failed to refresh order {order_id}: {exc}",
+                f"Trading client error refreshing order {order_id}: {exc}",
                 extra={
                     "order_id": order_id,
                     "error_type": type(exc).__name__,
                     "error_message": str(exc),
                 },
+            )
+            return "rejected", None
+        except (AttributeError, ValueError, TypeError) as exc:
+            # Data access or conversion errors during order refresh
+            logger.warning(
+                f"Data error refreshing order {order_id}: {exc}",
+                extra={
+                    "order_id": order_id,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                },
+            )
+            return "rejected", None
+        except Exception as exc:
+            # Last-resort catch for unexpected errors during order refresh
+            logger.warning(
+                f"Unexpected error refreshing order {order_id}: {exc}",
+                extra={
+                    "order_id": order_id,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                },
+                exc_info=True,
             )
             return "rejected", None
 
@@ -426,7 +471,8 @@ class OrderFinalizer:
         try:
             corresponding_item = items[idx]
             return abs(corresponding_item.trade_amount)
-        except IndexError:
+        except IndexError as exc:
+            # Index out of bounds - use order trade_amount as fallback
             logger.debug(
                 f"Index {idx} out of range for items list (length {len(items)}), "
                 f"using order trade_amount as fallback",
@@ -435,10 +481,24 @@ class OrderFinalizer:
                     "order_id": order.order_id,
                     "index": idx,
                     "items_length": len(items),
+                    "error_type": type(exc).__name__,
+                },
+            )
+            return abs(order.trade_amount)
+        except (AttributeError, ValueError, TypeError) as exc:
+            # Data access or conversion errors - use order trade_amount as fallback
+            logger.warning(
+                f"Data error calculating trade value: {exc}",
+                extra={
+                    "order_symbol": order.symbol,
+                    "order_id": order.order_id,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
                 },
             )
             return abs(order.trade_amount)
         except Exception as exc:
+            # Last-resort catch for unexpected errors - use order trade_amount as fallback
             logger.warning(
                 f"Unexpected error calculating trade value: {exc}",
                 extra={
@@ -447,5 +507,6 @@ class OrderFinalizer:
                     "error_type": type(exc).__name__,
                     "error_message": str(exc),
                 },
+                exc_info=True,
             )
             return abs(order.trade_amount)

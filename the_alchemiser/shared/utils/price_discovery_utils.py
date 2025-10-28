@@ -26,6 +26,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
+from the_alchemiser.shared.errors.exceptions import MarketDataError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
 
@@ -181,8 +182,13 @@ def get_current_price_from_quote(
             return None
         logger.warning(f"No quote available for symbol: {symbol}")
         return None
+    except (AttributeError, ValueError, TypeError) as e:
+        # Data access or conversion errors when processing quotes
+        logger.error(f"Data error getting current price from quote for {symbol}: {e}", error_type=type(e).__name__)
+        return None
     except Exception as e:
-        logger.error(f"Failed to get current price from quote for {symbol}: {e}")
+        # Last-resort catch for unexpected errors
+        logger.error(f"Unexpected error getting current price from quote for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
         return None
 
 
@@ -227,8 +233,13 @@ def get_current_price_with_fallback(
         logger.warning(f"All price providers failed for symbol: {symbol}")
         return None
 
+    except MarketDataError as e:
+        # Market data errors from providers
+        logger.error(f"Market data error in price discovery with fallback for {symbol}: {e}", error_type=type(e).__name__)
+        return None
     except Exception as e:
-        logger.error(f"Error in price discovery with fallback for {symbol}: {e}")
+        # Last-resort catch for unexpected errors
+        logger.error(f"Unexpected error in price discovery with fallback for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
         return None
 
 
@@ -260,8 +271,17 @@ def get_current_price_as_decimal(
         if price is not None:
             return Decimal(str(price))  # Convert via string to avoid float precision issues
         return None
+    except (ValueError, TypeError) as e:
+        # Conversion errors when creating Decimal
+        logger.error(f"Conversion error getting decimal price for {symbol}: {e}", error_type=type(e).__name__)
+        return None
+    except MarketDataError as e:
+        # Market data errors from provider
+        logger.error(f"Market data error getting decimal price for {symbol}: {e}", error_type=type(e).__name__)
+        return None
     except Exception as e:
-        logger.error(f"Error getting decimal price for {symbol}: {e}")
+        # Last-resort catch for unexpected errors
+        logger.error(f"Unexpected error getting decimal price for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
         return None
 
 
@@ -288,6 +308,15 @@ def _get_price_from_provider(
             return get_current_price_from_quote(provider, symbol)
         logger.error(f"Provider does not implement expected interface: {type(provider)}")
         return None
+    except (AttributeError, TypeError) as e:
+        # Interface/protocol errors
+        logger.error(f"Interface error getting price from provider for {symbol}: {e}", error_type=type(e).__name__)
+        return None
+    except MarketDataError as e:
+        # Market data errors from provider
+        logger.error(f"Market data error getting price from provider for {symbol}: {e}", error_type=type(e).__name__)
+        return None
     except Exception as e:
-        logger.error(f"Error getting price from provider for {symbol}: {e}")
+        # Last-resort catch for unexpected errors
+        logger.error(f"Unexpected error getting price from provider for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
         return None
