@@ -274,9 +274,19 @@ class TestExecutionReportService:
         mock_boto_client: MagicMock,
         mock_event_bus: Mock,
     ) -> None:
-        """Test S3 upload."""
+        """Test S3 upload with ExpectedBucketOwner."""
         mock_s3_client = Mock()
-        mock_boto_client.return_value = mock_s3_client
+        mock_sts_client = Mock()
+        mock_sts_client.get_caller_identity.return_value = {"Account": "123456789012"}
+
+        def client_factory(service_name: str) -> Mock:
+            if service_name == "s3":
+                return mock_s3_client
+            elif service_name == "sts":
+                return mock_sts_client
+            return Mock()
+
+        mock_boto_client.side_effect = client_factory
 
         service = ExecutionReportService(
             event_bus=mock_event_bus,
@@ -288,12 +298,16 @@ class TestExecutionReportService:
 
         service._upload_to_s3(pdf_bytes, s3_key)
 
-        # Verify S3 client was called
+        # Verify STS client was called to get account ID
+        mock_sts_client.get_caller_identity.assert_called_once()
+
+        # Verify S3 client was called with ExpectedBucketOwner
         mock_s3_client.put_object.assert_called_once()
         call_kwargs = mock_s3_client.put_object.call_args[1]
         assert call_kwargs["Bucket"] == "test-bucket"
         assert call_kwargs["Key"] == s3_key
         assert call_kwargs["Body"] == pdf_bytes
         assert call_kwargs["ContentType"] == "application/pdf"
+        assert call_kwargs["ExpectedBucketOwner"] == "123456789012"
         assert "Metadata" in call_kwargs
         assert "sha256" in call_kwargs["Metadata"]

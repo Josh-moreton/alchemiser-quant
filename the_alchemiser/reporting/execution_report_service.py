@@ -315,6 +315,27 @@ class ExecutionReportService:
             "execution_time": summary.get("execution_duration_ms", 0),
         }
 
+    def _get_aws_account_id(self) -> str:
+        """Get AWS account ID from STS.
+
+        Returns:
+            AWS account ID
+
+        Raises:
+            Exception: If unable to retrieve account ID
+
+        """
+        import boto3
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        try:
+            sts_client = boto3.client("sts")
+            identity = sts_client.get_caller_identity()
+            return str(identity["Account"])
+        except (ClientError, BotoCoreError, KeyError) as e:
+            logger.error("Failed to retrieve AWS account ID", error=str(e))
+            raise
+
     def _upload_to_s3(self, pdf_bytes: bytes, s3_key: str) -> None:
         """Upload PDF to S3 bucket.
 
@@ -334,15 +355,19 @@ class ExecutionReportService:
         try:
             s3_client = boto3.client("s3")
 
+            # Get AWS account ID for bucket ownership verification
+            account_id = self._get_aws_account_id()
+
             # Calculate checksum for data integrity
             checksum = hashlib.sha256(pdf_bytes).hexdigest()
 
-            # Upload with metadata
+            # Upload with metadata and bucket ownership verification
             s3_client.put_object(
                 Bucket=self.s3_bucket,
                 Key=s3_key,
                 Body=pdf_bytes,
                 ContentType="application/pdf",
+                ExpectedBucketOwner=account_id,
                 Metadata={
                     "sha256": checksum,
                     "generated_at": datetime.now(UTC).isoformat(),
