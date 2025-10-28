@@ -13,6 +13,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Any, Protocol
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.notifications import EmailCredentials
@@ -20,6 +21,29 @@ from the_alchemiser.shared.schemas.notifications import EmailCredentials
 from .config import EmailConfig
 
 logger = get_logger(__name__)
+
+
+class S3ClientProtocol(Protocol):
+    """Protocol defining the S3 client interface used by EmailClient.
+
+    This protocol defines the minimal interface needed from boto3 S3 client
+    for email attachment functionality, improving type safety without
+    requiring a hard dependency on boto3 types.
+    """
+
+    def get_object(self, *, Bucket: str, Key: str, ExpectedBucketOwner: str | None = None) -> dict[str, Any]:
+        """Get an object from S3.
+
+        Args:
+            Bucket: S3 bucket name
+            Key: S3 object key
+            ExpectedBucketOwner: AWS account ID that owns the bucket (optional)
+
+        Returns:
+            Response dictionary containing Body and metadata
+
+        """
+        ...
 
 
 class EmailClient:
@@ -111,7 +135,7 @@ class EmailClient:
 
     def _download_s3_file(
         self,
-        s3_client: object,
+        s3_client: S3ClientProtocol,
         bucket: str,
         key: str,
         s3_uri: str,
@@ -120,7 +144,7 @@ class EmailClient:
         """Download file from S3.
 
         Args:
-            s3_client: Boto3 S3 client
+            s3_client: Boto3 S3 client (or compatible implementation)
             bucket: S3 bucket name
             key: S3 object key
             s3_uri: Full S3 URI for logging
@@ -135,12 +159,14 @@ class EmailClient:
         try:
             logger.debug(f"Downloading attachment from S3: {s3_uri}")
 
-            # Add ExpectedBucketOwner parameter for security if provided
-            get_object_params: dict[str, str] = {"Bucket": bucket, "Key": key}
+            # Call S3 with ExpectedBucketOwner parameter for security if provided
             if expected_bucket_owner:
-                get_object_params["ExpectedBucketOwner"] = expected_bucket_owner
+                response = s3_client.get_object(
+                    Bucket=bucket, Key=key, ExpectedBucketOwner=expected_bucket_owner
+                )
+            else:
+                response = s3_client.get_object(Bucket=bucket, Key=key)
 
-            response = s3_client.get_object(**get_object_params)  # type: ignore[attr-defined]
             content: bytes = response["Body"].read()
             return content
 
