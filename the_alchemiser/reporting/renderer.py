@@ -16,7 +16,11 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.account_snapshot import AccountSnapshot
+from the_alchemiser.shared.schemas.account_snapshot import (
+    AccountSnapshot,
+    AlpacaOrderData,
+    AlpacaPositionData,
+)
 
 from .metrics import compute_metrics_from_snapshot
 
@@ -138,6 +142,74 @@ class ReportRenderer:
         logger.debug("PDF generated", size_bytes=len(pdf_bytes))
         return pdf_bytes
 
+    def _convert_decimal_to_float(self, metrics: dict[str, Any]) -> dict[str, Any]:
+        """Convert Decimal values to float for template rendering.
+
+        Args:
+            metrics: Dictionary with potential Decimal values
+
+        Returns:
+            Dictionary with Decimal values converted to float
+
+        """
+        return {
+            key: float(value) if isinstance(value, Decimal) else value
+            for key, value in metrics.items()
+        }
+
+    def _convert_positions_to_template_data(
+        self, positions: list[AlpacaPositionData]
+    ) -> list[dict[str, Any]]:
+        """Convert position data to template-friendly format.
+
+        Args:
+            positions: List of Alpaca position data
+
+        Returns:
+            List of position dictionaries with float values
+
+        """
+        result = []
+        for pos in positions:
+            result.append(
+                {
+                    "symbol": pos.symbol,
+                    "qty": float(pos.qty or 0),
+                    "avg_entry_price": float(pos.avg_entry_price or 0),
+                    "current_price": float(pos.current_price or 0),
+                    "market_value": float(pos.market_value or 0),
+                    "unrealized_pl": float(pos.unrealized_pl or 0),
+                }
+            )
+        return result
+
+    def _convert_orders_to_template_data(
+        self, orders: list[AlpacaOrderData], max_orders: int = 10
+    ) -> list[dict[str, Any]]:
+        """Convert order data to template-friendly format.
+
+        Args:
+            orders: List of Alpaca order data
+            max_orders: Maximum number of recent orders to include
+
+        Returns:
+            List of order dictionaries with float values
+
+        """
+        result = []
+        for order in orders[:max_orders]:
+            result.append(
+                {
+                    "symbol": order.symbol,
+                    "side": order.side,
+                    "qty": float(order.qty or 0),
+                    "type": order.order_type,
+                    "status": order.status,
+                    "filled_qty": float(order.filled_qty or 0),
+                }
+            )
+        return result
+
     def _prepare_template_context(
         self, snapshot: AccountSnapshot, report_metadata: dict[str, Any]
     ) -> dict[str, Any]:
@@ -163,42 +235,13 @@ class ReportRenderer:
             "alpaca_orders": [order.model_dump() for order in snapshot.alpaca_orders],
         }
 
-        # Compute metrics
+        # Compute metrics and convert to float
         metrics = compute_metrics_from_snapshot(snapshot_dict)
+        metrics_for_template = self._convert_decimal_to_float(metrics)
 
-        # Convert Decimal to float for template
-        metrics_for_template = {
-            key: float(value) if isinstance(value, Decimal) else value
-            for key, value in metrics.items()
-        }
-
-        # Prepare positions data
-        positions = []
-        for pos in snapshot.alpaca_positions:
-            positions.append(
-                {
-                    "symbol": pos.symbol,
-                    "qty": float(pos.qty) if pos.qty else 0,
-                    "avg_entry_price": float(pos.avg_entry_price) if pos.avg_entry_price else 0,
-                    "current_price": float(pos.current_price) if pos.current_price else 0,
-                    "market_value": float(pos.market_value) if pos.market_value else 0,
-                    "unrealized_pl": float(pos.unrealized_pl) if pos.unrealized_pl else 0,
-                }
-            )
-
-        # Prepare recent orders data
-        recent_orders = []
-        for order in snapshot.alpaca_orders[:10]:  # Only show 10 most recent
-            recent_orders.append(
-                {
-                    "symbol": order.symbol,
-                    "side": order.side,
-                    "qty": float(order.qty) if order.qty else 0,
-                    "type": order.order_type,
-                    "status": order.status,
-                    "filled_qty": float(order.filled_qty) if order.filled_qty else 0,
-                }
-            )
+        # Convert positions and orders to template-friendly format
+        positions = self._convert_positions_to_template_data(snapshot.alpaca_positions)
+        recent_orders = self._convert_orders_to_template_data(snapshot.alpaca_orders)
 
         # Build template context
         return {
