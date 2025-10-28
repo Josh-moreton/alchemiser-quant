@@ -143,6 +143,84 @@ class TestReportRenderer:
         assert len(context["recent_orders"]) == 1
         assert context["recent_orders"][0]["symbol"] == "SPY"
 
+    def test_convert_decimal_to_float(self) -> None:
+        """Test decimal to float conversion for template rendering."""
+        renderer = ReportRenderer()
+        metrics = {
+            "total_value": Decimal("100000.50"),
+            "profit": Decimal("5000.25"),
+            "count": 10,
+            "name": "test",
+        }
+
+        result = renderer._convert_decimal_to_float(metrics)
+
+        assert isinstance(result["total_value"], float)
+        assert result["total_value"] == 100000.50
+        assert isinstance(result["profit"], float)
+        assert result["profit"] == 5000.25
+        assert result["count"] == 10
+        assert result["name"] == "test"
+
+    def test_convert_positions_to_template_data(self, sample_snapshot: AccountSnapshot) -> None:
+        """Test positions data conversion for template rendering."""
+        renderer = ReportRenderer()
+        positions = sample_snapshot.alpaca_positions
+
+        result = renderer._convert_positions_to_template_data(positions)
+
+        assert len(result) == 1
+        assert result[0]["symbol"] == "SPY"
+        assert isinstance(result[0]["qty"], float)
+        assert result[0]["qty"] == 100.0
+        assert isinstance(result[0]["avg_entry_price"], float)
+        assert isinstance(result[0]["current_price"], float)
+        assert isinstance(result[0]["market_value"], float)
+        # unrealized_pl is Decimal("0.00") which becomes 0 (int) due to "if pos.unrealized_pl else 0"
+        assert result[0]["unrealized_pl"] == 0
+
+    def test_convert_orders_to_template_data(self, sample_snapshot: AccountSnapshot) -> None:
+        """Test orders data conversion for template rendering."""
+        renderer = ReportRenderer()
+        orders = sample_snapshot.alpaca_orders
+
+        result = renderer._convert_orders_to_template_data(orders)
+
+        assert len(result) == 1
+        assert result[0]["symbol"] == "SPY"
+        assert result[0]["side"] == "buy"
+        assert isinstance(result[0]["qty"], float)
+        assert result[0]["qty"] == 100.0
+        assert result[0]["type"] == "market"
+        assert result[0]["status"] == "filled"
+        assert isinstance(result[0]["filled_qty"], float)
+
+    def test_convert_orders_to_template_data_with_max_orders(
+        self, sample_snapshot: AccountSnapshot
+    ) -> None:
+        """Test orders data conversion respects max_orders limit."""
+        renderer = ReportRenderer()
+        # Create multiple orders
+        extra_orders = [
+            AlpacaOrderData(
+                order_id=f"order-{i}",
+                symbol=f"TEST{i}",
+                side="buy",
+                order_type="limit",
+                qty=Decimal("50"),
+                filled_qty=Decimal("50"),
+                status="filled",
+                time_in_force="day",
+                submitted_at=datetime.now(UTC),
+            )
+            for i in range(15)
+        ]
+
+        result = renderer._convert_orders_to_template_data(extra_orders, max_orders=5)
+
+        assert len(result) == 5
+        assert all(isinstance(order["qty"], float) for order in result)
+
     @patch("the_alchemiser.reporting.renderer.ReportRenderer._html_to_pdf_with_playwright")
     def test_render_pdf_mock(
         self, mock_pdf_gen: MagicMock, sample_snapshot: AccountSnapshot
@@ -176,15 +254,13 @@ class TestReportRenderer:
         assert output_path.read_bytes() == mock_pdf_bytes
 
     @patch("the_alchemiser.reporting.renderer.ReportRenderer._html_to_pdf_with_playwright")
-    def test_render_execution_pdf_mock(
-        self, mock_pdf_gen: MagicMock
-    ) -> None:
+    def test_render_execution_pdf_mock(self, mock_pdf_gen: MagicMock) -> None:
         """Test execution PDF rendering with mocked Playwright."""
         mock_pdf_bytes = b"fake-execution-pdf-content"
         mock_pdf_gen.return_value = mock_pdf_bytes
 
         renderer = ReportRenderer()
-        
+
         # Create execution context
         context = {
             "trading_mode": "PAPER",
@@ -231,7 +307,7 @@ class TestReportRenderer:
         assert "generation_time_ms" in metadata
         assert "file_size_bytes" in metadata
         assert metadata["file_size_bytes"] == len(mock_pdf_bytes)
-        
+
         # Verify the template was used
         mock_pdf_gen.assert_called_once()
         html_arg = mock_pdf_gen.call_args[0][0]
@@ -248,7 +324,7 @@ class TestReportRenderer:
 
         renderer = ReportRenderer()
         output_path = tmp_path / "test_execution_report.pdf"
-        
+
         context = {
             "trading_mode": "LIVE",
             "timestamp": "2024-10-27 12:00:00 UTC",
