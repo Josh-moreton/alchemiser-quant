@@ -20,10 +20,13 @@ from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 from the_alchemiser.shared.errors import (
+    DataProviderError,
+    MarketDataError,
     MarketDataServiceError,
     TimeframeValidationError,
     ValidationError,
 )
+from the_alchemiser.shared.errors.exceptions import RateLimitError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
@@ -101,8 +104,11 @@ class MarketDataService(MarketDataPort):
             List of bar models
 
         Raises:
-            DataProviderError: If data fetch fails after normalization
-            ValueError: If period or timeframe format is invalid
+            TimeframeValidationError: If timeframe format is invalid
+            ValidationError: If period format is invalid
+            MarketDataServiceError: If Alpaca API returns an error
+            DataProviderError: If network/connectivity issues occur
+            MarketDataError: If data conversion/parsing fails
 
         """
         try:
@@ -126,18 +132,53 @@ class MarketDataService(MarketDataPort):
 
             return []
 
-        except Exception as e:
+        except TimeframeValidationError:
+            # Re-raise validation errors as-is
+            raise
+        except ValidationError:
+            # Re-raise validation errors as-is
+            raise
+        except (HTTPError, RetryException) as e:
+            # HTTP/Retry errors from Alpaca API - wrap in MarketDataServiceError
             self.logger.error(
-                "Failed to get bars",
+                "Alpaca API error while fetching bars",
                 symbol=str(symbol),
                 period=period,
                 timeframe=timeframe,
                 error=str(e),
+                error_type=type(e).__name__,
             )
-            # Re-raise with domain-appropriate error type
-            from the_alchemiser.shared.errors.exceptions import DataProviderError
-
-            raise DataProviderError(f"Market data fetch failed for {symbol}: {e}") from e
+            raise MarketDataServiceError(
+                f"Market data API error for {symbol}: {e}",
+                symbol=str(symbol),
+                operation="get_bars",
+            ) from e
+        except (OSError, RequestException) as e:
+            # Network/connectivity errors - wrap in DataProviderError
+            self.logger.error(
+                "Network error while fetching bars",
+                symbol=str(symbol),
+                period=period,
+                timeframe=timeframe,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise DataProviderError(f"Network error fetching data for {symbol}: {e}") from e
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data conversion/parsing errors - wrap in MarketDataError
+            self.logger.error(
+                "Data conversion error while processing bars",
+                symbol=str(symbol),
+                period=period,
+                timeframe=timeframe,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise MarketDataError(
+                f"Data conversion error for {symbol}: {e}",
+                symbol=str(symbol),
+                data_type="bars",
+            ) from e
 
     def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Get latest quote with error handling.
@@ -167,11 +208,22 @@ class MarketDataService(MarketDataPort):
             # Extract and normalize quote data
             return self._build_quote_model(quote, symbol_str)
 
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Network/API errors - log but return None (quotes are optional)
             self.logger.warning(
-                "Failed to get quote",
+                "API error while fetching quote",
                 symbol=str(symbol),
                 error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data parsing errors - log but return None
+            self.logger.warning(
+                "Data parsing error while processing quote",
+                symbol=str(symbol),
+                error=str(e),
+                error_type=type(e).__name__,
             )
             return None
 
@@ -294,11 +346,22 @@ class MarketDataService(MarketDataPort):
             price = self._repo.get_current_price(symbol_str)
             return float(price) if price is not None else None
 
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Network/API errors - log but return None (mid price is optional)
             self.logger.warning(
-                "Failed to get mid price",
+                "API error while fetching mid price",
                 symbol=str(symbol),
                 error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data conversion errors - log but return None
+            self.logger.warning(
+                "Data conversion error while processing mid price",
+                symbol=str(symbol),
+                error=str(e),
+                error_type=type(e).__name__,
             )
             return None
 
@@ -315,7 +378,8 @@ class MarketDataService(MarketDataPort):
             Current price or None if not available
 
         Raises:
-            RuntimeError: If price fetch fails (re-raised from utility)
+            MarketDataServiceError: If Alpaca API returns an error
+            MarketDataError: If price data parsing fails
 
         """
         from the_alchemiser.shared.utils.price_discovery_utils import (
@@ -324,13 +388,32 @@ class MarketDataService(MarketDataPort):
 
         try:
             return get_current_price_from_quote(self._repo, symbol)
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Network/API errors - log and reraise
             self.logger.error(
-                "Failed to get current price",
+                "API error while fetching current price",
                 symbol=symbol,
                 error=str(e),
+                error_type=type(e).__name__,
             )
-            raise
+            raise MarketDataServiceError(
+                f"Failed to fetch current price for {symbol}: {e}",
+                symbol=symbol,
+                operation="get_current_price",
+            ) from e
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data conversion errors - log and reraise
+            self.logger.error(
+                "Data conversion error while processing current price",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise MarketDataError(
+                f"Price data error for {symbol}: {e}",
+                symbol=symbol,
+                data_type="current_price",
+            ) from e
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols.
