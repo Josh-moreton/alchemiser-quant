@@ -178,7 +178,7 @@ class ReportRenderer:
                     "avg_entry_price": float(pos.avg_entry_price) if pos.avg_entry_price else 0,
                     "current_price": float(pos.current_price) if pos.current_price else 0,
                     "market_value": float(pos.market_value) if pos.market_value else 0,
-                    "unrealized_pl": float(pos.unrealized_pl) if pos.unrealized_pl else 0,
+                    "unrealized_pl": float(pos.unrealized_pl or 0),
                 }
             )
         return result
