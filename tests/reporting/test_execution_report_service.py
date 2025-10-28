@@ -282,7 +282,7 @@ class TestExecutionReportService:
         def client_factory(service_name: str) -> Mock:
             if service_name == "s3":
                 return mock_s3_client
-            elif service_name == "sts":
+            if service_name == "sts":
                 return mock_sts_client
             return Mock()
 
@@ -311,3 +311,45 @@ class TestExecutionReportService:
         assert call_kwargs["ExpectedBucketOwner"] == "123456789012"
         assert "Metadata" in call_kwargs
         assert "sha256" in call_kwargs["Metadata"]
+
+    @patch("boto3.client")
+    def test_upload_to_s3_caches_account_id(
+        self,
+        mock_boto_client: MagicMock,
+        mock_event_bus: Mock,
+    ) -> None:
+        """Test that AWS account ID is cached and STS is only called once."""
+        mock_s3_client = Mock()
+        mock_sts_client = Mock()
+        mock_sts_client.get_caller_identity.return_value = {"Account": "123456789012"}
+
+        def client_factory(service_name: str) -> Mock:
+            if service_name == "s3":
+                return mock_s3_client
+            if service_name == "sts":
+                return mock_sts_client
+            return Mock()
+
+        mock_boto_client.side_effect = client_factory
+
+        service = ExecutionReportService(
+            event_bus=mock_event_bus,
+            s3_bucket="test-bucket",
+        )
+
+        pdf_bytes = b"test-pdf-content"
+        s3_key_1 = "reports/test/2024/10/execution_test1.pdf"
+        s3_key_2 = "reports/test/2024/10/execution_test2.pdf"
+
+        # Upload twice
+        service._upload_to_s3(pdf_bytes, s3_key_1)
+        service._upload_to_s3(pdf_bytes, s3_key_2)
+
+        # Verify STS client was only called once (caching works)
+        mock_sts_client.get_caller_identity.assert_called_once()
+
+        # Verify S3 client was called twice with same account ID
+        assert mock_s3_client.put_object.call_count == 2
+        for call in mock_s3_client.put_object.call_args_list:
+            call_kwargs = call[1]
+            assert call_kwargs["ExpectedBucketOwner"] == "123456789012"

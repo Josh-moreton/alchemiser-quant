@@ -41,6 +41,7 @@ class ExecutionReportService:
         self.event_bus = event_bus
         self.s3_bucket = s3_bucket
         self.renderer = ReportRenderer()
+        self._aws_account_id: str | None = None
         logger.debug("Execution report service initialized", s3_bucket=s3_bucket)
 
     def generate_execution_report(
@@ -316,7 +317,7 @@ class ExecutionReportService:
         }
 
     def _get_aws_account_id(self) -> str:
-        """Get AWS account ID from STS.
+        """Get AWS account ID from STS (cached).
 
         Returns:
             AWS account ID
@@ -325,13 +326,17 @@ class ExecutionReportService:
             Exception: If unable to retrieve account ID
 
         """
+        if self._aws_account_id is not None:
+            return self._aws_account_id
+
         import boto3
         from botocore.exceptions import BotoCoreError, ClientError
 
         try:
             sts_client = boto3.client("sts")
             identity = sts_client.get_caller_identity()
-            return str(identity["Account"])
+            self._aws_account_id = str(identity["Account"])
+            return self._aws_account_id
         except (ClientError, BotoCoreError, KeyError) as e:
             logger.error("Failed to retrieve AWS account ID", error=str(e))
             raise
