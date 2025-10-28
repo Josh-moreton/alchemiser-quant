@@ -24,6 +24,9 @@ __all__ = ["DynamoDBTradeLedgerRepository"]
 # DynamoDB exception types for error handling
 DynamoDBException = (ClientError, BotoCoreError)
 
+# Entity type prefix constants
+SIGNAL_PREFIX = "SIGNAL#"
+
 
 class DynamoDBTradeLedgerRepository:
     """Repository for trade ledger using DynamoDB single-table design.
@@ -547,7 +550,7 @@ class DynamoDBTradeLedgerRepository:
                 "KeyConditionExpression": "GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
                 "ExpressionAttributeValues": {
                     ":pk": f"CORR#{correlation_id}",
-                    ":sk": "SIGNAL#",
+                    ":sk": SIGNAL_PREFIX,
                 },
                 "ScanIndexForward": False,  # Most recent first
             }
@@ -585,7 +588,7 @@ class DynamoDBTradeLedgerRepository:
                 "KeyConditionExpression": "GSI2PK = :pk AND begins_with(GSI2SK, :sk)",
                 "ExpressionAttributeValues": {
                     ":pk": f"SYMBOL#{symbol.upper()}",
-                    ":sk": "SIGNAL#",
+                    ":sk": SIGNAL_PREFIX,
                 },
                 "ScanIndexForward": False,
             }
@@ -619,7 +622,7 @@ class DynamoDBTradeLedgerRepository:
                 "KeyConditionExpression": "GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
                 "ExpressionAttributeValues": {
                     ":pk": f"STRATEGY#{strategy_name}",
-                    ":sk": "SIGNAL#",
+                    ":sk": SIGNAL_PREFIX,
                 },
                 "ScanIndexForward": False,
             }
@@ -657,7 +660,7 @@ class DynamoDBTradeLedgerRepository:
                 "KeyConditionExpression": "GSI4PK = :pk AND begins_with(GSI4SK, :sk)",
                 "ExpressionAttributeValues": {
                     ":pk": f"STATE#{lifecycle_state}",
-                    ":sk": "SIGNAL#",
+                    ":sk": SIGNAL_PREFIX,
                 },
                 "ScanIndexForward": False,
             }
