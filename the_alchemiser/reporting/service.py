@@ -15,12 +15,16 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
 from the_alchemiser.shared.events import EventBus, ReportReady
 from the_alchemiser.shared.logging import generate_request_id, get_logger
 from the_alchemiser.shared.repositories.account_snapshot_repository import (
     AccountSnapshotRepository,
 )
 from the_alchemiser.shared.schemas.account_snapshot import AccountSnapshot
+from the_alchemiser.shared.utils import get_aws_account_id
 
 from .renderer import ReportRenderer
 
@@ -228,23 +232,16 @@ class ReportGeneratorService:
             AWS account ID
 
         Raises:
-            Exception: If unable to retrieve account ID
+            ClientError: If unable to retrieve account ID from STS
+            BotoCoreError: If boto3 operation fails
+            KeyError: If Account field missing from STS response
 
         """
         if self._aws_account_id is not None:
             return self._aws_account_id
 
-        import boto3
-        from botocore.exceptions import BotoCoreError, ClientError
-
-        try:
-            sts_client = boto3.client("sts")
-            identity = sts_client.get_caller_identity()
-            self._aws_account_id = str(identity["Account"])
-            return self._aws_account_id
-        except (ClientError, BotoCoreError, KeyError) as e:
-            logger.error("Failed to retrieve AWS account ID", error=str(e))
-            raise
+        self._aws_account_id = get_aws_account_id()
+        return self._aws_account_id
 
     def _upload_to_s3(self, pdf_bytes: bytes, s3_key: str) -> None:
         """Upload PDF to S3 bucket.
@@ -254,9 +251,6 @@ class ReportGeneratorService:
             s3_key: S3 key (path) for the object
 
         """
-        import boto3
-        from botocore.exceptions import BotoCoreError, ClientError
-
         logger.debug("Uploading PDF to S3", s3_key=s3_key, size_bytes=len(pdf_bytes))
 
         try:

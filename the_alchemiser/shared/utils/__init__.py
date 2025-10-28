@@ -22,6 +22,9 @@ from ..errors.exceptions import (
 # Alpaca error handling utilities
 from .alpaca_error_handler import AlpacaErrorHandler, alpaca_retry_context
 
+# AWS utilities
+from .aws_utils import get_aws_account_id
+
 # Error reporting utilities
 from .error_reporter import ErrorReporter, get_error_reporter, report_error_globally
 
@@ -37,6 +40,7 @@ __all__ = [
     "TradingClientError",
     "ValidationError",
     "alpaca_retry_context",
+    "get_aws_account_id",
     "get_error_reporter",
     "report_error_globally",
 ]

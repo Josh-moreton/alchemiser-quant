@@ -268,7 +268,7 @@ class TestExecutionReportService:
         assert formatted["total_value"] == 10000.50
         assert formatted["execution_time"] == 2500
 
-    @patch("boto3.client")
+    @patch("the_alchemiser.shared.utils.aws_utils.boto3.client")
     def test_upload_to_s3(
         self,
         mock_boto_client: MagicMock,
@@ -312,7 +312,7 @@ class TestExecutionReportService:
         assert "Metadata" in call_kwargs
         assert "sha256" in call_kwargs["Metadata"]
 
-    @patch("boto3.client")
+    @patch("the_alchemiser.shared.utils.aws_utils.boto3.client")
     def test_upload_to_s3_caches_account_id(
         self,
         mock_boto_client: MagicMock,
