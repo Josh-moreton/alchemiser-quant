@@ -18,7 +18,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.shared.errors.exceptions import DataProviderError
+from the_alchemiser.shared.errors.exceptions import (
+    DataProviderError,
+    MarketDataError,
+    ValidationError,
+)
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -34,6 +38,16 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
 )
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
+from the_alchemiser.strategy_v2.errors import (
+    ConfigurationError as StrategyConfigurationError,
+)
+from the_alchemiser.strategy_v2.errors import (
+    MarketDataError as StrategyMarketDataError,
+)
+from the_alchemiser.strategy_v2.errors import (
+    StrategyExecutionError,
+    StrategyV2Error,
+)
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
 
@@ -81,6 +95,28 @@ class SignalGenerationHandler:
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
                     "error_type": "DataProviderError",
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+        except (StrategyV2Error, StrategyExecutionError, StrategyMarketDataError) as e:
+            # Strategy-specific errors - expected failure modes
+            self.logger.error(
+                f"SignalGenerationHandler strategy error for {event.event_type}: {e}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+        except (ValidationError, StrategyConfigurationError) as e:
+            # Validation/configuration errors - expected failure modes
+            self.logger.error(
+                f"SignalGenerationHandler validation error for {event.event_type}: {e}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
                 },
             )
             self._emit_workflow_failure(event, str(e))
@@ -162,9 +198,22 @@ class SignalGenerationHandler:
         except DataProviderError:
             # Re-raise specific errors to be handled at top level
             raise
-        except Exception as e:
+        except (StrategyV2Error, ValidationError, MarketDataError) as e:
+            # Strategy-specific and validation errors - log and reraise
             self.logger.error(
-                f"Signal generation failed: {e}",
+                f"Signal generation failed with domain error: {e}",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+            raise
+        except Exception as e:
+            # Unexpected errors - log with full context and reraise
+            self.logger.error(
+                f"Signal generation failed with unexpected error: {e}",
+                exc_info=True,
                 extra={
                     "correlation_id": event.correlation_id,
                     "error_type": type(e).__name__,
@@ -518,8 +567,26 @@ class SignalGenerationHandler:
                 f"✅ SignalGenerated event publish completed for correlation_id={correlation_id}"
             )
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors - log and reraise
+            self.logger.error(
+                f"Failed to emit SignalGenerated event due to data error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": correlation_id,
+                },
+            )
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to emit SignalGenerated event: {e}")
+            # Unexpected errors during event emission - log and reraise
+            self.logger.error(
+                f"Failed to emit SignalGenerated event due to unexpected error: {e}",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": correlation_id,
+                },
+            )
             raise
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
@@ -550,8 +617,26 @@ class SignalGenerationHandler:
             self.event_bus.publish(failure_event)
             self.logger.error(f"📡 Emitted WorkflowFailed event: {error_message}")
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors - log but don't propagate
+            # (workflow already failed, we're just reporting it)
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event due to data error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
+            # Unexpected errors - log but don't propagate
+            # (workflow already failed, we're just reporting it)
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event due to unexpected error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
 
     def _log_final_signal_summary(
         self,
