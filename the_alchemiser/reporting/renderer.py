@@ -174,10 +174,10 @@ class ReportRenderer:
             result.append(
                 {
                     "symbol": pos.symbol,
-                    "qty": float(pos.qty) if pos.qty else 0,
-                    "avg_entry_price": float(pos.avg_entry_price) if pos.avg_entry_price else 0,
-                    "current_price": float(pos.current_price) if pos.current_price else 0,
-                    "market_value": float(pos.market_value) if pos.market_value else 0,
+                    "qty": float(pos.qty or 0),
+                    "avg_entry_price": float(pos.avg_entry_price or 0),
+                    "current_price": float(pos.current_price or 0),
+                    "market_value": float(pos.market_value or 0),
                     "unrealized_pl": float(pos.unrealized_pl or 0),
                 }
             )
@@ -202,10 +202,10 @@ class ReportRenderer:
                 {
                     "symbol": order.symbol,
                     "side": order.side,
-                    "qty": float(order.qty) if order.qty else 0,
+                    "qty": float(order.qty or 0),
                     "type": order.order_type,
                     "status": order.status,
-                    "filled_qty": float(order.filled_qty) if order.filled_qty else 0,
+                    "filled_qty": float(order.filled_qty or 0),
                 }
             )
         return result

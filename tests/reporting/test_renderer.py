@@ -176,8 +176,9 @@ class TestReportRenderer:
         assert isinstance(result[0]["avg_entry_price"], float)
         assert isinstance(result[0]["current_price"], float)
         assert isinstance(result[0]["market_value"], float)
-        # unrealized_pl is Decimal("0.00") which becomes 0 (int) due to "if pos.unrealized_pl else 0"
-        assert result[0]["unrealized_pl"] == 0
+        # unrealized_pl is Decimal("0.00"), should be converted to float(0.0)
+        assert isinstance(result[0]["unrealized_pl"], float)
+        assert result[0]["unrealized_pl"] == 0.0
 
     def test_convert_orders_to_template_data(self, sample_snapshot: AccountSnapshot) -> None:
         """Test orders data conversion for template rendering."""
