@@ -13,7 +13,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.shared.errors import ReportGenerationError
+from the_alchemiser.shared.errors import (
+    ReportGenerationError,
+    ValidationError,
+)
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
     ErrorNotificationRequested,
@@ -228,15 +231,28 @@ class NotificationService:
             # Mark as processed after successful handling
             self._processed_events.add(event.event_id)
 
-        except Exception as e:
-            # Don't mark as processed on failure to allow retry
-            # Log error but don't re-raise (silent failure for notification service)
+        except (ReportGenerationError, ValidationError) as e:
+            # Known notification errors - don't mark as processed to allow retry
             self.logger.error(
-                f"Notification service failed to handle event {event.event_type}: {e}",
+                f"Notification service failed with known error for {event.event_type}: {e}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
                     "causation_id": event.causation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            # Unexpected errors - don't mark as processed, log but don't re-raise
+            # (silent failure for notification service to avoid breaking workflows)
+            self.logger.error(
+                f"Notification service failed with unexpected error for {event.event_type}: {e}",
+                exc_info=True,
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "causation_id": event.causation_id,
+                    "error_type": type(e).__name__,
                 },
             )
 
@@ -307,8 +323,20 @@ class NotificationService:
             else:
                 self._log_event_context(event, "Failed to send error notification email", "error")
 
+        except (ValueError, TypeError, AttributeError) as e:
+            # Template generation or data access errors
+            self._log_event_context(
+                event,
+                f"Failed to send error notification due to template error ({type(e).__name__}): {e}",
+                "error",
+            )
         except Exception as e:
-            self._log_event_context(event, f"Failed to send error notification: {e}", "error")
+            # Unexpected errors during notification sending
+            self._log_event_context(
+                event,
+                f"Failed to send error notification due to unexpected error ({type(e).__name__}): {e}",
+                "error",
+            )
 
     def _handle_trading_notification(self, event: TradingNotificationRequested) -> None:
         """Handle trading notification event.
@@ -338,11 +366,23 @@ class NotificationService:
                         trading_mode=event.trading_mode,
                         correlation_id=event.correlation_id,
                     )
-                except Exception as pdf_error:
-                    # Log but don't fail the notification
+                except (ReportGenerationError, ValueError, TypeError) as pdf_error:
+                    # Known PDF generation errors - log but don't fail the notification
                     self.logger.warning(
-                        f"Failed to generate PDF report: {pdf_error}",
-                        extra={"correlation_id": event.correlation_id},
+                        f"Failed to generate PDF report due to known error: {pdf_error}",
+                        extra={
+                            "correlation_id": event.correlation_id,
+                            "error_type": type(pdf_error).__name__,
+                        },
+                    )
+                except Exception as pdf_error:
+                    # Unexpected PDF generation errors - log but don't fail the notification
+                    self.logger.warning(
+                        f"Failed to generate PDF report due to unexpected error: {pdf_error}",
+                        extra={
+                            "correlation_id": event.correlation_id,
+                            "error_type": type(pdf_error).__name__,
+                        },
                     )
 
             # Build S3 attachments list
@@ -379,8 +419,27 @@ class NotificationService:
             else:
                 self._log_event_context(event, "Failed to send trading notification email", "error")
 
+        except (ReportGenerationError, ValidationError) as e:
+            # Known template/generation errors
+            self._log_event_context(
+                event,
+                f"Failed to send trading notification due to known error ({type(e).__name__}): {e}",
+                "error",
+            )
+        except (ValueError, TypeError, AttributeError) as e:
+            # Template generation or data access errors
+            self._log_event_context(
+                event,
+                f"Failed to send trading notification due to template error ({type(e).__name__}): {e}",
+                "error",
+            )
         except Exception as e:
-            self._log_event_context(event, f"Failed to send trading notification: {e}", "error")
+            # Unexpected errors during notification sending
+            self._log_event_context(
+                event,
+                f"Failed to send trading notification due to unexpected error ({type(e).__name__}): {e}",
+                "error",
+            )
 
     def _generate_execution_report(
         self, execution_data: dict[str, object], trading_mode: str, correlation_id: str
@@ -478,13 +537,25 @@ class NotificationService:
                 result_adapter,
                 event.trading_mode,
             )
-        except Exception as template_error:
-            # Fallback to basic template if enhanced template fails
+        except (ReportGenerationError, ValueError, TypeError, AttributeError) as template_error:
+            # Known template generation errors - fallback to basic template
             self.logger.warning(
-                f"Enhanced template failed, using basic: {template_error}",
+                f"Enhanced template failed with known error, using basic: {template_error}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
+                    "error_type": type(template_error).__name__,
+                },
+            )
+            return self._build_basic_trading_email(event)
+        except Exception as template_error:
+            # Unexpected template errors - fallback to basic template
+            self.logger.warning(
+                f"Enhanced template failed with unexpected error, using basic: {template_error}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(template_error).__name__,
                 },
             )
             return self._build_basic_trading_email(event)
@@ -576,5 +647,17 @@ class NotificationService:
             else:
                 self._log_event_context(event, "Failed to send system notification email", "error")
 
+        except (ValueError, TypeError, AttributeError) as e:
+            # Template or data access errors
+            self._log_event_context(
+                event,
+                f"Failed to send system notification due to template error ({type(e).__name__}): {e}",
+                "error",
+            )
         except Exception as e:
-            self._log_event_context(event, f"Failed to send system notification: {e}", "error")
+            # Unexpected errors during notification sending
+            self._log_event_context(
+                event,
+                f"Failed to send system notification due to unexpected error ({type(e).__name__}): {e}",
+                "error",
+            )
