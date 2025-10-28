@@ -20,6 +20,11 @@ from typing import Any, ClassVar
 
 from alpaca.trading.stream import TradingStream
 
+from the_alchemiser.shared.errors.exceptions import (
+    ConfigurationError,
+    TradingClientError,
+    WebSocketError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
@@ -297,12 +302,27 @@ class WebSocketConnectionManager:
 
                             if ts is not None:
                                 ts.run()
-                        except Exception as exc:
+                        except (OSError, TimeoutError, ConnectionError) as exc:
                             logger.error(
-                                "TradingStream terminated",
+                                "TradingStream terminated due to network error",
                                 error=str(exc),
                                 error_type=type(exc).__name__,
                                 correlation_id=correlation_id,
+                            )
+                        except (WebSocketError, TradingClientError) as exc:
+                            logger.error(
+                                "TradingStream terminated due to client error",
+                                error=str(exc),
+                                error_type=type(exc).__name__,
+                                correlation_id=correlation_id,
+                            )
+                        except Exception as exc:
+                            logger.error(
+                                "TradingStream terminated due to unexpected error",
+                                error=str(exc),
+                                error_type=type(exc).__name__,
+                                correlation_id=correlation_id,
+                                exc_info=True,
                             )
                         finally:
                             with self._trading_lock:
@@ -398,13 +418,22 @@ class WebSocketConnectionManager:
                                 "TradingStream stop() timed out after 5 seconds",
                                 correlation_id=correlation_id,
                             )
-                except Exception as e:
+                except (OSError, TimeoutError, RuntimeError) as e:
                     logger.error(
-                        "Error stopping TradingStream",
+                        "Error stopping TradingStream due to known error",
                         error=str(e),
                         error_type=type(e).__name__,
                         operation="stop",
                         correlation_id=correlation_id,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Error stopping TradingStream due to unexpected error",
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        operation="stop",
+                        correlation_id=correlation_id,
+                        exc_info=True,
                     )
                 finally:
                     self._trading_callback = None
@@ -476,7 +505,16 @@ class WebSocketConnectionManager:
                         "trading_ref_count": stats.get("trading", {}).get("ref_count", 0),
                         "trading_connected": instance.is_trading_service_available(),
                     }
+                except (AttributeError, KeyError, TypeError) as e:
+                    # Data access or formatting errors - non-critical
+                    safe_key = key[:8] + "..." if len(key) > 8 else key
+                    health_info["instances"][safe_key] = {
+                        "status": "error",
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    }
                 except Exception as e:
+                    # Unexpected errors during health check - non-critical
                     safe_key = key[:8] + "..." if len(key) > 8 else key
                     health_info["instances"][safe_key] = {
                         "status": "error",
@@ -543,13 +581,22 @@ class WebSocketConnectionManager:
                                     correlation_id=correlation_id,
                                 )
 
-                    except Exception as e:
+                    except (OSError, TimeoutError, RuntimeError) as e:
                         logger.error(
-                            "Error cleaning up connection manager",
+                            "Error cleaning up connection manager due to known error",
                             error=str(e),
                             error_type=type(e).__name__,
                             operation="cleanup",
                             correlation_id=correlation_id,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            "Error cleaning up connection manager due to unexpected error",
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            operation="cleanup",
+                            correlation_id=correlation_id,
+                            exc_info=True,
                         )
 
                 cls._instances.clear()
