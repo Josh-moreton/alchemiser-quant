@@ -108,9 +108,17 @@ class PositionUtils:
                 self.pricing_service.unsubscribe_symbol(symbol)
             logger.debug(f"📡 Unsubscribed from {len(symbols)} symbols")
         except (AttributeError, RuntimeError) as exc:
-            logger.warning(f"⚠️ Error during unsubscription (known error): {exc}", error_type=type(exc).__name__)
+            logger.warning(
+                "⚠️ Error during unsubscription (known error)",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
         except Exception as exc:
-            logger.warning(f"⚠️ Error during unsubscription (unexpected error): {exc}", error_type=type(exc).__name__)
+            logger.warning(
+                "⚠️ Error during unsubscription (unexpected error)",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
 
         logger.info("✅ Subscription cleanup complete")
 
@@ -136,9 +144,19 @@ class PositionUtils:
                         logger.debug(f"💰 Real-time price for {symbol}: ${mid_price:.2f}")
                         return mid_price
             except (AttributeError, ValueError, TypeError) as exc:
-                logger.debug(f"Could not get real-time price for {symbol} (data error): {exc}", error_type=type(exc).__name__)
+                logger.debug(
+                    "Could not get real-time price (data error)",
+                    symbol=symbol,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
             except Exception as exc:
-                logger.debug(f"Could not get real-time price for {symbol} (unexpected error): {exc}", error_type=type(exc).__name__)
+                logger.debug(
+                    "Could not get real-time price (unexpected error)",
+                    symbol=symbol,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
 
         # Fallback to static pricing
         try:
@@ -148,11 +166,26 @@ class PositionUtils:
                 logger.debug(f"💰 Static price for {symbol}: ${price_decimal:.2f}")
                 return price_decimal
         except (TradingClientError, MarketDataError) as exc:
-            logger.warning(f"⚠️ Could not get static price for {symbol} (client error): {exc}", error_type=type(exc).__name__)
+            logger.warning(
+                "⚠️ Could not get static price (client error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
         except (ValueError, TypeError) as exc:
-            logger.warning(f"⚠️ Could not get static price for {symbol} (conversion error): {exc}", error_type=type(exc).__name__)
+            logger.warning(
+                "⚠️ Could not get static price (conversion error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
         except Exception as exc:
-            logger.warning(f"⚠️ Could not get static price for {symbol} (unexpected error): {exc}", error_type=type(exc).__name__)
+            logger.warning(
+                "⚠️ Could not get static price (unexpected error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
 
         return None
 
@@ -189,19 +222,34 @@ class PositionUtils:
             return adjusted_quantity
 
         except (TradingClientError, ValidationError) as exc:
-            logger.debug(f"Error checking fractionability for {symbol} (client error): {exc}", error_type=type(exc).__name__)
+            logger.debug(
+                "Error checking fractionability (client error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
             # Default to whole shares if we can't determine fractionability
             if not isinstance(raw_quantity, Decimal):
                 raw_quantity = Decimal(str(raw_quantity))
             return raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
         except (AttributeError, ValueError, TypeError) as exc:
-            logger.debug(f"Error checking fractionability for {symbol} (data error): {exc}", error_type=type(exc).__name__)
+            logger.debug(
+                "Error checking fractionability (data error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
             # Default to whole shares if we can't determine fractionability
             if not isinstance(raw_quantity, Decimal):
                 raw_quantity = Decimal(str(raw_quantity))
             return raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
         except Exception as exc:
-            logger.debug(f"Error checking fractionability for {symbol} (unexpected error): {exc}", error_type=type(exc).__name__)
+            logger.debug(
+                "Error checking fractionability (unexpected error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
             # Default to whole shares if we can't determine fractionability
             if not isinstance(raw_quantity, Decimal):
                 raw_quantity = Decimal(str(raw_quantity))

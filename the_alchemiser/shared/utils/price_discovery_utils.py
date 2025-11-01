@@ -184,11 +184,22 @@ def get_current_price_from_quote(
         return None
     except (AttributeError, ValueError, TypeError) as e:
         # Data access or conversion errors when processing quotes
-        logger.error(f"Data error getting current price from quote for {symbol}: {e}", error_type=type(e).__name__)
+        logger.error(
+            "Data error getting current price from quote",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return None
     except Exception as e:
         # Last-resort catch for unexpected errors
-        logger.error(f"Unexpected error getting current price from quote for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
+        logger.error(
+            "Unexpected error getting current price from quote",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
         return None
 
 
@@ -235,11 +246,22 @@ def get_current_price_with_fallback(
 
     except MarketDataError as e:
         # Market data errors from providers
-        logger.error(f"Market data error in price discovery with fallback for {symbol}: {e}", error_type=type(e).__name__)
+        logger.error(
+            "Market data error in price discovery with fallback",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return None
     except Exception as e:
         # Last-resort catch for unexpected errors
-        logger.error(f"Unexpected error in price discovery with fallback for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
+        logger.error(
+            "Unexpected error in price discovery with fallback",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
         return None
 
 
@@ -273,15 +295,31 @@ def get_current_price_as_decimal(
         return None
     except (ValueError, TypeError) as e:
         # Conversion errors when creating Decimal
-        logger.error(f"Conversion error getting decimal price for {symbol}: {e}", error_type=type(e).__name__)
+        logger.error(
+            "Conversion error getting decimal price",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return None
     except MarketDataError as e:
         # Market data errors from provider
-        logger.error(f"Market data error getting decimal price for {symbol}: {e}", error_type=type(e).__name__)
+        logger.error(
+            "Market data error getting decimal price",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return None
     except Exception as e:
         # Last-resort catch for unexpected errors
-        logger.error(f"Unexpected error getting decimal price for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
+        logger.error(
+            "Unexpected error getting decimal price",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
         return None
 
 
@@ -310,13 +348,29 @@ def _get_price_from_provider(
         return None
     except (AttributeError, TypeError) as e:
         # Interface/protocol errors
-        logger.error(f"Interface error getting price from provider for {symbol}: {e}", error_type=type(e).__name__)
+        logger.error(
+            "Interface error getting price from provider",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return None
     except MarketDataError as e:
         # Market data errors from provider
-        logger.error(f"Market data error getting price from provider for {symbol}: {e}", error_type=type(e).__name__)
+        logger.error(
+            "Market data error getting price from provider",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return None
     except Exception as e:
         # Last-resort catch for unexpected errors
-        logger.error(f"Unexpected error getting price from provider for {symbol}: {e}", error_type=type(e).__name__, exc_info=True)
+        logger.error(
+            "Unexpected error getting price from provider",
+            symbol=str(symbol),
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
         return None
