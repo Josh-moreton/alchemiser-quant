@@ -88,3 +88,24 @@ __all__ = [
     "retry_with_backoff",
     "send_error_notification_if_needed",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Lazy accessors to avoid import cycles for selected symbols.
+
+    Provides ErrorSeverity and ErrorCategory from error_types, and
+    ErrorNotificationData from schemas at first access.
+    """
+    if name in {"ErrorSeverity", "ErrorCategory"}:
+        from .error_types import ErrorCategory, ErrorSeverity
+
+        mapping = {
+            "ErrorSeverity": ErrorSeverity,
+            "ErrorCategory": ErrorCategory,
+        }
+        return mapping[name]
+    if name == "ErrorNotificationData":
+        from the_alchemiser.shared.schemas.errors import ErrorNotificationData
+
+        return ErrorNotificationData
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

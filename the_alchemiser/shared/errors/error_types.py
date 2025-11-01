@@ -50,22 +50,9 @@ Note:
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
-# Re-export canonical schemas from shared.schemas.errors
-try:
-    from the_alchemiser.shared.schemas.errors import (
-        ErrorDetailInfo,
-        ErrorNotificationData,
-        ErrorReportSummary,
-        ErrorSummaryData,
-    )
-except ImportError as e:
-    # Provide clear error message if schemas are unavailable
-    raise ImportError(
-        "Failed to import error schemas from shared.schemas.errors. "
-        "This likely indicates a circular import or missing dependency. "
-        f"Original error: {e}"
-    ) from e
+# ruff: noqa: F401, F822  # allow TYPE_CHECKING-only imports and lazy __all__ entries
 
 # Explicit re-exports for backward compatibility
 __all__ = [
@@ -79,6 +66,51 @@ __all__ = [
     "ErrorSeverity",
     "ErrorSummaryData",
 ]
+
+# Type-checking-only imports to keep runtime dependency light
+if TYPE_CHECKING:  # pragma: no cover - type-checking only
+    from the_alchemiser.shared.schemas.errors import (
+        ErrorDetailInfo as _ErrorDetailInfo,
+    )
+    from the_alchemiser.shared.schemas.errors import (
+        ErrorNotificationData as _ErrorNotificationData,
+    )
+    from the_alchemiser.shared.schemas.errors import (
+        ErrorReportSummary as _ErrorReportSummary,
+    )
+    from the_alchemiser.shared.schemas.errors import (
+        ErrorSummaryData as _ErrorSummaryData,
+    )
+
+
+def __getattr__(name: str) -> object:
+    """Lazy re-export of schema DTOs to avoid circular imports.
+
+    This allows importing Error* DTOs from this module while deferring the
+    actual import of pydantic schemas until first access, breaking import cycles.
+    """
+    if name in {
+        "ErrorDetailInfo",
+        "ErrorNotificationData",
+        "ErrorReportSummary",
+        "ErrorSummaryData",
+    }:
+        from the_alchemiser.shared.schemas.errors import (
+            ErrorDetailInfo,
+            ErrorNotificationData,
+            ErrorReportSummary,
+            ErrorSummaryData,
+        )
+
+        mapping = {
+            "ErrorDetailInfo": ErrorDetailInfo,
+            "ErrorNotificationData": ErrorNotificationData,
+            "ErrorReportSummary": ErrorReportSummary,
+            "ErrorSummaryData": ErrorSummaryData,
+        }
+        return mapping[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 # Type aliases for error handler data structures
 

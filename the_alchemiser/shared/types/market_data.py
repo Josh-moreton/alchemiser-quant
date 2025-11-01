@@ -28,7 +28,7 @@ from decimal import Decimal
 import pandas as pd
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
-from the_alchemiser.shared.errors import (
+from the_alchemiser.shared.errors.exceptions import (
     PriceValidationError,
     SymbolValidationError,
     ValidationError,
