@@ -182,10 +182,10 @@ class PortfolioAnalysisHandler:
                     f"PortfolioAnalysisHandler ignoring event type: {event.event_type}"
                 )
 
-        except (PortfolioError, DataProviderError) as e:
-            # Re-raise specific errors after logging
+        except (NegativeCashBalanceError, ValidationError) as e:
+            # Specific portfolio errors (catch before base PortfolioError) - log and reraise
             self.logger.error(
-                f"Portfolio analysis failed with known error for {event.event_type}",
+                f"Portfolio analysis failed with validation/balance error for {event.event_type}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
@@ -194,10 +194,10 @@ class PortfolioAnalysisHandler:
             )
             self._emit_workflow_failure(event, str(e))
             raise
-        except (ValidationError, NegativeCashBalanceError) as e:
-            # Validation and balance errors - log and reraise
+        except (PortfolioError, DataProviderError) as e:
+            # Base PortfolioError and data provider errors - log and reraise
             self.logger.error(
-                f"Portfolio analysis failed with validation error for {event.event_type}",
+                f"Portfolio analysis failed with known error for {event.event_type}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
@@ -334,19 +334,19 @@ class PortfolioAnalysisHandler:
                 extra={"correlation_id": event.correlation_id},
             )
 
-        except (PortfolioError, DataProviderError):
-            # Re-raise specific errors
-            raise
-        except (ValidationError, NegativeCashBalanceError) as e:
-            # Validation errors - log and reraise
+        except (NegativeCashBalanceError, ValidationError) as e:
+            # Specific errors (catch before base PortfolioError) - log and reraise
             self.logger.error(
-                f"Portfolio analysis failed with validation error: {e}",
+                f"Portfolio analysis failed with validation/balance error: {e}",
                 extra={
                     "correlation_id": event.correlation_id,
                     "error_type": type(e).__name__,
                 },
             )
             self._emit_workflow_failure(event, str(e))
+            raise
+        except (PortfolioError, DataProviderError):
+            # Base PortfolioError and data provider errors - re-raise
             raise
         except (InvalidOperation, ValueError, TypeError) as e:
             # Data conversion/parsing errors - wrap in PortfolioError

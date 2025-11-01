@@ -39,12 +39,8 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 from the_alchemiser.strategy_v2.errors import (
-    ConfigurationError as StrategyConfigurationError,
-)
-from the_alchemiser.strategy_v2.errors import (
-    MarketDataError as StrategyMarketDataError,
-)
-from the_alchemiser.strategy_v2.errors import (
+    ConfigurationError,
+    MarketDataError as StrategyMarketDataError,  # Alias to disambiguate from shared.errors.MarketDataError
     StrategyExecutionError,
     StrategyV2Error,
 )
@@ -98,8 +94,8 @@ class SignalGenerationHandler:
                 },
             )
             self._emit_workflow_failure(event, str(e))
-        except (StrategyV2Error, StrategyExecutionError, StrategyMarketDataError) as e:
-            # Strategy-specific errors - expected failure modes
+        except (StrategyExecutionError, StrategyMarketDataError, ConfigurationError) as e:
+            # Strategy-specific errors (catch specific types before base StrategyV2Error)
             self.logger.error(
                 f"SignalGenerationHandler strategy error for {event.event_type}: {e}",
                 extra={
@@ -109,10 +105,10 @@ class SignalGenerationHandler:
                 },
             )
             self._emit_workflow_failure(event, str(e))
-        except (ValidationError, StrategyConfigurationError) as e:
-            # Validation/configuration errors - expected failure modes
+        except (StrategyV2Error, ValidationError) as e:
+            # Base StrategyV2Error and validation errors - expected failure modes
             self.logger.error(
-                f"SignalGenerationHandler validation error for {event.event_type}: {e}",
+                f"SignalGenerationHandler validation/strategy error for {event.event_type}: {e}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
@@ -198,8 +194,19 @@ class SignalGenerationHandler:
         except DataProviderError:
             # Re-raise specific errors to be handled at top level
             raise
+        except (StrategyExecutionError, StrategyMarketDataError, ConfigurationError) as e:
+            # Strategy-specific errors (catch specific types before base StrategyV2Error) - log and reraise
+            self.logger.error(
+                f"Signal generation failed with strategy error: {e}",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+            raise
         except (StrategyV2Error, ValidationError, MarketDataError) as e:
-            # Strategy-specific and validation errors - log and reraise
+            # Base StrategyV2Error, validation and market data errors - log and reraise
             self.logger.error(
                 f"Signal generation failed with domain error: {e}",
                 extra={
