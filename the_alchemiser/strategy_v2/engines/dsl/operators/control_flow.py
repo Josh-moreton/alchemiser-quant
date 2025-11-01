@@ -56,6 +56,9 @@ DECISION_INDICATORS = {
     "current-price",
 }
 
+# Reserved keywords that should not be treated as ticker symbols
+RESERVED_KEYWORDS = {"TRUE", "FALSE", "AND", "OR", "IF", "ELSE", "NOT", "THEN"}
+
 
 def defsymphony(args: list[ASTNode], context: DslContext) -> DSLValue:
     """Evaluate defsymphony - main strategy definition.
@@ -337,6 +340,7 @@ def _build_decision_node(
 
     Formats the condition as a human-readable string and captures any
     indicator values that were referenced during evaluation.
+    Also extracts metadata for natural language generation.
 
     Args:
         condition: The condition AST node that was evaluated
@@ -354,12 +358,35 @@ def _build_decision_node(
     # Try to extract indicator values from the condition
     values = _extract_indicator_values(condition, context)
 
-    return DecisionNode(
-        condition=condition_str,
-        result=result,
-        branch=branch,
-        values=values,
-    )
+    # Extract metadata for natural language generation
+    condition_type = _extract_condition_type(condition)
+    symbols_involved = _extract_symbols_from_condition(condition)
+    operator_type = _extract_operator_type(condition)
+    threshold = _extract_threshold(condition)
+    indicator_info = _extract_indicator_info(condition)
+
+    # Create base decision node
+    decision: DecisionNode = {
+        "condition": condition_str,
+        "result": result,
+        "branch": branch,
+        "values": values,
+    }
+
+    # Add optional fields if available
+    if condition_type:
+        decision["condition_type"] = condition_type
+    if symbols_involved:
+        decision["symbols_involved"] = symbols_involved
+    if operator_type:
+        decision["operator_type"] = operator_type
+    if threshold is not None:
+        decision["threshold"] = threshold
+    if indicator_info:
+        decision["indicator_name"] = indicator_info.get("name")
+        decision["indicator_params"] = indicator_info.get("params")
+
+    return decision
 
 
 def _format_condition(condition: ASTNode) -> str:
@@ -652,6 +679,185 @@ def _create_default_window_param(func_name: str) -> ASTNode:
         ],
         metadata={"node_subtype": "map"},
     )
+
+
+def _extract_condition_type(condition: ASTNode) -> str:
+    """Extract condition type from AST node.
+
+    Args:
+        condition: The condition AST node
+
+    Returns:
+        Condition type string (e.g., "rsi_check", "ma_comparison", "comparison")
+
+    """
+    if not condition.is_list() or not condition.children:
+        return "simple"
+
+    # Check if it's a comparison with indicator
+    if len(condition.children) >= 3:
+        left_child = condition.children[1]
+        if left_child.is_list() and left_child.children:
+            func_name = (
+                left_child.children[0].get_symbol_name()
+                if left_child.children[0].is_symbol()
+                else ""
+            )
+            if func_name == "rsi":
+                return "rsi_check"
+            if func_name and (
+                func_name.startswith(("moving-average", "exponential-moving-average"))
+                or func_name == "ma"
+            ):
+                return "ma_comparison"
+            if func_name and func_name in DECISION_INDICATORS:
+                return f"{func_name}_check"
+        return "comparison"
+
+    return "expression"
+
+
+def _extract_symbols_from_condition(condition: ASTNode) -> list[str]:
+    """Extract symbols referenced in condition.
+
+    Args:
+        condition: The condition AST node
+
+    Returns:
+        List of symbol strings
+
+    """
+    symbols: list[str] = []
+
+    if not condition.is_list() or not condition.children:
+        return symbols
+
+    # Recursively search for symbol atoms
+    for child in condition.children:
+        if child.is_atom():
+            atom_val = child.get_atom_value()
+            if (
+                isinstance(atom_val, str)
+                and atom_val.isupper()
+                and len(atom_val) <= 5
+                and atom_val not in RESERVED_KEYWORDS
+                and atom_val not in symbols
+            ):
+                # Likely a ticker symbol
+                symbols.append(atom_val)
+        elif child.is_list():
+            # Recurse into nested lists
+            nested_symbols = _extract_symbols_from_condition(child)
+            for sym in nested_symbols:
+                if sym not in symbols:
+                    symbols.append(sym)
+
+    return symbols
+
+
+def _extract_operator_type(condition: ASTNode) -> str:
+    """Extract operator type from condition.
+
+    Args:
+        condition: The condition AST node
+
+    Returns:
+        Operator type string (e.g., "greater_than", "less_than", "and", "or")
+
+    """
+    if not condition.is_list() or not condition.children:
+        return ""
+
+    if len(condition.children) >= 1 and condition.children[0].is_symbol():
+        op = condition.children[0].get_symbol_name()
+        if op == ">":
+            return "greater_than"
+        if op == "<":
+            return "less_than"
+        if op == ">=":
+            return "greater_than_or_equal"
+        if op == "<=":
+            return "less_than_or_equal"
+        if op == "=":
+            return "equal"
+        if op in ("and", "or"):
+            return op
+        return op or ""
+
+    return ""
+
+
+def _extract_threshold(condition: ASTNode) -> float | None:
+    """Extract numeric threshold from condition.
+
+    Args:
+        condition: The condition AST node
+
+    Returns:
+        Threshold value or None
+
+    """
+    if not condition.is_list() or not condition.children:
+        return None
+
+    # For binary operators, check right-hand side
+    if len(condition.children) >= 3:
+        right_child = condition.children[2]
+        if right_child.is_atom():
+            atom_val = right_child.get_atom_value()
+            if isinstance(atom_val, (int, float, Decimal)):
+                return float(atom_val)
+
+    return None
+
+
+def _extract_indicator_info(condition: ASTNode) -> dict[str, Any] | None:
+    """Extract indicator name and parameters from condition.
+
+    Args:
+        condition: The condition AST node
+
+    Returns:
+        Dictionary with "name" and "params" or None
+
+    """
+    if not condition.is_list() or not condition.children:
+        return None
+
+    # Check left side of comparison for indicator call
+    if len(condition.children) >= 2:
+        left_child = condition.children[1]
+        if left_child.is_list() and left_child.children:
+            func_name = (
+                left_child.children[0].get_symbol_name()
+                if left_child.children[0].is_symbol()
+                else ""
+            )
+            if func_name in DECISION_INDICATORS:
+                params: dict[str, Any] = {}
+                # Extract window parameter if present
+                if len(left_child.children) >= 3:
+                    param_node = left_child.children[2]
+                    if param_node.is_list() and param_node.children:
+                        # Parse map-style parameters like {:window 10}
+                        i = 0
+                        while i < len(param_node.children) - 1:
+                            key_node = param_node.children[i]
+                            val_node = param_node.children[i + 1]
+                            if key_node.is_symbol():
+                                key = key_node.get_symbol_name()
+                                if key and key.startswith(":"):
+                                    key = key[1:]  # Remove leading colon
+                                    if val_node.is_atom():
+                                        val = val_node.get_atom_value()
+                                        if isinstance(val, (int, float, Decimal)):
+                                            params[key] = (
+                                                int(val) if isinstance(val, int) else float(val)
+                                            )
+                            i += 2
+                return {"name": func_name, "params": params}
+
+    return None
 
 
 def register_control_flow_operators(dispatcher: DslDispatcher) -> None:
