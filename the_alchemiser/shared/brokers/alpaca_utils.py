@@ -82,11 +82,24 @@ def create_stock_bars_request(**kwargs: str | int | bool | None) -> StockBarsReq
     """
     try:
         return StockBarsRequest(**kwargs)
+    except (ValueError, TypeError, KeyError) as e:
+        logger.error(
+            "Failed to create StockBarsRequest due to parameter error",
+            error=str(e),
+            error_type=type(e).__name__,
+            kwargs_keys=list(kwargs.keys()) if kwargs else [],
+        )
+        raise ConfigurationError(
+            f"Failed to create StockBarsRequest: {e}",
+            config_key="stock_bars_request",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create StockBarsRequest",
+            "Failed to create StockBarsRequest due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
             kwargs_keys=list(kwargs.keys()) if kwargs else [],
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to create StockBarsRequest: {e}",
@@ -116,11 +129,24 @@ def create_stock_latest_quote_request(
     """
     try:
         return StockLatestQuoteRequest(**kwargs)
+    except (ValueError, TypeError, KeyError) as e:
+        logger.error(
+            "Failed to create StockLatestQuoteRequest due to parameter error",
+            error=str(e),
+            error_type=type(e).__name__,
+            kwargs_keys=list(kwargs.keys()) if kwargs else [],
+        )
+        raise ConfigurationError(
+            f"Failed to create StockLatestQuoteRequest: {e}",
+            config_key="stock_latest_quote_request",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create StockLatestQuoteRequest",
+            "Failed to create StockLatestQuoteRequest due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
             kwargs_keys=list(kwargs.keys()) if kwargs else [],
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to create StockLatestQuoteRequest: {e}",
@@ -174,12 +200,26 @@ def create_timeframe(amount: int, unit: str) -> TimeFrame:
 
     try:
         return TimeFrame(amount, unit_mapping[unit_lower])
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         logger.error(
-            "Failed to create TimeFrame",
+            "Failed to create TimeFrame due to parameter error",
             error=str(e),
+            error_type=type(e).__name__,
             amount=amount,
             unit=unit,
+        )
+        raise ConfigurationError(
+            f"Failed to create TimeFrame: {e}",
+            config_key="timeframe",
+        ) from e
+    except Exception as e:
+        logger.error(
+            "Failed to create TimeFrame due to unexpected error",
+            error=str(e),
+            error_type=type(e).__name__,
+            amount=amount,
+            unit=unit,
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to create TimeFrame: {e}",
@@ -220,11 +260,24 @@ def create_trading_client(
             # Note: api_key/secret_key automatically redacted by logger
         )
         return TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
+    except (ValueError, TypeError, OSError) as e:
+        logger.error(
+            "Failed to create TradingClient due to known error",
+            error=str(e),
+            error_type=type(e).__name__,
+            paper=paper,
+        )
+        raise ConfigurationError(
+            f"Failed to initialize Alpaca TradingClient: {e}",
+            config_key="trading_client",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create TradingClient",
+            "Failed to create TradingClient due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
             paper=paper,
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to initialize Alpaca TradingClient: {e}",
@@ -254,10 +307,22 @@ def create_data_client(api_key: str, secret_key: str) -> StockHistoricalDataClie
     try:
         logger.debug("Creating StockHistoricalDataClient")
         return StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+    except (ValueError, TypeError, OSError) as e:
+        logger.error(
+            "Failed to create StockHistoricalDataClient due to known error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise ConfigurationError(
+            f"Failed to initialize Alpaca StockHistoricalDataClient: {e}",
+            config_key="data_client",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create StockHistoricalDataClient",
+            "Failed to create StockHistoricalDataClient due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to initialize Alpaca StockHistoricalDataClient: {e}",
@@ -296,11 +361,24 @@ def create_trading_stream(
             paper=paper,
         )
         return TradingStream(api_key=api_key, secret_key=secret_key, paper=paper)
+    except (ValueError, TypeError, OSError) as e:
+        logger.error(
+            "Failed to create TradingStream due to known error",
+            error=str(e),
+            error_type=type(e).__name__,
+            paper=paper,
+        )
+        raise ConfigurationError(
+            f"Failed to initialize Alpaca TradingStream: {e}",
+            config_key="trading_stream",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create TradingStream",
+            "Failed to create TradingStream due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
             paper=paper,
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to initialize Alpaca TradingStream: {e}",
@@ -355,11 +433,24 @@ def create_stock_data_stream(
             feed=feed_lower,
         )
         return StockDataStream(api_key=api_key, secret_key=secret_key, feed=data_feed)
+    except (ValueError, TypeError, OSError) as e:
+        logger.error(
+            "Failed to create StockDataStream due to known error",
+            error=str(e),
+            error_type=type(e).__name__,
+            feed=feed_lower,
+        )
+        raise ConfigurationError(
+            f"Failed to initialize Alpaca StockDataStream: {e}",
+            config_key="stock_data_stream",
+        ) from e
     except Exception as e:
         logger.error(
-            "Failed to create StockDataStream",
+            "Failed to create StockDataStream due to unexpected error",
             error=str(e),
+            error_type=type(e).__name__,
             feed=feed_lower,
+            exc_info=True,
         )
         raise ConfigurationError(
             f"Failed to initialize Alpaca StockDataStream: {e}",

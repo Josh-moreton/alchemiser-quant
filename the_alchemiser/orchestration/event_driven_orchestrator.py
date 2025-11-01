@@ -21,6 +21,13 @@ from uuid import uuid4
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.shared.errors import (
+    ConfigurationError,
+    EventBusError,
+    MarketDataError,
+    TradingClientError,
+    ValidationError,
+)
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -131,8 +138,23 @@ class EventDrivenOrchestrator:
 
             self.logger.debug("Registered domain event handlers via module registration functions")
 
+        except (ImportError, AttributeError, TypeError) as e:
+            # Module or registration errors - wrap in ConfigurationError
+            self.logger.error(
+                f"Failed to register domain handlers due to configuration error: {e}",
+                extra={"error_type": type(e).__name__},
+            )
+            raise ConfigurationError(
+                f"Domain handler registration failed: {e}",
+                config_key="domain_handlers",
+            ) from e
         except Exception as e:
-            self.logger.error(f"Failed to register domain handlers: {e}")
+            # Unexpected errors during registration - wrap in RuntimeError
+            self.logger.error(
+                f"Failed to register domain handlers due to unexpected error: {e}",
+                exc_info=True,
+                extra={"error_type": type(e).__name__},
+            )
             raise RuntimeError(f"Domain handler registration failed: {e}") from e
 
     def _wrap_handlers_with_state_checking(self) -> None:
@@ -213,10 +235,17 @@ class EventDrivenOrchestrator:
                         correlation_id=workflow_correlation_id,
                         market_status=market_status,
                     )
-            except Exception as market_check_error:
-                # Don't fail workflow if market check fails - log and continue
+            except (MarketDataError, TradingClientError) as market_check_error:
+                # Expected API errors during market check - log and continue
                 self.logger.warning(
-                    f"Failed to check market status: {market_check_error}",
+                    f"Market status check failed with API error: {market_check_error}",
+                    correlation_id=workflow_correlation_id,
+                    error_type=type(market_check_error).__name__,
+                )
+            except Exception as market_check_error:
+                # Unexpected errors during market check - don't fail workflow, log and continue
+                self.logger.warning(
+                    f"Failed to check market status due to unexpected error: {market_check_error}",
                     correlation_id=workflow_correlation_id,
                     error_type=type(market_check_error).__name__,
                 )
@@ -243,8 +272,20 @@ class EventDrivenOrchestrator:
 
             return workflow_correlation_id
 
+        except (ValidationError, EventBusError) as e:
+            # Event construction or validation errors - log and reraise
+            self.logger.error(
+                f"Failed to start trading workflow due to validation/event error: {e}",
+                extra={"error_type": type(e).__name__},
+            )
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to start trading workflow: {e}")
+            # Unexpected errors - log and reraise
+            self.logger.error(
+                f"Failed to start trading workflow due to unexpected error: {e}",
+                exc_info=True,
+                extra={"error_type": type(e).__name__},
+            )
             raise
 
     def wait_for_workflow_completion(
@@ -342,12 +383,25 @@ class EventDrivenOrchestrator:
                     f"EventDrivenOrchestrator ignoring event type: {event.event_type}"
                 )
 
-        except Exception as e:
+        except (EventBusError, ValidationError) as e:
+            # Event handling errors - log but don't propagate (orchestrator is event boundary)
             self.logger.error(
-                f"EventDrivenOrchestrator event handling failed for {event.event_type}: {e}",
+                f"EventDrivenOrchestrator event handling failed with known error for {event.event_type}: {e}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            # Unexpected errors - log but don't propagate (orchestrator is event boundary)
+            self.logger.error(
+                f"EventDrivenOrchestrator event handling failed with unexpected error for {event.event_type}: {e}",
+                exc_info=True,
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
                 },
             )
 
@@ -718,11 +772,24 @@ class EventDrivenOrchestrator:
                 extra={"correlation_id": event.correlation_id},
             )
 
-        except Exception as e:
-            # Don't let notification failure break the workflow
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction or data errors - log but don't break workflow
             self.logger.error(
-                f"Failed to publish trading notification event: {e}",
-                extra={"correlation_id": event.correlation_id},
+                f"Failed to publish trading notification due to data error: {e}",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            # Unexpected errors - don't let notification failure break the workflow
+            self.logger.error(
+                f"Failed to publish trading notification due to unexpected error: {e}",
+                exc_info=True,
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
             )
 
     def _perform_reconciliation(self) -> None:
@@ -742,7 +809,12 @@ class EventDrivenOrchestrator:
             self.logger.info("✅ Post-trade reconciliation completed successfully")
 
         except Exception as e:
-            self.logger.error(f"Reconciliation failed: {e}")
+            # Reconciliation errors - log but don't fail overall workflow
+            self.logger.error(
+                f"Reconciliation failed with error: {e}",
+                exc_info=True,
+                extra={"error_type": type(e).__name__},
+            )
 
     def _trigger_recovery_workflow(self, event: TradeExecuted) -> None:
         """Trigger recovery workflow for failed trades.
@@ -772,7 +844,12 @@ class EventDrivenOrchestrator:
             )
 
         except Exception as e:
-            self.logger.error(f"Recovery workflow failed: {e}")
+            # Recovery workflow errors - log but don't fail overall workflow
+            self.logger.error(
+                f"Recovery workflow failed with error: {e}",
+                exc_info=True,
+                extra={"error_type": type(e).__name__},
+            )
 
     def _handle_workflow_completed(self, event: WorkflowCompleted) -> None:
         """Handle WorkflowCompleted event for monitoring and cleanup.
@@ -901,11 +978,33 @@ class EventDrivenOrchestrator:
                 correlation_id=correlation_id,
             )
 
-        except Exception as e:
-            # Don't let snapshot generation failure break the workflow
+        except (ConfigurationError, ImportError) as e:
+            # Configuration or module errors - log but don't fail workflow
             self.logger.error(
-                f"Failed to generate account snapshot: {e}",
-                extra={"correlation_id": correlation_id},
+                f"Failed to generate account snapshot due to configuration error: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except (TradingClientError, MarketDataError) as e:
+            # API errors during snapshot generation - log but don't fail workflow
+            self.logger.error(
+                f"Failed to generate account snapshot due to API error: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            # Unexpected errors - don't let snapshot generation failure break the workflow
+            self.logger.error(
+                f"Failed to generate account snapshot due to unexpected error: {e}",
+                exc_info=True,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
             )
 
     def _mark_ignored_signals(self, correlation_id: str) -> None:
@@ -961,11 +1060,23 @@ class EventDrivenOrchestrator:
                     ignored_count=ignored_count,
                 )
 
-        except Exception as e:
-            # Don't fail workflow on signal lifecycle update errors
+        except (ConfigurationError, ImportError) as e:
+            # Configuration or module errors - log but don't fail workflow
             self.logger.warning(
-                f"Failed to mark ignored signals: {e}",
-                extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
+                f"Failed to mark ignored signals due to configuration error: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            # Unexpected errors - don't fail workflow on signal lifecycle update errors
+            self.logger.warning(
+                f"Failed to mark ignored signals due to unexpected error: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
             )
 
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:

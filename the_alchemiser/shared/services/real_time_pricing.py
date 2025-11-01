@@ -409,9 +409,13 @@ class RealTimePricingService:
         except RuntimeError:
             # Event loop executor has shut down during error handling - gracefully ignore
             pass
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            # Data processing errors - non-critical, log and continue
             with contextlib.suppress(RuntimeError):
-                # Event loop executor has shut down - gracefully ignore
+                await self._data_processor.handle_quote_error(e, self._correlation_id)
+        except Exception as e:
+            # Unexpected errors during quote processing
+            with contextlib.suppress(RuntimeError):
                 await self._data_processor.handle_quote_error(e, self._correlation_id)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
@@ -452,16 +456,30 @@ class RealTimePricingService:
         except RuntimeError:
             # Event loop executor has shut down during error handling - gracefully ignore
             pass
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            # Data processing errors - non-critical, log and continue
             with contextlib.suppress(RuntimeError):
-                # Event loop executor has shut down - gracefully ignore
                 await asyncio.to_thread(
                     self.logger.error,
-                    "Error processing trade",
+                    "Error processing trade due to data error",
                     extra={
                         "correlation_id": self._correlation_id,
                         "symbol": symbol if "symbol" in locals() else None,
                         "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+        except Exception as e:
+            # Unexpected errors during trade processing
+            with contextlib.suppress(RuntimeError):
+                await asyncio.to_thread(
+                    self.logger.error,
+                    "Error processing trade due to unexpected error",
+                    extra={
+                        "correlation_id": self._correlation_id,
+                        "symbol": symbol if "symbol" in locals() else None,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
                     },
                     exc_info=True,
                 )
