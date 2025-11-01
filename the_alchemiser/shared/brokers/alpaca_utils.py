@@ -22,7 +22,7 @@ from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 from alpaca.trading.client import TradingClient
 from alpaca.trading.stream import TradingStream
 
-from the_alchemiser.shared.errors.exceptions import ConfigurationError, ValidationError
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)

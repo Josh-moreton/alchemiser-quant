@@ -263,17 +263,6 @@ class RealTimePricingService:
         except ConfigurationError:
             # Re-raise config errors
             raise
-        except (OSError, TimeoutError, ConnectionError) as e:
-            # Network errors during stream start
-            self.logger.error(
-                "Failed to start real-time pricing service due to network error",
-                extra={
-                    "correlation_id": self._correlation_id,
-                    "error_type": type(e).__name__,
-                    "error_details": str(e),
-                },
-            )
-            raise StreamingError(f"Failed to start stream: {e}") from e
         except Exception as e:
             # Unknown error - log and raise
             self.logger.exception(

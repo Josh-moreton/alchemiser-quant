@@ -274,10 +274,19 @@ class PositionUtils:
                 logger.debug(f"📊 Current position for {symbol}: {qty_decimal} shares")
                 return qty_decimal
         except (TradingClientError, ValidationError) as exc:
-            logger.debug(f"Could not get position for {symbol} (client error): {exc}", error_type=type(exc).__name__)
+            logger.debug(
+                f"Could not get position for {symbol} (client error): {exc}",
+                error_type=type(exc).__name__,
+            )
         except (ValueError, TypeError) as exc:
-            logger.debug(f"Could not get position for {symbol} (conversion error): {exc}", error_type=type(exc).__name__)
+            logger.debug(
+                f"Could not get position for {symbol} (conversion error): {exc}",
+                error_type=type(exc).__name__,
+            )
         except Exception as exc:
-            logger.debug(f"Could not get position for {symbol} (unexpected error): {exc}", error_type=type(exc).__name__)
+            logger.debug(
+                f"Could not get position for {symbol} (unexpected error): {exc}",
+                error_type=type(exc).__name__,
+            )
 
         return Decimal("0")

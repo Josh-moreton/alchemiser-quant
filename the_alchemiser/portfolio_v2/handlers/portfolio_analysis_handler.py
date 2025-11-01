@@ -492,9 +492,7 @@ class PortfolioAnalysisHandler:
             raise
         except (ValidationError, TypeError, AttributeError) as e:
             # Data access/conversion errors - wrap in DataProviderError
-            raise DataProviderError(
-                f"Failed to retrieve or parse account data: {e}"
-            ) from e
+            raise DataProviderError(f"Failed to retrieve or parse account data: {e}") from e
         except Exception as e:
             # Unexpected errors - wrap in DataProviderError
             self.logger.error(

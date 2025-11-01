@@ -26,7 +26,6 @@ from the_alchemiser.shared.errors import (
     TimeframeValidationError,
     ValidationError,
 )
-from the_alchemiser.shared.errors.exceptions import RateLimitError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort

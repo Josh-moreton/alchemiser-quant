@@ -22,9 +22,7 @@ from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import GetPortfolioHistoryRequest
 
 from the_alchemiser.shared.errors.exceptions import (
-    DataProviderError,
     TradingClientError,
-    ValidationError,
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.utils.alpaca_error_handler import (

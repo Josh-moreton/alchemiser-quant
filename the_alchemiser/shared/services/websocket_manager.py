@@ -21,7 +21,6 @@ from typing import Any, ClassVar
 from alpaca.trading.stream import TradingStream
 
 from the_alchemiser.shared.errors.exceptions import (
-    ConfigurationError,
     TradingClientError,
     WebSocketError,
 )
