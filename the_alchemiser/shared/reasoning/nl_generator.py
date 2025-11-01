@@ -109,9 +109,12 @@ class NaturalLanguageGenerator:
                     bullish_signals += 1
 
             # Check for bearish indicators
-            if result and ("below" in condition or "<" in condition):
-                if "moving" in condition or "ma" in condition:
-                    bearish_signals += 1
+            if (
+                result
+                and ("below" in condition or "<" in condition)
+                and ("moving" in condition or "ma" in condition)
+            ):
+                bearish_signals += 1
 
             # Check for volatility signals
             if "vix" in condition or "uvxy" in condition or "vixy" in condition:
@@ -120,10 +123,9 @@ class NaturalLanguageGenerator:
         # Determine overall sentiment
         if bullish_signals > bearish_signals:
             return "bullish"
-        elif bearish_signals > bullish_signals:
+        if bearish_signals > bullish_signals:
             return "bearish"
-        else:
-            return "neutral"
+        return "neutral"
 
     def _build_conditions_narrative(self, decision_path: list[dict[str, Any]]) -> str:
         """Build narrative from condition checks.
@@ -201,12 +203,10 @@ class NaturalLanguageGenerator:
             # Use template-based description
             if rsi_value is not None:
                 return self.templates.get_rsi_description(symbol, rsi_value, threshold, operator)
-            else:
-                # Fallback without value
-                if ">" in condition or "greater" in operator:
-                    return f"{symbol} RSI above {threshold}"
-                else:
-                    return f"{symbol} RSI below {threshold}"
+            # Fallback without value
+            if ">" in condition or "greater" in operator:
+                return f"{symbol} RSI above {threshold}"
+            return f"{symbol} RSI below {threshold}"
 
         return self._simplify_condition_string(condition)
 
@@ -241,10 +241,9 @@ class NaturalLanguageGenerator:
         # Determine if above or below
         if ">" in condition or "above" in condition.lower():
             return self.templates.MA_TEMPLATES["above_ma"].format(symbol=symbol, period=period)
-        elif "<" in condition or "below" in condition.lower():
+        if "<" in condition or "below" in condition.lower():
             return self.templates.MA_TEMPLATES["below_ma"].format(symbol=symbol, period=period)
-        else:
-            return f"{symbol} near its {period}-day moving average"
+        return f"{symbol} near its {period}-day moving average"
 
     def _simplify_condition_string(self, condition: str) -> str:
         """Simplify a condition string for readability.
@@ -278,13 +277,19 @@ class NaturalLanguageGenerator:
             Extracted symbol or empty string
 
         """
-        # Common symbols to look for
-        common_symbols = ["SPY", "TQQQ", "FNGU", "TECL", "BTAL", "UVXY", "VIXY", "VXX", "RGTI"]
+        # Try to find uppercase words that look like ticker symbols (2-5 chars)
+        import re
 
-        text_upper = text.upper()
-        for symbol in common_symbols:
-            if symbol in text_upper:
-                return symbol
+        # Pattern: word boundary, 2-5 uppercase letters, word boundary
+        pattern = r"\b([A-Z]{2,5})\b"
+        matches: list[str] = re.findall(pattern, text.upper())
+
+        # Filter out common reserved words and indicator names
+        reserved = {"IF", "THEN", "ELSE", "AND", "OR", "NOT", "TRUE", "FALSE", "RSI", "MA", "EMA"}
+
+        for match in matches:
+            if match not in reserved:
+                return str(match)
 
         return ""
 
@@ -341,11 +346,10 @@ class NaturalLanguageGenerator:
         # Join with appropriate punctuation
         if len(parts) == 0:
             return "Market conditions evaluated"
-        elif len(parts) == 1:
+        if len(parts) == 1:
             return parts[0]
-        else:
-            # Join first parts with ", " and add final part with ", "
-            return " ".join(parts)
+        # Join first parts with ", " and add final part with ", "
+        return " ".join(parts)
 
     def _generate_simple_allocation(self, allocation: dict[str, float]) -> str:
         """Generate simple allocation description without decision path.

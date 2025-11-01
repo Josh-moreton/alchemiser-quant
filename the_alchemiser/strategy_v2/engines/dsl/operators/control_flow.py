@@ -56,6 +56,9 @@ DECISION_INDICATORS = {
     "current-price",
 }
 
+# Reserved keywords that should not be treated as ticker symbols
+RESERVED_KEYWORDS = {"TRUE", "FALSE", "AND", "OR", "IF", "ELSE", "NOT", "THEN"}
+
 
 def defsymphony(args: list[ASTNode], context: DslContext) -> DSLValue:
     """Evaluate defsymphony - main strategy definition.
@@ -702,13 +705,12 @@ def _extract_condition_type(condition: ASTNode) -> str:
             )
             if func_name == "rsi":
                 return "rsi_check"
-            elif func_name and (
-                func_name.startswith("moving-average")
-                or func_name.startswith("exponential-moving-average")
+            if func_name and (
+                func_name.startswith(("moving-average", "exponential-moving-average"))
                 or func_name == "ma"
             ):
                 return "ma_comparison"
-            elif func_name and func_name in DECISION_INDICATORS:
+            if func_name and func_name in DECISION_INDICATORS:
                 return f"{func_name}_check"
         return "comparison"
 
@@ -734,10 +736,15 @@ def _extract_symbols_from_condition(condition: ASTNode) -> list[str]:
     for child in condition.children:
         if child.is_atom():
             atom_val = child.get_atom_value()
-            if isinstance(atom_val, str) and atom_val.isupper() and len(atom_val) <= 5:
+            if (
+                isinstance(atom_val, str)
+                and atom_val.isupper()
+                and len(atom_val) <= 5
+                and atom_val not in RESERVED_KEYWORDS
+                and atom_val not in symbols
+            ):
                 # Likely a ticker symbol
-                if atom_val not in symbols:
-                    symbols.append(atom_val)
+                symbols.append(atom_val)
         elif child.is_list():
             # Recurse into nested lists
             nested_symbols = _extract_symbols_from_condition(child)
@@ -765,15 +772,15 @@ def _extract_operator_type(condition: ASTNode) -> str:
         op = condition.children[0].get_symbol_name()
         if op == ">":
             return "greater_than"
-        elif op == "<":
+        if op == "<":
             return "less_than"
-        elif op == ">=":
+        if op == ">=":
             return "greater_than_or_equal"
-        elif op == "<=":
+        if op == "<=":
             return "less_than_or_equal"
-        elif op == "=":
+        if op == "=":
             return "equal"
-        elif op in ("and", "or"):
+        if op in ("and", "or"):
             return op
         return op or ""
 

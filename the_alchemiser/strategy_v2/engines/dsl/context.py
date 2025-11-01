@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class DecisionNode(TypedDict, total=False):
-    """Represents a single decision point in strategy evaluation.
+class DecisionNodeBase(TypedDict):
+    """Base decision node with required fields.
 
     Attributes:
         condition: Human-readable condition expression (e.g., "SPY RSI(10) > 79")
@@ -38,6 +38,22 @@ class DecisionNode(TypedDict, total=False):
         values: Dictionary mapping indicator references to their values.
             Values may be placeholder strings like "<computed>" when actual
             values are not available without re-evaluation.
+
+    """
+
+    condition: str
+    result: bool
+    branch: str
+    values: dict[str, Any]
+
+
+class DecisionNode(DecisionNodeBase, total=False):
+    """Decision node with optional metadata fields for natural language generation.
+
+    Extends DecisionNodeBase with optional fields that enable rich natural language
+    narrative generation. All base fields remain required; only metadata is optional.
+
+    Attributes:
         condition_type: Type of condition (e.g., "rsi_check", "ma_comparison", "price_check")
         symbols_involved: List of symbols referenced in condition (e.g., ["SPY", "TQQQ"])
         operator_type: Type of comparison operator (e.g., "greater_than", "less_than", "and", "or")
@@ -49,12 +65,7 @@ class DecisionNode(TypedDict, total=False):
 
     """
 
-    # Required fields
-    condition: str
-    result: bool
-    branch: str
-    values: dict[str, Any]
-    # Optional fields for natural language generation
+    # Optional metadata fields for natural language generation
     condition_type: str
     symbols_involved: list[str]
     operator_type: str

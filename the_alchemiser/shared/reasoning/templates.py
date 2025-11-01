@@ -3,14 +3,14 @@
 Templates for natural language reasoning generation.
 """
 
-from typing import Any
+from typing import Any, ClassVar
 
 
 class ReasoningTemplates:
     """Templates for generating natural language reasoning."""
 
     # Sentiment openings
-    SENTIMENT_OPENINGS = {
+    SENTIMENT_OPENINGS: ClassVar[dict[str, list[str]]] = {
         "bullish": [
             "Bullish sentiment.",
             "Market showing strength.",
@@ -34,21 +34,21 @@ class ReasoningTemplates:
     }
 
     # RSI condition templates
-    RSI_TEMPLATES = {
+    RSI_TEMPLATES: ClassVar[dict[str, str]] = {
         "overbought_above_threshold": "{symbol} RSI at {value:.1f}, above {threshold} threshold",
         "oversold_below_threshold": "{symbol} RSI at {value:.1f}, below {threshold} (oversold)",
         "rsi_neutral": "{symbol} RSI at {value:.1f} (neutral zone)",
     }
 
     # Moving average templates
-    MA_TEMPLATES = {
+    MA_TEMPLATES: ClassVar[dict[str, str]] = {
         "above_ma": "{symbol} above its {period}-day moving average",
         "below_ma": "{symbol} below its {period}-day moving average",
         "near_ma": "{symbol} near its {period}-day moving average",
     }
 
     # Allocation rationale templates
-    ALLOCATION_RATIONALES = {
+    ALLOCATION_RATIONALES: ClassVar[dict[str, str]] = {
         "bullish_tech": "so we buy leveraged tech with {symbol}",
         "bearish_defensive": "shifting to defensive positions with {symbol}",
         "volatility_hedge": "hedging with {symbol} as volatility spikes",
@@ -96,12 +96,11 @@ class ReasoningTemplates:
             return self.RSI_TEMPLATES["overbought_above_threshold"].format(
                 symbol=symbol, value=rsi_value, threshold=threshold
             )
-        elif operator in ("<", "less_than") and rsi_value < 30:
+        if operator in ("<", "less_than") and rsi_value < 30:
             return self.RSI_TEMPLATES["oversold_below_threshold"].format(
                 symbol=symbol, value=rsi_value, threshold=threshold
             )
-        else:
-            return self.RSI_TEMPLATES["rsi_neutral"].format(symbol=symbol, value=rsi_value)
+        return self.RSI_TEMPLATES["rsi_neutral"].format(symbol=symbol, value=rsi_value)
 
     def get_ma_description(
         self,
@@ -122,17 +121,18 @@ class ReasoningTemplates:
             Human-readable MA description
 
         """
-        if ma_price == 0:
+        import math
+
+        if math.isclose(ma_price, 0, abs_tol=1e-9) or ma_price == 0:
             return f"{symbol} moving average unavailable"
 
         pct_diff = ((current_price - ma_price) / ma_price) * 100
 
         if abs(pct_diff) < 1.0:  # Within 1%
             return self.MA_TEMPLATES["near_ma"].format(symbol=symbol, period=period)
-        elif pct_diff > 0:
+        if pct_diff > 0:
             return self.MA_TEMPLATES["above_ma"].format(symbol=symbol, period=period)
-        else:
-            return self.MA_TEMPLATES["below_ma"].format(symbol=symbol, period=period)
+        return self.MA_TEMPLATES["below_ma"].format(symbol=symbol, period=period)
 
     def get_allocation_rationale(
         self,
@@ -155,12 +155,19 @@ class ReasoningTemplates:
         primary_symbol = max(allocation, key=lambda k: allocation[k])
         sentiment = market_context.get("sentiment", "neutral")
 
+        # Common leveraged tech ETFs
+        leveraged_tech = {"TQQQ", "FNGU", "TECL", "SOXL", "NVDL"}
+        # Common defensive/volatility instruments
+        defensive = {"BTAL", "VIXY", "CASH", "BIL", "SHY", "SHV"}
+        # Common volatility hedges
+        volatility_hedges = {"UVXY", "VXX", "VIXY", "SVIX"}
+
         # Determine rationale type from symbol and sentiment
-        if primary_symbol in ("TQQQ", "FNGU", "TECL") and sentiment == "bullish":
+        if primary_symbol in leveraged_tech and sentiment == "bullish":
             template = self.ALLOCATION_RATIONALES["bullish_tech"]
-        elif primary_symbol in ("BTAL", "VIXY", "CASH") and sentiment == "bearish":
+        elif primary_symbol in defensive and sentiment == "bearish":
             template = self.ALLOCATION_RATIONALES["bearish_defensive"]
-        elif primary_symbol in ("UVXY", "VXX", "VIXY"):
+        elif primary_symbol in volatility_hedges:
             template = self.ALLOCATION_RATIONALES["volatility_hedge"]
         else:
             template = self.ALLOCATION_RATIONALES["sector_rotation"]

@@ -183,9 +183,13 @@ class TestNaturalLanguageGenerator:
 
     def test_extract_symbol_from_string(self, generator):
         """Test symbol extraction from strings."""
+        # Updated: new regex-based extraction finds first valid ticker (filters out RSI)
         assert generator._extract_symbol_from_string("rsi(SPY, 10) > 79") == "SPY"
         assert generator._extract_symbol_from_string("TQQQ allocation") == "TQQQ"
-        assert generator._extract_symbol_from_string("random text") == ""
+        # Should filter out reserved words and indicator names
+        assert generator._extract_symbol_from_string("IF THEN ELSE") == ""
+        assert generator._extract_symbol_from_string("RSI MA EMA") == ""  # All filtered
+        assert generator._extract_symbol_from_string("SPY AND TQQQ") == "SPY"  # Gets first valid symbol
 
     def test_compose_narrative(self, generator):
         """Test narrative composition."""
