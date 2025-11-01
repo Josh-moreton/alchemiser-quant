@@ -20,8 +20,11 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
+    MarketDataError,
     NegativeCashBalanceError,
     PortfolioError,
+    TradingClientError,
+    ValidationError,
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -179,24 +182,56 @@ class PortfolioAnalysisHandler:
                     f"PortfolioAnalysisHandler ignoring event type: {event.event_type}"
                 )
 
+        except (NegativeCashBalanceError, ValidationError) as e:
+            # Specific portfolio errors (catch before base PortfolioError) - log and reraise
+            self.logger.error(
+                f"Portfolio analysis failed with validation/balance error for {event.event_type}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+            raise
         except (PortfolioError, DataProviderError) as e:
-            # Re-raise specific errors after logging
+            # Base PortfolioError and data provider errors - log and reraise
             self.logger.error(
                 f"Portfolio analysis failed with known error for {event.event_type}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
                 },
             )
             self._emit_workflow_failure(event, str(e))
             raise
-        except Exception as e:
-            # Wrap unexpected errors in PortfolioError
+        except (MarketDataError, TradingClientError) as e:
+            # Market data or trading client errors - wrap in PortfolioError
             self.logger.error(
-                f"PortfolioAnalysisHandler event handling failed for {event.event_type}: {e}",
+                f"Portfolio analysis failed with external service error for {event.event_type}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+            raise PortfolioError(
+                f"External service error: {e}",
+                module=MODULE_NAME,
+                operation="handle_event",
+                correlation_id=event.correlation_id,
+            ) from e
+        except Exception as e:
+            # Unexpected errors - wrap in PortfolioError and emit failure
+            self.logger.error(
+                f"PortfolioAnalysisHandler event handling failed with unexpected error for {event.event_type}: {e}",
+                exc_info=True,
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
                 },
             )
 
@@ -299,14 +334,45 @@ class PortfolioAnalysisHandler:
                 extra={"correlation_id": event.correlation_id},
             )
 
-        except (PortfolioError, DataProviderError):
-            # Re-raise specific errors
+        except (NegativeCashBalanceError, ValidationError) as e:
+            # Specific errors (catch before base PortfolioError) - log and reraise
+            self.logger.error(
+                f"Portfolio analysis failed with validation/balance error: {e}",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
             raise
+        except (PortfolioError, DataProviderError):
+            # Base PortfolioError and data provider errors - re-raise
+            raise
+        except (InvalidOperation, ValueError, TypeError) as e:
+            # Data conversion/parsing errors - wrap in PortfolioError
+            self.logger.error(
+                f"Portfolio analysis failed with data conversion error: {e}",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            self._emit_workflow_failure(event, str(e))
+            raise PortfolioError(
+                f"Data conversion error: {e}",
+                module=MODULE_NAME,
+                operation="_handle_signal_generated",
+                correlation_id=event.correlation_id,
+            ) from e
         except Exception as e:
-            # Wrap unexpected errors
+            # Unexpected errors - wrap in PortfolioError and emit failure
             self.logger.error(
                 f"Portfolio analysis failed with unexpected error: {e}",
-                extra={"correlation_id": event.correlation_id},
+                exc_info=True,
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
             )
             self._emit_workflow_failure(event, str(e))
             raise PortfolioError(
@@ -424,7 +490,16 @@ class PortfolioAnalysisHandler:
             raise
         except NegativeCashBalanceError:
             raise
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Data access/conversion errors - wrap in DataProviderError
+            raise DataProviderError(f"Failed to retrieve or parse account data: {e}") from e
         except Exception as e:
+            # Unexpected errors - wrap in DataProviderError
+            self.logger.error(
+                f"Unexpected error retrieving account data: {e}",
+                exc_info=True,
+                extra={"error_type": type(e).__name__},
+            )
             raise DataProviderError(f"Failed to retrieve account data: {e}") from e
 
     def _analyze_allocation_comparison(
@@ -608,7 +683,24 @@ class PortfolioAnalysisHandler:
 
         except PortfolioError:
             raise
+        except (ValidationError, InvalidOperation, ValueError, TypeError) as e:
+            # Data validation or conversion errors - wrap in PortfolioError
+            raise PortfolioError(
+                f"Failed to create rebalance plan due to data error: {e}",
+                module=MODULE_NAME,
+                operation="_create_rebalance_plan_from_allocation",
+                correlation_id=correlation_id,
+            ) from e
         except Exception as e:
+            # Unexpected errors - log and wrap in PortfolioError
+            self.logger.error(
+                f"Unexpected error creating rebalance plan: {e}",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": correlation_id,
+                },
+            )
             raise PortfolioError(
                 f"Failed to create rebalance plan: {e}",
                 module=MODULE_NAME,
@@ -730,8 +822,26 @@ class PortfolioAnalysisHandler:
                 },
             )
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors - log and reraise
+            self.logger.error(
+                f"Failed to emit RebalancePlanned event due to data error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
+            # Unexpected errors during event emission - log and reraise
+            self.logger.error(
+                f"Failed to emit RebalancePlanned event due to unexpected error: {e}",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
             raise
 
     def _extract_trade_values(self, item: RebalancePlanItem) -> tuple[str, str, float]:
@@ -881,5 +991,23 @@ class PortfolioAnalysisHandler:
             self.event_bus.publish(failure_event)
             self.logger.error(f"📡 Emitted WorkflowFailed event: {error_message}")
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors - log but don't propagate
+            # (workflow already failed, we're just reporting it)
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event due to data error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
+            # Unexpected errors - log but don't propagate
+            # (workflow already failed, we're just reporting it)
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event due to unexpected error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )

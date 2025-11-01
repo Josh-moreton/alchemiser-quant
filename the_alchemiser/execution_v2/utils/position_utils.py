@@ -8,6 +8,11 @@ from __future__ import annotations
 from decimal import ROUND_DOWN, Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors.exceptions import (
+    MarketDataError,
+    TradingClientError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
@@ -102,8 +107,18 @@ class PositionUtils:
             for symbol in symbols:
                 self.pricing_service.unsubscribe_symbol(symbol)
             logger.debug(f"📡 Unsubscribed from {len(symbols)} symbols")
+        except (AttributeError, RuntimeError) as exc:
+            logger.warning(
+                "⚠️ Error during unsubscription (known error)",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
         except Exception as exc:
-            logger.warning(f"⚠️ Error during unsubscription: {exc}")
+            logger.warning(
+                "⚠️ Error during unsubscription (unexpected error)",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
 
         logger.info("✅ Subscription cleanup complete")
 
@@ -128,8 +143,20 @@ class PositionUtils:
                         mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
                         logger.debug(f"💰 Real-time price for {symbol}: ${mid_price:.2f}")
                         return mid_price
+            except (AttributeError, ValueError, TypeError) as exc:
+                logger.debug(
+                    "Could not get real-time price (data error)",
+                    symbol=symbol,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
             except Exception as exc:
-                logger.debug(f"Could not get real-time price for {symbol}: {exc}")
+                logger.debug(
+                    "Could not get real-time price (unexpected error)",
+                    symbol=symbol,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
 
         # Fallback to static pricing
         try:
@@ -138,8 +165,27 @@ class PositionUtils:
                 price_decimal = Decimal(str(static_price))
                 logger.debug(f"💰 Static price for {symbol}: ${price_decimal:.2f}")
                 return price_decimal
+        except (TradingClientError, MarketDataError) as exc:
+            logger.warning(
+                "⚠️ Could not get static price (client error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "⚠️ Could not get static price (conversion error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
         except Exception as exc:
-            logger.warning(f"⚠️ Could not get static price for {symbol}: {exc}")
+            logger.warning(
+                "⚠️ Could not get static price (unexpected error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
 
         return None
 
@@ -175,9 +221,36 @@ class PositionUtils:
             logger.debug(f"📊 {symbol}: whole shares only, quantity={adjusted_quantity}")
             return adjusted_quantity
 
+        except (TradingClientError, ValidationError) as exc:
+            logger.debug(
+                "Error checking fractionability (client error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            # Default to whole shares if we can't determine fractionability
+            if not isinstance(raw_quantity, Decimal):
+                raw_quantity = Decimal(str(raw_quantity))
+            return raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
+        except (AttributeError, ValueError, TypeError) as exc:
+            logger.debug(
+                "Error checking fractionability (data error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            # Default to whole shares if we can't determine fractionability
+            if not isinstance(raw_quantity, Decimal):
+                raw_quantity = Decimal(str(raw_quantity))
+            return raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
         except Exception as exc:
-            logger.debug(f"Error checking fractionability for {symbol}: {exc}")
-            # Default to whole shares if we can't determine fractionability - ensure Decimal input
+            logger.debug(
+                "Error checking fractionability (unexpected error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            # Default to whole shares if we can't determine fractionability
             if not isinstance(raw_quantity, Decimal):
                 raw_quantity = Decimal(str(raw_quantity))
             return raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
@@ -200,7 +273,20 @@ class PositionUtils:
                 qty_decimal = Decimal(str(qty))
                 logger.debug(f"📊 Current position for {symbol}: {qty_decimal} shares")
                 return qty_decimal
+        except (TradingClientError, ValidationError) as exc:
+            logger.debug(
+                f"Could not get position for {symbol} (client error): {exc}",
+                error_type=type(exc).__name__,
+            )
+        except (ValueError, TypeError) as exc:
+            logger.debug(
+                f"Could not get position for {symbol} (conversion error): {exc}",
+                error_type=type(exc).__name__,
+            )
         except Exception as exc:
-            logger.debug(f"Could not get position for {symbol}: {exc}")
+            logger.debug(
+                f"Could not get position for {symbol} (unexpected error): {exc}",
+                error_type=type(exc).__name__,
+            )
 
         return Decimal("0")

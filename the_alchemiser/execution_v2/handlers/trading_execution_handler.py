@@ -23,6 +23,12 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionStatus,
 )
 from the_alchemiser.shared.constants import DECIMAL_ZERO, EXECUTION_HANDLERS_MODULE
+from the_alchemiser.shared.errors import (
+    ExecutionManagerError,
+    MarketDataError,
+    TradingClientError,
+    ValidationError,
+)
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -78,17 +84,46 @@ class TradingExecutionHandler:
                     f"TradingExecutionHandler ignoring event type: {event.event_type}"
                 )
 
-        except Exception as e:
+        except ValidationError as e:
+            # Validation errors in event handling
             self.logger.error(
-                f"TradingExecutionHandler event handling failed for {event.event_type}: {e}",
+                f"TradingExecutionHandler validation error for {event.event_type}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
+                    "error_type": "ValidationError",
+                    "error_message": str(e),
+                },
+            )
+            self._emit_workflow_failure(event, f"Validation error: {e}")
+
+        except (ExecutionManagerError, TradingClientError, MarketDataError) as e:
+            # Domain-specific execution errors
+            self.logger.error(
+                f"TradingExecutionHandler domain error for {event.event_type}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+            self._emit_workflow_failure(event, f"Execution error: {e}")
+
+        except Exception as e:
+            # Unexpected errors - log with stack trace for debugging
+            self.logger.error(
+                f"TradingExecutionHandler unexpected error for {event.event_type}: {e}",
+                exc_info=True,
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
                 },
             )
 
             # Emit workflow failure event
-            self._emit_workflow_failure(event, str(e))
+            self._emit_workflow_failure(event, f"Unexpected error: {e}")
 
     def can_handle(self, event_type: str) -> bool:
         """Check if handler can handle a specific event type.
@@ -159,11 +194,21 @@ class TradingExecutionHandler:
 
             return is_open
 
-        except Exception as e:
-            # If market check fails, log warning and assume market is open
-            # to avoid blocking trading due to API issues
+        except (TradingClientError, MarketDataError) as e:
+            # Expected API errors - log warning and assume market is open
             self.logger.warning(
-                f"Failed to check market status - assuming market is OPEN: {e}",
+                f"Market status check failed - assuming market is OPEN: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            return True
+        except Exception as e:
+            # Unexpected errors during market check - log warning and assume market is open
+            # to avoid blocking trading due to infrastructure issues
+            self.logger.warning(
+                f"Unexpected error checking market status - assuming market is OPEN: {e}",
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
@@ -369,9 +414,55 @@ class TradingExecutionHandler:
                 failure_reason = self._build_failure_reason(execution_result)
                 self._emit_workflow_failure(event, failure_reason)
 
+        except ValidationError as e:
+            # Configuration or validation errors - log and emit failure
+            self.logger.error(
+                "Trade execution failed due to validation error",
+                extra={
+                    "error_type": "ValidationError",
+                    "error_message": str(e),
+                    "correlation_id": event.correlation_id,
+                    "event_id": event.event_id,
+                },
+            )
+            self._emit_workflow_failure(event, f"Validation error: {e}")
+        except ExecutionManagerError as e:
+            # Execution management errors - log and emit failure
+            self.logger.error(
+                "Trade execution failed due to execution manager error",
+                extra={
+                    "error_type": "ExecutionManagerError",
+                    "error_message": str(e),
+                    "correlation_id": event.correlation_id,
+                    "event_id": event.event_id,
+                },
+            )
+            self._emit_workflow_failure(event, f"Execution error: {e}")
+        except (TradingClientError, MarketDataError) as e:
+            # Trading or market data errors - log and emit failure
+            self.logger.error(
+                "Trade execution failed due to trading/market data error",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "correlation_id": event.correlation_id,
+                    "event_id": event.event_id,
+                },
+            )
+            self._emit_workflow_failure(event, f"Trading error: {e}")
         except Exception as e:
-            self.logger.error(f"Trade execution failed: {e}")
-            self._emit_workflow_failure(event, str(e))
+            # Unexpected errors - log with full context and emit failure
+            self.logger.error(
+                "Trade execution failed due to unexpected error",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "correlation_id": event.correlation_id,
+                    "event_id": event.event_id,
+                },
+            )
+            self._emit_workflow_failure(event, f"Unexpected error: {e}")
 
     def _emit_trade_executed_event(
         self, execution_result: ExecutionResult, *, success: bool
@@ -424,8 +515,27 @@ class TradingExecutionHandler:
                 f"{execution_result.orders_succeeded}/{execution_result.orders_placed} orders"
             )
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors (invalid data, missing fields)
+            self.logger.error(
+                "Failed to emit TradeExecuted event due to data error",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "correlation_id": execution_result.correlation_id,
+                },
+            )
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to emit TradeExecuted event: {e}")
+            # Unexpected errors during event emission
+            self.logger.error(
+                f"Failed to emit TradeExecuted event due to unexpected error: {e}",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": execution_result.correlation_id,
+                },
+            )
             raise
 
     def _emit_workflow_completed_event(
@@ -476,8 +586,27 @@ class TradingExecutionHandler:
                 "📡 Emitted WorkflowCompleted event - trading workflow finished successfully"
             )
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors (invalid data, missing fields)
+            self.logger.error(
+                "Failed to emit WorkflowCompleted event due to data error",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "correlation_id": correlation_id,
+                },
+            )
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowCompleted event: {e}")
+            # Unexpected errors during event emission
+            self.logger.error(
+                f"Failed to emit WorkflowCompleted event due to unexpected error: {e}",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": correlation_id,
+                },
+            )
             raise
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
@@ -508,8 +637,27 @@ class TradingExecutionHandler:
             self.event_bus.publish(failure_event)
             self.logger.error(f"📡 Emitted WorkflowFailed event: {error_message}")
 
+        except (ValidationError, TypeError, AttributeError) as e:
+            # Event construction errors - log but don't propagate
+            # (workflow already failed, we're just reporting it)
+            self.logger.error(
+                "Failed to emit WorkflowFailed event due to data error",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
+            # Unexpected errors - log but don't propagate
+            # (workflow already failed, we're just reporting it)
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event due to unexpected error: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "correlation_id": original_event.correlation_id,
+                },
+            )
 
     def _extract_failed_symbols(self, execution_result: ExecutionResult) -> list[str]:
         """Extract list of failed symbols from execution result.

@@ -32,7 +32,9 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors import (
+    OrderExecutionError,
     SymbolValidationError,
+    TradingClientError,
     ValidationError,
 )
 from the_alchemiser.shared.logging import get_logger, log_order_flow
@@ -358,15 +360,38 @@ class Executor:
             )
             return None
 
-        except Exception as e:
+        except (ValidationError, SymbolValidationError) as e:
+            # Validation errors during smart execution
             logger.error(
-                "❌ Smart execution failed for symbol",
+                "❌ Smart execution failed due to validation error",
                 extra={
                     "symbol": symbol,
                     "error": str(e),
                     "error_type": type(e).__name__,
                 },
+            )
+            return None
+        except (TradingClientError, OrderExecutionError) as e:
+            # Trading client or execution errors
+            logger.error(
+                "❌ Smart execution failed due to trading error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return None
+        except Exception as e:
+            # Unexpected errors during smart execution
+            logger.error(
+                "❌ Smart execution failed due to unexpected error",
                 exc_info=True,
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
             )
             return None
 
@@ -851,16 +876,41 @@ class Executor:
 
             return order_result
 
-        except Exception as e:
+        except (ValidationError, SymbolValidationError) as e:
+            # Validation errors during order execution
             logger.error(
-                "❌ Error executing order for symbol",
+                "❌ Error executing order due to validation error",
                 extra={
                     "action": item.action,
                     "symbol": item.symbol,
                     "error": str(e),
                     "error_type": type(e).__name__,
                 },
+            )
+            return self._create_error_order_result(item, e)
+        except (TradingClientError, OrderExecutionError) as e:
+            # Trading client or execution errors
+            logger.error(
+                "❌ Error executing order due to trading error",
+                extra={
+                    "action": item.action,
+                    "symbol": item.symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return self._create_error_order_result(item, e)
+        except Exception as e:
+            # Unexpected errors during order execution
+            logger.error(
+                "❌ Error executing order due to unexpected error",
                 exc_info=True,
+                extra={
+                    "action": item.action,
+                    "symbol": item.symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
             )
             return self._create_error_order_result(item, e)
 

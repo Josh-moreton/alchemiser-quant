@@ -23,8 +23,10 @@ from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.errors.exceptions import (
     ConfigurationError,
+    EventBusError,
     StrategyExecutionError,
     TradingClientError,
+    ValidationError,
 )
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging import (
@@ -118,7 +120,14 @@ class TradingSystem:
             self.container = ApplicationContainer.create_for_environment("development")
             ServiceFactory.initialize(self.container)
             self.logger.debug("Dependency injection initialized")
+        except (ImportError, AttributeError, TypeError) as e:
+            # Module or provider initialization errors - wrap in ConfigurationError
+            raise ConfigurationError(
+                f"Failed to initialize dependency injection due to module error: {e}",
+                config_key="container_initialization",
+            ) from e
         except Exception as e:
+            # Unexpected errors during DI initialization
             raise ConfigurationError(
                 f"Failed to initialize dependency injection: {e}",
                 config_key="container_initialization",
@@ -150,7 +159,14 @@ class TradingSystem:
             raise ConfigurationError(
                 f"Failed to import EventDrivenOrchestrator: {e}", config_key="event_orchestration"
             ) from e
+        except (AttributeError, TypeError) as e:
+            # Orchestrator initialization errors - wrap in ConfigurationError
+            raise ConfigurationError(
+                f"Failed to initialize event orchestration due to configuration error: {e}",
+                config_key="event_orchestration",
+            ) from e
         except Exception as e:
+            # Unexpected errors during orchestrator initialization
             raise ConfigurationError(
                 f"Failed to initialize event orchestration: {e}", config_key="event_orchestration"
             ) from e
@@ -300,6 +316,21 @@ class TradingSystem:
             )
             self._execution_cache[exec_correlation_id] = result
             return result
+        except (EventBusError, ValidationError) as e:
+            # Event system errors - handle and create failure result
+            self.logger.error(
+                "Trading execution failed due to event system error",
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=exec_correlation_id,
+            )
+            result = self._handle_trading_execution_error(
+                e,
+                correlation_id=exec_correlation_id,
+                started_at=started_at,
+            )
+            self._execution_cache[exec_correlation_id] = result
+            return result
         except Exception as e:
             # Unexpected errors - log and convert to proper exception type
             self.logger.error(
@@ -407,9 +438,19 @@ class TradingSystem:
                 correlation_id=correlation_id,
             )
             raise
+        except (EventBusError, ValidationError) as e:
+            # Event system errors - log and raise
+            self.logger.error(
+                "Event-driven trading execution failed with event system error",
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
+            raise
         except Exception as e:
             self.logger.error(
                 "Event-driven trading execution failed with unexpected error",
+                exc_info=True,
                 error=str(e),
                 error_type=type(e).__name__,
                 correlation_id=correlation_id,
@@ -440,9 +481,17 @@ class TradingSystem:
 
         except ImportError as e:
             self.logger.warning("Strategy tracking utilities not available", error=str(e))
-        except Exception as exc:
+        except (AttributeError, TypeError) as exc:
+            # Configuration or data access errors - log as warning (non-critical)
             self.logger.warning(
-                "Failed to display post-execution tracking",
+                "Failed to display post-execution tracking due to configuration error",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+        except Exception as exc:
+            # Unexpected errors - log as warning (non-critical operation)
+            self.logger.warning(
+                "Failed to display post-execution tracking due to unexpected error",
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
@@ -485,13 +534,23 @@ class TradingSystem:
 
         except OSError as exc:
             self.logger.error(
-                "Failed to export tracking summary (file error)",
+                "Failed to export tracking summary due to file error",
                 error=str(exc),
+                error_type=type(exc).__name__,
+                export_path=export_path,
+            )
+        except (ValueError, TypeError) as exc:
+            # JSON serialization errors - log error
+            self.logger.error(
+                "Failed to export tracking summary due to serialization error",
+                error=str(exc),
+                error_type=type(exc).__name__,
                 export_path=export_path,
             )
         except Exception as exc:
+            # Unexpected errors during export
             self.logger.error(
-                "Failed to export tracking summary",
+                "Failed to export tracking summary due to unexpected error",
                 error=str(exc),
                 error_type=type(exc).__name__,
                 export_path=export_path,

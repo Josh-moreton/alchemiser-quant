@@ -175,12 +175,13 @@ class OrderMonitor:
         except (AttributeError, ValueError, TypeError) as exc:
             logger.warning(
                 "Error deriving re-peg loop configuration, using defaults",
-                extra={"error": str(exc), "defaults": config},
+                extra={"error": str(exc), "error_type": type(exc).__name__, "defaults": config},
             )
         except Exception as exc:
+            # Last-resort catch for unexpected errors during configuration derivation
             logger.error(
                 "Unexpected error deriving re-peg loop configuration",
-                extra={"error": str(exc), "defaults": config},
+                extra={"error": str(exc), "error_type": type(exc).__name__, "defaults": config},
                 exc_info=True,
             )
             raise OrderError(
@@ -303,19 +304,20 @@ class OrderMonitor:
                         "correlation_id": correlation_id,
                         "phase_type": phase_type,
                         "attempt": attempts,
-                        "error_type": "order",
+                        "error_type": type(exc).__name__,
                         "error": str(exc),
                         "order_id": getattr(exc, "order_id", None),
                     },
                 )
             except Exception as exc:
+                # Last-resort catch for unexpected errors during re-peg monitoring
                 logger.error(
                     f"{log_prefix} ❌ {phase_type} phase re-peg attempt {attempts} failed (unexpected error)",
                     extra={
                         "correlation_id": correlation_id,
                         "phase_type": phase_type,
                         "attempt": attempts,
-                        "error_type": "unexpected",
+                        "error_type": type(exc).__name__,
                         "error": str(exc),
                     },
                     exc_info=True,
@@ -408,7 +410,7 @@ class OrderMonitor:
                 extra={
                     "correlation_id": correlation_id,
                     "phase_type": phase_type,
-                    "error_type": "order",
+                    "error_type": type(exc).__name__,
                     "error": str(exc),
                     "order_id": getattr(exc, "order_id", None),
                 },
@@ -416,12 +418,13 @@ class OrderMonitor:
             )
             return {}
         except Exception as exc:
+            # Last-resort catch for unexpected errors during final escalation
             logger.error(
                 f"{log_prefix} Unexpected error during final escalation in {phase_type} phase",
                 extra={
                     "correlation_id": correlation_id,
                     "phase_type": phase_type,
-                    "error_type": "unexpected",
+                    "error_type": type(exc).__name__,
                     "error": str(exc),
                 },
                 exc_info=True,
@@ -745,11 +748,13 @@ class OrderMonitor:
                 },
             )
         except Exception as exc:
+            # Last-resort catch for unexpected errors during order checking
             logger.warning(
                 f"{log_prefix} Unexpected error checking order {order_id}",
                 extra={
                     "correlation_id": correlation_id,
                     "order_id": order_id,
+                    "error_type": type(exc).__name__,
                     "error": str(exc),
                 },
                 exc_info=True,

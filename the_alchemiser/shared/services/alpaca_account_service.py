@@ -21,9 +21,16 @@ from typing import TYPE_CHECKING, Any
 from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import GetPortfolioHistoryRequest
 
-from the_alchemiser.shared.errors.exceptions import TradingClientError
+from the_alchemiser.shared.errors.exceptions import (
+    TradingClientError,
+)
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.utils.alpaca_error_handler import alpaca_retry_context
+from the_alchemiser.shared.utils.alpaca_error_handler import (
+    HTTPError,
+    RequestException,
+    RetryException,
+    alpaca_retry_context,
+)
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
@@ -96,11 +103,23 @@ class AlpacaAccountService:
         except TradingClientError:
             # Already logged in _get_account_object
             raise
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError) as exc:
+            # Data conversion errors - wrap in TradingClientError
             logger.error(
-                "Failed to convert account to dictionary",
+                "Failed to convert account to dictionary due to data conversion error",
                 error=str(exc),
+                error_type=type(exc).__name__,
                 module="alpaca_account_service",
+            )
+            raise TradingClientError("Account data conversion failed") from exc
+        except Exception as exc:
+            # Unexpected errors during conversion
+            logger.error(
+                "Failed to convert account to dictionary due to unexpected error",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             raise TradingClientError("Account data conversion failed") from exc
 
@@ -121,11 +140,25 @@ class AlpacaAccountService:
                 if account is not None:
                     return account  # type: ignore[return-value]
                 return None
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Alpaca API errors - wrap in TradingClientError
             logger.error(
-                "Failed to get account information",
+                "Failed to get account information due to API error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
+            )
+            raise TradingClientError(
+                "Failed to retrieve account information from Alpaca API"
+            ) from e
+        except Exception as e:
+            # Unexpected errors
+            logger.error(
+                "Failed to get account information due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             raise TradingClientError(
                 "Failed to retrieve account information from Alpaca API"
@@ -149,11 +182,23 @@ class AlpacaAccountService:
         except TradingClientError:
             # Already logged in _get_account_object
             raise
-        except Exception as e:
+        except (ValueError, TypeError, ArithmeticError) as e:
+            # Decimal conversion errors - wrap in TradingClientError
             logger.error(
-                "Failed to convert buying power to Decimal",
+                "Failed to convert buying power to Decimal due to conversion error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
+            )
+            raise TradingClientError("Invalid buying power value") from e
+        except Exception as e:
+            # Unexpected errors
+            logger.error(
+                "Failed to convert buying power to Decimal due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             raise TradingClientError("Invalid buying power value") from e
 
@@ -179,11 +224,23 @@ class AlpacaAccountService:
         except TradingClientError:
             # Already logged in _get_account_object
             raise
-        except Exception as e:
+        except (ValueError, TypeError, ArithmeticError) as e:
+            # Decimal conversion errors - wrap in TradingClientError
             logger.error(
-                "Failed to convert portfolio value to Decimal",
+                "Failed to convert portfolio value to Decimal due to conversion error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
+            )
+            raise TradingClientError("Invalid portfolio value") from e
+        except Exception as e:
+            # Unexpected errors
+            logger.error(
+                "Failed to convert portfolio value to Decimal due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             raise TradingClientError("Invalid portfolio value") from e
 
@@ -206,11 +263,23 @@ class AlpacaAccountService:
                     module="alpaca_account_service",
                 )
                 return list(positions)
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Alpaca API errors - wrap in TradingClientError
             logger.error(
-                "Failed to get positions",
+                "Failed to get positions due to API error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
+            )
+            raise TradingClientError("Failed to retrieve positions from Alpaca API") from e
+        except Exception as e:
+            # Unexpected errors
+            logger.error(
+                "Failed to get positions due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             raise TradingClientError("Failed to retrieve positions from Alpaca API") from e
 
@@ -248,14 +317,24 @@ class AlpacaAccountService:
         except TradingClientError:
             # Already logged in get_positions
             raise
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data extraction/conversion errors - log but return partial results
             logger.error(
-                "Failed to build positions dictionary",
+                "Failed to build positions dictionary due to data error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
             )
-            # Return partial results rather than failing completely
-            # This allows graceful degradation
+            # Return partial results rather than failing completely for graceful degradation
+        except Exception as e:
+            # Unexpected errors - log but return partial results
+            logger.error(
+                "Failed to build positions dictionary due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+            )
+            # Return partial results rather than failing completely for graceful degradation
         return result
 
     def get_position(self, symbol: str) -> Position | None:
@@ -388,11 +467,32 @@ class AlpacaAccountService:
                 "base_value": getattr(history, "base_value", None),
                 "timeframe": timeframe_normalized,
             }
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Alpaca API errors - log and return None
             logger.error(
-                "Failed to get portfolio history",
+                "Failed to get portfolio history due to API error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
+            )
+            return None
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data conversion/access errors - log and return None
+            logger.error(
+                "Failed to get portfolio history due to data error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+            )
+            return None
+        except Exception as e:
+            # Unexpected errors - log and return None
+            logger.error(
+                "Failed to get portfolio history due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             return None
 
@@ -434,11 +534,32 @@ class AlpacaAccountService:
                 }
                 for activity in activities
             ]
-        except Exception as e:
+        except (HTTPError, RetryException, RequestException) as e:
+            # Alpaca API errors - log and return empty list
             logger.error(
-                "Failed to get activities",
+                "Failed to get activities due to API error",
                 error=str(e),
+                error_type=type(e).__name__,
                 module="alpaca_account_service",
+            )
+            return []
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data conversion/access errors - log and return empty list
+            logger.error(
+                "Failed to get activities due to data error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+            )
+            return []
+        except Exception as e:
+            # Unexpected errors - log and return empty list
+            logger.error(
+                "Failed to get activities due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
             )
             return []
 
