@@ -31,7 +31,9 @@ class S3ClientProtocol(Protocol):
     requiring a hard dependency on boto3 types.
     """
 
-    def get_object(self, *, Bucket: str, Key: str, ExpectedBucketOwner: str | None = None) -> dict[str, Any]:
+    def get_object(
+        self, *, Bucket: str, Key: str, ExpectedBucketOwner: str | None = None
+    ) -> dict[str, Any]:
         """Get an object from S3.
 
         Args:
