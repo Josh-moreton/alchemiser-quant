@@ -49,7 +49,6 @@ def compute_sharpe_ratio(
     if std_return == 0:
         return Decimal("0.0")
 
-    # Sharpe = (mean_return - risk_free_daily) / std * sqrt(252)
     risk_free_daily = float(risk_free_rate) / 252
     sharpe = (mean_return - risk_free_daily) / std_return * np.sqrt(252)
 
@@ -117,7 +116,6 @@ def compute_calmar_ratio(cagr: Decimal, max_drawdown: Decimal) -> Decimal:
     if max_drawdown >= 0:
         return Decimal("0.0")
 
-    # Calmar = CAGR / abs(MaxDrawdown)
     calmar = float(cagr) / abs(float(max_drawdown))
 
     return Decimal(str(round(calmar, 2)))
@@ -150,8 +148,8 @@ def compute_metrics_from_snapshot(snapshot_data: dict[str, Any]) -> dict[str, De
     returns: list[Decimal] = []  # Placeholder
 
     # Compute metrics
-    sharpe = compute_sharpe_ratio(returns) if returns else Decimal("0.0")
-    max_dd = compute_max_drawdown(equity_curve) if len(equity_curve) > 1 else Decimal("0.0")
+    sharpe = compute_sharpe_ratio(returns)
+    max_dd = compute_max_drawdown(equity_curve)
 
     # For CAGR, we need period information
     # Placeholder: assume 30 days for MVP

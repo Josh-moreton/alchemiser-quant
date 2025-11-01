@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from the_alchemiser.shared.events import EventBus, ReportReady
 from the_alchemiser.shared.logging import generate_request_id, get_logger
@@ -37,6 +38,7 @@ class ReportGeneratorService:
         snapshot_repository: AccountSnapshotRepository,
         event_bus: EventBus,
         s3_bucket: str,
+        bucket_owner_account_id: str | None = None,
     ) -> None:
         """Initialize report generator service.
 
@@ -44,11 +46,13 @@ class ReportGeneratorService:
             snapshot_repository: Repository for loading snapshots
             event_bus: Event bus for publishing ReportReady events
             s3_bucket: S3 bucket name for storing reports
+            bucket_owner_account_id: AWS account ID that owns the S3 bucket (for security)
 
         """
         self.snapshot_repository = snapshot_repository
         self.event_bus = event_bus
         self.s3_bucket = s3_bucket
+        self.bucket_owner_account_id = bucket_owner_account_id
         self.renderer = ReportRenderer()
         logger.debug("Report generator service initialized", s3_bucket=s3_bucket)
 
@@ -239,17 +243,24 @@ class ReportGeneratorService:
             # Calculate checksum for data integrity
             checksum = hashlib.sha256(pdf_bytes).hexdigest()
 
-            # Upload with metadata
-            s3_client.put_object(
-                Bucket=self.s3_bucket,
-                Key=s3_key,
-                Body=pdf_bytes,
-                ContentType="application/pdf",
-                Metadata={
+            # Build put_object parameters
+            put_params: dict[str, Any] = {
+                "Bucket": self.s3_bucket,
+                "Key": s3_key,
+                "Body": pdf_bytes,
+                "ContentType": "application/pdf",
+                "Metadata": {
                     "sha256": checksum,
                     "generated_at": datetime.now(UTC).isoformat(),
                 },
-            )
+            }
+
+            # Add ExpectedBucketOwner if configured (security best practice)
+            if self.bucket_owner_account_id:
+                put_params["ExpectedBucketOwner"] = self.bucket_owner_account_id
+
+            # Upload with metadata
+            s3_client.put_object(**put_params)
 
             logger.info("PDF uploaded to S3", s3_key=s3_key, checksum=checksum)
 

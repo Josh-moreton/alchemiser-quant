@@ -368,6 +368,7 @@ Resources:
         Variables:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           REPORTS_S3_BUCKET: !Ref ReportsBucket
+          AWS_ACCOUNT_ID: !Ref "AWS::AccountId"
           LOGGING__LEVEL: !Ref LoggingLevel
           LD_LIBRARY_PATH: "/opt/lib"
           FONTCONFIG_PATH: "/opt/fonts"

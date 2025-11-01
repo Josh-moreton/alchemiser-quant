@@ -28,7 +28,7 @@ from decimal import Decimal
 import pandas as pd
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
-from the_alchemiser.shared.errors import (
+from the_alchemiser.shared.errors.exceptions import (
     PriceValidationError,
     SymbolValidationError,
     ValidationError,
@@ -45,6 +45,7 @@ logger = get_logger(__name__)
 # Error message constants (SonarQube: S1192)
 _ERR_SYMBOL_EMPTY = "Symbol cannot be empty"
 _ERR_TIMESTAMP_EMPTY = "Timestamp cannot be empty"
+_ERR_EMPTY_OR_WHITESPACE = "Empty or whitespace"
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,7 @@ class BarModel:
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
             raise SymbolValidationError(
-                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason=_ERR_EMPTY_OR_WHITESPACE
             )
 
         # Parse and validate timestamp
@@ -304,7 +305,7 @@ class QuoteModel:
         # Validate symbol
         if not symbol or not symbol.strip():
             raise SymbolValidationError(
-                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason=_ERR_EMPTY_OR_WHITESPACE
             )
 
         # Parse and validate timestamp
@@ -518,7 +519,7 @@ class PriceDataModel:
         symbol = data["symbol"]
         if not symbol or not symbol.strip():
             raise SymbolValidationError(
-                _ERR_SYMBOL_EMPTY, symbol=symbol, reason="Empty or whitespace"
+                _ERR_SYMBOL_EMPTY, symbol=symbol, reason=_ERR_EMPTY_OR_WHITESPACE
             )
 
         # Parse and validate timestamp

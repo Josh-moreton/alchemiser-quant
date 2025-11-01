@@ -15,6 +15,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Literal
 
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.errors import ErrorNotificationData
 
 # Import from decomposed modules
 from .error_details import (
@@ -27,7 +28,6 @@ from .error_reporter import (
 )
 from .error_types import (
     ErrorCategory,
-    ErrorNotificationData,
 )
 from .error_utils import (
     retry_with_backoff,

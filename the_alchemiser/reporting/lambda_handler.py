@@ -151,6 +151,7 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
         # Get configuration from environment
         table_name = os.environ.get("TRADE_LEDGER__TABLE_NAME", "alchemiser-trade-ledger-dev")
         s3_bucket = os.environ.get("REPORTS_S3_BUCKET", "the-alchemiser-reports")
+        bucket_owner_account_id = os.environ.get("AWS_ACCOUNT_ID")
 
         logger.info(
             "Initializing report generation",
@@ -169,6 +170,7 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
             snapshot_repository=snapshot_repository,
             event_bus=event_bus,
             s3_bucket=s3_bucket,
+            bucket_owner_account_id=bucket_owner_account_id,
         )
 
         # Generate report
@@ -257,6 +259,7 @@ def _handle_execution_report(
 
     # Get S3 bucket from environment
     s3_bucket = os.environ.get("REPORTS_S3_BUCKET", "the-alchemiser-reports")
+    bucket_owner_account_id = os.environ.get("AWS_ACCOUNT_ID")
 
     logger.info(
         "Generating execution report",
@@ -272,6 +275,7 @@ def _handle_execution_report(
     execution_report_service = ExecutionReportService(
         event_bus=event_bus,
         s3_bucket=s3_bucket,
+        bucket_owner_account_id=bucket_owner_account_id,
     )
 
     # Generate execution report
