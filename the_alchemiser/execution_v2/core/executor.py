@@ -948,7 +948,7 @@ class Executor:
 
             # CRITICAL FIX: For full position liquidations, use Alpaca's liquidate_position API
             # This avoids fractional share precision mismatches (e.g., 7.227358 vs 7.2273576)
-            is_full_liquidation = side == "sell" and item.target_weight == Decimal("0.0")
+            is_full_liquidation = side == "sell" and item.target_weight <= Decimal("0")
 
             if is_full_liquidation:
                 # Try liquidate_position API first (most reliable for full exits)
