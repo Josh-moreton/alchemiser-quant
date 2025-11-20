@@ -443,16 +443,21 @@ class Executor:
         *,
         is_complete_exit: bool = False,
     ) -> OrderResult:
-        """Execute a standard market order with preflight validation.
+        """
+        Execute a standard market order with preflight validation, with fallback logic for complete exits.
+
+        This method first attempts to place a market order with `is_complete_exit=True` if `is_complete_exit` is True and the side is 'sell'.
+        If this attempt raises an exception (e.g., due to broker error or unsupported operation), the method logs the error and falls back
+        to the standard market order executor without the `is_complete_exit` flag.
 
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
-            is_complete_exit: If True and side is 'sell', use actual available quantity
+            is_complete_exit: If True and side is 'sell', attempt to use actual available quantity via `is_complete_exit=True`.
 
         Returns:
-            ExecutionResult with order details
+            OrderResult with order details. If the initial attempt with `is_complete_exit=True` fails, returns the result of the fallback standard market order.
 
         """
         # If is_complete_exit, use place_market_order directly with the flag
