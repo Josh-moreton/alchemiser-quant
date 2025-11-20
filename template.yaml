@@ -120,7 +120,7 @@ Globals:
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
-        EMAIL__FROM_EMAIL: josh@rwxt.org
+        EMAIL__FROM_EMAIL: joshuamoreton1@icloud.com
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
         EMAIL__PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
