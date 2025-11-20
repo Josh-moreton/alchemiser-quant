@@ -347,6 +347,11 @@ class PhaseExecutor:
         # Cache result for idempotency
         self._cache_execution_result(item, order_result)
 
+        # Determine if the order was actually placed (accepted by broker)
+        # An order is only considered "placed" if it has an order_id
+        # Orders rejected due to insufficient funds, precision errors, etc. are not "placed"
+        was_placed = order_result.order_id is not None
+
         # Log the result
         phase_type = item.action.upper()
         if order_result.order_id:
@@ -358,7 +363,7 @@ class PhaseExecutor:
                 f"❌ {phase_type} {item.symbol} placement failed: {order_result.error_message}"
             )
 
-        return order_result, True
+        return order_result, was_placed
 
     async def execute_sell_phase(
         self,

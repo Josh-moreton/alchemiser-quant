@@ -262,7 +262,8 @@ class PositionUtils:
             symbol: Stock symbol
 
         Returns:
-            Current position quantity (0 if no position)
+            Current position quantity (0 if no position), rounded to 6 decimal places
+            to avoid precision errors when selling fractional shares
 
         """
         try:
@@ -271,6 +272,11 @@ class PositionUtils:
                 qty = getattr(position, "qty", 0)
                 # Ensure we always return a Decimal, even if the position object returns a string/float
                 qty_decimal = Decimal(str(qty))
+
+                # Round down to 6 decimal places to ensure we never try to sell more than available
+                # This prevents errors like "requested: 7.227358, available: 7.2273576"
+                qty_decimal = qty_decimal.quantize(Decimal("0.000001"), rounding=ROUND_DOWN)
+
                 logger.debug(f"📊 Current position for {symbol}: {qty_decimal} shares")
                 return qty_decimal
         except (TradingClientError, ValidationError) as exc:
