@@ -489,7 +489,7 @@ class Executor:
                 )
             except Exception as e:
                 logger.error(
-                    "Market order with is_complete_exit failed",
+                    "Market order with is_complete_exit=True failed, falling back to standard market order",
                     extra={"symbol": symbol, "error": str(e)},
                 )
                 # Fall through to standard market order executor
