@@ -276,18 +276,21 @@ class Executor:
         symbol: str,
         side: str,
         quantity: Decimal,
-        correlation_id: str | None = None,
+        correlation_id: str | None,
+        *,
+        is_complete_exit: bool = False,
     ) -> OrderResult | None:
-        """Try to execute an order using smart execution.
+        """Attempt smart execution for an order.
 
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
             correlation_id: Correlation ID for tracking
+            is_complete_exit: If True and side is 'sell', use actual available quantity
 
         Returns:
-            OrderResult if smart execution succeeds, None if it fails or should fallback.
+            OrderResult if successful, None if smart execution should be skipped.
 
         """
         # Early return if smart_strategy is not available
@@ -320,6 +323,7 @@ class Executor:
                 quantity=Decimal(str(quantity)),
                 correlation_id=correlation_id or "",
                 urgency="NORMAL",
+                is_complete_exit=is_complete_exit,
             )
 
             result = await self.smart_strategy.place_smart_order(request)
@@ -401,6 +405,8 @@ class Executor:
         side: str,
         quantity: Decimal,
         correlation_id: str | None = None,
+        *,
+        is_complete_exit: bool = False,
     ) -> OrderResult:
         """Execute an order with smart execution if enabled.
 
@@ -409,6 +415,7 @@ class Executor:
             side: "buy" or "sell"
             quantity: Number of shares
             correlation_id: Correlation ID for tracking
+            is_complete_exit: If True and side is 'sell', use actual available quantity in fallback
 
         Returns:
             OrderResult with order details. Falls back to market order if smart execution fails.
@@ -416,26 +423,74 @@ class Executor:
         """
         # Try smart execution first if enabled
         if self.enable_smart_execution and self.smart_strategy:
-            smart_result = await self._try_smart_execution(symbol, side, quantity, correlation_id)
+            smart_result = await self._try_smart_execution(
+                symbol, side, quantity, correlation_id, is_complete_exit=is_complete_exit
+            )
             if smart_result is not None:
                 return smart_result
 
-        # Fallback to regular market order
+        # Fallback to regular market order (with is_complete_exit flag)
         logger.info("📈 Using standard market order for symbol", extra={"symbol": symbol})
-        return self._execute_market_order(symbol, side, Decimal(str(quantity)))
+        return self._execute_market_order(
+            symbol, side, Decimal(str(quantity)), is_complete_exit=is_complete_exit
+        )
 
-    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+    def _execute_market_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        *,
+        is_complete_exit: bool = False,
+    ) -> OrderResult:
         """Execute a standard market order with preflight validation.
 
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
+            is_complete_exit: If True and side is 'sell', use actual available quantity
 
         Returns:
             ExecutionResult with order details
 
         """
+        # If is_complete_exit, use place_market_order directly with the flag
+        if is_complete_exit and side.lower() == "sell":
+            try:
+                executed_order = self.alpaca_manager.place_market_order(
+                    symbol=symbol,
+                    side=side,
+                    qty=quantity,
+                    is_complete_exit=True,
+                )
+
+                side_upper = side.upper()
+                if side_upper not in ("BUY", "SELL"):
+                    side_upper = "SELL"  # Default for complete exits
+
+                return OrderResult(
+                    symbol=symbol,
+                    action=side_upper,  # type: ignore[arg-type]
+                    trade_amount=abs(quantity * (executed_order.price or Decimal("0"))),
+                    shares=quantity,
+                    price=executed_order.price,
+                    order_id=executed_order.order_id,
+                    success=executed_order.status not in ["REJECTED", "CANCELED"],
+                    error_message=executed_order.error_message
+                    if executed_order.status in ["REJECTED", "CANCELED"]
+                    else None,
+                    timestamp=datetime.now(UTC),
+                    order_type="MARKET",
+                    filled_at=executed_order.execution_timestamp,
+                )
+            except Exception as e:
+                logger.error(
+                    "Market order with is_complete_exit failed",
+                    extra={"symbol": symbol, "error": str(e)},
+                )
+                # Fall through to standard market order executor
+
         return self._market_order_executor.execute_market_order(symbol, side, quantity)
 
     async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
@@ -690,14 +745,56 @@ class Executor:
         )
 
         if not buying_power_available:
-            logger.warning(
-                f"⚠️ Proceeding with BUY phase despite buying power shortfall: "
-                f"${actual_buying_power} available vs ${settlement_result.total_buying_power_released} expected"
+            shortfall = settlement_result.total_buying_power_released - actual_buying_power
+            shortfall_pct = (
+                (shortfall / settlement_result.total_buying_power_released * 100)
+                if settlement_result.total_buying_power_released > 0
+                else 0
             )
+
+            logger.error(
+                "❌ Buying power shortfall detected after sell settlement",
+                extra={
+                    "expected": str(settlement_result.total_buying_power_released),
+                    "actual": str(actual_buying_power),
+                    "shortfall": str(shortfall),
+                    "shortfall_pct": f"{shortfall_pct:.1f}%",
+                    "correlation_id": correlation_id,
+                },
+            )
+
+            # Calculate total BUY order cost to determine if we can execute any
+            total_buy_cost = sum(abs(item.trade_amount) for item in buy_items)
+
+            logger.warning(
+                f"⚠️ Total BUY orders cost ${total_buy_cost:.2f}, available ${actual_buying_power:.2f}",
+                extra={
+                    "total_buy_cost": str(total_buy_cost),
+                    "available_buying_power": str(actual_buying_power),
+                    "can_execute_all": actual_buying_power >= total_buy_cost,
+                    "correlation_id": correlation_id,
+                },
+            )
+
+            if actual_buying_power < total_buy_cost:
+                # CRITICAL: Insufficient buying power - this means SELL orders didn't complete as expected
+                logger.critical(
+                    "🚨 INSUFFICIENT BUYING POWER: Cannot execute all BUY orders. "
+                    "This indicates SELL phase failures. Proceeding with available capital only.",
+                    extra={
+                        "total_cost": str(total_buy_cost),
+                        "available": str(actual_buying_power),
+                        "deficit": str(total_buy_cost - actual_buying_power),
+                        "correlation_id": correlation_id,
+                    },
+                )
+                # Continue anyway - individual orders will fail with proper error messages
+                # This is better than skipping all orders
         else:
             logger.info("✅ Buying power verified, proceeding with BUY phase")
 
         # Now execute buy orders with released buying power
+        # Individual orders will fail if insufficient buying power remains
         return await self._execute_buy_phase(buy_items, correlation_id)
 
     async def _execute_buy_phase(
@@ -846,12 +943,61 @@ class Executor:
             # Construct correlation_id safely (symbol already validated)
             correlation_id = f"rebalance-{item.symbol.strip()}"
 
-            # Use smart execution with async context
+            # CRITICAL FIX: For full position liquidations, use Alpaca's liquidate_position API
+            # This avoids fractional share precision mismatches (e.g., 7.227358 vs 7.2273576)
+            is_full_liquidation = side == "sell" and item.target_weight == Decimal("0.0")
+
+            if is_full_liquidation:
+                # Try liquidate_position API first (most reliable for full exits)
+                logger.info(
+                    "🎯 Using liquidate_position API for full position exit",
+                    extra={
+                        "symbol": item.symbol,
+                        "shares": str(shares),
+                        "correlation_id": correlation_id,
+                    },
+                )
+                order_id = self.alpaca_manager.liquidate_position(item.symbol)
+
+                if order_id:
+                    # Success - liquidate_position placed the order
+                    logger.info(
+                        "✅ Liquidate position API succeeded",
+                        extra={
+                            "symbol": item.symbol,
+                            "order_id": order_id,
+                        },
+                    )
+                    # Return a success OrderResult (order details will be fetched later)
+                    return OrderResult(
+                        symbol=item.symbol,
+                        action="SELL",
+                        trade_amount=abs(item.trade_amount),
+                        shares=shares,
+                        price=None,  # Will be filled when order completes
+                        order_id=order_id,
+                        success=True,
+                        error_message=None,
+                        timestamp=datetime.now(UTC),
+                        order_type="MARKET",  # liquidate_position uses market orders
+                        filled_at=None,  # Will be updated when filled
+                    )
+                # liquidate_position failed, fall through to smart execution with is_complete_exit
+                logger.warning(
+                    "⚠️ Liquidate position API failed, falling back to smart execution",
+                    extra={
+                        "symbol": item.symbol,
+                        "correlation_id": correlation_id,
+                    },
+                )
+
+            # Use smart execution with async context (with is_complete_exit for full liquidations)
             order_result = await self.execute_order(
                 symbol=item.symbol,
                 side=side,
                 quantity=shares,
                 correlation_id=correlation_id,
+                is_complete_exit=is_full_liquidation,  # Flag for quantity adjustment in market fallback
             )
 
             # Log result
