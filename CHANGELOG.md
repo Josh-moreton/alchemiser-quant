@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [3.3.11] - 2025-11-20
+
 ### Fixed
 - **Critical: Full position liquidation failures due to fractional share precision mismatch**
   - **Root Cause**: When liquidating entire positions (target_weight=0%), the executor calculated exact share quantities that differed from Alpaca's reported available quantity by tiny fractions (e.g., requested 7.227358 vs available 7.2273576), causing limit orders to fail with "insufficient qty available" errors
