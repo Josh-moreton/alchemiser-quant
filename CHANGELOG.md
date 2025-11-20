@@ -21,6 +21,11 @@
   - **Impact**: Eliminates fractional share precision errors causing ~$300+ sell order failures in production (SQQQ example: 7.227358 shares requested vs 7.2273576 available)
   - **Files Modified**:
     - `the_alchemiser/execution_v2/core/executor.py` (60+ line changes)
+    - `the_alchemiser/execution_v2/utils/position_utils.py` (precision rounding fix)
+    - `the_alchemiser/execution_v2/core/phase_executor.py` (order placement detection)
+    - `tests/execution_v2/test_position_utils.py` (test updates for precision rounding)
+    - `pyproject.toml` (version bump)
+    - `CHANGELOG.md` (this file)
 
 ## [2.30.0] - 2025-10-27
 
