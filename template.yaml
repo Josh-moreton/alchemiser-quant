@@ -398,7 +398,7 @@ Resources:
     Properties:
       RoleName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-prod-report-generator-role"
+        - !Sub "${StackName}-report-generator-role"
         - !Sub "the-alchemiser-v2-${Stage}-report-generator-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -513,7 +513,7 @@ Resources:
     Properties:
       RoleName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-prod-scheduler-role"
+        - !Sub "${StackName}-scheduler-role"
         - !Sub "the-alchemiser-v2-${Stage}-scheduler-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -548,7 +548,7 @@ Resources:
     Properties:
       RoleName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-prod-trading-system-role"
+        - !Sub "${StackName}-trading-system-role"
         - !Sub "the-alchemiser-v2-${Stage}-trading-system-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
