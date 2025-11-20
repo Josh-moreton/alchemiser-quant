@@ -465,9 +465,7 @@ class Executor:
                     is_complete_exit=True,
                 )
 
-                side_upper = side.upper()
-                if side_upper not in ("BUY", "SELL"):
-                    side_upper = "SELL"  # Default for complete exits
+                side_upper = "SELL"
 
                 return OrderResult(
                     symbol=symbol,
