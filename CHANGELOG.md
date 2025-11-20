@@ -13,7 +13,7 @@
     - Modified `Executor._execute_single_item()` to detect full liquidations (target_weight=0 AND action=SELL) and call `liquidate_position()` API first
     - Added `is_complete_exit` parameter propagation through `execute_order()`, `_try_smart_execution()`, and `_execute_market_order()`
     - Enhanced `_execute_market_order()` to use `place_market_order(is_complete_exit=True)` which fetches actual available quantity from Alpaca position data
-    - Modified `SmartOrderRequest` to include `is_complete_exit` flag for proper quantity adjustment in market order fallback
+    - Used existing `is_complete_exit` flag in `SmartOrderRequest` for proper quantity adjustment in market order fallback
   - **Secondary Fix**: Enhanced buying power validation after sell settlement to detect and log when sell orders fail
     - Added detailed logging of buying power shortfall with percentage calculations
     - Added critical alerts when total BUY order cost exceeds available buying power
