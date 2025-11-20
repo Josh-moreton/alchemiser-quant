@@ -232,6 +232,54 @@ class RebalancePlanCalculator:
             current_price = snapshot.prices.get(symbol, Decimal("0"))
             current_values[symbol] = current_quantity * current_price
 
+        # Validate capital constraints: BUY orders must not exceed available capital
+        total_buy_amount = Decimal("0")
+        total_sell_proceeds = Decimal("0")
+
+        for symbol in all_symbols:
+            target_value = target_values.get(symbol, Decimal("0"))
+            current_value = current_values.get(symbol, Decimal("0"))
+            trade_amount = target_value - current_value
+
+            if trade_amount > Decimal("0"):
+                # This is a BUY order
+                total_buy_amount += trade_amount
+            elif trade_amount < Decimal("0"):
+                # This is a SELL order - will release capital
+                total_sell_proceeds += abs(trade_amount)
+
+        available_capital = snapshot.cash + total_sell_proceeds
+
+        if total_buy_amount > available_capital:
+            logger.error(
+                "Rebalance plan exceeds available capital",
+                module=MODULE_NAME,
+                action="_calculate_dollar_values",
+                total_buy_amount=str(total_buy_amount),
+                total_sell_proceeds=str(total_sell_proceeds),
+                current_cash=str(snapshot.cash),
+                available_capital=str(available_capital),
+                deficit=str(total_buy_amount - available_capital),
+                target_symbols=sorted(strategy.target_weights.keys()),
+            )
+            raise PortfolioError(
+                f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
+                f"but only ${available_capital} available "
+                f"(current cash: ${snapshot.cash}, sell proceeds: ${total_sell_proceeds}). "
+                f"Deficit: ${total_buy_amount - available_capital}"
+            )
+
+        logger.info(
+            "Capital constraint validation passed",
+            module=MODULE_NAME,
+            action="_calculate_dollar_values",
+            total_buy_amount=str(total_buy_amount),
+            total_sell_proceeds=str(total_sell_proceeds),
+            current_cash=str(snapshot.cash),
+            available_capital=str(available_capital),
+            surplus=str(available_capital - total_buy_amount),
+        )
+
         return target_values, current_values
 
     def _calculate_trade_items(

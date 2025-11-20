@@ -275,3 +275,129 @@ class TestRebalancePlanCalculator:
         # Net cash requirement should be reasonable given available cash
         net_cash_needed = total_buy_value - total_sell_value
         assert net_cash_needed <= sample_portfolio_snapshot.cash
+
+    def test_rebalance_plan_respects_buying_power_constraints(self, calculator):
+        """Test that rebalance plan never exceeds available buying power.
+
+        This test ensures the planner validates that:
+        BUY orders total <= (current cash + sell proceeds)
+
+        This prevents the bug where mathematically impossible plans are created.
+        """
+        # Create a portfolio with limited cash and some positions
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={
+                "NRGU": Decimal("14"),  # Will be sold
+                "SQQQ": Decimal("7.227358"),  # Will be sold
+            },
+            prices={
+                "NRGU": Decimal("19.45"),  # $272.30 total value
+                "SQQQ": Decimal("18.50"),  # ~$133.71 total value
+                "GUSH": Decimal("24.42"),  # New position to buy
+                "SVIX": Decimal("19.13"),  # New position to buy
+                "TECL": Decimal("127.13"),  # New position to buy
+                "SOXS": Decimal("3.82"),  # New position to buy
+            },
+            cash=Decimal("35.00"),  # Very limited cash
+            total_value=Decimal("441.01"),  # Total portfolio value
+        )
+
+        # Create allocation that would require more capital than available
+        # This mimics the production bug scenario
+        allocation = StrategyAllocation(
+            target_weights={
+                "GUSH": Decimal("0.25"),  # Would need ~$109.50
+                "SVIX": Decimal("0.25"),  # Would need ~$109.50
+                "TECL": Decimal("0.25"),  # Would need ~$109.50
+                "SOXS": Decimal("0.25"),  # Would need ~$109.50
+                # NRGU and SQQQ implicitly get 0 weight (will be sold)
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+
+        # Build the plan - should succeed with validation
+        plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+
+        # Calculate actual capital requirements
+        total_buy = sum(item.trade_amount for item in plan.items if item.action == "BUY")
+        total_sell_proceeds = sum(
+            abs(item.trade_amount) for item in plan.items if item.action == "SELL"
+        )
+
+        # Assert: BUY total must not exceed (current cash + sell proceeds)
+        available_capital = portfolio_snapshot.cash + total_sell_proceeds
+        assert total_buy <= available_capital, (
+            f"Plan requires ${total_buy} in BUY orders but only ${available_capital} available "
+            f"(cash: ${portfolio_snapshot.cash}, sell proceeds: ${total_sell_proceeds}). "
+            f"This would cause execution failures."
+        )
+
+    def test_rebalance_plan_rejects_impossible_allocation(self, calculator):
+        """Test that planner raises PortfolioError for impossible allocations.
+
+        This test verifies the planner detects and rejects plans that cannot
+        be executed due to insufficient capital.
+        """
+        from the_alchemiser.shared.errors.exceptions import PortfolioError
+
+        # Create a portfolio with very limited resources
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={"AAPL": Decimal("1")},  # One share worth $150
+            prices={
+                "AAPL": Decimal("150.00"),
+                "MSFT": Decimal("300.00"),
+                "GOOGL": Decimal("2000.00"),
+            },
+            cash=Decimal("10.00"),  # Only $10 cash
+            total_value=Decimal("160.00"),  # $150 + $10
+        )
+
+        # Create allocation requiring massive purchases with minimal cash
+        allocation = StrategyAllocation(
+            target_weights={
+                "MSFT": Decimal("0.4"),  # Would need ~$63 after reserve
+                "GOOGL": Decimal("0.6"),  # Would need ~$95 after reserve
+                # AAPL implicitly 0 weight, will sell for $150
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+
+        # This should succeed because sell of AAPL ($150) + cash ($10) = $160 available
+        # And required is only ~$158 (99% of $160)
+        plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+        assert plan is not None
+
+        # Now test a truly impossible scenario
+        impossible_snapshot = PortfolioSnapshot(
+            positions={},  # No positions to sell
+            prices={
+                "AAPL": Decimal("150.00"),
+                "MSFT": Decimal("300.00"),
+                "GOOGL": Decimal("2000.00"),
+            },
+            cash=Decimal("10.00"),  # Only $10 cash, nothing to sell
+            total_value=Decimal("10.00"),
+        )
+
+        # With portfolio_value override forcing higher allocation
+        impossible_allocation = StrategyAllocation(
+            target_weights={
+                "AAPL": Decimal("0.5"),
+                "MSFT": Decimal("0.5"),
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+            portfolio_value=Decimal("10000.00"),  # Force using $10k but only have $10
+        )
+
+        # This MUST raise PortfolioError
+        with pytest.raises(PortfolioError) as exc_info:
+            calculator.build_plan(impossible_allocation, impossible_snapshot, str(uuid.uuid4()))
+
+        assert "Cannot execute rebalance" in str(exc_info.value)
+        assert "available" in str(exc_info.value).lower()
