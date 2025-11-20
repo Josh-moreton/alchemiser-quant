@@ -223,7 +223,7 @@ Resources:
       
       SSESpecification:
         SSEEnabled: true
-        SSEType: KMS
+        # Use AWS-managed encryption (not KMS) to avoid requiring additional IAM permissions
       
       Tags:
         - Key: Environment
