@@ -25,6 +25,13 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionStatus,
     OrderResult,
 )
+from the_alchemiser.execution_v2.unified import (
+    CloseType,
+    OrderIntent,
+    OrderSide,
+    UnifiedOrderPlacementService,
+    Urgency,
+)
 from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
 from the_alchemiser.execution_v2.utils.execution_validator import (
     ExecutionValidator,
@@ -137,6 +144,9 @@ class Executor:
         self.websocket_manager = None
         self.enable_smart_execution = True
 
+        # Initialize unified placement service (will be set in initialization)
+        self.unified_placement_service: UnifiedOrderPlacementService | None = None
+
         # Initialize extracted helper modules (will be set in _initialize_helper_modules)
         # These are assigned in _initialize_helper_modules() before first use
 
@@ -175,6 +185,14 @@ class Executor:
             )
             logger.info("✅ Smart execution strategy initialized with shared WebSocket")
 
+            # Initialize unified placement service (new unified flow)
+            self.unified_placement_service = UnifiedOrderPlacementService(
+                alpaca_manager=alpaca_manager,
+                pricing_service=self.pricing_service,
+                enable_validation=True,
+            )
+            logger.info("✅ Unified order placement service initialized")
+
             # Initialize helper modules for cleaner separation of concerns
             self._initialize_helper_modules()
 
@@ -192,6 +210,7 @@ class Executor:
             self.pricing_service = None
             self.smart_strategy = None
             self.websocket_manager = None
+            self.unified_placement_service = None
             # Initialize fallback modules
             self._initialize_helper_modules()
         except ValueError as e:
@@ -208,6 +227,7 @@ class Executor:
             self.pricing_service = None
             self.smart_strategy = None
             self.websocket_manager = None
+            self.unified_placement_service = None
             # Initialize fallback modules
             self._initialize_helper_modules()
         except Exception as e:
@@ -224,6 +244,7 @@ class Executor:
             self.pricing_service = None
             self.smart_strategy = None
             self.websocket_manager = None
+            self.unified_placement_service = None
             # Initialize fallback modules
             self._initialize_helper_modules()
 
@@ -408,19 +429,69 @@ class Executor:
         *,
         is_complete_exit: bool = False,
     ) -> OrderResult:
-        """Execute an order with smart execution if enabled.
+        """Execute an order using the unified placement service.
 
         Args:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
             correlation_id: Correlation ID for tracking
-            is_complete_exit: If True and side is 'sell', use actual available quantity in fallback
+            is_complete_exit: If True and side is 'sell', this is a full position close
 
         Returns:
-            OrderResult with order details. Falls back to market order if smart execution fails.
+            OrderResult with order details.
 
         """
+        # Use unified placement service if available
+        if self.unified_placement_service:
+            logger.info(
+                "🚀 Using unified order placement service",
+                extra={"symbol": symbol, "side": side, "quantity": str(quantity)},
+            )
+
+            # Convert to OrderIntent
+            order_side = OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL
+
+            # Determine close type
+            if order_side == OrderSide.SELL:
+                close_type = CloseType.FULL if is_complete_exit else CloseType.PARTIAL
+            else:
+                close_type = CloseType.NONE
+
+            # Determine urgency (use MEDIUM for rebalancing, which uses walk-the-book)
+            urgency = Urgency.MEDIUM
+
+            intent = OrderIntent(
+                side=order_side,
+                close_type=close_type,
+                symbol=symbol,
+                quantity=quantity,
+                urgency=urgency,
+                correlation_id=correlation_id,
+            )
+
+            # Execute via unified service
+            execution_result = await self.unified_placement_service.place_order(intent)
+
+            # Convert ExecutionResult to OrderResult for backward compatibility
+            action = "BUY" if order_side == OrderSide.BUY else "SELL"
+            return OrderResult(
+                symbol=symbol,
+                action=action,  # type: ignore[arg-type]
+                trade_amount=abs(execution_result.total_filled * (execution_result.avg_fill_price or Decimal("0"))),
+                shares=execution_result.total_filled,
+                price=execution_result.avg_fill_price,
+                order_id=execution_result.final_order_id,
+                success=execution_result.success,
+                error_message=execution_result.error_message,
+                timestamp=datetime.now(UTC),
+                order_type="SMART" if execution_result.execution_strategy == "walk_the_book" else "MARKET",
+                filled_at=datetime.now(UTC) if execution_result.success else None,
+            )
+
+        # Fallback to old path if unified service not available
+        logger.warning("⚠️ Unified service not available, falling back to legacy execution")
+
         # Try smart execution first if enabled
         if self.enable_smart_execution and self.smart_strategy:
             smart_result = await self._try_smart_execution(
