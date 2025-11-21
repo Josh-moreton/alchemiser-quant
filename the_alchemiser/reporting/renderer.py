@@ -132,7 +132,7 @@ class ReportRenderer:
             PDF bytes
 
         """
-        from weasyprint import HTML  # type: ignore[import-untyped]
+        from weasyprint import HTML
 
         logger.debug("Converting HTML to PDF with WeasyPrint")
 

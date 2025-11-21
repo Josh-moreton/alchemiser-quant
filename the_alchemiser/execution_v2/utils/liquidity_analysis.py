@@ -190,9 +190,7 @@ class LiquidityAnalyzer:
 
         return min(volume_score + spread_score + balance_score, 100.0)
 
-    def _validate_and_convert_quote_prices(
-        self, quote: QuoteModel
-    ) -> tuple[Decimal, Decimal]:
+    def _validate_and_convert_quote_prices(self, quote: QuoteModel) -> tuple[Decimal, Decimal]:
         """Validate quote prices and convert to Decimal.
 
         NOTE: This function should only be called after strict validation has been

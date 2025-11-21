@@ -348,6 +348,7 @@ def validate_quote_for_trading(
     ask_size: float | Decimal = 0,
     min_price: float = 0.01,
     max_spread_percent: float = 10.0,
+    *,
     require_positive_sizes: bool = True,
 ) -> None:
     """Strictly validate quote data for trading - raises ValueError if invalid.
@@ -450,22 +451,21 @@ def validate_quote_for_trading(
         )
 
     # Check for positive sizes if required
-    if require_positive_sizes:
-        if bid_size <= 0 or ask_size <= 0:
-            logger.error(
-                "Quote validation failed: non-positive sizes",
-                extra={
-                    "symbol": symbol,
-                    "bid_size": str(bid_size),
-                    "ask_size": str(ask_size),
-                    "validation_type": "quote_for_trading",
-                    "reason": "non_positive_sizes",
-                },
-            )
-            raise ValueError(
-                f"Invalid quote for {symbol}: bid_size={bid_size}, ask_size={ask_size}. "
-                f"Both sizes must be positive for liquidity-aware pricing."
-            )
+    if require_positive_sizes and (bid_size <= 0 or ask_size <= 0):
+        logger.error(
+            "Quote validation failed: non-positive sizes",
+            extra={
+                "symbol": symbol,
+                "bid_size": str(bid_size),
+                "ask_size": str(ask_size),
+                "validation_type": "quote_for_trading",
+                "reason": "non_positive_sizes",
+            },
+        )
+        raise ValueError(
+            f"Invalid quote for {symbol}: bid_size={bid_size}, ask_size={ask_size}. "
+            f"Both sizes must be positive for liquidity-aware pricing."
+        )
 
 
 def validate_order_notional(

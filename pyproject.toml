@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "3.3.17"
+version = "3.3.18"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -37,7 +37,7 @@ color_output = true
 cache_dir = ".mypy_cache"
 exclude = [ "scripts/", "tests/",]
 [[tool.mypy.overrides]]
-module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*",]
+module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*", "weasyprint.*",]
 ignore_missing_imports = true
 
 [tool.importlinter]

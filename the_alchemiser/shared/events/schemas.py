@@ -355,7 +355,7 @@ class TradingNotificationRequested(BaseEvent):
         """Convert total_trade_value to Decimal if it's a float or int."""
         if isinstance(v, Decimal):
             return v
-        if isinstance(v, (int, float)):
+        if isinstance(v, int | float):
             return Decimal(str(v))
         if isinstance(v, str):
             return Decimal(v)

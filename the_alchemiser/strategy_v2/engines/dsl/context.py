@@ -169,7 +169,7 @@ class DslContext:
         # Check bool FIRST before other types since bool is subclass of int
         if isinstance(val, bool):
             return int(val)
-        if isinstance(val, (float, int, Decimal, str)):
+        if isinstance(val, float | int | Decimal | str):
             return val
         if val is None:
             return 0

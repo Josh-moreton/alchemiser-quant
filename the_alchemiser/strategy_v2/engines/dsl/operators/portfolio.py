@@ -74,7 +74,7 @@ def parse_selection(sel_expr: ASTNode | None, context: DslContext) -> tuple[bool
         n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
         try:
             take_n = (
-                int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
+                int(n_val) if isinstance(n_val, int | float) else int(context.as_decimal(n_val))
             )
         except (ValueError, TypeError) as exc:
             logger.warning("DSL parse_selection: Failed to parse selection limit: %s", exc)
@@ -95,7 +95,7 @@ def score_candidates(
             metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
             metric_val = (
                 float(metric_val)
-                if isinstance(metric_val, (int, float))
+                if isinstance(metric_val, int | float)
                 else float(context.as_decimal(metric_val))
             )
             scored.append((sym, metric_val))
@@ -160,7 +160,7 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
     for i in range(0, len(pairs), 2):
         weight_node, asset_node = pairs[i], pairs[i + 1]
         weight_val = context.evaluate_node(weight_node, context.correlation_id, context.trace)
-        if not isinstance(weight_val, (int, float)):
+        if not isinstance(weight_val, int | float):
             weight_val = float(context.as_decimal(weight_val))
         asset_val = context.evaluate_node(asset_node, context.correlation_id, context.trace)
         normalized_assets = _normalize_fragment_weights(asset_val, context)
@@ -391,7 +391,7 @@ def _extract_window(args: list[ASTNode], context: DslContext) -> float:
     window_node = args[0]
     window = context.evaluate_node(window_node, context.correlation_id, context.trace)
 
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = context.as_decimal(window)
         window = float(window)
 

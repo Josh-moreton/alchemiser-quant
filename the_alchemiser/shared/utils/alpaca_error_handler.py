@@ -429,7 +429,7 @@ class AlpacaErrorHandler:
             Formatted error message string
 
         """
-        if isinstance(error, (RetryException, HTTPError, RequestException)):
+        if isinstance(error, RetryException | HTTPError | RequestException):
             return f"Market data API error for {symbol}: {summary}"
         return f"Unexpected error for {symbol}: {summary}"
 
