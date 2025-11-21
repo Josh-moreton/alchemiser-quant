@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict
 
 import structlog
 
@@ -16,10 +16,6 @@ from the_alchemiser.execution_v2.core.order_finalizer import OrderFinalizer
 from the_alchemiser.execution_v2.core.order_monitor import OrderMonitor
 from the_alchemiser.execution_v2.core.phase_executor import PhaseExecutor
 from the_alchemiser.execution_v2.core.settlement_monitor import SettlementMonitor
-from the_alchemiser.execution_v2.core.smart_execution_strategy import (
-    SmartExecutionStrategy,
-    SmartOrderRequest,
-)
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResult,
     ExecutionStatus,
@@ -70,32 +66,32 @@ class ExecutionStats(TypedDict):
 
 
 class Executor:
-    """Core executor for order placement and smart execution.
+    """Core executor for order placement using unified order placement service.
 
     This class provides the core execution engine for placing orders with:
-    - Smart execution using real-time pricing and limit orders
-    - Graceful fallback to market orders if smart execution fails
+    - Unified order placement with walk-the-book price improvement
+    - Graceful fallback to market orders if unified service fails
     - Settlement-aware sell-first, buy-second workflow
-    - Comprehensive order monitoring and re-pegging
+    - Portfolio validation after execution
     - Trade ledger recording with S3 persistence
 
     Attributes:
         alpaca_manager: Alpaca broker manager for API access
-        execution_config: Optional smart execution configuration
+        execution_config: Optional execution configuration
         validator: Execution validator for preflight checks
         buying_power_service: Service for buying power verification
         pricing_service: Real-time pricing service (via WebSocket)
-        smart_strategy: Smart execution strategy (if enabled)
+        unified_placement_service: Unified order placement service
         websocket_manager: WebSocket connection manager
-        enable_smart_execution: Flag indicating smart execution availability
+        enable_smart_execution: Flag indicating unified execution availability
         trade_ledger: Trade ledger service for audit trail
 
-    Smart Execution:
-        When enabled, orders use real-time pricing and limit orders with:
-        - Best bid/ask price discovery
-        - Automatic order re-pegging if not filled
-        - Configurable urgency levels
-        - Fallback to market orders if smart execution fails
+    Unified Execution:
+        When enabled, orders use the unified placement service with:
+        - Streaming-first quote acquisition with REST fallback
+        - Walk-the-book price improvement (75% -> 85% -> 95% -> market)
+        - Portfolio validation after execution
+        - Fallback to market orders if unified service fails
 
     Settlement Monitoring:
         For rebalance plans with sells followed by buys:
@@ -104,7 +100,7 @@ class Executor:
         - Verifies sufficient funds before executing buys
 
     Failure Modes:
-        - Smart execution initialization failure: Falls back to market orders
+        - Unified execution initialization failure: Falls back to market orders
         - Order placement failure: Returns OrderResult with success=False
         - Settlement timeout: Proceeds with buy phase after warning
         - Resource cleanup failure: Logged but not raised (in __del__)
@@ -138,9 +134,8 @@ class Executor:
         # Initialize buying power service for verification
         self.buying_power_service = BuyingPowerService(alpaca_manager)
 
-        # Initialize pricing service for smart execution
+        # Initialize pricing service for unified execution
         self.pricing_service: RealTimePricingService | None = None
-        self.smart_strategy: SmartExecutionStrategy | None = None
         self.websocket_manager = None
         self.enable_smart_execution = True
 
@@ -177,15 +172,7 @@ class Executor:
             self.pricing_service = self.websocket_manager.get_pricing_service()
             logger.info("✅ Using shared real-time pricing service")
 
-            # Create smart execution strategy with shared service
-            self.smart_strategy = SmartExecutionStrategy(
-                alpaca_manager=alpaca_manager,
-                pricing_service=self.pricing_service,
-                config=execution_config,
-            )
-            logger.info("✅ Smart execution strategy initialized with shared WebSocket")
-
-            # Initialize unified placement service (new unified flow)
+            # Initialize unified placement service
             self.unified_placement_service = UnifiedOrderPlacementService(
                 alpaca_manager=alpaca_manager,
                 pricing_service=self.pricing_service,
@@ -208,7 +195,6 @@ class Executor:
             )
             self.enable_smart_execution = False
             self.pricing_service = None
-            self.smart_strategy = None
             self.websocket_manager = None
             self.unified_placement_service = None
             # Initialize fallback modules
@@ -216,7 +202,7 @@ class Executor:
         except ValueError as e:
             # Configuration errors
             logger.error(
-                "Smart execution initialization failed due to configuration error",
+                "Unified execution initialization failed due to configuration error",
                 extra={
                     "error": str(e),
                     "error_type": type(e).__name__,
@@ -225,7 +211,6 @@ class Executor:
             )
             self.enable_smart_execution = False
             self.pricing_service = None
-            self.smart_strategy = None
             self.websocket_manager = None
             self.unified_placement_service = None
             # Initialize fallback modules
@@ -233,7 +218,7 @@ class Executor:
         except Exception as e:
             # Unexpected errors - log with full stack trace
             logger.error(
-                "Unexpected error in smart execution initialization",
+                "Unexpected error in unified execution initialization",
                 extra={
                     "error": str(e),
                     "error_type": type(e).__name__,
@@ -242,7 +227,6 @@ class Executor:
             )
             self.enable_smart_execution = False
             self.pricing_service = None
-            self.smart_strategy = None
             self.websocket_manager = None
             self.unified_placement_service = None
             # Initialize fallback modules
@@ -253,17 +237,19 @@ class Executor:
         self._market_order_executor = MarketOrderExecutor(
             self.alpaca_manager, self.validator, self.buying_power_service
         )
-        self._order_monitor = OrderMonitor(self.smart_strategy, self.execution_config)
+        # Pass None for smart_strategy - order monitoring is now handled by unified service
+        self._order_monitor = OrderMonitor(None, self.execution_config)
         self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
         self._position_utils = PositionUtils(
             self.alpaca_manager,
             self.pricing_service,
             enable_smart_execution=self.enable_smart_execution,
         )
+        # Pass None for smart_strategy - execution is now handled by unified service
         self._phase_executor = PhaseExecutor(
             self.alpaca_manager,
             self._position_utils,
-            self.smart_strategy,
+            None,  # smart_strategy removed - unified service handles execution
             self.execution_config,
             enable_smart_execution=self.enable_smart_execution,
         )
@@ -291,134 +277,6 @@ class Executor:
                     "Unexpected error releasing WebSocket manager during cleanup",
                     extra={"error": str(e), "error_type": type(e).__name__},
                 )
-
-    async def _try_smart_execution(
-        self,
-        symbol: str,
-        side: str,
-        quantity: Decimal,
-        correlation_id: str | None,
-        *,
-        is_complete_exit: bool = False,
-    ) -> OrderResult | None:
-        """Attempt smart execution for an order.
-
-        Args:
-            symbol: Stock symbol
-            side: "buy" or "sell"
-            quantity: Number of shares
-            correlation_id: Correlation ID for tracking
-            is_complete_exit: If True and side is 'sell', use actual available quantity
-
-        Returns:
-            OrderResult if successful, None if smart execution should be skipped.
-
-        """
-        # Early return if smart_strategy is not available
-        if self.smart_strategy is None:
-            return None
-
-        try:
-            logger.info(
-                "🎯 Attempting smart execution for symbol",
-                extra={
-                    "symbol": symbol,
-                    "side": side,
-                    "quantity": str(quantity),
-                    "correlation_id": correlation_id,
-                },
-            )
-
-            # Normalize side to uppercase and cast to Literal type
-            normalized_side = side.upper()
-            if normalized_side not in ("BUY", "SELL"):
-                raise ValidationError(
-                    f"Invalid side: {side}. Must be 'buy' or 'sell'",
-                    field_name="side",
-                    value=side,
-                )
-
-            request = SmartOrderRequest(
-                symbol=symbol,
-                side=cast(Literal["BUY", "SELL"], normalized_side),
-                quantity=Decimal(str(quantity)),
-                correlation_id=correlation_id or "",
-                urgency="NORMAL",
-                is_complete_exit=is_complete_exit,
-            )
-
-            result = await self.smart_strategy.place_smart_order(request)
-
-            if result.success:
-                # Success here means order was placed; fill will be checked later
-                log_order_flow(
-                    logger,
-                    stage="submission",
-                    symbol=symbol,
-                    quantity=Decimal(str(quantity)),
-                    price=result.final_price,
-                    order_id=result.order_id,
-                    execution_strategy="smart_limit",
-                )
-                side_upper = side.upper()
-                if side_upper not in ("BUY", "SELL"):
-                    side_upper = "BUY"  # Fallback to BUY if invalid
-                return OrderResult(
-                    symbol=symbol,
-                    action=side_upper,  # type: ignore[arg-type]
-                    trade_amount=abs(Decimal(str(quantity)) * (result.final_price or Decimal("0"))),
-                    shares=Decimal(str(quantity)),
-                    price=(result.final_price if result.final_price else None),
-                    order_id=result.order_id,
-                    success=True,
-                    error_message=None,
-                    timestamp=datetime.now(UTC),
-                    order_type="LIMIT",  # Smart execution uses LIMIT orders
-                    filled_at=result.placement_timestamp,  # Use placement timestamp from smart result
-                )
-            logger.warning(
-                "⚠️ Smart execution failed for symbol",
-                extra={
-                    "symbol": symbol,
-                    "error": result.error_message,
-                },
-            )
-            return None
-
-        except (ValidationError, SymbolValidationError) as e:
-            # Validation errors during smart execution
-            logger.error(
-                "❌ Smart execution failed due to validation error",
-                extra={
-                    "symbol": symbol,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
-            return None
-        except (TradingClientError, OrderExecutionError) as e:
-            # Trading client or execution errors
-            logger.error(
-                "❌ Smart execution failed due to trading error",
-                extra={
-                    "symbol": symbol,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
-            return None
-        except Exception as e:
-            # Unexpected errors during smart execution
-            logger.error(
-                "❌ Smart execution failed due to unexpected error",
-                exc_info=True,
-                extra={
-                    "symbol": symbol,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
-            return None
 
     async def execute_order(
         self,
@@ -521,19 +379,8 @@ class Executor:
                 filled_at=datetime.now(UTC) if execution_result.success else None,
             )
 
-        # Fallback to old path if unified service not available
-        logger.warning("⚠️ Unified service not available, falling back to legacy execution")
-
-        # Try smart execution first if enabled
-        if self.enable_smart_execution and self.smart_strategy:
-            smart_result = await self._try_smart_execution(
-                symbol, side, quantity, correlation_id, is_complete_exit=is_complete_exit
-            )
-            if smart_result is not None:
-                return smart_result
-
-        # Fallback to regular market order (with is_complete_exit flag)
-        logger.info("📈 Using standard market order for symbol", extra={"symbol": symbol})
+        # Fallback to market order if unified service not available
+        logger.warning("⚠️ Unified service not available, falling back to market order")
         return self._execute_market_order(
             symbol, side, Decimal(str(quantity)), is_complete_exit=is_complete_exit
         )

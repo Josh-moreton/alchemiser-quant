@@ -4,6 +4,9 @@ Unit tests for execution_v2/core/smart_execution_strategy/__init__.py.
 
 Tests module structure, documentation, imports, and accessibility patterns
 for the smart execution strategy package public API.
+
+Note: SmartExecutionStrategy has been replaced by UnifiedOrderPlacementService.
+This module now only exports configuration and data models.
 """
 
 import pytest
@@ -24,8 +27,7 @@ class TestSmartExecutionStrategyInit:
         """Test that docstring describes the module's purpose."""
         from the_alchemiser.execution_v2.core import smart_execution_strategy
 
-        assert "Smart execution strategy" in smart_execution_strategy.__doc__
-        assert "liquidity" in smart_execution_strategy.__doc__.lower()
+        assert "execution" in smart_execution_strategy.__doc__.lower()
 
     def test_all_exports_defined(self):
         """Test that __all__ is defined with expected exports."""
@@ -35,17 +37,16 @@ class TestSmartExecutionStrategyInit:
         expected_exports = {
             "ExecutionConfig",
             "LiquidityMetadata",
-            "SmartExecutionStrategy",
             "SmartOrderRequest",
             "SmartOrderResult",
         }
         assert set(smart_execution_strategy.__all__) == expected_exports
 
     def test_all_exports_count(self):
-        """Test that __all__ has exactly 5 exports."""
+        """Test that __all__ has exactly 4 exports."""
         from the_alchemiser.execution_v2.core import smart_execution_strategy
 
-        assert len(smart_execution_strategy.__all__) == 5
+        assert len(smart_execution_strategy.__all__) == 4
 
     def test_all_is_alphabetically_sorted(self):
         """Test that __all__ is alphabetically sorted for maintainability."""
@@ -69,13 +70,6 @@ class TestSmartExecutionStrategyInit:
         # TypedDict doesn't have __dict__ but has __annotations__
         assert hasattr(LiquidityMetadata, "__annotations__")
 
-    def test_smart_execution_strategy_importable(self):
-        """Test that SmartExecutionStrategy can be imported."""
-        from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartExecutionStrategy
-
-        assert SmartExecutionStrategy is not None
-        assert hasattr(SmartExecutionStrategy, "__init__")
-
     def test_smart_order_request_importable(self):
         """Test that SmartOrderRequest can be imported."""
         from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderRequest
@@ -95,7 +89,6 @@ class TestSmartExecutionStrategyInit:
         from the_alchemiser.execution_v2.core.smart_execution_strategy import (
             ExecutionConfig,
             LiquidityMetadata,
-            SmartExecutionStrategy,
             SmartOrderRequest,
             SmartOrderResult,
         )
@@ -103,20 +96,8 @@ class TestSmartExecutionStrategyInit:
         # Verify they are all valid
         assert ExecutionConfig is not None
         assert LiquidityMetadata is not None
-        assert SmartExecutionStrategy is not None
         assert SmartOrderRequest is not None
         assert SmartOrderResult is not None
-
-    def test_repeated_imports_return_same_object(self):
-        """Test that repeated imports return the same class object."""
-        from the_alchemiser.execution_v2.core.smart_execution_strategy import (
-            SmartExecutionStrategy as SES1,
-        )
-        from the_alchemiser.execution_v2.core.smart_execution_strategy import (
-            SmartExecutionStrategy as SES2,
-        )
-
-        assert SES1 is SES2
 
     def test_execution_config_repeated_import(self):
         """Test that ExecutionConfig repeated imports are identical."""
@@ -256,16 +237,8 @@ class TestSmartExecutionStrategyInit:
         assert "bid_volume" in annotations
         assert "ask_volume" in annotations
 
-    def test_module_imports_are_clean(self):
-        """Test that the module doesn't leak internal implementation details."""
+    def test_smart_execution_strategy_not_exported(self):
+        """Test that SmartExecutionStrategy is no longer exported (replaced by unified service)."""
         from the_alchemiser.execution_v2.core import smart_execution_strategy
 
-        # Should not expose implementation modules directly
-        # (they may exist as attributes but shouldn't be in __all__)
-        impl_modules = ["pricing", "quotes", "repeg", "tracking", "utils"]
-
-        for module_name in impl_modules:
-            if hasattr(smart_execution_strategy, module_name):
-                assert module_name not in smart_execution_strategy.__all__, (
-                    f"Implementation module {module_name} should not be in __all__"
-                )
+        assert "SmartExecutionStrategy" not in smart_execution_strategy.__all__
