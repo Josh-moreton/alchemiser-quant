@@ -338,3 +338,178 @@ def detect_suspicious_quote_prices(
             reasons.append(f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%")
 
     return len(reasons) > 0, reasons
+
+
+def validate_quote_for_trading(
+    symbol: str,
+    bid_price: float | Decimal,
+    ask_price: float | Decimal,
+    bid_size: float | Decimal = 0,
+    ask_size: float | Decimal = 0,
+    min_price: float = 0.01,
+    max_spread_percent: float = 10.0,
+    require_positive_sizes: bool = True,
+) -> None:
+    """Strictly validate quote data for trading - raises ValueError if invalid.
+
+    This function enforces quote validity requirements before order placement.
+    Unlike detect_suspicious_quote_prices(), this function raises errors rather
+    than returning a tuple, making it suitable for enforcement points in the
+    order placement pipeline.
+
+    Args:
+        symbol: Trading symbol (for error messages)
+        bid_price: Bid price to validate
+        ask_price: Ask price to validate
+        bid_size: Bid size (optional, but required if require_positive_sizes=True)
+        ask_size: Ask size (optional, but required if require_positive_sizes=True)
+        min_price: Minimum reasonable price (default $0.01)
+        max_spread_percent: Maximum allowed spread percentage (default 10%)
+        require_positive_sizes: If True, require bid_size and ask_size > 0
+
+    Raises:
+        ValueError: If quote data is invalid for trading
+
+    Examples:
+        >>> validate_quote_for_trading("AAPL", 150.0, 150.05, 100, 100)  # OK
+        >>> validate_quote_for_trading("TECL", 107.0, 0.0)  # Raises ValueError
+        >>> validate_quote_for_trading("TEST", -1.0, 100.0)  # Raises ValueError
+
+    """
+    # Check for zero or negative prices
+    if bid_price <= 0 or ask_price <= 0:
+        logger.error(
+            "Quote validation failed: non-positive prices",
+            extra={
+                "symbol": symbol,
+                "bid_price": str(bid_price),
+                "ask_price": str(ask_price),
+                "validation_type": "quote_for_trading",
+                "reason": "non_positive_prices",
+            },
+        )
+        raise ValueError(
+            f"Invalid quote for {symbol}: bid_price={bid_price}, ask_price={ask_price}. "
+            f"Both prices must be positive for trading."
+        )
+
+    # Check for inverted spread
+    if bid_price > ask_price:
+        logger.error(
+            "Quote validation failed: inverted spread",
+            extra={
+                "symbol": symbol,
+                "bid_price": str(bid_price),
+                "ask_price": str(ask_price),
+                "validation_type": "quote_for_trading",
+                "reason": "inverted_spread",
+            },
+        )
+        raise ValueError(
+            f"Invalid quote for {symbol}: bid_price={bid_price} > ask_price={ask_price}. "
+            f"Inverted spread indicates bad market data."
+        )
+
+    # Check for unreasonably low prices (sub-penny)
+    if bid_price < min_price or ask_price < min_price:
+        logger.error(
+            "Quote validation failed: prices below minimum",
+            extra={
+                "symbol": symbol,
+                "bid_price": str(bid_price),
+                "ask_price": str(ask_price),
+                "min_price": str(min_price),
+                "validation_type": "quote_for_trading",
+                "reason": "below_minimum_price",
+            },
+        )
+        raise ValueError(
+            f"Invalid quote for {symbol}: prices below minimum of ${min_price}. "
+            f"bid={bid_price}, ask={ask_price}"
+        )
+
+    # Check for excessive spread
+    spread_ratio = (float(ask_price) - float(bid_price)) / float(ask_price)
+    spread_percent = spread_ratio * 100
+    if spread_percent > max_spread_percent:
+        logger.error(
+            "Quote validation failed: excessive spread",
+            extra={
+                "symbol": symbol,
+                "bid_price": str(bid_price),
+                "ask_price": str(ask_price),
+                "spread_percent": f"{spread_percent:.2f}",
+                "max_spread_percent": str(max_spread_percent),
+                "validation_type": "quote_for_trading",
+                "reason": "excessive_spread",
+            },
+        )
+        raise ValueError(
+            f"Invalid quote for {symbol}: spread {spread_percent:.2f}% exceeds maximum of {max_spread_percent}%. "
+            f"This indicates stale or bad market data."
+        )
+
+    # Check for positive sizes if required
+    if require_positive_sizes:
+        if bid_size <= 0 or ask_size <= 0:
+            logger.error(
+                "Quote validation failed: non-positive sizes",
+                extra={
+                    "symbol": symbol,
+                    "bid_size": str(bid_size),
+                    "ask_size": str(ask_size),
+                    "validation_type": "quote_for_trading",
+                    "reason": "non_positive_sizes",
+                },
+            )
+            raise ValueError(
+                f"Invalid quote for {symbol}: bid_size={bid_size}, ask_size={ask_size}. "
+                f"Both sizes must be positive for liquidity-aware pricing."
+            )
+
+
+def validate_order_notional(
+    symbol: str,
+    price: Decimal,
+    quantity: Decimal,
+    min_notional: Decimal = Decimal("1.00"),
+) -> None:
+    """Validate that order notional value meets Alpaca's minimum requirement.
+
+    Alpaca requires a minimum notional value (price * quantity) for all orders.
+    This function enforces that requirement before order placement.
+
+    Args:
+        symbol: Trading symbol (for error messages)
+        price: Order price
+        quantity: Order quantity
+        min_notional: Minimum notional value (default $1.00 per Alpaca docs)
+
+    Raises:
+        ValueError: If notional value is below minimum
+
+    Examples:
+        >>> validate_order_notional("AAPL", Decimal("150.00"), Decimal("10"))  # OK ($1500)
+        >>> validate_order_notional("TECL", Decimal("0.01"), Decimal("1"))  # Raises ($0.01)
+
+    """
+    notional = price * quantity
+
+    if notional < min_notional:
+        logger.error(
+            "Order notional validation failed",
+            extra={
+                "symbol": symbol,
+                "price": str(price),
+                "quantity": str(quantity),
+                "notional": str(notional),
+                "min_notional": str(min_notional),
+                "validation_type": "order_notional",
+                "reason": "below_minimum",
+            },
+        )
+        raise ValueError(
+            f"Order notional for {symbol} (${notional}) is below Alpaca minimum of ${min_notional}. "
+            f"price={price}, quantity={quantity}. "
+            f"This order would be rejected by the broker with error code 40310000."
+        )
