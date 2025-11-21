@@ -364,6 +364,20 @@ service = UnifiedOrderPlacementService(
 2. Manually verify position via Alpaca UI
 3. Adjust `fractional_tolerance` in `PortfolioValidator` if needed
 
+## Migration Status
+
+**Status: Complete** - The unified order placement service is now the primary execution path.
+
+The old `SmartExecutionStrategy` and related modules have been removed:
+- `smart_execution_strategy/strategy.py` → Replaced by `UnifiedOrderPlacementService`
+- `smart_execution_strategy/quotes.py` → Replaced by `UnifiedQuoteService`
+- `smart_execution_strategy/repeg.py` → Replaced by `WalkTheBookStrategy`
+- `smart_execution_strategy/pricing.py` → Replaced by `WalkTheBookStrategy`
+- `smart_execution_strategy/tracking.py` → Replaced by `WalkResult`
+- `smart_execution_strategy/utils.py` → Integrated into unified components
+
+Only `smart_execution_strategy/models.py` remains for `ExecutionConfig` compatibility.
+
 ## Future Enhancements
 
 - [ ] Support for limit orders with explicit price (not just walk-the-book)
