@@ -291,9 +291,9 @@ def categorize_error_severity(error: Exception) -> str:
 
     """
     # Check specific high-severity errors first
-    if isinstance(error, (InsufficientFundsError, OrderExecutionError, PositionValidationError)):
+    if isinstance(error, InsufficientFundsError | OrderExecutionError | PositionValidationError):
         return ErrorSeverity.HIGH
-    if isinstance(error, (MarketDataError, DataProviderError)) or _is_strategy_execution_error(
+    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(
         error
     ):
         return ErrorSeverity.MEDIUM

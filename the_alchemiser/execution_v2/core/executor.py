@@ -443,8 +443,7 @@ class Executor:
         *,
         is_complete_exit: bool = False,
     ) -> OrderResult:
-        """
-        Execute a standard market order with preflight validation, with fallback logic for complete exits.
+        """Execute a standard market order with preflight validation, with fallback logic for complete exits.
 
         This method first attempts to place a market order with `is_complete_exit=True` if `is_complete_exit` is True and the side is 'sell'.
         If this attempt raises an exception (e.g., due to broker error or unsupported operation), the method logs the error and falls back

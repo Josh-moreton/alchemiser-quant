@@ -113,7 +113,7 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
             return str(obj)
 
     # Common container/temporal types
-    if isinstance(obj, (set, tuple)):
+    if isinstance(obj, set | tuple):
         return list(obj)
     if isinstance(obj, datetime):
         return obj.isoformat()

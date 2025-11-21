@@ -262,7 +262,7 @@ class ExecutionReportService:
             allocations = {}
 
         for symbol, allocation in allocations.items():
-            if isinstance(allocation, (int, float)):
+            if isinstance(allocation, int | float):
                 formatted_allocations.append(
                     {
                         "symbol": symbol,

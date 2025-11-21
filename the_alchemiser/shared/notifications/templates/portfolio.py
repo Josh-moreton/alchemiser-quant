@@ -293,7 +293,7 @@ class PortfolioBuilder:
         if qty is None:
             return "—"
         try:
-            qty_val = float(qty) if not isinstance(qty, (int, float)) else qty
+            qty_val = float(qty) if not isinstance(qty, int | float) else qty
             if qty_val != 0:
                 return (
                     f"{qty_val:.2f}" if qty_val >= 1 else f"{qty_val:.6f}".rstrip("0").rstrip(".")

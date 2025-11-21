@@ -153,7 +153,7 @@ def moving_average_price(args: list[ASTNode], context: DslContext) -> float:
         raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
 
     window = params.get("window", 200)
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = int(context.as_decimal(window))
 
     # Request MA indicator
@@ -207,7 +207,7 @@ def moving_average_return(args: list[ASTNode], context: DslContext) -> float:
         raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
 
     window = params.get("window", 21)
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = int(context.as_decimal(window))
 
     request = IndicatorRequest(
@@ -271,7 +271,7 @@ def cumulative_return(args: list[ASTNode], context: DslContext) -> float:
         raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
 
     window = params.get("window", 60)
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = int(context.as_decimal(window))
 
     request = IndicatorRequest(
@@ -319,7 +319,7 @@ def exponential_moving_average_price(args: list[ASTNode], context: DslContext) -
         raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
 
     window = params.get("window", 12)
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = int(context.as_decimal(window))
 
     request = IndicatorRequest(
@@ -369,7 +369,7 @@ def stdev_return(args: list[ASTNode], context: DslContext) -> float:
         raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
 
     window = params.get("window", 6)
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = int(context.as_decimal(window))
 
     request = IndicatorRequest(
@@ -417,7 +417,7 @@ def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
         raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
 
     window = params.get("window", 60)
-    if not isinstance(window, (int, float)):
+    if not isinstance(window, int | float):
         window = int(context.as_decimal(window))
 
     request = IndicatorRequest(

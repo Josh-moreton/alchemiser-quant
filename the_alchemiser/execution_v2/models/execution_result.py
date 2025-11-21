@@ -5,7 +5,7 @@ Execution result schemas for execution_v2 module.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
@@ -19,7 +19,9 @@ class ExecutionStatus(str, Enum):
     SUCCESS = "success"  # All non-skipped orders succeeded
     PARTIAL_SUCCESS = "partial_success"  # Some orders succeeded, some failed (excludes skipped)
     FAILURE = "failure"  # All orders failed or no orders placed
-    SUCCESS_WITH_SKIPS = "success_with_skips"  # All attempted orders succeeded, but some were skipped
+    SUCCESS_WITH_SKIPS = (
+        "success_with_skips"  # All attempted orders succeeded, but some were skipped
+    )
 
 
 class OrderResult(BaseModel):

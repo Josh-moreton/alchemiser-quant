@@ -37,7 +37,7 @@ color_output = true
 cache_dir = ".mypy_cache"
 exclude = [ "scripts/", "tests/",]
 [[tool.mypy.overrides]]
-module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*",]
+module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*", "weasyprint.*",]
 ignore_missing_imports = true
 
 [tool.importlinter]

@@ -184,7 +184,7 @@ def map_exception_to_error_code(exc: Exception) -> ErrorCode | None:
     # Data provider errors
     if isinstance(exc, RateLimitError):
         return ErrorCode.DATA_RATE_LIMIT
-    if isinstance(exc, (DataProviderError, MarketDataError)):
+    if isinstance(exc, DataProviderError | MarketDataError):
         return ErrorCode.DATA_PROVIDER_FAILURE
 
     # Configuration errors

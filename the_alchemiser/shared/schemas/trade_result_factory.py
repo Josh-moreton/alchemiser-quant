@@ -292,7 +292,7 @@ def _create_single_order_result(
     # Validate filled_price if present
     # OrderResult uses "price" field, legacy code may use "filled_avg_price"
     filled_price = order.get("price", order.get("filled_avg_price"))
-    if filled_price is not None and not isinstance(filled_price, (int, float, Decimal)):
+    if filled_price is not None and not isinstance(filled_price, int | float | Decimal):
         raise ValueError(f"Invalid filled_avg_price/price type: {type(filled_price).__name__}")
 
     trade_amount = _calculate_trade_amount(order, qty, filled_price)
