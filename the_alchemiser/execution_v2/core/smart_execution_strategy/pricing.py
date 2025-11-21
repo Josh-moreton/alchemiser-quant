@@ -14,6 +14,7 @@ from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyz
 from the_alchemiser.shared.errors.exceptions import ValidationError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
+from the_alchemiser.shared.utils.validation_utils import validate_quote_for_trading
 
 from .models import ExecutionConfig, LiquidityMetadata
 from .utils import (
@@ -93,7 +94,7 @@ class PricingCalculator:
             raise ValidationError(f"Invalid side parameter: {side}. Must be 'BUY' or 'SELL'")
 
     def _validate_quote_data(self, quote: QuoteModel, correlation_id: str | None = None) -> None:
-        """Validate quote data quality (H3).
+        """Validate quote data quality using strict validation (H3).
 
         Args:
             quote: Quote data to validate
@@ -108,29 +109,25 @@ class PricingCalculator:
         if not quote.symbol or not quote.symbol.strip():
             raise ValidationError("Quote symbol cannot be empty")
 
-        if quote.bid_price < 0 or quote.ask_price < 0:
+        # Use strict validation function that enforces all quote constraints
+        try:
+            validate_quote_for_trading(
+                symbol=quote.symbol,
+                bid_price=quote.bid_price,
+                ask_price=quote.ask_price,
+                bid_size=quote.bid_size if hasattr(quote, "bid_size") else 0,
+                ask_size=quote.ask_size if hasattr(quote, "ask_size") else 0,
+                min_price=0.01,
+                max_spread_percent=10.0,
+                require_positive_sizes=False,  # REST quotes may not have sizes
+            )
+        except ValueError as e:
+            # Convert ValueError to ValidationError for consistency with this module
             logger.error(
-                f"Negative prices in quote for {quote.symbol}: "
-                f"bid={quote.bid_price}, ask={quote.ask_price}",
-                extra=log_extra,
+                f"Quote validation failed for {quote.symbol}",
+                extra={**log_extra, "error": str(e)},
             )
-            raise ValidationError(
-                f"Quote prices cannot be negative: bid={quote.bid_price}, ask={quote.ask_price}"
-            )
-
-        if quote.bid_price == 0 and quote.ask_price == 0:
-            logger.error(
-                f"Both bid and ask prices are zero for {quote.symbol}",
-                extra=log_extra,
-            )
-            raise ValidationError(f"Quote for {quote.symbol} has zero bid and ask prices")
-
-        if quote.bid_price > quote.ask_price:
-            logger.warning(
-                f"Inverted quote for {quote.symbol}: bid={quote.bid_price} > ask={quote.ask_price}",
-                extra=log_extra,
-            )
-            # Don't raise error for inverted quotes, just log warning
+            raise ValidationError(f"Invalid quote for {quote.symbol}: {e}") from e
 
     def calculate_liquidity_aware_price(
         self,
@@ -264,16 +261,30 @@ class PricingCalculator:
     ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
         """Calculate basic price values needed for anchor calculation.
 
+        NOTE: This assumes quote has been validated by _validate_quote_data().
+
         Args:
-            quote: Quote data
+            quote: Quote data (must be pre-validated)
 
         Returns:
             Tuple of (bid, ask, mid, tick)
 
+        Raises:
+            ValidationError: If prices are invalid (should not happen after validation)
+
         """
-        bid = Decimal(str(max(quote.bid_price, 0.0)))
-        ask = Decimal(str(max(quote.ask_price, 0.0)))
-        mid = (bid + ask) / Decimal("2") if bid > 0 and ask > 0 else (bid or ask)
+        # Don't use max() to silently convert invalid prices to zero
+        # Instead, validate and convert directly
+        if quote.bid_price <= 0 or quote.ask_price <= 0:
+            raise ValidationError(
+                f"Invalid quote prices in _calculate_price_fundamentals for {quote.symbol}: "
+                f"bid={quote.bid_price}, ask={quote.ask_price}. "
+                f"This should have been caught by quote validation."
+            )
+
+        bid = Decimal(str(quote.bid_price))
+        ask = Decimal(str(quote.ask_price))
+        mid = (bid + ask) / Decimal("2")
         tick = Decimal("0.01")  # Minimum step as 1 cent for safety
 
         return bid, ask, mid, tick
@@ -405,19 +416,26 @@ class PricingCalculator:
         Returns:
             Quantized and validated anchor price
 
+        Raises:
+            ValidationError: If calculated anchor price is invalid
+
         """
         # Quantize to cent precision to avoid sub-penny errors
         anchor_quantized = anchor.quantize(Decimal("0.01"))
 
         # Validate that the calculated anchor price is positive and reasonable
+        # DO NOT fall back to MINIMUM_PRICE - raise an error instead
         if anchor_quantized <= 0:
             log_extra = {"correlation_id": correlation_id} if correlation_id else {}
-            logger.warning(
-                f"Invalid anchor price {anchor_quantized} calculated for {symbol} {side}, "
-                f"using minimum price ${MINIMUM_PRICE}",
+            logger.error(
+                f"Invalid anchor price {anchor_quantized} calculated for {symbol} {side}. "
+                f"This indicates bad quote data or pricing logic error.",
                 extra=log_extra,
             )
-            anchor_quantized = MINIMUM_PRICE  # Use constant (L3)
+            raise ValidationError(
+                f"Calculated invalid anchor price {anchor_quantized} for {symbol} {side}. "
+                f"Cannot place order with non-positive price."
+            )
 
         return anchor_quantized
 

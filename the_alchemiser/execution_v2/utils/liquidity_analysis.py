@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.utils.validation_utils import validate_quote_for_trading
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.types.market_data import QuoteModel
@@ -74,36 +75,44 @@ class LiquidityAnalyzer:
         Returns:
             LiquidityAnalysis with recommendations
 
+        Raises:
+            ValueError: If quote data is invalid for trading
+
         """
         logger.debug(
             f"Analyzing liquidity for {quote.symbol}: order_size={order_size}, side={side}"
         )
 
-        # Early validation of quote prices to prevent downstream negative price calculations
-        if quote.bid_price < 0 or quote.ask_price < 0:
+        # STRICT QUOTE VALIDATION: This will raise ValueError if quote is invalid
+        # This prevents the system from computing nonsensical prices like $0.01
+        # when market data is bad (e.g., TECL with bid=107, ask=0)
+        try:
+            validate_quote_for_trading(
+                symbol=quote.symbol,
+                bid_price=quote.bid_price,
+                ask_price=quote.ask_price,
+                bid_size=quote.bid_size,
+                ask_size=quote.ask_size,
+                min_price=0.01,
+                max_spread_percent=10.0,
+                require_positive_sizes=True,
+            )
+        except ValueError as e:
+            # Re-raise with additional context about what we were trying to do
             logger.error(
-                f"CRITICAL: Negative prices detected in quote for {quote.symbol}: "
-                f"bid={quote.bid_price}, ask={quote.ask_price}. "
-                f"This indicates a data quality issue upstream that must be investigated."
+                f"Quote validation failed for {quote.symbol} during liquidity analysis",
+                extra={
+                    "symbol": quote.symbol,
+                    "bid_price": quote.bid_price,
+                    "ask_price": quote.ask_price,
+                    "bid_size": quote.bid_size,
+                    "ask_size": quote.ask_size,
+                    "order_size": order_size,
+                    "side": side,
+                    "error": str(e),
+                },
             )
-            # Continue processing but flag the issue prominently
-
-        # Additional validation: ensure prices are reasonable
-        if quote.bid_price == 0 or quote.ask_price == 0:
-            logger.warning(
-                f"Zero prices detected in quote for {quote.symbol}: "
-                f"bid={quote.bid_price}, ask={quote.ask_price}. "
-                f"Quote data may be stale or incomplete."
-            )
-
-        # Log full quote details for debugging when prices look suspicious
-        if quote.bid_price <= 0 or quote.ask_price <= 0 or quote.bid_price > quote.ask_price:
-            logger.error(
-                f"Suspicious quote detected for {quote.symbol}: "
-                f"bid_price={quote.bid_price}, ask_price={quote.ask_price}, "
-                f"bid_size={quote.bid_size}, ask_size={quote.ask_size}, "
-                f"timestamp={quote.timestamp}"
-            )
+            raise
 
         # Calculate volume metrics
         total_bid_volume = quote.bid_size
@@ -183,37 +192,41 @@ class LiquidityAnalyzer:
 
     def _validate_and_convert_quote_prices(
         self, quote: QuoteModel
-    ) -> tuple[Decimal, Decimal] | None:
+    ) -> tuple[Decimal, Decimal]:
         """Validate quote prices and convert to Decimal.
+
+        NOTE: This function should only be called after strict validation has been
+        performed in analyze_liquidity(). It serves as a final sanity check.
 
         Args:
             quote: Market quote to validate
 
         Returns:
-            Tuple of (bid_price, ask_price) as Decimals, or None if invalid
+            Tuple of (bid_price, ask_price) as Decimals
+
+        Raises:
+            ValueError: If quote prices are invalid (should not happen after strict validation)
 
         """
-        # Early validation: Ensure quote prices are positive before any calculations
+        # Defensive check: This should never happen after strict validation
         if quote.bid_price <= 0 or quote.ask_price <= 0:
-            logger.error(
+            raise ValueError(
                 f"Invalid quote prices for {quote.symbol}: "
                 f"bid_price={quote.bid_price}, ask_price={quote.ask_price}. "
-                f"Cannot calculate volume-aware prices with non-positive values."
+                f"This should have been caught by strict validation."
             )
-            return None
 
         # Convert to Decimal for precise arithmetic
         bid_price = Decimal(str(quote.bid_price))
         ask_price = Decimal(str(quote.ask_price))
 
-        # Ensure quote is not already crossed (would indicate upstream data issue)
+        # Defensive check: This should never happen after strict validation
         if bid_price >= ask_price:
-            logger.error(
+            raise ValueError(
                 f"Crossed quote detected for {quote.symbol}: "
                 f"bid={bid_price} >= ask={ask_price}. "
-                f"Using ask as fallback for both sides."
+                f"This should have been caught by strict validation."
             )
-            return None
 
         return (bid_price, ask_price)
 
@@ -345,8 +358,11 @@ class LiquidityAnalyzer:
 
         CRITICAL INVARIANT: BUY limit must be < SELL limit (no self-cross).
 
+        NOTE: This function assumes quote has been strictly validated by analyze_liquidity().
+        It will raise ValueError if the quote is invalid.
+
         Args:
-            quote: Market quote with volume data
+            quote: Market quote with volume data (must be pre-validated)
             order_size: Size of order in shares
             side: "BUY" or "SELL". If specified, only computes that side.
                   If None, computes both (for legacy/preview use cases).
@@ -355,14 +371,12 @@ class LiquidityAnalyzer:
             Dictionary with "bid" (BUY limit) and "ask" (SELL limit) prices.
             When side is specified, the other side uses fallback (quote price).
 
-        """
-        # Validate quote and get validated prices, or early return on error
-        validated_prices = self._validate_and_convert_quote_prices(quote)
-        if validated_prices is None:
-            min_price = Decimal("0.01")
-            return {"bid": float(min_price), "ask": float(min_price * 2)}
+        Raises:
+            ValueError: If quote prices are invalid (should not happen after strict validation)
 
-        bid_price, ask_price = validated_prices
+        """
+        # Validate and convert quote prices (will raise ValueError if invalid)
+        bid_price, ask_price = self._validate_and_convert_quote_prices(quote)
 
         # Helper to quantize to tick_size
         def quantize(price: Decimal) -> Decimal:
