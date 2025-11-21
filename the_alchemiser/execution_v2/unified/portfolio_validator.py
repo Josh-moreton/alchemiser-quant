@@ -11,7 +11,6 @@ Ensures that orders actually changed the portfolio state as expected by:
 from __future__ import annotations
 
 import asyncio
-import time
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -260,14 +259,13 @@ class PortfolioValidator:
 
         """
         timeout = self.settlement_timeout_seconds
-        check_interval = SETTLEMENT_CHECK_INTERVAL_SECONDS
+        check_interval = SETTLEMENT_CHECK_INTERVAL_SECONDS  # Start with 1s
+        max_interval = 5.0  # Cap at 5 seconds
         elapsed = 0.0
 
         while elapsed < timeout:
             try:
-                position = await asyncio.to_thread(
-                    self.alpaca_manager.get_position, symbol
-                )
+                position = await asyncio.to_thread(self.alpaca_manager.get_position, symbol)
 
                 if position:
                     qty = getattr(position, "qty", Decimal("0"))
@@ -298,6 +296,8 @@ class PortfolioValidator:
 
             await asyncio.sleep(check_interval)
             elapsed += check_interval
+            # Exponential backoff: double interval up to max
+            check_interval = min(check_interval * 2, max_interval)
 
         # Timeout - return 0 as fallback
         logger.error(
@@ -308,9 +308,7 @@ class PortfolioValidator:
         )
         return Decimal("0")
 
-    def validate_before_execution(
-        self, intent: OrderIntent
-    ) -> tuple[bool, Decimal, str | None]:
+    def validate_before_execution(self, intent: OrderIntent) -> tuple[bool, Decimal, str | None]:
         """Validate portfolio state before execution and return initial position.
 
         This fetches the current position so we can validate changes after execution.

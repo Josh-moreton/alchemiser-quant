@@ -11,7 +11,7 @@ This service provides a single source of truth for market quotes with:
 
 from __future__ import annotations
 
-import time
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -99,11 +99,7 @@ class QuoteMetrics:
 
     def log_summary(self) -> None:
         """Log current metrics summary."""
-        total = (
-            self.streaming_success_count
-            + self.rest_fallback_count
-            + self.no_usable_quote_count
-        )
+        total = self.streaming_success_count + self.rest_fallback_count + self.no_usable_quote_count
         if total == 0:
             return
 
@@ -177,7 +173,7 @@ class UnifiedQuoteService:
             quote_freshness_seconds=quote_freshness_seconds,
         )
 
-    def get_best_quote(
+    async def get_best_quote(
         self, symbol: str, *, correlation_id: str | None = None
     ) -> QuoteResult:
         """Get best available quote with streaming-first approach.
@@ -193,7 +189,7 @@ class UnifiedQuoteService:
         log_extra = {"symbol": symbol, "correlation_id": correlation_id}
 
         # Step 1: Try streaming quote first
-        streaming_result = self._try_streaming_quote(symbol, correlation_id=correlation_id)
+        streaming_result = await self._try_streaming_quote(symbol, correlation_id=correlation_id)
         if streaming_result.success:
             self.metrics.streaming_success_count += 1
             logger.info(
@@ -238,7 +234,7 @@ class UnifiedQuoteService:
             error_message=f"No usable quote available for {symbol}",
         )
 
-    def _try_streaming_quote(
+    async def _try_streaming_quote(
         self, symbol: str, *, correlation_id: str | None = None
     ) -> QuoteResult:
         """Try to get a valid streaming quote.
@@ -257,7 +253,7 @@ class UnifiedQuoteService:
             )
 
         # Wait for streaming quote with timeout
-        quote = self._wait_for_streaming_quote(symbol, correlation_id=correlation_id)
+        quote = await self._wait_for_streaming_quote(symbol, correlation_id=correlation_id)
         if not quote:
             return self._create_unavailable_result(
                 symbol, "Streaming quote timeout", correlation_id=correlation_id
@@ -277,13 +273,15 @@ class UnifiedQuoteService:
                 correlation_id=correlation_id,
             )
             return self._create_unavailable_result(
-                symbol, f"Streaming quote too stale ({age_seconds:.1f}s)", correlation_id=correlation_id
+                symbol,
+                f"Streaming quote too stale ({age_seconds:.1f}s)",
+                correlation_id=correlation_id,
             )
 
         # Handle 0 bids/asks explicitly
         return self._handle_zero_prices(quote, QuoteSource.STREAMING, correlation_id=correlation_id)
 
-    def _wait_for_streaming_quote(
+    async def _wait_for_streaming_quote(
         self, symbol: str, *, correlation_id: str | None = None
     ) -> QuoteModel | None:
         """Wait for streaming quote to arrive.
@@ -314,7 +312,7 @@ class UnifiedQuoteService:
                 )
                 return quote
 
-            time.sleep(check_interval)
+            await asyncio.sleep(check_interval)
             elapsed += check_interval
 
         logger.debug(
@@ -325,9 +323,7 @@ class UnifiedQuoteService:
         )
         return None
 
-    def _try_rest_quote(
-        self, symbol: str, *, correlation_id: str | None = None
-    ) -> QuoteResult:
+    def _try_rest_quote(self, symbol: str, *, correlation_id: str | None = None) -> QuoteResult:
         """Try to get a valid REST quote.
 
         Args:
@@ -448,7 +444,9 @@ class UnifiedQuoteService:
                 correlation_id=correlation_id,
             )
             return self._create_unavailable_result(
-                quote.symbol, f"Prices below minimum ({MINIMUM_VALID_PRICE})", correlation_id=correlation_id
+                quote.symbol,
+                f"Prices below minimum ({MINIMUM_VALID_PRICE})",
+                correlation_id=correlation_id,
             )
 
         return QuoteResult(
@@ -466,7 +464,11 @@ class UnifiedQuoteService:
         )
 
     def _create_unavailable_result(
-        self, symbol: str, reason: str, *, correlation_id: str | None = None
+        self,
+        symbol: str,
+        reason: str,
+        *,
+        correlation_id: str | None = None,
     ) -> QuoteResult:
         """Create a result indicating quote is unavailable.
 

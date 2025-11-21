@@ -179,9 +179,7 @@ class WalkTheBookStrategy:
         # Walk through each price step
         for step_index, price_ratio in enumerate(self.price_steps):
             # Calculate limit price for this step
-            limit_price = self._calculate_limit_price(
-                quote, intent.side.value, price_ratio
-            )
+            limit_price = self._calculate_limit_price(quote, intent.side.value, price_ratio)
 
             logger.info(
                 f"Step {step_index + 1}/{len(self.price_steps)}: Placing limit order",
@@ -252,8 +250,9 @@ class WalkTheBookStrategy:
             # Check if filled during wait
             if attempt.order_id:
                 status_result = await self._check_order_status(attempt.order_id)
-                if status_result["filled_quantity"] > 0:
-                    additional_fill = status_result["filled_quantity"] - attempt.filled_quantity
+                filled_qty = status_result["filled_quantity"]
+                if filled_qty and filled_qty > 0:
+                    additional_fill = filled_qty - attempt.filled_quantity
                     if additional_fill > 0:
                         total_filled += additional_fill
                         remaining_quantity -= additional_fill
@@ -268,7 +267,9 @@ class WalkTheBookStrategy:
                         )
 
                         if remaining_quantity <= 0:
-                            avg_price = weighted_fill_sum / total_filled if total_filled > 0 else None
+                            avg_price = (
+                                weighted_fill_sum / total_filled if total_filled > 0 else None
+                            )
                             return WalkResult(
                                 success=True,
                                 order_attempts=order_attempts,
@@ -326,9 +327,7 @@ class WalkTheBookStrategy:
             error_message=None if success else "Market order failed to fill",
         )
 
-    def _calculate_limit_price(
-        self, quote: QuoteResult, side: str, price_ratio: float
-    ) -> Decimal:
+    def _calculate_limit_price(self, quote: QuoteResult, side: str, price_ratio: float) -> Decimal:
         """Calculate limit price at given ratio toward aggressive side.
 
         For BUY orders:
@@ -506,9 +505,7 @@ class WalkTheBookStrategy:
                 avg_fill_price=None,
             )
 
-    async def _check_order_status(
-        self, order_id: str
-    ) -> dict[str, Decimal | None]:
+    async def _check_order_status(self, order_id: str) -> dict[str, Decimal | None]:
         """Check status of an order.
 
         Args:
@@ -541,9 +538,7 @@ class WalkTheBookStrategy:
                 "avg_fill_price": None,
             }
 
-    async def _cancel_order(
-        self, order_id: str, correlation_id: str | None = None
-    ) -> bool:
+    async def _cancel_order(self, order_id: str, correlation_id: str | None = None) -> bool:
         """Cancel an order and wait for confirmation.
 
         Args:
@@ -557,23 +552,41 @@ class WalkTheBookStrategy:
         try:
             await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
 
-            # Wait for cancellation confirmation
+            # Wait for cancellation confirmation with exponential backoff
             timeout = DEFAULT_CANCELLATION_TIMEOUT_SECONDS
-            check_interval = 0.1
+            check_interval = 0.1  # Start with 100ms
+            max_interval = 1.0  # Cap at 1 second
             elapsed = 0.0
 
             while elapsed < timeout:
-                status = self.alpaca_manager._check_order_completion_status(order_id)
-                if status and status.upper() in ["CANCELED", "CANCELLED", "EXPIRED", "REJECTED"]:
+                try:
+                    result = self.alpaca_manager.get_order_execution_result(order_id)
+                    status = result.status if result else None
+                    if status and status.upper() in [
+                        "CANCELED",
+                        "CANCELLED",
+                        "EXPIRED",
+                        "REJECTED",
+                    ]:
+                        logger.debug(
+                            "Order cancellation confirmed",
+                            order_id=order_id,
+                            correlation_id=correlation_id,
+                        )
+                        return True
+                except Exception as e:
+                    # Order might be in transition, continue waiting
                     logger.debug(
-                        "Order cancellation confirmed",
+                        "Error checking order status during cancellation, will retry",
                         order_id=order_id,
+                        error=str(e),
                         correlation_id=correlation_id,
                     )
-                    return True
 
                 await asyncio.sleep(check_interval)
                 elapsed += check_interval
+                # Exponential backoff: double interval up to max
+                check_interval = min(check_interval * 2, max_interval)
 
             logger.warning(
                 "Order cancellation not confirmed within timeout",

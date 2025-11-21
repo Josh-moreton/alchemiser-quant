@@ -17,24 +17,19 @@ from .quote_service import QuoteResult, QuoteSource, UnifiedQuoteService
 from .walk_the_book import OrderAttempt, OrderStatus, WalkResult, WalkTheBookStrategy
 
 __all__ = [
-    # Order intent abstractions
+    "CloseType",
+    "ExecutionResult",
+    "OrderAttempt",
     "OrderIntent",
     "OrderSide",
-    "CloseType",
-    "Urgency",
-    # Quote service
-    "UnifiedQuoteService",
+    "OrderStatus",
+    "PortfolioValidator",
     "QuoteResult",
     "QuoteSource",
-    # Walk the book strategy
-    "WalkTheBookStrategy",
-    "WalkResult",
-    "OrderAttempt",
-    "OrderStatus",
-    # Portfolio validation
-    "PortfolioValidator",
-    "ValidationResult",
-    # Main service
     "UnifiedOrderPlacementService",
-    "ExecutionResult",
+    "UnifiedQuoteService",
+    "Urgency",
+    "ValidationResult",
+    "WalkResult",
+    "WalkTheBookStrategy",
 ]

@@ -142,12 +142,12 @@ User Code
     ↓
 Executor.execute_order(symbol, side, quantity)
     ↓
-UnifiedOrderPlacementService.place_order(intent)
+UnifiedOrderPlacementService.place_order(intent)  [async]
     ↓
     ├─→ Preflight Validation (quantity, asset info)
     ├─→ Pre-execution Validation (get current position)
-    ├─→ UnifiedQuoteService.get_best_quote()
-    │       ├─→ Try streaming (WebSocket)
+    ├─→ await UnifiedQuoteService.get_best_quote()  [async]
+    │       ├─→ Try streaming (WebSocket) with async wait
     │       ├─→ Handle 0 bids/asks
     │       └─→ Fallback to REST API
     ↓

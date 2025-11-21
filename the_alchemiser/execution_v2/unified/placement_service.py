@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 from .order_intent import Urgency
 from .portfolio_validator import PortfolioValidator
-from .quote_service import QuoteSource, UnifiedQuoteService
+from .quote_service import UnifiedQuoteService
 from .walk_the_book import WalkTheBookStrategy
 
 logger = get_logger(__name__)
@@ -185,9 +185,7 @@ class UnifiedOrderPlacementService:
                 **log_extra,
                 error=error_msg,
             )
-            return self._create_failure_result(
-                intent, start_time, "validation_failed", error_msg
-            )
+            return self._create_failure_result(intent, start_time, "validation_failed", error_msg)
 
         # Use adjusted quantity if provided
         if preflight_result.adjusted_quantity:
@@ -217,7 +215,7 @@ class UnifiedOrderPlacementService:
                 )
 
         # Step 3: Get quote
-        quote_result = self.quote_service.get_best_quote(
+        quote_result = await self.quote_service.get_best_quote(
             intent.symbol, correlation_id=intent.correlation_id
         )
 
@@ -327,7 +325,11 @@ class UnifiedOrderPlacementService:
                     status=executed_order.status,
                 )
                 return self._create_failure_result(
-                    intent, start_time, "market_order_rejected", error_msg, quote_result=quote_result
+                    intent,
+                    start_time,
+                    "market_order_rejected",
+                    error_msg,
+                    quote_result=quote_result,
                 )
 
             filled_qty = getattr(executed_order, "filled_qty", intent.quantity)

@@ -13,7 +13,6 @@ import structlog
 
 from the_alchemiser.execution_v2.core.market_order_executor import MarketOrderExecutor
 from the_alchemiser.execution_v2.core.order_finalizer import OrderFinalizer
-from the_alchemiser.execution_v2.core.order_monitor import OrderMonitor
 from the_alchemiser.execution_v2.core.phase_executor import PhaseExecutor
 from the_alchemiser.execution_v2.core.settlement_monitor import SettlementMonitor
 from the_alchemiser.execution_v2.models.execution_result import (
@@ -21,6 +20,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionStatus,
     OrderResult,
 )
+from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
 from the_alchemiser.execution_v2.unified import (
     CloseType,
     OrderIntent,
@@ -28,7 +28,6 @@ from the_alchemiser.execution_v2.unified import (
     UnifiedOrderPlacementService,
     Urgency,
 )
-from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
 from the_alchemiser.execution_v2.utils.execution_validator import (
     ExecutionValidator,
 )
@@ -40,7 +39,7 @@ from the_alchemiser.shared.errors import (
     TradingClientError,
     ValidationError,
 )
-from the_alchemiser.shared.logging import get_logger, log_order_flow
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
@@ -237,19 +236,15 @@ class Executor:
         self._market_order_executor = MarketOrderExecutor(
             self.alpaca_manager, self.validator, self.buying_power_service
         )
-        # Pass None for smart_strategy - order monitoring is now handled by unified service
-        self._order_monitor = OrderMonitor(None, self.execution_config)
         self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
         self._position_utils = PositionUtils(
             self.alpaca_manager,
             self.pricing_service,
             enable_smart_execution=self.enable_smart_execution,
         )
-        # Pass None for smart_strategy - execution is now handled by unified service
         self._phase_executor = PhaseExecutor(
             self.alpaca_manager,
             self._position_utils,
-            None,  # smart_strategy removed - unified service handles execution
             self.execution_config,
             enable_smart_execution=self.enable_smart_execution,
         )
@@ -767,10 +762,12 @@ class Executor:
         orders: list[OrderResult],
         correlation_id: str | None = None,
     ) -> list[OrderResult]:
-        """Monitor and re-peg orders from a specific execution phase."""
-        return await self._order_monitor.monitor_and_repeg_phase_orders(
-            phase_type, orders, correlation_id
-        )
+        """Monitor and re-peg orders from a specific execution phase.
+
+        Note: Re-pegging logic has been removed with SmartExecutionStrategy deprecation.
+        This method now simply returns orders unchanged for backward compatibility.
+        """
+        return orders
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
         """Clean up pricing subscriptions after execution."""

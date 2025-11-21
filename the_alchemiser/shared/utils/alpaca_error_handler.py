@@ -563,7 +563,7 @@ def _handle_retry_failure(error: Exception, operation_name: str, attempt: int) -
     """
     summary = AlpacaErrorHandler.sanitize_error_message(error)
     error_msg = f"{operation_name} failed after {attempt} attempts: {summary}"
-    
+
     # Check if this is an expected 404 (position/resource doesn't exist)
     error_str = str(error).lower()
     is_404_not_found = (
@@ -571,13 +571,13 @@ def _handle_retry_failure(error: Exception, operation_name: str, attempt: int) -
         or "40410000" in str(error)
         or "not found" in error_str
     )
-    
+
     # Use warning for expected 404s (resource doesn't exist), error for everything else
     if is_404_not_found:
         logger.warning(error_msg)
     else:
         logger.error(error_msg)
-    
+
     raise RuntimeError(error_msg) from error
 
 

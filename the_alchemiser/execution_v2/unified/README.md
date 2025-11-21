@@ -21,13 +21,14 @@ This package provides a **single, robust, testable order placement flow** that s
 - Single translation point to Alpaca API parameters
 
 ### 3. **Unified Quote Acquisition**
-- Streaming WebSocket quotes first (lowest latency)
+- Streaming WebSocket quotes first (lowest latency) with async wait
 - Automatic REST API fallback (reliability)
 - Explicit 0 bid/ask handling (common Alpaca issue):
   - If bid=0 and ask>0: use ask for both sides
   - If ask=0 and bid>0: use bid for both sides
   - If both=0: treat as unusable quote
 - Metrics and logging for observability
+- **Note**: All quote operations are async and must be awaited
 
 ### 4. **Explicit "Walk the Book" Strategy**
 - Clear price progression: **75% → 85% → 95% → market**
@@ -125,12 +126,12 @@ result = await service.place_order(intent)
 ```
 User Code
     ↓
-UnifiedOrderPlacementService.place_order(intent)
+UnifiedOrderPlacementService.place_order(intent)  [async]
     ↓
     ├─→ Preflight Validation (quantity, asset info)
     ├─→ Pre-execution Validation (get current position)
-    ├─→ UnifiedQuoteService.get_best_quote()
-    │       ├─→ Try streaming (WebSocket)
+    ├─→ await UnifiedQuoteService.get_best_quote()  [async]
+    │       ├─→ Try streaming (WebSocket) with async wait
     │       ├─→ Handle 0 bids/asks
     │       └─→ Fallback to REST API
     ↓
@@ -377,6 +378,15 @@ The old `SmartExecutionStrategy` and related modules have been removed:
 - `smart_execution_strategy/utils.py` → Integrated into unified components
 
 Only `smart_execution_strategy/models.py` remains for `ExecutionConfig` compatibility.
+
+## Performance Optimizations
+
+### Exponential Backoff
+The service uses exponential backoff in polling loops to reduce API load:
+- **Order cancellation checks**: 100ms → 200ms → 400ms → 800ms → 1000ms (max)
+- **Position settlement checks**: 1s → 2s → 4s → 5s (max)
+
+This significantly reduces API calls during waiting periods while maintaining responsiveness.
 
 ## Future Enhancements
 

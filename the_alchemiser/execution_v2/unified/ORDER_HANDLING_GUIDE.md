@@ -204,7 +204,7 @@ Alpaca sometimes returns 0 for bid or ask prices. The system handles this explic
 
 **Code:**
 ```python
-quote = quote_service.get_best_quote("AAPL")
+quote = await quote_service.get_best_quote("AAPL")
 
 if quote.zero_bid_substituted:
     logger.warning(f"Bid was 0, using ask: {quote.bid}")
