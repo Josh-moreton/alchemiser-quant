@@ -333,13 +333,28 @@ class RebalancePlanCalculator:
         return items
 
     def _min_trade_threshold(self, portfolio_value: Decimal) -> Decimal:
-        """Compute minimum trade threshold as 1% of total portfolio value, in dollars.
+        """Compute minimum trade threshold to avoid dust trades.
+
+        Uses MIN_TRADE_AMOUNT_USD ($5) as the absolute minimum to prevent broker rejections.
+        For small accounts (<$1000), scales proportionally to avoid suppressing all trades.
 
         Always returns a non-negative Decimal quantized to cents.
         """
+        from the_alchemiser.shared.constants import MIN_TRADE_AMOUNT_USD
+
         if portfolio_value <= Decimal("0"):
             return Decimal("0.00")
-        return (portfolio_value * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        # For accounts < $1000, use 1% to avoid suppressing everything
+        # For larger accounts, use the fixed $5 minimum
+        if portfolio_value < Decimal("1000"):
+            threshold = (portfolio_value * Decimal("0.01")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        else:
+            threshold = MIN_TRADE_AMOUNT_USD
+
+        return threshold
 
     def _suppress_small_trades(
         self, items: list[RebalancePlanItem], min_threshold: Decimal
