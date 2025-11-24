@@ -84,9 +84,7 @@ class RebalancePlanCalculator:
             portfolio_value = self._determine_portfolio_value(strategy, snapshot)
 
             # Step 2: Calculate target and current dollar values
-            target_values, current_values = self._calculate_dollar_values(
-                strategy, snapshot, portfolio_value
-            )
+            target_values, current_values = self._calculate_dollar_values(strategy, snapshot)
 
             # Step 3: Calculate trade amounts and actions
             trade_items = self._calculate_trade_items(target_values, current_values)
@@ -196,41 +194,117 @@ class RebalancePlanCalculator:
         self,
         strategy: StrategyAllocation,
         snapshot: PortfolioSnapshot,
-        portfolio_value: Decimal,
     ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
         """Calculate target and current dollar values for all symbols.
+
+        Uses deployable capital (cash + expected sell proceeds) rather than
+        total portfolio value to ensure target allocations never exceed
+        available buying power.
 
         Args:
             strategy: Strategy allocation with target weights
             snapshot: Portfolio snapshot
-            portfolio_value: Total portfolio value to use
 
         Returns:
             Tuple of (target_values, current_values) by symbol
 
-        """
-        target_values = {}
-        current_values = {}
+        Raises:
+            PortfolioError: If target allocation exceeds available capital
 
-        # Get all symbols we need to consider
+        """
+        current_values = {}
         all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
 
-        # Apply cash reserve to avoid buying power issues with broker constraints
-        # This ensures we don't try to use 100% of portfolio value which can
-        # exceed available buying power
-        settings = load_settings()
-        usage_multiplier = Decimal("1") - Decimal(str(settings.alpaca.cash_reserve_pct))
-        effective_portfolio_value = portfolio_value * usage_multiplier
-
+        # First pass: Calculate current values for all positions
         for symbol in all_symbols:
-            # Calculate target value using effective portfolio value
-            target_weight = strategy.target_weights.get(symbol, Decimal("0"))
-            target_values[symbol] = target_weight * effective_portfolio_value
-
-            # Calculate current value
             current_quantity = snapshot.positions.get(symbol, Decimal("0"))
             current_price = snapshot.prices.get(symbol, Decimal("0"))
             current_values[symbol] = current_quantity * current_price
+
+        # Calculate expected sell proceeds from positions being fully exited
+        # (where target_weight = 0 or symbol not in target allocation)
+        expected_full_exit_proceeds = Decimal("0")
+        for symbol, current_value in current_values.items():
+            target_weight = strategy.target_weights.get(symbol, Decimal("0"))
+            if target_weight == Decimal("0") and current_value > Decimal("0"):
+                # This position will be fully liquidated
+                expected_full_exit_proceeds += current_value
+
+        # Calculate deployable capital: cash + expected full exits, with reserve
+        # This is the actual capital available for new allocations
+        settings = load_settings()
+        usage_multiplier = Decimal("1") - Decimal(str(settings.alpaca.cash_reserve_pct))
+        raw_deployable = snapshot.cash + expected_full_exit_proceeds
+        deployable_capital = raw_deployable * usage_multiplier
+
+        logger.debug(
+            "Calculating deployable capital",
+            module=MODULE_NAME,
+            action="_calculate_dollar_values",
+            current_cash=str(snapshot.cash),
+            expected_full_exit_proceeds=str(expected_full_exit_proceeds),
+            raw_deployable=str(raw_deployable),
+            usage_multiplier=str(usage_multiplier),
+            deployable_capital=str(deployable_capital),
+        )
+
+        # Second pass: Calculate target values based on deployable capital
+        # This prevents over-allocation by only allocating what we can actually deploy
+        target_values = {}
+        for symbol in all_symbols:
+            target_weight = strategy.target_weights.get(symbol, Decimal("0"))
+            target_values[symbol] = target_weight * deployable_capital
+
+        # Validate capital constraints: BUY orders must not exceed deployable capital
+        # This is a safety check - with the corrected logic above, this should always pass
+        total_buy_amount = Decimal("0")
+        total_sell_proceeds = Decimal("0")
+
+        for symbol in all_symbols:
+            target_value = target_values.get(symbol, Decimal("0"))
+            current_value = current_values.get(symbol, Decimal("0"))
+            trade_amount = target_value - current_value
+
+            if trade_amount > Decimal("0"):
+                # This is a BUY order
+                total_buy_amount += trade_amount
+            elif trade_amount < Decimal("0"):
+                # This is a SELL order - will release capital
+                total_sell_proceeds += abs(trade_amount)
+
+        available_capital = snapshot.cash + total_sell_proceeds
+
+        if total_buy_amount > available_capital:
+            logger.error(
+                "Rebalance plan exceeds available capital",
+                module=MODULE_NAME,
+                action="_calculate_dollar_values",
+                total_buy_amount=str(total_buy_amount),
+                total_sell_proceeds=str(total_sell_proceeds),
+                current_cash=str(snapshot.cash),
+                available_capital=str(available_capital),
+                deficit=str(total_buy_amount - available_capital),
+                target_symbols=sorted(strategy.target_weights.keys()),
+                deployable_capital=str(deployable_capital),
+            )
+            raise PortfolioError(
+                f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
+                f"but only ${available_capital} available "
+                f"(current cash: ${snapshot.cash}, sell proceeds: ${total_sell_proceeds}). "
+                f"Deficit: ${total_buy_amount - available_capital}"
+            )
+
+        logger.info(
+            "Capital constraint validation passed",
+            module=MODULE_NAME,
+            action="_calculate_dollar_values",
+            total_buy_amount=str(total_buy_amount),
+            total_sell_proceeds=str(total_sell_proceeds),
+            current_cash=str(snapshot.cash),
+            available_capital=str(available_capital),
+            surplus=str(available_capital - total_buy_amount),
+            deployable_capital=str(deployable_capital),
+        )
 
         return target_values, current_values
 
