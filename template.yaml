@@ -120,7 +120,7 @@ Globals:
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
-        EMAIL__FROM_EMAIL: josh@rwxt.org
+        EMAIL__FROM_EMAIL: joshuamoreton1@icloud.com
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
         EMAIL__PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
@@ -223,7 +223,7 @@ Resources:
       
       SSESpecification:
         SSEEnabled: true
-        SSEType: KMS
+        # Use AWS-managed encryption (not KMS) to avoid requiring additional IAM permissions
       
       Tags:
         - Key: Environment
@@ -396,6 +396,10 @@ Resources:
   ReportGeneratorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-report-generator-role"
+        - !Sub "the-alchemiser-v2-${Stage}-report-generator-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -507,6 +511,10 @@ Resources:
   SchedulerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-scheduler-role"
+        - !Sub "the-alchemiser-v2-${Stage}-scheduler-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -538,6 +546,10 @@ Resources:
   TradingSystemExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-trading-system-role"
+        - !Sub "the-alchemiser-v2-${Stage}-trading-system-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:

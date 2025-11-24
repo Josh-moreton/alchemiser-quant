@@ -77,7 +77,7 @@ class SignalGenerationHandler:
 
         """
         try:
-            if isinstance(event, (StartupEvent, WorkflowStarted)):
+            if isinstance(event, StartupEvent | WorkflowStarted):
                 self._handle_signal_generation_request(event)
             else:
                 self.logger.debug(

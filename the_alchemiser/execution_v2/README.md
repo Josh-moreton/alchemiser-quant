@@ -4,15 +4,16 @@
 
 ## Overview
 
-The Execution_v2 module provides a clean, minimal execution system for order placement and trade execution. It consumes `RebalancePlanDTO` from the portfolio module and executes trades via the shared Alpaca broker interface, maintaining strict separation of concerns and clean module boundaries.
+The Execution_v2 module provides a unified order placement system for trade execution. It uses the **Unified Order Placement Service** as the single entry point for all order execution, with streaming-first quote acquisition and walk-the-book price improvement.
 
 ## Core Responsibilities
 
-- **Order Execution**: Place market and limit orders via Alpaca API
-- **Smart Execution**: Adaptive limit order placement with repricing strategies
+- **Unified Order Placement**: Single entry point for ALL order execution via `UnifiedOrderPlacementService`
+- **Walk-the-Book Execution**: Progressive price improvement (75% → 85% → 95% → market)
+- **Streaming-First Quotes**: WebSocket quotes with REST fallback
+- **Portfolio Validation**: Verify position changes after execution
 - **Trade Monitoring**: Track order status and settlement
-- **Execution Results**: Report execution outcomes with detailed metadata
-- **Boundary Enforcement**: No portfolio calculation or strategy logic
+- **Execution Results**: Report execution outcomes with detailed audit trail
 
 ## Architecture
 
@@ -22,54 +23,150 @@ execution_v2/
 ├── handlers/                      # Event-driven handlers
 │   └── trading_execution_handler.py
 ├── core/                          # Core execution logic
-│   ├── execution_manager.py      # Main facade (legacy)
-│   ├── executor.py               # Core execution orchestrator
-│   ├── market_order_executor.py  # Market order execution
+│   ├── executor.py               # Core execution orchestrator (uses unified service)
+│   ├── execution_manager.py      # Main facade
+│   ├── market_order_executor.py  # Fallback market order execution
 │   ├── phase_executor.py         # Multi-phase execution coordinator
 │   ├── order_monitor.py          # Order status tracking
 │   ├── settlement_monitor.py     # Settlement verification
 │   ├── order_finalizer.py        # Order completion logic
-│   └── smart_execution_strategy/ # Smart limit order execution
-│       ├── strategy.py           # Main strategy orchestrator
-│       ├── pricing.py            # Price calculation and bounds
-│       ├── repeg.py              # Repricing logic
-│       ├── quotes.py             # Quote data access
-│       └── tracking.py           # Order tracking
+│   └── smart_execution_strategy/ # Configuration models (strategy removed)
+│       └── models.py             # ExecutionConfig, SmartOrderRequest, etc.
+├── unified/                       # NEW: Unified order placement system
+│   ├── order_intent.py           # Type-safe order intent abstraction
+│   ├── quote_service.py          # Unified quote acquisition
+│   ├── walk_the_book.py          # Walk-the-book execution strategy
+│   ├── portfolio_validator.py    # Post-execution validation
+│   └── placement_service.py      # Single entry point for all orders
 ├── services/                      # Business services
 │   └── trade_ledger.py           # Trade recording service
 ├── models/                        # Data models
 │   └── execution_result.py       # Execution result DTO
-├── utils/                         # Utilities
-│   ├── execution_validator.py    # Pre-execution validation
-│   ├── liquidity_analysis.py     # Liquidity assessment
-│   └── position_utils.py         # Position helpers
-└── config/                        # Configuration
-    └── execution_config.py       # Smart execution settings
+└── utils/                         # Utilities
+    ├── execution_validator.py    # Pre-execution validation
+    ├── liquidity_analysis.py     # Liquidity assessment
+    └── position_utils.py         # Position helpers
 ```
 
-## Core Design Principles
+## Unified Order Placement (Primary Execution Path)
 
-### Inputs
-- **RebalancePlanDTO**: Plan from portfolio_v2 with trade items (symbol, action, trade_amount)
-- **ExecutionConfig**: Optional configuration for smart execution strategies
-- Correlation IDs for tracking and observability
+All order execution now flows through the **Unified Order Placement Service**:
 
-### Outputs
-- **TradeExecuted** events: Emitted per order with execution details
-- **WorkflowCompleted/Failed** events: Final workflow status
-- **ExecutionResult**: DTO containing order outcomes and summary (legacy API)
+```python
+from the_alchemiser.execution_v2.unified import (
+    UnifiedOrderPlacementService,
+    OrderIntent,
+    OrderSide,
+    CloseType,
+    Urgency,
+)
 
-### Constraints
-- **Dependencies**: execution_v2 → shared only (brokers, events, schemas)
-- **No imports** from strategy/ or portfolio/ modules
-- **Stateless handlers**: No shared mutable state
-- **Idempotent**: Can safely replay events
+# Initialize service
+service = UnifiedOrderPlacementService(
+    alpaca_manager=alpaca_manager,
+    pricing_service=pricing_service,
+    enable_validation=True,
+)
+
+# Create order intent
+intent = OrderIntent(
+    side=OrderSide.BUY,
+    close_type=CloseType.NONE,
+    symbol="AAPL",
+    quantity=Decimal("10"),
+    urgency=Urgency.MEDIUM,
+    correlation_id="trade-123",
+)
+
+# Place order
+result = await service.place_order(intent)
+```
+
+### Order Intent Types
+
+| Side | CloseType | Description |
+|------|-----------|-------------|
+| `BUY` | `NONE` | Buy shares (open or add to position) |
+| `SELL` | `PARTIAL` | Reduce position size |
+| `SELL` | `FULL` | Fully close position |
+
+### Urgency Levels
+
+| Urgency | Behavior |
+|---------|----------|
+| `HIGH` | Market order immediately |
+| `MEDIUM` | Walk-the-book (default) |
+| `LOW` | Walk-the-book with longer waits |
+
+### Walk-the-Book Strategy
+
+The unified service uses progressive price improvement:
+
+```
+Step 1: Limit order @ 75% toward aggressive side → Wait 30s
+Step 2: Replace @ 85% toward aggressive side → Wait 30s
+Step 3: Replace @ 95% toward aggressive side → Wait 30s
+Step 4: Market order (if still not filled)
+```
+
+**For BUY orders**: "Aggressive side" = toward the ask price
+**For SELL orders**: "Aggressive side" = toward the bid price
+
+### Quote Acquisition
+
+The unified quote service handles Alpaca's 0 bid/ask issue:
+
+| Condition | Action |
+|-----------|--------|
+| `bid > 0` and `ask > 0` | Use actual bid/ask |
+| `bid = 0` and `ask > 0` | Use `ask` for both sides |
+| `bid > 0` and `ask = 0` | Use `bid` for both sides |
+| `bid = 0` and `ask = 0` | Quote unusable (try REST fallback) |
+
+### Portfolio Validation
+
+After execution, the service validates that position changes match expectations:
+
+```python
+result = await service.place_order(intent)
+
+# Validation result included
+print(result.validation_result.describe())
+# "Position change validated: expected +10 AAPL, actual +10 AAPL"
+```
+
+## Execution Flow
+
+```
+User Code
+    ↓
+Executor.execute_order(symbol, side, quantity)
+    ↓
+UnifiedOrderPlacementService.place_order(intent)  [async]
+    ↓
+    ├─→ Preflight Validation (quantity, asset info)
+    ├─→ Pre-execution Validation (get current position)
+    ├─→ await UnifiedQuoteService.get_best_quote()  [async]
+    │       ├─→ Try streaming (WebSocket) with async wait
+    │       ├─→ Handle 0 bids/asks
+    │       └─→ Fallback to REST API
+    ↓
+    ├─→ Route by Urgency:
+    │       ├─→ HIGH: Market order immediately
+    │       └─→ MEDIUM/LOW: WalkTheBookStrategy
+    │               ├─→ Step 1: Limit @ 75%
+    │               ├─→ Step 2: Limit @ 85%
+    │               ├─→ Step 3: Limit @ 95%
+    │               └─→ Step 4: Market order
+    ↓
+    ├─→ PortfolioValidator.validate_execution()
+    ↓
+    └─→ Return ExecutionResult
+```
 
 ## Usage
 
 ### Event-Driven (Preferred)
-
-The execution module integrates with the event-driven architecture through handler registration:
 
 ```python
 from the_alchemiser.execution_v2 import register_execution_handlers
@@ -83,21 +180,12 @@ register_execution_handlers(container)
 # - RebalancePlanned: Execute the rebalance plan
 ```
 
-The handler consumes `RebalancePlanned` events and:
-1. Validates the rebalance plan
-2. Executes trades via Alpaca
-3. Emits `TradeExecuted` events for each order
-4. Emits `WorkflowCompleted` or `WorkflowFailed` when done
-
-### Direct Access (Legacy - Being Phased Out)
-
-For migration and testing purposes only:
+### Direct Access
 
 ```python
 from the_alchemiser.execution_v2 import ExecutionManager
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
-from decimal import Decimal
 
 # Initialize manager
 alpaca_manager = AlpacaManager(api_key="...", secret_key="...", paper=True)
@@ -105,78 +193,45 @@ execution_manager = ExecutionManager(alpaca_manager)
 
 # Execute rebalance plan
 plan = RebalancePlan(
-    items=[...],  # Trade items from portfolio
+    items=[...],
     correlation_id="exec-123",
     plan_id="plan-456"
 )
 
-result = execution_manager.execute_rebalance_plan(plan)
-
-# Check results
-print(f"Status: {result.status}")
-print(f"Orders placed: {len(result.orders_placed)}")
-print(f"Orders filled: {len(result.orders_filled)}")
+result = await execution_manager.execute_rebalance_plan(plan)
 ```
 
-## Smart Execution Strategy
+## Configuration
 
-Execution_v2 includes an adaptive smart execution system for limit orders:
-
-### Features
-- **Adaptive pricing**: Start near mid-price, widen to bid/ask
-- **Dynamic repricing**: Adjust prices if not filled
-- **Liquidity analysis**: Assess market depth before execution
-- **Multiple phases**: BUY first, SELL after settlement
-- **Settlement monitoring**: Verify trades settle before continuing
-
-### Configuration
+### Execution Configuration
 
 ```python
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 
 config = ExecutionConfig(
-    max_repeg_attempts=3,           # Max repricing attempts
-    repeg_interval_seconds=30,       # Seconds between repeg attempts
-    initial_aggressiveness=0.3,      # Start 30% toward bid/ask
-    final_aggressiveness=0.9,        # End 90% toward bid/ask
-    min_liquidity_ratio=0.05,        # Minimum 5% of avg volume
+    max_spread_percent=Decimal("0.50"),       # Max acceptable spread (0.50%)
+    repeg_threshold_percent=Decimal("0.10"),  # Re-peg if market moves >0.1%
+    max_repegs_per_order=2,                   # Maximum re-pegs before escalation
+    fill_wait_seconds=10,                     # Wait time before re-peg
+    quote_freshness_seconds=5,                # Require quote within 5 seconds
 )
 
 execution_manager = ExecutionManager(alpaca_manager, execution_config=config)
 ```
 
-### Execution Flow
+### Walk-the-Book Configuration
 
-1. **Validation**: Check positions, buying power, market hours
-2. **Phase 1 (BUY)**: Place and monitor BUY orders
-3. **Settlement**: Wait for BUY orders to settle
-4. **Phase 2 (SELL)**: Place and monitor SELL orders
-5. **Finalization**: Report results via events
+```python
+from the_alchemiser.execution_v2.unified import WalkTheBookStrategy
 
-## Integration Points
-
-### Dependencies
-- **shared/brokers**: AlpacaManager for order placement and data access
-- **shared/events**: EventBus for event-driven communication
-- **shared/schemas**: RebalancePlan, trade item DTOs
-
-### Inputs
-- Consumes `RebalancePlanned` events from portfolio_v2
-- Events contain complete rebalance plan with all trade details
-
-### Outputs
-- Publishes `TradeExecuted` events (one per order)
-- Publishes `WorkflowCompleted` or `WorkflowFailed` at end
-- Events consumed by orchestration for monitoring
-
-### Module Boundaries
-- **Imports from**: `shared/` only (brokers, events, schemas, logging, errors)
-- **No imports from**: `strategy_v2/`, `portfolio_v2/`, `orchestration/`
-- **Communication**: Event-driven only; no direct cross-module calls
+strategy = WalkTheBookStrategy(
+    alpaca_manager=alpaca_manager,
+    step_wait_seconds=20,                    # Wait 20s at each step (default: 30s)
+    price_steps=[0.70, 0.80, 0.90, 0.95],   # Custom progression
+)
+```
 
 ## Error Handling
-
-Execution_v2 uses typed exceptions with contextual information:
 
 ```python
 from the_alchemiser.shared.errors import (
@@ -186,217 +241,60 @@ from the_alchemiser.shared.errors import (
 )
 
 try:
-    result = execution_manager.execute_rebalance_plan(plan)
+    result = await execution_manager.execute_rebalance_plan(plan)
 except OrderExecutionError as e:
     logger.error(f"Order execution failed: {e}", extra=e.context)
-    # Handle order failure (retry, alert, etc.)
 except InsufficientFundsError as e:
     logger.error(f"Insufficient buying power: {e}", extra=e.context)
-    # Handle insufficient funds
 except PositionValidationError as e:
     logger.error(f"Position validation failed: {e}", extra=e.context)
-    # Handle position mismatch
 ```
 
-### Error Categories
-- **OrderExecutionError**: Order placement or fill failures
-- **InsufficientFundsError**: Not enough buying power
-- **PositionValidationError**: Position data inconsistencies
-- **ValidationError**: Pre-execution validation failures
+## Metrics and Observability
 
-All errors include:
-- `module="execution_v2.*"` metadata
-- Correlation IDs for end-to-end tracking
-- Contextual details (symbol, quantity, order type, etc.)
+### Quote Metrics
+- `streaming_success_count`: Quotes obtained from WebSocket
+- `rest_fallback_count`: Quotes obtained from REST API
+- `zero_bid_count`: Quotes with 0 bid (substituted)
+- `zero_ask_count`: Quotes with 0 ask (substituted)
+- `both_zero_count`: Quotes with both 0 (unusable)
 
-## Performance
+### Execution Metrics
+- Execution time per order
+- Steps used in walk-the-book
+- Fill rates at each price level
+- Validation success/failure rates
 
-### Execution Characteristics
-- **Async I/O**: Non-blocking order placement and monitoring
-- **Batched operations**: Group orders by phase (BUY/SELL)
-- **Streaming data**: WebSocket for real-time order updates
-- **Settlement monitoring**: Efficient polling with backoff
+## Testing
 
-### Timing Considerations
-- **Market orders**: Typically fill within seconds
-- **Limit orders**: May take 30-90 seconds with repricing
-- **Settlement**: T+1 for equities (orders settle next business day)
-- **Total workflow**: 2-5 minutes typical for full rebalance
-
-### Resource Usage
-- **Memory**: O(n) where n = number of orders
-- **Network**: WebSocket connection + REST API calls
-- **CPU**: Minimal (mostly I/O bound)
-
-## Logging
-
-All execution operations include structured logging:
-
-```json
-{
-  "timestamp": "2024-01-01T10:00:00Z",
-  "level": "INFO",
-  "message": "🚀 NEW EXECUTION: 5 items (using execution_v2)",
-  "correlation_id": "exec-123",
-  "plan_id": "plan-456",
-  "module": "execution_v2.core.execution_manager"
-}
-```
-
-Key log points:
-- Execution start/completion
-- Order placement (per symbol)
-- Order fills and rejections
-- Repricing attempts
-- Settlement verification
-- Error conditions
-
-## Testing and Validation
-
-### Unit Tests
 ```bash
 # Run execution module tests
 poetry run pytest tests/execution_v2/ -v
 
 # Test with coverage
 poetry run pytest tests/execution_v2/ --cov=the_alchemiser.execution_v2
-```
 
-### Integration Testing
-```bash
-# Validate with paper trading
-poetry run python scripts/validate_execution_v2.py
-```
-
-### Manual Testing
-```python
-# Test with small position
-from the_alchemiser.execution_v2 import ExecutionManager
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, TradeItem
-from decimal import Decimal
-
-alpaca = AlpacaManager(paper=True)
-manager = ExecutionManager(alpaca)
-
-plan = RebalancePlan(
-    items=[
-        TradeItem(
-            symbol="SPY",
-            action="BUY",
-            trade_amount=Decimal("100.00"),
-            current_position=Decimal("0")
-        )
-    ],
-    correlation_id="test-123"
-)
-
-result = manager.execute_rebalance_plan(plan)
-print(f"Execution completed: {result.status}")
-```
-
-### Type Checking
-```bash
-# Verify type correctness
+# Type checking
 make type-check
 ```
 
-## Migration Status
-
-Execution_v2 is fully operational and is the current execution implementation.
-
-### Completed
-- ✅ Event-driven architecture integration
-- ✅ Smart execution strategy with repricing
-- ✅ Settlement monitoring and verification
-- ✅ Comprehensive error handling
-- ✅ Liquidity analysis
-- ✅ Position validation
-- ✅ Trade ledger for order tracking with strategy attribution
-
-### Future Enhancements
-- ⏳ Support for additional order types (stop-loss, trailing stop)
-- ⏳ Advanced execution algorithms (VWAP, TWAP)
-
 ## Trade Ledger
 
-The execution module includes a trade ledger service that records all filled orders with comprehensive details:
+Trade entries are automatically recorded with:
+- Order details (ID, symbol, direction, quantity, price)
+- Market data (bid/ask spreads at fill time)
+- Strategy attribution (which strategies contributed)
+- Timing information
 
-### Recorded Information
-- **Order Details**: Order ID, symbol, direction (BUY/SELL), quantity, fill price
-- **Market Data**: Bid/ask spreads at fill time (when available)
-- **Timing**: Timestamp of fill
-- **Order Type**: MARKET, LIMIT, etc.
-- **Strategy Attribution**: Which strategies contributed to the order
+Persisted to S3: `s3://the-alchemiser-v2-trade-ledger-{stage}/trade-ledgers/{date}/{timestamp}.json`
 
-### Persistence
+## Module Boundaries
 
-Trade ledger entries are automatically persisted to S3 after each execution run for historical analysis and audit purposes. The ledger is stored in JSON format with the following structure:
+- **Imports from**: `shared/` only (brokers, events, schemas, logging, errors)
+- **No imports from**: `strategy_v2/`, `portfolio_v2/`, `orchestration/`
+- **Communication**: Event-driven only; no direct cross-module calls
 
-**S3 Location**: `s3://the-alchemiser-v2-trade-ledger-{stage}/trade-ledgers/{date}/{timestamp}-{ledger_id}-{correlation_id}.json`
+## See Also
 
-**Retention**: Indefinite (stored permanently for audit purposes)
-
-**Format**: JSON with one file per execution run containing all trades from that run
-
-### Strategy Attribution
-
-The trade ledger supports multi-strategy attribution where multiple strategies suggest the same symbol. Strategy attribution is stored in the rebalance plan metadata:
-
-```python
-# Example: Two strategies both suggest AAPL
-plan = RebalancePlan(
-    # ... other fields ...
-    metadata={
-        "strategy_attribution": {
-            "AAPL": {
-                "momentum_strategy": 0.6,  # 60% weight
-                "mean_reversion_strategy": 0.4,  # 40% weight
-            }
-        }
-    }
-)
-```
-
-### Usage
-
-The trade ledger is automatically populated during execution:
-
-```python
-executor = Executor(alpaca_manager, execution_config)
-
-# Execute rebalance plan (ledger recording happens automatically)
-result = await executor.execute_rebalance_plan(plan)
-
-# Access the ledger
-ledger = executor.trade_ledger.get_ledger()
-print(f"Total trades: {ledger.total_entries}")
-print(f"Total buy value: ${ledger.total_buy_value}")
-print(f"Total sell value: ${ledger.total_sell_value}")
-
-# Filter by symbol
-aapl_trades = executor.trade_ledger.get_entries_for_symbol("AAPL")
-
-# Filter by strategy
-strategy_trades = executor.trade_ledger.get_entries_for_strategy("momentum_strategy")
-```
-
-### Missing Data Handling
-
-The trade ledger is designed to handle cases where data may not be fully available:
-- Missing bid/ask data: Fields set to `None`
-- Missing order type: Defaults to "MARKET"
-- Missing strategy attribution: Empty lists/None
-- Failed orders: Not recorded (only successful fills are tracked)
-
-### Configuration
-
-The trade ledger S3 persistence can be configured via environment variables:
-
-```bash
-TRADE_LEDGER__BUCKET_NAME=the-alchemiser-v2-trade-ledger-dev  # S3 bucket name
-TRADE_LEDGER__ENABLED=true  # Enable/disable S3 persistence (default: true)
-```
-
-These are automatically set by the CloudFormation template for Lambda deployments.
-- ⏳ Multi-venue execution support
-- ⏳ Execution cost analysis and reporting
+- [Unified Order Placement Service](./unified/README.md) - Detailed documentation
+- [Order Handling Guide](./unified/ORDER_HANDLING_GUIDE.md) - How to handle each order type

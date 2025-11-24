@@ -538,7 +538,7 @@ class RealTimeStreamManager:
             self.logger.info("Stream interrupted by user")
             return retry_count, False
 
-        if isinstance(exception, (OSError, RuntimeError)):
+        if isinstance(exception, OSError | RuntimeError):
             return self._handle_stream_error(exception, retry_count)
 
         return self._handle_unexpected_error(exception, retry_count)

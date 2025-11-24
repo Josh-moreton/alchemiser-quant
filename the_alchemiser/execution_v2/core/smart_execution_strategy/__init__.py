@@ -1,18 +1,16 @@
 """Business Unit: execution | Status: current.
 
-Smart execution strategy package.
+Smart execution configuration and models.
 
-This package provides a modular, liquidity-aware order execution strategy
-with intelligent re-pegging and market timing capabilities.
+This package provides configuration and data models for order execution.
+The actual execution is now handled by the unified order placement service.
 """
 
 from .models import ExecutionConfig, LiquidityMetadata, SmartOrderRequest, SmartOrderResult
-from .strategy import SmartExecutionStrategy
 
 __all__ = [
     "ExecutionConfig",
     "LiquidityMetadata",
-    "SmartExecutionStrategy",
     "SmartOrderRequest",
     "SmartOrderResult",
 ]

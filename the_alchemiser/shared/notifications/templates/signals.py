@@ -943,7 +943,7 @@ class SignalsBuilder:
         rsi_field = f"rsi_{rsi_period}"
         actual_rsi = indicators.get(rsi_field)
 
-        if actual_rsi is not None and isinstance(actual_rsi, (int, float)):
+        if actual_rsi is not None and isinstance(actual_rsi, int | float):
             classification = SignalsBuilder._get_rsi_classification(float(actual_rsi))
             operator_word = "above" if ">" in operator else "below"
             return (

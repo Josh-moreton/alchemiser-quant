@@ -318,14 +318,15 @@ class TestPositionUtils:
         assert adjusted == Decimal("10")
 
     def test_get_position_quantity_existing_position(self, position_utils, mock_alpaca_manager):
-        """Test getting quantity for existing position."""
+        """Test getting quantity for existing position (rounded to 6 decimals)."""
         position = Mock()
         position.qty = Decimal("25.5")
         mock_alpaca_manager.get_position.return_value = position
 
         quantity = position_utils.get_position_quantity("AAPL")
 
-        assert quantity == Decimal("25.5")
+        # Quantity should be rounded down to 6 decimal places to prevent precision errors
+        assert quantity == Decimal("25.500000")
         assert isinstance(quantity, Decimal)
 
     def test_get_position_quantity_no_position(self, position_utils, mock_alpaca_manager):
@@ -337,14 +338,15 @@ class TestPositionUtils:
         assert quantity == Decimal("0")
 
     def test_get_position_quantity_string_qty(self, position_utils, mock_alpaca_manager):
-        """Test getting position quantity when broker returns string."""
+        """Test getting position quantity when broker returns string (rounded to 6 decimals)."""
         position = Mock()
         position.qty = "15.25"  # String instead of Decimal
         mock_alpaca_manager.get_position.return_value = position
 
         quantity = position_utils.get_position_quantity("AAPL")
 
-        assert quantity == Decimal("15.25")
+        # Quantity should be rounded down to 6 decimal places
+        assert quantity == Decimal("15.250000")
         assert isinstance(quantity, Decimal)
 
     def test_get_position_quantity_exception_handling(self, position_utils, mock_alpaca_manager):
@@ -354,6 +356,22 @@ class TestPositionUtils:
         quantity = position_utils.get_position_quantity("AAPL")
 
         assert quantity == Decimal("0")
+
+    def test_get_position_quantity_precision_rounding(self, position_utils, mock_alpaca_manager):
+        """Test position quantity rounds down to prevent decimal precision errors."""
+        position = Mock()
+        # Simulate the precision issue: broker reports 7.2273576 but we had 7.227358
+        position.qty = Decimal("7.2273576")
+        mock_alpaca_manager.get_position.return_value = position
+
+        quantity = position_utils.get_position_quantity("SQQQ")
+
+        # Should be rounded down to 6 decimal places (7.227357)
+        # This ensures we never request more shares than available
+        assert quantity == Decimal("7.227357")
+        assert isinstance(quantity, Decimal)
+        # Verify we can't accidentally request more than this
+        assert quantity < Decimal("7.227358")
 
     def test_decimal_precision_throughout(self, position_utils, mock_alpaca_manager):
         """Test that Decimal precision is maintained throughout operations."""

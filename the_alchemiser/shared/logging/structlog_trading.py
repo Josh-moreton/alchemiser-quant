@@ -177,7 +177,7 @@ def log_data_integrity_checkpoint(
     if data and isinstance(data, dict):
         numeric_values: list[float] = []
         for v in data.values():
-            if isinstance(v, (int, float, Decimal)):
+            if isinstance(v, int | float | Decimal):
                 numeric_values.append(float(v))
         data_checksum = sum(numeric_values)
 
@@ -196,7 +196,7 @@ def log_data_integrity_checkpoint(
 
     if (
         isinstance(data, dict)
-        and all(isinstance(v, (int, float, Decimal)) for v in data.values())
+        and all(isinstance(v, int | float | Decimal) for v in data.values())
         and abs(data_checksum - 1.0) > 0.05
     ):
         logger.warning(

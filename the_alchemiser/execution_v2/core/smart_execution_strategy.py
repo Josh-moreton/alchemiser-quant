@@ -1,20 +1,18 @@
 """Business Unit: execution | Status: current.
 
-Smart execution strategy for canonical order placement and execution.
+Smart execution configuration and models.
 
-This module provides the public interface for smart execution by re-exporting
-the refactored SmartExecutionStrategy from the modular package structure.
+This module provides the public interface for execution configuration by re-exporting
+models from the modular package structure.
 
-The original large file has been split into cohesive modules for better
-maintainability, testability, and separation of concerns while preserving
-the same external API.
+Note: The SmartExecutionStrategy class has been replaced by UnifiedOrderPlacementService.
+This module now only exports configuration and data models for backward compatibility.
 """
 
-# Re-export the main strategy class and types from the modular structure
+# Re-export configuration and models from the modular structure
 from .smart_execution_strategy import (
     ExecutionConfig,
     LiquidityMetadata,
-    SmartExecutionStrategy,
     SmartOrderRequest,
     SmartOrderResult,
 )
@@ -22,7 +20,6 @@ from .smart_execution_strategy import (
 __all__ = [
     "ExecutionConfig",
     "LiquidityMetadata",
-    "SmartExecutionStrategy",
     "SmartOrderRequest",
     "SmartOrderResult",
 ]

@@ -176,7 +176,7 @@ class StrategySignal(BaseModel):
             return None
         if isinstance(v, Percentage):
             return v.value
-        if isinstance(v, (float, int)):
+        if isinstance(v, float | int):
             return Decimal(str(v))
         return v
 

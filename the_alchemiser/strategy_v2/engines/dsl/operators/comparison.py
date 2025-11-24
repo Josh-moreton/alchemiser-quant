@@ -227,7 +227,7 @@ def equal(args: list[ASTNode], context: DslContext) -> bool:
         """
         if isinstance(val, Decimal):
             return val
-        if isinstance(val, (int, float)):
+        if isinstance(val, int | float):
             return Decimal(str(val))
         return None
 
