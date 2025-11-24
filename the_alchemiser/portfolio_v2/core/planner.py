@@ -69,6 +69,28 @@ class RebalancePlanCalculator:
         if causation_id is None:
             causation_id = correlation_id
 
+        # CRITICAL: Validate target weights sum to <= 1.0 to prevent over-allocation
+        total_target_weight = sum(strategy.target_weights.values())
+        if total_target_weight > Decimal("1.0"):
+            raise PortfolioError(
+                f"Target weights sum to {total_target_weight}, must be <= 1.0. "
+                f"This would result in attempting to deploy more than 100% of capital.",
+                module=MODULE_NAME,
+                operation="build_plan",
+                correlation_id=correlation_id,
+            )
+
+        # Warn if target weights are significantly under-allocated (may indicate issue)
+        if total_target_weight < Decimal("0.5") and strategy.target_weights:
+            logger.warning(
+                "Target weights sum to less than 50% - verify this is intentional",
+                module=MODULE_NAME,
+                action="build_plan",
+                correlation_id=correlation_id,
+                total_weight=str(total_target_weight),
+                target_symbols=sorted(strategy.target_weights.keys()),
+            )
+
         logger.info(
             "Building rebalance plan",
             module=MODULE_NAME,
@@ -230,6 +252,19 @@ class RebalancePlanCalculator:
             # Calculate current value
             current_quantity = snapshot.positions.get(symbol, Decimal("0"))
             current_price = snapshot.prices.get(symbol, Decimal("0"))
+
+            # CRITICAL: Fail fast if we own a position but have no price data
+            # Without valid price data, we cannot calculate correct trade amounts
+            # and could generate incorrect BUY orders for positions we already own
+            if current_quantity > Decimal("0") and current_price <= Decimal("0"):
+                raise PortfolioError(
+                    f"Missing or invalid price data for owned position {symbol} "
+                    f"(qty={current_quantity}, price={current_price}). "
+                    f"Cannot safely calculate rebalance without valid pricing.",
+                    module=MODULE_NAME,
+                    operation="_calculate_dollar_values",
+                )
+
             current_values[symbol] = current_quantity * current_price
 
         return target_values, current_values

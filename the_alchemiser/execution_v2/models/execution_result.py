@@ -25,7 +25,7 @@ class ExecutionStatus(str, Enum):
 
 
 class OrderResult(BaseModel):
-    """Result of a single order execution."""
+    """Result of a single order execution with slippage tracking."""
 
     model_config = ConfigDict(
         strict=True,
@@ -33,7 +33,7 @@ class OrderResult(BaseModel):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description="Schema version")
+    schema_version: str = Field(default="1.1", description="Schema version")
     symbol: str = Field(..., max_length=10, description="Trading symbol")
     action: Literal["BUY", "SELL"] = Field(..., description="BUY or SELL action")
     trade_amount: Decimal = Field(..., ge=Decimal("0"), description="Dollar amount traded")
@@ -54,9 +54,67 @@ class OrderResult(BaseModel):
     )
     filled_at: datetime | None = Field(default=None, description="Fill timestamp")
 
+    # Slippage tracking fields (v1.1)
+    expected_price: Decimal | None = Field(
+        default=None,
+        gt=Decimal("0"),
+        description="Expected price at order time (mid price or limit price)",
+    )
+    slippage_amount: Decimal | None = Field(
+        default=None,
+        description="Price slippage: actual - expected. Positive = worse fill for buys",
+    )
+    slippage_pct: Decimal | None = Field(
+        default=None,
+        description="Slippage as percentage of expected price",
+    )
+    slippage_bps: Decimal | None = Field(
+        default=None,
+        description="Slippage in basis points (1bp = 0.01%)",
+    )
+
+    @property
+    def has_significant_slippage(self) -> bool:
+        """Check if slippage exceeds 10 basis points (0.1%)."""
+        if self.slippage_bps is None:
+            return False
+        return abs(self.slippage_bps) > Decimal("10")
+
+    def calculate_slippage(self, expected_price: Decimal) -> "OrderResult":
+        """Create a new OrderResult with calculated slippage metrics.
+
+        Args:
+            expected_price: The expected execution price (mid price or limit)
+
+        Returns:
+            New OrderResult with slippage fields populated
+
+        """
+        if self.price is None or expected_price <= Decimal("0"):
+            return self
+
+        # For BUY orders: positive slippage = worse (paid more)
+        # For SELL orders: negative slippage = worse (received less)
+        if self.action == "BUY":
+            slippage_amount = self.price - expected_price
+        else:  # SELL
+            slippage_amount = expected_price - self.price
+
+        slippage_pct = (slippage_amount / expected_price) * Decimal("100")
+        slippage_bps = slippage_pct * Decimal("100")  # Convert % to bps
+
+        return self.model_copy(
+            update={
+                "expected_price": expected_price,
+                "slippage_amount": slippage_amount.quantize(Decimal("0.0001")),
+                "slippage_pct": slippage_pct.quantize(Decimal("0.0001")),
+                "slippage_bps": slippage_bps.quantize(Decimal("0.01")),
+            }
+        )
+
 
 class ExecutionResult(BaseModel):
-    """Complete execution result for a rebalance plan."""
+    """Complete execution result for a rebalance plan with aggregate slippage metrics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -64,7 +122,7 @@ class ExecutionResult(BaseModel):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description="Schema version")
+    schema_version: str = Field(default="1.1", description="Schema version")
     success: bool = Field(..., description="Overall execution success")
     status: ExecutionStatus = Field(..., description="Detailed execution status classification")
     plan_id: str = Field(..., max_length=100, description="Rebalance plan ID")
@@ -83,6 +141,25 @@ class ExecutionResult(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata only"
     )  # Arbitrary JSON-serializable metadata for serialization only; type safety is not required, so Any is justified.
+
+    # Aggregate slippage metrics (v1.1)
+    total_slippage_amount: Decimal | None = Field(
+        default=None,
+        description="Total dollar slippage across all orders",
+    )
+    avg_slippage_bps: Decimal | None = Field(
+        default=None,
+        description="Average slippage in basis points",
+    )
+    max_slippage_bps: Decimal | None = Field(
+        default=None,
+        description="Maximum slippage in basis points (worst fill)",
+    )
+    orders_with_significant_slippage: int = Field(
+        default=0,
+        ge=0,
+        description="Number of orders with slippage > 10bps",
+    )
 
     @classmethod
     def classify_execution_status(

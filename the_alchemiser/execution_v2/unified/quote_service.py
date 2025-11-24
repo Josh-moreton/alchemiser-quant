@@ -397,29 +397,45 @@ class UnifiedQuoteService:
                 quote.symbol, "Both bid and ask are 0", correlation_id=correlation_id
             )
 
-        # Case 2: Bid is 0, use ask
+        # Case 2: Bid is 0, use ask with estimated spread
+        # Instead of using ask for both sides (0 spread), estimate a reasonable spread
+        # Default spread estimate: 0.1% (10 bps) of price - conservative for liquid stocks
         if had_zero_bid and not had_zero_ask:
             self.metrics.zero_bid_count += 1
-            final_bid = original_ask
+            # Estimate spread as 0.1% of ask price (minimum 1 cent)
+            estimated_spread = max(
+                original_ask * Decimal("0.001"),  # 0.1% spread
+                Decimal("0.01"),  # Minimum 1 cent spread
+            )
+            final_bid = original_ask - estimated_spread
             final_ask = original_ask
             logger.warning(
-                "Quote has 0 bid - using ask for both sides",
+                "Quote has 0 bid - estimating bid from ask with 0.1% spread",
                 symbol=quote.symbol,
                 source=source.value,
-                original_ask=original_ask,
+                original_ask=str(original_ask),
+                estimated_bid=str(final_bid),
+                estimated_spread=str(estimated_spread),
                 correlation_id=correlation_id,
             )
 
-        # Case 3: Ask is 0, use bid
+        # Case 3: Ask is 0, use bid with estimated spread
         elif had_zero_ask and not had_zero_bid:
             self.metrics.zero_ask_count += 1
+            # Estimate spread as 0.1% of bid price (minimum 1 cent)
+            estimated_spread = max(
+                original_bid * Decimal("0.001"),  # 0.1% spread
+                Decimal("0.01"),  # Minimum 1 cent spread
+            )
             final_bid = original_bid
-            final_ask = original_bid
+            final_ask = original_bid + estimated_spread
             logger.warning(
-                "Quote has 0 ask - using bid for both sides",
+                "Quote has 0 ask - estimating ask from bid with 0.1% spread",
                 symbol=quote.symbol,
                 source=source.value,
-                original_bid=original_bid,
+                original_bid=str(original_bid),
+                estimated_ask=str(final_ask),
+                estimated_spread=str(estimated_spread),
                 correlation_id=correlation_id,
             )
 

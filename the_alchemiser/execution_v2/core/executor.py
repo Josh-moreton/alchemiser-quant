@@ -606,6 +606,38 @@ class Executor:
                 f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
             )
 
+        # SLIPPAGE ALERTING: Log warnings for orders with significant slippage
+        orders_with_slippage = [o for o in orders if o.has_significant_slippage]
+        if orders_with_slippage:
+            for order in orders_with_slippage:
+                logger.warning(
+                    f"📊 Significant slippage detected for {order.symbol}: "
+                    f"{order.slippage_bps}bps (${order.slippage_amount})",
+                    extra={
+                        "symbol": order.symbol,
+                        "action": order.action,
+                        "expected_price": str(order.expected_price),
+                        "actual_price": str(order.price),
+                        "slippage_bps": str(order.slippage_bps),
+                        "slippage_amount": str(order.slippage_amount),
+                        "correlation_id": plan.correlation_id,
+                    },
+                )
+
+            # Aggregate slippage alert if total is concerning
+            total_slippage = sum(
+                abs(o.slippage_amount or Decimal("0")) for o in orders_with_slippage
+            )
+            if total_slippage > Decimal("100"):  # Alert if > $100 total slippage
+                logger.error(
+                    f"🚨 HIGH TOTAL SLIPPAGE: ${total_slippage} across {len(orders_with_slippage)} orders",
+                    extra={
+                        "total_slippage_usd": str(total_slippage),
+                        "affected_orders": len(orders_with_slippage),
+                        "correlation_id": plan.correlation_id,
+                    },
+                )
+
         # Trade ledger automatically persists to DynamoDB (no explicit call needed)
 
         # Cache result for idempotency
