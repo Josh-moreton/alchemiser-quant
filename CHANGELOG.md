@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Fixed
+- **Portfolio planner buying power validation**: Fixed critical bug where rebalance plans could exceed available capital
+  - Root cause: Target allocations were calculated using total portfolio value rather than deployable capital
+  - Changed `_calculate_dollar_values()` to use deployable capital = (cash + expected full exit proceeds) * (1 - cash_reserve_pct)
+  - Previously used `portfolio_value * 0.99` which didn't account for capital already committed to existing positions
+  - Added validation safety check that ensures BUY orders never exceed (cash + sell proceeds)
+  - Added regression test `test_prevents_over_allocation_with_partial_positions` to catch partial position rebalancing bugs
+  - Prevents execution failures from mathematically impossible trade plans
+  - File: `the_alchemiser/portfolio_v2/core/planner.py`
 ## [3.3.11] - 2025-11-20
 
 ### Fixed
