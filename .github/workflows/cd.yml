@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout correct commit
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Decide target environment
         id: target
