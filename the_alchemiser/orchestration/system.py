@@ -576,7 +576,7 @@ class TradingSystem:
         """
         warnings: list[str] = []
 
-        if isinstance(e, (TradingClientError, StrategyExecutionError)):
+        if isinstance(e, TradingClientError | StrategyExecutionError):
             self.error_handler.handle_error(
                 error=e,
                 context="multi-strategy trading execution",

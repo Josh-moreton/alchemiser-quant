@@ -195,7 +195,7 @@ class NaturalLanguageGenerator:
         values = decision.get("values", {})
         rsi_value = None
         for key, val in values.items():
-            if "rsi" in key.lower() and isinstance(val, (int, float)):
+            if "rsi" in key.lower() and isinstance(val, int | float):
                 rsi_value = float(val)
                 break
 

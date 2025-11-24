@@ -106,7 +106,6 @@ def phase_executor(mock_alpaca_manager, mock_position_utils, mock_execution_conf
     return PhaseExecutor(
         alpaca_manager=mock_alpaca_manager,
         position_utils=mock_position_utils,
-        smart_strategy=None,
         execution_config=mock_execution_config,
         enable_smart_execution=False,
     )
@@ -125,7 +124,6 @@ class TestPhaseExecutorInitialization:
         executor = PhaseExecutor(
             alpaca_manager=mock_alpaca_manager,
             position_utils=mock_position_utils,
-            smart_strategy=None,
             execution_config=mock_execution_config,
             enable_smart_execution=True,
         )
@@ -140,13 +138,11 @@ class TestPhaseExecutorInitialization:
         executor = PhaseExecutor(
             alpaca_manager=mock_alpaca_manager,
             position_utils=None,
-            smart_strategy=None,
             execution_config=None,
         )
 
         assert executor.alpaca_manager == mock_alpaca_manager
         assert executor.position_utils is None
-        assert executor.smart_strategy is None
         assert executor.execution_config is None
         assert executor.enable_smart_execution is True  # Default
 

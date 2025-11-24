@@ -19,10 +19,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.executor import ExecutionStats
-    from the_alchemiser.execution_v2.core.smart_execution_strategy import (
-        ExecutionConfig,
-        SmartExecutionStrategy,
-    )
+    from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
     from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 
 logger: structlog.stdlib.BoundLogger = get_logger(__name__)
@@ -136,7 +133,6 @@ class PhaseExecutor:
         self,
         alpaca_manager: AlpacaManager,
         position_utils: PositionUtils | None,
-        smart_strategy: SmartExecutionStrategy | None,
         execution_config: ExecutionConfig | None,
         *,
         enable_smart_execution: bool = True,
@@ -146,14 +142,12 @@ class PhaseExecutor:
         Args:
             alpaca_manager: Alpaca broker manager
             position_utils: Position utilities for price and quantity calculations
-            smart_strategy: Smart execution strategy
             execution_config: Execution configuration
             enable_smart_execution: Whether smart execution is enabled
 
         """
         self.alpaca_manager = alpaca_manager
         self.position_utils = position_utils
-        self.smart_strategy = smart_strategy
         self.execution_config = execution_config
         self.enable_smart_execution = enable_smart_execution
 
@@ -290,8 +284,9 @@ class PhaseExecutor:
                 placed += 1
 
         # Monitor and re-peg orders that haven't filled and await completion
-        if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
-            bound_logger.info(f"🔄 Monitoring {phase_type} orders for re-pegging opportunities...")
+        # Note: Re-pegging has been removed with SmartExecutionStrategy deprecation
+        if monitor_orders_callback and self.enable_smart_execution:
+            bound_logger.info(f"🔄 Monitoring {phase_type} orders for completion...")
             orders = await monitor_orders_callback(phase_type, orders, correlation_id)
 
         # Await completion and finalize statuses
@@ -347,6 +342,11 @@ class PhaseExecutor:
         # Cache result for idempotency
         self._cache_execution_result(item, order_result)
 
+        # Determine if the order was actually placed (accepted by broker)
+        # An order is only considered "placed" if it has an order_id
+        # Orders rejected due to insufficient funds, precision errors, etc. are not "placed"
+        was_placed = order_result.order_id is not None
+
         # Log the result
         phase_type = item.action.upper()
         if order_result.order_id:
@@ -358,7 +358,7 @@ class PhaseExecutor:
                 f"❌ {phase_type} {item.symbol} placement failed: {order_result.error_message}"
             )
 
-        return order_result, True
+        return order_result, was_placed
 
     async def execute_sell_phase(
         self,

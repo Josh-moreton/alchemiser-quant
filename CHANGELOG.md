@@ -1,5 +1,41 @@
 ## [Unreleased]
 
+### Fixed
+- **Portfolio planner buying power validation**: Fixed critical bug where rebalance plans could exceed available capital
+  - Root cause: Target allocations were calculated using total portfolio value rather than deployable capital
+  - Changed `_calculate_dollar_values()` to use deployable capital = (cash + expected full exit proceeds) * (1 - cash_reserve_pct)
+  - Previously used `portfolio_value * 0.99` which didn't account for capital already committed to existing positions
+  - Added validation safety check that ensures BUY orders never exceed (cash + sell proceeds)
+  - Added regression test `test_prevents_over_allocation_with_partial_positions` to catch partial position rebalancing bugs
+  - Prevents execution failures from mathematically impossible trade plans
+  - File: `the_alchemiser/portfolio_v2/core/planner.py`
+## [3.3.11] - 2025-11-20
+
+### Fixed
+- **Critical: Full position liquidation failures due to fractional share precision mismatch**
+  - **Root Cause**: When liquidating entire positions (target_weight=0%), the executor calculated exact share quantities that differed from Alpaca's reported available quantity by tiny fractions (e.g., requested 7.227358 vs available 7.2273576), causing limit orders to fail with "insufficient qty available" errors
+  - **Primary Fix**: Implemented fallback chain for full position liquidations:
+    1. **First**: Use Alpaca's `liquidate_position(symbol)` API (most reliable, handles exact quantity internally)
+    2. **Second**: Fall back to smart execution with `is_complete_exit=True` flag
+    3. **Third**: Use standard market order with `is_complete_exit=True` to fetch actual available quantity from position
+  - **Changes**:
+    - Modified `Executor._execute_single_item()` to detect full liquidations (target_weight=0 AND action=SELL) and call `liquidate_position()` API first
+    - Added `is_complete_exit` parameter propagation through `execute_order()`, `_try_smart_execution()`, and `_execute_market_order()`
+    - Enhanced `_execute_market_order()` to use `place_market_order(is_complete_exit=True)` which fetches actual available quantity from Alpaca position data
+    - Used existing `is_complete_exit` flag in `SmartOrderRequest` for proper quantity adjustment in market order fallback
+  - **Secondary Fix**: Enhanced buying power validation after sell settlement to detect and log when sell orders fail
+    - Added detailed logging of buying power shortfall with percentage calculations
+    - Added critical alerts when total BUY order cost exceeds available buying power
+    - Improved error visibility for sell phase failures affecting buy phase execution
+  - **Impact**: Eliminates fractional share precision errors causing ~$300+ sell order failures in production (SQQQ example: 7.227358 shares requested vs 7.2273576 available)
+  - **Files Modified**:
+    - `the_alchemiser/execution_v2/core/executor.py` (60+ line changes)
+    - `the_alchemiser/execution_v2/utils/position_utils.py` (precision rounding fix)
+    - `the_alchemiser/execution_v2/core/phase_executor.py` (order placement detection)
+    - `tests/execution_v2/test_position_utils.py` (test updates for precision rounding)
+    - `pyproject.toml` (version bump)
+    - `CHANGELOG.md` (this file)
+
 ## [2.30.0] - 2025-10-27
 
 ### Changed

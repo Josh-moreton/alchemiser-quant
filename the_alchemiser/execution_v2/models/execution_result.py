@@ -5,7 +5,7 @@ Execution result schemas for execution_v2 module.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
@@ -16,9 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class ExecutionStatus(str, Enum):
     """Execution status classification."""
 
-    SUCCESS = "success"  # All orders succeeded
-    PARTIAL_SUCCESS = "partial_success"  # Some orders succeeded, some failed
+    SUCCESS = "success"  # All non-skipped orders succeeded
+    PARTIAL_SUCCESS = "partial_success"  # Some orders succeeded, some failed (excludes skipped)
     FAILURE = "failure"  # All orders failed or no orders placed
+    SUCCESS_WITH_SKIPS = (
+        "success_with_skips"  # All attempted orders succeeded, but some were skipped
+    )
 
 
 class OrderResult(BaseModel):
@@ -38,6 +41,10 @@ class OrderResult(BaseModel):
     price: Decimal | None = Field(default=None, gt=Decimal("0"), description="Execution price")
     order_id: str | None = Field(default=None, max_length=100, description="Broker order ID")
     success: bool = Field(..., description="Order success flag")
+    skipped: bool = Field(default=False, description="Whether order was intentionally skipped")
+    skip_reason: str | None = Field(
+        default=None, max_length=500, description="Reason for skipping (if skipped=True)"
+    )
     error_message: str | None = Field(
         default=None, max_length=1000, description="Error message if failed"
     )
@@ -68,6 +75,7 @@ class ExecutionResult(BaseModel):
     orders: list[OrderResult] = Field(default_factory=list, description="Individual order results")
     orders_placed: int = Field(..., ge=0, description="Number of orders placed")
     orders_succeeded: int = Field(..., ge=0, description="Number of successful orders")
+    orders_skipped: int = Field(default=0, ge=0, description="Number of orders skipped")
     total_trade_value: Decimal = Field(
         ..., ge=Decimal("0"), description="Total dollar value traded"
     )
@@ -78,24 +86,50 @@ class ExecutionResult(BaseModel):
 
     @classmethod
     def classify_execution_status(
-        cls, orders_placed: int, orders_succeeded: int
+        cls, orders_placed: int, orders_succeeded: int, orders_skipped: int = 0
     ) -> tuple[bool, ExecutionStatus]:
         """Classify execution status based on order results.
 
+        The new classification logic treats skipped orders (due to bad market data or constraints)
+        differently from failed orders (broker rejections). A run where all attempted orders
+        succeed but some are skipped is considered successful.
+
         Args:
-            orders_placed: Total number of orders placed
+            orders_placed: Total number of orders placed (excludes skipped)
             orders_succeeded: Number of orders that succeeded
+            orders_skipped: Number of orders intentionally skipped
 
         Returns:
             Tuple of (success_flag, status_classification)
 
+        Classification Rules:
+            - No orders placed and no skips: FAILURE
+            - No orders placed but some skipped: SUCCESS_WITH_SKIPS (we chose not to trade)
+            - All placed orders succeeded, no skips: SUCCESS
+            - All placed orders succeeded, some skipped: SUCCESS_WITH_SKIPS
+            - Some placed orders failed: PARTIAL_SUCCESS
+            - All placed orders failed: FAILURE
+
         """
-        if orders_placed == 0:
+        # No activity at all
+        if orders_placed == 0 and orders_skipped == 0:
             return False, ExecutionStatus.FAILURE
+
+        # Only skips, no orders placed (chose not to trade due to bad data)
+        if orders_placed == 0 and orders_skipped > 0:
+            return True, ExecutionStatus.SUCCESS_WITH_SKIPS
+
+        # All placed orders succeeded
         if orders_succeeded == orders_placed:
+            if orders_skipped > 0:
+                return True, ExecutionStatus.SUCCESS_WITH_SKIPS
             return True, ExecutionStatus.SUCCESS
+
+        # Some placed orders succeeded, some failed
         if orders_succeeded > 0:
-            return False, ExecutionStatus.PARTIAL_SUCCESS  # Some succeeded, some failed
+            return False, ExecutionStatus.PARTIAL_SUCCESS
+
+        # All placed orders failed
         return False, ExecutionStatus.FAILURE
 
     @property
@@ -114,3 +148,43 @@ class ExecutionResult(BaseModel):
     def failure_count(self) -> int:
         """Count of failed orders."""
         return self.orders_placed - self.orders_succeeded
+
+    @staticmethod
+    def create_skipped_order(
+        symbol: str,
+        action: str,
+        shares: Decimal,
+        skip_reason: str,
+        timestamp: datetime | None = None,
+    ) -> OrderResult:
+        """Create an OrderResult for a skipped trade.
+
+        Helper method to create consistent OrderResult objects when trades are
+        intentionally skipped due to bad market data or other constraints.
+
+        Args:
+            symbol: Trading symbol
+            action: "BUY" or "SELL"
+            shares: Number of shares that would have been traded
+            skip_reason: Reason for skipping the trade
+            timestamp: Optional timestamp (defaults to now)
+
+        Returns:
+            OrderResult with skipped=True and success=False
+
+        """
+        return OrderResult(
+            symbol=symbol,
+            action=action.upper(),  # type: ignore[arg-type]
+            trade_amount=Decimal("0"),  # No trade occurred
+            shares=shares,
+            price=None,  # No price since no order was placed
+            order_id=None,  # No order placed
+            success=False,  # Trade did not execute
+            skipped=True,  # Explicitly skipped
+            skip_reason=skip_reason,
+            error_message=f"Trade skipped: {skip_reason}",
+            timestamp=timestamp or datetime.now(UTC),
+            order_type="MARKET",  # Default, not relevant for skipped orders
+            filled_at=None,
+        )

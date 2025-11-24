@@ -401,7 +401,7 @@ class DslStrategyEngine:
 
         # Validate and normalize weights using Decimal for precision
         for f, w in dsl_allocs.items():
-            if not isinstance(w, (int, float, Decimal)):
+            if not isinstance(w, int | float | Decimal):
                 raise ConfigurationError(
                     f"Invalid weight type for {f}: {type(w).__name__} (must be numeric)"
                 )

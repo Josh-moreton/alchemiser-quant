@@ -63,7 +63,7 @@ def _to_decimal_safe(value: object) -> Decimal:
     try:
         if hasattr(value, "value"):
             return Decimal(str(value.value))
-        if isinstance(value, (int, float, str)):
+        if isinstance(value, int | float | str):
             return Decimal(str(value))
         return Decimal("0")
     except (ValueError, TypeError, AttributeError, InvalidOperation):

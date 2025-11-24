@@ -212,7 +212,7 @@ class DslEvaluator:
 
             val = self._evaluate_node(val_node, correlation_id, trace)
             # Convert the value to an appropriate type
-            if isinstance(val, (str, int, float, decimal.Decimal)):
+            if isinstance(val, str | int | float | decimal.Decimal):
                 m[key] = val
             else:
                 m[key] = str(val)

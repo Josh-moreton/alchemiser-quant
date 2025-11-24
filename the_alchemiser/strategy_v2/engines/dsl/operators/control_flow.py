@@ -805,7 +805,7 @@ def _extract_threshold(condition: ASTNode) -> float | None:
         right_child = condition.children[2]
         if right_child.is_atom():
             atom_val = right_child.get_atom_value()
-            if isinstance(atom_val, (int, float, Decimal)):
+            if isinstance(atom_val, int | float | Decimal):
                 return float(atom_val)
 
     return None
@@ -850,7 +850,7 @@ def _extract_indicator_info(condition: ASTNode) -> dict[str, Any] | None:
                                     key = key[1:]  # Remove leading colon
                                     if val_node.is_atom():
                                         val = val_node.get_atom_value()
-                                        if isinstance(val, (int, float, Decimal)):
+                                        if isinstance(val, int | float | Decimal):
                                             params[key] = (
                                                 int(val) if isinstance(val, int) else float(val)
                                             )

@@ -69,7 +69,7 @@ def select_top(args: list[ASTNode], context: DslContext) -> int:
     # Coerce to integer
     if isinstance(n_raw, int):
         n = n_raw
-    elif isinstance(n_raw, (float, Decimal)):
+    elif isinstance(n_raw, float | Decimal):
         n = int(n_raw)
     else:
         n_decimal = context.as_decimal(n_raw)
@@ -138,7 +138,7 @@ def select_bottom(args: list[ASTNode], context: DslContext) -> int:
     # Coerce to integer
     if isinstance(n_raw, int):
         n = n_raw
-    elif isinstance(n_raw, (float, Decimal)):
+    elif isinstance(n_raw, float | Decimal):
         n = int(n_raw)
     else:
         n_decimal = context.as_decimal(n_raw)
