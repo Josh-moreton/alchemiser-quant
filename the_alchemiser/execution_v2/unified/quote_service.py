@@ -407,7 +407,7 @@ class UnifiedQuoteService:
                 original_ask * Decimal("0.001"),  # 0.1% spread
                 Decimal("0.01"),  # Minimum 1 cent spread
             )
-            final_bid = original_ask - estimated_spread
+            final_bid = max(original_ask - estimated_spread, Decimal("0.01"))
             final_ask = original_ask
             logger.warning(
                 "Quote has 0 bid - estimating bid from ask with 0.1% spread",
