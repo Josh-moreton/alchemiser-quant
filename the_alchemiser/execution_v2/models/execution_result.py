@@ -93,8 +93,9 @@ class OrderResult(BaseModel):
         if self.price is None or expected_price <= Decimal("0"):
             return self
 
-        # For BUY orders: positive slippage = worse (paid more)
-        # For SELL orders: positive slippage = worse (received less)
+        # Slippage convention: positive = worse fill, negative = better fill
+        # For BUY orders: positive slippage = paid more than expected
+        # For SELL orders: positive slippage = received less than expected
         if self.action == "BUY":
             slippage_amount = self.price - expected_price
         else:  # SELL

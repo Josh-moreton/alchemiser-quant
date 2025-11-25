@@ -517,6 +517,10 @@ class Executor:
         orders_succeeded = 0
         total_trade_value = Decimal("0")
 
+        # CRITICAL: Set portfolio value for order size percentage validation
+        # This enables the MAX_ORDER_PORTFOLIO_PCT safety check in PhaseExecutor
+        self._phase_executor.set_portfolio_value(plan.total_portfolio_value)
+
         # Phase 1: Execute SELL orders and monitor settlement
         sell_order_ids: list[str] = []
         if sell_items:
