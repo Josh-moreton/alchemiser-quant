@@ -34,6 +34,11 @@ from the_alchemiser.shared.schemas.broker import (
 )
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.schemas.operations import OrderCancellationResult
+from the_alchemiser.shared.services.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitBreakerError,
+    get_circuit_breaker,
+)
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
 
@@ -108,10 +113,21 @@ class AlpacaTradingService:
         # WebSocket trading stream state
         self._trading_service_active = False
 
+        # Initialize circuit breaker for API resilience
+        # More conservative settings for trading to avoid missed opportunities
+        breaker_config = CircuitBreakerConfig(
+            failure_threshold=3,  # Trip after 3 consecutive failures
+            success_threshold=2,  # Need 2 successes to recover
+            timeout_seconds=30.0,  # Try again after 30 seconds
+            half_open_max_calls=1,  # Allow 1 test call in half-open
+        )
+        self._circuit_breaker = get_circuit_breaker("alpaca_trading", breaker_config)
+
         logger.debug(
             "AlpacaTradingService initialized",
             paper_trading=paper_trading,
             mode="paper" if paper_trading else "live",
+            circuit_breaker="alpaca_trading",
         )
 
     def cleanup(self) -> None:
@@ -206,7 +222,24 @@ class AlpacaTradingService:
         """
         try:
             self._ensure_trading_stream()
-            order = self._trading_client.submit_order(order_request)
+
+            # Use circuit breaker to protect against cascading failures during outages
+            def _submit_order() -> Order:
+                return self._trading_client.submit_order(order_request)
+
+            try:
+                order = self._circuit_breaker.call(_submit_order)
+            except CircuitBreakerError as cbe:
+                logger.error(
+                    "Circuit breaker blocking order placement - Alpaca API may be degraded",
+                    circuit_state=cbe.state.value,
+                    failure_count=cbe.failure_count,
+                    time_until_reset=cbe.time_until_reset,
+                    symbol=getattr(order_request, "symbol", "unknown"),
+                    correlation_id=correlation_id,
+                )
+                return self._create_failed_order_result(order_request, cbe)
+
             self._track_submitted_order(order)
             return self._create_success_order_result(order, order_request)
         except Exception as e:

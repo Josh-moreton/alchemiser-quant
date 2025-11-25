@@ -2,8 +2,8 @@
 
 Execution Validation Service.
 
-Provides preflight validation for orders including fractionability checks
-and quantity adjustments for non-fractionable assets.
+Provides preflight validation for orders including fractionability checks,
+quantity adjustments for non-fractionable assets, and order size safety limits.
 """
 
 from __future__ import annotations
@@ -13,6 +13,9 @@ from decimal import ROUND_DOWN, Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.constants import (
+    MAX_SINGLE_ORDER_USD,
+)
 from the_alchemiser.shared.errors import AlchemiserError
 from the_alchemiser.shared.logging import get_logger
 
@@ -144,6 +147,57 @@ class ExecutionValidator:
             )
 
         # Asset is fractionable, quantity already validated above
+        return OrderValidationResult(is_valid=True, correlation_id=correlation_id)
+
+    def validate_order_size(
+        self,
+        symbol: str,
+        order_value: Decimal,
+        portfolio_value: Decimal | None = None,
+        *,
+        correlation_id: str | None = None,
+    ) -> OrderValidationResult:
+        """Validate order size against safety limits.
+
+        This is a critical safety check to prevent catastrophic bugs from deploying
+        excessive capital in a single order.
+
+        Args:
+            symbol: Asset symbol
+            order_value: Absolute dollar value of the order
+            portfolio_value: Total portfolio value (reserved for future use)
+            correlation_id: Optional correlation ID for tracing
+
+        Returns:
+            OrderValidationResult with validation outcome
+
+        """
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
+
+        # Check absolute dollar limit
+        if order_value > MAX_SINGLE_ORDER_USD:
+            logger.error(
+                f"{log_prefix} ❌ Order for {symbol} exceeds max single order limit: "
+                f"${order_value} > ${MAX_SINGLE_ORDER_USD}"
+            )
+            return OrderValidationResult(
+                is_valid=False,
+                error_message=(
+                    f"Order value ${order_value} for {symbol} exceeds maximum single order "
+                    f"limit of ${MAX_SINGLE_ORDER_USD}. This is a safety limit to prevent "
+                    f"catastrophic bugs. If this is intentional, adjust MAX_SINGLE_ORDER_USD."
+                ),
+                error_code="ORDER_SIZE_LIMIT_EXCEEDED",
+                correlation_id=correlation_id,
+            )
+
+        # Note: Portfolio percentage limit removed - trading whole market ETFs like QQQ
+        # may require 100% allocation to a single position, which is acceptable since
+        # the underlying assets are already diversified.
+
+        logger.debug(
+            f"{log_prefix} Order size validated for {symbol}: ${order_value}"
+        )
         return OrderValidationResult(is_valid=True, correlation_id=correlation_id)
 
     def _validate_non_fractionable_order(

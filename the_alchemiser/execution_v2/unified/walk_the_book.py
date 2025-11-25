@@ -28,7 +28,9 @@ logger = get_logger(__name__)
 
 # Price progression configuration
 PRICE_STEPS = [0.75, 0.85, 0.95]  # Percentages toward aggressive side
-DEFAULT_STEP_WAIT_SECONDS = 30  # How long to wait at each step before moving to next
+# Reduced from 30s to 10s - 30s per step was too long and resulted in poor execution
+# in volatile markets. 10s gives market time to fill while not leaving orders stale.
+DEFAULT_STEP_WAIT_SECONDS = 10  # How long to wait at each step before moving to next
 DEFAULT_CANCELLATION_TIMEOUT_SECONDS = 10.0
 MINIMUM_VALID_PRICE = Decimal("0.01")
 
@@ -461,8 +463,43 @@ class WalkTheBookStrategy:
             )
 
             if executed.status not in ["REJECTED", "CANCELED"]:
-                filled_qty = getattr(executed, "filled_qty", quantity)
-                avg_price = getattr(executed, "filled_avg_price", executed.price)
+                # CRITICAL: Verify actual fill quantity instead of assuming full fill
+                # The executed object may not have fill info immediately after market order
+                filled_qty = getattr(executed, "filled_qty", None)
+                avg_price = getattr(executed, "filled_avg_price", None)
+
+                # If fill info not available, fetch the actual order status
+                if filled_qty is None and executed.order_id:
+                    logger.debug(
+                        "Market order fill info not immediately available, fetching actual status",
+                        order_id=executed.order_id,
+                        symbol=intent.symbol,
+                    )
+                    try:
+                        # Wait briefly for order to settle, then check actual status
+                        await asyncio.sleep(0.5)
+                        order_status = await self._check_order_status(executed.order_id)
+                        filled_qty = order_status["filled_quantity"]
+                        avg_price = order_status["avg_fill_price"] or avg_price
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to verify market order fill, defaulting to requested quantity",
+                            order_id=executed.order_id,
+                            symbol=intent.symbol,
+                            error=str(e),
+                        )
+                        # Only default to requested quantity if verification failed
+                        filled_qty = quantity
+
+                # Final fallback: if still None (shouldn't happen), use quantity but log warning
+                if filled_qty is None:
+                    logger.warning(
+                        "Market order fill quantity could not be determined, assuming full fill",
+                        order_id=executed.order_id,
+                        symbol=intent.symbol,
+                        requested_quantity=str(quantity),
+                    )
+                    filled_qty = quantity
 
                 return OrderAttempt(
                     step=step,
@@ -471,7 +508,7 @@ class WalkTheBookStrategy:
                     order_id=executed.order_id,
                     timestamp=executed.execution_timestamp or datetime.now(UTC),
                     status=OrderStatus.FILLED,
-                    filled_quantity=filled_qty if filled_qty else quantity,
+                    filled_quantity=filled_qty,
                     avg_fill_price=avg_price,
                 )
 

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Protocol
 import structlog
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
@@ -151,6 +152,12 @@ class PhaseExecutor:
         self.execution_config = execution_config
         self.enable_smart_execution = enable_smart_execution
 
+        # Initialize execution validator for order size safety checks
+        self._execution_validator = ExecutionValidator(alpaca_manager)
+
+        # Portfolio value cache for order size percentage validation
+        self._portfolio_value: Decimal | None = None
+
         # Idempotency tracking: tracks executed items within current session
         # Key: (symbol, action, trade_amount_str)
         # Value: OrderResult
@@ -233,6 +240,18 @@ class PhaseExecutor:
 
         """
         self._execution_cache.clear()
+
+    def set_portfolio_value(self, portfolio_value: Decimal) -> None:
+        """Set portfolio value for order size percentage validation.
+
+        Should be called before executing phases to enable percentage-based
+        order size limits.
+
+        Args:
+            portfolio_value: Total portfolio value for percentage calculations
+
+        """
+        self._portfolio_value = portfolio_value
 
     async def _execute_phase(
         self,
@@ -325,6 +344,45 @@ class PhaseExecutor:
         duplicate_result = self._check_duplicate_execution(item, bound_logger)
         if duplicate_result:
             return duplicate_result, False
+
+        # CRITICAL: Validate order size against safety limits
+        # This prevents catastrophic bugs from deploying excessive capital
+        order_value = abs(item.trade_amount)
+        size_validation = self._execution_validator.validate_order_size(
+            symbol=item.symbol,
+            order_value=order_value,
+            portfolio_value=self._portfolio_value,
+            correlation_id=None,  # Bound logger already has correlation context
+        )
+        if not size_validation.is_valid:
+            bound_logger.error(
+                f"❌ Order size validation failed for {item.symbol}: {size_validation.error_message}",
+                extra={
+                    "symbol": item.symbol,
+                    "order_value": float(order_value),
+                    "portfolio_value": float(self._portfolio_value) if self._portfolio_value else None,
+                    "error_code": size_validation.error_code,
+                },
+            )
+            # Return failure result without placing the order
+            action = item.action.upper()
+            if action not in ("BUY", "SELL"):
+                action = "BUY"
+            failed_result = OrderResult(
+                symbol=item.symbol,
+                action=action,  # type: ignore[arg-type]
+                trade_amount=order_value,
+                shares=Decimal("0"),
+                price=None,
+                order_id=None,
+                success=False,
+                error_message=size_validation.error_message,
+                timestamp=datetime.now(UTC),
+                order_type="LIMIT",
+                filled_at=None,
+            )
+            self._cache_execution_result(item, failed_result)
+            return failed_result, False
 
         # Pre-check for micro orders (BUY phase only)
         if check_micro_orders:

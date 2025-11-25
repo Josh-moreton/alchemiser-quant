@@ -97,6 +97,13 @@ MIN_TRADE_AMOUNT_USD: Decimal = Decimal("5")
 MINIMUM_PRICE: Decimal = Decimal("0.01")
 """Minimum trading price (1 cent) for validation and sanity checks."""
 
+# Order size safety limits - prevents catastrophic bugs from deploying excessive capital
+MAX_SINGLE_ORDER_USD: Decimal = Decimal("100000")
+"""Maximum single order value in USD. Orders exceeding this are rejected as a safety measure."""
+
+MAX_DAILY_TRADE_VALUE_USD: Decimal = Decimal("500000")
+"""Maximum total trade value per day in USD. Circuit breaker to prevent runaway execution."""
+
 # Validation constants (immutable collections)
 CONFIDENCE_RANGE: tuple[Decimal, Decimal] = (Decimal("0"), Decimal("1"))
 """Valid range for confidence values: [0.0, 1.0] inclusive."""
@@ -135,6 +142,8 @@ __all__ = [
     "EVENT_SCHEMA_VERSION_DESCRIPTION",
     "EVENT_TYPE_DESCRIPTION",
     "EXECUTION_HANDLERS_MODULE",
+    "MAX_DAILY_TRADE_VALUE_USD",
+    "MAX_SINGLE_ORDER_USD",
     "MINIMUM_PRICE",
     "MIN_TRADE_AMOUNT_USD",
     "NO_TRADES_REQUIRED",
