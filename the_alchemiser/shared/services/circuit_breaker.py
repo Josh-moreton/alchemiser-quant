@@ -81,9 +81,9 @@ class CircuitBreakerConfig:
 
     """
 
-    failure_threshold: int = 5
+    failure_threshold: int = 3
     success_threshold: int = 2
-    timeout_seconds: float = 60.0
+    timeout_seconds: float = 30.0
     half_open_max_calls: int = 1
 
 
