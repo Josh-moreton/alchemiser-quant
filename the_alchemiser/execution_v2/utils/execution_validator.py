@@ -14,7 +14,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.constants import (
-    MAX_ORDER_PORTFOLIO_PCT,
     MAX_SINGLE_ORDER_USD,
 )
 from the_alchemiser.shared.errors import AlchemiserError
@@ -166,7 +165,7 @@ class ExecutionValidator:
         Args:
             symbol: Asset symbol
             order_value: Absolute dollar value of the order
-            portfolio_value: Total portfolio value (for percentage limit check)
+            portfolio_value: Total portfolio value (reserved for future use)
             correlation_id: Optional correlation ID for tracing
 
         Returns:
@@ -192,24 +191,9 @@ class ExecutionValidator:
                 correlation_id=correlation_id,
             )
 
-        # Check percentage of portfolio limit
-        if portfolio_value is not None and portfolio_value > Decimal("0"):
-            order_pct = order_value / portfolio_value
-            if order_pct > MAX_ORDER_PORTFOLIO_PCT:
-                logger.error(
-                    f"{log_prefix} ❌ Order for {symbol} exceeds portfolio percentage limit: "
-                    f"{order_pct:.1%} > {MAX_ORDER_PORTFOLIO_PCT:.0%}"
-                )
-                return OrderValidationResult(
-                    is_valid=False,
-                    error_message=(
-                        f"Order for {symbol} represents {order_pct:.1%} of portfolio, "
-                        f"exceeding the {MAX_ORDER_PORTFOLIO_PCT:.0%} safety limit. "
-                        f"This prevents a single trade from creating outsized concentration."
-                    ),
-                    error_code="ORDER_PORTFOLIO_PCT_EXCEEDED",
-                    correlation_id=correlation_id,
-                )
+        # Note: Portfolio percentage limit removed - trading whole market ETFs like QQQ
+        # may require 100% allocation to a single position, which is acceptable since
+        # the underlying assets are already diversified.
 
         logger.debug(
             f"{log_prefix} Order size validated for {symbol}: ${order_value}"

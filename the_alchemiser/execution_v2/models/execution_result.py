@@ -94,7 +94,7 @@ class OrderResult(BaseModel):
             return self
 
         # For BUY orders: positive slippage = worse (paid more)
-        # For SELL orders: negative slippage = worse (received less)
+        # For SELL orders: positive slippage = worse (received less)
         if self.action == "BUY":
             slippage_amount = self.price - expected_price
         else:  # SELL
