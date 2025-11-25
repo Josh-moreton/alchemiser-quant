@@ -1,12 +1,16 @@
+# Report Generator Lambda Dependencies
+# This layer avoids heavy data science packages (pandas, numpy) by not using
+# ApplicationContainer and instead creating a lightweight EventBus directly.
+#
+# WeasyPrint is provided via an external AWS Lambda Layer:
+# arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
+
 jinja2==3.1.6
 markupsafe==3.0.3
 pydantic==2.12.4
 pydantic-settings==2.12.0
 dependency-injector==4.48.2
 structlog==25.5.0
-boto3==1.35.91
-pandas==2.3.3
-numpy==1.26.4
 python-dotenv==1.2.1
 python-dateutil==2.9.0.post0
 pytz==2025.2

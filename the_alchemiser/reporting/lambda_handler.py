@@ -5,6 +5,12 @@ AWS Lambda handler for PDF report generation.
 This Lambda is triggered by Step Functions or direct invocation
 and generates PDF reports from account snapshots stored in DynamoDB
 or from execution data for trading notifications.
+
+Architecture Note:
+    This lambda avoids importing ApplicationContainer to keep dependencies minimal.
+    The ApplicationContainer pulls in heavy dependencies (pandas, numpy) via its
+    import chain (market data services, strategy wiring) that are not needed for
+    PDF report generation. Instead, we create a lightweight EventBus directly.
 """
 
 from __future__ import annotations
@@ -12,12 +18,12 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
     send_error_notification_if_needed,
 )
 from the_alchemiser.shared.errors.exceptions import NotificationError
+from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.logging import generate_request_id, get_logger, set_request_id
 from the_alchemiser.shared.repositories.account_snapshot_repository import (
     AccountSnapshotRepository,
@@ -28,7 +34,21 @@ from .service import ReportGeneratorService
 
 logger = get_logger(__name__)
 
-__all__ = ["lambda_handler"]
+
+def _create_event_bus() -> EventBus:
+    """Create a lightweight EventBus instance for report generation.
+
+    This function creates a standalone EventBus without going through
+    ApplicationContainer, avoiding heavy dependencies like pandas/numpy
+    that are not needed for PDF report generation.
+
+    Returns:
+        EventBus instance for publishing ReportReady events
+
+    """
+    return EventBus()
+
+__all__ = ["lambda_handler", "_create_event_bus"]
 
 
 def _extract_correlation_id(event: dict[str, Any]) -> str:
@@ -130,7 +150,7 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
         "Report generation Lambda invoked",
         aws_request_id=request_id,
         correlation_id=correlation_id,
-        event=event,
+        lambda_event=event,
     )
 
     try:
@@ -161,9 +181,8 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
             use_latest=use_latest,
         )
 
-        # Initialize services
-        container = ApplicationContainer()
-        event_bus = container.services.event_bus()
+        # Initialize services with lightweight EventBus (no heavy dependencies)
+        event_bus = _create_event_bus()
 
         snapshot_repository = AccountSnapshotRepository(table_name=table_name)
         report_service = ReportGeneratorService(
@@ -268,9 +287,8 @@ def _handle_execution_report(
         correlation_id=correlation_id,
     )
 
-    # Initialize services
-    container = ApplicationContainer()
-    event_bus = container.services.event_bus()
+    # Initialize services with lightweight EventBus (no heavy dependencies)
+    event_bus = _create_event_bus()
 
     execution_report_service = ExecutionReportService(
         event_bus=event_bus,
@@ -339,12 +357,9 @@ def _handle_error(
             additional_data=additional_data,
         )
 
-        # Send error notification
+        # Send error notification using lightweight EventBus
         try:
-            from the_alchemiser.shared.config.container import ApplicationContainer
-
-            container = ApplicationContainer()
-            event_bus = container.services.event_bus()
+            event_bus = _create_event_bus()
             send_error_notification_if_needed(event_bus)
         except Exception as setup_error:
             logger.warning(

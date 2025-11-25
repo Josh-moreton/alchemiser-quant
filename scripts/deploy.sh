@@ -97,6 +97,23 @@ fi
 
 echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
 
+# Verify report dependencies layer exists and is lightweight
+# Note: dependencies-report/requirements.txt is maintained manually to avoid heavy deps
+if [ ! -f "dependencies-report/requirements.txt" ]; then
+    echo "❌ Error: dependencies-report/requirements.txt not found"
+    echo "   This file is required for the Report Generator Lambda layer."
+    exit 1
+fi
+
+# Warn if pandas/numpy accidentally got added to report dependencies
+if grep -q "^pandas" dependencies-report/requirements.txt || grep -q "^numpy" dependencies-report/requirements.txt; then
+    echo "⚠️  Warning: pandas or numpy found in dependencies-report/requirements.txt"
+    echo "   The report lambda should use lightweight dependencies only."
+    echo "   Consider removing these heavy packages to reduce cold start time."
+fi
+
+echo "✅ Report dependencies verified: $(wc -l < dependencies-report/requirements.txt | tr -d ' ') packages (lightweight)"
+
 # Build the SAM application (skip if already built, e.g., by CI/CD)
 if [ -f ".aws-sam/build/template.yaml" ]; then
     echo "ℹ️  SAM build artifacts already exist, skipping build..."
@@ -114,8 +131,14 @@ echo "📦 Built package sizes:"
 if [ -d ".aws-sam/build/DependenciesLayer" ]; then
     echo "   Dependencies layer: $(du -sh .aws-sam/build/DependenciesLayer 2>/dev/null | cut -f1 || echo 'N/A')"
 fi
+if [ -d ".aws-sam/build/ReportDependenciesLayer" ]; then
+    echo "   Report dependencies layer: $(du -sh .aws-sam/build/ReportDependenciesLayer 2>/dev/null | cut -f1 || echo 'N/A')"
+fi
 if [ -d ".aws-sam/build/TradingSystemFunction" ]; then
     echo "   Function code: $(du -sh .aws-sam/build/TradingSystemFunction 2>/dev/null | cut -f1 || echo 'N/A')"
+fi
+if [ -d ".aws-sam/build/ReportGeneratorFunction" ]; then
+    echo "   Report generator code: $(du -sh .aws-sam/build/ReportGeneratorFunction 2>/dev/null | cut -f1 || echo 'N/A')"
 fi
 echo ""
 
