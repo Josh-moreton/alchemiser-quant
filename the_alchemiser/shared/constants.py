@@ -101,10 +101,6 @@ MINIMUM_PRICE: Decimal = Decimal("0.01")
 MAX_SINGLE_ORDER_USD: Decimal = Decimal("100000")
 """Maximum single order value in USD. Orders exceeding this are rejected as a safety measure."""
 
-MAX_ORDER_PORTFOLIO_PCT: Decimal = Decimal("0.25")
-"""Maximum single order as percentage of portfolio (0.25 = 25%). Safety limit to prevent
-a single trade from representing an outsized portfolio concentration."""
-
 MAX_DAILY_TRADE_VALUE_USD: Decimal = Decimal("500000")
 """Maximum total trade value per day in USD. Circuit breaker to prevent runaway execution."""
 
@@ -147,7 +143,6 @@ __all__ = [
     "EVENT_TYPE_DESCRIPTION",
     "EXECUTION_HANDLERS_MODULE",
     "MAX_DAILY_TRADE_VALUE_USD",
-    "MAX_ORDER_PORTFOLIO_PCT",
     "MAX_SINGLE_ORDER_USD",
     "MINIMUM_PRICE",
     "MIN_TRADE_AMOUNT_USD",
