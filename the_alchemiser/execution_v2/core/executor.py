@@ -20,6 +20,10 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionStatus,
     OrderResult,
 )
+from the_alchemiser.execution_v2.services.daily_trade_limit_service import (
+    DailyTradeLimitExceededError,
+    DailyTradeLimitService,
+)
 from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
 from the_alchemiser.execution_v2.unified import (
     CloseType,
@@ -146,6 +150,9 @@ class Executor:
 
         # Initialize trade ledger service
         self.trade_ledger = TradeLedgerService()
+
+        # Initialize daily trade limit service (circuit breaker)
+        self.daily_trade_limit_service = DailyTradeLimitService()
 
         # Initialize idempotency cache for duplicate execution protection
         self._execution_cache: dict[str, ExecutionResult] = {}
@@ -487,6 +494,38 @@ class Executor:
             },
         )
 
+        # CRITICAL SAFETY CHECK: Validate against daily trade limit
+        # This circuit breaker prevents runaway bugs from deploying excessive capital
+        try:
+            self.daily_trade_limit_service.assert_within_limit(
+                plan.total_trade_value, plan.correlation_id
+            )
+        except DailyTradeLimitExceededError as e:
+            logger.critical(
+                "🚨 DAILY TRADE LIMIT EXCEEDED - HALTING EXECUTION",
+                extra={
+                    "plan_id": plan.plan_id,
+                    "proposed_trade_value": str(e.proposed_trade_value),
+                    "current_cumulative": str(e.current_cumulative),
+                    "daily_limit": str(e.daily_limit),
+                    "headroom": str(e.headroom),
+                    "correlation_id": plan.correlation_id,
+                },
+            )
+            # Return a failed execution result
+            return ExecutionResult(
+                success=False,
+                status=ExecutionStatus.FAILED,
+                plan_id=plan.plan_id,
+                correlation_id=plan.correlation_id,
+                orders=[],
+                orders_placed=0,
+                orders_succeeded=0,
+                total_trade_value=Decimal("0"),
+                execution_timestamp=datetime.now(UTC),
+                metadata={"error": str(e), "reason": "daily_trade_limit_exceeded"},
+            )
+
         # Cancel all orders to ensure clean order book at start
         logger.info("🧹 Cancelling all open orders to ensure clean order book...")
         cancel_success = self.alpaca_manager.cancel_all_orders()
@@ -572,6 +611,13 @@ class Executor:
 
         # Record filled orders to trade ledger
         self._record_orders_to_ledger(orders, plan)
+
+        # Record successful trades against daily limit for circuit breaker tracking
+        for order in orders:
+            if order.success and order.trade_amount > Decimal("0"):
+                self.daily_trade_limit_service.record_trade(
+                    order.trade_amount, plan.correlation_id
+                )
 
         # Classify execution status
         success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)
