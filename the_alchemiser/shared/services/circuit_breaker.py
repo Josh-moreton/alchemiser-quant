@@ -14,7 +14,6 @@ This is critical for live trading to prevent runaway execution during Alpaca out
 from __future__ import annotations
 
 import threading
-import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
