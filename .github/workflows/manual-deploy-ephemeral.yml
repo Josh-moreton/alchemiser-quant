@@ -46,7 +46,7 @@ jobs:
           echo "✅ Branch validation passed: $BRANCH"
 
       - name: Checkout branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
 
