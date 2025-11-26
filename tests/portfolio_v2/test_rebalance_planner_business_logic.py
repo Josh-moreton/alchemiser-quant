@@ -113,7 +113,7 @@ class TestRebalancePlanCalculator:
         self, calculator, sample_strategy_allocation, sample_portfolio_snapshot
     ):
         """Test that target values are calculated correctly.
-        
+
         Note: With the deployable capital fix, targets are now based on
         (cash + expected full exit proceeds) rather than total portfolio value.
         This is the correct behavior to prevent over-allocation.
@@ -192,7 +192,7 @@ class TestRebalancePlanCalculator:
 
     def test_rebalance_determines_correct_actions(self, calculator, sample_portfolio_snapshot):
         """Test that rebalance correctly determines BUY/SELL/HOLD actions.
-        
+
         Note: With deployable capital fix, the comparison must be against
         target values computed from deployable capital, not total portfolio value.
         """
@@ -422,7 +422,7 @@ class TestRebalancePlanCalculator:
         # Execution would fail, but planning shouldn't (it's just dollar amounts)
         plan = calculator.build_plan(impossible_allocation, impossible_snapshot, str(uuid.uuid4()))
         assert plan is not None
-        
+
         # The validation catches when BUY orders exceed cash + sell proceeds
         # Let's create a scenario where that actually happens by having a position
         # that partially sells but we try to buy more than available
@@ -437,7 +437,7 @@ class TestRebalancePlanCalculator:
             cash=Decimal("5.00"),
             total_value=Decimal("55.00"),
         )
-        
+
         # This creates targets but shouldn't raise an error with current logic
         # because deployable capital = ($5 + 0) * 0.99 = $4.95
         # (AAPL not fully exited, so no proceeds counted in deployable)
@@ -450,7 +450,7 @@ class TestRebalancePlanCalculator:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # This should succeed - AAPL sells partially ($50 -> $0.99), frees $49.01
         # Available = $5 + $49.01 = $54.01; Buy GOOGL for ~$3.96, well within limits
         plan2 = calculator.build_plan(still_possible, truly_impossible_snapshot, str(uuid.uuid4()))
@@ -518,3 +518,134 @@ class TestRebalancePlanCalculator:
         assert googl_item.action == "BUY"
         # The buy amount should be less than available capital
         assert googl_item.trade_amount <= available
+
+    def test_weight_validation_accepts_precision_errors(self, calculator):
+        """Test that planner accepts weights with minor precision errors.
+
+        Regression test: Decimal arithmetic can produce sums like 1.000000000000000012
+        due to rounding. These should be accepted, not rejected.
+        """
+        # Create allocation with weights that sum to slightly over 1.0 (precision error)
+        allocation = StrategyAllocation(
+            target_weights={
+                "AAPL": Decimal("0.333333333333333333"),
+                "MSFT": Decimal("0.333333333333333333"),
+                "GOOGL": Decimal("0.333333333333333334"),
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={},
+            prices={
+                "AAPL": Decimal("100.00"),
+                "MSFT": Decimal("100.00"),
+                "GOOGL": Decimal("100.00"),
+            },
+            cash=Decimal("10000.00"),
+            total_value=Decimal("10000.00"),
+        )
+
+        # Should succeed - precision errors are acceptable
+        plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+        assert plan is not None
+        assert len(plan.items) == 3
+
+    def test_weight_validation_rejects_true_over_allocation(self, calculator):
+        """Test that planner rejects weights that exceed tolerance.
+
+        Weights summing to 1.005 are valid at DTO level (accepts 0.99-1.01)
+        but should be rejected by planner (only accepts <= 1.0001).
+        """
+        from the_alchemiser.shared.errors.exceptions import PortfolioError
+
+        # Create allocation with weights that sum to 1.005 (0.5% over limit)
+        # This is valid at DTO level (0.99-1.01) but exceeds planner tolerance (1.0001)
+        allocation = StrategyAllocation(
+            target_weights={
+                "AAPL": Decimal("0.3350"),
+                "MSFT": Decimal("0.3350"),
+                "GOOGL": Decimal("0.3350"),  # Sum = 1.005
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={},
+            prices={
+                "AAPL": Decimal("100.00"),
+                "MSFT": Decimal("100.00"),
+                "GOOGL": Decimal("100.00"),
+            },
+            cash=Decimal("10000.00"),
+            total_value=Decimal("10000.00"),
+        )
+
+        # Should raise PortfolioError
+        with pytest.raises(PortfolioError) as exc_info:
+            calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+
+        assert "Target weights sum to" in str(exc_info.value)
+        assert "1.005" in str(exc_info.value)
+
+    def test_weight_validation_boundary_at_tolerance(self, calculator):
+        """Test that planner accepts weights exactly at tolerance boundary."""
+        allocation = StrategyAllocation(
+            target_weights={
+                "AAPL": Decimal("0.5"),
+                "MSFT": Decimal("0.5001"),  # Sum = 1.0001 (exactly at boundary)
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={},
+            prices={
+                "AAPL": Decimal("100.00"),
+                "MSFT": Decimal("100.00"),
+            },
+            cash=Decimal("10000.00"),
+            total_value=Decimal("10000.00"),
+        )
+
+        # Should succeed - at boundary
+        plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+        assert plan is not None
+        assert len(plan.items) == 2
+
+    def test_weight_validation_just_over_tolerance(self, calculator):
+        """Test that planner rejects weights just over tolerance boundary."""
+        from the_alchemiser.shared.errors.exceptions import PortfolioError
+
+        # Create allocation with weights that sum to 1.0002 (over tolerance)
+        allocation = StrategyAllocation(
+            target_weights={
+                "AAPL": Decimal("0.5"),
+                "MSFT": Decimal("0.5002"),  # Sum = 1.0002 (over boundary)
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={},
+            prices={
+                "AAPL": Decimal("100.00"),
+                "MSFT": Decimal("100.00"),
+            },
+            cash=Decimal("10000.00"),
+            total_value=Decimal("10000.00"),
+        )
+
+        # Should raise PortfolioError
+        with pytest.raises(PortfolioError) as exc_info:
+            calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+
+        assert "Target weights sum to" in str(exc_info.value)

@@ -35,6 +35,11 @@ PRIORITY_THRESHOLD_1K = Decimal("1000")
 PRIORITY_THRESHOLD_100 = Decimal("100")
 PRIORITY_THRESHOLD_50 = Decimal("50")
 
+# Portfolio weight validation tolerance
+# Allows for Decimal precision errors while catching over-allocation bugs
+# Tighter than StrategyAllocation's ±1% since we're validating execution feasibility
+TARGET_WEIGHT_SUM_MAX = Decimal("1.0001")  # Allow 0.01% over for precision errors
+
 
 class RebalancePlanCalculator:
     """Core calculator for rebalance plans.
@@ -70,10 +75,12 @@ class RebalancePlanCalculator:
             causation_id = correlation_id
 
         # CRITICAL: Validate target weights sum to <= 1.0 to prevent over-allocation
+        # Allow small tolerance for Decimal precision errors
         total_target_weight = sum(strategy.target_weights.values())
-        if total_target_weight > Decimal("1.0"):
+        if total_target_weight > TARGET_WEIGHT_SUM_MAX:
             raise PortfolioError(
-                f"Target weights sum to {total_target_weight}, must be <= 1.0. "
+                f"Target weights sum to {total_target_weight}, must be <= 1.0 "
+                f"(tolerance: {TARGET_WEIGHT_SUM_MAX}). "
                 f"This would result in attempting to deploy more than 100% of capital.",
                 module=MODULE_NAME,
                 operation="build_plan",
