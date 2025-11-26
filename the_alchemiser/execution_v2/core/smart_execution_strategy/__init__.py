@@ -7,10 +7,12 @@ The actual execution is now handled by the unified order placement service.
 """
 
 from .models import ExecutionConfig, LiquidityMetadata, SmartOrderRequest, SmartOrderResult
+from .quotes import QuoteProvider
 
 __all__ = [
     "ExecutionConfig",
     "LiquidityMetadata",
+    "QuoteProvider",
     "SmartOrderRequest",
     "SmartOrderResult",
 ]

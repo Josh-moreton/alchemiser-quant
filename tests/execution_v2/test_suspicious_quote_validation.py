@@ -104,7 +104,12 @@ class TestQuoteProviderSuspiciousValidation:
     def quote_provider(self, mock_alpaca_manager, mock_pricing_service):
         """Create quote provider with mocked dependencies."""
         config = ExecutionConfig()
-        return QuoteProvider(mock_alpaca_manager, mock_pricing_service, config)
+        return QuoteProvider(
+            mock_alpaca_manager,
+            mock_pricing_service,
+            config,
+            use_unified_service=False,
+        )
 
     def test_suspicious_streaming_quote_triggers_rest_validation(self, quote_provider):
         """Test that suspicious streaming quote triggers REST validation."""
