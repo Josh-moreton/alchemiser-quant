@@ -452,7 +452,7 @@ class TestDecisionEvaluated:
         fragment = PortfolioFragment(
             fragment_id="frag-1",
             source_step="decision",
-            weights={"AAPL": 1.0},
+            weights={"AAPL": Decimal("1.0")},
         )
         event = DecisionEvaluated(
             correlation_id="corr-123",

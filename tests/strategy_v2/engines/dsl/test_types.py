@@ -151,7 +151,7 @@ class TestDSLValueType:
         fragment = PortfolioFragment(
             fragment_id="test-123",
             source_step="test",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
 
         # Type checking validates this at compile time

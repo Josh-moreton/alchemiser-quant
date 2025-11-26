@@ -271,13 +271,10 @@ class SignalGenerationHandler:
             # Avoid constructing DTO with empty payload; surface actionable error
             raise DataProviderError("No positive target allocations produced by strategy signals")
 
-        # Create ConsolidatedPortfolio - from_dict_allocation handles Decimal conversion
-        # Convert Decimal to float for the factory method which handles conversion internally
-        allocation_dict_float = {
-            symbol: float(allocation) for symbol, allocation in consolidated_portfolio_dict.items()
-        }
+        # Create ConsolidatedPortfolio - from_dict_allocation handles both Decimal and float
+        # Pass Decimal values directly to preserve precision throughout the pipeline
         consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
-            allocation_dict=allocation_dict_float,
+            allocation_dict=consolidated_portfolio_dict,
             correlation_id=correlation_id,
             source_strategies=contributing_strategies,
         )

@@ -122,7 +122,7 @@ class TestDslEventPublisher:
         fragment = PortfolioFragment(
             fragment_id="test-id",
             source_step="test",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
         correlation_id = str(uuid.uuid4())
 

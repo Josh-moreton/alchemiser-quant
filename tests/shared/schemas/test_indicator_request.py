@@ -197,28 +197,32 @@ class TestPortfolioFragment:
 
     def test_create_valid_fragment(self) -> None:
         """Test creating a valid portfolio fragment."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="weight_equal",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
 
         assert fragment.fragment_id == "frag-123"
         assert fragment.source_step == "weight_equal"
-        assert fragment.weights == {"AAPL": 0.5, "GOOGL": 0.5}
-        assert fragment.total_weight == 1.0
+        assert fragment.weights == {"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")}
+        assert fragment.total_weight == Decimal("1.0")
         assert fragment.schema_version == "1.0"
         assert fragment.correlation_id is None
         assert fragment.causation_id is None
 
     def test_fragment_with_traceability_ids(self) -> None:
         """Test creating fragment with correlation and causation IDs."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="weight_equal",
             correlation_id="corr-456",
             causation_id="cause-789",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
 
         assert fragment.correlation_id == "corr-456"
@@ -226,10 +230,12 @@ class TestPortfolioFragment:
 
     def test_fragment_is_frozen(self) -> None:
         """Test that PortfolioFragment is immutable."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="weight_equal",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
 
         with pytest.raises(ValidationError, match="frozen"):
@@ -237,19 +243,21 @@ class TestPortfolioFragment:
 
     def test_normalize_weights_basic(self) -> None:
         """Test basic weight normalization."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
-            weights={"AAPL": 2.0, "GOOGL": 2.0},
-            total_weight=1.0,
+            weights={"AAPL": Decimal("2.0"), "GOOGL": Decimal("2.0")},
+            total_weight=Decimal("1.0"),
         )
 
         normalized = fragment.normalize_weights()
 
         # Should sum to 1.0
-        assert math.isclose(sum(normalized.weights.values()), 1.0, abs_tol=1e-9)
-        assert math.isclose(normalized.weights["AAPL"], 0.5, abs_tol=1e-9)
-        assert math.isclose(normalized.weights["GOOGL"], 0.5, abs_tol=1e-9)
+        assert math.isclose(float(sum(normalized.weights.values())), 1.0, abs_tol=1e-9)
+        assert math.isclose(float(normalized.weights["AAPL"]), 0.5, abs_tol=1e-9)
+        assert math.isclose(float(normalized.weights["GOOGL"]), 0.5, abs_tol=1e-9)
 
     def test_normalize_weights_empty(self) -> None:
         """Test normalizing empty weights returns self."""
@@ -265,10 +273,12 @@ class TestPortfolioFragment:
 
     def test_normalize_weights_zero_sum(self) -> None:
         """Test normalizing zero sum weights returns self."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
-            weights={"AAPL": 0.0, "GOOGL": 0.0},
+            weights={"AAPL": Decimal("0.0"), "GOOGL": Decimal("0.0")},
         )
 
         normalized = fragment.normalize_weights()
@@ -276,11 +286,13 @@ class TestPortfolioFragment:
 
     def test_normalize_weights_uses_isclose(self) -> None:
         """Test that normalize_weights uses math.isclose for float comparison."""
+        from decimal import Decimal
+
         # Create weights that sum to very close to zero but not exactly
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
-            weights={"AAPL": 1e-10, "GOOGL": -1e-10},
+            weights={"AAPL": Decimal("1e-10"), "GOOGL": Decimal("-1e-10")},
         )
 
         normalized = fragment.normalize_weights()
@@ -289,10 +301,12 @@ class TestPortfolioFragment:
 
     def test_normalize_weights_idempotent(self) -> None:
         """Test that normalizing twice gives same result."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
-            weights={"AAPL": 2.0, "GOOGL": 3.0},
+            weights={"AAPL": Decimal("2.0"), "GOOGL": Decimal("3.0")},
         )
 
         normalized_once = fragment.normalize_weights()
@@ -300,20 +314,22 @@ class TestPortfolioFragment:
 
         # Should be idempotent
         assert math.isclose(
-            normalized_once.weights["AAPL"], normalized_twice.weights["AAPL"], abs_tol=1e-9
+            float(normalized_once.weights["AAPL"]), float(normalized_twice.weights["AAPL"]), abs_tol=1e-9
         )
         assert math.isclose(
-            normalized_once.weights["GOOGL"], normalized_twice.weights["GOOGL"], abs_tol=1e-9
+            float(normalized_once.weights["GOOGL"]), float(normalized_twice.weights["GOOGL"]), abs_tol=1e-9
         )
 
     def test_normalize_weights_preserves_other_fields(self) -> None:
         """Test that normalizing weights preserves other fields."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
             correlation_id="corr-456",
             causation_id="cause-789",
-            weights={"AAPL": 2.0, "GOOGL": 2.0},
+            weights={"AAPL": Decimal("2.0"), "GOOGL": Decimal("2.0")},
             metadata={"key": "value"},
         )
 
@@ -327,14 +343,16 @@ class TestPortfolioFragment:
 
     def test_total_weight_constraint(self) -> None:
         """Test that total_weight is constrained between 0 and 1."""
+        from decimal import Decimal
+
         # Valid total_weight
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
             weights={},
-            total_weight=0.5,
+            total_weight=Decimal("0.5"),
         )
-        assert fragment.total_weight == 0.5
+        assert fragment.total_weight == Decimal("0.5")
 
         # Invalid total_weight > 1
         with pytest.raises(ValidationError):
@@ -342,7 +360,7 @@ class TestPortfolioFragment:
                 fragment_id="frag-123",
                 source_step="test",
                 weights={},
-                total_weight=1.5,
+                total_weight=Decimal("1.5"),
             )
 
         # Invalid total_weight < 0
@@ -351,15 +369,17 @@ class TestPortfolioFragment:
                 fragment_id="frag-123",
                 source_step="test",
                 weights={},
-                total_weight=-0.5,
+                total_weight=Decimal("-0.5"),
             )
 
     def test_model_dump_includes_all_fields(self) -> None:
         """Test that model_dump includes all fields including schema_version."""
+        from decimal import Decimal
+
         fragment = PortfolioFragment(
             fragment_id="frag-123",
             source_step="test",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
 
         data = fragment.model_dump()
@@ -390,11 +410,13 @@ class TestBackwardCompatibility:
 
     def test_portfolio_fragment_without_new_fields(self) -> None:
         """Test that existing code works without specifying new fields."""
+        from decimal import Decimal
+
         # This is how existing code creates PortfolioFragment
         fragment = PortfolioFragment(
             fragment_id=str(uuid.uuid4()),
             source_step="weight_equal",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
 
         # Should work with defaults

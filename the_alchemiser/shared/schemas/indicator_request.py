@@ -10,6 +10,7 @@ with proper validation and type safety.
 from __future__ import annotations
 
 import math
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -200,10 +201,12 @@ class PortfolioFragment(BaseModel):
     )
 
     # Allocation data
-    weights: dict[str, float] = Field(
+    weights: dict[str, Decimal] = Field(
         default_factory=dict, description="Symbol weights in fragment"
     )
-    total_weight: float = Field(default=1.0, ge=0, le=1, description="Total weight of fragment")
+    total_weight: Decimal = Field(
+        default=Decimal("1.0"), ge=Decimal("0"), le=Decimal("1"), description="Total weight of fragment"
+    )
 
     # Metadata
     metadata: dict[str, int | float | str | bool] = Field(
@@ -212,22 +215,22 @@ class PortfolioFragment(BaseModel):
     )
 
     def normalize_weights(self) -> PortfolioFragment:
-        """Normalize weights to sum to total_weight.
+        """Normalize weights to sum to total_weight using Decimal arithmetic.
 
         Returns:
             New PortfolioFragment with normalized weights
 
         Note:
-            Uses math.isclose for float comparison to avoid precision issues.
-            If sum is zero (within tolerance), returns self unchanged.
+            Uses Decimal arithmetic to preserve precision.
+            If sum is zero, returns self unchanged.
 
         """
         if not self.weights:
             return self
 
         current_sum = sum(self.weights.values())
-        # Use math.isclose instead of direct float comparison
-        if math.isclose(current_sum, 0.0, abs_tol=1e-9):
+        # Use Decimal comparison (no tolerance needed!)
+        if current_sum == Decimal("0"):
             return self
 
         scale_factor = self.total_weight / current_sum

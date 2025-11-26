@@ -39,7 +39,7 @@ class TestCollectAssetsFromValue:
         fragment = PortfolioFragment(
             fragment_id=str(uuid.uuid4()),
             source_step="test",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
         assets = collect_assets_from_value(fragment)
         assert set(assets) == {"AAPL", "GOOGL"}
@@ -93,7 +93,7 @@ class TestWeightEqual:
 
         result = weight_equal(args, mock_context)
         assert isinstance(result, PortfolioFragment)
-        assert result.weights == {"AAPL": 1.0}
+        assert result.weights == {"AAPL": Decimal("1.0")}
 
     def test_weight_equal_multiple_assets(self, mock_context):
         """Test weight-equal with multiple assets."""
@@ -103,7 +103,7 @@ class TestWeightEqual:
         result = weight_equal(args, mock_context)
         assert isinstance(result, PortfolioFragment)
         assert len(result.weights) == 3
-        assert all(abs(w - 1.0 / 3) < 1e-10 for w in result.weights.values())
+        assert all(abs(float(w) - 1.0 / 3) < 1e-10 for w in result.weights.values())
 
     def test_weight_equal_deduplication(self, mock_context):
         """Test weight-equal deduplicates symbols."""
@@ -113,7 +113,7 @@ class TestWeightEqual:
         result = weight_equal(args, mock_context)
         assert isinstance(result, PortfolioFragment)
         assert len(result.weights) == 2
-        assert result.weights == {"AAPL": 0.5, "GOOGL": 0.5}
+        assert result.weights == {"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")}
 
 
 @pytest.mark.unit
@@ -167,7 +167,7 @@ class TestWeightSpecified:
 
         result = weight_specified(args, mock_context)
         assert isinstance(result, PortfolioFragment)
-        assert result.weights == {"AAPL": 0.6, "GOOGL": 0.4}
+        assert result.weights == {"AAPL": Decimal("0.6"), "GOOGL": Decimal("0.4")}
 
 
 @pytest.mark.unit
@@ -239,8 +239,8 @@ class TestWeightInverseVolatility:
         # AAPL has lower volatility (0.2), so it should have higher weight
         # inverse weights: AAPL=5.0, GOOGL=2.5, total=7.5
         # normalized: AAPL=5.0/7.5≈0.667, GOOGL=2.5/7.5≈0.333
-        assert abs(result.weights["AAPL"] - 2.0 / 3) < 1e-10
-        assert abs(result.weights["GOOGL"] - 1.0 / 3) < 1e-10
+        assert abs(float(result.weights["AAPL"]) - 2.0 / 3) < 1e-10
+        assert abs(float(result.weights["GOOGL"]) - 1.0 / 3) < 1e-10
 
 
 @pytest.mark.unit
@@ -311,12 +311,12 @@ class TestGroup:
         fragment1 = PortfolioFragment(
             fragment_id=str(uuid.uuid4()),
             source_step="test",
-            weights={"AAPL": 0.5, "GOOGL": 0.5},
+            weights={"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")},
         )
         fragment2 = PortfolioFragment(
             fragment_id=str(uuid.uuid4()),
             source_step="test",
-            weights={"MSFT": 1.0},
+            weights={"MSFT": Decimal("1.0")},
         )
 
         mock_context.evaluate_node.side_effect = [fragment1, fragment2]

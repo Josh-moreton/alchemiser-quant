@@ -15,6 +15,7 @@ Implements DSL operators for building portfolio allocations:
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import Literal, cast
 
 from the_alchemiser.shared.logging import get_logger
@@ -129,46 +130,51 @@ def select_symbols(
     return cast(list[DSLValue], [sym for sym, _ in scored])
 
 
-def _normalize_fragment_weights(value: DSLValue, context: DslContext) -> dict[str, float]:
-    """Convert a DSLValue into a normalized weights dict.
+def _normalize_fragment_weights(value: DSLValue, context: DslContext) -> dict[str, Decimal]:
+    """Convert a DSLValue into a normalized weights dict using Decimal arithmetic.
 
-    - str → {symbol: 1.0}
-    - PortfolioFragment → normalized weights
+    - str → {symbol: Decimal("1.0")}
+    - PortfolioFragment → normalized weights (already Decimal)
     - list → merge recursively, then normalize to sum to 1 if total > 0
     """
     if isinstance(value, str):
-        return {value: 1.0}
+        return {value: Decimal("1.0")}
     if isinstance(value, PortfolioFragment):
         frag = value.normalize_weights()
-        return dict(frag.weights)
+        return dict(frag.weights)  # Already Decimal after Phase 1
     if isinstance(value, list):
-        collected: dict[str, float] = {}
+        collected: dict[str, Decimal] = {}
         for item in value:
             nested = _normalize_fragment_weights(item, context)
             for sym, w in nested.items():
-                collected[sym] = collected.get(sym, 0.0) + w
-        total = sum(collected.values())
-        if total > 0:
+                collected[sym] = collected.get(sym, Decimal("0")) + w
+        total = sum(collected.values()) if collected else Decimal("0")
+        if total > Decimal("0"):
             return {sym: w / total for sym, w in collected.items()}
         return collected
     return {}
 
 
-def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> dict[str, float]:
-    """Process (w1 a1 w2 a2 ...) pairs into consolidated weights."""
-    consolidated: dict[str, float] = {}
+def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> dict[str, Decimal]:
+    """Process (w1 a1 w2 a2 ...) pairs into consolidated weights using Decimal arithmetic."""
+    consolidated: dict[str, Decimal] = {}
     for i in range(0, len(pairs), 2):
         weight_node, asset_node = pairs[i], pairs[i + 1]
         weight_val = context.evaluate_node(weight_node, context.correlation_id, context.trace)
-        if not isinstance(weight_val, int | float):
-            weight_val = float(context.as_decimal(weight_val))
+        # Convert to Decimal
+        if isinstance(weight_val, Decimal):
+            weight_decimal = weight_val
+        elif isinstance(weight_val, int | float):
+            weight_decimal = Decimal(str(weight_val))
+        else:
+            weight_decimal = context.as_decimal(weight_val)
         asset_val = context.evaluate_node(asset_node, context.correlation_id, context.trace)
         normalized_assets = _normalize_fragment_weights(asset_val, context)
         if not normalized_assets:
             raise DslEvaluationError(f"Expected asset symbol or fragment, got {type(asset_val)}")
         for sym, base_w in normalized_assets.items():
-            scaled = base_w * float(weight_val)
-            consolidated[sym] = consolidated.get(sym, 0.0) + scaled
+            scaled = base_w * weight_decimal  # Decimal multiplication!
+            consolidated[sym] = consolidated.get(sym, Decimal("0")) + scaled
     return consolidated
 
 
@@ -176,7 +182,7 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
 
 
 def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
-    """Evaluate weight-equal - allocate equal weight to all assets."""
+    """Evaluate weight-equal - allocate equal weight to all assets using Decimal arithmetic."""
     if not args:
         return PortfolioFragment(
             fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
@@ -201,7 +207,8 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
             unique_assets.append(asset)
             seen.add(asset)
 
-    weight_per_asset = 1.0 / len(unique_assets)
+    # Use Decimal division instead of float division (CRITICAL FIX)
+    weight_per_asset = Decimal("1") / Decimal(str(len(unique_assets)))
     weights = dict.fromkeys(unique_assets, weight_per_asset)
 
     return PortfolioFragment(
@@ -336,8 +343,8 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
 
 def _calculate_inverse_weights(
     assets: list[str], window: float, context: DslContext
-) -> dict[str, float]:
-    """Calculate and normalize inverse volatility weights.
+) -> dict[str, Decimal]:
+    """Calculate and normalize inverse volatility weights using Decimal arithmetic.
 
     Args:
         assets: List of asset symbols
@@ -345,29 +352,30 @@ def _calculate_inverse_weights(
         context: DSL evaluation context
 
     Returns:
-        Dictionary of normalized weights
+        Dictionary of normalized weights (as Decimal)
 
     """
-    inverse_weights = {}
-    total_inverse = 0.0
+    inverse_weights: dict[str, Decimal] = {}
+    total_inverse = Decimal("0")
 
     # Calculate inverse volatility weights
     for asset in assets:
         volatility = _get_volatility_for_asset(asset, window, context)
         if volatility is not None:
-            inverse_vol = 1.0 / volatility
+            # Convert float volatility to Decimal before division
+            vol_decimal = Decimal(str(volatility))
+            inverse_vol = Decimal("1") / vol_decimal
             inverse_weights[asset] = inverse_vol
             total_inverse += inverse_vol
 
     # Handle case where no valid volatilities were obtained
-    # Using explicit tolerance for float comparison
-    if not inverse_weights or total_inverse < 1e-10:
+    if not inverse_weights or total_inverse < Decimal("1e-10"):
         logger.warning(
             "DSL weight-inverse-volatility: No valid volatilities obtained for any assets"
         )
         return {}
 
-    # Normalize weights to sum to 1
+    # Normalize weights to sum to 1 using Decimal division
     return {asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()}
 
 
@@ -430,7 +438,7 @@ def weight_inverse_volatility(args: list[ASTNode], context: DslContext) -> Portf
 
 
 def group(args: list[ASTNode], context: DslContext) -> DSLValue:
-    """Evaluate group - aggregate results from body expressions.
+    """Evaluate group - aggregate results from body expressions using Decimal arithmetic.
 
     Groups act as composition blocks in the DSL. We evaluate each body
     expression and combine any resulting portfolio fragments by summing
@@ -443,18 +451,18 @@ def group(args: list[ASTNode], context: DslContext) -> DSLValue:
     _name = args[0]  # Group name (unused in evaluation)
     body = args[1:]
 
-    combined: dict[str, float] = {}
+    combined: dict[str, Decimal] = {}
     last_result: DSLValue = None
 
     def _merge_weights_from(value: DSLValue) -> None:
         if isinstance(value, PortfolioFragment):
             for sym, w in value.weights.items():
-                combined[sym] = combined.get(sym, 0.0) + float(w)
+                combined[sym] = combined.get(sym, Decimal("0")) + w
         elif isinstance(value, list):
             for item in value:
                 _merge_weights_from(item)
         elif isinstance(value, str):
-            combined[value] = combined.get(value, 0.0) + 1.0
+            combined[value] = combined.get(value, Decimal("0")) + Decimal("1.0")
 
     # Evaluate each expression and merge any weights found
     for expr in body:

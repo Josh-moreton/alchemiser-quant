@@ -230,13 +230,15 @@ class TestControlFlowOperators:
 
     def test_if_condition_with_portfolio_fragment(self, context, mock_event_publisher):
         """Test if publishes PortfolioFragment in event when branch returns one."""
+        from decimal import Decimal
+
         condition = ASTNode.atom("true")
         then_expr = ASTNode.symbol("portfolio")
 
         fragment = PortfolioFragment(
             fragment_id="test-id",
             source_step="test",
-            weights={"AAPL": 1.0},
+            weights={"AAPL": Decimal("1.0")},
         )
         context.evaluations["portfolio"] = fragment
 

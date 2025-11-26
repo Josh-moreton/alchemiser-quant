@@ -185,10 +185,10 @@ class DslStrategyEngine:
         self,
         dsl_files: list[str],
         file_results: list[
-            tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]
+            tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]
         ],
-    ) -> tuple[dict[str, float], list[dict[str, Any]] | None]:
-        """Accumulate per-symbol weights from DSL file evaluation results.
+    ) -> tuple[dict[str, Decimal], list[dict[str, Any]] | None]:
+        """Accumulate per-symbol weights from DSL file evaluation results using Decimal.
 
         Args:
             dsl_files: List of DSL files that were evaluated
@@ -198,7 +198,7 @@ class DslStrategyEngine:
             Tuple of (consolidated weights, first valid decision_path)
 
         """
-        consolidated: dict[str, float] = {}
+        consolidated: dict[str, Decimal] = {}
         decision_path: list[dict[str, Any]] | None = None
 
         for _f, (per_file_weights, _trace_id, _, _, file_decision_path) in zip(
@@ -207,7 +207,7 @@ class DslStrategyEngine:
             if per_file_weights is None:  # Evaluation failed
                 continue
             for symbol, weight in per_file_weights.items():
-                consolidated[symbol] = consolidated.get(symbol, 0.0) + weight
+                consolidated[symbol] = consolidated.get(symbol, Decimal("0")) + weight
 
             # Use first valid decision path (for single-strategy cases)
             if decision_path is None and file_decision_path:
@@ -219,7 +219,7 @@ class DslStrategyEngine:
         self,
         dsl_files: list[str],
         file_results: list[
-            tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]
+            tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]
         ],
         timestamp: datetime,
         correlation_id: str,
@@ -254,15 +254,17 @@ class DslStrategyEngine:
 
                 # Build contextual reasoning from decision path if available
                 # Falls back to simple allocation string if no decision path
+                weight_float = float(weight)
                 if _decision_path:
                     # Use decision path reasoning for contextual explanation
-                    # Pass full allocation and strategy name for better context
+                    # Pass full allocation (converted to float) and strategy name for better context
+                    per_file_weights_float = {s: float(w) for s, w in per_file_weights.items()}
                     reasoning = self._build_decision_reasoning(
-                        _decision_path, weight, per_file_weights, strategy_name
+                        _decision_path, weight_float, per_file_weights_float, strategy_name
                     )
                 else:
                     # Fallback: show symbol allocation
-                    reasoning = f"{strategy_name} allocation: {weight:.1%}"
+                    reasoning = f"{strategy_name} allocation: {weight_float:.1%}"
 
                 # Create signal for this symbol
                 signal = StrategySignal(
@@ -328,8 +330,10 @@ class DslStrategyEngine:
                 else:
                     strategy_display = primary_strategy
                     # Build reasoning from decision path if available
+                    # Convert consolidated to float for legacy reasoning generation
+                    consolidated_float = {s: float(w) for s, w in consolidated.items()}
                     reasoning = self._build_decision_reasoning(
-                        decision_path, weight, consolidated, primary_strategy
+                        decision_path, weight, consolidated_float, primary_strategy
                     )
 
                 signals.append(
@@ -379,8 +383,8 @@ class DslStrategyEngine:
         )
         return [fallback_signal]
 
-    def _resolve_dsl_files_and_weights(self) -> tuple[list[str], dict[str, float]]:
-        """Resolve DSL files and normalize their weights to sum to 1.0.
+    def _resolve_dsl_files_and_weights(self) -> tuple[list[str], dict[str, Decimal]]:
+        """Resolve DSL files and normalize their weights to sum to 1.0 using Decimal.
 
         Returns:
             A tuple of (dsl_files, normalized_file_weights)
@@ -412,9 +416,9 @@ class DslStrategyEngine:
         if total_alloc == 0:
             total_alloc = Decimal("1.0")
 
-        # Normalize to floats for downstream compatibility (precision maintained in calculation)
+        # Normalize to Decimal for precise arithmetic throughout
         normalized_file_weights = {
-            f: float(Decimal(str(dsl_allocs.get(f, 0.0))) / total_alloc) for f in dsl_files
+            f: Decimal(str(dsl_allocs.get(f, 0.0))) / total_alloc for f in dsl_files
         }
         return dsl_files, normalized_file_weights
 
@@ -422,29 +426,29 @@ class DslStrategyEngine:
         self,
         filename: str,
         correlation_id: str,
-        normalized_file_weights: dict[str, float],
-    ) -> tuple[dict[str, float], str, float, float, list[dict[str, Any]] | None]:
-        """Evaluate a single DSL file and return scaled per-symbol weights.
+        normalized_file_weights: dict[str, Decimal],
+    ) -> tuple[dict[str, Decimal], str, Decimal, Decimal, list[dict[str, Any]] | None]:
+        """Evaluate a single DSL file and return scaled per-symbol weights using Decimal.
 
         Args:
             filename: DSL file to evaluate
             correlation_id: Correlation ID for tracing
-            normalized_file_weights: Precomputed normalized file weights
+            normalized_file_weights: Precomputed normalized file weights (as Decimal)
 
         Returns:
             Tuple of (per_file_scaled_weights, trace_id, file_weight, file_sum, decision_path)
 
         """
         allocation, trace = self.dsl_engine.evaluate_strategy(filename, correlation_id)
-        file_weight = float(normalized_file_weights.get(filename, 0.0))
-        file_sum = float(sum(allocation.target_weights.values())) or 0.0
+        file_weight = normalized_file_weights.get(filename, Decimal("0"))
+        file_sum = sum(allocation.target_weights.values(), Decimal("0")) if allocation.target_weights else Decimal("0")
 
-        per_file_weights: dict[str, float] = {}
+        per_file_weights: dict[str, Decimal] = {}
         for symbol, weight in allocation.target_weights.items():
-            w = float(weight)
-            if w <= 0:
+            # weight is already Decimal from allocation (PortfolioFragment)
+            if weight <= Decimal("0"):
                 continue
-            per_file_weights[symbol] = file_weight * w
+            per_file_weights[symbol] = file_weight * weight  # Decimal multiplication!
 
         # Format and log DSL evaluation results
         formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
@@ -455,9 +459,9 @@ class DslStrategyEngine:
             f"DSL file evaluation: {Path(filename).stem}",
             extra={
                 "filename": filename,
-                "file_weight": file_weight,
-                "file_sum": file_sum,
-                "scaled_total": sum(per_file_weights.values()),
+                "file_weight": str(file_weight),
+                "file_sum": str(file_sum),
+                "scaled_total": str(sum(per_file_weights.values()) if per_file_weights else Decimal("0")),
                 "symbols": list(per_file_weights.keys()),
             },
         )
@@ -471,8 +475,8 @@ class DslStrategyEngine:
         self,
         dsl_files: list[str],
         correlation_id: str,
-        normalized_file_weights: dict[str, float],
-    ) -> list[tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]]:
+        normalized_file_weights: dict[str, Decimal],
+    ) -> list[tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]]:
         """Evaluate DSL files sequentially (original behavior).
 
         Args:
@@ -485,7 +489,7 @@ class DslStrategyEngine:
 
         """
         results: list[
-            tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]
+            tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]
         ] = []
         for f in dsl_files:
             try:
@@ -500,16 +504,16 @@ class DslStrategyEngine:
                         "error_type": type(e).__name__,
                     },
                 )
-                results.append((None, "", 0.0, 0.0, None))
+                results.append((None, "", Decimal("0"), Decimal("0"), None))
         return results
 
     def _evaluate_files_parallel(
         self,
         dsl_files: list[str],
         correlation_id: str,
-        normalized_file_weights: dict[str, float],
+        normalized_file_weights: dict[str, Decimal],
         max_workers: int,
-    ) -> list[tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]]:
+    ) -> list[tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]]:
         """Evaluate DSL files in parallel using threads while preserving deterministic order.
 
         Args:
@@ -549,14 +553,14 @@ class DslStrategyEngine:
                     },
                 )
                 # Return None results for all files as fallback
-                return [(None, "", 0.0, 0.0, None) for _ in dsl_files]
+                return [(None, "", Decimal("0"), Decimal("0"), None) for _ in dsl_files]
 
     def _evaluate_file_wrapper(
         self,
         filename: str,
         correlation_id: str,
-        normalized_file_weights: dict[str, float],
-    ) -> tuple[dict[str, float] | None, str, float, float, list[dict[str, Any]] | None]:
+        normalized_file_weights: dict[str, Decimal],
+    ) -> tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]:
         """Wrap _evaluate_file to handle exceptions for parallel execution.
 
         Args:
@@ -566,7 +570,7 @@ class DslStrategyEngine:
 
         Returns:
             Tuple of (per_file_scaled_weights, trace_id, file_weight, file_sum, decision_path)
-            Returns (None, "", 0.0, 0.0, None) if evaluation fails
+            Returns (None, "", Decimal("0"), Decimal("0"), None) if evaluation fails
 
         """
         try:
@@ -580,28 +584,12 @@ class DslStrategyEngine:
                     "error_type": type(e).__name__,
                 },
             )
-            return (None, "", 0.0, 0.0, None)
-
-    def _normalize_allocations(self, weights: dict[str, float]) -> dict[str, float]:
-        """Normalize a weights dict to sum to 1.0 using Decimal for precision.
-
-        Args:
-            weights: Dictionary of symbol weights
-
-        Returns:
-            Normalized weights dictionary summing to 1.0
-
-        """
-        total_decimal = Decimal(str(sum(weights.values())))
-        if total_decimal == 0:
-            total_decimal = Decimal("1.0")
-
-        return {sym: float(Decimal(str(w)) / total_decimal) for sym, w in weights.items()}
+            return (None, "", Decimal("0"), Decimal("0"), None)
 
     def _build_decision_reasoning(
         self,
         decision_path: list[dict[str, Any]] | None,
-        weight: float,
+        weight: float | Decimal,
         allocation: dict[str, float] | None = None,
         strategy_name: str | None = None,
     ) -> str:
@@ -618,8 +606,9 @@ class DslStrategyEngine:
 
         """
         # Fallback if no decision path
+        weight_float = float(weight)
         if not decision_path:
-            return f"{weight:.1%} allocation"
+            return f"{weight_float:.1%} allocation"
 
         # Try natural language generation
         try:
@@ -648,7 +637,7 @@ class DslStrategyEngine:
             )
 
         # Fallback to legacy format
-        return self._build_legacy_reasoning(decision_path, weight)
+        return self._build_legacy_reasoning(decision_path, weight_float)
 
     def _build_legacy_reasoning(
         self,

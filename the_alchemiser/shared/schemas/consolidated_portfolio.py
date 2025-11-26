@@ -9,6 +9,7 @@ signal aggregation, ensuring type safety in orchestrator communication.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TypedDict
@@ -296,7 +297,7 @@ class ConsolidatedPortfolio(BaseModel):
     @classmethod
     def from_dict_allocation(
         cls,
-        allocation_dict: dict[str, float],
+        allocation_dict: Mapping[str, float | Decimal],
         correlation_id: str,
         source_strategies: list[str] | None = None,
         timestamp: datetime | None = None,
@@ -304,7 +305,7 @@ class ConsolidatedPortfolio(BaseModel):
         """Create ConsolidatedPortfolio from dict allocation data.
 
         Args:
-            allocation_dict: Dictionary of symbol -> weight allocations
+            allocation_dict: Mapping of symbol -> weight allocations (float or Decimal)
             correlation_id: Correlation ID for tracking
             source_strategies: Optional list of contributing strategy names
             timestamp: Optional timestamp; defaults to datetime.now(UTC) if not provided
@@ -323,9 +324,10 @@ class ConsolidatedPortfolio(BaseModel):
             ... )
 
         """
-        # Convert float allocations to Decimal
+        # Convert allocations to Decimal, preserving Decimal values for precision
         target_allocations = {
-            symbol: Decimal(str(weight)) for symbol, weight in allocation_dict.items()
+            symbol: weight if isinstance(weight, Decimal) else Decimal(str(weight))
+            for symbol, weight in allocation_dict.items()
         }
 
         return cls(
