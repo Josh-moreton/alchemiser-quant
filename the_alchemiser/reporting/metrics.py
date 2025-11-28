@@ -7,14 +7,17 @@ Computes key trading metrics from account snapshot data:
 - Calmar Ratio
 - Maximum Drawdown
 - CAGR (Compound Annual Growth Rate)
+
+Uses only stdlib (math, statistics) to maintain lightweight dependencies
+for the Report Generator Lambda (no pandas/numpy).
 """
 
 from __future__ import annotations
 
+import math
+import statistics
 from decimal import Decimal
 from typing import Any
-
-import numpy as np
 
 from the_alchemiser.shared.logging import get_logger
 
@@ -39,18 +42,18 @@ def compute_sharpe_ratio(
     if not returns or len(returns) < 2:
         return Decimal("0.0")
 
-    # Convert to numpy for calculations
-    returns_arr = np.array([float(r) for r in returns])
+    # Convert to floats for calculations
+    returns_float = [float(r) for r in returns]
 
     # Annualize the Sharpe ratio (assuming daily returns)
-    mean_return = np.mean(returns_arr)
-    std_return = np.std(returns_arr, ddof=1)
+    mean_return = statistics.mean(returns_float)
+    std_return = statistics.stdev(returns_float)
 
     if std_return == 0:
         return Decimal("0.0")
 
     risk_free_daily = float(risk_free_rate) / 252
-    sharpe = (mean_return - risk_free_daily) / std_return * np.sqrt(252)
+    sharpe = (mean_return - risk_free_daily) / std_return * math.sqrt(252)
 
     return Decimal(str(round(sharpe, 2)))
 
@@ -68,17 +71,20 @@ def compute_max_drawdown(equity_curve: list[Decimal]) -> Decimal:
     if not equity_curve or len(equity_curve) < 2:
         return Decimal("0.0")
 
-    equity_arr = np.array([float(e) for e in equity_curve])
+    equity_float = [float(e) for e in equity_curve]
 
-    # Calculate running maximum
-    running_max = np.maximum.accumulate(equity_arr)
+    # Calculate running maximum and drawdowns
+    running_max = equity_float[0]
+    max_drawdown_ratio = 0.0
 
-    # Calculate drawdown at each point
-    drawdowns = (equity_arr - running_max) / running_max
+    for equity in equity_float[1:]:
+        if equity > running_max:
+            running_max = equity
+        drawdown_ratio = (equity - running_max) / running_max
+        if drawdown_ratio < max_drawdown_ratio:
+            max_drawdown_ratio = drawdown_ratio
 
-    max_dd = np.min(drawdowns)
-
-    return Decimal(str(round(max_dd * 100, 2)))  # Return as percentage
+    return Decimal(str(round(max_drawdown_ratio * 100, 2)))  # Return as percentage
 
 
 def compute_cagr(start_equity: Decimal, end_equity: Decimal, days: int) -> Decimal:
