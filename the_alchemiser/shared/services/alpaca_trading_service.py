@@ -225,7 +225,12 @@ class AlpacaTradingService:
 
             # Use circuit breaker to protect against cascading failures during outages
             def _submit_order() -> Order:
-                return self._trading_client.submit_order(order_request)
+                result = self._trading_client.submit_order(order_request)
+                # Type narrowing: Alpaca SDK can return dict on error, but we expect Order
+                if isinstance(result, dict):
+                    msg = f"Unexpected dict response from submit_order: {result}"
+                    raise ValueError(msg)
+                return result
 
             try:
                 order = self._circuit_breaker.call(_submit_order)

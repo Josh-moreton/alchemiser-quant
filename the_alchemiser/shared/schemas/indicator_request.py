@@ -9,7 +9,6 @@ with proper validation and type safety.
 
 from __future__ import annotations
 
-import math
 from decimal import Decimal
 from typing import Literal
 
@@ -205,7 +204,10 @@ class PortfolioFragment(BaseModel):
         default_factory=dict, description="Symbol weights in fragment"
     )
     total_weight: Decimal = Field(
-        default=Decimal("1.0"), ge=Decimal("0"), le=Decimal("1"), description="Total weight of fragment"
+        default=Decimal("1.0"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        description="Total weight of fragment",
     )
 
     # Metadata

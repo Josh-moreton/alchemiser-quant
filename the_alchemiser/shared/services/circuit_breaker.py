@@ -14,10 +14,11 @@ This is critical for live trading to prevent runaway execution during Alpaca out
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from the_alchemiser.shared.errors.exceptions import TradingClientError
 from the_alchemiser.shared.logging import get_logger
@@ -261,7 +262,7 @@ class CircuitBreaker:
         remaining = self.config.timeout_seconds - elapsed
         return max(0.0, remaining)
 
-    def call(self, func: Callable[[], T], *args: Any, **kwargs: Any) -> T:
+    def call(self, func: Callable[[], T], *args: Any, **kwargs: Any) -> T:  # noqa: ANN401
         """Execute a function through the circuit breaker.
 
         Args:

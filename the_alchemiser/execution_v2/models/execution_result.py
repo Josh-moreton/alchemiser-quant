@@ -80,7 +80,7 @@ class OrderResult(BaseModel):
             return False
         return abs(self.slippage_bps) > Decimal("10")
 
-    def calculate_slippage(self, expected_price: Decimal) -> "OrderResult":
+    def calculate_slippage(self, expected_price: Decimal) -> OrderResult:
         """Create a new OrderResult with calculated slippage metrics.
 
         Args:

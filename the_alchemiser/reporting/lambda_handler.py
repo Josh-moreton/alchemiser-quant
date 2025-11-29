@@ -2,15 +2,22 @@
 
 AWS Lambda handler for PDF report generation.
 
-This Lambda is triggered by Step Functions or direct invocation
-and generates PDF reports from account snapshots stored in DynamoDB
-or from execution data for trading notifications.
+This Lambda is triggered by TradingNotificationRequested events from the main
+trading system and generates PDF reports from execution data. It operates in
+isolation with minimal dependencies - no database queries, no business logic imports.
+
+The report data is pre-computed by the main trading lambda as ExecutionReportData
+and passed via event metadata. The report generator lambda only renders PDF and
+uploads to S3.
 
 Architecture Note:
-    This lambda avoids importing ApplicationContainer to keep dependencies minimal.
-    The ApplicationContainer pulls in heavy dependencies (pandas, numpy) via its
-    import chain (market data services, strategy wiring) that are not needed for
-    PDF report generation. Instead, we create a lightweight EventBus directly.
+    This lambda is strictly decoupled from the main codebase. It imports only:
+    - shared.logging (stdlib-based)
+    - shared.events (event schemas, lightweight)
+    - shared.schemas.execution_report_data (frozen Pydantic model)
+    - reporting.execution_report_service (local rendering logic)
+
+    No database connections, no snapshots, no domain imports.
 """
 
 from __future__ import annotations
@@ -25,12 +32,9 @@ from the_alchemiser.shared.errors.error_handler import (
 from the_alchemiser.shared.errors.exceptions import NotificationError
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.logging import generate_request_id, get_logger, set_request_id
-from the_alchemiser.shared.repositories.account_snapshot_repository import (
-    AccountSnapshotRepository,
-)
+from the_alchemiser.shared.schemas.execution_report_data import ExecutionReportData
 
 from .execution_report_service import ExecutionReportService
-from .service import ReportGeneratorService
 
 logger = get_logger(__name__)
 
@@ -48,22 +52,8 @@ def _create_event_bus() -> EventBus:
     """
     return EventBus()
 
-__all__ = ["lambda_handler", "_create_event_bus"]
 
-
-def _extract_correlation_id(event: dict[str, Any]) -> str:
-    """Extract or generate correlation ID from event.
-
-    Args:
-        event: Lambda event that may contain a correlation_id
-
-    Returns:
-        Correlation ID string
-
-    """
-    if event.get("correlation_id"):
-        return str(event["correlation_id"])
-    return generate_request_id()
+__all__ = ["_create_event_bus", "lambda_handler"]
 
 
 def _validate_event(event: dict[str, Any]) -> None:
@@ -76,136 +66,117 @@ def _validate_event(event: dict[str, Any]) -> None:
         ValueError: If required fields are missing
 
     """
-    # Check if this is an execution report generation
-    if event.get("generate_from_execution", False):
-        required_fields = ["execution_data", "trading_mode"]
-        missing_fields = [field for field in required_fields if field not in event]
-        if missing_fields:
-            raise ValueError(
-                f"Missing required fields for execution report: {', '.join(missing_fields)}"
-            )
-    else:
-        # Account snapshot report
-        required_fields = ["account_id"]
-        missing_fields = [field for field in required_fields if field not in event]
-        if missing_fields:
-            raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
+    # Execution reports require ExecutionReportData in metadata
+    required_fields = ["metadata"]
+    missing_fields = [field for field in required_fields if field not in event]
+    if missing_fields:
+        raise ValueError(
+            f"Missing required fields for execution report event: {', '.join(missing_fields)}"
+        )
+
+    # Validate report data is present in metadata
+    metadata = event.get("metadata", {})
+    if "report_data" not in metadata:
+        raise ValueError("Missing 'report_data' in event metadata")
 
 
 def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict[str, Any]:
-    """AWS Lambda handler for PDF report generation.
+    """AWS Lambda handler for PDF execution report generation.
 
-    Expected event structure for account reports:
-    {
-        "account_id": "account123",        # Required
-        "snapshot_id": "2024-...",         # Optional (ISO timestamp)
-        "report_type": "account_summary",  # Optional (default: account_summary)
-        "correlation_id": "req-123",       # Optional (for tracing)
-        "use_latest": true                 # Optional (use latest snapshot if true)
-    }
+    Decoupled handler that consumes TradingNotificationRequested events with embedded
+    ExecutionReportData and generates PDF reports without database queries or business
+    logic imports.
 
-    Expected event structure for execution reports:
+    Expected event structure:
     {
-        "generate_from_execution": true,   # Required for execution reports
-        "report_type": "trading_execution",# Optional (default: trading_execution)
-        "execution_data": {...},           # Required - execution data payload
-        "trading_mode": "PAPER",           # Required - PAPER or LIVE
-        "correlation_id": "req-123"        # Optional (for tracing)
+        "metadata": {
+            "report_data": {
+                "schema_version": "1.0",
+                "correlation_id": "req-123",
+                "timestamp": "2024-11-29T12:00:00+00:00",
+                "trading_mode": "PAPER",
+                "trading_success": true,
+                "orders_placed": 5,
+                "orders_succeeded": 5,
+                "total_trade_value": "10000.00",
+                "strategy_signals": {...},
+                "portfolio_allocations": {...},
+                "orders_executed": [...],
+                "execution_summary": {...},
+                ...
+            }
+        },
+        // other event fields
     }
 
     Args:
-        event: Lambda event containing report generation parameters
+        event: Lambda event containing ExecutionReportData in metadata
         context: Lambda context object
 
     Returns:
-        Dictionary with status and report metadata
+        Dictionary with status, report metadata, and S3 URI
 
     Examples:
-        Generate report from specific snapshot:
+        Generate report from execution event:
         >>> event = {
-        ...     "account_id": "PA123",
-        ...     "snapshot_id": "2024-10-25T12:00:00+00:00"
+        ...     "metadata": {
+        ...         "report_data": {...}
+        ...     }
         ... }
         >>> result = lambda_handler(event, None)
         >>> print(result['status'])
         'success'
 
-        Generate report from execution data:
-        >>> event = {
-        ...     "generate_from_execution": True,
-        ...     "execution_data": {...},
-        ...     "trading_mode": "PAPER"
-        ... }
-        >>> result = lambda_handler(event, None)
-
     """
     # Extract request ID for tracking
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
 
-    # Extract correlation ID
-    correlation_id = _extract_correlation_id(event)
+    # Extract correlation ID from report data
+    metadata = event.get("metadata", {})
+    report_data_dict = metadata.get("report_data", {})
+    correlation_id = report_data_dict.get("correlation_id", generate_request_id())
     set_request_id(correlation_id)
 
     logger.info(
-        "Report generation Lambda invoked",
+        "Report generation Lambda invoked (execution report from event)",
         aws_request_id=request_id,
         correlation_id=correlation_id,
-        lambda_event=event,
+        lambda_event_keys=list(event.keys()),
     )
 
     try:
         # Validate event
         _validate_event(event)
 
-        # Check if this is an execution report
-        if event.get("generate_from_execution", False):
-            return _handle_execution_report(event, request_id, correlation_id)
+        # Parse ExecutionReportData from metadata
+        report_data = ExecutionReportData.model_validate(report_data_dict)
 
-        # Otherwise, handle as account snapshot report
-        # Extract parameters
-        account_id = event["account_id"]
-        snapshot_id = event.get("snapshot_id")
-        report_type = event.get("report_type", "account_summary")
-        use_latest = event.get("use_latest", False)
-
-        # Get configuration from environment
-        table_name = os.environ.get("TRADE_LEDGER__TABLE_NAME", "alchemiser-trade-ledger-dev")
+        # Get S3 configuration from environment
         s3_bucket = os.environ.get("REPORTS_S3_BUCKET", "the-alchemiser-reports")
         bucket_owner_account_id = os.environ.get("AWS_ACCOUNT_ID")
 
         logger.info(
-            "Initializing report generation",
-            account_id=account_id,
-            snapshot_id=snapshot_id,
-            report_type=report_type,
-            use_latest=use_latest,
+            "Generating execution report from event",
+            correlation_id=correlation_id,
+            trading_mode=report_data.trading_mode,
+            trading_success=report_data.trading_success,
         )
 
         # Initialize services with lightweight EventBus (no heavy dependencies)
         event_bus = _create_event_bus()
 
-        snapshot_repository = AccountSnapshotRepository(table_name=table_name)
-        report_service = ReportGeneratorService(
-            snapshot_repository=snapshot_repository,
+        execution_report_service = ExecutionReportService(
             event_bus=event_bus,
             s3_bucket=s3_bucket,
             bucket_owner_account_id=bucket_owner_account_id,
         )
 
-        # Generate report
-        if use_latest or snapshot_id is None:
-            report_ready_event = report_service.generate_report_from_latest_snapshot(
-                account_id=account_id,
-                report_type=report_type,
-                correlation_id=correlation_id,
-            )
-        else:
-            report_ready_event = report_service.generate_report_from_snapshot_id(
-                account_id=account_id,
-                snapshot_id=snapshot_id,
-                report_type=report_type,
-                correlation_id=correlation_id,
-            )
+        # Generate execution report
+        report_ready_event = execution_report_service.generate_execution_report(
+            execution_data=report_data.model_dump(),
+            trading_mode=report_data.trading_mode,
+            correlation_id=correlation_id,
+        )
 
         # Build success response
         response = {
@@ -253,72 +224,6 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
             "correlation_id": correlation_id,
             "request_id": request_id,
         }
-
-
-def _handle_execution_report(
-    event: dict[str, Any], request_id: str, correlation_id: str
-) -> dict[str, Any]:
-    """Handle execution report generation from trading data.
-
-    Args:
-        event: Lambda event containing execution data
-        request_id: AWS request ID
-        correlation_id: Correlation ID for tracing
-
-    Returns:
-        Dictionary with status and report metadata
-
-    Raises:
-        ValueError: If execution data is invalid
-
-    """
-    execution_data = event["execution_data"]
-    trading_mode = event["trading_mode"]
-    report_type = event.get("report_type", "trading_execution")
-
-    # Get S3 bucket from environment
-    s3_bucket = os.environ.get("REPORTS_S3_BUCKET", "the-alchemiser-reports")
-    bucket_owner_account_id = os.environ.get("AWS_ACCOUNT_ID")
-
-    logger.info(
-        "Generating execution report",
-        trading_mode=trading_mode,
-        report_type=report_type,
-        correlation_id=correlation_id,
-    )
-
-    # Initialize services with lightweight EventBus (no heavy dependencies)
-    event_bus = _create_event_bus()
-
-    execution_report_service = ExecutionReportService(
-        event_bus=event_bus,
-        s3_bucket=s3_bucket,
-        bucket_owner_account_id=bucket_owner_account_id,
-    )
-
-    # Generate execution report
-    report_ready_event = execution_report_service.generate_execution_report(
-        execution_data=execution_data,
-        trading_mode=trading_mode,
-        correlation_id=correlation_id,
-    )
-
-    # Build success response
-    response = {
-        "status": "success",
-        "report_id": report_ready_event.report_id,
-        "s3_uri": report_ready_event.s3_uri,
-        "s3_bucket": report_ready_event.s3_bucket,
-        "s3_key": report_ready_event.s3_key,
-        "file_size_bytes": report_ready_event.file_size_bytes,
-        "generation_time_ms": report_ready_event.generation_time_ms,
-        "snapshot_id": report_ready_event.snapshot_id,
-        "correlation_id": correlation_id,
-        "request_id": request_id,
-    }
-
-    logger.info("Execution report generation completed successfully", response=response)
-    return response
 
 
 def _handle_error(

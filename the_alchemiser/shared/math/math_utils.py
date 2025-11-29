@@ -16,11 +16,13 @@ Functions include:
 from __future__ import annotations
 
 from math import isclose
-
-import pandas as pd
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.math.num import floats_equal
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = get_logger(__name__)
 
@@ -45,6 +47,8 @@ def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:
         >>> print(f"Volatility: {volatility:.4f}")
 
     """
+    import pandas as pd
+
     if len(close_prices) < window + 1:
         return 0.1  # Default volatility fallback
 
@@ -76,6 +80,8 @@ def calculate_moving_average(close_prices: pd.Series, window: int) -> float:
         >>> print(f"3-period MA: {ma:.2f}")
 
     """
+    import pandas as pd
+
     try:
         if len(close_prices) < window:
             # Not enough data for full window, return current price
@@ -135,6 +141,8 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
         >>> print(f"MA Return: {ma_return:.2f}%")
 
     """
+    import pandas as pd
+
     try:
         if len(close_prices) < window + 1:
             return 0.0
@@ -231,6 +239,8 @@ def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean")
         float: Calculated metric value, or appropriate fallback
 
     """
+    import pandas as pd
+
     if len(data) < window:
         return _get_fallback_value_for_metric(data, metric)
 
@@ -283,6 +293,8 @@ def safe_division(numerator: float, denominator: float, fallback: float = 0.0) -
         float: Division result or fallback value
 
     """
+    import pandas as pd
+
     try:
         if floats_equal(denominator, 0.0) or pd.isna(denominator) or pd.isna(numerator):
             return fallback
@@ -374,6 +386,8 @@ def calculate_ensemble_score(
         float: Weighted ensemble score
 
     """
+    import pandas as pd
+
     if not performance_metrics:
         return 0.0
 

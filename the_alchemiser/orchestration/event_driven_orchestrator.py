@@ -732,11 +732,26 @@ class EventDrivenOrchestrator:
 
         """
         from the_alchemiser.shared.events.schemas import TradingNotificationRequested
+        from the_alchemiser.shared.schemas.execution_report_data import ExecutionReportData
 
         mode_str = "LIVE" if not self.container.config.paper_trading() else "PAPER"
         execution_data = self._prepare_execution_data(event, success=success)
         total_trade_value = self._extract_trade_value(execution_data)
         error_message, error_code = self._extract_error_details(event, success=success)
+
+        # Build ExecutionReportData for report generator (pre-computed, self-contained)
+        report_data = ExecutionReportData.from_trading_notification(
+            trading_mode=mode_str,
+            trading_success=success,
+            orders_placed=event.orders_placed,
+            orders_succeeded=event.orders_succeeded,
+            total_trade_value=str(total_trade_value),
+            execution_data=execution_data,
+            correlation_id=event.correlation_id,
+            timestamp=datetime.now(UTC).isoformat(),
+            error_message=error_message,
+            error_code=error_code,
+        )
 
         return TradingNotificationRequested(
             correlation_id=event.correlation_id,
@@ -753,6 +768,10 @@ class EventDrivenOrchestrator:
             execution_data=execution_data,
             error_message=error_message,
             error_code=error_code,
+            # Include report data in metadata for report generator lambda
+            metadata={
+                "report_data": report_data.model_dump(),
+            },
         )
 
     def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
