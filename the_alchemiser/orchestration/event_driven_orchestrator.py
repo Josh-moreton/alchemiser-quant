@@ -20,6 +20,7 @@ from uuid import uuid4
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
+    from the_alchemiser.shared.events.schemas import TradingNotificationRequested
 
 from the_alchemiser.shared.errors import (
     ConfigurationError,
@@ -720,7 +721,9 @@ class EventDrivenOrchestrator:
 
     def _build_trading_notification(
         self, event: TradeExecuted, *, success: bool
-    ) -> BaseEvent:  # Returns TradingNotificationRequested which inherits from BaseEvent
+    ) -> (
+        TradingNotificationRequested
+    ):  # Returns TradingNotificationRequested which inherits from BaseEvent
         """Build trading notification event from trade execution event.
 
         Args:
@@ -775,7 +778,7 @@ class EventDrivenOrchestrator:
         )
 
     def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
-        """Send trading completion notification via event bus.
+        """Send trading completion notification via event bus and invoke report generator.
 
         Args:
             event: The TradeExecuted event
@@ -790,6 +793,9 @@ class EventDrivenOrchestrator:
                 f"Trading notification event published successfully (success={success})",
                 extra={"correlation_id": event.correlation_id},
             )
+
+            # Invoke report generator Lambda asynchronously with the notification event
+            self._invoke_report_generator_lambda(trading_event, event.correlation_id)
 
         except (ValidationError, TypeError, AttributeError) as e:
             # Event construction or data errors - log but don't break workflow
@@ -807,6 +813,54 @@ class EventDrivenOrchestrator:
                 exc_info=True,
                 extra={
                     "correlation_id": event.correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+
+    def _invoke_report_generator_lambda(
+        self,
+        trading_event: TradingNotificationRequested,
+        correlation_id: str,
+    ) -> None:
+        """Invoke report generator Lambda asynchronously.
+
+        Args:
+            trading_event: The TradingNotificationRequested event
+            correlation_id: Correlation ID for tracing
+
+        """
+        try:
+            import json
+
+            import boto3
+
+            # Convert event to dict for Lambda invocation
+            event_dict = trading_event.model_dump()
+
+            # Get Lambda function name from environment or build from config
+            report_generator_function = (
+                self.container.config.get_config("REPORT_GENERATOR_FUNCTION_NAME")
+                or f"the-alchemiser-report-generator-{self.container.config.environment()}"
+            )
+
+            lambda_client = boto3.client("lambda", region_name="us-east-1")
+            lambda_client.invoke(
+                FunctionName=report_generator_function,
+                InvocationType="Event",  # Asynchronous invocation
+                Payload=json.dumps(event_dict),
+            )
+
+            self.logger.info(
+                f"Report generator Lambda invoked asynchronously: {report_generator_function}",
+                extra={"correlation_id": correlation_id},
+            )
+
+        except Exception as e:
+            # Lambda invocation failures should not break main workflow
+            self.logger.warning(
+                f"Failed to invoke report generator Lambda: {e}",
+                extra={
+                    "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
                 },
             )
