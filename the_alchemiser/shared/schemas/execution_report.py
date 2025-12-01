@@ -63,7 +63,7 @@ class ExecutedOrder(BaseModel):
 
     # Schema version for evolution
     schema_version: str = Field(
-        default="1.0",
+        default=CONTRACT_VERSION,
         frozen=True,
         description="Schema version for DTO evolution",
     )
@@ -184,7 +184,7 @@ class ExecutionReport(BaseModel):
 
     # Schema version for evolution
     schema_version: str = Field(
-        default="1.0",
+        default=CONTRACT_VERSION,
         frozen=True,
         description="Schema version for DTO evolution",
     )
