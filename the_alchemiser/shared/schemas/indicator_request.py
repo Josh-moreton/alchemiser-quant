@@ -15,6 +15,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
+
 # Type aliases for indicator types
 IndicatorType = Literal[
     "rsi",
@@ -37,6 +39,8 @@ class IndicatorRequest(BaseModel):
     from indicator calculation services.
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
@@ -45,7 +49,9 @@ class IndicatorRequest(BaseModel):
     )
 
     # Schema version
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description="DTO schema version"
+    )
 
     # Request identification
     request_id: str = Field(..., min_length=1, description="Unique request identifier")
@@ -178,6 +184,8 @@ class PortfolioFragment(BaseModel):
     that need to be combined into final portfolio allocations.
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
@@ -186,7 +194,9 @@ class PortfolioFragment(BaseModel):
     )
 
     # Schema version
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description="DTO schema version"
+    )
 
     # Fragment identification
     fragment_id: str = Field(..., min_length=1, description="Unique fragment identifier")

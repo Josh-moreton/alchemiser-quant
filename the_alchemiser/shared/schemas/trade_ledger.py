@@ -15,6 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -25,6 +26,8 @@ class TradeLedgerEntry(BaseModel):
     Designed to handle cases where data may be partially available without blocking
     the recording of core trade information.
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,
@@ -106,6 +109,8 @@ class TradeLedger(BaseModel):
     Maintains a list of all recorded trades with metadata for tracking
     and analysis purposes.
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

@@ -16,6 +16,7 @@ from typing import TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..constants import CONTRACT_VERSION
 from ..logging import get_logger
 from ..utils.timezone_utils import ensure_timezone_aware
 
@@ -64,6 +65,8 @@ class ConsolidatedPortfolio(BaseModel):
 
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
@@ -90,7 +93,7 @@ class ConsolidatedPortfolio(BaseModel):
 
     # Schema versioning
     schema_version: str = Field(
-        default="1.0.0", description="Schema version for evolution tracking"
+        default=CONTRACT_VERSION, description="Schema version for evolution tracking"
     )
 
     # Optional context

@@ -15,6 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..constants import CONTRACT_VERSION
 # Type aliases for string enums
 OrderAction = Literal["BUY", "SELL"]
 ExecutionStatus = Literal["SUCCESS", "FAILURE", "PARTIAL"]
@@ -51,6 +52,8 @@ class OrderResultSummary(BaseModel):
         ... )
 
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,
@@ -100,6 +103,8 @@ class ExecutionSummary(BaseModel):
         ... )
 
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,
@@ -157,6 +162,8 @@ class TradeRunResult(BaseModel):
         ... )
 
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

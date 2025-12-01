@@ -21,6 +21,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
 from ..types.percentage import Percentage
 from ..utils.timezone_utils import ensure_timezone_aware
 from ..value_objects.symbol import Symbol
@@ -88,6 +89,8 @@ class StrategySignal(BaseModel):
         ValueError: If symbol validation fails
 
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

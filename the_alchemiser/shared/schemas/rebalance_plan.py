@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
 from ..utils.data_conversion import (
     convert_datetime_fields_from_dict,
     convert_decimal_fields_from_dict,
@@ -32,6 +33,8 @@ class RebalancePlanItem(BaseModel):
         validate_assignment=True,
         str_strip_whitespace=True,
     )
+
+    __schema_version__: str = CONTRACT_VERSION
 
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
     current_weight: Decimal = Field(..., ge=0, le=1, description="Current portfolio weight (0-1)")
@@ -77,7 +80,8 @@ class RebalancePlan(BaseModel):
     )
 
     # Schema versioning for evolution tracking
-    schema_version: str = Field(default="1.0", description="DTO schema version")
+    __schema_version__: str = CONTRACT_VERSION
+    schema_version: str = Field(default=CONTRACT_VERSION, description="DTO schema version")
 
     # Required correlation fields
     correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")

@@ -15,6 +15,7 @@ from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..constants import CONTRACT_VERSION
 from ..logging import get_logger
 from ..utils.timezone_utils import ensure_timezone_aware
 
@@ -55,6 +56,8 @@ class MarketBar(BaseModel):
 
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
@@ -63,7 +66,9 @@ class MarketBar(BaseModel):
     )
 
     # Schema versioning for evolution tracking
-    schema_version: str = Field(default="1.0", description="Schema version for compatibility")
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description="Schema version for compatibility"
+    )
 
     # Bar identification
     timestamp: datetime = Field(..., description="Bar timestamp")

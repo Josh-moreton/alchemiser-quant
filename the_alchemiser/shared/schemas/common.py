@@ -20,6 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..constants import CONTRACT_VERSION
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
 from the_alchemiser.shared.value_objects.core_types import (
@@ -77,6 +78,8 @@ class AllocationComparison(BaseModel):
     Provides precise comparison of target vs current allocations with calculated deltas.
     All values use Decimal to maintain financial precision per Alchemiser guardrails.
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

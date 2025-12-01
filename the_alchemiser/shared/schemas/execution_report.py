@@ -17,6 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
+from ..constants import CONTRACT_VERSION
 from ..utils.data_conversion import (
     convert_datetime_fields_from_dict,
     convert_datetime_fields_to_dict,
@@ -50,6 +51,8 @@ class ExecutedOrder(BaseModel):
         ... )
 
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

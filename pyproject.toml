@@ -80,6 +80,15 @@ type = "forbidden"
 source_modules = [ "the_alchemiser",]
 forbidden_modules = [ "the_alchemiser.shared.dto",]
 
+[[tool.importlinter.contracts]]
+name = "Shared-only cross-module coupling"
+type = "independence"
+modules = [
+    "the_alchemiser.strategy_v2",
+    "the_alchemiser.portfolio_v2",
+    "the_alchemiser.execution_v2",
+]
+
 [tool.bandit]
 exclude_dirs = [ "tests/", ".venv/", "build/", "dist/",]
 skips = [ "B101", "B311", "B601", "B602",]

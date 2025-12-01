@@ -14,7 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..constants import EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
+from ..constants import CONTRACT_VERSION, EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
 from ..errors import ValidationError
 from ..utils.timezone_utils import ensure_timezone_aware
 
@@ -25,6 +25,9 @@ class BaseEvent(BaseModel):
     Provides common fields for correlation tracking, timing, and metadata.
     All specific events should inherit from this class.
     """
+
+    # Semantic event contract version for compatibility checks
+    __event_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,
