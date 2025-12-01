@@ -1,18 +1,27 @@
-"""Transport adapters for the execution module."""
+"""Business Unit: Execution | Status: current.
+
+Transport adapters for the execution module.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.events.base import BaseEvent
+    from the_alchemiser.shared.events.handlers import EventHandler
 
 
 class EventTransport(Protocol):
     """Protocol for event-style transports used by the execution module."""
 
-    def publish(self, event: Any) -> None:  # pragma: no cover - protocol
+    def publish(self, event: BaseEvent) -> None:  # pragma: no cover - protocol
         ...
 
-    def subscribe(self, event_type: str, handler: Any) -> None:  # pragma: no cover - protocol
+    def subscribe(
+        self, event_type: str, handler: EventHandler
+    ) -> None:  # pragma: no cover - protocol
         ...
 
 
@@ -36,4 +45,3 @@ def build_execution_transports(container: Any) -> ExecutionTransports:
 
     event_bus = container.services.event_bus()
     return ExecutionTransports(event_bus=event_bus, http_client=None)
-

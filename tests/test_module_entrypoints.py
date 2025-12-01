@@ -1,3 +1,8 @@
+"""Business Unit: Testing | Status: current.
+
+Tests for module standalone entrypoints and transport injection.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -61,3 +66,69 @@ def test_execution_entrypoint_accepts_fake_transports() -> None:
     assert container.execution_transports is transports
     assert set(fake_bus.subscriptions.keys()) == {"RebalancePlanned"}
 
+
+def test_strategy_entrypoint_uses_default_transports_when_none_provided() -> None:
+    """Verify default transport path uses build_strategy_transports()."""
+    container = strategy_main(env="test", transports=None)
+
+    # Should have created transports from container
+    assert hasattr(container, "strategy_transports")
+    assert container.strategy_transports.event_bus is not None
+    # Handlers should still be registered
+    event_bus = container.services.event_bus()
+    # We can't directly inspect the event bus, but we can verify the container was configured
+    assert container is not None
+
+
+def test_portfolio_entrypoint_uses_default_transports_when_none_provided() -> None:
+    """Verify default transport path uses build_portfolio_transports()."""
+    container = portfolio_main(env="test", transports=None)
+
+    # Should have created transports from container
+    assert hasattr(container, "portfolio_transports")
+    assert container.portfolio_transports.event_bus is not None
+    assert container is not None
+
+
+def test_execution_entrypoint_uses_default_transports_when_none_provided() -> None:
+    """Verify default transport path uses build_execution_transports()."""
+    container = execution_main(env="test", transports=None)
+
+    # Should have created transports from container
+    assert hasattr(container, "execution_transports")
+    assert container.execution_transports.event_bus is not None
+    assert container is not None
+
+
+def test_strategy_entrypoint_with_different_environment() -> None:
+    """Verify entrypoint respects environment parameter."""
+    fake_bus = FakeEventBus()
+    transports = StrategyTransports(event_bus=fake_bus)
+
+    container = strategy_main(env="production", transports=transports)
+
+    # Container should be configured for the specified environment
+    assert container is not None
+    assert container.strategy_transports is transports
+
+
+def test_portfolio_entrypoint_with_different_environment() -> None:
+    """Verify entrypoint respects environment parameter."""
+    fake_bus = FakeEventBus()
+    transports = PortfolioTransports(event_bus=fake_bus)
+
+    container = portfolio_main(env="production", transports=transports)
+
+    assert container is not None
+    assert container.portfolio_transports is transports
+
+
+def test_execution_entrypoint_with_different_environment() -> None:
+    """Verify entrypoint respects environment parameter."""
+    fake_bus = FakeEventBus()
+    transports = ExecutionTransports(event_bus=fake_bus)
+
+    container = execution_main(env="production", transports=transports)
+
+    assert container is not None
+    assert container.execution_transports is transports

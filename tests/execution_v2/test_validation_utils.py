@@ -159,14 +159,10 @@ class TestStrictQuoteValidation:
         """Test that zero sizes raise ValueError when required."""
         # Zero sizes with require_positive_sizes=True
         with pytest.raises(ValueError, match="Both sizes must be positive"):
-            validate_quote_for_trading(
-                "TEST", 100.0, 100.05, 0, 100, require_positive_sizes=True
-            )
+            validate_quote_for_trading("TEST", 100.0, 100.05, 0, 100, require_positive_sizes=True)
 
         with pytest.raises(ValueError, match="Both sizes must be positive"):
-            validate_quote_for_trading(
-                "TEST", 100.0, 100.05, 100, 0, require_positive_sizes=True
-            )
+            validate_quote_for_trading("TEST", 100.0, 100.05, 100, 0, require_positive_sizes=True)
 
         # Zero sizes allowed when require_positive_sizes=False
         validate_quote_for_trading("TEST", 100.0, 100.05, 0, 0, require_positive_sizes=False)

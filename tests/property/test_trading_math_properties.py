@@ -102,9 +102,7 @@ class TestPositionSizeCalculation:
         account_value=st.decimals(min_value="100", max_value="1000000", places=2, allow_nan=False),
     )
     @settings(max_examples=100)
-    def test_zero_weight_gives_zero_shares(
-        self, price: Decimal, account_value: Decimal
-    ) -> None:
+    def test_zero_weight_gives_zero_shares(self, price: Decimal, account_value: Decimal) -> None:
         """Zero weight should give zero shares."""
         from the_alchemiser.shared.math.trading_math import calculate_position_size_decimal
 
@@ -150,7 +148,7 @@ class TestAllocationDiscrepancy:
         self, target_weight: Decimal, current_value: Decimal, portfolio_value: Decimal
     ) -> None:
         """Weight difference should always be between -current_weight and target_weight.
-        
+
         Note: Weight diff can be outside [-1, 1] if current_value > portfolio_value
         (over-allocated position) or current_value < 0 (shouldn't happen in practice).
         """
@@ -246,13 +244,13 @@ class TestRebalanceInvariants:
         self, weights: list[Decimal], portfolio_value: Decimal
     ) -> None:
         """Total SELL value should be >= total BUY value due to cash reserve.
-        
+
         The rebalancing function intentionally reserves cash (typically 1-5%)
         for market fluctuations and buying power safety. This means:
         - Target values use effective_portfolio_value (with cash reserve)
         - But current values are based on total_portfolio_value
         - Result: sells from overweight positions exceed buys into underweight positions
-        
+
         This is CORRECT BUSINESS BEHAVIOR, not a bug.
         """
         from the_alchemiser.shared.math.trading_math import calculate_rebalance_amounts_decimal
@@ -368,9 +366,7 @@ class TestDailyTradeLimitService:
         trade_value=st.decimals(min_value="0", max_value="100000", places=2, allow_nan=False),
     )
     @settings(max_examples=100, deadline=None)
-    def test_limit_check_is_consistent(
-        self, daily_limit: Decimal, trade_value: Decimal
-    ) -> None:
+    def test_limit_check_is_consistent(self, daily_limit: Decimal, trade_value: Decimal) -> None:
         """Limit check result should be consistent with headroom calculation."""
         from the_alchemiser.execution_v2.services.daily_trade_limit_service import (
             DailyTradeLimitService,

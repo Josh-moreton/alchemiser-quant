@@ -314,10 +314,14 @@ class TestPortfolioFragment:
 
         # Should be idempotent
         assert math.isclose(
-            float(normalized_once.weights["AAPL"]), float(normalized_twice.weights["AAPL"]), abs_tol=1e-9
+            float(normalized_once.weights["AAPL"]),
+            float(normalized_twice.weights["AAPL"]),
+            abs_tol=1e-9,
         )
         assert math.isclose(
-            float(normalized_once.weights["GOOGL"]), float(normalized_twice.weights["GOOGL"]), abs_tol=1e-9
+            float(normalized_once.weights["GOOGL"]),
+            float(normalized_twice.weights["GOOGL"]),
+            abs_tol=1e-9,
         )
 
     def test_normalize_weights_preserves_other_fields(self) -> None:

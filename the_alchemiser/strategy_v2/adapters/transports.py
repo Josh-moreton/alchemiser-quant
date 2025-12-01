@@ -1,4 +1,6 @@
-"""Transport adapters for the strategy module.
+"""Business Unit: Strategy | Status: current.
+
+Transport adapters for the strategy module.
 
 These adapters wrap shared infrastructure clients so the strategy module
 can swap transports (e.g., in-memory event bus vs. HTTP gateway) without
@@ -9,16 +11,22 @@ to make test bootstrapping easy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.events.base import BaseEvent
+    from the_alchemiser.shared.events.handlers import EventHandler
 
 
 class EventTransport(Protocol):
     """Protocol for event-style transports used by the strategy module."""
 
-    def publish(self, event: Any) -> None:  # pragma: no cover - protocol
+    def publish(self, event: BaseEvent) -> None:  # pragma: no cover - protocol
         ...
 
-    def subscribe(self, event_type: str, handler: Any) -> None:  # pragma: no cover - protocol
+    def subscribe(
+        self, event_type: str, handler: EventHandler
+    ) -> None:  # pragma: no cover - protocol
         ...
 
 
@@ -48,4 +56,3 @@ def build_strategy_transports(container: Any) -> StrategyTransports:
 
     event_bus = container.services.event_bus()
     return StrategyTransports(event_bus=event_bus, http_client=None)
-

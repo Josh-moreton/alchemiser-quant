@@ -615,9 +615,7 @@ class Executor:
         # Record successful trades against daily limit for circuit breaker tracking
         for order in orders:
             if order.success and order.trade_amount > Decimal("0"):
-                self.daily_trade_limit_service.record_trade(
-                    order.trade_amount, plan.correlation_id
-                )
+                self.daily_trade_limit_service.record_trade(order.trade_amount, plan.correlation_id)
 
         # Classify execution status
         success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)

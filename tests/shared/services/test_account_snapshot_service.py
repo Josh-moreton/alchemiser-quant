@@ -83,9 +83,7 @@ class TestAccountSnapshotService:
     @pytest.fixture
     def service(self, mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository):
         """Create AccountSnapshotService with mocked dependencies."""
-        return AccountSnapshotService(
-            mock_alpaca_manager, mock_snapshot_repository
-        )
+        return AccountSnapshotService(mock_alpaca_manager, mock_snapshot_repository)
 
     def test_generate_snapshot_creates_valid_snapshot(
         self,
@@ -101,9 +99,7 @@ class TestAccountSnapshotService:
         period_end = datetime(2025, 1, 15, 23, 59, 59, tzinfo=UTC)
         ledger_id = "ledger-123"
 
-        snapshot = service.generate_snapshot(
-            account_id, correlation_id, period_start, period_end
-        )
+        snapshot = service.generate_snapshot(account_id, correlation_id, period_start, period_end)
 
         # Verify snapshot properties
         assert snapshot.account_id == account_id
@@ -205,7 +201,9 @@ class TestAccountSnapshotService:
         ledger_id = "ledger-123"
 
         with pytest.raises(ValueError, match="Failed to fetch Alpaca account data"):
-            service.generate_snapshot(account_id, correlation_id, period_start, period_end, ledger_id)
+            service.generate_snapshot(
+                account_id, correlation_id, period_start, period_end, ledger_id
+            )
 
     def test_generate_snapshot_handles_positions(
         self, service, mock_alpaca_manager, mock_snapshot_repository, mock_ledger_repository

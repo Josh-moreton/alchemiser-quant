@@ -360,7 +360,9 @@ class PhaseExecutor:
                 extra={
                     "symbol": item.symbol,
                     "order_value": float(order_value),
-                    "portfolio_value": float(self._portfolio_value) if self._portfolio_value else None,
+                    "portfolio_value": float(self._portfolio_value)
+                    if self._portfolio_value
+                    else None,
                     "error_code": size_validation.error_code,
                 },
             )

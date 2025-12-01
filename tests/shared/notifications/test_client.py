@@ -135,7 +135,9 @@ class TestEmailClientSendNotification:
         )
 
     @patch("the_alchemiser.shared.notifications.client.smtplib.SMTP")
-    def test_send_notification_without_attachments(self, mock_smtp, email_client, mock_email_config):
+    def test_send_notification_without_attachments(
+        self, mock_smtp, email_client, mock_email_config
+    ):
         """Test sending notification without attachments."""
         email_client._config = mock_email_config
 

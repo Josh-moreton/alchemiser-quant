@@ -76,9 +76,7 @@ class TestEventValidation:
         """Validate that execution report requires execution_data and trading_mode."""
         from the_alchemiser.reporting.lambda_handler import _validate_event
 
-        with pytest.raises(
-            ValueError, match="Missing required fields for execution report"
-        ):
+        with pytest.raises(ValueError, match="Missing required fields for execution report"):
             _validate_event({"generate_from_execution": True})
 
     def test_validate_event_execution_report_valid(self) -> None:

@@ -189,7 +189,9 @@ class TestNaturalLanguageGenerator:
         # Should filter out reserved words and indicator names
         assert generator._extract_symbol_from_string("IF THEN ELSE") == ""
         assert generator._extract_symbol_from_string("RSI MA EMA") == ""  # All filtered
-        assert generator._extract_symbol_from_string("SPY AND TQQQ") == "SPY"  # Gets first valid symbol
+        assert (
+            generator._extract_symbol_from_string("SPY AND TQQQ") == "SPY"
+        )  # Gets first valid symbol
 
     def test_compose_narrative(self, generator):
         """Test narrative composition."""

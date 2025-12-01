@@ -195,9 +195,7 @@ class ExecutionValidator:
         # may require 100% allocation to a single position, which is acceptable since
         # the underlying assets are already diversified.
 
-        logger.debug(
-            f"{log_prefix} Order size validated for {symbol}: ${order_value}"
-        )
+        logger.debug(f"{log_prefix} Order size validated for {symbol}: ${order_value}")
         return OrderValidationResult(is_valid=True, correlation_id=correlation_id)
 
     def _validate_non_fractionable_order(
