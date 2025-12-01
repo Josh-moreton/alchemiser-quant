@@ -53,6 +53,5 @@ def build_strategy_transports(container: Any) -> StrategyTransports:
     allows callers to supply an HTTP gateway if needed (for example, when the
     event bus is remote).
     """
-
     event_bus = container.services.event_bus()
     return StrategyTransports(event_bus=event_bus, http_client=None)

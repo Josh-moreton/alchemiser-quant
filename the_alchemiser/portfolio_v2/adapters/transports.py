@@ -42,6 +42,5 @@ class PortfolioTransports:
 
 def build_portfolio_transports(container: Any) -> PortfolioTransports:
     """Build default transports from the shared container."""
-
     event_bus = container.services.event_bus()
     return PortfolioTransports(event_bus=event_bus, http_client=None)

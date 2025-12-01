@@ -14,10 +14,11 @@ This is critical for live trading to prevent runaway execution during Alpaca out
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from the_alchemiser.shared.errors.exceptions import TradingClientError
 from the_alchemiser.shared.logging import get_logger

@@ -16,7 +16,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..constants import CONTRACT_VERSION
-
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
