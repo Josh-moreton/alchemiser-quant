@@ -18,6 +18,8 @@ from threading import Lock
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
+import httpx
+
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
@@ -57,7 +59,9 @@ class EventDrivenOrchestrator:
     for event-driven architecture.
     """
 
-    def __init__(self, container: ApplicationContainer) -> None:
+    def __init__(
+        self, container: ApplicationContainer, *, http_client: httpx.Client | None = None
+    ) -> None:
         """Initialize the event-driven orchestrator.
 
         Args:
@@ -67,6 +71,26 @@ class EventDrivenOrchestrator:
         self.container = container
         self.logger = get_logger(__name__)
 
+        # Load settings for HTTP orchestration toggles
+        self.settings = self.container.config.settings()
+        self.orchestration_settings = getattr(self.settings, "orchestration", None)
+        self.use_http_domain_workflow = bool(
+            getattr(self.orchestration_settings, "use_http_domain_workflow", False)
+        )
+        self.http_endpoints: dict[str, str] = {
+            "strategy": getattr(self.orchestration_settings, "strategy_endpoint", ""),
+            "portfolio": getattr(self.orchestration_settings, "portfolio_endpoint", ""),
+            "execution": getattr(self.orchestration_settings, "execution_endpoint", ""),
+        }
+        self.http_max_retries = int(
+            getattr(self.orchestration_settings, "http_max_retries", 3)
+        )
+        self.http_retry_backoff = float(
+            getattr(self.orchestration_settings, "http_retry_backoff_seconds", 0.5)
+        )
+        self.http_client = http_client or httpx.Client(timeout=10.0)
+        self._http_idempotency_cache: set[tuple[str, str]] = set()
+
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
 
@@ -74,6 +98,9 @@ class EventDrivenOrchestrator:
         # Use cast to align specific handler signatures with BaseEvent for dispatching
         self._event_handlers: dict[type[BaseEvent], TypingCallable[[BaseEvent], None]] = {
             StartupEvent: cast(TypingCallable[[BaseEvent], None], self._handle_startup),
+            WorkflowStarted: cast(
+                TypingCallable[[BaseEvent], None], self._handle_workflow_started
+            ),
             SignalGenerated: cast(TypingCallable[[BaseEvent], None], self._handle_signal_generated),
             RebalancePlanned: cast(
                 TypingCallable[[BaseEvent], None], self._handle_rebalance_planned
@@ -89,9 +116,14 @@ class EventDrivenOrchestrator:
         # before domain handlers process events (critical for data flow)
         self._register_handlers()
 
-        # Register domain handlers using module registration functions
+        # Register domain handlers using module registration functions unless HTTP workflow is enabled
         # These run AFTER orchestrator handlers, so they can access workflow_results
-        self._register_domain_handlers()
+        if not self.use_http_domain_workflow:
+            self._register_domain_handlers()
+        else:
+            self.logger.info(
+                "HTTP domain workflow enabled - skipping in-process handler registration"
+            )
 
         # Track workflow state for monitoring and recovery
         self.workflow_state: dict[str, Any] = {
@@ -425,6 +457,127 @@ class EventDrivenOrchestrator:
             "WorkflowFailed",
         ]
 
+    def _post_with_retries(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Post to an endpoint with retry and idempotency safeguards."""
+
+        request_key = (url, str(payload.get("event_id") or payload.get("causation_id", "")))
+        if request_key in self._http_idempotency_cache:
+            self.logger.debug(
+                "Skipping duplicate HTTP call (idempotency guard)",
+                extra={"endpoint": url, "payload_event_id": payload.get("event_id")},
+            )
+            return {}
+
+        last_error: Exception | None = None
+        for attempt in range(1, self.http_max_retries + 1):
+            try:
+                response = self.http_client.post(url, json=payload)
+                response.raise_for_status()
+                self._http_idempotency_cache.add(request_key)
+                return cast(dict[str, Any], response.json())
+            except Exception as exc:  # pragma: no cover - defensive logging
+                last_error = exc
+                self.logger.warning(
+                    "HTTP call failed - retrying",
+                    extra={
+                        "endpoint": url,
+                        "attempt": attempt,
+                        "max_attempts": self.http_max_retries,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                time.sleep(self.http_retry_backoff)
+
+        if last_error:
+            raise last_error
+
+        return {}
+
+    def _deserialize_event_from_payload(self, payload: dict[str, Any]) -> BaseEvent | None:
+        """Deserialize event payload into event object based on event_type."""
+
+        event_data = payload.get("event") if "event" in payload else payload
+        if not isinstance(event_data, dict):
+            return None
+
+        timestamp_value = event_data.get("timestamp")
+        if isinstance(timestamp_value, str):
+            try:
+                event_data["timestamp"] = datetime.fromisoformat(
+                    timestamp_value.replace("Z", "+00:00")
+                )
+            except ValueError:
+                self.logger.warning(
+                    "Failed to parse timestamp from HTTP payload", extra={"value": timestamp_value}
+                )
+
+        if event_data.get("event_type") == "RebalancePlanned":
+            plan_data = event_data.get("rebalance_plan")
+            if isinstance(plan_data, dict):
+                plan_timestamp = plan_data.get("timestamp")
+                if isinstance(plan_timestamp, str):
+                    try:
+                        plan_data["timestamp"] = datetime.fromisoformat(
+                            plan_timestamp.replace("Z", "+00:00")
+                        )
+                    except ValueError:
+                        self.logger.debug(
+                            "Skipping plan timestamp normalization", extra={"value": plan_timestamp}
+                        )
+
+                for field_name in (
+                    "total_portfolio_value",
+                    "total_trade_value",
+                    "max_drift_tolerance",
+                ):
+                    if isinstance(plan_data.get(field_name), str):
+                        plan_data[field_name] = Decimal(plan_data[field_name])
+
+                items = plan_data.get("items")
+                if isinstance(items, list):
+                    for item in items:
+                        if not isinstance(item, dict):
+                            continue
+                        for field_name in (
+                            "current_weight",
+                            "target_weight",
+                            "weight_diff",
+                            "target_value",
+                            "current_value",
+                            "trade_amount",
+                        ):
+                            if isinstance(item.get(field_name), str):
+                                item[field_name] = Decimal(item[field_name])
+
+            allocation_comparison = event_data.get("allocation_comparison")
+            if isinstance(allocation_comparison, dict):
+                for key in ("target_values", "current_values", "deltas"):
+                    values = allocation_comparison.get(key)
+                    if isinstance(values, dict):
+                        for symbol, value in values.items():
+                            if isinstance(value, str):
+                                values[symbol] = Decimal(value)
+
+        event_type = event_data.get("event_type")
+        if event_type == "SignalGenerated":
+            return SignalGenerated(**event_data)
+        if event_type == "RebalancePlanned":
+            return RebalancePlanned(**event_data)
+        if event_type == "TradeExecuted":
+            return TradeExecuted(**event_data)
+        if event_type == "WorkflowFailed":
+            return WorkflowFailed(**event_data)
+        if event_type == "WorkflowCompleted":
+            return WorkflowCompleted(**event_data)
+        return None
+
+    def _publish_http_event(self, payload: dict[str, Any]) -> None:
+        """Publish an event derived from HTTP response payload to the event bus."""
+
+        event = self._deserialize_event_from_payload(payload)
+        if event:
+            self.event_bus.publish(event)
+
     def _handle_startup(self, event: StartupEvent) -> None:
         """Handle system startup event for monitoring and coordination.
 
@@ -456,6 +609,34 @@ class EventDrivenOrchestrator:
         # Track successful startup
         self.workflow_state["last_successful_workflow"] = "startup"
 
+    def _handle_workflow_started(self, event: WorkflowStarted) -> None:
+        """Handle workflow started event and delegate to strategy endpoint when enabled."""
+
+        self.workflow_state["active_correlations"].add(event.correlation_id)
+
+        if not self.use_http_domain_workflow:
+            return
+
+        strategy_endpoint = self.http_endpoints.get("strategy")
+        if not strategy_endpoint:
+            self.logger.warning(
+                "HTTP workflow enabled but strategy endpoint not configured",
+                extra={"correlation_id": event.correlation_id},
+            )
+            return
+
+        payload = {
+            "correlation_id": event.correlation_id,
+            "causation_id": event.event_id,
+            "event_type": event.event_type,
+            "event_id": f"strategy-request-{uuid4()}",
+            "trigger_event": event.model_dump(mode="json"),
+        }
+
+        response_payload = self._post_with_retries(strategy_endpoint, payload)
+        if response_payload:
+            self._publish_http_event(response_payload)
+
     def _handle_signal_generated(self, event: SignalGenerated) -> None:
         """Handle signal generation event for monitoring.
 
@@ -469,6 +650,25 @@ class EventDrivenOrchestrator:
                 f"🚫 Skipping signal generation monitoring - workflow {event.correlation_id} already failed"
             )
             return
+
+        if self.use_http_domain_workflow:
+            portfolio_endpoint = self.http_endpoints.get("portfolio")
+            if portfolio_endpoint:
+                payload = {
+                    "correlation_id": event.correlation_id,
+                    "causation_id": event.event_id,
+                    "event_type": event.event_type,
+                    "event_id": f"portfolio-request-{uuid4()}",
+                    "trigger_event": event.model_dump(mode="json"),
+                }
+                response_payload = self._post_with_retries(portfolio_endpoint, payload)
+                if response_payload:
+                    self._publish_http_event(response_payload)
+            else:
+                self.logger.warning(
+                    "HTTP workflow enabled but portfolio endpoint not configured",
+                    extra={"correlation_id": event.correlation_id},
+                )
 
         self.logger.debug(
             f"📊 EventDrivenOrchestrator: Monitoring signal generation - {event.signal_count} signals"
@@ -513,6 +713,25 @@ class EventDrivenOrchestrator:
                 f"🚫 Skipping rebalance planning monitoring - workflow {event.correlation_id} already failed"
             )
             return
+
+        if self.use_http_domain_workflow:
+            execution_endpoint = self.http_endpoints.get("execution")
+            if execution_endpoint:
+                payload = {
+                    "correlation_id": event.correlation_id,
+                    "causation_id": event.event_id,
+                    "event_type": event.event_type,
+                    "event_id": f"execution-request-{uuid4()}",
+                    "trigger_event": event.model_dump(mode="json"),
+                }
+                response_payload = self._post_with_retries(execution_endpoint, payload)
+                if response_payload:
+                    self._publish_http_event(response_payload)
+            else:
+                self.logger.warning(
+                    "HTTP workflow enabled but execution endpoint not configured",
+                    extra={"correlation_id": event.correlation_id},
+                )
 
         self.logger.debug(
             f"⚖️ EventDrivenOrchestrator: Monitoring rebalance planning - trades required: {event.trades_required}"
