@@ -1,7 +1,12 @@
 """Contract compatibility checks for strategy_v2 event and schema usage."""
 
 from the_alchemiser.shared.constants import CONTRACT_VERSION
-from the_alchemiser.shared.events import SignalGenerated, StartupEvent, WorkflowFailed, WorkflowStarted
+from the_alchemiser.shared.events import (
+    SignalGenerated,
+    StartupEvent,
+    WorkflowFailed,
+    WorkflowStarted,
+)
 from the_alchemiser.shared.events.dsl_events import (
     FilterEvaluated,
     IndicatorComputed,

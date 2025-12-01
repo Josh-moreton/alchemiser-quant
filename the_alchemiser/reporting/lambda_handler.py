@@ -48,6 +48,7 @@ def _create_event_bus() -> EventBus:
     """
     return EventBus()
 
+
 __all__ = ["lambda_handler", "_create_event_bus"]
 
 

@@ -28,7 +28,9 @@ if TYPE_CHECKING:
 
 
 # Event-driven public API
-def register_strategy_handlers(container: ApplicationContainer) -> None:
+def register_strategy_handlers(
+    container: ApplicationContainer, event_bus: object | None = None
+) -> None:
     """Register strategy event handlers with the orchestration system.
 
     This is the primary integration point for the strategy module in
@@ -63,12 +65,12 @@ def register_strategy_handlers(container: ApplicationContainer) -> None:
                 config_value=str(type(container)),
             )
 
-        # Get event bus from container
+        # Get event bus from container unless an adapter is supplied
         logger.info(
             "Registering strategy event handlers",
             extra={"module": "strategy_v2", "component": "register_strategy_handlers"},
         )
-        event_bus = container.services.event_bus()
+        event_bus = event_bus or container.services.event_bus()
 
         # Initialize and register handlers
         signal_handler = SignalGenerationHandler(container)

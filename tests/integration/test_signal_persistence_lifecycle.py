@@ -51,14 +51,14 @@ class TestSignalPersistenceLifecycle:
         repo.update_signal_lifecycle = (
             DynamoDBTradeLedgerRepository.update_signal_lifecycle.__get__(repo)
         )
-        repo.query_signals_by_state = (
-            DynamoDBTradeLedgerRepository.query_signals_by_state.__get__(repo)
+        repo.query_signals_by_state = DynamoDBTradeLedgerRepository.query_signals_by_state.__get__(
+            repo
         )
         repo.compute_signal_execution_rate = (
             DynamoDBTradeLedgerRepository.compute_signal_execution_rate.__get__(repo)
         )
-        repo._write_strategy_links = (
-            DynamoDBTradeLedgerRepository._write_strategy_links.__get__(repo)
+        repo._write_strategy_links = DynamoDBTradeLedgerRepository._write_strategy_links.__get__(
+            repo
         )
 
         return repo

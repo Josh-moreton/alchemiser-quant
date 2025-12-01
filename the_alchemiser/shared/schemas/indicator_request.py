@@ -49,9 +49,7 @@ class IndicatorRequest(BaseModel):
     )
 
     # Schema version
-    schema_version: str = Field(
-        default=CONTRACT_VERSION, description="DTO schema version"
-    )
+    schema_version: str = Field(default=CONTRACT_VERSION, description="DTO schema version")
 
     # Request identification
     request_id: str = Field(..., min_length=1, description="Unique request identifier")
@@ -194,9 +192,7 @@ class PortfolioFragment(BaseModel):
     )
 
     # Schema version
-    schema_version: str = Field(
-        default=CONTRACT_VERSION, description="DTO schema version"
-    )
+    schema_version: str = Field(default=CONTRACT_VERSION, description="DTO schema version")
 
     # Fragment identification
     fragment_id: str = Field(..., min_length=1, description="Unique fragment identifier")
@@ -215,7 +211,10 @@ class PortfolioFragment(BaseModel):
         default_factory=dict, description="Symbol weights in fragment"
     )
     total_weight: Decimal = Field(
-        default=Decimal("1.0"), ge=Decimal("0"), le=Decimal("1"), description="Total weight of fragment"
+        default=Decimal("1.0"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        description="Total weight of fragment",
     )
 
     # Metadata

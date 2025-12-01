@@ -293,9 +293,7 @@ class TestTradingNotificationHandling:
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test successful trading notification handling."""
-        mock_templates.simple_trading_notification.return_value = (
-            "<html>Success Report</html>"
-        )
+        mock_templates.simple_trading_notification.return_value = "<html>Success Report</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -361,7 +359,7 @@ class TestTradingNotificationHandling:
         # Verify simplified template was used
         mock_templates.simple_trading_notification.assert_called_once()
         call_args = mock_templates.simple_trading_notification.call_args
-        
+
         # Check template parameters
         assert call_args.kwargs["success"] is False
         assert call_args.kwargs["mode"] == "LIVE"
@@ -818,9 +816,7 @@ class TestMissingAndPartialData:
         mock_container: Mock,
     ) -> None:
         """Test successful trading notification with minimal execution data."""
-        mock_templates.simple_trading_notification.return_value = (
-            "<html>Success</html>"
-        )
+        mock_templates.simple_trading_notification.return_value = "<html>Success</html>"
         mock_send_email.return_value = True
         service = NotificationService(mock_container)
 
@@ -946,7 +942,7 @@ class TestPDFReportGeneration:
         # Setup Lambda mock
         mock_lambda_client = Mock()
         mock_boto_client.return_value = mock_lambda_client
-        
+
         # Mock Lambda response
         mock_lambda_response = {
             "status": "success",
@@ -957,14 +953,14 @@ class TestPDFReportGeneration:
             "file_size_bytes": 1024,
             "generation_time_ms": 1500,
         }
-        
+
         import json
         from io import BytesIO
-        
+
         mock_payload = Mock()
         mock_payload.read.return_value = json.dumps(mock_lambda_response).encode()
         mock_lambda_client.invoke.return_value = {"Payload": mock_payload}
-        
+
         mock_send_email.return_value = True
 
         # Create service and handle event
@@ -976,7 +972,7 @@ class TestPDFReportGeneration:
         call_kwargs = mock_lambda_client.invoke.call_args[1]
         assert call_kwargs["FunctionName"] == "the-alchemiser-report-generator-dev"
         assert call_kwargs["InvocationType"] == "RequestResponse"
-        
+
         # Verify Lambda event payload
         payload = json.loads(call_kwargs["Payload"])
         assert payload["generate_from_execution"] is True
@@ -1006,20 +1002,20 @@ class TestPDFReportGeneration:
         # Setup Lambda mock to return failure
         mock_lambda_client = Mock()
         mock_boto_client.return_value = mock_lambda_client
-        
+
         mock_lambda_response = {
             "status": "failed",
             "error": "ValidationError",
             "message": "Missing required field",
         }
-        
+
         import json
         from io import BytesIO
-        
+
         mock_payload = Mock()
         mock_payload.read.return_value = json.dumps(mock_lambda_response).encode()
         mock_lambda_client.invoke.return_value = {"Payload": mock_payload}
-        
+
         mock_send_email.return_value = True
 
         # Create service and handle event
@@ -1057,7 +1053,7 @@ class TestPDFReportGeneration:
             error_message="Execution failed",
             execution_data={},
         )
-        
+
         mock_send_email.return_value = True
 
         # Create service and handle event
@@ -1091,7 +1087,7 @@ class TestPDFReportGeneration:
             total_trade_value=5000.00,
             execution_data={},  # No execution data
         )
-        
+
         mock_send_email.return_value = True
 
         # Create service and handle event

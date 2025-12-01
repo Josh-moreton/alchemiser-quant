@@ -441,7 +441,11 @@ class DslStrategyEngine:
         """
         allocation, trace = self.dsl_engine.evaluate_strategy(filename, correlation_id)
         file_weight = normalized_file_weights.get(filename, Decimal("0"))
-        file_sum = sum(allocation.target_weights.values(), Decimal("0")) if allocation.target_weights else Decimal("0")
+        file_sum = (
+            sum(allocation.target_weights.values(), Decimal("0"))
+            if allocation.target_weights
+            else Decimal("0")
+        )
 
         per_file_weights: dict[str, Decimal] = {}
         for symbol, weight in allocation.target_weights.items():
@@ -461,7 +465,9 @@ class DslStrategyEngine:
                 "filename": filename,
                 "file_weight": str(file_weight),
                 "file_sum": str(file_sum),
-                "scaled_total": str(sum(per_file_weights.values()) if per_file_weights else Decimal("0")),
+                "scaled_total": str(
+                    sum(per_file_weights.values()) if per_file_weights else Decimal("0")
+                ),
                 "symbols": list(per_file_weights.keys()),
             },
         )

@@ -16,6 +16,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..constants import CONTRACT_VERSION
+
 # Type aliases for string enums
 OrderAction = Literal["BUY", "SELL"]
 ExecutionStatus = Literal["SUCCESS", "FAILURE", "PARTIAL"]

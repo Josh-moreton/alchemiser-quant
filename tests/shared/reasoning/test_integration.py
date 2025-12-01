@@ -212,9 +212,9 @@ class TestNaturalLanguageGenerationIntegration:
         result = generator.generate_reasoning(decision_path, allocation, "Strategy")
 
         # Should be reasonably concise (under MAX_REASONING_LENGTH as per StrategySignal.reasoning)
-        assert (
-            len(result) < MAX_REASONING_LENGTH
-        ), f"Reasoning should be under {MAX_REASONING_LENGTH} characters"
+        assert len(result) < MAX_REASONING_LENGTH, (
+            f"Reasoning should be under {MAX_REASONING_LENGTH} characters"
+        )
 
     def test_special_characters_handling(self, generator):
         """Test handling of special characters in conditions."""
