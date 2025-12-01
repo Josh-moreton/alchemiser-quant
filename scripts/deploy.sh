@@ -97,6 +97,12 @@ fi
 
 echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
 
+# Package individual service artifacts for modular deployments
+if [ "${PACKAGE_SERVICES:-true}" = "true" ]; then
+    echo "📦 Packaging per-service Lambda bundles..."
+    bash scripts/package_services.sh
+fi
+
 # Verify report dependencies layer exists and is lightweight
 # Note: dependencies-report/requirements.txt is maintained manually to avoid heavy deps
 if [ ! -f "dependencies-report/requirements.txt" ]; then
