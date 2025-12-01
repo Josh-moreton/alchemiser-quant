@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -27,6 +28,8 @@ class TraceEntry(BaseModel):
         validate_assignment=True,
         str_strip_whitespace=True,
     )
+
+    __schema_version__: str = CONTRACT_VERSION
 
     step_id: str = Field(..., min_length=1, description="Unique step identifier")
     step_type: str = Field(..., min_length=1, description="Type of evaluation step")
@@ -48,6 +51,8 @@ class Trace(BaseModel):
 
     Contains structured trace log for audit and observability purposes.
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

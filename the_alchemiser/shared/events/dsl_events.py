@@ -21,7 +21,11 @@ from pydantic import Field, field_validator
 if TYPE_CHECKING:
     from pydantic import ValidationInfo
 
-from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
+from ..constants import (
+    CONTRACT_VERSION,
+    EVENT_SCHEMA_VERSION_DESCRIPTION,
+    EVENT_TYPE_DESCRIPTION,
+)
 from ..errors import ValidationError
 from ..schemas.ast_node import ASTNode
 from ..schemas.indicator_request import PortfolioFragment
@@ -44,8 +48,12 @@ class StrategyEvaluationRequested(BaseEvent):
         default="StrategyEvaluationRequested", description=EVENT_TYPE_DESCRIPTION
     )
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Request fields
     strategy_id: str = Field(..., min_length=1, description="Strategy identifier to evaluate")
@@ -68,8 +76,12 @@ class StrategyEvaluated(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="StrategyEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Result fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that was evaluated")
@@ -98,8 +110,12 @@ class IndicatorComputed(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="IndicatorComputed", description=EVENT_TYPE_DESCRIPTION)
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Indicator fields
     request_id: str = Field(..., min_length=1, description="Original request identifier")
@@ -125,8 +141,12 @@ class PortfolioAllocationProduced(BaseEvent):
         default="PortfolioAllocationProduced", description=EVENT_TYPE_DESCRIPTION
     )
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Allocation fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that produced allocation")
@@ -150,8 +170,12 @@ class FilterEvaluated(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="FilterEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Filter fields
     filter_expression: ASTNode = Field(..., description="Filter expression that was evaluated")
@@ -178,8 +202,12 @@ class TopNSelected(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="TopNSelected", description=EVENT_TYPE_DESCRIPTION)
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Selection fields
     selection_expression: ASTNode = Field(
@@ -232,8 +260,12 @@ class DecisionEvaluated(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="DecisionEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Decision fields
     decision_expression: ASTNode = Field(..., description="Decision expression that was evaluated")

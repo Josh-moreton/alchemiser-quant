@@ -14,6 +14,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..constants import CONTRACT_VERSION
+
 
 class ASTNode(BaseModel):
     """DTO for Abstract Syntax Tree nodes from S-expression parsing.
@@ -21,6 +23,8 @@ class ASTNode(BaseModel):
     Represents parsed S-expressions as a tree structure with typed nodes
     for evaluation by the DSL engine.
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,

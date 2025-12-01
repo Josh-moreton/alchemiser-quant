@@ -17,6 +17,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
 from ..logging import get_logger
 from ..utils.timezone_utils import ensure_timezone_aware
 
@@ -63,6 +64,8 @@ class StrategyAllocation(BaseModel):
 
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
@@ -70,8 +73,8 @@ class StrategyAllocation(BaseModel):
         str_strip_whitespace=True,
     )
 
-    schema_version: Literal["1.0"] = Field(
-        default="1.0", description="Schema version for backward compatibility"
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description="Schema version for backward compatibility"
     )
     target_weights: dict[str, Decimal] = Field(
         ..., description="Target allocation weights by symbol (symbol -> weight 0-1)"

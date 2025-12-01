@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "3.5.1"
+version = "4.0.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -79,6 +79,15 @@ name = "Deprecated DTO module forbidden"
 type = "forbidden"
 source_modules = [ "the_alchemiser",]
 forbidden_modules = [ "the_alchemiser.shared.dto",]
+
+[[tool.importlinter.contracts]]
+name = "Shared-only cross-module coupling"
+type = "independence"
+modules = [
+    "the_alchemiser.strategy_v2",
+    "the_alchemiser.portfolio_v2",
+    "the_alchemiser.execution_v2",
+]
 
 [tool.bandit]
 exclude_dirs = [ "tests/", ".venv/", "build/", "dist/",]

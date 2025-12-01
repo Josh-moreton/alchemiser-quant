@@ -15,6 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..constants import CONTRACT_VERSION
 # Type aliases for string enums
 OrderAction = Literal["BUY", "SELL"]
 ExecutionStatus = Literal["SUCCESS", "FAILURE", "PARTIAL"]
@@ -52,13 +53,15 @@ class OrderResultSummary(BaseModel):
 
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description=SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(default=CONTRACT_VERSION, description=SCHEMA_VERSION_DESCRIPTION)
     symbol: str = Field(..., max_length=20, description="Trading symbol")
     action: OrderAction = Field(..., description="BUY or SELL action")
     trade_amount: Decimal = Field(..., ge=0, description="Dollar amount traded")
@@ -101,13 +104,15 @@ class ExecutionSummary(BaseModel):
 
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description=SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(default=CONTRACT_VERSION, description=SCHEMA_VERSION_DESCRIPTION)
     orders_total: int = Field(..., ge=0, description="Total number of orders")
     orders_succeeded: int = Field(..., ge=0, description="Number of successful orders")
     orders_failed: int = Field(..., ge=0, description="Number of failed orders")
@@ -158,13 +163,15 @@ class TradeRunResult(BaseModel):
 
     """
 
+    __schema_version__: str = CONTRACT_VERSION
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.0", description=SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(default=CONTRACT_VERSION, description=SCHEMA_VERSION_DESCRIPTION)
 
     # Core execution status
     status: ExecutionStatus = Field(..., description="SUCCESS, FAILURE, or PARTIAL")

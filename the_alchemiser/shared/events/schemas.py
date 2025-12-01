@@ -18,6 +18,7 @@ from typing import Any
 from pydantic import Field, field_validator
 
 from ..constants import (
+    CONTRACT_VERSION,
     EVENT_SCHEMA_VERSION_DESCRIPTION,
     EVENT_TYPE_DESCRIPTION,
     RECIPIENT_OVERRIDE_DESCRIPTION,
@@ -37,7 +38,11 @@ class StartupEvent(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="StartupEvent", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Startup-specific fields
     startup_mode: str = Field(..., description="Startup mode (signal, trade, etc.)")
@@ -54,7 +59,11 @@ class SignalGenerated(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="SignalGenerated", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Signal-specific fields
     signals_data: dict[str, Any] = Field(..., description="Strategy signals data")
@@ -73,7 +82,11 @@ class RebalancePlanned(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="RebalancePlanned", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Rebalance-specific fields
     rebalance_plan: RebalancePlan = Field(..., description="Portfolio rebalancing plan")
@@ -94,7 +107,11 @@ class TradeExecuted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Trade execution fields
     execution_data: dict[str, Any] = Field(..., description="Trade execution data")
@@ -121,7 +138,11 @@ class TradeExecutionStarted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="TradeExecutionStarted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Execution startup fields
     execution_plan: dict[str, Any] = Field(..., description="Trading execution plan")
@@ -142,7 +163,11 @@ class PortfolioStateChanged(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Portfolio state change fields
     portfolio_state_before: PortfolioState = Field(..., description="Portfolio state before change")
@@ -163,7 +188,11 @@ class AllocationComparisonCompleted(BaseEvent):
     event_type: str = Field(
         default="AllocationComparisonCompleted", description=EVENT_TYPE_DESCRIPTION
     )
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Allocation comparison fields
     target_allocations: dict[str, Decimal] = Field(..., description="Target allocation percentages")
@@ -187,7 +216,11 @@ class OrderSettlementCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="OrderSettlementCompleted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Settlement fields
     order_id: str = Field(..., description="Order ID that completed settlement")
@@ -212,7 +245,11 @@ class BulkSettlementCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="BulkSettlementCompleted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Bulk settlement fields
     settled_order_ids: list[str] = Field(
@@ -233,7 +270,11 @@ class ExecutionPhaseCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="ExecutionPhaseCompleted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Execution phase fields
     phase_type: str = Field(..., description="Phase type (SELL_PHASE/BUY_PHASE)")
@@ -254,7 +295,11 @@ class WorkflowStarted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="WorkflowStarted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Workflow fields
     workflow_type: str = Field(..., description="Type of workflow (trading, signal_analysis, etc.)")
@@ -272,7 +317,11 @@ class WorkflowCompleted(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="WorkflowCompleted", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Workflow completion fields
     workflow_type: str = Field(..., description="Type of workflow completed")
@@ -289,7 +338,11 @@ class WorkflowFailed(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="WorkflowFailed", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Workflow failure fields
     workflow_type: str = Field(..., description="Type of workflow that failed")
@@ -313,7 +366,11 @@ class ErrorNotificationRequested(BaseEvent):
     event_type: str = Field(
         default="ErrorNotificationRequested", description=EVENT_TYPE_DESCRIPTION
     )
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Error notification fields
     error_severity: str = Field(..., description="Error severity level (CRITICAL, HIGH, MEDIUM)")
@@ -336,7 +393,11 @@ class TradingNotificationRequested(BaseEvent):
     event_type: str = Field(
         default="TradingNotificationRequested", description=EVENT_TYPE_DESCRIPTION
     )
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Trading notification fields
     trading_success: bool = Field(..., description="Whether trading was successful")
@@ -378,7 +439,11 @@ class SystemNotificationRequested(BaseEvent):
     event_type: str = Field(
         default="SystemNotificationRequested", description=EVENT_TYPE_DESCRIPTION
     )
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # System notification fields
     notification_type: str = Field(..., description="Type of notification (INFO, WARNING, ALERT)")
@@ -396,7 +461,11 @@ class ReportReady(BaseEvent):
 
     # Override event_type with default
     event_type: str = Field(default="ReportReady", description=EVENT_TYPE_DESCRIPTION)
-    schema_version: str = Field(default="1.0", description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Report fields
     report_id: str = Field(..., description="Unique identifier for the report")

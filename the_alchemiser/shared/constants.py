@@ -52,6 +52,10 @@ EXECUTION_HANDLERS_MODULE: str = "execution_v2.handlers"
 EVENT_SCHEMA_VERSION_DESCRIPTION: str = "Event schema version"
 """Description text for event schema version field in Pydantic models."""
 
+# Contract versioning
+CONTRACT_VERSION: str = "1.0.0"
+"""Semantic version used for event and schema contracts."""
+
 EVENT_TYPE_DESCRIPTION: str = "Type of event"
 """Description text for event type field in Pydantic models."""
 

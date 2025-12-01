@@ -15,6 +15,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..constants import CONTRACT_VERSION
+
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -24,6 +26,8 @@ class TechnicalIndicator(BaseModel):
     Provides a standardized structure for technical indicators computed
     from market data, with proper validation and type safety.
     """
+
+    __schema_version__: str = CONTRACT_VERSION
 
     model_config = ConfigDict(
         strict=True,
