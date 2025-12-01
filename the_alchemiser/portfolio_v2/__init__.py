@@ -31,7 +31,9 @@ if TYPE_CHECKING:
 
 
 # Event-driven public API
-def register_portfolio_handlers(container: ApplicationContainer) -> None:
+def register_portfolio_handlers(
+    container: ApplicationContainer, event_bus: object | None = None
+) -> None:
     """Register portfolio event handlers with the orchestration system.
 
     This is the primary integration point for the portfolio module in
@@ -43,8 +45,8 @@ def register_portfolio_handlers(container: ApplicationContainer) -> None:
     """
     from .handlers import PortfolioAnalysisHandler
 
-    # Get event bus from container
-    event_bus = container.services.event_bus()
+    # Get event bus from container unless an adapter is supplied
+    event_bus = event_bus or container.services.event_bus()
 
     # Initialize and register handlers
     portfolio_handler = PortfolioAnalysisHandler(container)

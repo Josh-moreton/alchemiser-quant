@@ -27,7 +27,9 @@ if TYPE_CHECKING:
 
 
 # Event-driven public API
-def register_execution_handlers(container: ApplicationContainer) -> None:
+def register_execution_handlers(
+    container: ApplicationContainer, event_bus: object | None = None
+) -> None:
     """Register execution event handlers with the orchestration system.
 
     This is the primary integration point for the execution module in
@@ -44,8 +46,8 @@ def register_execution_handlers(container: ApplicationContainer) -> None:
     """
     from .handlers import TradingExecutionHandler
 
-    # Get event bus from container
-    event_bus = container.services.event_bus()
+    # Get event bus from container unless an adapter is supplied
+    event_bus = event_bus or container.services.event_bus()
 
     # Initialize and register handlers
     execution_handler = TradingExecutionHandler(container)
