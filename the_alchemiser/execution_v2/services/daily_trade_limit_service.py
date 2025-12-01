@@ -26,7 +26,7 @@ from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["DailyTradeLimitService", "DailyTradeLimitExceededError", "DailyTradeLimitCheck"]
+__all__ = ["DailyTradeLimitCheck", "DailyTradeLimitExceededError", "DailyTradeLimitService"]
 
 
 class DailyTradeLimitExceededError(Exception):
@@ -150,7 +150,7 @@ class DailyTradeLimitService:
             self._session_date = today
             self._session_cumulative = Decimal("0")
 
-    def get_cumulative_today(self, correlation_id: str | None = None) -> Decimal:  # noqa: ARG002
+    def get_cumulative_today(self, correlation_id: str | None = None) -> Decimal:
         """Get current cumulative trade value for today.
 
         Args:

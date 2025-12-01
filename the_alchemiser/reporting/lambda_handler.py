@@ -49,7 +49,7 @@ def _create_event_bus() -> EventBus:
     return EventBus()
 
 
-__all__ = ["lambda_handler", "_create_event_bus"]
+__all__ = ["_create_event_bus", "lambda_handler"]
 
 
 def _extract_correlation_id(event: dict[str, Any]) -> str:

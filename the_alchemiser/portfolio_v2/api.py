@@ -1,14 +1,19 @@
-"""FastAPI surface for portfolio rebalance events."""
+"""Business Unit: portfolio_v2 | Status: current.
+
+FastAPI surface for portfolio rebalance events.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from the_alchemiser.shared.events import EventBus, RebalancePlanned
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.utils.data_conversion import (
@@ -19,6 +24,8 @@ from the_alchemiser.shared.utils.data_conversion import (
 )
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
+logger = get_logger(__name__)
+
 
 class RebalanceRequest(BaseModel):
     """Request schema for publishing a RebalancePlanned event."""
@@ -27,21 +34,26 @@ class RebalanceRequest(BaseModel):
     causation_id: str = Field(..., description="Causation identifier for traceability")
     event_id: str | None = Field(default=None, description="Optional event identifier override")
     timestamp: datetime | None = Field(
-        default=None, description="Timestamp for the event; defaults to now if omitted",
+        default=None,
+        description="Timestamp for the event; defaults to now if omitted",
     )
     source_module: str = Field(default="portfolio_v2", description="Event source module")
     source_component: str | None = Field(
-        default="api", description="Specific component emitting the event",
+        default="api",
+        description="Specific component emitting the event",
     )
     rebalance_plan: dict[str, Any] = Field(
-        ..., description="Calculated rebalance plan payload (raw data)",
+        ...,
+        description="Calculated rebalance plan payload (raw data)",
     )
     allocation_comparison: dict[str, Any] = Field(
-        ..., description="Allocation comparison accompanying the rebalance plan",
+        ...,
+        description="Allocation comparison accompanying the rebalance plan",
     )
     trades_required: bool = Field(..., description="Indicates if trades are required")
     metadata: dict[str, Any] | None = Field(
-        default=None, description="Optional metadata forwarded with the event",
+        default=None,
+        description="Optional metadata forwarded with the event",
     )
 
 
@@ -63,9 +75,7 @@ def _prepare_allocation_comparison(data: dict[str, Any]) -> AllocationComparison
         for key, value in data.get("current_values", {}).items()
     }
     deltas = {
-        key: convert_string_to_decimal(value, f"deltas[{key}]")
-        if isinstance(value, str)
-        else value
+        key: convert_string_to_decimal(value, f"deltas[{key}]") if isinstance(value, str) else value
         for key, value in data.get("deltas", {}).items()
     }
     return AllocationComparison(
@@ -77,8 +87,7 @@ def _prepare_rebalance_plan(data: dict[str, Any]) -> RebalancePlan:
     plan_data = dict(data)
     convert_datetime_fields_from_dict(plan_data, ["timestamp"])
     plan_data["items"] = [
-        convert_nested_rebalance_item_data(dict(item))
-        for item in plan_data.get("items", [])
+        convert_nested_rebalance_item_data(dict(item)) for item in plan_data.get("items", [])
     ]
     plan_decimal_fields = [
         "total_portfolio_value",
@@ -91,33 +100,51 @@ def _prepare_rebalance_plan(data: dict[str, Any]) -> RebalancePlan:
 
 def create_app(event_bus: EventBus | None = None) -> FastAPI:
     """Create a FastAPI app for publishing RebalancePlanned events."""
-
     bus = event_bus or EventBus()
     app = FastAPI(title="Portfolio v2 API", version="0.1.0")
     app.state.event_bus = bus
 
+    @app.get("/health")
+    def health_check() -> dict[str, str]:
+        """Health check endpoint for monitoring and load balancers."""
+        return {"status": "healthy", "service": "portfolio_v2"}
+
     @app.post("/rebalance")
     def publish_rebalance(request: RebalanceRequest) -> dict[str, Any]:
-        plan = _prepare_rebalance_plan(request.rebalance_plan)
-        allocation_comparison = _prepare_allocation_comparison(
-            request.allocation_comparison
-        )
-        event = RebalancePlanned(
-            correlation_id=request.correlation_id,
-            causation_id=request.causation_id,
-            event_id=request.event_id or str(uuid4()),
-            timestamp=_build_timestamp(request.timestamp),
-            source_module=request.source_module,
-            source_component=request.source_component,
-            rebalance_plan=plan,
-            allocation_comparison=allocation_comparison,
-            trades_required=request.trades_required,
-            metadata=request.metadata or {},
-        )
-        bus.publish(event)
-        return {"status": "published", "event": event.to_dict()}
+        try:
+            plan = _prepare_rebalance_plan(request.rebalance_plan)
+            allocation_comparison = _prepare_allocation_comparison(request.allocation_comparison)
+            event = RebalancePlanned(
+                correlation_id=request.correlation_id,
+                causation_id=request.causation_id,
+                event_id=request.event_id or str(uuid4()),
+                timestamp=_build_timestamp(request.timestamp),
+                source_module=request.source_module,
+                source_component=request.source_component,
+                rebalance_plan=plan,
+                allocation_comparison=allocation_comparison,
+                trades_required=request.trades_required,
+                metadata=request.metadata or {},
+            )
+            bus.publish(event)
+            logger.info(
+                "Rebalance event published successfully",
+                event_id=event.event_id,
+                correlation_id=request.correlation_id,
+                trades_required=request.trades_required,
+                plan_id=plan.plan_id,
+            )
+            return {"status": "published", "event": event.to_dict()}
+        except Exception as e:
+            logger.error(
+                "Failed to publish rebalance event",
+                correlation_id=request.correlation_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise HTTPException(status_code=500, detail=f"Event publication failed: {e}") from e
 
     return app
 
 
-__all__ = ["create_app", "RebalanceRequest"]
+__all__ = ["RebalanceRequest", "create_app"]

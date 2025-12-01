@@ -20,7 +20,6 @@ def main(
     env: str = "development", transports: PortfolioTransports | None = None
 ) -> ApplicationContainer:
     """Configure logging, wire DI, and register handlers for standalone runs."""
-
     configure_application_logging()
     container = ApplicationContainer.create_for_environment(env)
 
