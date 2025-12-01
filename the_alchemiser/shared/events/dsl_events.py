@@ -260,8 +260,12 @@ class DecisionEvaluated(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="DecisionEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
+    __event_version__: str = CONTRACT_VERSION
+
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
 
     # Decision fields
     decision_expression: ASTNode = Field(..., description="Decision expression that was evaluated")
