@@ -447,7 +447,9 @@ class Executor:
 
         return self._market_order_executor.execute_market_order(symbol, side, quantity)
 
-    async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
+    async def execute_rebalance_plan(  # noqa: C901
+        self, plan: RebalancePlan
+    ) -> ExecutionResult:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
         This method is idempotent - repeated calls with the same plan_id will return
@@ -515,7 +517,7 @@ class Executor:
             # Return a failed execution result
             return ExecutionResult(
                 success=False,
-                status=ExecutionStatus.FAILED,
+                status=ExecutionStatus.FAILURE,
                 plan_id=plan.plan_id,
                 correlation_id=plan.correlation_id,
                 orders=[],
