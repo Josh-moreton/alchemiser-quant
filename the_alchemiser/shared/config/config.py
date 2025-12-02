@@ -395,6 +395,8 @@ class OrchestrationSettings(BaseModel):
     strategy_endpoint: str = "http://localhost:8001/signals"
     portfolio_endpoint: str = "http://localhost:8002/rebalance"
     execution_endpoint: str = "http://localhost:8003/executions"
+    reporting_account_endpoint: str = "http://localhost:8004/reports/account"
+    reporting_execution_endpoint: str = "http://localhost:8004/reports/execution"
     http_max_retries: int = 3
     http_retry_backoff_seconds: float = 0.5
 

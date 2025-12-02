@@ -187,6 +187,31 @@ def test_executions_endpoint_partial_success() -> None:
     assert captured[0].failed_symbols == ["AAPL"]
 
 
+def test_executions_endpoint_uses_header_correlation_id() -> None:
+    """Middleware should source trace IDs from headers when payload omits them."""
+    event_bus = EventBus()
+    captured: list[TradeExecuted] = []
+    event_bus.subscribe("TradeExecuted", lambda event: captured.append(event))
+
+    app = create_app(event_bus=event_bus)
+    client = TestClient(app)
+
+    payload = {
+        "execution_data": {"orders": [{"symbol": "SPY", "qty": 10}]},
+        "success": True,
+        "orders_placed": 1,
+        "orders_succeeded": 1,
+    }
+
+    headers = {"X-Correlation-ID": "corr-header-exec", "X-Causation-ID": "cause-header-exec"}
+
+    response = client.post("/executions", json=payload, headers=headers)
+
+    assert response.status_code == 200
+    assert captured[0].correlation_id == "corr-header-exec"
+    assert captured[0].causation_id == "cause-header-exec"
+
+
 def test_health_endpoint() -> None:
     """Test health check endpoint returns healthy status."""
     app = create_app()
@@ -196,3 +221,16 @@ def test_health_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy", "service": "execution_v2"}
+
+
+def test_contracts_endpoint_reports_versions() -> None:
+    """Contract probe should surface supported events."""
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/contracts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "execution_v2"
+    assert body["supported_events"]["TradeExecuted"] == TradeExecuted.__event_version__
