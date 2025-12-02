@@ -124,7 +124,6 @@ def create_app(event_bus: EventBus | None = None) -> FastAPI:
     @app.get("/contracts")
     def contracts() -> dict[str, Any]:
         """Report contract versions supported by the service."""
-
         return {
             "service": "portfolio_v2",
             "supported_events": {"RebalancePlanned": RebalancePlanned.__event_version__},

@@ -76,7 +76,6 @@ def create_app(event_bus: EventBus | None = None) -> FastAPI:
     @app.get("/contracts")
     def contracts() -> dict[str, Any]:
         """Report contract versions supported by the service."""
-
         return {
             "service": "execution_v2",
             "supported_events": {"TradeExecuted": TradeExecuted.__event_version__},

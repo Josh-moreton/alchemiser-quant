@@ -12,7 +12,6 @@ emitted events by:
 
 from __future__ import annotations
 
-from typing import Tuple
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -77,19 +76,20 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Causation-ID", resolved_causation_id)
         return response
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pragma: no cover
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:  # pragma: no cover
         await super().__call__(scope, receive, send)
 
 
 def resolve_trace_context(
     payload_correlation_id: str | None, payload_causation_id: str | None, request: Request
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Resolve correlation and causation identifiers for an incoming request.
 
     The middleware populates request.state with identifiers when headers are not
     provided. Payload values take precedence when supplied.
     """
-
     correlation_id = payload_correlation_id or getattr(request.state, "correlation_id", None)
     causation_id = payload_causation_id or getattr(request.state, "causation_id", None)
 
