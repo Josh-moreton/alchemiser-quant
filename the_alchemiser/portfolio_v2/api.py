@@ -9,11 +9,12 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from the_alchemiser.shared.events import EventBus, RebalancePlanned
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.middleware import CorrelationIdMiddleware, resolve_trace_context
 from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.utils.data_conversion import (
@@ -30,8 +31,12 @@ logger = get_logger(__name__)
 class RebalanceRequest(BaseModel):
     """Request schema for publishing a RebalancePlanned event."""
 
-    correlation_id: str = Field(..., description="Workflow correlation identifier")
-    causation_id: str = Field(..., description="Causation identifier for traceability")
+    correlation_id: str | None = Field(
+        default=None, description="Workflow correlation identifier (header or body)"
+    )
+    causation_id: str | None = Field(
+        default=None, description="Causation identifier for traceability (header or body)"
+    )
     event_id: str | None = Field(default=None, description="Optional event identifier override")
     timestamp: datetime | None = Field(
         default=None,
@@ -83,8 +88,14 @@ def _prepare_allocation_comparison(data: dict[str, Any]) -> AllocationComparison
     )
 
 
-def _prepare_rebalance_plan(data: dict[str, Any]) -> RebalancePlan:
+def _prepare_rebalance_plan(
+    data: dict[str, Any], correlation_id: str | None, causation_id: str | None
+) -> RebalancePlan:
     plan_data = dict(data)
+    if correlation_id is not None:
+        plan_data.setdefault("correlation_id", correlation_id)
+    if causation_id is not None:
+        plan_data.setdefault("causation_id", causation_id)
     convert_datetime_fields_from_dict(plan_data, ["timestamp"])
     plan_data["items"] = [
         convert_nested_rebalance_item_data(dict(item)) for item in plan_data.get("items", [])
@@ -102,6 +113,7 @@ def create_app(event_bus: EventBus | None = None) -> FastAPI:
     """Create a FastAPI app for publishing RebalancePlanned events."""
     bus = event_bus or EventBus()
     app = FastAPI(title="Portfolio v2 API", version="0.1.0")
+    app.add_middleware(CorrelationIdMiddleware)
     app.state.event_bus = bus
 
     @app.get("/health")
@@ -109,36 +121,50 @@ def create_app(event_bus: EventBus | None = None) -> FastAPI:
         """Health check endpoint for monitoring and load balancers."""
         return {"status": "healthy", "service": "portfolio_v2"}
 
+    @app.get("/contracts")
+    def contracts() -> dict[str, Any]:
+        """Report contract versions supported by the service."""
+
+        return {
+            "service": "portfolio_v2",
+            "supported_events": {"RebalancePlanned": RebalancePlanned.__event_version__},
+        }
+
     @app.post("/rebalance")
-    def publish_rebalance(request: RebalanceRequest) -> dict[str, Any]:
+    def publish_rebalance(payload: RebalanceRequest, request: Request) -> dict[str, Any]:
         try:
-            plan = _prepare_rebalance_plan(request.rebalance_plan)
-            allocation_comparison = _prepare_allocation_comparison(request.allocation_comparison)
+            correlation_id, causation_id = resolve_trace_context(
+                payload.correlation_id, payload.causation_id, request
+            )
+            plan = _prepare_rebalance_plan(
+                payload.rebalance_plan, correlation_id=correlation_id, causation_id=causation_id
+            )
+            allocation_comparison = _prepare_allocation_comparison(payload.allocation_comparison)
             event = RebalancePlanned(
-                correlation_id=request.correlation_id,
-                causation_id=request.causation_id,
-                event_id=request.event_id or str(uuid4()),
-                timestamp=_build_timestamp(request.timestamp),
-                source_module=request.source_module,
-                source_component=request.source_component,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=payload.event_id or str(uuid4()),
+                timestamp=_build_timestamp(payload.timestamp),
+                source_module=payload.source_module,
+                source_component=payload.source_component,
                 rebalance_plan=plan,
                 allocation_comparison=allocation_comparison,
-                trades_required=request.trades_required,
-                metadata=request.metadata or {},
+                trades_required=payload.trades_required,
+                metadata=payload.metadata or {},
             )
             bus.publish(event)
             logger.info(
                 "Rebalance event published successfully",
                 event_id=event.event_id,
-                correlation_id=request.correlation_id,
-                trades_required=request.trades_required,
+                correlation_id=correlation_id,
+                trades_required=payload.trades_required,
                 plan_id=plan.plan_id,
             )
             return {"status": "published", "event": event.to_dict()}
         except Exception as e:
             logger.error(
                 "Failed to publish rebalance event",
-                correlation_id=request.correlation_id,
+                correlation_id=payload.correlation_id,
                 error=str(e),
                 error_type=type(e).__name__,
             )
