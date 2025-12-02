@@ -95,6 +95,32 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
+  # Microservices deployment parameters
+  EnableMicroservices:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable separate Lambda microservices deployment
+
+  MicroservicesAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for microservices (separate from monolithic)
+
+  MicroservicesAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for microservices
+
+  MicroservicesAlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca endpoint for microservices
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Conditions:
@@ -102,6 +128,7 @@ Conditions:
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
+  IsMicroservicesEnabled: !Equals [ !Ref EnableMicroservices, "true" ]
 
 Globals:
   Function:
@@ -454,6 +481,347 @@ Resources:
         - !Sub "/aws/lambda/${StackName}-report-generator"
         - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"
       RetentionInDays: !If [ IsEphemeral, 3, 30 ]
+
+  # ============================================================================
+  # MICROSERVICES ARCHITECTURE (Enabled via EnableMicroservices parameter)
+  # ============================================================================
+
+  # Orchestrator Lambda - Coordinates HTTP workflow across module Lambdas
+  OrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-orchestrator"
+        - !Sub "the-alchemiser-orchestrator-${Stage}"
+      Runtime: python3.12
+      Handler: the_alchemiser.orchestration.lambda_handler.lambda_handler
+      Role: !GetAtt OrchestratorExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 900
+      MemorySize: 512
+      Environment:
+        Variables:
+          ORCHESTRATION__USE_HTTP_DOMAIN_WORKFLOW: "true"
+          ORCHESTRATION__STRATEGY_ENDPOINT: !GetAtt StrategyFunctionUrl.FunctionUrl
+          ORCHESTRATION__PORTFOLIO_ENDPOINT: !GetAtt PortfolioFunctionUrl.FunctionUrl
+          ORCHESTRATION__EXECUTION_ENDPOINT: !GetAtt ExecutionFunctionUrl.FunctionUrl
+          ORCHESTRATION__REPORTING_ACCOUNT_ENDPOINT: !GetAtt ReportingFunctionUrl.FunctionUrl
+          ORCHESTRATION__REPORTING_EXECUTION_ENDPOINT: !GetAtt ReportingFunctionUrl.FunctionUrl
+          ALPACA__KEY: !Ref MicroservicesAlpacaKey
+          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
+          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          LOGGING__LEVEL: !Ref LoggingLevel
+          APP__STAGE: !If [ IsDev, "dev", "prod" ]
+      Events:
+        DailyTrading:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(35 9 ? * MON-FRI *)"
+            Input: '{"mode": "trade"}'
+
+  OrchestratorExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: OrchestratorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:InvokeFunctionUrl
+                Resource:
+                  - !GetAtt StrategyFunction.Arn
+                  - !GetAtt PortfolioFunction.Arn
+                  - !GetAtt ExecutionFunction.Arn
+                  - !GetAtt ReportingApiFunction.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+  # Strategy Lambda - Signal generation microservice
+  StrategyFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy"
+        - !Sub "the-alchemiser-strategy-${Stage}"
+      Runtime: python3.12
+      Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
+      Role: !GetAtt StrategyExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          LOGGING__LEVEL: !Ref LoggingLevel
+          ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
+
+  StrategyFunctionUrl:
+    Type: AWS::Lambda::Url
+    Condition: IsMicroservicesEnabled
+    Properties:
+      TargetFunctionArn: !GetAtt StrategyFunction.Arn
+      AuthType: AWS_IAM
+
+  StrategyFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !Ref StrategyFunction
+      FunctionUrlAuthType: AWS_IAM
+      Action: lambda:InvokeFunctionUrl
+      Principal: !GetAtt OrchestratorExecutionRole.Arn
+
+  StrategyExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StrategyPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+  # Portfolio Lambda - Rebalance planning microservice
+  PortfolioFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-portfolio"
+        - !Sub "the-alchemiser-portfolio-${Stage}"
+      Runtime: python3.12
+      Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
+      Role: !GetAtt PortfolioExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          LOGGING__LEVEL: !Ref LoggingLevel
+
+  PortfolioFunctionUrl:
+    Type: AWS::Lambda::Url
+    Condition: IsMicroservicesEnabled
+    Properties:
+      TargetFunctionArn: !GetAtt PortfolioFunction.Arn
+      AuthType: AWS_IAM
+
+  PortfolioFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !Ref PortfolioFunction
+      FunctionUrlAuthType: AWS_IAM
+      Action: lambda:InvokeFunctionUrl
+      Principal: !GetAtt OrchestratorExecutionRole.Arn
+
+  PortfolioExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: PortfolioPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+  # Execution Lambda - Trade execution microservice
+  ExecutionFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution"
+        - !Sub "the-alchemiser-execution-${Stage}"
+      Runtime: python3.12
+      Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
+      Role: !GetAtt ExecutionExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 600
+      MemorySize: 1024
+      Environment:
+        Variables:
+          ALPACA__KEY: !Ref MicroservicesAlpacaKey
+          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
+          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          LOGGING__LEVEL: !Ref LoggingLevel
+
+  ExecutionFunctionUrl:
+    Type: AWS::Lambda::Url
+    Condition: IsMicroservicesEnabled
+    Properties:
+      TargetFunctionArn: !GetAtt ExecutionFunction.Arn
+      AuthType: AWS_IAM
+
+  ExecutionFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !Ref ExecutionFunction
+      FunctionUrlAuthType: AWS_IAM
+      Action: lambda:InvokeFunctionUrl
+      Principal: !GetAtt OrchestratorExecutionRole.Arn
+
+  ExecutionExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ExecutionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+  # Reporting API Lambda - Report generation microservice (FastAPI)
+  ReportingApiFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-reporting-api"
+        - !Sub "the-alchemiser-reporting-api-${Stage}"
+      Runtime: python3.12
+      Handler: the_alchemiser.reporting.lambda_handler.fastapi_handler
+      Role: !GetAtt ReportingApiExecutionRole.Arn
+      Layers:
+        - !Ref ReportDependenciesLayer
+        - arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          LD_LIBRARY_PATH: "/opt/lib"
+          FONTCONFIG_PATH: "/opt/fonts"
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          REPORTS_S3_BUCKET: !Ref ReportsBucket
+          AWS_ACCOUNT_ID: !Ref "AWS::AccountId"
+          LOGGING__LEVEL: !Ref LoggingLevel
+
+  ReportingFunctionUrl:
+    Type: AWS::Lambda::Url
+    Condition: IsMicroservicesEnabled
+    Properties:
+      TargetFunctionArn: !GetAtt ReportingApiFunction.Arn
+      AuthType: AWS_IAM
+
+  ReportingFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !Ref ReportingApiFunction
+      FunctionUrlAuthType: AWS_IAM
+      Action: lambda:InvokeFunctionUrl
+      Principal: !GetAtt OrchestratorExecutionRole.Arn
+
+  ReportingApiExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ReportingApiPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub "${ReportsBucket.Arn}/*"
+
+  # ============================================================================
+  # END MICROSERVICES ARCHITECTURE
+  # ============================================================================
 
   # EventBridge Scheduler with proper timezone support and reduced retry policy
   TradingSystemSchedule:

@@ -305,6 +305,34 @@ deploy-prod:
 	echo "✅ Production tag $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
 
+# Microservices deployment targets
+.PHONY: deploy-microservices-dev
+deploy-microservices-dev: ## Deploy microservices to dev environment
+	@echo "Deploying microservices to dev..."
+	@./scripts/deploy-microservices.sh dev
+
+.PHONY: deploy-microservices-prod
+deploy-microservices-prod: ## Deploy microservices to prod environment
+	@echo "Deploying microservices to prod..."
+	@./scripts/deploy-microservices.sh prod
+
+.PHONY: release-microservices-beta
+release-microservices-beta: bump-patch ## Create beta release tag for microservices
+	@$(eval VERSION := $(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['tool']['poetry']['version'])"))
+	@$(eval BETA_VERSION := $(VERSION)-microservices-beta.$(shell date +%Y%m%d%H%M%S))
+	@echo "Creating microservices beta release: v$(BETA_VERSION)"
+	@git tag -a "v$(BETA_VERSION)" -m "Microservices beta release v$(BETA_VERSION)"
+	@git push origin "v$(BETA_VERSION)"
+	@echo "✅ Microservices beta tag v$(BETA_VERSION) created and pushed"
+
+.PHONY: release-microservices
+release-microservices: bump-minor ## Create release tag for microservices
+	@$(eval VERSION := $(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['tool']['poetry']['version'])"))
+	@echo "Creating microservices release: v$(VERSION)-microservices"
+	@git tag -a "v$(VERSION)-microservices" -m "Microservices release v$(VERSION)"
+	@git push origin "v$(VERSION)-microservices"
+	@echo "✅ Microservices tag v$(VERSION)-microservices created and pushed"
+
 # Ephemeral Deployment
 deploy-ephemeral:
 	@echo "🧪 Deploying ephemeral stack..."

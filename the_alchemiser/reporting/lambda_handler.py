@@ -49,7 +49,19 @@ def _create_event_bus() -> EventBus:
     return EventBus()
 
 
-__all__ = ["_create_event_bus", "lambda_handler"]
+# FastAPI support for microservices mode
+try:
+    from mangum import Mangum
+
+    from .api import create_app
+
+    _app = create_app()
+    fastapi_handler = Mangum(_app, lifespan="off")
+except ImportError:
+    fastapi_handler = None  # type: ignore[assignment]
+
+
+__all__ = ["_create_event_bus", "lambda_handler", "fastapi_handler"]
 
 
 def _extract_correlation_id(event: dict[str, Any]) -> str:
