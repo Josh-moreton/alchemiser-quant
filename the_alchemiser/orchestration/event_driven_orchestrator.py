@@ -472,8 +472,8 @@ class EventDrivenOrchestrator:
             - Idempotency is tracked via (url, event_id/causation_id) tuples
             - Retries self.http_max_retries times with self.http_retry_backoff_seconds delays
             - Cached idempotent requests are logged but not re-executed
-        """
 
+        """
         request_key = (url, str(payload.get("event_id") or payload.get("causation_id", "")))
         if request_key in self._http_idempotency_cache:
             self.logger.debug(
@@ -538,8 +538,8 @@ class EventDrivenOrchestrator:
             - Performs timestamp string -> datetime conversion (handles ISO format + 'Z' suffix)
             - Converts string monetary values to Decimal for RebalancePlanned events
             - Logs errors for parsing failures but doesn't raise exceptions
-        """
 
+        """
         # First check if payload itself is a dict
         if not isinstance(payload, dict):
             self.logger.error(
@@ -678,8 +678,8 @@ class EventDrivenOrchestrator:
             - Logs error if payload cannot be deserialized to a valid event
             - Uses _deserialize_event_from_payload for payload processing
             - No exceptions raised for invalid payloads
-        """
 
+        """
         event = self._deserialize_event_from_payload(payload)
         if event:
             self.event_bus.publish(event)
@@ -730,7 +730,6 @@ class EventDrivenOrchestrator:
 
     def _handle_workflow_started(self, event: WorkflowStarted) -> None:
         """Handle workflow started event and delegate to strategy endpoint when enabled."""
-
         self.workflow_state["active_correlations"].add(event.correlation_id)
 
         if not self.use_http_domain_workflow:

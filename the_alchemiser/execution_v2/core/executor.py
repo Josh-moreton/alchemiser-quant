@@ -515,7 +515,7 @@ class Executor:
             # Return a failed execution result
             return ExecutionResult(
                 success=False,
-                status=ExecutionStatus.FAILED,
+                status=ExecutionStatus.FAILURE,
                 plan_id=plan.plan_id,
                 correlation_id=plan.correlation_id,
                 orders=[],

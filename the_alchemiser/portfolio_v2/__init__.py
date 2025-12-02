@@ -27,12 +27,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from the_alchemiser.portfolio_v2.adapters.transports import EventTransport
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 
 # Event-driven public API
 def register_portfolio_handlers(
-    container: ApplicationContainer, event_bus: object | None = None
+    container: ApplicationContainer, event_bus: EventTransport | None = None
 ) -> None:
     """Register portfolio event handlers with the orchestration system.
 

@@ -25,11 +25,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     # TYPE_CHECKING guards prevent circular imports while preserving type hints
     from the_alchemiser.shared.config.container import ApplicationContainer
+    from the_alchemiser.strategy_v2.adapters.transports import EventTransport
 
 
 # Event-driven public API
 def register_strategy_handlers(
-    container: ApplicationContainer, event_bus: object | None = None
+    container: ApplicationContainer, event_bus: EventTransport | None = None
 ) -> None:
     """Register strategy event handlers with the orchestration system.
 
