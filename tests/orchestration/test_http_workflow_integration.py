@@ -1,9 +1,18 @@
+"""Business Unit: orchestration | Status: current.
+
+Integration tests for HTTP workflow orchestration.
+
+Tests the HTTP-based domain workflow path including signal generation,
+portfolio rebalancing, and trade execution via external service endpoints.
+"""
+
 from __future__ import annotations
 
+import json
 from collections import Counter
 from datetime import UTC, datetime
 from decimal import Decimal
-import json
+from typing import Any, cast
 
 import httpx
 from dependency_injector import providers
@@ -28,7 +37,7 @@ class _CaptureHandler:
     def __init__(self) -> None:
         self.events: list[str] = []
 
-    def handle_event(self, event) -> None:  # pragma: no cover - test helper
+    def handle_event(self, event: Any) -> None:  # pragma: no cover - test helper
         self.events.append(event.event_type)
 
     def can_handle(self, event_type: str) -> bool:
@@ -39,7 +48,7 @@ class _CaptureHandler:
         }
 
 
-def _build_rebalance_payload(correlation_id: str, causation_id: str) -> dict[str, str]:
+def _build_rebalance_payload(correlation_id: str, causation_id: str) -> dict[str, Any]:
     plan_item = RebalancePlanItem(
         symbol="AAPL",
         current_weight=Decimal("0.2"),
@@ -80,10 +89,10 @@ def _build_rebalance_payload(correlation_id: str, causation_id: str) -> dict[str
         trades_required=True,
         metadata={},
     )
-    return json.loads(rebalance_event.model_dump_json())
+    return cast(dict[str, Any], json.loads(rebalance_event.model_dump_json()))
 
 
-def _build_signal_payload(correlation_id: str, causation_id: str) -> dict[str, str]:
+def _build_signal_payload(correlation_id: str, causation_id: str) -> dict[str, Any]:
     signal_event = SignalGenerated(
         correlation_id=correlation_id,
         causation_id=causation_id,
@@ -96,10 +105,10 @@ def _build_signal_payload(correlation_id: str, causation_id: str) -> dict[str, s
         signal_count=1,
         metadata={},
     )
-    return json.loads(signal_event.model_dump_json())
+    return cast(dict[str, Any], json.loads(signal_event.model_dump_json()))
 
 
-def _build_execution_payload(correlation_id: str, causation_id: str) -> dict[str, str]:
+def _build_execution_payload(correlation_id: str, causation_id: str) -> dict[str, Any]:
     execution_event = TradeExecuted(
         correlation_id=correlation_id,
         causation_id=causation_id,
@@ -115,7 +124,7 @@ def _build_execution_payload(correlation_id: str, causation_id: str) -> dict[str
         failure_reason=None,
         failed_symbols=[],
     )
-    return json.loads(execution_event.model_dump_json())
+    return cast(dict[str, Any], json.loads(execution_event.model_dump_json()))
 
 
 def _transport_handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover - exercised via orchestration
@@ -134,7 +143,7 @@ def _transport_handler(request: httpx.Request) -> httpx.Response:  # pragma: no 
     return httpx.Response(404)
 
 
-def test_full_http_workflow_emits_expected_events(monkeypatch) -> None:
+def test_full_http_workflow_emits_expected_events(monkeypatch: Any) -> None:
     container = ApplicationContainer.create_for_testing()
     custom_settings = Settings()
     custom_settings.orchestration.use_http_domain_workflow = True

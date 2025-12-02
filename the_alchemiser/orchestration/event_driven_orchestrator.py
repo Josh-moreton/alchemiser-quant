@@ -82,9 +82,7 @@ class EventDrivenOrchestrator:
             "portfolio": getattr(self.orchestration_settings, "portfolio_endpoint", ""),
             "execution": getattr(self.orchestration_settings, "execution_endpoint", ""),
         }
-        self.http_max_retries = int(
-            getattr(self.orchestration_settings, "http_max_retries", 3)
-        )
+        self.http_max_retries = int(getattr(self.orchestration_settings, "http_max_retries", 3))
         self.http_retry_backoff = float(
             getattr(self.orchestration_settings, "http_retry_backoff_seconds", 0.5)
         )
@@ -98,9 +96,7 @@ class EventDrivenOrchestrator:
         # Use cast to align specific handler signatures with BaseEvent for dispatching
         self._event_handlers: dict[type[BaseEvent], TypingCallable[[BaseEvent], None]] = {
             StartupEvent: cast(TypingCallable[[BaseEvent], None], self._handle_startup),
-            WorkflowStarted: cast(
-                TypingCallable[[BaseEvent], None], self._handle_workflow_started
-            ),
+            WorkflowStarted: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_started),
             SignalGenerated: cast(TypingCallable[[BaseEvent], None], self._handle_signal_generated),
             RebalancePlanned: cast(
                 TypingCallable[[BaseEvent], None], self._handle_rebalance_planned
@@ -458,13 +454,35 @@ class EventDrivenOrchestrator:
         ]
 
     def _post_with_retries(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
-        """Post to an endpoint with retry and idempotency safeguards."""
+        """Post to an endpoint with retry and idempotency safeguards.
+
+        Args:
+            url: Target endpoint URL
+            payload: JSON payload to POST (must contain event_id or causation_id for idempotency)
+
+        Returns:
+            Response JSON as dict, or empty dict {} if request was previously executed (idempotency guard)
+
+        Raises:
+            httpx.HTTPError: Re-raises the last HTTP exception if all retry attempts fail
+            httpx.TimeoutException: Re-raises timeout if all retry attempts fail
+            httpx.RequestError: Re-raises request error if all retry attempts fail
+
+        Notes:
+            - Idempotency is tracked via (url, event_id/causation_id) tuples
+            - Retries self.http_max_retries times with self.http_retry_backoff_seconds delays
+            - Cached idempotent requests are logged but not re-executed
+        """
 
         request_key = (url, str(payload.get("event_id") or payload.get("causation_id", "")))
         if request_key in self._http_idempotency_cache:
             self.logger.debug(
                 "Skipping duplicate HTTP call (idempotency guard)",
-                extra={"endpoint": url, "payload_event_id": payload.get("event_id")},
+                extra={
+                    "endpoint": url,
+                    "payload_event_id": payload.get("event_id"),
+                    "correlation_id": payload.get("correlation_id"),
+                },
             )
             return {}
 
@@ -475,7 +493,7 @@ class EventDrivenOrchestrator:
                 response.raise_for_status()
                 self._http_idempotency_cache.add(request_key)
                 return cast(dict[str, Any], response.json())
-            except Exception as exc:  # pragma: no cover - defensive logging
+            except (httpx.HTTPError, httpx.TimeoutException, httpx.RequestError) as exc:
                 last_error = exc
                 self.logger.warning(
                     "HTTP call failed - retrying",
@@ -484,20 +502,65 @@ class EventDrivenOrchestrator:
                         "attempt": attempt,
                         "max_attempts": self.http_max_retries,
                         "error_type": type(exc).__name__,
+                        "error_detail": str(exc),
+                        "correlation_id": payload.get("correlation_id"),
                     },
                 )
-                time.sleep(self.http_retry_backoff)
+                if attempt < self.http_max_retries:
+                    time.sleep(self.http_retry_backoff)
 
-        if last_error:
-            raise last_error
-
-        return {}
+        # Log final error before raising
+        self.logger.error(
+            "HTTP call failed after all retries",
+            extra={
+                "endpoint": url,
+                "max_attempts": self.http_max_retries,
+                "final_error": str(last_error),
+                "correlation_id": payload.get("correlation_id"),
+            },
+        )
+        raise last_error  # type: ignore[misc]
 
     def _deserialize_event_from_payload(self, payload: dict[str, Any]) -> BaseEvent | None:
-        """Deserialize event payload into event object based on event_type."""
+        """Deserialize event payload into event object based on event_type.
+
+        Args:
+            payload: Either a raw event dict or {"event": <event_dict>} wrapper
+
+        Returns:
+            Deserialized event object, or None if:
+            - event_type is not recognized (SignalGenerated, RebalancePlanned, TradeExecuted,
+              WorkflowFailed, WorkflowCompleted)
+            - payload structure is invalid (not a dict)
+            - Pydantic validation fails
+
+        Notes:
+            - Performs timestamp string -> datetime conversion (handles ISO format + 'Z' suffix)
+            - Converts string monetary values to Decimal for RebalancePlanned events
+            - Logs errors for parsing failures but doesn't raise exceptions
+        """
+
+        # First check if payload itself is a dict
+        if not isinstance(payload, dict):
+            self.logger.error(
+                "Cannot deserialize event - payload is not a dict",
+                extra={
+                    "payload_type": type(payload).__name__,
+                },
+            )
+            return None
+
+        correlation_id = payload.get("correlation_id", "unknown")
 
         event_data = payload.get("event") if "event" in payload else payload
         if not isinstance(event_data, dict):
+            self.logger.error(
+                "Cannot deserialize event - event data is not a dict",
+                extra={
+                    "event_data_type": type(event_data).__name__,
+                    "correlation_id": correlation_id,
+                },
+            )
             return None
 
         timestamp_value = event_data.get("timestamp")
@@ -559,24 +622,80 @@ class EventDrivenOrchestrator:
                                 values[symbol] = Decimal(value)
 
         event_type = event_data.get("event_type")
-        if event_type == "SignalGenerated":
-            return SignalGenerated(**event_data)
-        if event_type == "RebalancePlanned":
-            return RebalancePlanned(**event_data)
-        if event_type == "TradeExecuted":
-            return TradeExecuted(**event_data)
-        if event_type == "WorkflowFailed":
-            return WorkflowFailed(**event_data)
-        if event_type == "WorkflowCompleted":
-            return WorkflowCompleted(**event_data)
-        return None
+        if not event_type:
+            self.logger.error(
+                "Cannot deserialize event - missing event_type",
+                extra={
+                    "event_data_keys": list(event_data.keys()),
+                    "correlation_id": correlation_id,
+                },
+            )
+            return None
+
+        # Map event types to their classes
+        event_class_map = {
+            "SignalGenerated": SignalGenerated,
+            "RebalancePlanned": RebalancePlanned,
+            "TradeExecuted": TradeExecuted,
+            "WorkflowFailed": WorkflowFailed,
+            "WorkflowCompleted": WorkflowCompleted,
+        }
+
+        event_class = event_class_map.get(event_type)
+        if not event_class:
+            self.logger.error(
+                "Cannot deserialize event - unknown event_type",
+                extra={
+                    "event_type": event_type,
+                    "correlation_id": correlation_id,
+                    "known_types": list(event_class_map.keys()),
+                },
+            )
+            return None
+
+        # Try to instantiate event with Pydantic validation
+        try:
+            return event_class(**event_data)  # type: ignore[no-any-return]
+        except Exception as exc:
+            self.logger.error(
+                "Cannot deserialize event - validation failed",
+                extra={
+                    "event_type": event_type,
+                    "correlation_id": correlation_id,
+                    "error_type": type(exc).__name__,
+                    "error_detail": str(exc),
+                },
+            )
+            return None
 
     def _publish_http_event(self, payload: dict[str, Any]) -> None:
-        """Publish an event derived from HTTP response payload to the event bus."""
+        """Publish an event derived from HTTP response payload to the event bus.
+
+        Args:
+            payload: HTTP response payload containing event data
+
+        Notes:
+            - Logs error if payload cannot be deserialized to a valid event
+            - Uses _deserialize_event_from_payload for payload processing
+            - No exceptions raised for invalid payloads
+        """
 
         event = self._deserialize_event_from_payload(payload)
         if event:
             self.event_bus.publish(event)
+        else:
+            self.logger.error(
+                "Failed to publish HTTP event - deserialization returned None",
+                extra={
+                    "correlation_id": payload.get("correlation_id", "unknown"),
+                    "payload_keys": list(payload.keys()),
+                    "payload_event_type": (
+                        payload.get("event", {}).get("event_type")
+                        if isinstance(payload.get("event"), dict)
+                        else payload.get("event_type")
+                    ),
+                },
+            )
 
     def _handle_startup(self, event: StartupEvent) -> None:
         """Handle system startup event for monitoring and coordination.
@@ -619,11 +738,18 @@ class EventDrivenOrchestrator:
 
         strategy_endpoint = self.http_endpoints.get("strategy")
         if not strategy_endpoint:
-            self.logger.warning(
-                "HTTP workflow enabled but strategy endpoint not configured",
-                extra={"correlation_id": event.correlation_id},
+            error_msg = (
+                "HTTP workflow is enabled but strategy endpoint is not configured. "
+                "Set orchestration.strategy_endpoint in config or disable use_http_domain_workflow."
             )
-            return
+            self.logger.error(
+                error_msg,
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "http_endpoints": self.http_endpoints,
+                },
+            )
+            raise ConfigurationError(error_msg, config_key="orchestration.strategy_endpoint")
 
         payload = {
             "correlation_id": event.correlation_id,
@@ -633,9 +759,23 @@ class EventDrivenOrchestrator:
             "trigger_event": event.model_dump(mode="json"),
         }
 
-        response_payload = self._post_with_retries(strategy_endpoint, payload)
-        if response_payload:
-            self._publish_http_event(response_payload)
+        try:
+            response_payload = self._post_with_retries(strategy_endpoint, payload)
+            if response_payload:
+                self._publish_http_event(response_payload)
+        except (httpx.HTTPError, httpx.TimeoutException, httpx.RequestError) as exc:
+            self.logger.error(
+                "Failed to call strategy endpoint in workflow",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "causation_id": event.event_id,
+                    "endpoint": strategy_endpoint,
+                    "workflow_stage": "strategy",
+                    "error_type": type(exc).__name__,
+                    "error_detail": str(exc),
+                },
+            )
+            raise
 
     def _handle_signal_generated(self, event: SignalGenerated) -> None:
         """Handle signal generation event for monitoring.
@@ -653,22 +793,45 @@ class EventDrivenOrchestrator:
 
         if self.use_http_domain_workflow:
             portfolio_endpoint = self.http_endpoints.get("portfolio")
-            if portfolio_endpoint:
-                payload = {
-                    "correlation_id": event.correlation_id,
-                    "causation_id": event.event_id,
-                    "event_type": event.event_type,
-                    "event_id": f"portfolio-request-{uuid4()}",
-                    "trigger_event": event.model_dump(mode="json"),
-                }
+            if not portfolio_endpoint:
+                error_msg = (
+                    "HTTP workflow is enabled but portfolio endpoint is not configured. "
+                    "Set orchestration.portfolio_endpoint in config or disable use_http_domain_workflow."
+                )
+                self.logger.error(
+                    error_msg,
+                    extra={
+                        "correlation_id": event.correlation_id,
+                        "http_endpoints": self.http_endpoints,
+                    },
+                )
+                raise ConfigurationError(error_msg, config_key="orchestration.portfolio_endpoint")
+
+            payload = {
+                "correlation_id": event.correlation_id,
+                "causation_id": event.event_id,
+                "event_type": event.event_type,
+                "event_id": f"portfolio-request-{uuid4()}",
+                "trigger_event": event.model_dump(mode="json"),
+            }
+
+            try:
                 response_payload = self._post_with_retries(portfolio_endpoint, payload)
                 if response_payload:
                     self._publish_http_event(response_payload)
-            else:
-                self.logger.warning(
-                    "HTTP workflow enabled but portfolio endpoint not configured",
-                    extra={"correlation_id": event.correlation_id},
+            except (httpx.HTTPError, httpx.TimeoutException, httpx.RequestError) as exc:
+                self.logger.error(
+                    "Failed to call portfolio endpoint in workflow",
+                    extra={
+                        "correlation_id": event.correlation_id,
+                        "causation_id": event.event_id,
+                        "endpoint": portfolio_endpoint,
+                        "workflow_stage": "portfolio",
+                        "error_type": type(exc).__name__,
+                        "error_detail": str(exc),
+                    },
                 )
+                raise
 
         self.logger.debug(
             f"📊 EventDrivenOrchestrator: Monitoring signal generation - {event.signal_count} signals"
@@ -716,22 +879,45 @@ class EventDrivenOrchestrator:
 
         if self.use_http_domain_workflow:
             execution_endpoint = self.http_endpoints.get("execution")
-            if execution_endpoint:
-                payload = {
-                    "correlation_id": event.correlation_id,
-                    "causation_id": event.event_id,
-                    "event_type": event.event_type,
-                    "event_id": f"execution-request-{uuid4()}",
-                    "trigger_event": event.model_dump(mode="json"),
-                }
+            if not execution_endpoint:
+                error_msg = (
+                    "HTTP workflow is enabled but execution endpoint is not configured. "
+                    "Set orchestration.execution_endpoint in config or disable use_http_domain_workflow."
+                )
+                self.logger.error(
+                    error_msg,
+                    extra={
+                        "correlation_id": event.correlation_id,
+                        "http_endpoints": self.http_endpoints,
+                    },
+                )
+                raise ConfigurationError(error_msg, config_key="orchestration.execution_endpoint")
+
+            payload = {
+                "correlation_id": event.correlation_id,
+                "causation_id": event.event_id,
+                "event_type": event.event_type,
+                "event_id": f"execution-request-{uuid4()}",
+                "trigger_event": event.model_dump(mode="json"),
+            }
+
+            try:
                 response_payload = self._post_with_retries(execution_endpoint, payload)
                 if response_payload:
                     self._publish_http_event(response_payload)
-            else:
-                self.logger.warning(
-                    "HTTP workflow enabled but execution endpoint not configured",
-                    extra={"correlation_id": event.correlation_id},
+            except (httpx.HTTPError, httpx.TimeoutException, httpx.RequestError) as exc:
+                self.logger.error(
+                    "Failed to call execution endpoint in workflow",
+                    extra={
+                        "correlation_id": event.correlation_id,
+                        "causation_id": event.event_id,
+                        "endpoint": execution_endpoint,
+                        "workflow_stage": "execution",
+                        "error_type": type(exc).__name__,
+                        "error_detail": str(exc),
+                    },
                 )
+                raise
 
         self.logger.debug(
             f"⚖️ EventDrivenOrchestrator: Monitoring rebalance planning - trades required: {event.trades_required}"
