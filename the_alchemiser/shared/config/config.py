@@ -388,6 +388,19 @@ class ExecutionSettings(BaseModel):
     treat_partial_execution_as_failure: bool = True
 
 
+class OrchestrationSettings(BaseModel):
+    """Orchestration transport configuration."""
+
+    use_http_domain_workflow: bool = False
+    strategy_endpoint: str = "http://localhost:8001/signals"
+    portfolio_endpoint: str = "http://localhost:8002/rebalance"
+    execution_endpoint: str = "http://localhost:8003/executions"
+    reporting_account_endpoint: str = "http://localhost:8004/reports/account"
+    reporting_execution_endpoint: str = "http://localhost:8004/reports/execution"
+    http_max_retries: int = 3
+    http_retry_backoff_seconds: float = 0.5
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables and .env file."""
 
@@ -396,6 +409,7 @@ class Settings(BaseSettings):
     aws: AwsSettings = AwsSettings()
     alerts: AlertsSettings = AlertsSettings()
     strategy: StrategySettings = StrategySettings()
+    orchestration: OrchestrationSettings = OrchestrationSettings()
     email: EmailSettings = EmailSettings()
     data: DataSettings = DataSettings()
     tracking: TrackingSettings = TrackingSettings()

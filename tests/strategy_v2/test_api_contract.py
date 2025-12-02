@@ -59,26 +59,26 @@ def test_signals_endpoint_missing_required_fields() -> None:
     assert "detail" in response.json()
 
 
-def test_signals_endpoint_empty_correlation_id() -> None:
-    """Test validation: empty correlation_id returns 500 due to event validation."""
+def test_signals_endpoint_uses_header_correlation_id() -> None:
+    """Middleware should supply correlation/causation IDs from headers."""
     app = create_app()
     client = TestClient(app)
 
-    timestamp = datetime.now(UTC)
     payload = {
-        "correlation_id": "",  # Invalid: empty string (caught by event validation)
-        "causation_id": "cause-start",
-        "timestamp": timestamp.isoformat(),
+        "correlation_id": "",  # Ignored in favor of header value
         "signals_data": {"SPY": {"signal": "BUY", "weight": 0.6}},
         "consolidated_portfolio": {"SPY": 0.6, "QQQ": 0.4},
         "signal_count": 1,
     }
 
-    response = client.post("/signals", json=payload)
+    headers = {"X-Correlation-ID": "corr-from-header", "X-Causation-ID": "cause-header"}
 
-    # Empty string passes Pydantic request validation but fails event validation
-    assert response.status_code == 500
-    assert "Event publication failed" in response.json()["detail"]
+    response = client.post("/signals", json=payload, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["event"]["correlation_id"] == "corr-from-header"
+    assert body["event"]["causation_id"] == "cause-header"
 
 
 def test_signals_endpoint_invalid_timestamp() -> None:
@@ -161,3 +161,16 @@ def test_health_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy", "service": "strategy_v2"}
+
+
+def test_contracts_endpoint_reports_versions() -> None:
+    """Contract probe should surface supported events."""
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/contracts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "strategy_v2"
+    assert body["supported_events"]["SignalGenerated"] == SignalGenerated.__event_version__

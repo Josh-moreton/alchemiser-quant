@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from the_alchemiser.shared.config.container import ApplicationContainer
     from the_alchemiser.shared.events.base import BaseEvent
     from the_alchemiser.shared.events.handlers import EventHandler
 
@@ -22,18 +23,23 @@ class EventTransport(Protocol):
     """Protocol for event-style transports used by the strategy module."""
 
     def publish(self, event: BaseEvent) -> None:  # pragma: no cover - protocol
+        """Publish an event to the transport."""
         ...
 
     def subscribe(
         self, event_type: str, handler: EventHandler
     ) -> None:  # pragma: no cover - protocol
+        """Subscribe a handler to an event type."""
         ...
 
 
 class HttpTransport(Protocol):
     """Minimal protocol for HTTP-style transports used by the strategy module."""
 
-    def post(self, path: str, payload: dict[str, Any]) -> Any:  # pragma: no cover - protocol
+    def post(
+        self, path: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:  # pragma: no cover - protocol
+        """Post a payload to an HTTP endpoint."""
         ...
 
 
@@ -45,7 +51,7 @@ class StrategyTransports:
     http_client: HttpTransport | None = None
 
 
-def build_strategy_transports(container: Any) -> StrategyTransports:
+def build_strategy_transports(container: ApplicationContainer) -> StrategyTransports:
     """Build default transports from the shared container.
 
     Event transport defaults to the shared in-memory event bus. HTTP transport

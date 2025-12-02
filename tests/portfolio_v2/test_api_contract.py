@@ -222,6 +222,56 @@ def test_rebalance_endpoint_with_defaults() -> None:
     assert captured[0].timestamp is not None
 
 
+def test_rebalance_endpoint_uses_header_correlation_id() -> None:
+    """Middleware should source trace IDs from headers when payload omits them."""
+    event_bus = EventBus()
+    captured: list[RebalancePlanned] = []
+    event_bus.subscribe("RebalancePlanned", lambda event: captured.append(event))
+
+    app = create_app(event_bus=event_bus)
+    client = TestClient(app)
+
+    payload = {
+        "rebalance_plan": {
+            "plan_id": "plan-123",
+            "items": [
+                {
+                    "symbol": "SPY",
+                    "current_weight": "0",
+                    "target_weight": "1",
+                    "weight_diff": "1",
+                    "target_value": "0",
+                    "current_value": "0",
+                    "trade_amount": "0",
+                    "action": "BUY",
+                    "priority": 1,
+                }
+            ],
+            "timestamp": datetime.now(UTC).isoformat(),
+            "total_portfolio_value": "0",
+            "total_trade_value": "0",
+            "max_drift_tolerance": "0.05",
+        },
+        "allocation_comparison": {
+            "target_values": {},
+            "current_values": {},
+            "deltas": {},
+        },
+        "trades_required": False,
+    }
+
+    headers = {
+        "X-Correlation-ID": "corr-header-portfolio",
+        "X-Causation-ID": "cause-header-portfolio",
+    }
+
+    response = client.post("/rebalance", json=payload, headers=headers)
+
+    assert response.status_code == 200
+    assert captured[0].correlation_id == "corr-header-portfolio"
+    assert captured[0].causation_id == "cause-header-portfolio"
+
+
 def test_health_endpoint() -> None:
     """Test health check endpoint returns healthy status."""
     app = create_app()
@@ -231,3 +281,16 @@ def test_health_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "healthy", "service": "portfolio_v2"}
+
+
+def test_contracts_endpoint_reports_versions() -> None:
+    """Contract probe should surface supported events."""
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/contracts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "portfolio_v2"
+    assert body["supported_events"]["RebalancePlanned"] == RebalancePlanned.__event_version__
