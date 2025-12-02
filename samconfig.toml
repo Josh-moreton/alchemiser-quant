@@ -63,11 +63,23 @@ stack_name = "the-alchemiser-microservices-dev"
 s3_prefix = "the-alchemiser-microservices-dev"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
-parameter_overrides = "Stage=\"dev\" Env=\"dev\""
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=dev",
+]
 
 [microservices-prod.deploy.parameters]
 stack_name = "the-alchemiser-microservices-prod"
 s3_prefix = "the-alchemiser-microservices-prod"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
-parameter_overrides = "Stage=\"prod\" Env=\"prod\""
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=prod",
+]
