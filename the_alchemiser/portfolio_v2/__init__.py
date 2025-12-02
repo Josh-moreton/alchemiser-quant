@@ -42,6 +42,7 @@ def register_portfolio_handlers(
 
     Args:
         container: Application container for dependency injection
+        event_bus: Optional event transport to use. Defaults to container's event bus.
 
     """
     from .handlers import PortfolioAnalysisHandler

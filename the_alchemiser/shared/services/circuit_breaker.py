@@ -262,7 +262,12 @@ class CircuitBreaker:
         remaining = self.config.timeout_seconds - elapsed
         return max(0.0, remaining)
 
-    def call(self, func: Callable[[], T], *args: Any, **kwargs: Any) -> T:
+    def call(
+        self,
+        func: Callable[[], T],
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
+    ) -> T:
         """Execute a function through the circuit breaker.
 
         Args:

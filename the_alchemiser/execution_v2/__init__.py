@@ -38,6 +38,7 @@ def register_execution_handlers(
 
     Args:
         container: Application container for dependency injection
+        event_bus: Optional event transport to use. Defaults to container's event bus.
 
     Example:
         >>> from the_alchemiser.shared.config.container import ApplicationContainer

@@ -66,6 +66,7 @@ class EventDrivenOrchestrator:
 
         Args:
             container: Application container for dependency injection
+            http_client: Optional HTTP client for domain workflow calls.
 
         """
         self.container = container
@@ -521,7 +522,9 @@ class EventDrivenOrchestrator:
         )
         raise last_error  # type: ignore[misc]
 
-    def _deserialize_event_from_payload(self, payload: dict[str, Any]) -> BaseEvent | None:
+    def _deserialize_event_from_payload(  # noqa: C901
+        self, payload: dict[str, Any]
+    ) -> BaseEvent | None:
         """Deserialize event payload into event object based on event_type.
 
         Args:

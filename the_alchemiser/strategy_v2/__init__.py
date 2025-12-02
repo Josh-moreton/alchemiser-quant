@@ -39,6 +39,7 @@ def register_strategy_handlers(
 
     Args:
         container: Application container for dependency injection
+        event_bus: Optional event transport to use. Defaults to container's event bus.
 
     Raises:
         ConfigurationError: If container is missing required services or attributes
