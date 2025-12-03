@@ -301,31 +301,6 @@ Resources:
                 aws:SourceArn: !GetAtt RebalancePlannedRule.Arn
 
   # EventBridge Rules for event routing
-  WorkflowStartedRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-workflow-started"
-        - !Sub "alchemiser-workflow-started-${Stage}"
-      EventBusName: !Ref AlchemiserEventBus
-      EventPattern:
-        source:
-          - alchemiser.orchestrator
-        detail-type:
-          - TradingWorkflowStarted
-      Targets:
-        - Id: StrategyTarget
-          Arn: !GetAtt StrategyFunction.Arn
-
-  WorkflowStartedPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref StrategyFunction
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt WorkflowStartedRule.Arn
-
   SignalGeneratedRule:
     Type: AWS::Events::Rule
     Properties:
@@ -368,79 +343,7 @@ Resources:
         - Id: ExecutionQueueTarget
           Arn: !GetAtt ExecutionQueue.Arn
 
-  # Orchestrator Lambda - Publishes WorkflowStarted to EventBridge
-  OrchestratorFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-orchestrator"
-        - !Sub "the-alchemiser-orchestrator-${Stage}"
-      Runtime: python3.12
-      CodeUri: ./
-      Handler: the_alchemiser.orchestration.lambda_handler.lambda_handler
-      Role: !GetAtt OrchestratorExecutionRole.Arn
-      Layers:
-        - !Ref DependenciesLayer
-      Timeout: 900
-      MemorySize: 512
-      Environment:
-        Variables:
-          EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
-          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          LOGGING__LEVEL: !Ref LoggingLevel
-          APP__STAGE: !If [ IsDev, "dev", "prod" ]
-    Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
-
-  OrchestratorExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: OrchestratorPolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - events:PutEvents
-                Resource:
-                  - !GetAtt AlchemiserEventBus.Arn
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt TradeLedgerTable.Arn
-                  - !Sub "${TradeLedgerTable.Arn}/index/*"
-
-  # Strategy Lambda - Signal generation microservice
+  # Strategy Lambda - Signal generation microservice (entry point)
   StrategyFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -719,27 +622,27 @@ Resources:
                 Resource:
                   - !GetAtt AlchemiserEventBus.Arn
 
-  # Scheduler for Orchestrator (microservices mode)
-  OrchestratorSchedule:
+  # Scheduler to trigger Strategy (workflow entry point)
+  StrategySchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-orchestrator-schedule"
-        - !Sub "alchemiser-orchestrator-${Stage}"
-      Description: "Execute microservices orchestrator daily at 9:35 AM New York time"
+        - !Sub "${StackName}-strategy-schedule"
+        - !Sub "alchemiser-strategy-${Stage}"
+      Description: "Execute trading strategy daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !GetAtt OrchestratorFunction.Arn
-        RoleArn: !GetAtt OrchestratorSchedulerRole.Arn
+        Arn: !GetAtt StrategyFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
         Input: '{"mode": "trade"}'
         RetryPolicy:
           MaximumRetryAttempts: 1
 
-  OrchestratorSchedulerRole:
+  StrategySchedulerRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -749,12 +652,12 @@ Resources:
               Service: scheduler.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: InvokeOrchestrator
+        - PolicyName: InvokeStrategy
           PolicyDocument:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt OrchestratorFunction.Arn
+                Resource: !GetAtt StrategyFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE

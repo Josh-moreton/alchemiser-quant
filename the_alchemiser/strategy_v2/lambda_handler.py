@@ -2,7 +2,10 @@
 
 Lambda handler for strategy microservice.
 
-Triggered by EventBridge when WorkflowStarted is published by the orchestrator.
+This is the entry point for the trading workflow. It can be triggered by:
+1. EventBridge Schedule (daily at market open)
+2. Manual invocation for testing
+
 Runs signal generation and publishes SignalGenerated to EventBridge.
 """
 
@@ -21,7 +24,6 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
-    unwrap_eventbridge_event,
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.strategy_v2.handlers.signal_generation_handler import (
@@ -31,32 +33,66 @@ from the_alchemiser.strategy_v2.handlers.signal_generation_handler import (
 logger = get_logger(__name__)
 
 
+def _check_market_status(container: ApplicationContainer, correlation_id: str) -> tuple[bool, str]:
+    """Check if market is currently open.
+
+    Args:
+        container: Application container with Alpaca client
+        correlation_id: Correlation ID for logging
+
+    Returns:
+        Tuple of (is_open, status_string)
+
+    """
+    try:
+        trading_client = container.infrastructure.alpaca_manager().trading_client
+        clock = trading_client.get_clock()
+        is_open = clock.is_open
+        status = "open" if is_open else "closed"
+
+        if not is_open:
+            logger.warning(
+                "Market is closed - signal generation will proceed but orders skipped",
+                extra={"correlation_id": correlation_id, "market_status": status},
+            )
+        else:
+            logger.info(
+                "Market is open - full trading workflow will execute",
+                extra={"correlation_id": correlation_id, "market_status": status},
+            )
+        return is_open, status
+    except Exception as e:
+        logger.warning(
+            "Market status check failed, proceeding anyway",
+            extra={"correlation_id": correlation_id, "error": str(e)},
+        )
+        return False, "unknown"
+
+
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle EventBridge event for signal generation.
+    """Handle scheduled or manual invocation for signal generation.
 
     This handler:
-    1. Unwraps the EventBridge event to get WorkflowStarted data
+    1. Checks market status via Alpaca clock
     2. Runs the signal generation handler
     3. Publishes SignalGenerated (or WorkflowFailed) to EventBridge
 
     Args:
-        event: EventBridge event containing WorkflowStarted in 'detail'
-        context: Lambda context (unused)
+        event: Lambda event (from schedule or manual invocation)
+        context: Lambda context
 
     Returns:
         Response indicating success/failure
 
     """
-    # Extract correlation ID for logging
-    detail = unwrap_eventbridge_event(event)
-    correlation_id = detail.get("correlation_id", str(uuid.uuid4()))
+    # Generate correlation ID for this workflow
+    correlation_id = event.get("correlation_id") or f"workflow-{uuid.uuid4()}"
 
     logger.info(
-        "Strategy Lambda invoked",
+        "Strategy Lambda invoked - workflow entry point",
         extra={
             "correlation_id": correlation_id,
-            "event_type": event.get("detail-type", "direct"),
-            "source": event.get("source", "unknown"),
+            "event_source": event.get("source", "schedule"),
         },
     )
 
@@ -64,24 +100,30 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Create application container
         container = ApplicationContainer.create_for_environment("production")
 
-        # Create the WorkflowStarted event from the detail payload
+        # Check market status
+        market_is_open, market_status = _check_market_status(container, correlation_id)
+
+        # Create the WorkflowStarted event (used internally by handler)
         workflow_event = WorkflowStarted(
-            correlation_id=detail.get("correlation_id", correlation_id),
-            causation_id=detail.get("causation_id", correlation_id),
-            event_id=detail.get("event_id", f"workflow-started-{uuid.uuid4()}"),
+            correlation_id=correlation_id,
+            causation_id=f"schedule-{datetime.now(UTC).isoformat()}",
+            event_id=f"workflow-started-{uuid.uuid4()}",
             timestamp=datetime.now(UTC),
-            source_module=detail.get("source_module", "orchestrator"),
-            source_component=detail.get("source_component"),
-            workflow_type=detail.get("workflow_type", "trading"),
-            requested_by=detail.get("requested_by", "orchestrator"),
-            configuration=detail.get("configuration", {}),
-            metadata=detail.get("metadata", {}),
+            source_module="strategy_v2.lambda_handler",
+            source_component="StrategyLambda",
+            workflow_type="trading",
+            requested_by="EventBridgeSchedule",
+            configuration={
+                "live_trading": not container.config.paper_trading(),
+                "market_is_open": market_is_open,
+                "market_status": market_status,
+            },
         )
 
-        # Create handler - but we'll capture the generated event instead of using EventBus
+        # Create handler
         handler = SignalGenerationHandler(container)
 
-        # Capture the SignalGenerated event
+        # Capture the generated event
         generated_event: SignalGenerated | None = None
         failed_event: WorkflowFailed | None = None
 
@@ -110,6 +152,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 extra={
                     "correlation_id": correlation_id,
                     "signal_count": generated_event.signal_count,
+                    "market_status": market_status,
                 },
             )
             return {
@@ -118,6 +161,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                     "status": "success",
                     "correlation_id": correlation_id,
                     "signal_count": generated_event.signal_count,
+                    "market_status": market_status,
                 },
             }
 
@@ -164,7 +208,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         try:
             failure_event = WorkflowFailed(
                 correlation_id=correlation_id,
-                causation_id=detail.get("event_id", correlation_id),
+                causation_id=correlation_id,
                 event_id=f"workflow-failed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
                 source_module="strategy_v2",

@@ -3,13 +3,6 @@
 from __future__ import annotations
 
 
-def test_orchestrator_handler_exists() -> None:
-    """Verify orchestrator Lambda handler can be imported."""
-    from the_alchemiser.orchestration.lambda_handler import lambda_handler
-
-    assert callable(lambda_handler)
-
-
 def test_strategy_handler_exists() -> None:
     """Verify strategy Lambda handler can be imported."""
     from the_alchemiser.strategy_v2.lambda_handler import lambda_handler
