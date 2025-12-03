@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -305,19 +304,20 @@ class RealTimeDataProcessor:
             correlation_id: Optional correlation ID for tracing
 
         """
-        if self.logger.isEnabledFor(logging.DEBUG):
-            with contextlib.suppress(RuntimeError):
-                # Event loop executor has shut down - gracefully ignore
-                await asyncio.to_thread(
-                    self.logger.debug,
-                    "Quote received",
-                    extra={
-                        "symbol": symbol,
-                        "bid_price": str(bid_price) if bid_price else None,
-                        "ask_price": str(ask_price) if ask_price else None,
-                        "correlation_id": correlation_id,
-                    },
-                )
+        # Note: Removed isEnabledFor check as structlog's BoundLogger doesn't support it
+        # The debug log will be filtered at the structlog level based on configured log level
+        with contextlib.suppress(RuntimeError):
+            # Event loop executor has shut down - gracefully ignore
+            await asyncio.to_thread(
+                self.logger.debug,
+                "Quote received",
+                extra={
+                    "symbol": symbol,
+                    "bid_price": str(bid_price) if bid_price else None,
+                    "ask_price": str(ask_price) if ask_price else None,
+                    "correlation_id": correlation_id,
+                },
+            )
         await asyncio.sleep(0)
 
     async def handle_quote_error(self, error: Exception, correlation_id: str | None = None) -> None:

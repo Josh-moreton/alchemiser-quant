@@ -26,6 +26,7 @@ resolve_s3 = true
 # Provide stage parameter required by the template.
 parameter_overrides = [
 	"Stage=dev",
+	"EnableMicroservices=true",
 ]
 
 [prod.deploy.parameters]
@@ -39,6 +40,7 @@ resolve_s3 = true
 # Prod parameters required by the template; credentials loaded via Secrets Manager
 parameter_overrides = [
 	"Stage=prod",
+	"EnableMicroservices=true",
 ]
 
 [ephemeral.build.parameters]
@@ -57,3 +59,5 @@ resolve_s3 = true
 parameter_overrides = [
 	"Stage=ephemeral",
 ]
+
+

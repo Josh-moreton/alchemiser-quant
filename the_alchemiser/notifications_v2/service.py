@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.errors import (
-    ReportGenerationError,
     ValidationError,
 )
 from the_alchemiser.shared.events.base import BaseEvent
@@ -231,7 +230,7 @@ class NotificationService:
             # Mark as processed after successful handling
             self._processed_events.add(event.event_id)
 
-        except (ReportGenerationError, ValidationError) as e:
+        except ValidationError as e:
             # Known notification errors - don't mark as processed to allow retry
             self.logger.error(
                 f"Notification service failed with known error for {event.event_type}: {e}",
@@ -357,38 +356,8 @@ class NotificationService:
         )
 
         try:
-            # Generate PDF report from execution data
-            pdf_s3_uri = None
-            if event.trading_success and event.execution_data:
-                try:
-                    pdf_s3_uri = self._generate_execution_report(
-                        execution_data=event.execution_data,
-                        trading_mode=event.trading_mode,
-                        correlation_id=event.correlation_id,
-                    )
-                except (ReportGenerationError, ValueError, TypeError) as pdf_error:
-                    # Known PDF generation errors - log but don't fail the notification
-                    self.logger.warning(
-                        f"Failed to generate PDF report due to known error: {pdf_error}",
-                        extra={
-                            "correlation_id": event.correlation_id,
-                            "error_type": type(pdf_error).__name__,
-                        },
-                    )
-                except Exception as pdf_error:
-                    # Unexpected PDF generation errors - log but don't fail the notification
-                    self.logger.warning(
-                        f"Failed to generate PDF report due to unexpected error: {pdf_error}",
-                        extra={
-                            "correlation_id": event.correlation_id,
-                            "error_type": type(pdf_error).__name__,
-                        },
-                    )
-
-            # Build S3 attachments list
+            # PDF generation removed - notifications will be sent without attachments
             s3_attachments = None
-            if pdf_s3_uri:
-                s3_attachments = [("Trading_Execution_Report.pdf", pdf_s3_uri, "application/pdf")]
 
             # Use simplified email template (Hargreaves Lansdown style)
             html_content = EmailTemplates.simple_trading_notification(
@@ -396,7 +365,7 @@ class NotificationService:
                 mode=event.trading_mode,
                 orders_count=event.orders_placed,
                 correlation_id=event.correlation_id,
-                pdf_attached=(pdf_s3_uri is not None),
+                pdf_attached=False,
             )
 
             # Build subject line
@@ -414,12 +383,12 @@ class NotificationService:
             if success:
                 self._log_event_context(
                     event,
-                    f"Simplified trading notification sent successfully (success={event.trading_success}, pdf_attached={pdf_s3_uri is not None})",
+                    f"Simplified trading notification sent successfully (success={event.trading_success}, pdf_attached=False)",
                 )
             else:
                 self._log_event_context(event, "Failed to send trading notification email", "error")
 
-        except (ReportGenerationError, ValidationError) as e:
+        except ValidationError as e:
             # Known template/generation errors
             self._log_event_context(
                 event,
@@ -441,85 +410,6 @@ class NotificationService:
                 "error",
             )
 
-    def _generate_execution_report(
-        self, execution_data: dict[str, object], trading_mode: str, correlation_id: str
-    ) -> str:
-        """Generate PDF report via reporting Lambda.
-
-        Args:
-            execution_data: Execution data to generate report from
-            trading_mode: Trading mode (PAPER or LIVE)
-            correlation_id: Correlation ID for tracing
-
-        Returns:
-            S3 URI of the generated PDF report
-
-        Raises:
-            Exception: If report generation fails
-
-        """
-        import json
-        import os
-
-        import boto3
-
-        from the_alchemiser.shared.utils.serialization import to_serializable
-
-        stage = os.environ.get("STAGE", "dev")
-        lambda_function_name = f"the-alchemiser-report-generator-{stage}"
-
-        lambda_event = {
-            "report_type": "trading_execution",
-            "execution_data": execution_data,
-            "trading_mode": trading_mode,
-            "correlation_id": correlation_id,
-            "generate_from_execution": True,
-        }
-
-        self.logger.info(
-            "Invoking reporting Lambda",
-            extra={
-                "lambda_function": lambda_function_name,
-                "correlation_id": correlation_id,
-            },
-        )
-
-        # Convert Decimal and other non-JSON-serializable types to strings
-        serialized_event = to_serializable(lambda_event)
-
-        lambda_client = boto3.client("lambda")
-        response = lambda_client.invoke(
-            FunctionName=lambda_function_name,
-            InvocationType="RequestResponse",
-            Payload=json.dumps(serialized_event),
-        )
-
-        response_payload = json.loads(response["Payload"].read())
-
-        if response_payload.get("status") != "success":
-            error_msg = response_payload.get("message", "Unknown error")
-            raise ReportGenerationError(
-                f"Report generation failed: {error_msg}",
-                report_type="trading_execution",
-                correlation_id=correlation_id,
-            )
-
-        s3_uri_value = response_payload.get("s3_uri")
-        if not s3_uri_value or not isinstance(s3_uri_value, str):
-            raise ReportGenerationError(
-                "Report generation did not return a valid S3 URI",
-                report_type="trading_execution",
-                correlation_id=correlation_id,
-            )
-
-        s3_uri: str = s3_uri_value
-        self.logger.info(
-            "PDF report generated successfully",
-            extra={"s3_uri": s3_uri, "correlation_id": correlation_id},
-        )
-
-        return s3_uri
-
     def _build_success_trading_email(self, event: TradingNotificationRequested) -> str:
         """Build HTML content for successful trading notification.
 
@@ -537,7 +427,7 @@ class NotificationService:
                 result_adapter,
                 event.trading_mode,
             )
-        except (ReportGenerationError, ValueError, TypeError, AttributeError) as template_error:
+        except (ValueError, TypeError, AttributeError) as template_error:
             # Known template generation errors - fallback to basic template
             self.logger.warning(
                 f"Enhanced template failed with known error, using basic: {template_error}",

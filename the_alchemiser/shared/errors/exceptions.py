@@ -349,51 +349,6 @@ class S3OperationError(AlchemiserError):
         self.key = key
 
 
-class ReportGenerationError(AlchemiserError):
-    """Raised when generating reports (HTML/PDF) fails.
-
-    This error is used by notification/reporting services to indicate that a
-    report could not be created, converted, or persisted. Context fields are
-    limited to non-sensitive metadata for observability.
-
-    Args:
-        message: Human-readable error description
-        report_type: Optional logical report type (e.g. "trading_execution")
-        correlation_id: Optional correlation id for traceability
-        details: Optional additional safe-to-log metadata to include in context
-
-    """
-
-    def __init__(
-        self,
-        message: str,
-        report_type: str | None = None,
-        correlation_id: str | None = None,
-        details: dict[str, Any] | None = None,
-    ) -> None:
-        """Initialize report generation error with safe context.
-
-        Args:
-            message: Error message to describe the failure
-            report_type: Logical report type (e.g. "trading_execution")
-            correlation_id: Correlation id to aid traceability
-            details: Optional additional safe metadata to merge into context
-
-        """
-        context: dict[str, Any] = {}
-        if report_type:
-            context["report_type"] = report_type
-        if correlation_id:
-            context["correlation_id"] = correlation_id
-        if details:
-            # Shallow merge of additional context (must be non-sensitive)
-            context.update(details)
-
-        super().__init__(message, context)
-        self.report_type = report_type
-        self.correlation_id = correlation_id
-
-
 class RateLimitError(AlchemiserError):
     """Raised when API rate limits are exceeded."""
 

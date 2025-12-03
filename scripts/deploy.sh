@@ -97,29 +97,6 @@ fi
 
 echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
 
-# Package individual service artifacts for modular deployments
-if [ "${PACKAGE_SERVICES:-true}" = "true" ]; then
-    echo "📦 Packaging per-service Lambda bundles..."
-    bash scripts/package_services.sh
-fi
-
-# Verify report dependencies layer exists and is lightweight
-# Note: dependencies-report/requirements.txt is maintained manually to avoid heavy deps
-if [ ! -f "dependencies-report/requirements.txt" ]; then
-    echo "❌ Error: dependencies-report/requirements.txt not found"
-    echo "   This file is required for the Report Generator Lambda layer."
-    exit 1
-fi
-
-# Warn if pandas/numpy accidentally got added to report dependencies
-if grep -q "^pandas" dependencies-report/requirements.txt || grep -q "^numpy" dependencies-report/requirements.txt; then
-    echo "⚠️  Warning: pandas or numpy found in dependencies-report/requirements.txt"
-    echo "   The report lambda should use lightweight dependencies only."
-    echo "   Consider removing these heavy packages to reduce cold start time."
-fi
-
-echo "✅ Report dependencies verified: $(wc -l < dependencies-report/requirements.txt | tr -d ' ') packages (lightweight)"
-
 # Build the SAM application (skip if already built, e.g., by CI/CD)
 if [ -f ".aws-sam/build/template.yaml" ]; then
     echo "ℹ️  SAM build artifacts already exist, skipping build..."
@@ -137,14 +114,8 @@ echo "📦 Built package sizes:"
 if [ -d ".aws-sam/build/DependenciesLayer" ]; then
     echo "   Dependencies layer: $(du -sh .aws-sam/build/DependenciesLayer 2>/dev/null | cut -f1 || echo 'N/A')"
 fi
-if [ -d ".aws-sam/build/ReportDependenciesLayer" ]; then
-    echo "   Report dependencies layer: $(du -sh .aws-sam/build/ReportDependenciesLayer 2>/dev/null | cut -f1 || echo 'N/A')"
-fi
 if [ -d ".aws-sam/build/TradingSystemFunction" ]; then
     echo "   Function code: $(du -sh .aws-sam/build/TradingSystemFunction 2>/dev/null | cut -f1 || echo 'N/A')"
-fi
-if [ -d ".aws-sam/build/ReportGeneratorFunction" ]; then
-    echo "   Report generator code: $(du -sh .aws-sam/build/ReportGeneratorFunction 2>/dev/null | cut -f1 || echo 'N/A')"
 fi
 echo ""
 
@@ -164,6 +135,9 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaKey=$ALPACA_KEY"
         "AlpacaSecret=$ALPACA_SECRET"
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
+        "MicroservicesAlpacaKey=$ALPACA_KEY"
+        "MicroservicesAlpacaSecret=$ALPACA_SECRET"
+        "MicroservicesAlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
     )
@@ -177,7 +151,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         --config-env "$ENVIRONMENT" \
         --parameter-overrides ${PARAMS[@]}
 else
-    # Production: use the same ALPACA_* variables, mapped to Prod* parameters
+    # Production: use the same ALPACA_* variables for both monolithic and microservices
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
         echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for prod deploy (env)." >&2
         exit 1
@@ -190,6 +164,9 @@ else
         "ProdAlpacaKey=$ALPACA_KEY"
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
+        "MicroservicesAlpacaKey=$ALPACA_KEY"
+        "MicroservicesAlpacaSecret=$ALPACA_SECRET"
+        "MicroservicesAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
     )

@@ -96,6 +96,35 @@ class AllocationComparison(BaseModel):
         ..., description="Allocation deltas by symbol (current - target)"
     )
 
+    @classmethod
+    def from_json_dict(cls, data: dict[str, object]) -> AllocationComparison:
+        """Create AllocationComparison from JSON-serialized dict.
+
+        This method handles deserialization from EventBridge/SQS where
+        Decimal values are serialized as strings. It converts string
+        values back to Decimal before validation.
+
+        Args:
+            data: Dictionary from JSON deserialization (e.g., from EventBridge)
+
+        Returns:
+            AllocationComparison instance
+
+        """
+        normalized: dict[str, dict[str, Decimal]] = {}
+
+        for field_name in ("target_values", "current_values", "deltas"):
+            field_data = data.get(field_name, {})
+            if isinstance(field_data, dict):
+                normalized[field_name] = {
+                    symbol: Decimal(str(val)) if not isinstance(val, Decimal) else val
+                    for symbol, val in field_data.items()
+                }
+            else:
+                normalized[field_name] = {}
+
+        return cls.model_validate(normalized)
+
 
 class MultiStrategySummary(BaseModel):
     """DTO for multi-strategy summary including allocation comparison & account info.

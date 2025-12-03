@@ -1,12 +1,8 @@
 {
   "files": [
-    "foundation/kmlm.clj",
-    "foundation/semiconductors.clj",
-    "tactical/bitcoin.clj"
+    "foundation/vox.clj"
   ],
   "allocations": {
-    "foundation/kmlm.clj": 0.40,
-    "foundation/semiconductors.clj": 0.40,
-    "tactical/bitcoin.clj": 0.20
+    "foundation/vox.clj": 1.0
   }
 }

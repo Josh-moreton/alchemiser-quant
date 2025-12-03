@@ -15,5 +15,5 @@ Semantic contract catalogue for modules consuming shared events and schemas. All
 - **Schemas/DTOs**: `RebalancePlan`, `RebalancePlanItem`, `ExecutedOrder`, `TradeLedger`, `TradeLedgerEntry`.
 
 ## orchestration
-- **Events (consume/produce)**: `StartupEvent`, `WorkflowStarted`, `WorkflowCompleted`, `WorkflowFailed`, `TradingNotificationRequested`, `SystemNotificationRequested`, `ReportReady`.
+- **Events (consume/produce)**: `StartupEvent`, `WorkflowStarted`, `WorkflowCompleted`, `WorkflowFailed`, `TradingNotificationRequested`, `SystemNotificationRequested`.
 - **Schemas/DTOs**: `OrderResultSummary`, `ExecutionSummary`, `TradeRunResult`.

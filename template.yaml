@@ -247,141 +247,206 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  # Minimal Lambda Layer for Report Generator dependencies
-  ReportDependenciesLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-report-dependencies"
-        - !Sub "the-alchemiser-report-dependencies-${Stage}"
-      Description: Minimal dependencies for Report Generator (jinja2, pydantic, di, structlog)
-      ContentUri: dependencies-report/
-      CompatibleRuntimes:
-        - python3.12
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: python3.12
+  # ============================================================================
+  # MICROSERVICES ARCHITECTURE
+  # ============================================================================
 
-  TradingSystemFunction:
+  # EventBridge Event Bus for async domain event communication
+  AlchemiserEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-events"
+        - !Sub "alchemiser-trading-${Stage}"
+
+  # SQS Queue for reliable trade execution with DLQ
+  ExecutionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-queue"
+        - !Sub "alchemiser-execution-${Stage}"
+      VisibilityTimeout: 900  # 15 mins for execution
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ExecutionDLQ.Arn
+        maxReceiveCount: 3
+
+  ExecutionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-dlq"
+        - !Sub "alchemiser-execution-dlq-${Stage}"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # Policy to allow EventBridge to send messages to SQS
+  ExecutionQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ExecutionQueue
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ExecutionQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt RebalancePlannedRule.Arn
+
+  # EventBridge Rules for event routing
+  SignalGeneratedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-signal-generated"
+        - !Sub "alchemiser-signal-generated-${Stage}"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.strategy
+        detail-type:
+          - SignalGenerated
+      Targets:
+        - Id: PortfolioTarget
+          Arn: !GetAtt PortfolioFunction.Arn
+
+  SignalGeneratedPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PortfolioFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SignalGeneratedRule.Arn
+
+  RebalancePlannedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-planned"
+        - !Sub "alchemiser-rebalance-planned-${Stage}"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.portfolio
+        detail-type:
+          - RebalancePlanned
+      Targets:
+        - Id: ExecutionQueueTarget
+          Arn: !GetAtt ExecutionQueue.Arn
+
+  # Strategy Lambda - Signal generation microservice (entry point)
+  StrategyFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-lambda"
-        - !Sub "the-alchemiser-v2-lambda-${Stage}"
-      PackageType: Zip
+        - !Sub "${StackName}-strategy"
+        - !Sub "the-alchemiser-strategy-${Stage}"
       Runtime: python3.12
       CodeUri: ./
-      Handler: the_alchemiser.lambda_handler.lambda_handler
-      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
+      Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          LOGGING__LEVEL: !Ref LoggingLevel
+          ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
-        # Include only the the_alchemiser package
         Include:
           - 'the_alchemiser/**/*.py'
           - 'the_alchemiser/**/*.clj'
           - 'the_alchemiser/config/*.json'
           - 'the_alchemiser/py.typed'
         Exclude:
-          # Sensitive files (security)
           - '.env*'
           - 'the_alchemiser/.env*'
-
-          # Python cache and build artifacts
           - '**/__pycache__/**'
           - '**/*.pyc'
           - '**/*.pyo'
           - '**/*.egg-info/**'
-
-          # IDE and editor files
           - 'the_alchemiser/.editorconfig'
-
-          # Documentation within the_alchemiser
           - 'the_alchemiser/**/*.md'
 
-  # Dead Letter Queue for failed trading executions
-  TradingSystemDLQ:
-    Type: AWS::SQS::Queue
+  StrategyExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      QueueName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-dlq"
-        - !Sub "the-alchemiser-dlq-${Stage}"
-      MessageRetentionPeriod: 1209600 # 14 days
-      VisibilityTimeout: 60
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StrategyPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
 
-  # S3 Bucket for PDF Reports
-  ReportsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-reports"
-        - !Sub "the-alchemiser-reports-${Stage}"
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      VersioningConfiguration:
-        Status: Enabled
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldReports
-            Status: Enabled
-            ExpirationInDays: 365  # Keep reports for 1 year
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: reports
-
-  # Lambda Function for Report Generation
-  ReportGeneratorFunction:
+  # Portfolio Lambda - Rebalance planning microservice
+  PortfolioFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-report-generator"
-        - !Sub "the-alchemiser-report-generator-${Stage}"
-      PackageType: Zip
+        - !Sub "${StackName}-portfolio"
+        - !Sub "the-alchemiser-portfolio-${Stage}"
       Runtime: python3.12
       CodeUri: ./
-      Handler: the_alchemiser.reporting.lambda_handler.lambda_handler
-      Role: !GetAtt ReportGeneratorExecutionRole.Arn
-      Architectures:
-        - x86_64
+      Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
+      Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
-        - !Ref ReportDependenciesLayer
-        - arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
-      Timeout: 300  # 5 minutes for PDF generation
+        - !Ref DependenciesLayer
+      Timeout: 300
       MemorySize: 1024
       Environment:
         Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          REPORTS_S3_BUCKET: !Ref ReportsBucket
-          AWS_ACCOUNT_ID: !Ref "AWS::AccountId"
           LOGGING__LEVEL: !Ref LoggingLevel
-          LD_LIBRARY_PATH: "/opt/lib"
-          FONTCONFIG_PATH: "/opt/fonts"
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
         Include:
           - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.html'
-          - 'the_alchemiser/**/*.css'
+          - 'the_alchemiser/**/*.clj'
           - 'the_alchemiser/config/*.json'
           - 'the_alchemiser/py.typed'
-          - 'logo.png'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -392,16 +457,10 @@ Resources:
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
 
-  # IAM Role for Report Generator Lambda
-  ReportGeneratorExecutionRole:
+  PortfolioExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-report-generator-role"
-        - !Sub "the-alchemiser-v2-${Stage}-report-generator-role"
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -409,218 +468,202 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: PortfolioPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
 
-  # Policy for Report Generator Lambda
-  ReportGeneratorExecutionRolePolicy:
-    Type: AWS::IAM::Policy
+  # Execution Lambda - Trade execution microservice (triggered via SQS)
+  ExecutionFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      PolicyName: ReportGeneratorPolicy
-      Roles:
-        - !Ref ReportGeneratorExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          # CloudWatch Logs
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Resource: "*"
-
-          # DynamoDB access for snapshots (read-only)
-          - Effect: Allow
-            Action:
-              - dynamodb:GetItem
-              - dynamodb:Query
-              - dynamodb:UpdateItem
-            Resource:
-              - !GetAtt TradeLedgerTable.Arn
-              - !Sub "${TradeLedgerTable.Arn}/index/*"
-
-          # S3 access for reports (write-only)
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:PutObjectAcl
-            Resource: !Sub "${ReportsBucket.Arn}/*"
-
-  # CloudWatch Log Group for Report Generator
-  ReportGeneratorLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !If
+      FunctionName: !If
         - UseStackNameForResources
-        - !Sub "/aws/lambda/${StackName}-report-generator"
-        - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"
-      RetentionInDays: !If [ IsEphemeral, 3, 30 ]
+        - !Sub "${StackName}-execution"
+        - !Sub "the-alchemiser-execution-${Stage}"
+      Runtime: python3.12
+      CodeUri: ./
+      Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
+      Role: !GetAtt ExecutionExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 600
+      MemorySize: 1024
+      # Note: Concurrency is limited by SQS BatchSize: 1 which processes one message at a time
+      # WebSocket connections are cleaned up after each execution via cleanup_all_instances()
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          LOGGING__LEVEL: !Ref LoggingLevel
+      Events:
+        ExecutionQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ExecutionQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
-  # EventBridge Scheduler with proper timezone support and reduced retry policy
-  TradingSystemSchedule:
+  ExecutionExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ExecutionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt ExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+  # ========== NOTIFICATIONS LAMBDA ==========
+  # Consumes TradeExecuted events and sends email notifications
+  NotificationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notifications"
+        - !Sub "the-alchemiser-notifications-${Stage}"
+      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
+      Runtime: python3.12
+      MemorySize: 512
+      Timeout: 60
+      Role: !GetAtt NotificationsExecutionRole.Arn
+      Events:
+        TradeExecutedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.execution"
+              detail-type:
+                - "TradeExecuted"
+
+  NotificationsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: NotificationsPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+
+  # Scheduler to trigger Strategy (workflow entry point)
+  StrategySchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-daily-trading"
-        - !Sub "the-alchemiser-daily-trading-${Stage}"
-      Description: "Execute quantitative trading system daily at 9:35 AM New York time"
+        - !Sub "${StackName}-strategy-schedule"
+        - !Sub "alchemiser-strategy-${Stage}"
+      Description: "Execute trading strategy daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !GetAtt TradingSystemFunction.Arn
-        RoleArn: !GetAtt SchedulerExecutionRole.Arn
-        Input: |
-          {
-            "mode": "trade"
-          }
-        RetryPolicy:
-          MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
-        DeadLetterConfig:
-          Arn: !GetAtt TradingSystemDLQ.Arn
-      State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
-
-  # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC
-  MonthlySummarySchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-monthly-summary"
-        - !Sub "the-alchemiser-monthly-summary-${Stage}"
-      Description: "Send monthly financial summary on the 1st (previous month)"
-      ScheduleExpression: "cron(5 0 1 * ? *)"  # 00:05 UTC on day 1
-      ScheduleExpressionTimezone: "UTC"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt TradingSystemFunction.Arn
-        RoleArn: !GetAtt SchedulerExecutionRole.Arn
-        Input: |
-          {
-            "action": "monthly_summary"
-          }
+        Arn: !GetAtt StrategyFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "trade"}'
         RetryPolicy:
           MaximumRetryAttempts: 1
-        DeadLetterConfig:
-          Arn: !GetAtt TradingSystemDLQ.Arn
-      State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
 
-  # IAM Role for EventBridge Scheduler to invoke Lambda
-  SchedulerExecutionRole:
+  StrategySchedulerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-scheduler-role"
-        - !Sub "the-alchemiser-v2-${Stage}-scheduler-role"
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
               Service: scheduler.amazonaws.com
             Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeStrategy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt StrategyFunction.Arn
 
-  # Separate policy for Scheduler role to avoid constant updates
-  SchedulerExecutionRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: SchedulerLambdaInvokePolicy
-      Roles:
-        - !Ref SchedulerExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - lambda:InvokeFunction
-            Resource: !GetAtt TradingSystemFunction.Arn
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt TradingSystemDLQ.Arn
-
-  # IAM Role for Lambda execution
-  TradingSystemExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-trading-system-role"
-        - !Sub "the-alchemiser-v2-${Stage}-trading-system-role"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-  # Separate policy for Lambda execution role to avoid constant updates
-  TradingSystemExecutionRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: TradingSystemPolicy
-      Roles:
-        - !Ref TradingSystemExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          # CloudWatch Logs (enhanced logging)
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-              - logs:DescribeLogStreams
-              - logs:DescribeLogGroups
-            Resource: "*"
-
-          # Lambda invocation for report generator
-          - Effect: Allow
-            Action:
-              - lambda:InvokeFunction
-            Resource: !GetAtt ReportGeneratorFunction.Arn
-
-          # DynamoDB access for trade ledger
-          - Effect: Allow
-            Action:
-              - dynamodb:PutItem
-              - dynamodb:GetItem
-              - dynamodb:Query
-              - dynamodb:UpdateItem
-              - dynamodb:BatchWriteItem
-            Resource:
-              - !GetAtt TradeLedgerTable.Arn
-              - !Sub "${TradeLedgerTable.Arn}/index/*"
-
-
-  # CloudWatch Log Group with retention
-  TradingSystemLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !If
-        - UseStackNameForResources
-        - !Sub "/aws/lambda/${StackName}-lambda"
-        - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
-      RetentionInDays: !If [ IsEphemeral, 3, 30 ]
+  # ============================================================================
+  # END MICROSERVICES ARCHITECTURE
+  # ============================================================================
 
 Outputs:
-  TradingSystemFunctionArn:
-    Description: "Quantitative Trading System Lambda Function ARN"
-    Value: !GetAtt TradingSystemFunction.Arn
-
-  TradingSystemLogGroupName:
-    Description: "CloudWatch Log Group for monitoring"
-    Value: !If
-      - UseStackNameForResources
-      - !Sub "/aws/lambda/${StackName}-lambda"
-      - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
-
   TradeLedgerTableName:
     Description: "DynamoDB table for trade ledger persistence"
     Value: !Ref TradeLedgerTable
@@ -637,23 +680,3 @@ Outputs:
   StackNameUsed:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "the-alchemiser-v2-${Stage}" ]
-
-  ReportGeneratorFunctionArn:
-    Description: "Report Generator Lambda Function ARN"
-    Value: !GetAtt ReportGeneratorFunction.Arn
-
-  ReportsBucketName:
-    Description: "S3 bucket for PDF reports"
-    Value: !Ref ReportsBucket
-    Export:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-ReportsBucket"
-        - !Sub "the-alchemiser-v2-${Stage}-ReportsBucket"
-
-  ReportGeneratorLogGroupName:
-    Description: "CloudWatch Log Group for Report Generator"
-    Value: !If
-      - UseStackNameForResources
-      - !Sub "/aws/lambda/${StackName}-report-generator"
-      - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"

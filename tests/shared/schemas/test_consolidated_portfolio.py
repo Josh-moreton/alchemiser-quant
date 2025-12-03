@@ -439,6 +439,46 @@ class TestConsolidatedPortfolioFactoryMethods:
         assert result_dict["AAPL"] == pytest.approx(0.6)
         assert result_dict["GOOGL"] == pytest.approx(0.4)
 
+    def test_from_json_dict_with_string_decimals(self):
+        """Test from_json_dict handles EventBridge serialized data with string Decimals."""
+        # Simulate data from EventBridge where Decimals are serialized as strings
+        json_data = {
+            "target_allocations": {"AAPL": "0.60", "GOOGL": "0.40"},
+            "correlation_id": "test-123",
+            "timestamp": "2023-01-01T12:00:00+00:00",
+            "strategy_count": 1,
+            "source_strategies": [],
+            "schema_version": "1.0.0",
+        }
+        portfolio = ConsolidatedPortfolio.from_json_dict(json_data)
+        assert portfolio.target_allocations["AAPL"] == Decimal("0.60")
+        assert portfolio.target_allocations["GOOGL"] == Decimal("0.40")
+        assert portfolio.correlation_id == "test-123"
+
+    def test_from_json_dict_preserves_actual_decimals(self):
+        """Test from_json_dict works with already-Decimal values."""
+        json_data = {
+            "target_allocations": {"AAPL": Decimal("0.60"), "GOOGL": Decimal("0.40")},
+            "correlation_id": "test-123",
+            "timestamp": datetime.now(UTC),
+            "strategy_count": 1,
+            "source_strategies": [],
+        }
+        portfolio = ConsolidatedPortfolio.from_json_dict(json_data)
+        assert portfolio.target_allocations["AAPL"] == Decimal("0.60")
+
+    def test_from_json_dict_handles_z_timestamp(self):
+        """Test from_json_dict handles Z-suffix UTC timestamps."""
+        json_data = {
+            "target_allocations": {"AAPL": "1.0"},
+            "correlation_id": "test-123",
+            "timestamp": "2023-01-01T12:00:00Z",
+            "strategy_count": 1,
+            "source_strategies": [],
+        }
+        portfolio = ConsolidatedPortfolio.from_json_dict(json_data)
+        assert portfolio.timestamp.year == 2023
+
 
 class TestConsolidatedPortfolioPropertyBased:
     """Property-based tests using Hypothesis."""
