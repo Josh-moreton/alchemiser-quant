@@ -114,7 +114,7 @@ from the_alchemiser.shared.events import EventBus
 python -m pytest tests/ -v
 
 # Specific module
-python -m pytest tests/reporting/ -v
+python -m pytest tests/strategy_v2/ -v
 
 # With coverage
 python -m pytest tests/ --cov=the_alchemiser
@@ -146,14 +146,6 @@ The bump command commits both your changes AND the version bump together.
 - Handler: `the_alchemiser.lambda_handler.lambda_handler`
 - Uses `ApplicationContainer` for dependency injection
 - Heavy dependencies: pandas, numpy, alpaca-py
-
-### Report Generator Lambda
-- Handler: `the_alchemiser.reporting.lambda_handler.lambda_handler`
-- **Avoids `ApplicationContainer`** to stay lightweight
-- Creates `EventBus` directly via `_create_event_bus()`
-- No pandas/numpy dependencies
-
-**Important**: When modifying the report lambda, do NOT import `ApplicationContainer` - it pulls in heavy dependencies that break the Lambda.
 
 ## Common Patterns
 
@@ -262,7 +254,6 @@ logger.info(
 | Purpose | Location |
 |---------|----------|
 | Main entry point | `the_alchemiser/lambda_handler.py` |
-| Report Lambda | `the_alchemiser/reporting/lambda_handler.py` |
 | Event schemas | `the_alchemiser/shared/events/schemas.py` |
 | DTOs | `the_alchemiser/shared/schemas/` |
 | DI Container | `the_alchemiser/shared/config/container.py` |

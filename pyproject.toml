@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "4.1.0"
+version = "4.2.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -37,7 +37,7 @@ color_output = true
 cache_dir = ".mypy_cache"
 exclude = [ "scripts/", "tests/",]
 [[tool.mypy.overrides]]
-module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*", "weasyprint.*",]
+module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*",]
 ignore_missing_imports = true
 
 [tool.importlinter]
@@ -112,12 +112,6 @@ dependency-injector = "^4.48.2"
 python-dotenv = "^1.2.1"
 structlog = "^25.5.0"
 boto3 = "^1.41.2"
-jinja2 = "^3.1.0"
-playwright = "^1.56.0"
-weasyprint = "66.0"
-fastapi = "0.115.0"
-uvicorn = "^0.38.0"
-mangum = "0.19.0"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
@@ -149,7 +143,6 @@ pre-commit = "^4.5.0"
 types-PyYAML = ">=6.0.0"
 types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
-types-jinja2 = ">=2.11.0"
 bandit = ">=1.7.0"
 vulture = "^2.14"
 psutil = "^7.1.3"

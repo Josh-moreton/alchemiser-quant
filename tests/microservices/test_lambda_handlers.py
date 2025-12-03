@@ -29,10 +29,3 @@ def test_execution_handler_exists() -> None:
     from the_alchemiser.execution_v2.lambda_handler import lambda_handler
 
     assert callable(lambda_handler)
-
-
-def test_reporting_fastapi_handler_exists() -> None:
-    """Verify reporting FastAPI handler can be imported."""
-    from the_alchemiser.reporting.lambda_handler import fastapi_handler
-
-    assert callable(fastapi_handler)

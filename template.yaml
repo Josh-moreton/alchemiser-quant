@@ -274,22 +274,6 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  # Minimal Lambda Layer for Report Generator dependencies
-  ReportDependenciesLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-report-dependencies"
-        - !Sub "the-alchemiser-report-dependencies-${Stage}"
-      Description: Minimal dependencies for Report Generator (jinja2, pydantic, di, structlog)
-      ContentUri: dependencies-report/
-      CompatibleRuntimes:
-        - python3.12
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: python3.12
-
   TradingSystemFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -341,147 +325,6 @@ Resources:
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
 
-  # S3 Bucket for PDF Reports
-  ReportsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-reports"
-        - !Sub "the-alchemiser-reports-${Stage}"
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      VersioningConfiguration:
-        Status: Enabled
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldReports
-            Status: Enabled
-            ExpirationInDays: 365  # Keep reports for 1 year
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: reports
-
-  # Lambda Function for Report Generation
-  ReportGeneratorFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-report-generator"
-        - !Sub "the-alchemiser-report-generator-${Stage}"
-      PackageType: Zip
-      Runtime: python3.12
-      CodeUri: ./
-      Handler: the_alchemiser.reporting.lambda_handler.lambda_handler
-      Role: !GetAtt ReportGeneratorExecutionRole.Arn
-      Architectures:
-        - x86_64
-      Layers:
-        - !Ref ReportDependenciesLayer
-        - arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
-      Timeout: 300  # 5 minutes for PDF generation
-      MemorySize: 1024
-      Environment:
-        Variables:
-          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          REPORTS_S3_BUCKET: !Ref ReportsBucket
-          AWS_ACCOUNT_ID: !Ref "AWS::AccountId"
-          LOGGING__LEVEL: !Ref LoggingLevel
-          LD_LIBRARY_PATH: "/opt/lib"
-          FONTCONFIG_PATH: "/opt/fonts"
-    Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.html'
-          - 'the_alchemiser/**/*.css'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-          - 'logo.png'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
-
-  # IAM Role for Report Generator Lambda
-  ReportGeneratorExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-report-generator-role"
-        - !Sub "the-alchemiser-v2-${Stage}-report-generator-role"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-  # Policy for Report Generator Lambda
-  ReportGeneratorExecutionRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: ReportGeneratorPolicy
-      Roles:
-        - !Ref ReportGeneratorExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          # CloudWatch Logs
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Resource: "*"
-
-          # DynamoDB access for snapshots (read-only)
-          - Effect: Allow
-            Action:
-              - dynamodb:GetItem
-              - dynamodb:Query
-              - dynamodb:UpdateItem
-            Resource:
-              - !GetAtt TradeLedgerTable.Arn
-              - !Sub "${TradeLedgerTable.Arn}/index/*"
-
-          # S3 access for reports (write-only)
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:PutObjectAcl
-            Resource: !Sub "${ReportsBucket.Arn}/*"
-
-  # CloudWatch Log Group for Report Generator
-  ReportGeneratorLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !If
-        - UseStackNameForResources
-        - !Sub "/aws/lambda/${StackName}-report-generator"
-        - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"
-      RetentionInDays: !If [ IsEphemeral, 3, 30 ]
-
   # ============================================================================
   # MICROSERVICES ARCHITECTURE (Enabled via EnableMicroservices parameter)
   # ============================================================================
@@ -496,6 +339,7 @@ Resources:
         - !Sub "${StackName}-orchestrator"
         - !Sub "the-alchemiser-orchestrator-${Stage}"
       Runtime: python3.12
+      CodeUri: ./
       Handler: the_alchemiser.orchestration.lambda_handler.lambda_handler
       Role: !GetAtt OrchestratorExecutionRole.Arn
       Layers:
@@ -508,8 +352,6 @@ Resources:
           ORCHESTRATION__STRATEGY_ENDPOINT: !GetAtt StrategyFunctionUrl.FunctionUrl
           ORCHESTRATION__PORTFOLIO_ENDPOINT: !GetAtt PortfolioFunctionUrl.FunctionUrl
           ORCHESTRATION__EXECUTION_ENDPOINT: !GetAtt ExecutionFunctionUrl.FunctionUrl
-          ORCHESTRATION__REPORTING_ACCOUNT_ENDPOINT: !GetAtt ReportingFunctionUrl.FunctionUrl
-          ORCHESTRATION__REPORTING_EXECUTION_ENDPOINT: !GetAtt ReportingFunctionUrl.FunctionUrl
           ALPACA__KEY: !Ref MicroservicesAlpacaKey
           ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
@@ -522,6 +364,23 @@ Resources:
           Properties:
             Schedule: "cron(35 9 ? * MON-FRI *)"
             Input: '{"mode": "trade"}'
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
   OrchestratorExecutionRole:
     Type: AWS::IAM::Role
@@ -567,6 +426,7 @@ Resources:
         - !Sub "${StackName}-strategy"
         - !Sub "the-alchemiser-strategy-${Stage}"
       Runtime: python3.12
+      CodeUri: ./
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
@@ -578,6 +438,23 @@ Resources:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
   StrategyFunctionUrl:
     Type: AWS::Lambda::Url
@@ -630,6 +507,7 @@ Resources:
         - !Sub "${StackName}-portfolio"
         - !Sub "the-alchemiser-portfolio-${Stage}"
       Runtime: python3.12
+      CodeUri: ./
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
@@ -640,6 +518,23 @@ Resources:
         Variables:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
   PortfolioFunctionUrl:
     Type: AWS::Lambda::Url
@@ -692,6 +587,7 @@ Resources:
         - !Sub "${StackName}-execution"
         - !Sub "the-alchemiser-execution-${Stage}"
       Runtime: python3.12
+      CodeUri: ./
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
       Layers:
@@ -705,6 +601,23 @@ Resources:
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
   ExecutionFunctionUrl:
     Type: AWS::Lambda::Url
@@ -747,77 +660,6 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
-
-  # Reporting API Lambda - Report generation microservice (FastAPI)
-  ReportingApiFunction:
-    Type: AWS::Serverless::Function
-    Condition: IsMicroservicesEnabled
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-reporting-api"
-        - !Sub "the-alchemiser-reporting-api-${Stage}"
-      Runtime: python3.12
-      Handler: the_alchemiser.reporting.lambda_handler.fastapi_handler
-      Role: !GetAtt ReportingApiExecutionRole.Arn
-      Layers:
-        - !Ref ReportDependenciesLayer
-        - arn:aws:lambda:us-east-1:211125653762:layer:weasyprint-python312:1
-      Timeout: 300
-      MemorySize: 1024
-      Environment:
-        Variables:
-          LD_LIBRARY_PATH: "/opt/lib"
-          FONTCONFIG_PATH: "/opt/fonts"
-          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          REPORTS_S3_BUCKET: !Ref ReportsBucket
-          AWS_ACCOUNT_ID: !Ref "AWS::AccountId"
-          LOGGING__LEVEL: !Ref LoggingLevel
-
-  ReportingFunctionUrl:
-    Type: AWS::Lambda::Url
-    Condition: IsMicroservicesEnabled
-    Properties:
-      TargetFunctionArn: !GetAtt ReportingApiFunction.Arn
-      AuthType: AWS_IAM
-
-  ReportingFunctionUrlPermission:
-    Type: AWS::Lambda::Permission
-    Condition: IsMicroservicesEnabled
-    Properties:
-      FunctionName: !Ref ReportingApiFunction
-      FunctionUrlAuthType: AWS_IAM
-      Action: lambda:InvokeFunctionUrl
-      Principal: !GetAtt OrchestratorExecutionRole.Arn
-
-  ReportingApiExecutionRole:
-    Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: ReportingApiPolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt TradeLedgerTable.Arn
-                  - !Sub "${TradeLedgerTable.Arn}/index/*"
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:PutObjectAcl
-                Resource: !Sub "${ReportsBucket.Arn}/*"
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
@@ -948,12 +790,6 @@ Resources:
               - logs:DescribeLogGroups
             Resource: "*"
 
-          # Lambda invocation for report generator
-          - Effect: Allow
-            Action:
-              - lambda:InvokeFunction
-            Resource: !GetAtt ReportGeneratorFunction.Arn
-
           # DynamoDB access for trade ledger
           - Effect: Allow
             Action:
@@ -1005,23 +841,3 @@ Outputs:
   StackNameUsed:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "the-alchemiser-v2-${Stage}" ]
-
-  ReportGeneratorFunctionArn:
-    Description: "Report Generator Lambda Function ARN"
-    Value: !GetAtt ReportGeneratorFunction.Arn
-
-  ReportsBucketName:
-    Description: "S3 bucket for PDF reports"
-    Value: !Ref ReportsBucket
-    Export:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-ReportsBucket"
-        - !Sub "the-alchemiser-v2-${Stage}-ReportsBucket"
-
-  ReportGeneratorLogGroupName:
-    Description: "CloudWatch Log Group for Report Generator"
-    Value: !If
-      - UseStackNameForResources
-      - !Sub "/aws/lambda/${StackName}-report-generator"
-      - !Sub "/aws/lambda/the-alchemiser-report-generator-${Stage}"
