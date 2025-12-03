@@ -104,23 +104,6 @@ Parameters:
       - "false"
     Description: Enable separate Lambda microservices deployment
 
-  MicroservicesAlpacaKey:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Alpaca API Key for microservices (separate from monolithic)
-
-  MicroservicesAlpacaSecret:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Alpaca API Secret for microservices
-
-  MicroservicesAlpacaEndpoint:
-    Type: String
-    Default: https://paper-api.alpaca.markets/v2
-    Description: Alpaca endpoint for microservices
-
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Conditions:
@@ -479,9 +462,9 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !Ref MicroservicesAlpacaKey
-          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
-          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
           APP__STAGE: !If [ IsDev, "dev", "prod" ]
@@ -553,9 +536,9 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !Ref MicroservicesAlpacaKey
-          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
-          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
@@ -627,9 +610,9 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !Ref MicroservicesAlpacaKey
-          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
-          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
     Metadata:
@@ -700,9 +683,9 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !Ref MicroservicesAlpacaKey
-          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
-          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
       Events:
