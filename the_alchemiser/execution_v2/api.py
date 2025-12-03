@@ -70,10 +70,11 @@ class ExecuteRequest(BaseModel):
     causation_id: str | None = Field(
         default=None, description="Causation identifier for traceability"
     )
+    event_id: str | None = Field(default=None, description="Event identifier")
     event_type: str | None = Field(
         default="RebalancePlanned", description="Type of triggering event"
     )
-    event: dict[str, Any] = Field(
+    trigger_event: dict[str, Any] = Field(
         ..., description="RebalancePlanned event data from portfolio service"
     )
 
@@ -149,7 +150,7 @@ def create_app(
                 app_container = ApplicationContainer.create_for_environment("production")
 
             # Reconstruct RebalancePlanned event from payload
-            event_data = payload.event
+            event_data = payload.trigger_event
 
             # Prepare rebalance plan from nested dict
             plan_data = dict(event_data.get("rebalance_plan", {}))

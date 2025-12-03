@@ -78,7 +78,9 @@ class AnalyzeRequest(BaseModel):
     event_type: str | None = Field(
         default="SignalGenerated", description="Type of triggering event"
     )
-    event: dict[str, Any] = Field(
+    event_id: str | None = Field(default=None, description="Optional event identifier")
+    # Note: Named 'trigger_event' to match orchestrator payload format
+    trigger_event: dict[str, Any] = Field(
         ..., description="SignalGenerated event data from strategy service"
     )
 
@@ -190,7 +192,7 @@ def create_app(
                 app_container = ApplicationContainer.create_for_environment("production")
 
             # Reconstruct SignalGenerated event from payload
-            event_data = payload.event
+            event_data = payload.trigger_event
             signal_event = SignalGenerated(
                 correlation_id=event_data.get("correlation_id", correlation_id),
                 causation_id=event_data.get("causation_id", causation_id or str(uuid4())),
