@@ -112,6 +112,7 @@ dependency-injector = "^4.48.2"
 python-dotenv = "^1.2.1"
 structlog = "^25.5.0"
 boto3 = "^1.41.2"
+httpx = "^0.28.1"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
@@ -158,4 +159,3 @@ hypothesis = "^6.148.2"
 pytest-xdist = "^3.8.0"
 pytest-randomly = "^4.0.1"
 pytest-timeout = "^2.4.0"
-httpx = "^0.28.1"
