@@ -680,9 +680,8 @@ Resources:
         - !Ref DependenciesLayer
       Timeout: 600
       MemorySize: 1024
-      # Limit to 1 concurrent execution to prevent Alpaca WebSocket connection limit exceeded errors
-      # Only one trade execution should run at a time per account
-      ReservedConcurrentExecutions: 1
+      # Note: Concurrency is limited by SQS BatchSize: 1 which processes one message at a time
+      # WebSocket connections are cleaned up after each execution via cleanup_all_instances()
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
