@@ -112,6 +112,8 @@ Conditions:
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
   IsMicroservicesEnabled: !Equals [ !Ref EnableMicroservices, "true" ]
+  # Monolithic mode is enabled when microservices are disabled
+  IsMonolithicEnabled: !Not [ !Condition IsMicroservicesEnabled ]
   # Disable monolithic schedule when microservices are enabled (or ephemeral)
   IsMonolithicScheduleEnabled: !And
     - !Not [ !Condition IsMicroservicesEnabled ]
@@ -263,6 +265,7 @@ Resources:
 
   TradingSystemFunction:
     Type: AWS::Serverless::Function
+    Condition: IsMonolithicEnabled
     Properties:
       FunctionName: !If
         - UseStackNameForResources
@@ -301,9 +304,10 @@ Resources:
           # Documentation within the_alchemiser
           - 'the_alchemiser/**/*.md'
 
-  # Dead Letter Queue for failed trading executions
+  # Dead Letter Queue for failed trading executions (monolithic only)
   TradingSystemDLQ:
     Type: AWS::SQS::Queue
+    Condition: IsMonolithicEnabled
     Properties:
       QueueName: !If
         - UseStackNameForResources
@@ -846,9 +850,10 @@ Resources:
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
 
-  # EventBridge Scheduler with proper timezone support and reduced retry policy
+  # EventBridge Scheduler with proper timezone support and reduced retry policy (monolithic only)
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
+    Condition: IsMonolithicEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -873,9 +878,10 @@ Resources:
       # Disable when microservices enabled (they have their own schedule via OrchestratorFunction)
       State: !If [ IsMonolithicScheduleEnabled, "ENABLED", "DISABLED" ]
 
-  # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC
+  # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC (monolithic only)
   MonthlySummarySchedule:
     Type: AWS::Scheduler::Schedule
+    Condition: IsMonolithicEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -899,9 +905,10 @@ Resources:
           Arn: !GetAtt TradingSystemDLQ.Arn
       State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
 
-  # IAM Role for EventBridge Scheduler to invoke Lambda
+  # IAM Role for EventBridge Scheduler to invoke Lambda (monolithic only)
   SchedulerExecutionRole:
     Type: AWS::IAM::Role
+    Condition: IsMonolithicEnabled
     Properties:
       RoleName: !If
         - UseStackNameForResources
@@ -934,9 +941,10 @@ Resources:
               - sqs:SendMessage
             Resource: !GetAtt TradingSystemDLQ.Arn
 
-  # IAM Role for Lambda execution
+  # IAM Role for Lambda execution (monolithic only)
   TradingSystemExecutionRole:
     Type: AWS::IAM::Role
+    Condition: IsMonolithicEnabled
     Properties:
       RoleName: !If
         - UseStackNameForResources
@@ -952,9 +960,10 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-  # Separate policy for Lambda execution role to avoid constant updates
+  # Separate policy for Lambda execution role to avoid constant updates (monolithic only)
   TradingSystemExecutionRolePolicy:
     Type: AWS::IAM::Policy
+    Condition: IsMonolithicEnabled
     Properties:
       PolicyName: TradingSystemPolicy
       Roles:
@@ -985,9 +994,10 @@ Resources:
               - !Sub "${TradeLedgerTable.Arn}/index/*"
 
 
-  # CloudWatch Log Group with retention
+  # CloudWatch Log Group with retention (monolithic only)
   TradingSystemLogGroup:
     Type: AWS::Logs::LogGroup
+    Condition: IsMonolithicEnabled
     Properties:
       LogGroupName: !If
         - UseStackNameForResources
@@ -997,10 +1007,12 @@ Resources:
 
 Outputs:
   TradingSystemFunctionArn:
+    Condition: IsMonolithicEnabled
     Description: "Quantitative Trading System Lambda Function ARN"
     Value: !GetAtt TradingSystemFunction.Arn
 
   TradingSystemLogGroupName:
+    Condition: IsMonolithicEnabled
     Description: "CloudWatch Log Group for monitoring"
     Value: !If
       - UseStackNameForResources
