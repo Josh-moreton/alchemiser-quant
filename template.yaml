@@ -755,6 +755,54 @@ Resources:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
 
+  # ========== NOTIFICATIONS LAMBDA ==========
+  # Consumes TradeExecuted events and sends email notifications
+  NotificationsFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notifications"
+        - !Sub "alchemiser-notifications-${Stage}"
+      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
+      Runtime: python3.12
+      MemorySize: 512
+      Timeout: 60
+      Role: !GetAtt NotificationsExecutionRole.Arn
+      Events:
+        TradeExecutedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.execution"
+              detail-type:
+                - "TradeExecuted"
+
+  NotificationsExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: NotificationsPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+
   # Scheduler for Orchestrator (microservices mode)
   OrchestratorSchedule:
     Type: AWS::Scheduler::Schedule
