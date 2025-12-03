@@ -283,7 +283,8 @@ class PortfolioAnalysisHandler:
             strategy_names = self._extract_strategy_names_from_event(event)
 
             # Reconstruct ConsolidatedPortfolio from event data
-            consolidated_portfolio = ConsolidatedPortfolio.model_validate(
+            # Use from_json_dict to handle string Decimals from EventBridge serialization
+            consolidated_portfolio = ConsolidatedPortfolio.from_json_dict(
                 event.consolidated_portfolio
             )
 

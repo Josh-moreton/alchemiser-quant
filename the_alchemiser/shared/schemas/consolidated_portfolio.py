@@ -357,3 +357,56 @@ class ConsolidatedPortfolio(BaseModel):
 
         """
         return {symbol: float(weight) for symbol, weight in self.target_allocations.items()}
+
+    @classmethod
+    def from_json_dict(
+        cls,
+        data: dict[str, object],
+    ) -> ConsolidatedPortfolio:
+        """Create ConsolidatedPortfolio from JSON-serialized dict.
+
+        This method handles deserialization from EventBridge/SQS where
+        Decimal values are serialized as strings. It converts string
+        values back to Decimal before validation.
+
+        Args:
+            data: Dictionary from JSON deserialization (e.g., from EventBridge)
+
+        Returns:
+            ConsolidatedPortfolio instance
+
+        Raises:
+            ValueError: If data is invalid
+
+        Examples:
+            >>> data = {
+            ...     "target_allocations": {"AAPL": "0.60", "GOOGL": "0.40"},
+            ...     "correlation_id": "test-123",
+            ...     "timestamp": "2023-01-01T12:00:00+00:00",
+            ...     "strategy_count": 1,
+            ...     "source_strategies": ["nuclear"],
+            ...     "schema_version": "1.0.0"
+            ... }
+            >>> portfolio = ConsolidatedPortfolio.from_json_dict(data)
+
+        """
+        # Deep copy to avoid mutating input
+        normalized = dict(data)
+
+        # Convert target_allocations from string to Decimal
+        if "target_allocations" in normalized:
+            allocations = normalized["target_allocations"]
+            if isinstance(allocations, dict):
+                normalized["target_allocations"] = {
+                    symbol: Decimal(str(weight)) if not isinstance(weight, Decimal) else weight
+                    for symbol, weight in allocations.items()
+                }
+
+        # Parse timestamp if it's a string
+        if "timestamp" in normalized and isinstance(normalized["timestamp"], str):
+            from datetime import datetime as dt
+
+            ts_str = str(normalized["timestamp"])
+            normalized["timestamp"] = dt.fromisoformat(ts_str.replace("Z", "+00:00"))
+
+        return cls.model_validate(normalized)
