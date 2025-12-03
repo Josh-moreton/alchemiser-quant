@@ -6,7 +6,7 @@ FastAPI surface for portfolio rebalance events.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
@@ -24,6 +24,9 @@ from the_alchemiser.shared.utils.data_conversion import (
     convert_string_to_decimal,
 )
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.config.container import ApplicationContainer
 
 logger = get_logger(__name__)
 
@@ -59,6 +62,24 @@ class RebalanceRequest(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None,
         description="Optional metadata forwarded with the event",
+    )
+
+
+class AnalyzeRequest(BaseModel):
+    """Request schema for triggering portfolio analysis from signals.
+
+    This accepts a SignalGenerated event and triggers rebalance computation.
+    """
+
+    correlation_id: str | None = Field(default=None, description="Workflow correlation identifier")
+    causation_id: str | None = Field(
+        default=None, description="Causation identifier for traceability"
+    )
+    event_type: str | None = Field(
+        default="SignalGenerated", description="Type of triggering event"
+    )
+    event: dict[str, Any] = Field(
+        ..., description="SignalGenerated event data from strategy service"
     )
 
 
@@ -109,12 +130,25 @@ def _prepare_rebalance_plan(
     return RebalancePlan(**plan_data)
 
 
-def create_app(event_bus: EventBus | None = None) -> FastAPI:
-    """Create a FastAPI app for publishing RebalancePlanned events."""
+def create_app(
+    event_bus: EventBus | None = None,
+    container: ApplicationContainer | None = None,
+) -> FastAPI:
+    """Create a FastAPI app for publishing RebalancePlanned events.
+
+    Args:
+        event_bus: Optional EventBus instance for publishing events.
+        container: Optional ApplicationContainer for portfolio analysis.
+
+    Returns:
+        FastAPI application instance.
+
+    """
     bus = event_bus or EventBus()
     app = FastAPI(title="Portfolio v2 API", version="0.1.0")
     app.add_middleware(CorrelationIdMiddleware)
     app.state.event_bus = bus
+    app.state.container = container
 
     @app.get("/health")
     def health_check() -> dict[str, str]:
@@ -128,6 +162,103 @@ def create_app(event_bus: EventBus | None = None) -> FastAPI:
             "service": "portfolio_v2",
             "supported_events": {"RebalancePlanned": RebalancePlanned.__event_version__},
         }
+
+    @app.post("/analyze")
+    def analyze_portfolio(payload: AnalyzeRequest, request: Request) -> dict[str, Any]:
+        """Analyze portfolio based on signals and compute rebalance plan.
+
+        This endpoint takes a SignalGenerated event, runs portfolio analysis,
+        and returns a RebalancePlanned event payload for execution.
+        """
+        # Import here to avoid circular imports at module load time
+        from the_alchemiser.portfolio_v2.handlers.portfolio_analysis_handler import (
+            PortfolioAnalysisHandler,
+        )
+        from the_alchemiser.shared.config.container import ApplicationContainer
+        from the_alchemiser.shared.events import SignalGenerated
+        from the_alchemiser.shared.events.base import BaseEvent
+
+        correlation_id, causation_id = resolve_trace_context(
+            payload.correlation_id, payload.causation_id, request
+        )
+
+        try:
+            # Get or create container
+            app_container = app.state.container
+            if app_container is None:
+                logger.info("Creating ApplicationContainer for portfolio analysis")
+                app_container = ApplicationContainer.create_for_environment("production")
+
+            # Reconstruct SignalGenerated event from payload
+            event_data = payload.event
+            signal_event = SignalGenerated(
+                correlation_id=event_data.get("correlation_id", correlation_id),
+                causation_id=event_data.get("causation_id", causation_id or str(uuid4())),
+                event_id=event_data.get("event_id", str(uuid4())),
+                timestamp=ensure_timezone_aware(
+                    datetime.fromisoformat(event_data["timestamp"].replace("Z", "+00:00"))
+                    if isinstance(event_data.get("timestamp"), str)
+                    else event_data.get("timestamp", datetime.now(UTC))
+                ),
+                source_module=event_data.get("source_module", "strategy_v2"),
+                source_component=event_data.get("source_component"),
+                signals_data=event_data.get("signals_data", {}),
+                consolidated_portfolio=event_data.get("consolidated_portfolio", {}),
+                signal_count=event_data.get("signal_count", 0),
+                metadata=event_data.get("metadata", {}),
+            )
+
+            # Create handler
+            handler = PortfolioAnalysisHandler(app_container)
+
+            # Capture generated event
+            generated_event: RebalancePlanned | None = None
+
+            def capture_event(event: BaseEvent) -> None:
+                nonlocal generated_event
+                if isinstance(event, RebalancePlanned):
+                    generated_event = event
+
+            handler.event_bus.subscribe("RebalancePlanned", capture_event)
+
+            # Run portfolio analysis
+            logger.info(
+                "Triggering portfolio analysis",
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                signal_count=signal_event.signal_count,
+            )
+            handler.handle_event(signal_event)
+
+            if generated_event is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Portfolio analysis completed but no RebalancePlanned event was published",
+                )
+
+            logger.info(
+                "Portfolio analysis completed successfully",
+                correlation_id=correlation_id,
+                trades_required=generated_event.trades_required,
+            )
+
+            return {
+                "status": "analyzed",
+                "event_type": "RebalancePlanned",
+                "event": generated_event.to_dict(),
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                "Portfolio analysis failed",
+                correlation_id=correlation_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
+            raise HTTPException(status_code=500, detail=f"Portfolio analysis failed: {e}") from e
 
     @app.post("/rebalance")
     def publish_rebalance(payload: RebalanceRequest, request: Request) -> dict[str, Any]:
@@ -172,4 +303,4 @@ def create_app(event_bus: EventBus | None = None) -> FastAPI:
     return app
 
 
-__all__ = ["RebalanceRequest", "create_app"]
+__all__ = ["AnalyzeRequest", "RebalanceRequest", "create_app"]
