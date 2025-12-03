@@ -32,8 +32,6 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
         ORCHESTRATION__STRATEGY_ENDPOINT: Function URL for strategy
         ORCHESTRATION__PORTFOLIO_ENDPOINT: Function URL for portfolio
         ORCHESTRATION__EXECUTION_ENDPOINT: Function URL for execution
-        ORCHESTRATION__REPORTING_ACCOUNT_ENDPOINT: Function URL for reporting account
-        ORCHESTRATION__REPORTING_EXECUTION_ENDPOINT: Function URL for reporting execution
 
     Args:
         event: Lambda event payload containing workflow parameters.
