@@ -164,13 +164,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 causation_id=detail.get("causation_id", correlation_id),
             )
 
-            # Convert allocation comparison
+            # Convert allocation comparison using from_json_dict to handle string Decimals
             alloc_data = detail.get("allocation_comparison", {})
-            allocation_comparison = AllocationComparison(
-                target_values=alloc_data.get("target_values", {}),
-                current_values=alloc_data.get("current_values", {}),
-                deltas=alloc_data.get("deltas", {}),
-            )
+            allocation_comparison = AllocationComparison.from_json_dict(alloc_data)
 
             # Reconstruct RebalancePlanned event
             rebalance_event = RebalancePlanned(
