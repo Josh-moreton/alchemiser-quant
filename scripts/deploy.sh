@@ -97,12 +97,6 @@ fi
 
 echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
 
-# Package individual service artifacts for modular deployments
-if [ "${PACKAGE_SERVICES:-true}" = "true" ]; then
-    echo "📦 Packaging per-service Lambda bundles..."
-    bash scripts/package_services.sh
-fi
-
 # Verify report dependencies layer exists and is lightweight
 # Note: dependencies-report/requirements.txt is maintained manually to avoid heavy deps
 if [ ! -f "dependencies-report/requirements.txt" ]; then
@@ -159,11 +153,16 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
+    # Microservices is now the default deployment mode
     PARAMS=(
         "Stage=dev"
+        "EnableMicroservices=true"
         "AlpacaKey=$ALPACA_KEY"
         "AlpacaSecret=$ALPACA_SECRET"
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
+        "MicroservicesAlpacaKey=$ALPACA_KEY"
+        "MicroservicesAlpacaSecret=$ALPACA_SECRET"
+        "MicroservicesAlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
     )
@@ -177,7 +176,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         --config-env "$ENVIRONMENT" \
         --parameter-overrides ${PARAMS[@]}
 else
-    # Production: use the same ALPACA_* variables, mapped to Prod* parameters
+    # Production: use the same ALPACA_* variables for both monolithic and microservices
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
         echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for prod deploy (env)." >&2
         exit 1
@@ -185,11 +184,16 @@ else
     PROD_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
+    # Microservices is now the default deployment mode
     PARAMS=(
         "Stage=prod"
+        "EnableMicroservices=true"
         "ProdAlpacaKey=$ALPACA_KEY"
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
+        "MicroservicesAlpacaKey=$ALPACA_KEY"
+        "MicroservicesAlpacaSecret=$ALPACA_SECRET"
+        "MicroservicesAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
     )

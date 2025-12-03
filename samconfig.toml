@@ -26,6 +26,7 @@ resolve_s3 = true
 # Provide stage parameter required by the template.
 parameter_overrides = [
 	"Stage=dev",
+	"EnableMicroservices=true",
 ]
 
 [prod.deploy.parameters]
@@ -39,6 +40,7 @@ resolve_s3 = true
 # Prod parameters required by the template; credentials loaded via Secrets Manager
 parameter_overrides = [
 	"Stage=prod",
+	"EnableMicroservices=true",
 ]
 
 [ephemeral.build.parameters]
@@ -58,28 +60,4 @@ parameter_overrides = [
 	"Stage=ephemeral",
 ]
 
-[microservices-dev.deploy.parameters]
-stack_name = "the-alchemiser-microservices-dev"
-s3_prefix = "the-alchemiser-microservices-dev"
-region = "us-east-1"
-capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
-disable_rollback = false
-confirm_changeset = false
-fail_on_empty_changeset = false
-resolve_s3 = true
-parameter_overrides = [
-	"Stage=dev",
-]
 
-[microservices-prod.deploy.parameters]
-stack_name = "the-alchemiser-microservices-prod"
-s3_prefix = "the-alchemiser-microservices-prod"
-region = "us-east-1"
-capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
-disable_rollback = false
-confirm_changeset = false
-fail_on_empty_changeset = false
-resolve_s3 = true
-parameter_overrides = [
-	"Stage=prod",
-]
