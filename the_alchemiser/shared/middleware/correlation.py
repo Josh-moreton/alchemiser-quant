@@ -12,11 +12,13 @@ emitted events by:
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from fastapi import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from the_alchemiser.shared.logging import (
@@ -36,12 +38,33 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         causation_header: str = "x-causation-id",
         request_header: str = "x-request-id",
     ) -> None:
+        """Initialize correlation ID middleware.
+
+        Args:
+            app: The ASGI application to wrap.
+            correlation_header: Header name for correlation ID.
+            causation_header: Header name for causation ID.
+            request_header: Header name for request ID.
+
+        """
         super().__init__(app)
         self.correlation_header = correlation_header
         self.causation_header = causation_header
         self.request_header = request_header
 
-    async def dispatch(self, request: Request, call_next) -> object:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Process request and attach correlation IDs.
+
+        Args:
+            request: The incoming HTTP request.
+            call_next: Callback to invoke the next middleware/handler.
+
+        Returns:
+            The HTTP response with correlation headers attached.
+
+        """
         correlation_id = request.headers.get(self.correlation_header) or request.headers.get(
             self.correlation_header.title()
         )
@@ -79,6 +102,14 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
     ) -> None:  # pragma: no cover
+        """ASGI interface for the middleware.
+
+        Args:
+            scope: ASGI connection scope.
+            receive: ASGI receive callable.
+            send: ASGI send callable.
+
+        """
         await super().__call__(scope, receive, send)
 
 

@@ -69,7 +69,7 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
         # Execute workflow
         mode = event.get("mode", "trade")
         if mode == "trade":
-            orchestrator.execute_trading_workflow(correlation_id=correlation_id)
+            orchestrator.start_trading_workflow(correlation_id=correlation_id)
         else:
             # Handle other modes (pnl_analysis, etc.)
             raise ValueError(f"Unsupported mode: {mode}")
