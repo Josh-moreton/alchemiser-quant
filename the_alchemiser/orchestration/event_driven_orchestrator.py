@@ -87,7 +87,16 @@ class EventDrivenOrchestrator:
         self.http_retry_backoff = float(
             getattr(self.orchestration_settings, "http_retry_backoff_seconds", 0.5)
         )
-        self.http_client = http_client or httpx.Client(timeout=10.0)
+        # Use SigV4 signed client for AWS Lambda Function URLs with IAM auth
+        if http_client is not None:
+            self.http_client = http_client
+        elif self.use_http_domain_workflow:
+            from the_alchemiser.shared.utils.sigv4_transport import create_sigv4_signed_client
+
+            self.http_client = create_sigv4_signed_client(timeout=180.0)
+            self.logger.info("Using SigV4-signed HTTP client for microservices")
+        else:
+            self.http_client = httpx.Client(timeout=10.0)
         self._http_idempotency_cache: set[tuple[str, str]] = set()
 
         # Get event bus from container

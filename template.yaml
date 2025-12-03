@@ -129,6 +129,10 @@ Conditions:
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
   IsMicroservicesEnabled: !Equals [ !Ref EnableMicroservices, "true" ]
+  # Disable monolithic schedule when microservices are enabled (or ephemeral)
+  IsMonolithicScheduleEnabled: !And
+    - !Not [ !Condition IsMicroservicesEnabled ]
+    - !Not [ !Condition IsEphemeral ]
 
 Globals:
   Function:
@@ -434,6 +438,9 @@ Resources:
       MemorySize: 1024
       Environment:
         Variables:
+          ALPACA__KEY: !Ref MicroservicesAlpacaKey
+          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
+          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
@@ -460,16 +467,7 @@ Resources:
     Condition: IsMicroservicesEnabled
     Properties:
       TargetFunctionArn: !GetAtt StrategyFunction.Arn
-      AuthType: NONE
-
-  StrategyFunctionUrlPermission:
-    Type: AWS::Lambda::Permission
-    Condition: IsMicroservicesEnabled
-    Properties:
-      FunctionName: !Ref StrategyFunction
-      FunctionUrlAuthType: NONE
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
+      AuthType: AWS_IAM
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
@@ -515,6 +513,9 @@ Resources:
       MemorySize: 1024
       Environment:
         Variables:
+          ALPACA__KEY: !Ref MicroservicesAlpacaKey
+          ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
+          ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
     Metadata:
@@ -540,16 +541,7 @@ Resources:
     Condition: IsMicroservicesEnabled
     Properties:
       TargetFunctionArn: !GetAtt PortfolioFunction.Arn
-      AuthType: NONE
-
-  PortfolioFunctionUrlPermission:
-    Type: AWS::Lambda::Permission
-    Condition: IsMicroservicesEnabled
-    Properties:
-      FunctionName: !Ref PortfolioFunction
-      FunctionUrlAuthType: NONE
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
+      AuthType: AWS_IAM
 
   PortfolioExecutionRole:
     Type: AWS::IAM::Role
@@ -623,16 +615,7 @@ Resources:
     Condition: IsMicroservicesEnabled
     Properties:
       TargetFunctionArn: !GetAtt ExecutionFunction.Arn
-      AuthType: NONE
-
-  ExecutionFunctionUrlPermission:
-    Type: AWS::Lambda::Permission
-    Condition: IsMicroservicesEnabled
-    Properties:
-      FunctionName: !Ref ExecutionFunction
-      FunctionUrlAuthType: NONE
-      Action: lambda:InvokeFunctionUrl
-      Principal: "*"
+      AuthType: AWS_IAM
 
   ExecutionExecutionRole:
     Type: AWS::IAM::Role
@@ -688,7 +671,8 @@ Resources:
           MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
         DeadLetterConfig:
           Arn: !GetAtt TradingSystemDLQ.Arn
-      State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
+      # Disable when microservices enabled (they have their own schedule via OrchestratorFunction)
+      State: !If [ IsMonolithicScheduleEnabled, "ENABLED", "DISABLED" ]
 
   # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC
   MonthlySummarySchedule:
