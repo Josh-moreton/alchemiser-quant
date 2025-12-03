@@ -764,7 +764,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-notifications"
-        - !Sub "alchemiser-notifications-${Stage}"
+        - !Sub "the-alchemiser-notifications-${Stage}"
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Runtime: python3.12
       MemorySize: 512
