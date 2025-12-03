@@ -95,15 +95,6 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
-  # Microservices deployment parameters
-  EnableMicroservices:
-    Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
-    Description: Enable separate Lambda microservices deployment
-
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Conditions:
@@ -111,13 +102,6 @@ Conditions:
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
-  IsMicroservicesEnabled: !Equals [ !Ref EnableMicroservices, "true" ]
-  # Monolithic mode is enabled when microservices are disabled
-  IsMonolithicEnabled: !Not [ !Condition IsMicroservicesEnabled ]
-  # Disable monolithic schedule when microservices are enabled (or ephemeral)
-  IsMonolithicScheduleEnabled: !And
-    - !Not [ !Condition IsMicroservicesEnabled ]
-    - !Not [ !Condition IsEphemeral ]
 
 Globals:
   Function:
@@ -263,67 +247,13 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  TradingSystemFunction:
-    Type: AWS::Serverless::Function
-    Condition: IsMonolithicEnabled
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-lambda"
-        - !Sub "the-alchemiser-v2-lambda-${Stage}"
-      PackageType: Zip
-      Runtime: python3.12
-      CodeUri: ./
-      Handler: the_alchemiser.lambda_handler.lambda_handler
-      Role: !GetAtt TradingSystemExecutionRole.Arn
-      Layers:
-        - !Ref DependenciesLayer
-    Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        # Include only the the_alchemiser package
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          # Sensitive files (security)
-          - '.env*'
-          - 'the_alchemiser/.env*'
-
-          # Python cache and build artifacts
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-
-          # IDE and editor files
-          - 'the_alchemiser/.editorconfig'
-
-          # Documentation within the_alchemiser
-          - 'the_alchemiser/**/*.md'
-
-  # Dead Letter Queue for failed trading executions (monolithic only)
-  TradingSystemDLQ:
-    Type: AWS::SQS::Queue
-    Condition: IsMonolithicEnabled
-    Properties:
-      QueueName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-dlq"
-        - !Sub "the-alchemiser-dlq-${Stage}"
-      MessageRetentionPeriod: 1209600 # 14 days
-      VisibilityTimeout: 60
-
   # ============================================================================
-  # MICROSERVICES ARCHITECTURE (Enabled via EnableMicroservices parameter)
+  # MICROSERVICES ARCHITECTURE
   # ============================================================================
 
   # EventBridge Event Bus for async domain event communication
   AlchemiserEventBus:
     Type: AWS::Events::EventBus
-    Condition: IsMicroservicesEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -333,7 +263,6 @@ Resources:
   # SQS Queue for reliable trade execution with DLQ
   ExecutionQueue:
     Type: AWS::SQS::Queue
-    Condition: IsMicroservicesEnabled
     Properties:
       QueueName: !If
         - UseStackNameForResources
@@ -347,7 +276,6 @@ Resources:
 
   ExecutionDLQ:
     Type: AWS::SQS::Queue
-    Condition: IsMicroservicesEnabled
     Properties:
       QueueName: !If
         - UseStackNameForResources
@@ -358,7 +286,6 @@ Resources:
   # Policy to allow EventBridge to send messages to SQS
   ExecutionQueuePolicy:
     Type: AWS::SQS::QueuePolicy
-    Condition: IsMicroservicesEnabled
     Properties:
       Queues:
         - !Ref ExecutionQueue
@@ -376,7 +303,6 @@ Resources:
   # EventBridge Rules for event routing
   WorkflowStartedRule:
     Type: AWS::Events::Rule
-    Condition: IsMicroservicesEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -394,7 +320,6 @@ Resources:
 
   WorkflowStartedPermission:
     Type: AWS::Lambda::Permission
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !Ref StrategyFunction
       Action: lambda:InvokeFunction
@@ -403,7 +328,6 @@ Resources:
 
   SignalGeneratedRule:
     Type: AWS::Events::Rule
-    Condition: IsMicroservicesEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -421,7 +345,6 @@ Resources:
 
   SignalGeneratedPermission:
     Type: AWS::Lambda::Permission
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !Ref PortfolioFunction
       Action: lambda:InvokeFunction
@@ -430,7 +353,6 @@ Resources:
 
   RebalancePlannedRule:
     Type: AWS::Events::Rule
-    Condition: IsMicroservicesEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -449,7 +371,6 @@ Resources:
   # Orchestrator Lambda - Publishes WorkflowStarted to EventBridge
   OrchestratorFunction:
     Type: AWS::Serverless::Function
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !If
         - UseStackNameForResources
@@ -492,7 +413,6 @@ Resources:
 
   OrchestratorExecutionRole:
     Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -523,7 +443,6 @@ Resources:
   # Strategy Lambda - Signal generation microservice
   StrategyFunction:
     Type: AWS::Serverless::Function
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !If
         - UseStackNameForResources
@@ -566,7 +485,6 @@ Resources:
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -597,7 +515,6 @@ Resources:
   # Portfolio Lambda - Rebalance planning microservice
   PortfolioFunction:
     Type: AWS::Serverless::Function
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !If
         - UseStackNameForResources
@@ -639,7 +556,6 @@ Resources:
 
   PortfolioExecutionRole:
     Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -670,7 +586,6 @@ Resources:
   # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
     Type: AWS::Serverless::Function
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !If
         - UseStackNameForResources
@@ -722,7 +637,6 @@ Resources:
 
   ExecutionExecutionRole:
     Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -763,7 +677,6 @@ Resources:
   # Consumes TradeExecuted events and sends email notifications
   NotificationsFunction:
     Type: AWS::Serverless::Function
-    Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !If
         - UseStackNameForResources
@@ -787,7 +700,6 @@ Resources:
 
   NotificationsExecutionRole:
     Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -810,7 +722,6 @@ Resources:
   # Scheduler for Orchestrator (microservices mode)
   OrchestratorSchedule:
     Type: AWS::Scheduler::Schedule
-    Condition: IsMicroservicesEnabled
     Properties:
       Name: !If
         - UseStackNameForResources
@@ -830,7 +741,6 @@ Resources:
 
   OrchestratorSchedulerRole:
     Type: AWS::IAM::Role
-    Condition: IsMicroservicesEnabled
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -850,175 +760,7 @@ Resources:
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
 
-  # EventBridge Scheduler with proper timezone support and reduced retry policy (monolithic only)
-  TradingSystemSchedule:
-    Type: AWS::Scheduler::Schedule
-    Condition: IsMonolithicEnabled
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-daily-trading"
-        - !Sub "the-alchemiser-daily-trading-${Stage}"
-      Description: "Execute quantitative trading system daily at 9:35 AM New York time"
-      ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
-      ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt TradingSystemFunction.Arn
-        RoleArn: !GetAtt SchedulerExecutionRole.Arn
-        Input: |
-          {
-            "mode": "trade"
-          }
-        RetryPolicy:
-          MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
-        DeadLetterConfig:
-          Arn: !GetAtt TradingSystemDLQ.Arn
-      # Disable when microservices enabled (they have their own schedule via OrchestratorFunction)
-      State: !If [ IsMonolithicScheduleEnabled, "ENABLED", "DISABLED" ]
-
-  # Monthly summary scheduler: runs on the 1st of each month at 00:05 UTC (monolithic only)
-  MonthlySummarySchedule:
-    Type: AWS::Scheduler::Schedule
-    Condition: IsMonolithicEnabled
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-monthly-summary"
-        - !Sub "the-alchemiser-monthly-summary-${Stage}"
-      Description: "Send monthly financial summary on the 1st (previous month)"
-      ScheduleExpression: "cron(5 0 1 * ? *)"  # 00:05 UTC on day 1
-      ScheduleExpressionTimezone: "UTC"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt TradingSystemFunction.Arn
-        RoleArn: !GetAtt SchedulerExecutionRole.Arn
-        Input: |
-          {
-            "action": "monthly_summary"
-          }
-        RetryPolicy:
-          MaximumRetryAttempts: 1
-        DeadLetterConfig:
-          Arn: !GetAtt TradingSystemDLQ.Arn
-      State: !If [ IsEphemeral, "DISABLED", "ENABLED" ]
-
-  # IAM Role for EventBridge Scheduler to invoke Lambda (monolithic only)
-  SchedulerExecutionRole:
-    Type: AWS::IAM::Role
-    Condition: IsMonolithicEnabled
-    Properties:
-      RoleName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-scheduler-role"
-        - !Sub "the-alchemiser-v2-${Stage}-scheduler-role"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: scheduler.amazonaws.com
-            Action: sts:AssumeRole
-
-  # Separate policy for Scheduler role to avoid constant updates
-  SchedulerExecutionRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: SchedulerLambdaInvokePolicy
-      Roles:
-        - !Ref SchedulerExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - lambda:InvokeFunction
-            Resource: !GetAtt TradingSystemFunction.Arn
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt TradingSystemDLQ.Arn
-
-  # IAM Role for Lambda execution (monolithic only)
-  TradingSystemExecutionRole:
-    Type: AWS::IAM::Role
-    Condition: IsMonolithicEnabled
-    Properties:
-      RoleName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-trading-system-role"
-        - !Sub "the-alchemiser-v2-${Stage}-trading-system-role"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-  # Separate policy for Lambda execution role to avoid constant updates (monolithic only)
-  TradingSystemExecutionRolePolicy:
-    Type: AWS::IAM::Policy
-    Condition: IsMonolithicEnabled
-    Properties:
-      PolicyName: TradingSystemPolicy
-      Roles:
-        - !Ref TradingSystemExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          # CloudWatch Logs (enhanced logging)
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-              - logs:DescribeLogStreams
-              - logs:DescribeLogGroups
-            Resource: "*"
-
-          # DynamoDB access for trade ledger
-          - Effect: Allow
-            Action:
-              - dynamodb:PutItem
-              - dynamodb:GetItem
-              - dynamodb:Query
-              - dynamodb:UpdateItem
-              - dynamodb:BatchWriteItem
-            Resource:
-              - !GetAtt TradeLedgerTable.Arn
-              - !Sub "${TradeLedgerTable.Arn}/index/*"
-
-
-  # CloudWatch Log Group with retention (monolithic only)
-  TradingSystemLogGroup:
-    Type: AWS::Logs::LogGroup
-    Condition: IsMonolithicEnabled
-    Properties:
-      LogGroupName: !If
-        - UseStackNameForResources
-        - !Sub "/aws/lambda/${StackName}-lambda"
-        - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
-      RetentionInDays: !If [ IsEphemeral, 3, 30 ]
-
 Outputs:
-  TradingSystemFunctionArn:
-    Condition: IsMonolithicEnabled
-    Description: "Quantitative Trading System Lambda Function ARN"
-    Value: !GetAtt TradingSystemFunction.Arn
-
-  TradingSystemLogGroupName:
-    Condition: IsMonolithicEnabled
-    Description: "CloudWatch Log Group for monitoring"
-    Value: !If
-      - UseStackNameForResources
-      - !Sub "/aws/lambda/${StackName}-lambda"
-      - !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
-
   TradeLedgerTableName:
     Description: "DynamoDB table for trade ledger persistence"
     Value: !Ref TradeLedgerTable

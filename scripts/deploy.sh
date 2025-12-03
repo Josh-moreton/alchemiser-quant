@@ -130,10 +130,8 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
-    # Microservices is now the default deployment mode
     PARAMS=(
         "Stage=dev"
-        "EnableMicroservices=true"
         "AlpacaKey=$ALPACA_KEY"
         "AlpacaSecret=$ALPACA_SECRET"
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
@@ -161,10 +159,8 @@ else
     PROD_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
-    # Microservices is now the default deployment mode
     PARAMS=(
         "Stage=prod"
-        "EnableMicroservices=true"
         "ProdAlpacaKey=$ALPACA_KEY"
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
