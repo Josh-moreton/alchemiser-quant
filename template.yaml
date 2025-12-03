@@ -406,7 +406,6 @@ Resources:
                   - !GetAtt StrategyFunction.Arn
                   - !GetAtt PortfolioFunction.Arn
                   - !GetAtt ExecutionFunction.Arn
-                  - !GetAtt ReportingApiFunction.Arn
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
