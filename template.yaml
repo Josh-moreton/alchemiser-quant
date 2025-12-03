@@ -333,7 +333,133 @@ Resources:
   # MICROSERVICES ARCHITECTURE (Enabled via EnableMicroservices parameter)
   # ============================================================================
 
-  # Orchestrator Lambda - Coordinates HTTP workflow across module Lambdas
+  # EventBridge Event Bus for async domain event communication
+  AlchemiserEventBus:
+    Type: AWS::Events::EventBus
+    Condition: IsMicroservicesEnabled
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-events"
+        - !Sub "alchemiser-trading-${Stage}"
+
+  # SQS Queue for reliable trade execution with DLQ
+  ExecutionQueue:
+    Type: AWS::SQS::Queue
+    Condition: IsMicroservicesEnabled
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-queue"
+        - !Sub "alchemiser-execution-${Stage}"
+      VisibilityTimeout: 900  # 15 mins for execution
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ExecutionDLQ.Arn
+        maxReceiveCount: 3
+
+  ExecutionDLQ:
+    Type: AWS::SQS::Queue
+    Condition: IsMicroservicesEnabled
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-dlq"
+        - !Sub "alchemiser-execution-dlq-${Stage}"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # Policy to allow EventBridge to send messages to SQS
+  ExecutionQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Condition: IsMicroservicesEnabled
+    Properties:
+      Queues:
+        - !Ref ExecutionQueue
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ExecutionQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt RebalancePlannedRule.Arn
+
+  # EventBridge Rules for event routing
+  WorkflowStartedRule:
+    Type: AWS::Events::Rule
+    Condition: IsMicroservicesEnabled
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-workflow-started"
+        - !Sub "alchemiser-workflow-started-${Stage}"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.orchestrator
+        detail-type:
+          - TradingWorkflowStarted
+      Targets:
+        - Id: StrategyTarget
+          Arn: !GetAtt StrategyFunction.Arn
+
+  WorkflowStartedPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !Ref StrategyFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WorkflowStartedRule.Arn
+
+  SignalGeneratedRule:
+    Type: AWS::Events::Rule
+    Condition: IsMicroservicesEnabled
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-signal-generated"
+        - !Sub "alchemiser-signal-generated-${Stage}"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.strategy
+        detail-type:
+          - SignalGenerated
+      Targets:
+        - Id: PortfolioTarget
+          Arn: !GetAtt PortfolioFunction.Arn
+
+  SignalGeneratedPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsMicroservicesEnabled
+    Properties:
+      FunctionName: !Ref PortfolioFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SignalGeneratedRule.Arn
+
+  RebalancePlannedRule:
+    Type: AWS::Events::Rule
+    Condition: IsMicroservicesEnabled
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-planned"
+        - !Sub "alchemiser-rebalance-planned-${Stage}"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.portfolio
+        detail-type:
+          - RebalancePlanned
+      Targets:
+        - Id: ExecutionQueueTarget
+          Arn: !GetAtt ExecutionQueue.Arn
+
+  # Orchestrator Lambda - Publishes WorkflowStarted to EventBridge
   OrchestratorFunction:
     Type: AWS::Serverless::Function
     Condition: IsMicroservicesEnabled
@@ -352,22 +478,13 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
-          ORCHESTRATION__USE_HTTP_DOMAIN_WORKFLOW: "true"
-          ORCHESTRATION__STRATEGY_ENDPOINT: !Sub "${StrategyFunctionUrl.FunctionUrl}generate"
-          ORCHESTRATION__PORTFOLIO_ENDPOINT: !Sub "${PortfolioFunctionUrl.FunctionUrl}analyze"
-          ORCHESTRATION__EXECUTION_ENDPOINT: !Sub "${ExecutionFunctionUrl.FunctionUrl}execute"
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
           ALPACA__KEY: !Ref MicroservicesAlpacaKey
           ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
           APP__STAGE: !If [ IsDev, "dev", "prod" ]
-      Events:
-        DailyTrading:
-          Type: Schedule
-          Properties:
-            Schedule: "cron(35 9 ? * MON-FRI *)"
-            Input: '{"mode": "trade"}'
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -404,12 +521,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - lambda:InvokeFunction
-                  - lambda:InvokeFunctionUrl
+                  - events:PutEvents
                 Resource:
-                  - !GetAtt StrategyFunction.Arn
-                  - !GetAtt PortfolioFunction.Arn
-                  - !GetAtt ExecutionFunction.Arn
+                  - !GetAtt AlchemiserEventBus.Arn
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -438,6 +552,7 @@ Resources:
       MemorySize: 1024
       Environment:
         Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
           ALPACA__KEY: !Ref MicroservicesAlpacaKey
           ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
@@ -462,13 +577,6 @@ Resources:
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
 
-  StrategyFunctionUrl:
-    Type: AWS::Lambda::Url
-    Condition: IsMicroservicesEnabled
-    Properties:
-      TargetFunctionArn: !GetAtt StrategyFunction.Arn
-      AuthType: AWS_IAM
-
   StrategyExecutionRole:
     Type: AWS::IAM::Role
     Condition: IsMicroservicesEnabled
@@ -485,6 +593,11 @@ Resources:
         - PolicyName: StrategyPolicy
           PolicyDocument:
             Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -513,6 +626,7 @@ Resources:
       MemorySize: 1024
       Environment:
         Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
           ALPACA__KEY: !Ref MicroservicesAlpacaKey
           ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
@@ -535,13 +649,6 @@ Resources:
           - '**/*.egg-info/**'
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
-
-  PortfolioFunctionUrl:
-    Type: AWS::Lambda::Url
-    Condition: IsMicroservicesEnabled
-    Properties:
-      TargetFunctionArn: !GetAtt PortfolioFunction.Arn
-      AuthType: AWS_IAM
 
   PortfolioExecutionRole:
     Type: AWS::IAM::Role
@@ -561,6 +668,11 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
@@ -568,7 +680,7 @@ Resources:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
 
-  # Execution Lambda - Trade execution microservice
+  # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
     Type: AWS::Serverless::Function
     Condition: IsMicroservicesEnabled
@@ -587,11 +699,20 @@ Resources:
       MemorySize: 1024
       Environment:
         Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
           ALPACA__KEY: !Ref MicroservicesAlpacaKey
           ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
+      Events:
+        ExecutionQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ExecutionQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -609,13 +730,6 @@ Resources:
           - '**/*.egg-info/**'
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
-
-  ExecutionFunctionUrl:
-    Type: AWS::Lambda::Url
-    Condition: IsMicroservicesEnabled
-    Properties:
-      TargetFunctionArn: !GetAtt ExecutionFunction.Arn
-      AuthType: AWS_IAM
 
   ExecutionExecutionRole:
     Type: AWS::IAM::Role
@@ -635,6 +749,18 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt ExecutionQueue.Arn
+              - Effect: Allow
+                Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
@@ -642,6 +768,45 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
+
+  # Scheduler for Orchestrator (microservices mode)
+  OrchestratorSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: IsMicroservicesEnabled
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-orchestrator-schedule"
+        - !Sub "alchemiser-orchestrator-${Stage}"
+      Description: "Execute microservices orchestrator daily at 9:35 AM New York time"
+      ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt OrchestratorFunction.Arn
+        RoleArn: !GetAtt OrchestratorSchedulerRole.Arn
+        Input: '{"mode": "trade"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 1
+
+  OrchestratorSchedulerRole:
+    Type: AWS::IAM::Role
+    Condition: IsMicroservicesEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeOrchestrator
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt OrchestratorFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE

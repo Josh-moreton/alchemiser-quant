@@ -2,17 +2,23 @@
 
 Lambda handler for microservices orchestrator.
 
-This handler initializes the EventDrivenOrchestrator with HTTP workflow mode
-enabled, allowing it to coordinate module Lambdas via Function URLs.
+This handler publishes WorkflowStarted to EventBridge, triggering the
+async event-driven workflow:
+    Orchestrator → EventBridge(WorkflowStarted) → Strategy Lambda
+    → EventBridge(SignalGenerated) → Portfolio Lambda
+    → EventBridge(RebalancePlanned) → SQS → Execution Lambda
 """
 
 from __future__ import annotations
 
-import os
+import uuid
+from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.orchestration.event_driven_orchestrator import EventDrivenOrchestrator
 from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.errors import MarketDataError, TradingClientError
+from the_alchemiser.shared.events import WorkflowStarted
+from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
 from the_alchemiser.shared.logging import (
     configure_application_logging,
     generate_request_id,
@@ -25,13 +31,12 @@ logger = get_logger(__name__)
 
 
 def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict[str, Any]:
-    """Lambda handler for orchestrator with HTTP workflow enabled.
+    """Lambda handler for orchestrator with EventBridge workflow.
 
-    Environment variables required:
-        ORCHESTRATION__USE_HTTP_DOMAIN_WORKFLOW: "true"
-        ORCHESTRATION__STRATEGY_ENDPOINT: Function URL for strategy
-        ORCHESTRATION__PORTFOLIO_ENDPOINT: Function URL for portfolio
-        ORCHESTRATION__EXECUTION_ENDPOINT: Function URL for execution
+    This handler:
+    1. Optionally checks market status
+    2. Publishes WorkflowStarted to EventBridge
+    3. Returns immediately (workflow continues async via EventBridge)
 
     Args:
         event: Lambda event payload containing workflow parameters.
@@ -46,47 +51,111 @@ def lambda_handler(event: dict[str, Any], context: object | None = None) -> dict
     set_request_id(correlation_id)
 
     logger.info(
-        "Orchestrator Lambda invoked (microservices mode)",
-        request_id=request_id,
-        correlation_id=correlation_id,
-        lambda_event=event,
+        "Orchestrator Lambda invoked (EventBridge mode)",
+        extra={
+            "request_id": request_id,
+            "correlation_id": correlation_id,
+        },
     )
 
     try:
-        # Verify HTTP workflow is enabled
-        use_http = os.environ.get("ORCHESTRATION__USE_HTTP_DOMAIN_WORKFLOW", "").lower()
-        if use_http != "true":
-            raise RuntimeError(
-                "HTTP workflow must be enabled. Set ORCHESTRATION__USE_HTTP_DOMAIN_WORKFLOW=true"
+        mode = event.get("mode", "trade")
+        if mode != "trade":
+            raise ValueError(f"Unsupported mode: {mode}. Only 'trade' is supported.")
+
+        # Create container for market status check
+        container = ApplicationContainer.create_for_environment("production")
+
+        # Check market status (optional, workflow proceeds regardless)
+        market_is_open = False
+        market_status = "unknown"
+        try:
+            from the_alchemiser.shared.services.market_clock_service import (
+                MarketClockService,
             )
 
-        # Create container and orchestrator
-        container = ApplicationContainer.create_for_environment("production")
-        orchestrator = EventDrivenOrchestrator(container)
+            trading_client = container.infrastructure.alpaca_manager().trading_client
+            market_clock_service = MarketClockService(trading_client)
+            market_is_open = market_clock_service.is_market_open(correlation_id=correlation_id)
+            market_status = "open" if market_is_open else "closed"
 
-        # Execute workflow
-        mode = event.get("mode", "trade")
-        if mode == "trade":
-            orchestrator.start_trading_workflow(correlation_id=correlation_id)
-        else:
-            # Handle other modes (pnl_analysis, etc.)
-            raise ValueError(f"Unsupported mode: {mode}")
+            if not market_is_open:
+                logger.warning(
+                    "Market is closed - signal generation will proceed but orders skipped",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "market_status": market_status,
+                    },
+                )
+            else:
+                logger.info(
+                    "Market is open - full trading workflow will execute",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "market_status": market_status,
+                    },
+                )
+        except (MarketDataError, TradingClientError) as e:
+            logger.warning(
+                "Market status check failed",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error": str(e),
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Unexpected error checking market status",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error": str(e),
+                },
+            )
 
-        logger.info("Orchestrator workflow completed", correlation_id=correlation_id)
+        # Create and publish WorkflowStarted event to EventBridge
+        workflow_event = WorkflowStarted(
+            correlation_id=correlation_id,
+            causation_id=f"system-request-{datetime.now(UTC).isoformat()}",
+            event_id=f"workflow-started-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="orchestration.lambda_handler",
+            source_component="OrchestratorLambda",
+            workflow_type="trading",
+            requested_by="EventBridgeSchedule",
+            configuration={
+                "live_trading": not container.config.paper_trading(),
+                "market_is_open": market_is_open,
+                "market_status": market_status,
+            },
+        )
+
+        # Publish to EventBridge - this triggers Strategy Lambda asynchronously
+        publish_to_eventbridge(workflow_event)
+
+        logger.info(
+            "WorkflowStarted published to EventBridge",
+            extra={
+                "correlation_id": correlation_id,
+                "market_status": market_status,
+            },
+        )
 
         return {
             "status": "success",
             "mode": mode,
             "correlation_id": correlation_id,
             "request_id": request_id,
+            "message": "Workflow started asynchronously via EventBridge",
         }
 
     except Exception as e:
         logger.error(
-            "Orchestrator workflow failed",
-            error=str(e),
-            error_type=type(e).__name__,
-            correlation_id=correlation_id,
+            "Orchestrator failed to start workflow",
+            extra={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "correlation_id": correlation_id,
+            },
             exc_info=True,
         )
         return {

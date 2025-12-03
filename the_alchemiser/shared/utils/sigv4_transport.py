@@ -8,10 +8,16 @@ enabling authentication with AWS Lambda Function URLs using AWS_IAM auth type.
 
 from __future__ import annotations
 
+import os
+
 import httpx
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.session import get_session
+
+from the_alchemiser.shared.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def create_sigv4_signed_client(
@@ -58,9 +64,13 @@ class SigV4Transport(httpx.BaseTransport):
 
         """
         self._session = get_session()
-        self._credentials = self._session.get_credentials()
-        self._region = region or self._session.get_config_variable("region") or "us-east-1"
+        # Get region from environment or default
+        self._region = region or os.environ.get("AWS_REGION", "us-east-1")
         self._transport = httpx.HTTPTransport()
+        logger.info(
+            "SigV4Transport initialized",
+            extra={"region": self._region},
+        )
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         """Handle an HTTP request by signing it with SigV4 before sending.
@@ -72,11 +82,30 @@ class SigV4Transport(httpx.BaseTransport):
             The httpx Response from the signed request
 
         """
+        # Get fresh credentials each time (important for Lambda role credentials)
+        credentials = self._session.get_credentials()
+        if credentials is None:
+            logger.error("No AWS credentials available for SigV4 signing")
+            raise RuntimeError("No AWS credentials available for SigV4 signing")
+
+        # Get frozen credentials to ensure we have access_key, secret_key, and token
+        frozen_credentials = credentials.get_frozen_credentials()
+
         # Extract request details
         url = str(request.url)
         method = request.method
         headers = dict(request.headers)
         body = request.content.decode() if request.content else None
+
+        logger.debug(
+            "Signing request with SigV4",
+            extra={
+                "url": url,
+                "method": method,
+                "region": self._region,
+                "has_session_token": bool(frozen_credentials.token),
+            },
+        )
 
         # Create AWS request for signing
         aws_request = AWSRequest(
@@ -86,8 +115,8 @@ class SigV4Transport(httpx.BaseTransport):
             data=body,
         )
 
-        # Sign the request
-        SigV4Auth(self._credentials, "lambda", self._region).add_auth(aws_request)
+        # Sign the request using frozen credentials
+        SigV4Auth(frozen_credentials, "lambda", self._region).add_auth(aws_request)
 
         # Create new httpx request with signed headers
         signed_headers = dict(aws_request.headers)
