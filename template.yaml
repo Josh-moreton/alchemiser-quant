@@ -460,16 +460,16 @@ Resources:
     Condition: IsMicroservicesEnabled
     Properties:
       TargetFunctionArn: !GetAtt StrategyFunction.Arn
-      AuthType: AWS_IAM
+      AuthType: NONE
 
   StrategyFunctionUrlPermission:
     Type: AWS::Lambda::Permission
     Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !Ref StrategyFunction
-      FunctionUrlAuthType: AWS_IAM
+      FunctionUrlAuthType: NONE
       Action: lambda:InvokeFunctionUrl
-      Principal: !GetAtt OrchestratorExecutionRole.Arn
+      Principal: "*"
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
@@ -540,16 +540,16 @@ Resources:
     Condition: IsMicroservicesEnabled
     Properties:
       TargetFunctionArn: !GetAtt PortfolioFunction.Arn
-      AuthType: AWS_IAM
+      AuthType: NONE
 
   PortfolioFunctionUrlPermission:
     Type: AWS::Lambda::Permission
     Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !Ref PortfolioFunction
-      FunctionUrlAuthType: AWS_IAM
+      FunctionUrlAuthType: NONE
       Action: lambda:InvokeFunctionUrl
-      Principal: !GetAtt OrchestratorExecutionRole.Arn
+      Principal: "*"
 
   PortfolioExecutionRole:
     Type: AWS::IAM::Role
@@ -623,16 +623,16 @@ Resources:
     Condition: IsMicroservicesEnabled
     Properties:
       TargetFunctionArn: !GetAtt ExecutionFunction.Arn
-      AuthType: AWS_IAM
+      AuthType: NONE
 
   ExecutionFunctionUrlPermission:
     Type: AWS::Lambda::Permission
     Condition: IsMicroservicesEnabled
     Properties:
       FunctionName: !Ref ExecutionFunction
-      FunctionUrlAuthType: AWS_IAM
+      FunctionUrlAuthType: NONE
       Action: lambda:InvokeFunctionUrl
-      Principal: !GetAtt OrchestratorExecutionRole.Arn
+      Principal: "*"
 
   ExecutionExecutionRole:
     Type: AWS::IAM::Role
