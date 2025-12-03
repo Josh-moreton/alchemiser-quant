@@ -349,9 +349,9 @@ Resources:
       Environment:
         Variables:
           ORCHESTRATION__USE_HTTP_DOMAIN_WORKFLOW: "true"
-          ORCHESTRATION__STRATEGY_ENDPOINT: !GetAtt StrategyFunctionUrl.FunctionUrl
-          ORCHESTRATION__PORTFOLIO_ENDPOINT: !GetAtt PortfolioFunctionUrl.FunctionUrl
-          ORCHESTRATION__EXECUTION_ENDPOINT: !GetAtt ExecutionFunctionUrl.FunctionUrl
+          ORCHESTRATION__STRATEGY_ENDPOINT: !Sub "${StrategyFunctionUrl.FunctionUrl}signals"
+          ORCHESTRATION__PORTFOLIO_ENDPOINT: !Sub "${PortfolioFunctionUrl.FunctionUrl}rebalance"
+          ORCHESTRATION__EXECUTION_ENDPOINT: !Sub "${ExecutionFunctionUrl.FunctionUrl}executions"
           ALPACA__KEY: !Ref MicroservicesAlpacaKey
           ALPACA__SECRET: !Ref MicroservicesAlpacaSecret
           ALPACA__ENDPOINT: !Ref MicroservicesAlpacaEndpoint
