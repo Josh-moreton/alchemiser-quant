@@ -31,6 +31,7 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
+from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
 logger = get_logger(__name__)
@@ -89,6 +90,123 @@ def _convert_rebalance_plan(
     )
 
 
+def _process_single_message(detail: dict[str, Any], correlation_id: str) -> tuple[bool, str | None]:
+    """Process a single SQS message for trade execution.
+
+    Args:
+        detail: The unwrapped domain event data
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Tuple of (success, error_message). success=True if processed ok.
+
+    """
+    # Create application container
+    container = ApplicationContainer.create_for_environment("production")
+
+    # Parse timestamp
+    timestamp = detail.get("timestamp")
+    if isinstance(timestamp, str):
+        timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    else:
+        timestamp = datetime.now(UTC)
+    timestamp = ensure_timezone_aware(timestamp)
+
+    # Convert rebalance plan
+    plan_data = detail.get("rebalance_plan", {})
+    rebalance_plan = _convert_rebalance_plan(
+        plan_data,
+        correlation_id=correlation_id,
+        causation_id=detail.get("causation_id", correlation_id),
+    )
+
+    # Convert allocation comparison using from_json_dict to handle string Decimals
+    alloc_data = detail.get("allocation_comparison", {})
+    allocation_comparison = AllocationComparison.from_json_dict(alloc_data)
+
+    # Reconstruct RebalancePlanned event
+    rebalance_event = RebalancePlanned(
+        correlation_id=detail.get("correlation_id", correlation_id),
+        causation_id=detail.get("causation_id", correlation_id),
+        event_id=detail.get("event_id", f"rebalance-planned-{uuid.uuid4()}"),
+        timestamp=timestamp,
+        source_module=detail.get("source_module", "portfolio_v2"),
+        source_component=detail.get("source_component"),
+        rebalance_plan=rebalance_plan,
+        allocation_comparison=allocation_comparison,
+        trades_required=detail.get("trades_required", False),
+        metadata=detail.get("metadata", {}),
+    )
+
+    # Create handler and execute
+    handler = TradingExecutionHandler(container)
+
+    # Capture events using mutable container
+    captured: dict[str, BaseEvent | None] = {
+        "trade": None,
+        "completed": None,
+        "failed": None,
+    }
+
+    def capture_trade(evt: BaseEvent) -> None:
+        if isinstance(evt, TradeExecuted):
+            captured["trade"] = evt
+
+    def capture_completed(evt: BaseEvent) -> None:
+        if isinstance(evt, WorkflowCompleted):
+            captured["completed"] = evt
+
+    def capture_failure(evt: BaseEvent) -> None:
+        if isinstance(evt, WorkflowFailed):
+            captured["failed"] = evt
+
+    handler.event_bus.subscribe("TradeExecuted", capture_trade)
+    handler.event_bus.subscribe("WorkflowCompleted", capture_completed)
+    handler.event_bus.subscribe("WorkflowFailed", capture_failure)
+
+    # Run trade execution
+    handler.handle_event(rebalance_event)
+
+    # Publish results to EventBridge
+    trade_event = captured["trade"]
+    if trade_event is not None:
+        publish_to_eventbridge(trade_event)
+        logger.info(
+            "Trade execution completed",
+            extra={
+                "correlation_id": correlation_id,
+                "success": getattr(trade_event, "success", None),
+                "orders_placed": getattr(trade_event, "orders_placed", None),
+            },
+        )
+
+    completed_event = captured["completed"]
+    failed_event = captured["failed"]
+
+    if completed_event is not None:
+        publish_to_eventbridge(completed_event)
+        logger.info(
+            "Workflow completed successfully",
+            extra={"correlation_id": correlation_id},
+        )
+        return (True, None)
+
+    if failed_event is not None:
+        publish_to_eventbridge(failed_event)
+        failure_reason = getattr(failed_event, "failure_reason", "Unknown")
+        logger.error(
+            "Trade execution failed",
+            extra={
+                "correlation_id": correlation_id,
+                "failure_reason": failure_reason,
+            },
+        )
+        # Still consider processed (don't retry failed trades)
+        return (True, None)
+
+    return (True, None)
+
+
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle SQS event for trade execution.
 
@@ -145,102 +263,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         )
 
         try:
-            # Create application container
-            container = ApplicationContainer.create_for_environment("production")
-
-            # Parse timestamp
-            timestamp = detail.get("timestamp")
-            if isinstance(timestamp, str):
-                timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-            else:
-                timestamp = datetime.now(UTC)
-            timestamp = ensure_timezone_aware(timestamp)
-
-            # Convert rebalance plan
-            plan_data = detail.get("rebalance_plan", {})
-            rebalance_plan = _convert_rebalance_plan(
-                plan_data,
-                correlation_id=correlation_id,
-                causation_id=detail.get("causation_id", correlation_id),
-            )
-
-            # Convert allocation comparison using from_json_dict to handle string Decimals
-            alloc_data = detail.get("allocation_comparison", {})
-            allocation_comparison = AllocationComparison.from_json_dict(alloc_data)
-
-            # Reconstruct RebalancePlanned event
-            rebalance_event = RebalancePlanned(
-                correlation_id=detail.get("correlation_id", correlation_id),
-                causation_id=detail.get("causation_id", correlation_id),
-                event_id=detail.get("event_id", f"rebalance-planned-{uuid.uuid4()}"),
-                timestamp=timestamp,
-                source_module=detail.get("source_module", "portfolio_v2"),
-                source_component=detail.get("source_component"),
-                rebalance_plan=rebalance_plan,
-                allocation_comparison=allocation_comparison,
-                trades_required=detail.get("trades_required", False),
-                metadata=detail.get("metadata", {}),
-            )
-
-            # Create handler
-            handler = TradingExecutionHandler(container)
-
-            # Capture events
-            trade_event: TradeExecuted | None = None
-            completed_event: WorkflowCompleted | None = None
-            failed_event: WorkflowFailed | None = None
-
-            def capture_trade(evt: BaseEvent) -> None:
-                nonlocal trade_event
-                if isinstance(evt, TradeExecuted):
-                    trade_event = evt
-
-            def capture_completed(evt: BaseEvent) -> None:
-                nonlocal completed_event
-                if isinstance(evt, WorkflowCompleted):
-                    completed_event = evt
-
-            def capture_failure(evt: BaseEvent) -> None:
-                nonlocal failed_event
-                if isinstance(evt, WorkflowFailed):
-                    failed_event = evt
-
-            handler.event_bus.subscribe("TradeExecuted", capture_trade)
-            handler.event_bus.subscribe("WorkflowCompleted", capture_completed)
-            handler.event_bus.subscribe("WorkflowFailed", capture_failure)
-
-            # Run trade execution
-            handler.handle_event(rebalance_event)
-
-            # Publish results to EventBridge
-            if trade_event is not None:
-                publish_to_eventbridge(trade_event)
-                logger.info(
-                    "Trade execution completed",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "success": trade_event.success,
-                        "orders_placed": trade_event.orders_placed,
-                    },
-                )
-
-            if completed_event is not None:
-                publish_to_eventbridge(completed_event)
-                logger.info(
-                    "Workflow completed successfully",
-                    extra={"correlation_id": correlation_id},
-                )
-            elif failed_event is not None:
-                publish_to_eventbridge(failed_event)
-                logger.error(
-                    "Trade execution failed",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "failure_reason": failed_event.failure_reason,
-                    },
-                )
-                # Still consider this message processed (don't retry failed trades)
-                # The WorkflowFailed event was published for alerting
+            _process_single_message(detail, correlation_id)
 
         except Exception as e:
             logger.error(
@@ -276,6 +299,21 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
             # Mark this message as failed for SQS retry
             batch_item_failures.append({"itemIdentifier": message_id})
+
+        finally:
+            # Clean up WebSocket connections to prevent connection limit exceeded errors
+            # This is critical in Lambda as connections persist across warm invocations
+            try:
+                WebSocketConnectionManager.cleanup_all_instances(correlation_id=correlation_id)
+                logger.debug(
+                    "WebSocket connections cleaned up",
+                    extra={"correlation_id": correlation_id},
+                )
+            except Exception as cleanup_error:
+                logger.warning(
+                    "Failed to cleanup WebSocket connections",
+                    extra={"error": str(cleanup_error), "correlation_id": correlation_id},
+                )
 
     # Return batch item failures for SQS partial batch handling
     return {"batchItemFailures": batch_item_failures}

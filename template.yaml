@@ -680,6 +680,9 @@ Resources:
         - !Ref DependenciesLayer
       Timeout: 600
       MemorySize: 1024
+      # Limit to 1 concurrent execution to prevent Alpaca WebSocket connection limit exceeded errors
+      # Only one trade execution should run at a time per account
+      ReservedConcurrentExecutions: 1
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
