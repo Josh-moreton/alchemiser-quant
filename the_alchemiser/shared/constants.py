@@ -102,10 +102,10 @@ MINIMUM_PRICE: Decimal = Decimal("0.01")
 """Minimum trading price (1 cent) for validation and sanity checks."""
 
 # Order size safety limits - prevents catastrophic bugs from deploying excessive capital
-MAX_SINGLE_ORDER_USD: Decimal = Decimal("100000")
+MAX_SINGLE_ORDER_USD: Decimal = Decimal("1000000")
 """Maximum single order value in USD. Orders exceeding this are rejected as a safety measure."""
 
-MAX_DAILY_TRADE_VALUE_USD: Decimal = Decimal("500000")
+MAX_DAILY_TRADE_VALUE_USD: Decimal = Decimal("10000000")
 """Maximum total trade value per day in USD. Circuit breaker to prevent runaway execution."""
 
 # Validation constants (immutable collections)
