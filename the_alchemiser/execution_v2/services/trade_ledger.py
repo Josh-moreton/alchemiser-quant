@@ -316,6 +316,16 @@ class TradeLedgerService:
 
         """
         if not rebalance_plan or not rebalance_plan.metadata:
+            logger.debug(
+                "No strategy attribution available",
+                extra={
+                    "symbol": symbol,
+                    "has_plan": rebalance_plan is not None,
+                    "has_metadata": rebalance_plan.metadata is not None
+                    if rebalance_plan
+                    else False,
+                },
+            )
             return [], None
 
         # Check for strategy attribution in metadata
@@ -324,6 +334,13 @@ class TradeLedgerService:
         symbol_attr = strategy_attr.get(symbol, {})
 
         if not symbol_attr:
+            logger.debug(
+                "No strategy attribution for symbol",
+                extra={
+                    "symbol": symbol,
+                    "available_symbols": list(strategy_attr.keys()) if strategy_attr else [],
+                },
+            )
             return [], None
 
         strategy_names = list(symbol_attr.keys())

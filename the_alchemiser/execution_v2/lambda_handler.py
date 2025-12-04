@@ -87,6 +87,7 @@ def _convert_rebalance_plan(
         total_trade_value=Decimal(str(plan_data.get("total_trade_value", 0))),
         max_drift_tolerance=Decimal(str(plan_data.get("max_drift_tolerance", "0.05"))),
         items=items,
+        metadata=plan_data.get("metadata"),
     )
 
 
