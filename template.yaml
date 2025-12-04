@@ -756,6 +756,7 @@ Resources:
                 Action:
                   - dynamodb:Query
                   - dynamodb:GetItem
+                  - dynamodb:Scan
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
