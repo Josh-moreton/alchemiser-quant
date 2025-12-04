@@ -6,10 +6,10 @@
     "2026/holy-nova.clj",
     "2026/ICDB.clj",
     "2026/vox.clj",
-    "2026-tact/beefier.clj",
-    "2026-tact/doctor-strange.clj",
-    "2026-tact/feaver.clj",
-    "2026-tact/wakanda.clj"
+    "2026/beefier.clj",
+    "2026/doctor-strange.clj",
+    "2026/feaver.clj",
+    "2026/wakanda.clj"
   ],
   "allocations": {
     "2026/beam.clj": 0.1,
@@ -18,9 +18,9 @@
     "2026/holy-nova.clj": 0.1,
     "2026/ICDB.clj": 0.1,
     "2026/vox.clj": 0.01,
-    "2026-tact/beefier.clj": 0.1,
-    "2026-tact/doctor-strange.clj": 0.1,
-    "2026-tact/feaver.clj": 0.1,
-    "2026-tact/wakanda.clj": 0.1
+    "2026/beefier.clj": 0.1,
+    "2026/doctor-strange.clj": 0.1,
+    "2026/feaver.clj": 0.1,
+    "2026/wakanda.clj": 0.1
   }
 }
