@@ -225,7 +225,7 @@ class TestExecutionSummary:
         assert summary.total_value == Decimal("50000.00")
         assert summary.success_rate == 0.8
         assert summary.execution_duration_seconds == 12.5
-        assert summary.schema_version == "1.0"
+        assert summary.schema_version == "1.0.0"
 
     def test_order_count_invariant_enforced(self):
         """Test that order counts must sum to total."""
@@ -339,7 +339,7 @@ class TestTradeRunResult:
         assert result.success is True
         assert result.trading_mode == "PAPER"
         assert result.correlation_id == "test-correlation-id"
-        assert result.schema_version == "1.0"
+        assert result.schema_version == "1.0.0"
 
     def test_status_literal_type_enforcement(self):
         """Test that status field only accepts valid values."""
