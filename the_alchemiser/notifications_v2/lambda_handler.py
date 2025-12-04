@@ -14,6 +14,9 @@ from typing import Any
 from uuid import uuid4
 
 from the_alchemiser.notifications_v2.service import NotificationService
+from the_alchemiser.notifications_v2.strategy_report_service import (
+    generate_performance_report_url,
+)
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events.eventbridge_publisher import unwrap_eventbridge_event
 from the_alchemiser.shared.events.schemas import (
@@ -110,8 +113,11 @@ def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[
     container = ApplicationContainer()
     logger.info("ApplicationContainer created successfully", extra={"environment": "production"})
 
+    # Generate strategy performance report and get presigned URL
+    report_url = _generate_strategy_report(correlation_id)
+
     # Build TradingNotificationRequested from TradeExecuted event
-    notification_event = _build_trading_notification(detail, correlation_id, container)
+    notification_event = _build_trading_notification(detail, correlation_id, container, report_url)
 
     # Create NotificationService and process the event
     notification_service = NotificationService(container)
@@ -123,6 +129,7 @@ def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[
             "correlation_id": correlation_id,
             "trading_success": notification_event.trading_success,
             "orders_placed": notification_event.orders_placed,
+            "report_url_included": report_url is not None,
         },
     )
 
@@ -250,10 +257,49 @@ def _format_error_details(error_details: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _generate_strategy_report(correlation_id: str) -> str | None:
+    """Generate strategy performance report and return presigned URL.
+
+    Args:
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Presigned URL for CSV download, or None if generation fails
+
+    """
+    try:
+        report_url = generate_performance_report_url(correlation_id=correlation_id)
+
+        if report_url:
+            logger.info(
+                "Strategy performance report generated",
+                extra={"correlation_id": correlation_id},
+            )
+        else:
+            logger.debug(
+                "Strategy performance report not generated (no data or not configured)",
+                extra={"correlation_id": correlation_id},
+            )
+
+        return report_url
+
+    except Exception as e:
+        # Don't fail the notification if report generation fails
+        logger.warning(
+            f"Failed to generate strategy performance report: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        return None
+
+
 def _build_trading_notification(
     trade_executed_detail: dict[str, Any],
     correlation_id: str,
     container: ApplicationContainer,
+    report_url: str | None = None,
 ) -> TradingNotificationRequested:
     """Build TradingNotificationRequested from TradeExecuted event detail.
 
@@ -261,6 +307,7 @@ def _build_trading_notification(
         trade_executed_detail: The detail payload from TradeExecuted event
         correlation_id: Correlation ID for tracing
         container: Application container for config access
+        report_url: Optional presigned URL for strategy performance CSV report
 
     Returns:
         TradingNotificationRequested event ready for processing
@@ -279,6 +326,10 @@ def _build_trading_notification(
         "orders_executed": trade_executed_detail.get("orders_executed", []),
         "execution_summary": trade_executed_detail.get("execution_summary", {}),
     }
+
+    # Add report URL to execution_data if available
+    if report_url:
+        execution_data["strategy_performance_report_url"] = report_url
 
     # Extract capital deployed percentage from event metadata
     capital_deployed_pct = _extract_capital_deployed_pct(trade_executed_detail)

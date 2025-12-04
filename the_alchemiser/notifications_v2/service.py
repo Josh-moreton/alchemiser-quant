@@ -255,6 +255,20 @@ class NotificationService:
         if not event.trading_success and event.error_message:
             lines.extend(["", "Error Details:", event.error_message])
 
+        # Add strategy performance report link if available
+        report_url = event.execution_data.get("strategy_performance_report_url")
+        if report_url:
+            lines.extend(
+                [
+                    "",
+                    "-" * 40,
+                    "STRATEGY PERFORMANCE REPORT",
+                    "-" * 40,
+                    "Download CSV (link valid for 7 days):",
+                    report_url,
+                ]
+            )
+
         return "\n".join(lines)
 
     def _build_error_message(self, event: ErrorNotificationRequested) -> str:

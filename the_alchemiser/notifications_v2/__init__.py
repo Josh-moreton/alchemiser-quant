@@ -9,6 +9,8 @@ event bus and sends appropriate emails.
 Public API:
     register_notification_handlers: Register event handlers for notifications
     NotificationService: Core service for handling notification events
+    StrategyPerformanceReportService: Service for generating CSV performance reports
+    generate_performance_report_url: Convenience function for report generation
 """
 
 from __future__ import annotations
@@ -19,6 +21,10 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from .service import NotificationService
+from .strategy_report_service import (
+    StrategyPerformanceReportService,
+    generate_performance_report_url,
+)
 
 
 def register_notification_handlers(container: ApplicationContainer) -> None:
@@ -43,6 +49,8 @@ def register_notification_handlers(container: ApplicationContainer) -> None:
 # Public API exports
 __all__ = [
     "NotificationService",
+    "StrategyPerformanceReportService",
+    "generate_performance_report_url",
     "register_notification_handlers",
 ]
 

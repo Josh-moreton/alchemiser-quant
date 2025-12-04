@@ -22,11 +22,15 @@ class TestPublicAPIExports:
         """Test that all __all__ exports are importable."""
         from the_alchemiser.notifications_v2 import (
             NotificationService,
+            StrategyPerformanceReportService,
+            generate_performance_report_url,
             register_notification_handlers,
         )
 
         assert NotificationService is not None
+        assert StrategyPerformanceReportService is not None
         assert callable(register_notification_handlers)
+        assert callable(generate_performance_report_url)
 
     def test_notification_service_is_class(self) -> None:
         """Test that NotificationService is a class."""
@@ -46,6 +50,8 @@ class TestPublicAPIExports:
 
         expected_exports = {
             "NotificationService",
+            "StrategyPerformanceReportService",
+            "generate_performance_report_url",
             "register_notification_handlers",
         }
 

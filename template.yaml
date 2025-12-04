@@ -301,6 +301,35 @@ Resources:
       Protocol: email
       Endpoint: notifications@rwxt.org
 
+  # ========== PERFORMANCE REPORTS S3 BUCKET ==========
+  # S3 bucket for strategy performance CSV reports with presigned URL access
+  PerformanceReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-reports"
+        - !Sub "alchemiser-${Stage}-reports"
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldReports
+            ExpirationInDays: 30
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: performance-reports
+
   # ========== TRADING NOTIFICATIONS SNS ==========
   # SNS Topic for trading notifications (trade results, workflow failures)
   TradingNotificationsTopic:
@@ -657,6 +686,8 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
+          PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
       Events:
         TradeExecutedEvent:
@@ -721,6 +752,19 @@ Resources:
                   - sns:Publish
                 Resource:
                   - !Ref TradingNotificationsTopic
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !Sub "${PerformanceReportsBucket.Arn}/*"
 
   # Scheduler to trigger Strategy (workflow entry point)
   StrategySchedule:
@@ -772,6 +816,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-TradeLedgerTable"
         - !Sub "alchemiser-${Stage}-TradeLedgerTable"
+
+  PerformanceReportsBucketName:
+    Description: "S3 bucket for strategy performance CSV reports"
+    Value: !Ref PerformanceReportsBucket
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-PerformanceReportsBucket"
+        - !Sub "alchemiser-${Stage}-PerformanceReportsBucket"
 
   DeploymentStage:
     Description: "Deployed stage"
