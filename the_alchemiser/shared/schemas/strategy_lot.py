@@ -271,11 +271,9 @@ class StrategyLot(BaseModel):
             ],
             "realized_pnl": str(self.realized_pnl),
             "created_at": datetime.now(UTC).isoformat(),
-            # GSI keys for querying (GSI5 and GSI6 - GSI1-4 are already in use)
+            # GSI keys for querying (GSI5 - GSI1-4 are already in use)
             "GSI5PK": f"STRATEGY_LOTS#{self.strategy_name}",
             "GSI5SK": f"{'OPEN' if self.is_open else 'CLOSED'}#{self.symbol}#{self.entry_timestamp.isoformat()}",
-            "GSI6PK": f"SYMBOL_LOTS#{self.symbol}",
-            "GSI6SK": f"{'OPEN' if self.is_open else 'CLOSED'}#{self.strategy_name}#{self.entry_timestamp.isoformat()}",
         }
 
         if self.fully_closed_at:
