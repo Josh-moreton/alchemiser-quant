@@ -1,8 +1,14 @@
 {
-  "files": [
-    "2026/vox.clj"
+  "files": [        
+    "2026/beam.clj",
+    "2026-tact/beefier.clj",
+    "2026-tact/wakanda.clj"
   ],
   "allocations": {
-    "2026/vox.clj": 1.0
+    "2026/beam.clj": 0.4,
+    "2026-tact/beefier.clj": 0.3,
+    "2026-tact/wakanda.clj": 0.3
+
+
   }
 }
