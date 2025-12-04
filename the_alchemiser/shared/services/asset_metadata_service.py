@@ -56,8 +56,8 @@ class AssetMetadataService:
     providing a centralized interface for asset information retrieval.
     """
 
-    # Valid symbol pattern: alphanumeric, dots, hyphens
-    SYMBOL_PATTERN = re.compile(r"^[A-Z0-9.\-]+$")
+    # Valid symbol pattern: alphanumeric, dots, hyphens, slashes (e.g., BRK/B)
+    SYMBOL_PATTERN = re.compile(r"^[A-Z0-9.\-/]+$")
     API_TIMEOUT = 10.0  # Timeout for API calls in seconds
 
     def __init__(

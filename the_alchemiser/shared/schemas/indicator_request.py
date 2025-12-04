@@ -87,7 +87,8 @@ class IndicatorRequest(BaseModel):
 
         """
         normalized = v.strip().upper()
-        if not normalized.replace(".", "").replace("-", "").isalnum():
+        # Allow dots (BRK.B), hyphens (BF-B), and slashes (BRK/B) in symbols
+        if not normalized.replace(".", "").replace("-", "").replace("/", "").isalnum():
             raise ValueError(f"Invalid symbol format: {v}")
         return normalized
 

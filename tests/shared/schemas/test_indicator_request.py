@@ -77,6 +77,18 @@ class TestIndicatorRequest:
 
         assert request.symbol == "BRK.B"
 
+    def test_symbol_with_slash_normalization(self) -> None:
+        """Test that symbols with slashes are normalized correctly (e.g., BRK/B)."""
+        request = IndicatorRequest(
+            request_id="req-123",
+            correlation_id="corr-456",
+            symbol="brk/b",
+            indicator_type="rsi",
+            parameters={},
+        )
+
+        assert request.symbol == "BRK/B"
+
     def test_invalid_symbol_format(self) -> None:
         """Test that invalid symbol format raises error."""
         with pytest.raises(ValidationError, match="Invalid symbol format"):
