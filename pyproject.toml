@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "5.0.2"
+version = "5.1.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -49,30 +49,30 @@ unmatched_ignore_imports_alerting = "warn"
 name = "Shared module isolation - prevent upward dependencies"
 type = "forbidden"
 source_modules = [ "the_alchemiser.shared",]
-forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2", "the_alchemiser.orchestration",]
+forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2",]
 
 [[tool.importlinter.contracts]]
 name = "Strategy module isolation"
 type = "forbidden"
 source_modules = [ "the_alchemiser.strategy_v2",]
-forbidden_modules = [ "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2", "the_alchemiser.orchestration",]
+forbidden_modules = [ "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2",]
 
 [[tool.importlinter.contracts]]
 name = "Portfolio module isolation"
 type = "forbidden"
 source_modules = [ "the_alchemiser.portfolio_v2",]
-forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.execution_v2", "the_alchemiser.orchestration",]
+forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.execution_v2",]
 
 [[tool.importlinter.contracts]]
 name = "Execution module isolation"
 type = "forbidden"
 source_modules = [ "the_alchemiser.execution_v2",]
-forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2", "the_alchemiser.orchestration",]
+forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2",]
 
 [[tool.importlinter.contracts]]
 name = "Event-driven layered architecture enforcement"
 type = "layers"
-layers = [ "the_alchemiser.orchestration", "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2", "the_alchemiser.shared",]
+layers = [ "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2", "the_alchemiser.shared",]
 
 [[tool.importlinter.contracts]]
 name = "Deprecated DTO module forbidden"

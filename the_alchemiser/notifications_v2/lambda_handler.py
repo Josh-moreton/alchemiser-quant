@@ -2,8 +2,8 @@
 
 Lambda handler for event-driven notifications microservice.
 
-Consumes TradeExecuted events from EventBridge and sends email notifications
-using the NotificationService.
+Consumes TradeExecuted and WorkflowFailed events from EventBridge and sends
+email notifications using the NotificationService.
 """
 
 from __future__ import annotations
@@ -16,21 +16,24 @@ from uuid import uuid4
 from the_alchemiser.notifications_v2.service import NotificationService
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events.eventbridge_publisher import unwrap_eventbridge_event
-from the_alchemiser.shared.events.schemas import TradingNotificationRequested
+from the_alchemiser.shared.events.schemas import (
+    ErrorNotificationRequested,
+    TradingNotificationRequested,
+)
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle TradeExecuted events and send notifications.
+    """Handle TradeExecuted and WorkflowFailed events and send notifications.
 
-    This Lambda is triggered by EventBridge when TradeExecuted events are published.
-    It builds a TradingNotificationRequested event and processes it through the
-    NotificationService to send emails.
+    This Lambda is triggered by EventBridge when TradeExecuted or WorkflowFailed
+    events are published. It builds appropriate notification events and processes
+    them through the NotificationService to send emails.
 
     Args:
-        event: EventBridge event containing TradeExecuted details
+        event: EventBridge event containing TradeExecuted or WorkflowFailed details
         context: Lambda context
 
     Returns:
@@ -58,43 +61,18 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
         )
 
-        # Only process TradeExecuted events
-        if detail_type != "TradeExecuted":
-            logger.debug(
-                f"Ignoring non-TradeExecuted event: {detail_type}",
-                extra={"correlation_id": correlation_id},
-            )
-            return {
-                "statusCode": 200,
-                "body": f"Ignored event type: {detail_type}",
-            }
-
-        # Create ApplicationContainer for dependencies
-        logger.info("Creating ApplicationContainer", extra={"environment": "production"})
-        container = ApplicationContainer()
-        logger.info(
-            "ApplicationContainer created successfully", extra={"environment": "production"}
+        # Route to appropriate handler based on event type
+        if detail_type == "TradeExecuted":
+            return _handle_trade_executed(detail, correlation_id)
+        if detail_type == "WorkflowFailed":
+            return _handle_workflow_failed(detail, correlation_id, source)
+        logger.debug(
+            f"Ignoring unsupported event type: {detail_type}",
+            extra={"correlation_id": correlation_id},
         )
-
-        # Build TradingNotificationRequested from TradeExecuted event
-        notification_event = _build_trading_notification(detail, correlation_id, container)
-
-        # Create NotificationService and process the event
-        notification_service = NotificationService(container)
-        notification_service.handle_event(notification_event)
-
-        logger.info(
-            "Trading notification processed successfully",
-            extra={
-                "correlation_id": correlation_id,
-                "trading_success": notification_event.trading_success,
-                "orders_placed": notification_event.orders_placed,
-            },
-        )
-
         return {
             "statusCode": 200,
-            "body": f"Notification sent for correlation_id: {correlation_id}",
+            "body": f"Ignored event type: {detail_type}",
         }
 
     except Exception as e:
@@ -111,6 +89,162 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "statusCode": 500,
             "body": f"Notification failed: {e!s}",
         }
+
+
+def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle TradeExecuted events by sending trading notifications.
+
+    Args:
+        detail: The detail payload from TradeExecuted event
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    # Create ApplicationContainer for dependencies
+    logger.info("Creating ApplicationContainer", extra={"environment": "production"})
+    container = ApplicationContainer()
+    logger.info("ApplicationContainer created successfully", extra={"environment": "production"})
+
+    # Build TradingNotificationRequested from TradeExecuted event
+    notification_event = _build_trading_notification(detail, correlation_id, container)
+
+    # Create NotificationService and process the event
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    logger.info(
+        "Trading notification processed successfully",
+        extra={
+            "correlation_id": correlation_id,
+            "trading_success": notification_event.trading_success,
+            "orders_placed": notification_event.orders_placed,
+        },
+    )
+
+    return {
+        "statusCode": 200,
+        "body": f"Notification sent for correlation_id: {correlation_id}",
+    }
+
+
+def _handle_workflow_failed(
+    detail: dict[str, Any], correlation_id: str, source: str
+) -> dict[str, Any]:
+    """Handle WorkflowFailed events by sending error notifications.
+
+    Args:
+        detail: The detail payload from WorkflowFailed event
+        correlation_id: Correlation ID for tracing
+        source: Event source (e.g., alchemiser.strategy, alchemiser.portfolio)
+
+    Returns:
+        Response with status code and message
+
+    """
+    # Create ApplicationContainer for dependencies
+    logger.info(
+        "Creating ApplicationContainer for error notification", extra={"environment": "production"}
+    )
+    container = ApplicationContainer()
+
+    # Build ErrorNotificationRequested from WorkflowFailed event
+    notification_event = _build_error_notification(detail, correlation_id, source)
+
+    # Create NotificationService and process the event
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    logger.info(
+        "Error notification processed successfully",
+        extra={
+            "correlation_id": correlation_id,
+            "failure_step": detail.get("failure_step", "unknown"),
+            "workflow_type": detail.get("workflow_type", "unknown"),
+        },
+    )
+
+    return {
+        "statusCode": 200,
+        "body": f"Error notification sent for correlation_id: {correlation_id}",
+    }
+
+
+def _build_error_notification(
+    workflow_failed_detail: dict[str, Any],
+    correlation_id: str,
+    source: str,
+) -> ErrorNotificationRequested:
+    """Build ErrorNotificationRequested from WorkflowFailed event detail.
+
+    Args:
+        workflow_failed_detail: The detail payload from WorkflowFailed event
+        correlation_id: Correlation ID for tracing
+        source: Event source for context
+
+    Returns:
+        ErrorNotificationRequested event ready for processing
+
+    """
+    # Extract fields from WorkflowFailed event
+    workflow_type = workflow_failed_detail.get("workflow_type", "unknown")
+    failure_reason = workflow_failed_detail.get("failure_reason", "Unknown error")
+    failure_step = workflow_failed_detail.get("failure_step", "unknown")
+    error_details = workflow_failed_detail.get("error_details", {})
+
+    # Determine source module from event source
+    source_module = source.replace("alchemiser.", "") if source else "unknown"
+
+    # Build error report content
+    error_report = f"""
+Workflow Failure Report
+=======================
+
+Workflow Type: {workflow_type}
+Failed Step: {failure_step}
+Source Module: {source_module}
+Correlation ID: {correlation_id}
+
+Failure Reason:
+{failure_reason}
+
+Error Details:
+{_format_error_details(error_details)}
+"""
+
+    return ErrorNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=workflow_failed_detail.get("event_id", correlation_id),
+        event_id=f"error-notification-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        error_severity="CRITICAL",
+        error_priority="HIGH",
+        error_title=f"Workflow Failed: {failure_step}",
+        error_report=error_report.strip(),
+        error_code=error_details.get("exception_type"),
+    )
+
+
+def _format_error_details(error_details: dict[str, Any]) -> str:
+    """Format error details dictionary for email display.
+
+    Args:
+        error_details: Dictionary of error details
+
+    Returns:
+        Formatted string representation
+
+    """
+    if not error_details:
+        return "No additional details available"
+
+    lines = []
+    for key, value in error_details.items():
+        lines.append(f"  - {key}: {value}")
+    return "\n".join(lines)
 
 
 def _build_trading_notification(
