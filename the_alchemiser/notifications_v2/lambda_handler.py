@@ -280,8 +280,8 @@ def _build_trading_notification(
         "execution_summary": trade_executed_detail.get("execution_summary", {}),
     }
 
-    # Calculate total trade value from execution summary or orders
-    total_trade_value = Decimal(str(_extract_trade_value(trade_executed_detail)))
+    # Extract capital deployed percentage from event metadata
+    capital_deployed_pct = _extract_capital_deployed_pct(trade_executed_detail)
 
     # Extract error details if present
     error_message = trade_executed_detail.get("error_message")
@@ -298,44 +298,31 @@ def _build_trading_notification(
         trading_mode=mode_str,
         orders_placed=orders_placed,
         orders_succeeded=orders_succeeded,
-        total_trade_value=total_trade_value,
+        capital_deployed_pct=capital_deployed_pct,
         execution_data=execution_data,
         error_message=error_message,
         error_code=error_code,
     )
 
 
-def _extract_trade_value(trade_executed_detail: dict[str, Any]) -> float:
-    """Extract total trade value from TradeExecuted event.
+def _extract_capital_deployed_pct(trade_executed_detail: dict[str, Any]) -> Decimal | None:
+    """Extract capital deployed percentage from TradeExecuted event.
 
     Args:
         trade_executed_detail: The detail payload from TradeExecuted event
 
     Returns:
-        Total trade value as float
+        Capital deployed percentage as Decimal, or None if not available
 
     """
-    # Try execution_summary first
-    execution_summary = trade_executed_detail.get("execution_summary", {})
-    if isinstance(execution_summary, dict):
-        total_value = execution_summary.get("total_trade_value")
-        if total_value is not None:
+    # Try metadata first (where execution handler stores it)
+    metadata = trade_executed_detail.get("metadata", {})
+    if isinstance(metadata, dict):
+        capital_pct = metadata.get("capital_deployed_pct")
+        if capital_pct is not None:
             try:
-                return float(total_value)
+                return Decimal(str(capital_pct))
             except (TypeError, ValueError):
                 pass
 
-    # Fall back to summing orders
-    orders = trade_executed_detail.get("orders_executed", [])
-    if isinstance(orders, list):
-        total = 0.0
-        for order in orders:
-            if isinstance(order, dict):
-                try:
-                    value = order.get("filled_value") or order.get("notional") or 0
-                    total += float(value)
-                except (TypeError, ValueError):
-                    pass
-        return total
-
-    return 0.0
+    return None

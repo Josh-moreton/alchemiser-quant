@@ -258,7 +258,7 @@ class TestTradingNotificationHandling:
             trading_mode="PAPER",
             orders_placed=5,
             orders_succeeded=5,
-            total_trade_value=Decimal("10000.50"),
+            capital_deployed_pct=Decimal("85.50"),
             execution_data={
                 "symbols_traded": ["AAPL", "GOOGL", "MSFT"],
                 "total_notional": 10000.50,
@@ -280,7 +280,7 @@ class TestTradingNotificationHandling:
             trading_mode="LIVE",
             orders_placed=5,
             orders_succeeded=2,
-            total_trade_value=Decimal("3000.00"),
+            capital_deployed_pct=Decimal("30.00"),
             execution_data={
                 "failed_symbols": ["TSLA", "NVDA", "AMD"],
             },
@@ -337,6 +337,55 @@ class TestTradingNotificationHandling:
         assert "Orders Succeeded: 5" in message
 
     @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_handle_trading_notification_shows_capital_deployed(
+        self,
+        mock_publish: Mock,
+        mock_container: Mock,
+        successful_trading_event: TradingNotificationRequested,
+    ) -> None:
+        """Test trading notification shows capital deployed percentage."""
+        mock_publish.return_value = True
+        service = NotificationService(mock_container)
+
+        service.handle_event(successful_trading_event)
+
+        # Verify message contains capital deployed percentage
+        mock_publish.assert_called_once()
+        message = mock_publish.call_args.kwargs["message"]
+        assert "Capital Deployed: 85.50%" in message
+
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_handle_trading_notification_shows_na_when_capital_deployed_none(
+        self,
+        mock_publish: Mock,
+        mock_container: Mock,
+    ) -> None:
+        """Test trading notification shows N/A when capital deployed is None."""
+        mock_publish.return_value = True
+        service = NotificationService(mock_container)
+
+        event = TradingNotificationRequested(
+            event_id=f"event-{uuid.uuid4()}",
+            correlation_id=f"corr-{uuid.uuid4()}",
+            causation_id=f"cause-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="test_service",
+            trading_success=True,
+            trading_mode="PAPER",
+            orders_placed=1,
+            orders_succeeded=1,
+            capital_deployed_pct=None,  # None case
+            execution_data={},
+        )
+
+        service.handle_event(event)
+
+        # Verify message shows N/A for capital deployed
+        mock_publish.assert_called_once()
+        message = mock_publish.call_args.kwargs["message"]
+        assert "Capital Deployed: N/A" in message
+
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_failed_trading_notification(
         self,
         mock_publish: Mock,
@@ -384,7 +433,7 @@ class TestTradingNotificationHandling:
             trading_mode="PAPER",
             orders_placed=3,
             orders_succeeded=1,
-            total_trade_value=Decimal("500.00"),
+            capital_deployed_pct=Decimal("15.00"),
             execution_data={},
             error_message="Unknown error",
             error_code=None,  # No error code
@@ -417,7 +466,7 @@ class TestTradingNotificationHandling:
             trading_mode="PAPER",
             orders_placed=1,
             orders_succeeded=0,
-            total_trade_value=Decimal("0.0"),
+            capital_deployed_pct=None,  # N/A case
             execution_data={},
             error_message=None,  # No error message
             error_code=None,
@@ -778,7 +827,7 @@ class TestMissingAndPartialData:
             trading_mode="PAPER",
             orders_placed=0,
             orders_succeeded=0,
-            total_trade_value=Decimal("0.0"),
+            capital_deployed_pct=None,
             execution_data={},  # Empty execution data
             error_message="No orders executed",
         )
@@ -808,7 +857,7 @@ class TestMissingAndPartialData:
             trading_mode="PAPER",
             orders_placed=1,
             orders_succeeded=1,
-            total_trade_value=Decimal("100.0"),
+            capital_deployed_pct=Decimal("10.00"),
             execution_data={},  # Minimal data
         )
 

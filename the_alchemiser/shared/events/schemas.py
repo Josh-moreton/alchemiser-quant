@@ -404,16 +404,21 @@ class TradingNotificationRequested(BaseEvent):
     trading_mode: str = Field(..., description="Trading mode (LIVE, PAPER)")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of orders that succeeded")
-    total_trade_value: Decimal = Field(..., description="Total value of trades executed")
+    capital_deployed_pct: Decimal | None = Field(
+        default=None,
+        description="Percentage of account equity deployed in positions (0-100)",
+    )
     execution_data: dict[str, Any] = Field(..., description="Detailed execution data")
     error_message: str | None = Field(default=None, description="Error message if trading failed")
     error_code: str | None = Field(default=None, description="Optional error code")
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
 
-    @field_validator("total_trade_value", mode="before")
+    @field_validator("capital_deployed_pct", mode="before")
     @classmethod
-    def convert_total_trade_value_to_decimal(cls, v: object) -> Decimal:
-        """Convert total_trade_value to Decimal if it's a float or int."""
+    def convert_capital_deployed_pct_to_decimal(cls, v: object) -> Decimal | None:
+        """Convert capital_deployed_pct to Decimal if it's a float or int."""
+        if v is None:
+            return None
         if isinstance(v, Decimal):
             return v
         if isinstance(v, int | float):

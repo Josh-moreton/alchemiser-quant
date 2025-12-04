@@ -231,6 +231,13 @@ class NotificationService:
 
         """
         status = "SUCCESS" if event.trading_success else "FAILURE"
+
+        # Format capital deployed percentage (show N/A if not available)
+        if event.capital_deployed_pct is not None:
+            capital_deployed_str = f"{event.capital_deployed_pct:.2f}%"
+        else:
+            capital_deployed_str = "N/A"
+
         lines = [
             "THE ALCHEMISER - TRADING REPORT",
             "=" * 40,
@@ -239,7 +246,7 @@ class NotificationService:
             f"Mode: {event.trading_mode.upper()}",
             f"Orders Placed: {event.orders_placed}",
             f"Orders Succeeded: {event.orders_succeeded}",
-            f"Total Trade Value: ${event.total_trade_value:,.2f}",
+            f"Capital Deployed: {capital_deployed_str}",
             "",
             f"Correlation ID: {event.correlation_id}",
             f"Timestamp: {event.timestamp}",

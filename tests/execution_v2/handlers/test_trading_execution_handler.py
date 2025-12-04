@@ -658,3 +658,156 @@ class TestMarketClosureHandling:
         # Should return True (defaults to open on error)
         result = handler._check_market_status("test-correlation-id")
         assert result is True
+
+
+class TestCapitalDeployedPercentage:
+    """Test capital deployed percentage capture functionality."""
+
+    def test_capture_capital_deployed_pct_success(self, handler, mock_container):
+        """Test successful capital deployed percentage calculation."""
+        # Mock account with equity and long market value
+        mock_account = Mock()
+        mock_account.equity = "100000.00"  # $100k equity
+        mock_account.long_market_value = "85000.00"  # $85k in positions
+
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = mock_account
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        result = handler._capture_capital_deployed_pct("test-correlation-id")
+
+        assert result is not None
+        assert result == Decimal("85.00")  # 85% deployed
+
+    def test_capture_capital_deployed_pct_with_leverage(self, handler, mock_container):
+        """Test capital deployed percentage ignores buying power (leverage)."""
+        # Account with leverage - buying power > equity doesn't affect calculation
+        mock_account = Mock()
+        mock_account.equity = "50000.00"  # $50k equity
+        mock_account.long_market_value = "40000.00"  # $40k in positions
+        mock_account.buying_power = "100000.00"  # $100k buying power (2x leverage)
+
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = mock_account
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        result = handler._capture_capital_deployed_pct("test-correlation-id")
+
+        # Should use equity, not buying power
+        assert result == Decimal("80.00")  # 40k / 50k = 80%
+
+    def test_capture_capital_deployed_pct_returns_none_on_no_account(
+        self, handler, mock_container
+    ):
+        """Test returns None when account data is unavailable."""
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = None
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        result = handler._capture_capital_deployed_pct("test-correlation-id")
+
+        assert result is None
+
+    def test_capture_capital_deployed_pct_returns_none_on_zero_equity(
+        self, handler, mock_container
+    ):
+        """Test returns None when equity is zero."""
+        mock_account = Mock()
+        mock_account.equity = "0.00"
+        mock_account.long_market_value = "0.00"
+
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = mock_account
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        result = handler._capture_capital_deployed_pct("test-correlation-id")
+
+        assert result is None
+
+    def test_capture_capital_deployed_pct_returns_none_on_exception(
+        self, handler, mock_container
+    ):
+        """Test returns None when exception occurs during capture."""
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.side_effect = Exception("API error")
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        result = handler._capture_capital_deployed_pct("test-correlation-id")
+
+        assert result is None
+
+    def test_capture_capital_deployed_pct_handles_none_long_market_value(
+        self, handler, mock_container
+    ):
+        """Test handles None long_market_value gracefully."""
+        mock_account = Mock()
+        mock_account.equity = "100000.00"
+        mock_account.long_market_value = None  # Can be None for new accounts
+
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = mock_account
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        result = handler._capture_capital_deployed_pct("test-correlation-id")
+
+        # Should return 0% deployed when long_market_value is None
+        assert result == Decimal("0.00")
+
+    def test_emit_trade_executed_includes_capital_deployed_in_metadata(self, handler, mock_container):
+        """Test TradeExecuted event includes capital_deployed_pct in metadata."""
+        # Mock account data
+        mock_account = Mock()
+        mock_account.equity = "100000.00"
+        mock_account.long_market_value = "75000.00"  # 75% deployed
+
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = mock_account
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        execution_result = ExecutionResult(
+            success=True,
+            status=ExecutionStatus.SUCCESS,
+            plan_id="test-plan",
+            correlation_id="test-corr",
+            orders=[],
+            orders_placed=0,
+            orders_succeeded=0,
+            total_trade_value=DECIMAL_ZERO,
+            execution_timestamp=datetime.now(UTC),
+        )
+
+        handler._emit_trade_executed_event(execution_result, success=True)
+
+        # Verify published event metadata
+        handler.event_bus.publish.assert_called_once()
+        published_event = handler.event_bus.publish.call_args[0][0]
+        assert isinstance(published_event, TradeExecuted)
+        assert "capital_deployed_pct" in published_event.metadata
+        assert published_event.metadata["capital_deployed_pct"] == "75.00"
+
+    def test_emit_trade_executed_handles_none_capital_deployed(self, handler, mock_container):
+        """Test TradeExecuted event handles None capital_deployed_pct gracefully."""
+        # Mock account API failure
+        mock_alpaca_manager = Mock()
+        mock_alpaca_manager.get_account_object.return_value = None
+        mock_container.infrastructure.alpaca_manager.return_value = mock_alpaca_manager
+
+        execution_result = ExecutionResult(
+            success=True,
+            status=ExecutionStatus.SUCCESS,
+            plan_id="test-plan",
+            correlation_id="test-corr",
+            orders=[],
+            orders_placed=0,
+            orders_succeeded=0,
+            total_trade_value=DECIMAL_ZERO,
+            execution_timestamp=datetime.now(UTC),
+        )
+
+        handler._emit_trade_executed_event(execution_result, success=True)
+
+        # Verify published event metadata doesn't include capital_deployed_pct
+        handler.event_bus.publish.assert_called_once()
+        published_event = handler.event_bus.publish.call_args[0][0]
+        assert isinstance(published_event, TradeExecuted)
+        assert "capital_deployed_pct" not in published_event.metadata

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -464,6 +465,74 @@ class TradingExecutionHandler:
             )
             self._emit_workflow_failure(event, f"Unexpected error: {e}")
 
+    def _capture_capital_deployed_pct(self, correlation_id: str) -> Decimal | None:
+        """Capture capital deployed percentage from current account state.
+
+        Polls the Alpaca account to calculate what percentage of total equity
+        is currently deployed in positions. This uses equity (not buying power)
+        to give an accurate representation of capital usage regardless of
+        leverage settings.
+
+        Formula: capital_deployed_pct = (long_market_value / equity) * 100
+
+        Args:
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            Capital deployed as a percentage (0-100), or None if calculation fails
+
+        """
+        try:
+            # Get account data from Alpaca
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            account = alpaca_manager.get_account_object()
+
+            if not account:
+                self.logger.warning(
+                    "Failed to fetch account for capital deployed calculation",
+                    extra={"correlation_id": correlation_id},
+                )
+                return None
+
+            equity = Decimal(str(account.equity))
+            long_market_value = (
+                Decimal(str(account.long_market_value))
+                if account.long_market_value
+                else Decimal("0")
+            )
+
+            if equity <= 0:
+                self.logger.warning(
+                    "Account equity is zero or negative, cannot calculate capital deployed",
+                    extra={"correlation_id": correlation_id, "equity": str(equity)},
+                )
+                return None
+
+            capital_deployed_pct = (long_market_value / equity) * Decimal("100")
+
+            self.logger.info(
+                f"📊 Capital deployed: {capital_deployed_pct:.2f}% "
+                f"(positions: ${long_market_value:,.2f} / equity: ${equity:,.2f})",
+                extra={
+                    "correlation_id": correlation_id,
+                    "capital_deployed_pct": str(capital_deployed_pct),
+                    "long_market_value": str(long_market_value),
+                    "equity": str(equity),
+                },
+            )
+
+            return capital_deployed_pct.quantize(Decimal("0.01"))
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to calculate capital deployed percentage: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            return None
+
     def _emit_trade_executed_event(
         self, execution_result: ExecutionResult, *, success: bool
     ) -> None:
@@ -481,6 +550,19 @@ class TradingExecutionHandler:
             if not success:
                 failure_reason = self._build_failure_reason(execution_result)
                 failed_symbols = self._extract_failed_symbols(execution_result)
+
+            # Capture capital deployed percentage from current account state
+            capital_deployed_pct = self._capture_capital_deployed_pct(
+                execution_result.correlation_id
+            )
+
+            # Build metadata with capital deployed percentage
+            event_metadata: dict[str, object] = {
+                "execution_timestamp": datetime.now(UTC).isoformat(),
+                "source": "event_driven_handler",
+            }
+            if capital_deployed_pct is not None:
+                event_metadata["capital_deployed_pct"] = str(capital_deployed_pct)
 
             event = TradeExecuted(
                 correlation_id=execution_result.correlation_id,
@@ -501,10 +583,7 @@ class TradingExecutionHandler:
                 success=success,
                 orders_placed=execution_result.orders_placed,
                 orders_succeeded=execution_result.orders_succeeded,
-                metadata={
-                    "execution_timestamp": datetime.now(UTC).isoformat(),
-                    "source": "event_driven_handler",
-                },
+                metadata=event_metadata,
                 failure_reason=failure_reason,
                 failed_symbols=failed_symbols,
             )
