@@ -174,10 +174,6 @@ Resources:
           AttributeType: S
         - AttributeName: GSI5SK
           AttributeType: S
-        - AttributeName: GSI6PK
-          AttributeType: S
-        - AttributeName: GSI6SK
-          AttributeType: S
       
       KeySchema:
         - AttributeName: PK
@@ -232,16 +228,6 @@ Resources:
             - AttributeName: GSI5PK
               KeyType: HASH
             - AttributeName: GSI5SK
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL
-        
-        # GSI6: Query strategy lots by symbol (cross-strategy position analysis)
-        - IndexName: GSI6-SymbolLotsIndex
-          KeySchema:
-            - AttributeName: GSI6PK
-              KeyType: HASH
-            - AttributeName: GSI6SK
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
