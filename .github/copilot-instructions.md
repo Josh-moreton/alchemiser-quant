@@ -102,8 +102,8 @@
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
 - Local trading: `poetry run python -m the_alchemiser` (paper/live via config).
 - **Deployment (CRITICAL - READ CAREFULLY):**
-  - **DEV/BETA deployment:** `make release-beta` - ALWAYS use this for testing changes
-  - **PRODUCTION deployment:** `make release` - ONLY after thorough testing in dev
+  - **DEV/BETA deployment:** `make deploy-beta` - ALWAYS use this for testing changes
+  - **PRODUCTION deployment:** `make deploy` - ONLY after thorough testing in dev
   - **NEVER run `sam deploy` directly** - it defaults to production!
   - **NEVER run `sam deploy --no-confirm-changeset`** without `--config-env dev`
 - **Version management (recommended workflow):**
@@ -112,7 +112,7 @@
   3. Stage your changes: `git add <files>`
   4. Run appropriate bump command: `make bump-patch` / `make bump-minor` / `make bump-major`
   5. The bump command commits both your staged changes and the version bump together
-- **Releases**: Create releases with `make release` (auto-version) or `make release v=x.y.z` (custom version).
+- **Releases**: Create releases with `make deploy` (auto-version) or `make deploy v=x.y.z` (custom version).
 
 ## Observability
 - Use `shared.logging` for structured JSON logs; include `module`, `event_id`, `correlation_id`, and key business facts (symbol, qty, price).

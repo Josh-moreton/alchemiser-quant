@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check release bump-patch bump-minor bump-major version release-beta deploy-dev deploy-prod deploy-ephemeral destroy-ephemeral list-ephemeral
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral
 
 # Default target
 help:
@@ -19,15 +19,13 @@ help:
 	@echo "  migration-check Full migration validation suite"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
-	@echo "Deployment:"
-	@echo "  deploy-dev      Create and push beta tag to trigger dev deployment"
-	@echo "  deploy-prod     Create and push release tag to trigger prod deployment"
-	@echo "  deploy-ephemeral Deploy ephemeral stack (TTL_HOURS=24, optionally BRANCH=...)"
+	@echo "Deployment (via GitHub Actions CI/CD):"
+	@echo "  deploy-dev      Deploy to DEV (creates beta tag, triggers CI/CD)"
+	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
+	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
+	@echo "  deploy-ephemeral Deploy ephemeral stack (TTL_HOURS=24, BRANCH=...)"
 	@echo "  destroy-ephemeral Destroy ephemeral stack (STACK=alchemiser-ephem-...)"
 	@echo "  list-ephemeral  List all ephemeral stacks"
-	@echo "  release         Create and push a production release tag (same as deploy-prod)"
-	@echo "  release-beta    Create and push a beta release tag (same as deploy-dev)"
-	@echo "  release v=x.y.z Create release with specific version number"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -89,55 +87,6 @@ clean:
 	rm -rf .aws-sam/
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
-
-# Deployment
-deploy:
-	@echo "🚀 Deploying to AWS Lambda..."
-	bash scripts/deploy.sh
-
-release:
-	@echo "🏷️ Creating GitHub release..."
-	@if [ -n "$(v)" ]; then \
-		VERSION_TO_USE="$(v)"; \
-		echo "📋 Using specified version: $$VERSION_TO_USE"; \
-	else \
-		VERSION_TO_USE=$$(poetry version -s); \
-		echo "📋 Using version from pyproject.toml: $$VERSION_TO_USE"; \
-	fi; \
-	TAG="v$$VERSION_TO_USE"; \
-	echo "🏷️ Tag: $$TAG"; \
-	echo ""; \
-	if git tag | grep -q "^$$TAG$$"; then \
-		echo "❌ Tag $$TAG already exists!"; \
-		echo "💡 Use a different version or delete the existing tag"; \
-		exit 1; \
-	fi; \
-	if ! command -v gh >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI (gh) is not installed!"; \
-		echo "💡 Install with: brew install gh"; \
-		exit 1; \
-	fi; \
-	if ! gh auth status >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI is not authenticated!"; \
-		echo "💡 Run: gh auth login"; \
-		exit 1; \
-	fi; \
-	echo "🔍 Checking for uncommitted changes..."; \
-	if ! git diff --quiet || ! git diff --cached --quiet; then \
-		echo "❌ You have uncommitted changes!"; \
-		echo "💡 Please commit or stash your changes first"; \
-		exit 1; \
-	fi; \
-	echo "📝 Creating tag $$TAG..."; \
-	git tag -a "$$TAG" -m "Release $$TAG"; \
-	echo "📤 Pushing tag to origin..."; \
-	git push origin "$$TAG"; \
-	echo "🚀 Creating GitHub release..."; \
-	gh release create "$$TAG" \
-		--title "Release $$TAG" \
-		--notes "Release $$TAG of The Alchemiser" \
-		--latest; \
-	echo "✅ Release $$TAG created successfully!"
 
 # Version Management
 version:
@@ -218,9 +167,13 @@ bump-major:
 		git commit -m "Bump version to $$NEW_VERSION"; \
 	fi
 
-# Beta/Dev Deployment
-release-beta:
-	@echo "🧪 Creating beta release for dev deployment..."
+# ============================================================================
+# DEPLOYMENT (via GitHub Actions CI/CD)
+# ============================================================================
+
+# Dev Deployment - creates beta tag, triggers CI/CD
+deploy-dev:
+	@echo "🧪 Deploying to DEV environment..."
 	@if [ -n "$(v)" ]; then \
 		VERSION_TO_USE="$(v)"; \
 		echo "📋 Using specified version: $$VERSION_TO_USE"; \
@@ -265,9 +218,7 @@ release-beta:
 	echo "✅ Beta pre-release $$TAG created successfully!"; \
 	echo "🚀 Dev deployment will start automatically via GitHub Actions"
 
-deploy-dev: release-beta
-
-# Production Deployment
+# Production Deployment - creates release tag, triggers CI/CD
 deploy-prod:
 	@echo "🚀 Creating production release tag..."
 	@if [ -n "$(v)" ]; then \
