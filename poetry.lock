@@ -1027,6 +1027,18 @@ mypyc = ["setuptools (>=50)"]
 reports = ["lxml"]
 
 [[package]]
+name = "mypy-boto3-sns"
+version = "1.41.0"
+description = "Type annotations for boto3 SNS 1.41.0 service generated with mypy-boto3-builder 8.12.0"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "mypy_boto3_sns-1.41.0-py3-none-any.whl", hash = "sha256:5067c290055f949a58d1c35a6c2723a42a0fbba4fca55f312297b2e715b06e1c"},
+    {file = "mypy_boto3_sns-1.41.0.tar.gz", hash = "sha256:c8a2572978802d796cf08933d59065f9f209940231daba432da01b1677fd7a4b"},
+]
+
+[[package]]
 name = "mypy-extensions"
 version = "1.1.0"
 description = "Type system extensions for programs checked with the mypy type checker."
@@ -2379,4 +2391,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0.0"
-content-hash = "fecde6059f7f42440023a637b74a517b83031db08faf56a9e71706cbbd02bb2a"
+content-hash = "8bcc622ee3a176e5dd3fced129daef94b1c0e1a05465efc274feb7be32b019dd"
