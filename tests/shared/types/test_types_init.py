@@ -358,7 +358,6 @@ class TestModuleBoundaries:
             "from the_alchemiser.strategy_v2",
             "from the_alchemiser.portfolio_v2",
             "from the_alchemiser.execution_v2",
-            "from the_alchemiser.orchestration",
         ]
 
         for forbidden in forbidden_imports:

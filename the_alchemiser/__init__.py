@@ -21,16 +21,13 @@ Modules:
     strategy_v2: Trading strategy engines and signals
     portfolio_v2: Portfolio management and allocation
     execution_v2: Order execution and trade management
-    orchestration: Multi-module workflow coordination
     notifications_v2: Alert and notification services
-    main: Application entry point
-    lambda_handler: AWS Lambda integration
 
-Example:
-    Basic usage for running the trading system:
-
-    >>> from the_alchemiser.main import main
-    >>> result = main()
+Lambda Functions:
+    Strategy Lambda: Signal generation (triggered by EventBridge Schedule)
+    Portfolio Lambda: Rebalance planning (triggered by SignalGenerated events)
+    Execution Lambda: Trade execution (triggered by RebalancePlanned events)
+    Notifications Lambda: Email notifications (triggered by TradeExecuted/WorkflowFailed)
 
 """
 

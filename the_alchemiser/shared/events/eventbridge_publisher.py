@@ -27,14 +27,23 @@ logger = get_logger(__name__)
 EVENT_SOURCE_PREFIX = "alchemiser"
 
 # Mapping from internal event types to EventBridge detail-types
+# For WorkflowFailed, source is determined dynamically from the event's source_module
 EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
-    "WorkflowStarted": ("orchestrator", "TradingWorkflowStarted"),
     "SignalGenerated": ("strategy", "SignalGenerated"),
     "RebalancePlanned": ("portfolio", "RebalancePlanned"),
     "TradeExecuted": ("execution", "TradeExecuted"),
-    "WorkflowCompleted": ("orchestrator", "WorkflowCompleted"),
-    "WorkflowFailed": ("orchestrator", "WorkflowFailed"),
+    "WorkflowFailed": ("dynamic", "WorkflowFailed"),  # Source from source_module
     "TradingNotificationRequested": ("notifications", "TradingNotificationRequested"),
+    "ErrorNotificationRequested": ("notifications", "ErrorNotificationRequested"),
+}
+
+# Mapping from source_module prefix to EventBridge source suffix
+# Used for dynamic source resolution (e.g., WorkflowFailed events)
+SOURCE_MODULE_TO_SOURCE: dict[str, str] = {
+    "strategy": "strategy",
+    "portfolio": "portfolio",
+    "execution": "execution",
+    "notifications": "notifications",
 }
 
 
@@ -103,6 +112,14 @@ class EventBridgePublisher:
             )
 
         source_suffix, detail_type = EVENT_TYPE_TO_DETAIL_TYPE[event_type]
+
+        # Handle dynamic source for WorkflowFailed (uses source_module to determine origin)
+        if source_suffix == "dynamic":
+            source_module = getattr(event, "source_module", "unknown")
+            # Extract module prefix (e.g., "strategy_v2" -> "strategy")
+            module_prefix = source_module.split("_")[0] if source_module else "unknown"
+            source_suffix = SOURCE_MODULE_TO_SOURCE.get(module_prefix, module_prefix)
+
         source = f"{EVENT_SOURCE_PREFIX}.{source_suffix}"
 
         # Serialize event to JSON using model_dump for Pydantic models

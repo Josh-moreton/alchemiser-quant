@@ -283,6 +283,47 @@ Resources:
         - !Sub "alchemiser-execution-dlq-${Stage}"
       MessageRetentionPeriod: 1209600  # 14 days
 
+  # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
+  DLQAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-dlq-alerts"
+        - !Sub "alchemiser-dlq-alerts-${Stage}"
+      DisplayName: "Alchemiser DLQ Alert"
+
+  # Email subscription for DLQ alerts
+  DLQAlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DLQAlertTopic
+      Protocol: email
+      Endpoint: notifications@rwxt.org
+
+  # CloudWatch Alarm for DLQ messages (triggers when messages hit DLQ)
+  DLQMessageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-dlq-messages"
+        - !Sub "alchemiser-dlq-messages-${Stage}"
+      AlarmDescription: "Alert when messages land in the execution DLQ after 3 failed attempts"
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ExecutionDLQ.QueueName
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
   # Policy to allow EventBridge to send messages to SQS
   ExecutionQueuePolicy:
     Type: AWS::SQS::QueuePolicy
@@ -577,7 +618,7 @@ Resources:
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
 
   # ========== NOTIFICATIONS LAMBDA ==========
-  # Consumes TradeExecuted events and sends email notifications
+  # Consumes TradeExecuted and WorkflowFailed events and sends email notifications
   NotificationsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -585,11 +626,21 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-notifications"
         - !Sub "the-alchemiser-notifications-${Stage}"
-      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Runtime: python3.12
-      MemorySize: 512
-      Timeout: 60
+      CodeUri: ./
+      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          EMAIL__FROM_EMAIL: alchemiser@rwxt.org
+          EMAIL__TO_EMAIL: notifications@rwxt.org
+          EMAIL__SMTP_PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
+          LOGGING__LEVEL: !Ref LoggingLevel
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
@@ -600,6 +651,33 @@ Resources:
                 - "alchemiser.execution"
               detail-type:
                 - "TradeExecuted"
+        # Route WorkflowFailed from ANY alchemiser source to notifications
+        # Each Lambda (strategy, portfolio, execution) publishes WorkflowFailed with its own source
+        WorkflowFailedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - prefix: "alchemiser."
+              detail-type:
+                - "WorkflowFailed"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
   NotificationsExecutionRole:
     Type: AWS::IAM::Role
