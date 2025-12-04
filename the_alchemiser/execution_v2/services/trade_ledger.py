@@ -33,6 +33,7 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
     DynamoDBTradeLedgerRepository,
 )
+from the_alchemiser.shared.schemas.strategy_lot import StrategyLot
 from the_alchemiser.shared.schemas.trade_ledger import TradeLedger, TradeLedgerEntry
 
 if TYPE_CHECKING:
@@ -137,6 +138,8 @@ class TradeLedgerService:
                 self._repository.put_trade(entry, self._ledger_id)
                 # Update linked signals to EXECUTED state
                 self._update_signal_lifecycle(entry, correlation_id)
+                # Handle lot-based strategy P&L tracking
+                self._process_strategy_lots(entry)
             except DynamoDBException as e:
                 logger.error(
                     "Failed to write trade to DynamoDB - trade in memory only",
@@ -446,3 +449,168 @@ class TradeLedgerService:
                 order_id=entry.order_id,
                 error_type=type(e).__name__,
             )
+
+    def _process_strategy_lots(self, entry: TradeLedgerEntry) -> None:
+        """Process strategy lot creation (BUY) or exit matching (SELL).
+
+        For BUY orders: Creates a new StrategyLot for each attributed strategy,
+        weighted by their contribution to the trade.
+
+        For SELL orders: Uses FIFO matching to close existing lots per strategy,
+        calculating realized P&L for each closed portion.
+
+        Args:
+            entry: The trade ledger entry that was just recorded
+
+        """
+        if not self._repository:
+            return
+
+        # Skip if no strategy attribution
+        if not entry.strategy_names or not entry.strategy_weights:
+            logger.debug(
+                "No strategy attribution for lot processing",
+                order_id=entry.order_id,
+                symbol=entry.symbol,
+            )
+            return
+
+        try:
+            if entry.direction == "BUY":
+                self._create_strategy_lots(entry)
+            elif entry.direction == "SELL":
+                self._match_strategy_lot_exits(entry)
+        except Exception as e:
+            # Log error but don't fail - lot tracking is secondary to trade recording
+            logger.warning(
+                f"Failed to process strategy lots: {e}",
+                order_id=entry.order_id,
+                symbol=entry.symbol,
+                direction=entry.direction,
+                error_type=type(e).__name__,
+            )
+
+    def _create_strategy_lots(self, entry: TradeLedgerEntry) -> None:
+        """Create StrategyLot entries for a BUY trade.
+
+        Allocates the filled quantity proportionally across strategies
+        based on their weight attribution.
+
+        Args:
+            entry: BUY trade ledger entry with strategy attribution
+
+        """
+        if not self._repository or not entry.strategy_weights:
+            return
+
+        total_qty = entry.filled_qty
+        total_weight = sum(entry.strategy_weights.values())
+
+        for strategy_name, weight in entry.strategy_weights.items():
+            # Calculate proportional quantity for this strategy
+            # Use fractional shares - Alpaca supports this
+            strategy_qty = total_qty * (weight / total_weight)
+
+            if strategy_qty <= 0:
+                continue
+
+            lot = StrategyLot(
+                strategy_name=strategy_name,
+                symbol=entry.symbol,
+                entry_order_id=entry.order_id,
+                entry_price=entry.fill_price,
+                entry_timestamp=entry.fill_timestamp,
+                entry_qty=strategy_qty,
+                remaining_qty=strategy_qty,
+                correlation_id=entry.correlation_id,
+            )
+
+            self._repository.put_lot(lot)
+
+            logger.info(
+                "Created strategy lot",
+                lot_id=lot.lot_id,
+                strategy=strategy_name,
+                symbol=entry.symbol,
+                qty=str(strategy_qty),
+                entry_price=str(entry.fill_price),
+            )
+
+    def _match_strategy_lot_exits(self, entry: TradeLedgerEntry) -> None:
+        """Match SELL trade against open lots using FIFO per strategy.
+
+        For each strategy attributed to the SELL, finds open lots for that
+        strategy+symbol and matches exits in FIFO order until the strategy's
+        portion of the sale is fully matched.
+
+        Args:
+            entry: SELL trade ledger entry with strategy attribution
+
+        """
+        if not self._repository or not entry.strategy_weights:
+            return
+
+        total_qty = entry.filled_qty
+        total_weight = sum(entry.strategy_weights.values())
+
+        for strategy_name, weight in entry.strategy_weights.items():
+            # Calculate how much of this sale belongs to this strategy
+            strategy_sell_qty = total_qty * (weight / total_weight)
+
+            if strategy_sell_qty <= 0:
+                continue
+
+            # Query open lots for this strategy+symbol (returns FIFO ordered)
+            open_lots = self._repository.query_open_lots_by_strategy_and_symbol(
+                strategy_name, entry.symbol
+            )
+
+            if not open_lots:
+                logger.warning(
+                    "No open lots found for SELL - may be pre-existing position",
+                    strategy=strategy_name,
+                    symbol=entry.symbol,
+                    sell_qty=str(strategy_sell_qty),
+                )
+                continue
+
+            remaining_to_exit = strategy_sell_qty
+
+            for lot in open_lots:
+                if remaining_to_exit <= 0:
+                    break
+
+                # Determine how much to exit from this lot
+                exit_qty = min(remaining_to_exit, lot.remaining_qty)
+
+                # Record the exit on the lot
+                lot.record_exit(
+                    exit_order_id=entry.order_id,
+                    exit_price=entry.fill_price,
+                    exit_timestamp=entry.fill_timestamp,
+                    exit_qty=exit_qty,
+                )
+
+                # Update lot in DynamoDB
+                self._repository.update_lot(lot)
+
+                remaining_to_exit -= exit_qty
+
+                logger.info(
+                    "Matched lot exit",
+                    lot_id=lot.lot_id,
+                    strategy=strategy_name,
+                    symbol=entry.symbol,
+                    exit_qty=str(exit_qty),
+                    exit_price=str(entry.fill_price),
+                    realized_pnl=str(lot.realized_pnl),
+                    lot_is_open=lot.is_open,
+                )
+
+            if remaining_to_exit > Decimal("0.0001"):  # Allow for tiny rounding
+                logger.warning(
+                    "Incomplete lot matching - sell qty exceeds tracked lots",
+                    strategy=strategy_name,
+                    symbol=entry.symbol,
+                    unmatched_qty=str(remaining_to_exit),
+                )

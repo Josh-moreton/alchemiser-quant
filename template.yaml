@@ -170,6 +170,14 @@ Resources:
           AttributeType: S
         - AttributeName: GSI4SK
           AttributeType: S
+        - AttributeName: GSI5PK
+          AttributeType: S
+        - AttributeName: GSI5SK
+          AttributeType: S
+        - AttributeName: GSI6PK
+          AttributeType: S
+        - AttributeName: GSI6SK
+          AttributeType: S
       
       KeySchema:
         - AttributeName: PK
@@ -214,6 +222,26 @@ Resources:
             - AttributeName: GSI4PK
               KeyType: HASH
             - AttributeName: GSI4SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI5: Query strategy lots by strategy name (for FIFO P&L tracking)
+        - IndexName: GSI5-StrategyLotsIndex
+          KeySchema:
+            - AttributeName: GSI5PK
+              KeyType: HASH
+            - AttributeName: GSI5SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI6: Query strategy lots by symbol (cross-strategy position analysis)
+        - IndexName: GSI6-SymbolLotsIndex
+          KeySchema:
+            - AttributeName: GSI6PK
+              KeyType: HASH
+            - AttributeName: GSI6SK
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

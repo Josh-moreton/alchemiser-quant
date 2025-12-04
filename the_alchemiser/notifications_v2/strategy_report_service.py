@@ -4,6 +4,17 @@ Strategy performance report service for generating CSV reports.
 
 Generates per-strategy performance CSV reports, uploads to S3, and returns
 presigned URLs for inclusion in trading notification emails.
+
+REPORT TYPES:
+=============
+1. Strategy Summary Report: High-level per-strategy performance metrics
+2. Closed Trades Report: Detailed per-trade P&L with FIFO lot matching
+
+The closed trades report provides exact per-strategy attribution including:
+- Entry/exit prices and timestamps
+- Quantity traded (supports fractional shares)
+- Realized P&L per trade
+- Hold duration
 """
 
 from __future__ import annotations
@@ -22,10 +33,15 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
     DynamoDBTradeLedgerRepository,
 )
+from the_alchemiser.shared.schemas.strategy_lot import StrategyLotSummary
 
 logger = get_logger(__name__)
 
-__all__ = ["StrategyPerformanceReportService", "generate_performance_report_url"]
+__all__ = [
+    "StrategyPerformanceReportService",
+    "generate_closed_trades_report_url",
+    "generate_performance_report_url",
+]
 
 # AWS exception types
 AWSException = (ClientError, BotoCoreError)
@@ -263,6 +279,187 @@ class StrategyPerformanceReportService:
 
         return output.getvalue()
 
+    def _generate_closed_trades_csv(self, correlation_id: str) -> str:
+        """Generate detailed CSV with all closed trades from lot tracking.
+
+        Each row represents a fully closed lot, including:
+        - Strategy and symbol
+        - Entry and exit prices/timestamps
+        - Quantity traded
+        - Realized P&L (absolute and percentage)
+        - Hold duration
+
+        Args:
+            correlation_id: Correlation ID for the report
+
+        Returns:
+            CSV content as string
+
+        """
+        report_timestamp = datetime.now(UTC).isoformat()
+
+        # Detailed trade columns matching StrategyLotSummary fields
+        fieldnames = [
+            "strategy_name",
+            "symbol",
+            "lot_id",
+            "correlation_id",
+            "entry_timestamp",
+            "exit_timestamp",
+            "hold_duration_seconds",
+            "hold_duration_hours",
+            "entry_price",
+            "avg_exit_price",
+            "entry_qty",
+            "entry_cost_basis",
+            "exit_value",
+            "realized_pnl",
+            "pnl_percent",
+            "report_generated_at",
+        ]
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+
+        if not self._repository:
+            return output.getvalue()
+
+        # Discover all strategies with closed lots
+        strategy_names = self._repository.discover_strategies_with_closed_lots()
+
+        for strategy_name in strategy_names:
+            # Get closed lots only for this strategy
+            closed_lots = self._repository.query_closed_lots_by_strategy(strategy_name)
+
+            for lot in closed_lots:
+                # Skip if somehow still open
+                if lot.is_open or lot.fully_closed_at is None:
+                    continue
+
+                try:
+                    # Use the from_lot factory method for proper summarization
+                    summary = StrategyLotSummary.from_lot(lot)
+
+                    # Calculate hold duration in hours for convenience
+                    hold_hours = Decimal(str(summary.hold_duration_seconds)) / Decimal("3600")
+
+                    row = {
+                        "strategy_name": summary.strategy_name,
+                        "symbol": summary.symbol,
+                        "lot_id": summary.lot_id,
+                        "correlation_id": summary.correlation_id,
+                        "entry_timestamp": summary.entry_timestamp.isoformat(),
+                        "exit_timestamp": summary.exit_timestamp.isoformat(),
+                        "hold_duration_seconds": summary.hold_duration_seconds,
+                        "hold_duration_hours": self._format_decimal(hold_hours),
+                        "entry_price": self._format_decimal(summary.entry_price),
+                        "avg_exit_price": self._format_decimal(summary.avg_exit_price),
+                        "entry_qty": self._format_decimal(summary.entry_qty),
+                        "entry_cost_basis": self._format_decimal(summary.entry_cost_basis),
+                        "exit_value": self._format_decimal(summary.exit_value),
+                        "realized_pnl": self._format_decimal(summary.realized_pnl),
+                        "pnl_percent": self._format_decimal(summary.pnl_percent),
+                        "report_generated_at": report_timestamp,
+                    }
+                    writer.writerow(row)
+
+                except ValueError as e:
+                    logger.warning(
+                        f"Failed to create lot summary: {e}",
+                        lot_id=lot.lot_id,
+                        strategy=strategy_name,
+                    )
+                    continue
+
+        return output.getvalue()
+
+    def generate_closed_trades_report_url(self, correlation_id: str) -> str | None:
+        """Generate detailed closed trades report and return presigned URL.
+
+        Creates a CSV with per-trade details:
+        - strategy_name, symbol
+        - entry_price, exit_price
+        - qty, realized_pnl, pnl_percent
+        - entry_timestamp, exit_timestamp, hold_duration_hours
+
+        Args:
+            correlation_id: Correlation ID for tracing and filename
+
+        Returns:
+            Presigned URL valid for 7 days, or None if generation fails
+
+        """
+        if not self._repository or not self.bucket_name:
+            logger.warning(
+                "Report service not fully configured",
+                extra={
+                    "has_repository": self._repository is not None,
+                    "has_bucket": self.bucket_name is not None,
+                    "correlation_id": correlation_id,
+                },
+            )
+            return None
+
+        try:
+            # Generate CSV content
+            csv_content = self._generate_closed_trades_csv(correlation_id)
+
+            # Check if we have any data
+            lines = csv_content.strip().split("\n")
+            if len(lines) <= 1:  # Only header
+                logger.info(
+                    "No closed trades found for report",
+                    extra={"correlation_id": correlation_id},
+                )
+                return None
+
+            # Upload to S3
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
+            object_key = f"reports/{timestamp}_{correlation_id[:8]}_closed_trades.csv"
+
+            self._s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=csv_content.encode("utf-8"),
+                ContentType="text/csv",
+                ContentDisposition=f'attachment; filename="closed_trades_{timestamp}.csv"',
+            )
+
+            # Generate presigned URL
+            presigned_url = self._generate_presigned_url(object_key)
+
+            logger.info(
+                "Closed trades report generated successfully",
+                extra={
+                    "correlation_id": correlation_id,
+                    "object_key": object_key,
+                    "trade_count": len(lines) - 1,
+                },
+            )
+
+            return presigned_url
+
+        except AWSException as e:
+            logger.error(
+                f"Failed to generate closed trades report: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                f"Unexpected error generating closed trades report: {e}",
+                exc_info=True,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            return None
+
     def _get_strategy_performance(self, strategy_name: str) -> dict[str, Any]:
         """Get performance metrics for a single strategy.
 
@@ -378,4 +575,19 @@ def generate_performance_report_url(
     return get_report_service().generate_report_url(
         correlation_id=correlation_id,
         strategy_names=strategy_names,
+    )
+
+
+def generate_closed_trades_report_url(correlation_id: str) -> str | None:
+    """Generate closed trades report URL (convenience function).
+
+    Args:
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Presigned URL or None if generation fails
+
+    """
+    return get_report_service().generate_closed_trades_report_url(
+        correlation_id=correlation_id,
     )

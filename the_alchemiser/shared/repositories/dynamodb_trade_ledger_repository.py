@@ -15,6 +15,7 @@ from typing import Any
 from botocore.exceptions import BotoCoreError, ClientError
 
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.strategy_lot import StrategyLot
 from the_alchemiser.shared.schemas.trade_ledger import SignalLedgerEntry, TradeLedgerEntry
 
 logger = get_logger(__name__)
@@ -786,3 +787,270 @@ class DynamoDBTradeLedgerRepository:
             "ignored_signals": ignored_count,
             "execution_rate": execution_rate,
         }
+
+    # =========================================================================
+    # Strategy Lot Methods - Per-strategy position tracking for accurate P&L
+    # =========================================================================
+
+    def put_lot(self, lot: StrategyLot) -> None:
+        """Write a strategy lot to DynamoDB.
+
+        Creates the lot item with GSI keys for querying by strategy and symbol.
+
+        Args:
+            lot: StrategyLot to persist
+
+        """
+        try:
+            item = lot.to_dynamodb_item()
+            self._table.put_item(Item=item)
+
+            logger.info(
+                "Strategy lot written to DynamoDB",
+                lot_id=lot.lot_id,
+                strategy=lot.strategy_name,
+                symbol=lot.symbol,
+                entry_qty=str(lot.entry_qty),
+            )
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to write strategy lot",
+                lot_id=lot.lot_id,
+                error=str(e),
+            )
+            raise
+
+    def get_lot(self, lot_id: str) -> StrategyLot | None:
+        """Get a strategy lot by ID.
+
+        Args:
+            lot_id: Lot identifier
+
+        Returns:
+            StrategyLot or None if not found
+
+        """
+        try:
+            response = self._table.get_item(Key={"PK": f"LOT#{lot_id}", "SK": "METADATA"})
+            item = response.get("Item")
+            if not item:
+                return None
+            return StrategyLot.from_dynamodb_item(item)
+        except DynamoDBException as e:
+            logger.error("Failed to get lot", lot_id=lot_id, error=str(e))
+            return None
+
+    def update_lot(self, lot: StrategyLot) -> None:
+        """Update an existing strategy lot in DynamoDB.
+
+        Overwrites the lot item with the current state.
+
+        Args:
+            lot: StrategyLot with updated state
+
+        """
+        try:
+            item = lot.to_dynamodb_item()
+            self._table.put_item(Item=item)
+
+            logger.debug(
+                "Strategy lot updated",
+                lot_id=lot.lot_id,
+                remaining_qty=str(lot.remaining_qty),
+                is_open=lot.is_open,
+            )
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to update strategy lot",
+                lot_id=lot.lot_id,
+                error=str(e),
+            )
+            raise
+
+    def query_open_lots_by_strategy_and_symbol(
+        self, strategy_name: str, symbol: str
+    ) -> list[StrategyLot]:
+        """Query open lots for a strategy and symbol.
+
+        Returns lots in FIFO order (oldest first) for exit matching.
+
+        Args:
+            strategy_name: Strategy name
+            symbol: Trading symbol
+
+        Returns:
+            List of open StrategyLots in FIFO order
+
+        """
+        try:
+            # Query using GSI5 (STRATEGY_LOTS#strategy -> OPEN#symbol#timestamp)
+            response = self._table.query(
+                IndexName="GSI5-StrategyLotsIndex",
+                KeyConditionExpression="GSI5PK = :pk AND begins_with(GSI5SK, :sk)",
+                ExpressionAttributeValues={
+                    ":pk": f"STRATEGY_LOTS#{strategy_name}",
+                    ":sk": f"OPEN#{symbol.upper()}#",
+                },
+                ScanIndexForward=True,  # Oldest first for FIFO
+            )
+
+            items = response.get("Items", [])
+            lots = []
+            for item in items:
+                try:
+                    lot = StrategyLot.from_dynamodb_item(item)
+                    lots.append(lot)
+                except Exception as e:
+                    logger.warning(f"Failed to parse lot item: {e}")
+
+            return lots
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to query open lots",
+                strategy=strategy_name,
+                symbol=symbol,
+                error=str(e),
+            )
+            return []
+
+    def query_closed_lots_by_strategy(
+        self, strategy_name: str, limit: int | None = None
+    ) -> list[StrategyLot]:
+        """Query closed lots for a strategy.
+
+        Returns closed lots for P&L reporting.
+
+        Args:
+            strategy_name: Strategy name
+            limit: Max items to return
+
+        Returns:
+            List of closed StrategyLots (most recently closed first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI5-StrategyLotsIndex",
+                "KeyConditionExpression": "GSI5PK = :pk AND begins_with(GSI5SK, :sk)",
+                "ExpressionAttributeValues": {
+                    ":pk": f"STRATEGY_LOTS#{strategy_name}",
+                    ":sk": "CLOSED#",
+                },
+                "ScanIndexForward": False,  # Most recent first
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+
+            lots = []
+            for item in items:
+                try:
+                    lot = StrategyLot.from_dynamodb_item(item)
+                    lots.append(lot)
+                except Exception as e:
+                    logger.warning(f"Failed to parse lot item: {e}")
+
+            return lots
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to query closed lots",
+                strategy=strategy_name,
+                error=str(e),
+            )
+            return []
+
+    def query_all_lots_by_strategy(
+        self, strategy_name: str, limit: int | None = None
+    ) -> list[StrategyLot]:
+        """Query all lots (open and closed) for a strategy.
+
+        Args:
+            strategy_name: Strategy name
+            limit: Max items to return
+
+        Returns:
+            List of all StrategyLots for the strategy
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI5-StrategyLotsIndex",
+                "KeyConditionExpression": "GSI5PK = :pk",
+                "ExpressionAttributeValues": {
+                    ":pk": f"STRATEGY_LOTS#{strategy_name}",
+                },
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+
+            lots = []
+            for item in items:
+                try:
+                    lot = StrategyLot.from_dynamodb_item(item)
+                    lots.append(lot)
+                except Exception as e:
+                    logger.warning(f"Failed to parse lot item: {e}")
+
+            return lots
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to query all lots",
+                strategy=strategy_name,
+                error=str(e),
+            )
+            return []
+
+    def discover_strategies_with_closed_lots(self) -> list[str]:
+        """Discover all strategies that have closed lots.
+
+        Scans for unique strategy names from closed lot items.
+
+        Returns:
+            List of unique strategy names with closed lots
+
+        """
+        try:
+            # Scan for all LOT# items that are closed
+            response = self._table.scan(
+                FilterExpression="begins_with(PK, :pk) AND is_open = :open",
+                ExpressionAttributeValues={
+                    ":pk": "LOT#",
+                    ":open": False,
+                },
+                ProjectionExpression="strategy_name",
+            )
+
+            strategy_names: set[str] = set()
+            for item in response.get("Items", []):
+                strategy_name = item.get("strategy_name")
+                if strategy_name:
+                    strategy_names.add(strategy_name)
+
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self._table.scan(
+                    FilterExpression="begins_with(PK, :pk) AND is_open = :open",
+                    ExpressionAttributeValues={
+                        ":pk": "LOT#",
+                        ":open": False,
+                    },
+                    ProjectionExpression="strategy_name",
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                for item in response.get("Items", []):
+                    strategy_name = item.get("strategy_name")
+                    if strategy_name:
+                        strategy_names.add(strategy_name)
+
+            return sorted(strategy_names)
+        except DynamoDBException as e:
+            logger.error(f"Failed to discover strategies with closed lots: {e}")
+            return []

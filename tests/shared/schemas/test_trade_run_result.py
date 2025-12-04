@@ -43,7 +43,7 @@ class TestOrderResultSummary:
         assert result.price == Decimal("95.24")
         assert result.success is True
         assert result.timestamp == now
-        assert result.schema_version == "1.0"
+        assert result.schema_version == "1.0.0"
 
     def test_immutability(self):
         """Test that DTO is frozen."""

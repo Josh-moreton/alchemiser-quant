@@ -210,10 +210,10 @@ def test_export_count() -> None:
     """Verify expected number of exports (regression test)."""
     from the_alchemiser.shared import schemas
 
-    # As of 2025-01-07, there are 59 exports (added NotificationEmail)
+    # As of 2025-06-20, there are 66 exports (added StrategyLot, StrategyLotSummary, LotExitRecord)
     # This test will catch unintended additions/removals
-    assert len(schemas.__all__) == 59, (
-        f"Expected 59 exports in __all__, found {len(schemas.__all__)}. "
+    assert len(schemas.__all__) == 66, (
+        f"Expected 66 exports in __all__, found {len(schemas.__all__)}. "
         "If this is intentional, update the test."
     )
 

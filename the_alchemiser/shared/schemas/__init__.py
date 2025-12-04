@@ -75,6 +75,11 @@ from .rebalance_plan import (
 from .strategy_allocation import (
     StrategyAllocation,
 )
+from .strategy_lot import (
+    LotExitRecord,
+    StrategyLot,
+    StrategyLotSummary,
+)
 from .strategy_signal import StrategySignal
 from .technical_indicator import (
     TechnicalIndicator,
@@ -118,6 +123,7 @@ __all__ = [
     "ExecutionSummary",
     "IndicatorRequest",
     "LambdaEvent",
+    "LotExitRecord",
     "MarketBar",
     "MarketData",
     "MarketStatusResult",
@@ -142,6 +148,8 @@ __all__ = [
     "RiskMetricsResult",
     "SpreadAnalysisResult",
     "StrategyAllocation",
+    "StrategyLot",
+    "StrategyLotSummary",
     "StrategySignal",
     "TechnicalIndicator",
     "Trace",
