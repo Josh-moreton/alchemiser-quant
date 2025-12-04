@@ -6,7 +6,7 @@ beta_features = true
 use_container = false
 
 [default.deploy.parameters]
-stack_name = "the-alchemiser-v2"
+stack_name = "alchemiser-prod"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
@@ -16,7 +16,7 @@ resolve_s3 = true
 image_repositories = []
 
 [dev.deploy.parameters]
-stack_name = "the-alchemiser-v2-dev"
+stack_name = "alchemiser-dev"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
@@ -30,7 +30,7 @@ parameter_overrides = [
 ]
 
 [prod.deploy.parameters]
-stack_name = "the-alchemiser-v2"
+stack_name = "alchemiser-prod"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false

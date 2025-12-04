@@ -146,7 +146,7 @@ Resources:
       TableName: !If 
         - UseStackNameForResources
         - !Sub "${StackName}-trade-ledger"
-        - !Sub "alchemiser-trade-ledger-${Stage}"
+        - !Sub "alchemiser-${Stage}-trade-ledger"
       BillingMode: PAY_PER_REQUEST
       
       AttributeDefinitions:
@@ -238,7 +238,7 @@ Resources:
       LayerName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-dependencies"
-        - !Sub "the-alchemiser-dependencies-${Stage}"
+        - !Sub "alchemiser-${Stage}-dependencies"
       Description: Dependencies for The Alchemiser Quantitative Trading System
       ContentUri: dependencies/
       CompatibleRuntimes:
@@ -258,7 +258,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-events"
-        - !Sub "alchemiser-trading-${Stage}"
+        - !Sub "alchemiser-${Stage}-events"
 
   # SQS Queue for reliable trade execution with DLQ
   ExecutionQueue:
@@ -267,7 +267,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution-queue"
-        - !Sub "alchemiser-execution-${Stage}"
+        - !Sub "alchemiser-${Stage}-execution-queue"
       VisibilityTimeout: 900  # 15 mins for execution
       MessageRetentionPeriod: 345600  # 4 days
       RedrivePolicy:
@@ -280,7 +280,7 @@ Resources:
       QueueName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution-dlq"
-        - !Sub "alchemiser-execution-dlq-${Stage}"
+        - !Sub "alchemiser-${Stage}-execution-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
@@ -290,7 +290,7 @@ Resources:
       TopicName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-dlq-alerts"
-        - !Sub "alchemiser-dlq-alerts-${Stage}"
+        - !Sub "alchemiser-${Stage}-dlq-alerts"
       DisplayName: "Alchemiser DLQ Alert"
 
   # Email subscription for DLQ alerts
@@ -309,7 +309,7 @@ Resources:
       TopicName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-trading-notifications"
-        - !Sub "alchemiser-trading-notifications-${Stage}"
+        - !Sub "alchemiser-${Stage}-trading-notifications"
       DisplayName: "Alchemiser Trading Notifications"
 
   # Email subscription for trading notifications
@@ -327,7 +327,7 @@ Resources:
       AlarmName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-dlq-messages"
-        - !Sub "alchemiser-dlq-messages-${Stage}"
+        - !Sub "alchemiser-${Stage}-dlq-messages"
       AlarmDescription: "Alert when messages land in the execution DLQ after 3 failed attempts"
       MetricName: ApproximateNumberOfMessagesVisible
       Namespace: AWS/SQS
@@ -367,7 +367,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-signal-generated"
-        - !Sub "alchemiser-signal-generated-${Stage}"
+        - !Sub "alchemiser-${Stage}-signal-generated"
       EventBusName: !Ref AlchemiserEventBus
       EventPattern:
         source:
@@ -392,7 +392,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-rebalance-planned"
-        - !Sub "alchemiser-rebalance-planned-${Stage}"
+        - !Sub "alchemiser-${Stage}-rebalance-planned"
       EventBusName: !Ref AlchemiserEventBus
       EventPattern:
         source:
@@ -410,7 +410,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-strategy"
-        - !Sub "the-alchemiser-strategy-${Stage}"
+        - !Sub "alchemiser-${Stage}-strategy"
       Runtime: python3.12
       CodeUri: ./
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
@@ -482,7 +482,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-portfolio"
-        - !Sub "the-alchemiser-portfolio-${Stage}"
+        - !Sub "alchemiser-${Stage}-portfolio"
       Runtime: python3.12
       CodeUri: ./
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
@@ -553,7 +553,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-execution"
-        - !Sub "the-alchemiser-execution-${Stage}"
+        - !Sub "alchemiser-${Stage}-execution"
       Runtime: python3.12
       CodeUri: ./
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
@@ -644,7 +644,7 @@ Resources:
       FunctionName: !If
         - UseStackNameForResources
         - !Sub "${StackName}-notifications"
-        - !Sub "the-alchemiser-notifications-${Stage}"
+        - !Sub "alchemiser-${Stage}-notifications"
       Runtime: python3.12
       CodeUri: ./
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
@@ -729,7 +729,7 @@ Resources:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
-        - !Sub "alchemiser-strategy-${Stage}"
+        - !Sub "alchemiser-${Stage}-strategy-schedule"
       Description: "Execute trading strategy daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
@@ -771,7 +771,7 @@ Outputs:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-TradeLedgerTable"
-        - !Sub "the-alchemiser-v2-${Stage}-TradeLedgerTable"
+        - !Sub "alchemiser-${Stage}-TradeLedgerTable"
 
   DeploymentStage:
     Description: "Deployed stage"
@@ -779,4 +779,4 @@ Outputs:
   
   StackNameUsed:
     Description: "Stack name used for resource naming"
-    Value: !If [ HasStackName, !Ref StackName, !Sub "the-alchemiser-v2-${Stage}" ]
+    Value: !If [ HasStackName, !Ref StackName, !Sub "alchemiser-${Stage}" ]

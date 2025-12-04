@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> bool:
         "║    make deploy                                                     ║\n"
         "║                                                                    ║\n"
         "║  Then trigger manually via AWS Console or CLI:                     ║\n"
-        "║    aws lambda invoke --function-name the-alchemiser-strategy-dev   ║\n"
+        "║    aws lambda invoke --function-name alchemiser-dev-strategy       ║\n"
         "║                                                                    ║\n"
         "╚════════════════════════════════════════════════════════════════════╝\n"
     )

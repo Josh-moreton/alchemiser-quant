@@ -286,7 +286,7 @@ Trade entries are automatically recorded with:
 - Strategy attribution (which strategies contributed)
 - Timing information
 
-Persisted to S3: `s3://the-alchemiser-v2-trade-ledger-{stage}/trade-ledgers/{date}/{timestamp}.json`
+Persisted to DynamoDB: `alchemiser-{stage}-trade-ledger`
 
 ## Module Boundaries
 
