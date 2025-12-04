@@ -43,11 +43,14 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     correlation_id = str(uuid4())
 
     try:
+        # Extract EventBridge envelope metadata before unwrapping
+        # Note: unwrap_eventbridge_event returns the 'detail' payload directly,
+        # so we need to extract metadata from the original event
+        detail_type = event.get("detail-type", "")
+        source = event.get("source", "")
+
         # Unwrap EventBridge envelope to get the actual event payload
-        unwrapped = unwrap_eventbridge_event(event)
-        detail = unwrapped.get("detail", {})
-        detail_type = unwrapped.get("detail-type", "")
-        source = unwrapped.get("source", "")
+        detail = unwrap_eventbridge_event(event)
 
         # Extract correlation_id from event if available
         correlation_id = detail.get("correlation_id", correlation_id)
