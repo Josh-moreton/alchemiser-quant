@@ -6,6 +6,7 @@
 - **Typing:** Enforce strict typing (`mypy --config-file=pyproject.toml`). No `Any` in domain logic. DTOs are frozen.
 - **Idempotency & traceability:** Event handlers must be idempotent; propagate `correlation_id` and `causation_id`; tolerate replays.
 - **Tooling:** Use Poetry for everything. Example: `poetry run python -m the_alchemiser` (no system Python).
+- **AWS CLI:** Always use `--no-cli-pager` or pipe to `cat` to avoid interactive pagers that block automation.
 - **Version Management (MANDATORY):** AI agents MUST update version numbers for every code change using semantic versioning:
   - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring, test additions
   - **MINOR** (`make bump-minor`): New features, new modules, significant refactoring, API additions (backward compatible)
