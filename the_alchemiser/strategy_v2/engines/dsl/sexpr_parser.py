@@ -41,7 +41,7 @@ class SexprParser:
     """
 
     # Resource limits to prevent DoS attacks
-    MAX_NESTING_DEPTH = 250
+    MAX_NESTING_DEPTH = 300
     MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
     def __init__(self) -> None:
