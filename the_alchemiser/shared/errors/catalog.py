@@ -33,7 +33,7 @@ class ErrorCode(Enum):
     CONF_INVALID_VALUE = "CONF_INVALID_VALUE"
 
     # Notification errors
-    NOTIF_SMTP_FAILURE = "NOTIF_SMTP_FAILURE"
+    NOTIF_DELIVERY_FAILURE = "NOTIF_DELIVERY_FAILURE"
 
 
 class ErrorSpec(BaseModel):
@@ -132,13 +132,13 @@ ERROR_CATALOG: dict[ErrorCode, ErrorSpec] = {
         suggested_action="Correct configuration value and restart application",
         doc_url=None,
     ),
-    ErrorCode.NOTIF_SMTP_FAILURE: ErrorSpec(
-        code=ErrorCode.NOTIF_SMTP_FAILURE,
+    ErrorCode.NOTIF_DELIVERY_FAILURE: ErrorSpec(
+        code=ErrorCode.NOTIF_DELIVERY_FAILURE,
         category="notification",
         default_severity="low",
         retryable=True,
-        message_template="Email notification failed to send",
-        suggested_action="Check SMTP configuration and network connectivity",
+        message_template="Notification failed to deliver",
+        suggested_action="Check SNS topic configuration and IAM permissions",
         doc_url=None,
     ),
 }
@@ -195,7 +195,7 @@ def map_exception_to_error_code(exc: Exception) -> ErrorCode | None:
 
     # Notification errors
     if isinstance(exc, NotificationError):
-        return ErrorCode.NOTIF_SMTP_FAILURE
+        return ErrorCode.NOTIF_DELIVERY_FAILURE
 
     # Return None for unknown exception types
     return None

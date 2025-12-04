@@ -40,7 +40,7 @@ class TestErrorCode:
         assert ErrorCode.DATA_PROVIDER_FAILURE.value == "DATA_PROVIDER_FAILURE"
         assert ErrorCode.CONF_MISSING_ENV.value == "CONF_MISSING_ENV"
         assert ErrorCode.CONF_INVALID_VALUE.value == "CONF_INVALID_VALUE"
-        assert ErrorCode.NOTIF_SMTP_FAILURE.value == "NOTIF_SMTP_FAILURE"
+        assert ErrorCode.NOTIF_DELIVERY_FAILURE.value == "NOTIF_DELIVERY_FAILURE"
 
 
 class TestErrorSpec:
@@ -131,10 +131,10 @@ class TestMapExceptionToErrorCode:
         assert result == ErrorCode.CONF_INVALID_VALUE
 
     def test_notification_error_maps_correctly(self):
-        """Test NotificationError maps to NOTIF_SMTP_FAILURE."""
-        exc = NotificationError("Email failed")
+        """Test NotificationError maps to NOTIF_DELIVERY_FAILURE."""
+        exc = NotificationError("Notification failed")
         result = map_exception_to_error_code(exc)
-        assert result == ErrorCode.NOTIF_SMTP_FAILURE
+        assert result == ErrorCode.NOTIF_DELIVERY_FAILURE
 
     def test_unknown_exception_returns_none(self):
         """Test that unknown exceptions return None."""
