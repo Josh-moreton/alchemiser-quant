@@ -626,11 +626,21 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-notifications"
         - !Sub "the-alchemiser-notifications-${Stage}"
-      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Runtime: python3.12
-      MemorySize: 512
-      Timeout: 60
+      CodeUri: ./
+      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          EMAIL__FROM_EMAIL: alchemiser@rwxt.org
+          EMAIL__TO_EMAIL: notifications@rwxt.org
+          EMAIL__SMTP_PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
+          LOGGING__LEVEL: !Ref LoggingLevel
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
@@ -652,6 +662,22 @@ Resources:
                 - prefix: "alchemiser."
               detail-type:
                 - "WorkflowFailed"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
 
   NotificationsExecutionRole:
     Type: AWS::IAM::Role
