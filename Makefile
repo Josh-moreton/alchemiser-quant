@@ -16,16 +16,12 @@ help:
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
-	@echo "  migration-check Full migration validation suite"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment (via GitHub Actions CI/CD):"
 	@echo "  deploy-dev      Deploy to DEV (creates beta tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
-	@echo "  deploy-ephemeral Deploy ephemeral stack (TTL_HOURS=24, BRANCH=...)"
-	@echo "  destroy-ephemeral Destroy ephemeral stack (STACK=alchemiser-ephem-...)"
-	@echo "  list-ephemeral  List all ephemeral stacks"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -74,10 +70,6 @@ import-check:
 	else \
 		poetry run python -m importlinter --config pyproject.toml; \
 	fi
-
-migration-check: type-check import-check
-	@echo "🚀 Running full migration validation suite..."
-	@echo "✅ Migration validation complete!"
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
@@ -256,92 +248,3 @@ deploy-prod:
 	git push origin "$$TAG"; \
 	echo "✅ Production tag $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
-
-# Ephemeral Deployment
-deploy-ephemeral:
-	@echo "🧪 Deploying ephemeral stack..."
-	@TTL_HOURS=$${TTL_HOURS:-24}; \
-	BRANCH=$${BRANCH:-$$(git branch --show-current)}; \
-	echo "Branch: $$BRANCH"; \
-	echo "TTL: $$TTL_HOURS hours"; \
-	echo ""; \
-	if ! command -v gh >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI (gh) is not installed!"; \
-		echo "💡 Install with: brew install gh"; \
-		exit 1; \
-	fi; \
-	if ! gh auth status >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI is not authenticated!"; \
-		echo "💡 Run: gh auth login"; \
-		exit 1; \
-	fi; \
-	echo "🚀 Triggering ephemeral deployment via GitHub Actions..."; \
-	echo "💡 Select branch '$$BRANCH' in the GitHub Actions UI"; \
-	gh workflow run manual-deploy-ephemeral.yml \
-		--ref "$$BRANCH" \
-		-f ttl_hours="$$TTL_HOURS"; \
-	echo ""; \
-	echo "✅ Deployment triggered!"; \
-	echo "📊 View progress: gh run list --workflow=manual-deploy-ephemeral.yml"; \
-	echo "📋 Or visit: https://github.com/Josh-moreton/alchemiser-quant/actions/workflows/manual-deploy-ephemeral.yml"
-
-# Destroy Ephemeral Stack
-destroy-ephemeral:
-	@echo "🗑️  Destroying ephemeral stack..."
-	@if [ -z "$(STACK)" ]; then \
-		echo "❌ ERROR: STACK parameter is required"; \
-		echo "💡 Usage: make destroy-ephemeral STACK=alchemiser-ephem-feature-foo-a1b2c3d"; \
-		echo ""; \
-		echo "📋 List available stacks with: make list-ephemeral"; \
-		exit 1; \
-	fi; \
-	if [[ ! "$(STACK)" =~ ^alchemiser-ephem- ]]; then \
-		echo "❌ ERROR: Stack name must start with 'alchemiser-ephem-'"; \
-		echo "💡 This prevents accidental deletion of dev/prod stacks"; \
-		exit 1; \
-	fi; \
-	echo "Stack: $(STACK)"; \
-	echo ""; \
-	if ! command -v gh >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI (gh) is not installed!"; \
-		echo "💡 Install with: brew install gh"; \
-		exit 1; \
-	fi; \
-	if ! gh auth status >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI is not authenticated!"; \
-		echo "💡 Run: gh auth login"; \
-		exit 1; \
-	fi; \
-	echo "⚠️  WARNING: This will permanently delete the ephemeral stack: $(STACK)"; \
-	read -p "Are you sure? [y/N] " -n 1 -r; \
-	echo ""; \
-	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
-		echo "❌ Destruction cancelled"; \
-		exit 1; \
-	fi; \
-	echo "🗑️  Triggering stack deletion via GitHub Actions..."; \
-	gh workflow run manual-destroy-ephemeral.yml \
-		-f stack_name="$(STACK)"; \
-	echo ""; \
-	echo "✅ Deletion triggered!"; \
-	echo "📊 View progress: gh run list --workflow=manual-destroy-ephemeral.yml"; \
-	echo "📋 Or visit: https://github.com/Josh-moreton/alchemiser-quant/actions/workflows/manual-destroy-ephemeral.yml"
-
-# List Ephemeral Stacks
-list-ephemeral:
-	@echo "📋 Listing ephemeral stacks..."
-	@if ! command -v aws >/dev/null 2>&1; then \
-		echo "❌ AWS CLI is not installed!"; \
-		echo "💡 Install with: pip install awscli"; \
-		exit 1; \
-	fi; \
-	echo ""; \
-	aws cloudformation describe-stacks \
-		--query "Stacks[?Tags[?Key=='Ephemeral' && Value=='true']].{Name:StackName,Status:StackStatus,Created:CreationTime,Branch:Tags[?Key=='Branch']|[0].Value,TTL:Tags[?Key=='TTLHours']|[0].Value}" \
-		--output table 2>/dev/null || { \
-		echo "⚠️  Failed to list stacks. Check AWS credentials."; \
-		echo "💡 Ensure you are authenticated: aws configure"; \
-		exit 1; \
-	}; \
-	echo ""; \
-	echo "💡 To destroy a stack: make destroy-ephemeral STACK=<stack-name>"
