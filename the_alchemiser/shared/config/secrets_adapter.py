@@ -17,7 +17,6 @@ import os
 
 # Auto-load .env file into environment variables (side-effect import)
 from the_alchemiser.shared.config import env_loader  # noqa: F401
-from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
 
@@ -160,101 +159,3 @@ def _validate_and_sanitize_endpoint(endpoint: str | None) -> str:
         )
 
     return endpoint
-
-
-def get_email_password() -> str | None:
-    """Get email password from environment variables.
-
-    Attempts to load password first via Pydantic config (load_settings),
-    then falls back to direct environment variable access for backward
-    compatibility.
-
-    Returns:
-        Email password string or None if not found
-
-    Raises:
-        ConfigurationError: May propagate from load_settings() if config
-            validation fails with invalid email settings
-
-    """
-    return _get_email_password_from_env()
-
-
-def _get_email_password_from_env() -> str | None:
-    """Get email password from environment variables.
-
-    Returns:
-        Email password string or None if not found
-
-    Raises:
-        ConfigurationError: If Pydantic config validation fails
-
-    """
-    # First try the Pydantic config model (preferred method)
-    try:
-        config = load_settings()
-        if config.email.password:
-            password = config.email.password.strip()
-            if password:
-                logger.debug(
-                    "Successfully loaded email password from Pydantic config",
-                    extra={
-                        "component": COMPONENT,
-                        "source": "pydantic_config",
-                        "config_key": "EMAIL__PASSWORD",
-                    },
-                )
-                return password
-    except ConfigurationError as e:
-        # Re-raise configuration errors immediately (don't fallback for config errors)
-        logger.debug(
-            "Configuration error loading email password, re-raising without fallback",
-            extra={
-                "component": COMPONENT,
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-            },
-        )
-        raise
-    except Exception as e:
-        # Log other exceptions but continue to fallback
-        logger.debug(
-            "Could not load email password from Pydantic config, trying fallback",
-            extra={
-                "component": COMPONENT,
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-            },
-        )
-
-    # Fallback to direct environment variable access for backward compatibility
-    fallback_password: str | None = (
-        os.getenv("EMAIL__PASSWORD")
-        or os.getenv("EMAIL_PASSWORD")
-        or os.getenv("EMAIL__SMTP_PASSWORD")
-        or os.getenv("SMTP_PASSWORD")
-    )
-
-    if fallback_password:
-        fallback_password = fallback_password.strip()
-
-    if not fallback_password:
-        logger.warning(
-            "Email password not found in environment variables",
-            extra={
-                "component": COMPONENT,
-                "tried_vars": [
-                    "EMAIL__PASSWORD",
-                    "EMAIL_PASSWORD",
-                    "EMAIL__SMTP_PASSWORD",
-                    "SMTP_PASSWORD",
-                ],
-            },
-        )
-        return None
-
-    logger.debug(
-        "Successfully loaded email password from environment variables",
-        extra={"component": COMPONENT, "source": "direct_env_vars"},
-    )
-    return fallback_password

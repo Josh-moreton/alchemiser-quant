@@ -301,6 +301,25 @@ Resources:
       Protocol: email
       Endpoint: notifications@rwxt.org
 
+  # ========== TRADING NOTIFICATIONS SNS ==========
+  # SNS Topic for trading notifications (trade results, workflow failures)
+  TradingNotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-trading-notifications"
+        - !Sub "alchemiser-trading-notifications-${Stage}"
+      DisplayName: "Alchemiser Trading Notifications"
+
+  # Email subscription for trading notifications
+  TradingNotificationsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref TradingNotificationsTopic
+      Protocol: email
+      Endpoint: notifications@rwxt.org
+
   # CloudWatch Alarm for DLQ messages (triggers when messages hit DLQ)
   DLQMessageAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -637,9 +656,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          EMAIL__FROM_EMAIL: alchemiser@rwxt.org
-          EMAIL__TO_EMAIL: notifications@rwxt.org
-          EMAIL__SMTP_PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
+          SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           LOGGING__LEVEL: !Ref LoggingLevel
       Events:
         TradeExecutedEvent:
@@ -699,6 +716,11 @@ Resources:
                   - events:PutEvents
                 Resource:
                   - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref TradingNotificationsTopic
 
   # Scheduler to trigger Strategy (workflow entry point)
   StrategySchedule:

@@ -1,6 +1,6 @@
 """Business Unit: notifications | Status: current.
 
-Tests for NotificationService event-driven email handling.
+Tests for NotificationService event-driven SNS notification handling.
 
 Covers service behaviors including:
 - Event registration and routing
@@ -16,6 +16,7 @@ Tests are deterministic and hermetic - no network calls.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
@@ -28,6 +29,7 @@ from the_alchemiser.shared.events.schemas import (
     SystemNotificationRequested,
     TradingNotificationRequested,
 )
+from the_alchemiser.shared.notifications.sns_publisher import publish_notification
 
 
 class TestNotificationServiceInit:
@@ -109,38 +111,41 @@ class TestErrorNotificationHandling:
             recipient_override=None,
         )
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_error_notification_success(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         error_event: ErrorNotificationRequested,
     ) -> None:
         """Test successful error notification handling."""
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(error_event)
 
-        # Verify email was sent with correct parameters
-        mock_send_email.assert_called_once()
-        call_args = mock_send_email.call_args
+        # Verify SNS notification was published
+        mock_publish.assert_called_once()
+        call_args = mock_publish.call_args
 
-        assert "FAILURE" in call_args.kwargs["subject"]
-        assert "URGENT" in call_args.kwargs["subject"]
-        assert "EXEC-001" in call_args.kwargs["subject"]
-        assert "CRITICAL" in call_args.kwargs["subject"]
-        assert call_args.kwargs["text_content"] == error_event.error_report
-        assert call_args.kwargs["recipient_email"] is None
+        # Check subject contains expected fields
+        subject = call_args.kwargs["subject"]
+        assert "FAILURE" in subject
+        assert "URGENT" in subject
+        assert "EXEC-001" in subject
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+        # Check message contains error report
+        message = call_args.kwargs["message"]
+        assert error_event.error_report in message
+
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_error_notification_without_code(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test error notification without error code."""
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = ErrorNotificationRequested(
@@ -158,23 +163,24 @@ class TestErrorNotificationHandling:
 
         service.handle_event(event)
 
-        # Verify email was sent without error code in subject
-        mock_send_email.assert_called_once()
-        subject = mock_send_email.call_args.kwargs["subject"]
-        assert "[FAILURE][HIGH]" in subject
+        # Verify notification was published without error code in subject
+        mock_publish.assert_called_once()
+        subject = mock_publish.call_args.kwargs["subject"]
+        assert "FAILURE" in subject
+        assert "HIGH" in subject
         assert "EXEC-001" not in subject
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_error_notification_with_recipient_override(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
-        """Test error notification with recipient override."""
-        mock_send_email.return_value = True
+        """Test error notification with recipient override (logs only, SNS uses topic)."""
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
-        # Create event with recipient override directly
+        # Create event with recipient override (note: SNS publishes to topic, not individual recipients)
         error_event = ErrorNotificationRequested(
             event_id=f"event-{uuid.uuid4()}",
             correlation_id=f"corr-{uuid.uuid4()}",
@@ -191,42 +197,41 @@ class TestErrorNotificationHandling:
 
         service.handle_event(error_event)
 
-        # Verify recipient override is used
-        call_args = mock_send_email.call_args
-        assert call_args.kwargs["recipient_email"] == "custom@example.com"
+        # Verify notification was published (SNS topic handles routing, not recipient)
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    def test_handle_error_notification_email_failure(
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_handle_error_notification_publish_failure(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         error_event: ErrorNotificationRequested,
     ) -> None:
-        """Test error notification when email sending fails."""
-        mock_send_email.return_value = False
+        """Test error notification when publishing fails."""
+        mock_publish.return_value = False
         service = NotificationService(mock_container)
 
         # Should not raise exception
         service.handle_event(error_event)
 
-        # Email should still be attempted
-        mock_send_email.assert_called_once()
+        # Publish should still be attempted
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_error_notification_exception(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         error_event: ErrorNotificationRequested,
     ) -> None:
-        """Test error notification when exception occurs during sending."""
-        mock_send_email.side_effect = Exception("SMTP connection failed")
+        """Test error notification when exception occurs during publishing."""
+        mock_publish.side_effect = Exception("SNS connection failed")
         service = NotificationService(mock_container)
 
         # Should not raise exception - error should be logged
         service.handle_event(error_event)
 
-        mock_send_email.assert_called_once()
+        mock_publish.assert_called_once()
 
 
 class TestTradingNotificationHandling:
@@ -253,7 +258,7 @@ class TestTradingNotificationHandling:
             trading_mode="PAPER",
             orders_placed=5,
             orders_succeeded=5,
-            total_trade_value=10000.50,
+            total_trade_value=Decimal("10000.50"),
             execution_data={
                 "symbols_traded": ["AAPL", "GOOGL", "MSFT"],
                 "total_notional": 10000.50,
@@ -275,7 +280,7 @@ class TestTradingNotificationHandling:
             trading_mode="LIVE",
             orders_placed=5,
             orders_succeeded=2,
-            total_trade_value=3000.00,
+            total_trade_value=Decimal("3000.00"),
             execution_data={
                 "failed_symbols": ["TSLA", "NVDA", "AMD"],
             },
@@ -283,106 +288,90 @@ class TestTradingNotificationHandling:
             error_code="EXEC-002",
         )
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_successful_trading_notification(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test successful trading notification handling."""
-        mock_templates.simple_trading_notification.return_value = "<html>Success Report</html>"
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(successful_trading_event)
 
-        # Verify simplified template was used
-        mock_templates.simple_trading_notification.assert_called_once()
-        call_args = mock_templates.simple_trading_notification.call_args
-        assert call_args.kwargs["success"] is True
-        assert call_args.kwargs["mode"] == "PAPER"
-        assert call_args.kwargs["orders_count"] == 5
+        # Verify notification was published
+        mock_publish.assert_called_once()
+        call_args = mock_publish.call_args
 
-        # Verify email was sent with success status
-        mock_send_email.assert_called_once()
-        subject = mock_send_email.call_args.kwargs["subject"]
-        assert "[SUCCESS]" in subject
+        # Check subject contains success status
+        subject = call_args.kwargs["subject"]
+        assert "SUCCESS" in subject
         assert "PAPER" in subject
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
-    def test_handle_successful_trading_with_template_fallback(
+        # Check message contains trading details
+        message = call_args.kwargs["message"]
+        assert "SUCCESS" in message
+        assert "PAPER" in message
+
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_handle_successful_trading_message_content(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
-        """Test successful trading with fallback to basic template on error."""
-        # With simplified template, no fallback is needed
-        # The simplified template is simple enough that it shouldn't fail
-        mock_templates.simple_trading_notification.return_value = (
-            "<html>Simple Success Report</html>"
-        )
-        mock_send_email.return_value = True
+        """Test successful trading notification message content."""
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(successful_trading_event)
 
-        # Verify simplified template was used
-        mock_templates.simple_trading_notification.assert_called_once()
+        # Verify notification was published with expected content
+        mock_publish.assert_called_once()
+        message = mock_publish.call_args.kwargs["message"]
 
-        # Verify email was sent
-        mock_send_email.assert_called_once()
-        html_content = mock_send_email.call_args.kwargs["html_content"]
-        assert "Simple Success Report" in html_content
+        # Verify message contains order counts
+        assert "Orders Placed: 5" in message
+        assert "Orders Succeeded: 5" in message
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_failed_trading_notification(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         failed_trading_event: TradingNotificationRequested,
     ) -> None:
         """Test failed trading notification handling."""
-        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(failed_trading_event)
 
-        # Verify simplified template was used
-        mock_templates.simple_trading_notification.assert_called_once()
-        call_args = mock_templates.simple_trading_notification.call_args
+        # Verify notification was published
+        mock_publish.assert_called_once()
+        call_args = mock_publish.call_args
 
-        # Check template parameters
-        assert call_args.kwargs["success"] is False
-        assert call_args.kwargs["mode"] == "LIVE"
-        assert call_args.kwargs["orders_count"] == 5
-
-        # Verify email was sent with failure status
-        mock_send_email.assert_called_once()
-        subject = mock_send_email.call_args.kwargs["subject"]
-        assert "[FAILURE]" in subject
+        # Check subject contains failure status
+        subject = call_args.kwargs["subject"]
+        assert "FAILURE" in subject
         assert "EXEC-002" in subject
         assert "LIVE" in subject
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
+        # Check message contains error details
+        message = call_args.kwargs["message"]
+        assert "FAILURE" in message
+        assert failed_trading_event.error_message in message
+
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_failed_trading_without_error_code(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test failed trading notification without error code."""
-        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = TradingNotificationRequested(
@@ -395,7 +384,7 @@ class TestTradingNotificationHandling:
             trading_mode="PAPER",
             orders_placed=3,
             orders_succeeded=1,
-            total_trade_value=500.00,
+            total_trade_value=Decimal("500.00"),
             execution_data={},
             error_message="Unknown error",
             error_code=None,  # No error code
@@ -404,21 +393,18 @@ class TestTradingNotificationHandling:
         service.handle_event(event)
 
         # Verify subject doesn't include error code
-        subject = mock_send_email.call_args.kwargs["subject"]
-        assert "[FAILURE]" in subject
+        subject = mock_publish.call_args.kwargs["subject"]
+        assert "FAILURE" in subject
         assert "EXEC-" not in subject
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_failed_trading_without_error_message(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test failed trading notification handles missing error message."""
-        mock_templates.simple_trading_notification.return_value = "<html>Failure Report</html>"
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = TradingNotificationRequested(
@@ -431,7 +417,7 @@ class TestTradingNotificationHandling:
             trading_mode="PAPER",
             orders_placed=1,
             orders_succeeded=0,
-            total_trade_value=0.0,
+            total_trade_value=Decimal("0.0"),
             execution_data={},
             error_message=None,  # No error message
             error_code=None,
@@ -439,24 +425,24 @@ class TestTradingNotificationHandling:
 
         service.handle_event(event)
 
-        # Verify simplified template was called (no error message processing needed)
-        mock_templates.simple_trading_notification.assert_called_once()
+        # Should handle gracefully
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    def test_trading_notification_email_send_failure(
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_trading_notification_publish_failure(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         successful_trading_event: TradingNotificationRequested,
     ) -> None:
-        """Test trading notification when email sending fails."""
-        mock_send_email.return_value = False
+        """Test trading notification when publishing fails."""
+        mock_publish.return_value = False
         service = NotificationService(mock_container)
 
         # Should not raise exception
         service.handle_event(successful_trading_event)
 
-        mock_send_email.assert_called_once()
+        mock_publish.assert_called_once()
 
 
 class TestSystemNotificationHandling:
@@ -485,39 +471,39 @@ class TestSystemNotificationHandling:
             text_content="System is operational",
         )
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_system_notification_success(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         system_event: SystemNotificationRequested,
     ) -> None:
         """Test successful system notification handling."""
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         service.handle_event(system_event)
 
-        # Verify email was sent with provided content
-        mock_send_email.assert_called_once()
-        call_args = mock_send_email.call_args
+        # Verify notification was published with correct parameters
+        mock_publish.assert_called_once()
+        call_args = mock_publish.call_args
 
         assert call_args.kwargs["subject"] == "System Health Check"
-        assert call_args.kwargs["html_content"] == system_event.html_content
-        assert call_args.kwargs["text_content"] == system_event.text_content
-        assert call_args.kwargs["recipient_email"] is None
+        # SNS uses plain text message, not HTML
+        message = call_args.kwargs["message"]
+        assert "System is operational" in message
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_system_notification_with_recipient_override(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
-        """Test system notification with recipient override."""
-        mock_send_email.return_value = True
+        """Test system notification with recipient override (SNS uses topic-based routing)."""
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
-        # Create event with recipient override directly
+        # Create event with recipient override (note: SNS publishes to topic, not individual recipients)
         system_event = SystemNotificationRequested(
             event_id=f"event-{uuid.uuid4()}",
             correlation_id=f"corr-{uuid.uuid4()}",
@@ -533,17 +519,17 @@ class TestSystemNotificationHandling:
 
         service.handle_event(system_event)
 
-        call_args = mock_send_email.call_args
-        assert call_args.kwargs["recipient_email"] == "admin@example.com"
+        # Verify notification was published (SNS topic handles routing)
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_system_notification_without_text_content(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test system notification handles missing text content."""
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = SystemNotificationRequested(
@@ -560,40 +546,40 @@ class TestSystemNotificationHandling:
 
         service.handle_event(event)
 
-        call_args = mock_send_email.call_args
-        assert call_args.kwargs["text_content"] is None
+        # Should handle gracefully
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    def test_handle_system_notification_email_failure(
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_handle_system_notification_publish_failure(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         system_event: SystemNotificationRequested,
     ) -> None:
-        """Test system notification when email sending fails."""
-        mock_send_email.return_value = False
+        """Test system notification when publishing fails."""
+        mock_publish.return_value = False
         service = NotificationService(mock_container)
 
         # Should not raise exception
         service.handle_event(system_event)
 
-        mock_send_email.assert_called_once()
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_system_notification_exception(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
         system_event: SystemNotificationRequested,
     ) -> None:
         """Test system notification when exception occurs."""
-        mock_send_email.side_effect = Exception("Network timeout")
+        mock_publish.side_effect = Exception("Network timeout")
         service = NotificationService(mock_container)
 
         # Should not raise exception - error should be logged
         service.handle_event(system_event)
 
-        mock_send_email.assert_called_once()
+        mock_publish.assert_called_once()
 
 
 class TestEventRoutingAndErrorHandling:
@@ -626,14 +612,14 @@ class TestEventRoutingAndErrorHandling:
         # Should not raise exception - just ignore
         service.handle_event(event)
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_event_exception_logged(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test that exceptions during event handling are logged with context."""
-        mock_send_email.side_effect = Exception("Catastrophic failure")
+        mock_publish.side_effect = Exception("Catastrophic failure")
         service = NotificationService(mock_container)
 
         event = ErrorNotificationRequested(
@@ -663,14 +649,14 @@ class TestLoggingBehavior:
         container.services.event_bus.return_value = mock_event_bus
         return container
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_logging_on_successful_error_notification(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test that successful operations are logged."""
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = ErrorNotificationRequested(
@@ -692,16 +678,16 @@ class TestLoggingBehavior:
             # Verify logging occurred
             assert mock_logger_info.call_count >= 2
             # First log: sending notification
-            # Second log: email sent successfully
+            # Second log: notification sent successfully
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    def test_logging_on_email_send_failure(
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
+    def test_logging_on_publish_failure(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
-        """Test that email send failures are logged as errors."""
-        mock_send_email.return_value = False
+        """Test that publish failures are logged as errors."""
+        mock_publish.return_value = False
         service = NotificationService(mock_container)
 
         event = SystemNotificationRequested(
@@ -720,16 +706,16 @@ class TestLoggingBehavior:
 
             # Verify error was logged
             mock_logger_error.assert_called_once()
-            assert "Failed to send system notification email" in str(mock_logger_error.call_args)
+            assert "Failed to publish system notification" in str(mock_logger_error.call_args)
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_logging_includes_correlation_id_on_error(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test that error logs include correlation_id for traceability."""
-        mock_send_email.side_effect = Exception("Test exception")
+        mock_publish.side_effect = Exception("Test exception")
         service = NotificationService(mock_container)
 
         correlation_id = f"corr-test-{uuid.uuid4()}"
@@ -772,17 +758,14 @@ class TestMissingAndPartialData:
         container.services.event_bus.return_value = mock_event_bus
         return container
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_trading_notification_with_empty_execution_data(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test trading notification with empty execution data dictionary."""
-        mock_templates.simple_trading_notification.return_value = "<html>Report</html>"
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = TradingNotificationRequested(
@@ -795,29 +778,24 @@ class TestMissingAndPartialData:
             trading_mode="PAPER",
             orders_placed=0,
             orders_succeeded=0,
-            total_trade_value=0.0,
+            total_trade_value=Decimal("0.0"),
             execution_data={},  # Empty execution data
             error_message="No orders executed",
         )
 
-        # Should handle gracefully with simplified template
+        # Should handle gracefully
         service.handle_event(event)
 
-        mock_send_email.assert_called_once()
-        # Verify simplified template was called
-        mock_templates.simple_trading_notification.assert_called_once()
+        mock_publish.assert_called_once()
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
-    @patch("the_alchemiser.notifications_v2.service.EmailTemplates")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_successful_trading_with_minimal_execution_data(
         self,
-        mock_templates: Mock,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test successful trading notification with minimal execution data."""
-        mock_templates.simple_trading_notification.return_value = "<html>Success</html>"
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         event = TradingNotificationRequested(
@@ -830,28 +808,26 @@ class TestMissingAndPartialData:
             trading_mode="PAPER",
             orders_placed=1,
             orders_succeeded=1,
-            total_trade_value=100.0,
+            total_trade_value=Decimal("100.0"),
             execution_data={},  # Minimal data
         )
 
-        # Should handle gracefully with simplified template
+        # Should handle gracefully
         service.handle_event(event)
 
-        mock_send_email.assert_called_once()
-        # Verify simplified template was called with correct parameters
-        mock_templates.simple_trading_notification.assert_called_once()
-        call_args = mock_templates.simple_trading_notification.call_args
-        assert call_args.kwargs["success"] is True
-        assert call_args.kwargs["orders_count"] == 1
+        mock_publish.assert_called_once()
+        # Verify message contains order count
+        message = mock_publish.call_args.kwargs["message"]
+        assert "Orders Placed: 1" in message
 
-    @patch("the_alchemiser.notifications_v2.service.send_email_notification")
+    @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_error_notification_with_minimal_fields(
         self,
-        mock_send_email: Mock,
+        mock_publish: Mock,
         mock_container: Mock,
     ) -> None:
         """Test error notification with only required fields."""
-        mock_send_email.return_value = True
+        mock_publish.return_value = True
         service = NotificationService(mock_container)
 
         # Create event with minimal required fields
@@ -870,6 +846,6 @@ class TestMissingAndPartialData:
         service.handle_event(event)
 
         # Should work without optional fields
-        mock_send_email.assert_called_once()
-        subject = mock_send_email.call_args.kwargs["subject"]
+        mock_publish.assert_called_once()
+        subject = mock_publish.call_args.kwargs["subject"]
         assert "MEDIUM" in subject

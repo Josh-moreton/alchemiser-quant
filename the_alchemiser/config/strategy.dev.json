@@ -1,16 +1,20 @@
 {
   "files": [
-    "foundation/grail.clj",
-    "foundation/kmlm.clj",
-    "foundation/semiconductors.clj",
-    "tactical/bitcoin.clj",
-    "tactical/quantum.clj"
+    "2026/beam.clj",
+    "2026/ftlt-2x.clj",
+    "2026/grail-revamped.clj",
+    "2026/holy-nova.clj",
+    "2026/ICDB.clj",
+    "2026/starburst-heretic.clj",
+    "2026/vox.clj"
   ],
   "allocations": {
-    "foundation/grail.clj": 0.2,
-    "foundation/kmlm.clj": 0.2,
-    "foundation/semiconductors.clj": 0.2,
-    "tactical/bitcoin.clj": 0.2,
-    "tactical/quantum.clj": 0.2
+    "2026/beam.clj": 0.2,
+    "2026/ftlt-2x.clj": 0.2,
+    "2026/grail-revamped.clj": 0.1,
+    "2026/holy-nova.clj": 0.2,
+    "2026/ICDB.clj": 0.1,
+    "2026/starburst-heretic.clj": 0.0,
+    "2026/vox.clj": 0.2
   }
 }

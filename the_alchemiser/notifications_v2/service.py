@@ -1,9 +1,9 @@
 """Business Unit: notifications | Status: current.
 
-Notification service for event-driven email handling.
+Notification service for event-driven notifications via SNS.
 
-This service consumes notification events and sends appropriate emails using
-the existing email infrastructure from shared.notifications.
+This service consumes notification events and publishes to SNS for email delivery.
+SNS handles the actual email sending via subscribed email addresses.
 """
 
 from __future__ import annotations
@@ -13,9 +13,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.shared.errors import (
-    ValidationError,
-)
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
     ErrorNotificationRequested,
@@ -23,144 +20,7 @@ from the_alchemiser.shared.events.schemas import (
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.notifications.client import send_email_notification
-from the_alchemiser.shared.notifications.templates import (
-    EmailTemplates,
-)
-from the_alchemiser.shared.notifications.templates.multi_strategy import (
-    MultiStrategyReportBuilder,
-)
-
-
-class _ExecutionResultAdapter:
-    """Adapter to convert TradingNotificationRequested event to template-compatible result.
-
-    This adapter provides a stable interface for email template generation
-    without using dynamic attribute access or Any types.
-    """
-
-    def __init__(self, event: TradingNotificationRequested) -> None:
-        """Initialize adapter with event data.
-
-        Args:
-            event: Trading notification event to adapt
-
-        """
-        from the_alchemiser.shared.logging import get_logger
-
-        logger = get_logger(__name__)
-
-        self.success = event.trading_success
-        self.correlation_id = event.correlation_id
-        self._execution_data = event.execution_data or {}
-
-        # Extract data from execution_data for template consumption
-        self.orders_executed: list[dict[str, object]] = self._execution_data.get(
-            "orders_executed", []
-        )
-        self.strategy_signals: dict[str, dict[str, object]] = self._execution_data.get(
-            "strategy_signals", {}
-        )
-        self.consolidated_portfolio: dict[str, object] = self._execution_data.get(
-            "consolidated_portfolio", {}
-        )
-        self.execution_summary: dict[str, object] = self._execution_data.get(
-            "execution_summary", {}
-        )
-
-        # Debug logging to diagnose missing data
-        logger.debug(
-            "ExecutionResultAdapter initialized",
-            extra={
-                "correlation_id": event.correlation_id,
-                "has_consolidated_portfolio": bool(self.consolidated_portfolio),
-                "has_orders_executed": bool(self.orders_executed),
-                "has_strategy_signals": bool(self.strategy_signals),
-                "orders_count": len(self.orders_executed),
-                "execution_data_keys": list(self._execution_data.keys()),
-            },
-        )
-
-        # Normalize incoming data for template consumption
-        # - Map StrategySignal.reasoning -> reason (templates read "reason")
-        # - Flatten ConsolidatedPortfolio DTO to a simple symbol->weight mapping
-        self._normalize_for_templates()
-
-    def get_execution_data(self, key: str) -> object:
-        """Get execution data by key.
-
-        Args:
-            key: Data key to retrieve
-
-        Returns:
-            Value from execution data or None if not found
-
-        """
-        return self._execution_data.get(key, None) if self._execution_data else None
-
-    def _normalize_for_templates(self) -> None:
-        """Normalize adapter fields to align with template expectations.
-
-        Delegates to smaller helpers for clarity and to keep complexity low.
-        """
-        self._normalize_strategy_reasons()
-        self._normalize_consolidated_portfolio()
-
-    def _normalize_strategy_reasons(self) -> None:
-        """Ensure each strategy signal has a 'reason' field from 'reasoning'."""
-        from the_alchemiser.shared.logging import get_logger
-
-        logger = get_logger(__name__)
-
-        if not isinstance(self.strategy_signals, dict):
-            return
-        for strategy_name, data in self.strategy_signals.items():
-            if not isinstance(data, dict):
-                continue
-            if "reason" in data:
-                continue
-            reasoning = data.get("reasoning")
-            if isinstance(reasoning, str):
-                data["reason"] = reasoning
-                logger.debug(
-                    f"🔄 Normalized strategy signal: {strategy_name}",
-                    extra={
-                        "strategy": strategy_name,
-                        "has_reason_after": "reason" in data,
-                        "has_reasoning": "reasoning" in data,
-                        "keys": list(data.keys()),
-                    },
-                )
-
-    def _try_flatten_portfolio(self, obj: object) -> dict[str, object] | None:
-        """Attempt to flatten various consolidated portfolio shapes to a flat dict."""
-        if not isinstance(obj, dict):
-            return None
-        # Preferred: DTO dump with target_allocations
-        target = obj.get("target_allocations")
-        if isinstance(target, dict):
-            return target
-        # Some callers might use a generic key
-        alt = obj.get("allocations")
-        if isinstance(alt, dict):
-            return alt
-        # Already flat mapping? Heuristic: keys are str
-        if obj and all(isinstance(k, str) for k in obj):
-            return obj
-        return None
-
-    def _normalize_consolidated_portfolio(self) -> None:
-        """Flatten consolidated_portfolio or fall back appropriately."""
-        flattened = self._try_flatten_portfolio(self.consolidated_portfolio)
-        if flattened is None and isinstance(self.execution_summary, dict):
-            flattened = self._try_flatten_portfolio(
-                self.execution_summary.get("consolidated_portfolio")
-            )
-        if flattened is not None:
-            self.consolidated_portfolio = flattened
-        elif not isinstance(self.consolidated_portfolio, dict):
-            # Ensure a dict to prevent template errors
-            self.consolidated_portfolio = {}
+from the_alchemiser.shared.notifications.sns_publisher import publish_notification
 
 
 class NotificationService:
@@ -230,22 +90,10 @@ class NotificationService:
             # Mark as processed after successful handling
             self._processed_events.add(event.event_id)
 
-        except ValidationError as e:
-            # Known notification errors - don't mark as processed to allow retry
-            self.logger.error(
-                f"Notification service failed with known error for {event.event_type}: {e}",
-                extra={
-                    "event_id": event.event_id,
-                    "correlation_id": event.correlation_id,
-                    "causation_id": event.causation_id,
-                    "error_type": type(e).__name__,
-                },
-            )
         except Exception as e:
-            # Unexpected errors - don't mark as processed, log but don't re-raise
-            # (silent failure for notification service to avoid breaking workflows)
+            # Log errors but don't re-raise - notifications shouldn't break workflows
             self.logger.error(
-                f"Notification service failed with unexpected error for {event.event_type}: {e}",
+                f"Notification service failed for {event.event_type}: {e}",
                 exc_info=True,
                 extra={
                     "event_id": event.event_id,
@@ -297,43 +145,27 @@ class NotificationService:
         self._log_event_context(event, f"Sending error notification: {event.error_title}")
 
         try:
-            # Build HTML email content using existing templates
-            html_content = EmailTemplates.build_error_report(
-                title=f"{event.error_severity} Alert - Trading System Errors",
-                error_message=event.error_report,
-            )
-
             # Build subject with error code if available
             if event.error_code:
-                subject = f"[FAILURE][{event.error_priority}][{event.error_code}] The Alchemiser - {event.error_severity} Error Report"
+                subject = f"[FAILURE][{event.error_priority}][{event.error_code}] Alchemiser Error"
             else:
-                subject = f"[FAILURE][{event.error_priority}] The Alchemiser - {event.error_severity} Error Report"
+                subject = f"[FAILURE][{event.error_priority}] Alchemiser Error"
 
-            # Send notification
-            success = send_email_notification(
-                subject=subject,
-                html_content=html_content,
-                text_content=event.error_report,
-                recipient_email=event.recipient_override,
-            )
+            # Build plain text message for SNS
+            message = self._build_error_message(event)
+
+            # Publish to SNS
+            success = publish_notification(subject=subject, message=message)
 
             if success:
-                self._log_event_context(event, "Error notification email sent successfully")
+                self._log_event_context(event, "Error notification published to SNS")
             else:
-                self._log_event_context(event, "Failed to send error notification email", "error")
+                self._log_event_context(event, "Failed to publish error notification", "error")
 
-        except (ValueError, TypeError, AttributeError) as e:
-            # Template generation or data access errors
-            self._log_event_context(
-                event,
-                f"Failed to send error notification due to template error ({type(e).__name__}): {e}",
-                "error",
-            )
         except Exception as e:
-            # Unexpected errors during notification sending
             self._log_event_context(
                 event,
-                f"Failed to send error notification due to unexpected error ({type(e).__name__}): {e}",
+                f"Failed to send error notification ({type(e).__name__}): {e}",
                 "error",
             )
 
@@ -343,161 +175,35 @@ class NotificationService:
         Args:
             event: The trading notification event
 
-        Note:
-            This implementation uses simplified email templates in the style of
-            Hargreaves Lansdown notifications - clean, professional, and minimal.
-
-            Generates PDF report from execution data if available and attaches
-            to the notification email.
-
         """
         self._log_event_context(
             event, f"Sending trading notification: success={event.trading_success}"
         )
 
         try:
-            # PDF generation removed - notifications will be sent without attachments
-            s3_attachments = None
-
-            # Use simplified email template (Hargreaves Lansdown style)
-            html_content = EmailTemplates.simple_trading_notification(
-                success=event.trading_success,
-                mode=event.trading_mode,
-                orders_count=event.orders_placed,
-                correlation_id=event.correlation_id,
-                pdf_attached=False,
-            )
-
             # Build subject line
             subject = self._build_trading_subject(event)
 
-            # Send notification
-            success = send_email_notification(
-                subject=subject,
-                html_content=html_content,
-                text_content=f"Trading execution completed. Success: {event.trading_success}",
-                recipient_email=event.recipient_override,
-                s3_attachments=s3_attachments,
-            )
+            # Build plain text message for SNS
+            message = self._build_trading_message(event)
+
+            # Publish to SNS
+            success = publish_notification(subject=subject, message=message)
 
             if success:
                 self._log_event_context(
                     event,
-                    f"Simplified trading notification sent successfully (success={event.trading_success}, pdf_attached=False)",
+                    f"Trading notification published to SNS (success={event.trading_success})",
                 )
             else:
-                self._log_event_context(event, "Failed to send trading notification email", "error")
+                self._log_event_context(event, "Failed to publish trading notification", "error")
 
-        except ValidationError as e:
-            # Known template/generation errors
-            self._log_event_context(
-                event,
-                f"Failed to send trading notification due to known error ({type(e).__name__}): {e}",
-                "error",
-            )
-        except (ValueError, TypeError, AttributeError) as e:
-            # Template generation or data access errors
-            self._log_event_context(
-                event,
-                f"Failed to send trading notification due to template error ({type(e).__name__}): {e}",
-                "error",
-            )
         except Exception as e:
-            # Unexpected errors during notification sending
             self._log_event_context(
                 event,
-                f"Failed to send trading notification due to unexpected error ({type(e).__name__}): {e}",
+                f"Failed to send trading notification ({type(e).__name__}): {e}",
                 "error",
             )
-
-    def _build_success_trading_email(self, event: TradingNotificationRequested) -> str:
-        """Build HTML content for successful trading notification.
-
-        Args:
-            event: Trading notification event
-
-        Returns:
-            HTML content for email
-
-        """
-        try:
-            # Create adapter for template
-            result_adapter = _ExecutionResultAdapter(event)
-            return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                result_adapter,
-                event.trading_mode,
-            )
-        except (ValueError, TypeError, AttributeError) as template_error:
-            # Known template generation errors - fallback to basic template
-            self.logger.warning(
-                f"Enhanced template failed with known error, using basic: {template_error}",
-                extra={
-                    "event_id": event.event_id,
-                    "correlation_id": event.correlation_id,
-                    "error_type": type(template_error).__name__,
-                },
-            )
-            return self._build_basic_trading_email(event)
-        except Exception as template_error:
-            # Unexpected template errors - fallback to basic template
-            self.logger.warning(
-                f"Enhanced template failed with unexpected error, using basic: {template_error}",
-                extra={
-                    "event_id": event.event_id,
-                    "correlation_id": event.correlation_id,
-                    "error_type": type(template_error).__name__,
-                },
-            )
-            return self._build_basic_trading_email(event)
-
-    def _build_basic_trading_email(self, event: TradingNotificationRequested) -> str:
-        """Build basic HTML fallback for trading notification.
-
-        Args:
-            event: Trading notification event
-
-        Returns:
-            Basic HTML content
-
-        """
-        return f"""
-        <h2>Trading Execution Report - {event.trading_mode.upper()}</h2>
-        <p><strong>Status:</strong> Success</p>
-        <p><strong>Orders Placed:</strong> {event.orders_placed}</p>
-        <p><strong>Orders Succeeded:</strong> {event.orders_succeeded}</p>
-        <p><strong>Total Trade Value:</strong> ${event.total_trade_value:,.2f}</p>
-        <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
-        <p><strong>Timestamp:</strong> {event.timestamp}</p>
-        """
-
-    def _build_failure_trading_email(self, event: TradingNotificationRequested) -> str:
-        """Build HTML content for failed trading notification.
-
-        Args:
-            event: Trading notification event
-
-        Returns:
-            HTML content for email
-
-        """
-        error_message = event.error_message or "Unknown trading error"
-
-        # Build context information for the failure email
-        context: dict[str, object] = {
-            "Orders Placed": event.orders_placed,
-            "Orders Succeeded": event.orders_succeeded,
-            "Correlation ID": event.correlation_id,
-        }
-
-        # Add failed symbols if available in execution data
-        if event.execution_data and event.execution_data.get("failed_symbols"):
-            context["Failed Symbols"] = ", ".join(event.execution_data["failed_symbols"])
-
-        return EmailTemplates.failed_trading_run(
-            error_details=error_message,
-            mode=event.trading_mode,
-            context=context,
-        )
 
     def _build_trading_subject(self, event: TradingNotificationRequested) -> str:
         """Build email subject for trading notification.
@@ -511,8 +217,70 @@ class NotificationService:
         """
         status_tag = "SUCCESS" if event.trading_success else "FAILURE"
         if not event.trading_success and event.error_code:
-            return f"[{status_tag}][{event.error_code}] The Alchemiser - {event.trading_mode.upper()} Trading Report"
-        return f"[{status_tag}] The Alchemiser - {event.trading_mode.upper()} Trading Report"
+            return f"[{status_tag}][{event.error_code}] Alchemiser {event.trading_mode.upper()}"
+        return f"[{status_tag}] Alchemiser {event.trading_mode.upper()} Trading"
+
+    def _build_trading_message(self, event: TradingNotificationRequested) -> str:
+        """Build plain text message for trading notification.
+
+        Args:
+            event: Trading notification event
+
+        Returns:
+            Plain text message for SNS
+
+        """
+        status = "SUCCESS" if event.trading_success else "FAILURE"
+        lines = [
+            "THE ALCHEMISER - TRADING REPORT",
+            "=" * 40,
+            "",
+            f"Status: {status}",
+            f"Mode: {event.trading_mode.upper()}",
+            f"Orders Placed: {event.orders_placed}",
+            f"Orders Succeeded: {event.orders_succeeded}",
+            f"Total Trade Value: ${event.total_trade_value:,.2f}",
+            "",
+            f"Correlation ID: {event.correlation_id}",
+            f"Timestamp: {event.timestamp}",
+        ]
+
+        if not event.trading_success and event.error_message:
+            lines.extend(["", "Error Details:", event.error_message])
+
+        return "\n".join(lines)
+
+    def _build_error_message(self, event: ErrorNotificationRequested) -> str:
+        """Build plain text message for error notification.
+
+        Args:
+            event: Error notification event
+
+        Returns:
+            Plain text message for SNS
+
+        """
+        lines = [
+            "THE ALCHEMISER - ERROR REPORT",
+            "=" * 40,
+            "",
+            f"Severity: {event.error_severity}",
+            f"Priority: {event.error_priority}",
+            f"Title: {event.error_title}",
+            "",
+            "Details:",
+            "-" * 40,
+            event.error_report,
+            "-" * 40,
+            "",
+            f"Correlation ID: {event.correlation_id}",
+            f"Timestamp: {event.timestamp}",
+        ]
+
+        if event.error_code:
+            lines.insert(4, f"Error Code: {event.error_code}")
+
+        return "\n".join(lines)
 
     def _handle_system_notification(self, event: SystemNotificationRequested) -> None:
         """Handle system notification event.
@@ -524,30 +292,19 @@ class NotificationService:
         self._log_event_context(event, f"Sending system notification: {event.notification_type}")
 
         try:
-            # Send notification with provided content
-            success = send_email_notification(
-                subject=event.subject,
-                html_content=event.html_content,
-                text_content=event.text_content,
-                recipient_email=event.recipient_override,
-            )
+            # Use text_content for SNS (plain text only)
+            message = event.text_content or "System notification (no content provided)"
+
+            success = publish_notification(subject=event.subject, message=message)
 
             if success:
-                self._log_event_context(event, "System notification email sent successfully")
+                self._log_event_context(event, "System notification published to SNS")
             else:
-                self._log_event_context(event, "Failed to send system notification email", "error")
+                self._log_event_context(event, "Failed to publish system notification", "error")
 
-        except (ValueError, TypeError, AttributeError) as e:
-            # Template or data access errors
-            self._log_event_context(
-                event,
-                f"Failed to send system notification due to template error ({type(e).__name__}): {e}",
-                "error",
-            )
         except Exception as e:
-            # Unexpected errors during notification sending
             self._log_event_context(
                 event,
-                f"Failed to send system notification due to unexpected error ({type(e).__name__}): {e}",
+                f"Failed to send system notification ({type(e).__name__}): {e}",
                 "error",
             )

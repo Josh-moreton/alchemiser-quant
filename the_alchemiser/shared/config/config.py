@@ -322,21 +322,6 @@ class StrategySettings(BaseModel):
         return self
 
 
-class EmailSettings(BaseModel):
-    """SMTP configuration for notification delivery.
-
-    Note: Password should be loaded from environment variables in production.
-    Store in .env file or AWS Secrets Manager, never commit to source control.
-    """
-
-    smtp_server: str = "smtp.mail.me.com"
-    smtp_port: int = 587
-    from_email: str | None = None
-    to_email: str | None = None
-    password: str | None = None
-    neutral_mode: bool = True
-
-
 class DataSettings(BaseModel):
     """Data provider tuning parameters."""
 
@@ -408,7 +393,6 @@ class Settings(BaseSettings):
     alerts: AlertsSettings = AlertsSettings()
     strategy: StrategySettings = StrategySettings()
     orchestration: OrchestrationSettings = OrchestrationSettings()
-    email: EmailSettings = EmailSettings()
     data: DataSettings = DataSettings()
     tracking: TrackingSettings = TrackingSettings()
     trade_ledger: TradeLedgerSettings = TradeLedgerSettings()

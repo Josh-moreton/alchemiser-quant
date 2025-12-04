@@ -19,6 +19,9 @@ import boto3
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
+    from mypy_boto3_events import EventBridgeClient
+    from mypy_boto3_events.type_defs import PutEventsResponseTypeDef
+
     from the_alchemiser.shared.events.base import BaseEvent
 
 logger = get_logger(__name__)
@@ -32,6 +35,7 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "SignalGenerated": ("strategy", "SignalGenerated"),
     "RebalancePlanned": ("portfolio", "RebalancePlanned"),
     "TradeExecuted": ("execution", "TradeExecuted"),
+    "WorkflowCompleted": ("execution", "WorkflowCompleted"),  # Terminal success event
     "WorkflowFailed": ("dynamic", "WorkflowFailed"),  # Source from source_module
     "TradingNotificationRequested": ("notifications", "TradingNotificationRequested"),
     "ErrorNotificationRequested": ("notifications", "ErrorNotificationRequested"),
@@ -84,13 +88,13 @@ class EventBridgePublisher:
         """
         self._event_bus_name = event_bus_name or os.environ.get("EVENT_BUS_NAME", "default")
         self._region = region or os.environ.get("AWS_REGION", "us-east-1")
-        self._client = boto3.client("events", region_name=self._region)
+        self._client: EventBridgeClient = boto3.client("events", region_name=self._region)
         logger.info(
             "EventBridge publisher initialized",
             extra={"event_bus": self._event_bus_name, "region": self._region},
         )
 
-    def publish(self, event: BaseEvent) -> dict[str, Any]:
+    def publish(self, event: BaseEvent) -> PutEventsResponseTypeDef:
         """Publish a domain event to EventBridge.
 
         Args:
@@ -137,7 +141,7 @@ class EventBridgePublisher:
             },
         )
 
-        response: dict[str, Any] = self._client.put_events(
+        response = self._client.put_events(
             Entries=[
                 {
                     "Source": source,
@@ -296,7 +300,7 @@ def get_eventbridge_publisher() -> EventBridgePublisher:
     return _publisher
 
 
-def publish_to_eventbridge(event: BaseEvent) -> dict[str, Any]:
+def publish_to_eventbridge(event: BaseEvent) -> PutEventsResponseTypeDef:
     """Publish an event to EventBridge.
 
     Args:
