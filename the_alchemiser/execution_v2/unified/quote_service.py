@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Module-level configuration
-DEFAULT_STREAMING_TIMEOUT_MS = 5000
+# Increased from 5s to 10s to improve fill rates on less liquid symbols (NUGT, XLE, etc.)
+DEFAULT_STREAMING_TIMEOUT_MS = 10000
 DEFAULT_QUOTE_FRESHNESS_SECONDS = 10.0
 MINIMUM_VALID_PRICE = Decimal("0.01")
 
@@ -202,7 +203,12 @@ class UnifiedQuoteService:
             return streaming_result
 
         # Step 2: Fall back to REST API
-        logger.warning("Streaming quote failed, falling back to REST", **log_extra)
+        # This is expected behavior for illiquid symbols or when WebSocket is unavailable
+        logger.info(
+            "Using REST quote (streaming unavailable)",
+            streaming_reason=streaming_result.error_message,
+            **log_extra,
+        )
         self.metrics.rest_fallback_count += 1
 
         rest_result = self._try_rest_quote(symbol, correlation_id=correlation_id)

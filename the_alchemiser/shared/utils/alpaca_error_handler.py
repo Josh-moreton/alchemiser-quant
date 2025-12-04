@@ -572,9 +572,10 @@ def _handle_retry_failure(error: Exception, operation_name: str, attempt: int) -
         or "not found" in error_str
     )
 
-    # Use warning for expected 404s (resource doesn't exist), error for everything else
+    # Use debug for expected 404s (resource doesn't exist) - these are normal operation
+    # Use error for actual failures that need attention
     if is_404_not_found:
-        logger.warning(error_msg)
+        logger.debug(error_msg)
     else:
         logger.error(error_msg)
 

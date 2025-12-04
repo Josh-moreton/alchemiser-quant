@@ -337,27 +337,47 @@ class Executor:
             action = "BUY" if order_side == OrderSide.BUY else "SELL"
 
             # Handle avg_fill_price - it might be 0 or None if order just placed
-            # Get price from quote or walk result if avg_fill_price not available
+            # This is a known race condition with Alpaca API where order status is
+            # "filled" before avg_fill_price is populated. Use tiered fallback:
+            # 1. Quote mid-price (good estimate) - log at INFO
+            # 2. Limit order price from walk result - log at INFO
+            # 3. Fallback 0.01 (last resort) - log at WARNING
             fill_price = execution_result.avg_fill_price
             if not fill_price or fill_price <= 0:
-                # Try to get price from quote result
+                # Try to get price from quote result (most accurate estimate)
                 if execution_result.quote_result and execution_result.quote_result.success:
                     fill_price = execution_result.quote_result.mid
+                    logger.info(
+                        "Using quote mid price (avg_fill_price pending)",
+                        extra={
+                            "symbol": symbol,
+                            "estimated_price": str(fill_price),
+                            "correlation_id": correlation_id,
+                        },
+                    )
                 elif execution_result.walk_result and execution_result.walk_result.order_attempts:
                     # Use the limit price from the first order attempt
                     fill_price = execution_result.walk_result.order_attempts[0].price
+                    logger.info(
+                        "Using limit order price (avg_fill_price pending)",
+                        extra={
+                            "symbol": symbol,
+                            "estimated_price": str(fill_price),
+                            "correlation_id": correlation_id,
+                        },
+                    )
                 else:
                     # Last resort: use a minimal positive value to pass validation
+                    # This is the only case that should generate a warning
                     fill_price = Decimal("0.01")
-
-                logger.warning(
-                    "No avg_fill_price available, using estimated price",
-                    extra={
-                        "symbol": symbol,
-                        "estimated_price": str(fill_price),
-                        "correlation_id": correlation_id,
-                    },
-                )
+                    logger.warning(
+                        "No price source available, using fallback minimum",
+                        extra={
+                            "symbol": symbol,
+                            "fallback_price": str(fill_price),
+                            "correlation_id": correlation_id,
+                        },
+                    )
 
             # Determine order_type based on execution strategy
             if execution_result.execution_strategy == "walk_the_book":

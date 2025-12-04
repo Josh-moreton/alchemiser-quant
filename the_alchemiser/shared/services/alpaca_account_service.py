@@ -349,36 +349,66 @@ class AlpacaAccountService:
         Raises:
             TradingClientError: If position retrieval fails (except when position doesn't exist)
 
+        Note:
+            This method does NOT use retry logic for 404 errors (position does not exist).
+            A 404 is expected behavior for BUY orders on symbols with no existing position.
+            Retries are only used for transient network errors.
+
         """
         try:
-            with alpaca_retry_context(max_retries=3, operation_name=f"Get position for {symbol}"):
-                position = self._trading_client.get_open_position(symbol)
-                logger.debug(
-                    "Successfully retrieved position",
-                    symbol=symbol,
-                    module="alpaca_account_service",
-                )
-                if position is not None:
-                    return position  # type: ignore[return-value]
-                return None
+            # Direct API call without retry context for expected 404s
+            position = self._trading_client.get_open_position(symbol)
+            logger.debug(
+                "Successfully retrieved position",
+                symbol=symbol,
+                module="alpaca_account_service",
+            )
+            if position is not None:
+                return position  # type: ignore[return-value]
+            return None
         except Exception as e:
-            # Check for "position does not exist" in error message
-            # This is not an error condition - just means no position exists
-            error_msg = str(e).lower()
-            if "position does not exist" in error_msg or "not found" in error_msg:
+            # Check for "position does not exist" - this is expected, not an error
+            # Alpaca returns error code 40410000 for non-existent positions
+            error_str = str(e).lower()
+            is_position_not_found = (
+                "position does not exist" in error_str
+                or "40410000" in str(e)
+                or "not found" in error_str
+            )
+
+            if is_position_not_found:
+                # Expected case: no position exists (e.g., for BUY orders on new symbols)
                 logger.debug(
                     "No position found for symbol",
                     symbol=symbol,
                     module="alpaca_account_service",
                 )
                 return None
-            logger.error(
-                "Failed to get position",
-                symbol=symbol,
-                error=str(e),
-                module="alpaca_account_service",
-            )
-            raise TradingClientError(f"Failed to retrieve position for {symbol}") from e
+
+            # Actual error - could be transient, use retry logic
+            try:
+                with alpaca_retry_context(
+                    max_retries=3, operation_name=f"Get position for {symbol}"
+                ):
+                    position = self._trading_client.get_open_position(symbol)
+                    logger.debug(
+                        "Successfully retrieved position after retry",
+                        symbol=symbol,
+                        module="alpaca_account_service",
+                    )
+                    if position is not None:
+                        return position  # type: ignore[return-value]
+                    return None
+            except Exception as retry_error:
+                logger.error(
+                    "Failed to get position",
+                    symbol=symbol,
+                    error=str(retry_error),
+                    module="alpaca_account_service",
+                )
+                raise TradingClientError(
+                    f"Failed to retrieve position for {symbol}"
+                ) from retry_error
 
     def validate_connection(self) -> bool:
         """Validate that the connection to Alpaca is working.
