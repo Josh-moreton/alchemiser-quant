@@ -35,6 +35,7 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "SignalGenerated": ("strategy", "SignalGenerated"),
     "RebalancePlanned": ("portfolio", "RebalancePlanned"),
     "TradeExecuted": ("execution", "TradeExecuted"),
+    "WorkflowCompleted": ("execution", "WorkflowCompleted"),  # Terminal success event
     "WorkflowFailed": ("dynamic", "WorkflowFailed"),  # Source from source_module
     "TradingNotificationRequested": ("notifications", "TradingNotificationRequested"),
     "ErrorNotificationRequested": ("notifications", "ErrorNotificationRequested"),
