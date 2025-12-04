@@ -100,7 +100,11 @@
 - Type-check only: `make type-check`.
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
 - Local trading: `poetry run python -m the_alchemiser` (paper/live via config).
-- Deploy (AWS Lambda): `make deploy` → `scripts/deploy.sh`.
+- **Deployment (CRITICAL - READ CAREFULLY):**
+  - **DEV/BETA deployment:** `make release-beta` - ALWAYS use this for testing changes
+  - **PRODUCTION deployment:** `make release` - ONLY after thorough testing in dev
+  - **NEVER run `sam deploy` directly** - it defaults to production!
+  - **NEVER run `sam deploy --no-confirm-changeset`** without `--config-env dev`
 - **Version management (recommended workflow):**
   1. Make your code changes
   2. Run `make format && make type-check` to verify changes
