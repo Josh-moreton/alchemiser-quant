@@ -34,7 +34,7 @@ class MarginInfo:
         multiplier: 1 (cash), 2 (margin), 4 (PDT margin)
 
     Safety Metrics:
-        margin_utilization_pct: initial_margin / equity * 100
+        margin_utilization_pct: initial_margin / buying_power * 100
         maintenance_margin_buffer_pct: (equity - maintenance_margin) / maintenance_margin * 100
     """
 
@@ -63,20 +63,26 @@ class MarginInfo:
 
     @property
     def margin_utilization_pct(self) -> Decimal | None:
-        """Calculate margin utilization as percentage of equity.
+        """Calculate margin utilization as percentage of total buying power.
 
-        Formula: (initial_margin / equity) * 100
+        Formula: (initial_margin / buying_power) * 100
+
+        This measures how much of your available buying power is currently
+        committed to positions. With 2x margin and $100k equity:
+        - buying_power = $200k
+        - If $110k deployed with 50% margin req: initial_margin = $55k
+        - Utilization = 55k/200k = 27.5%
 
         Returns:
-            Margin utilization percentage (0-100+) or None if data insufficient
+            Margin utilization percentage (0-100) or None if data insufficient
 
         Example:
-            equity=$10,000, initial_margin=$5,000 -> 50% utilization
+            buying_power=$200,000, initial_margin=$55,000 -> 27.5% utilization
 
         """
-        if self.initial_margin is None or self.equity is None or self.equity <= 0:
+        if self.initial_margin is None or self.buying_power is None or self.buying_power <= 0:
             return None
-        return (self.initial_margin / self.equity) * Decimal("100")
+        return (self.initial_margin / self.buying_power) * Decimal("100")
 
     @property
     def maintenance_margin_buffer_pct(self) -> Decimal | None:
