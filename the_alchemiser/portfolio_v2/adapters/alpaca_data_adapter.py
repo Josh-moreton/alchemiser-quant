@@ -36,14 +36,31 @@ class AccountInfo:
     """Complete account information from Alpaca.
 
     Contains all capital-related fields for proper margin-aware trading.
+
+    Key Fields:
+        cash: Settled cash balance
+        buying_power: Total buying power (depends on multiplier)
+        equity: Account equity (net liquidation value)
+        regt_buying_power: Reg T overnight buying power (conservative)
+        daytrading_buying_power: Day trading buying power (4x for PDT accounts)
+        multiplier: Account multiplier (1=cash, 2=margin, 4=PDT)
+
+    Margin Fields:
+        initial_margin: Margin used to open positions
+        maintenance_margin: Margin required to maintain positions
     """
 
     cash: Decimal  # Settled cash balance
-    buying_power: Decimal | None  # Total buying power (cash + margin)
+    buying_power: Decimal | None  # Total buying power (based on multiplier)
     equity: Decimal | None  # Account equity (net liquidation value)
     portfolio_value: Decimal | None  # Total portfolio value
     initial_margin: Decimal | None  # Margin used to open positions
     maintenance_margin: Decimal | None  # Margin required to maintain positions
+
+    # Extended fields for intraday vs overnight distinction
+    regt_buying_power: Decimal | None = None  # Reg T overnight buying power
+    daytrading_buying_power: Decimal | None = None  # Day trading buying power (PDT)
+    multiplier: int | None = None  # Account multiplier: 1=cash, 2=margin, 4=PDT
 
 
 class AlpacaDataAdapter:
@@ -526,6 +543,19 @@ class AlpacaDataAdapter:
             initial_margin = _safe_decimal(account_data.get("initial_margin"))
             maintenance_margin = _safe_decimal(account_data.get("maintenance_margin"))
 
+            # Extended fields for intraday vs overnight distinction
+            regt_buying_power = _safe_decimal(account_data.get("regt_buying_power"))
+            daytrading_buying_power = _safe_decimal(account_data.get("daytrading_buying_power"))
+
+            # Multiplier determines account type: 1=cash, 2=margin, 4=PDT
+            multiplier_raw = account_data.get("multiplier")
+            multiplier: int | None = None
+            if multiplier_raw is not None:
+                try:
+                    multiplier = int(multiplier_raw)
+                except (ValueError, TypeError):
+                    multiplier = None
+
             account_info = AccountInfo(
                 cash=cash,
                 buying_power=buying_power,
@@ -533,6 +563,9 @@ class AlpacaDataAdapter:
                 portfolio_value=portfolio_value,
                 initial_margin=initial_margin,
                 maintenance_margin=maintenance_margin,
+                regt_buying_power=regt_buying_power,
+                daytrading_buying_power=daytrading_buying_power,
+                multiplier=multiplier,
             )
 
             logger.debug(
@@ -542,6 +575,11 @@ class AlpacaDataAdapter:
                 cash=str(cash),
                 buying_power=str(buying_power) if buying_power else "N/A",
                 equity=str(equity) if equity else "N/A",
+                regt_buying_power=str(regt_buying_power) if regt_buying_power else "N/A",
+                daytrading_buying_power=str(daytrading_buying_power)
+                if daytrading_buying_power
+                else "N/A",
+                multiplier=str(multiplier) if multiplier else "N/A",
                 initial_margin=str(initial_margin) if initial_margin else "N/A",
                 maintenance_margin=str(maintenance_margin) if maintenance_margin else "N/A",
                 correlation_id=correlation_id,

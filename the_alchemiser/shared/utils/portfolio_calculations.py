@@ -4,9 +4,9 @@
 Portfolio calculation utilities for allocation analysis and comparison.
 
 .. deprecated::
-    This module applies capital_deployment_pct to total portfolio value rather
-    than base capital (cash + sell proceeds). For margin-aware trading, use
-    `the_alchemiser.portfolio_v2.core.planner.RebalancePlanCalculator` instead.
+    This module applies equity_deployment_pct to total portfolio value rather
+    than using the proper equity-based calculation with margin safety validation.
+    For margin-aware trading, use `the_alchemiser.portfolio_v2.core.planner.RebalancePlanCalculator` instead.
 
 This module provides shared calculation functions for portfolio allocation
 analysis, avoiding duplication across modules. These utilities are used by

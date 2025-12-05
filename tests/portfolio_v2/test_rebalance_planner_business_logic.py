@@ -114,9 +114,11 @@ class TestRebalancePlanCalculator:
     ):
         """Test that target values are calculated correctly.
 
-        Note: With the deployable capital fix, targets are now based on
-        (cash + expected full exit proceeds) rather than total portfolio value.
-        This is the correct behavior to prevent over-allocation.
+        Note: With the equity-based deployment, targets are calculated as:
+        deployable_capital = portfolio_equity * equity_deployment_pct
+
+        This is the professional/institutional approach where positions are
+        sized as a percentage of total portfolio value (NAV), not just cash.
         """
         correlation_id = str(uuid.uuid4())
 
@@ -127,10 +129,9 @@ class TestRebalancePlanCalculator:
         )
 
         # Calculate deployable capital the same way the planner does
-        # No positions are being fully exited (all symbols have target weights > 0)
-        expected_full_exit_proceeds = Decimal("0")
-        raw_deployable = sample_portfolio_snapshot.cash + expected_full_exit_proceeds
-        deployable_capital = raw_deployable * Decimal("1.0")  # 100% deployment (default)
+        # Now uses equity (total_value) as the base, not cash
+        equity = sample_portfolio_snapshot.total_value
+        deployable_capital = equity * Decimal("1.0")  # 100% deployment (default)
 
         for item in plan.items:
             expected_target_weight = sample_strategy_allocation.target_weights[item.symbol]
@@ -210,9 +211,9 @@ class TestRebalancePlanCalculator:
 
         plan = calculator.build_plan(allocation, sample_portfolio_snapshot, str(uuid.uuid4()))
 
-        # Calculate deployable capital the same way planner does
-        expected_full_exit_proceeds = Decimal("0")  # All symbols have target weights
-        deployable_capital = sample_portfolio_snapshot.cash * Decimal("1.0")  # 100% deployment
+        # Calculate deployable capital the same way planner does (equity-based)
+        equity = sample_portfolio_snapshot.total_value
+        deployable_capital = equity * Decimal("1.0")  # 100% deployment
 
         # Verify actions based on target values vs current values
         for item in plan.items:
@@ -296,39 +297,41 @@ class TestRebalancePlanCalculator:
         assert net_cash_needed <= sample_portfolio_snapshot.cash
 
     def test_rebalance_plan_respects_buying_power_constraints(self, calculator):
-        """Test that rebalance plan never exceeds available buying power.
+        """Test that rebalance plan respects capital constraints.
 
-        This test ensures the planner validates that:
-        BUY orders total <= (current cash + sell proceeds)
+        With equity-based deployment:
+        - Deployable capital = equity * deployment_pct
+        - BUY orders are funded by cash + sell proceeds
+        - System validates buys don't exceed available funding
 
-        This prevents the bug where mathematically impossible plans are created.
+        This test ensures the planner validates capital constraints properly.
         """
-        # Create a portfolio with limited cash and some positions
+        # Create a portfolio with positions and some cash
+        # Equity = $10,000 total
         portfolio_snapshot = PortfolioSnapshot(
             positions={
-                "NRGU": Decimal("14"),  # Will be sold
-                "SQQQ": Decimal("7.227358"),  # Will be sold
+                "NRGU": Decimal("100"),  # $1,945 value
+                "SQQQ": Decimal("100"),  # $1,850 value
             },
             prices={
-                "NRGU": Decimal("19.45"),  # $272.30 total value
-                "SQQQ": Decimal("18.50"),  # ~$133.71 total value
-                "GUSH": Decimal("24.42"),  # New position to buy
-                "SVIX": Decimal("19.13"),  # New position to buy
-                "TECL": Decimal("127.13"),  # New position to buy
-                "SOXS": Decimal("3.82"),  # New position to buy
+                "NRGU": Decimal("19.45"),
+                "SQQQ": Decimal("18.50"),
+                "GUSH": Decimal("24.42"),
+                "SVIX": Decimal("19.13"),
+                "TECL": Decimal("127.13"),
+                "SOXS": Decimal("3.82"),
             },
-            cash=Decimal("35.00"),  # Very limited cash
-            total_value=Decimal("441.01"),  # Total portfolio value
+            cash=Decimal("6205.00"),  # Cash to bring total to $10,000
+            total_value=Decimal("10000.00"),  # Total portfolio equity
         )
 
-        # Create allocation that would require more capital than available
-        # This mimics the production bug scenario
+        # Create allocation that rebalances within equity
         allocation = StrategyAllocation(
             target_weights={
-                "GUSH": Decimal("0.25"),  # Would need ~$109.50
-                "SVIX": Decimal("0.25"),  # Would need ~$109.50
-                "TECL": Decimal("0.25"),  # Would need ~$109.50
-                "SOXS": Decimal("0.25"),  # Would need ~$109.50
+                "GUSH": Decimal("0.25"),  # 25% of $10,000 = $2,500
+                "SVIX": Decimal("0.25"),  # 25% of $10,000 = $2,500
+                "TECL": Decimal("0.25"),  # 25% of $10,000 = $2,500
+                "SOXS": Decimal("0.25"),  # 25% of $10,000 = $2,500
                 # NRGU and SQQQ implicitly get 0 weight (will be sold)
             },
             correlation_id=str(uuid.uuid4()),

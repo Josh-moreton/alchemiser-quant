@@ -270,7 +270,7 @@ class PortfolioStateReader:
             account_info: Account information from adapter
 
         Returns:
-            MarginInfo with available margin data
+            MarginInfo with available margin data including extended fields
 
         """
         return MarginInfo(
@@ -278,6 +278,9 @@ class PortfolioStateReader:
             initial_margin=account_info.initial_margin,
             maintenance_margin=account_info.maintenance_margin,
             equity=account_info.equity,
+            regt_buying_power=account_info.regt_buying_power,
+            daytrading_buying_power=account_info.daytrading_buying_power,
+            multiplier=account_info.multiplier,
         )
 
     def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:

@@ -9,8 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.errors.exceptions import PortfolioError
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.config.config import MarginSafetyConfig
 
 # Module identifier constant for error reporting
 _MODULE_ID: str = "portfolio_v2.models.portfolio_snapshot"
@@ -18,16 +22,32 @@ _MODULE_ID: str = "portfolio_v2.models.portfolio_snapshot"
 
 @dataclass(frozen=True)
 class MarginInfo:
-    """Margin-related account information.
+    """Margin-related account information with safety validation.
 
     Tracks margin utilization and availability for leverage-aware capital management.
     All fields are optional since margin may not be available for all account types.
+
+    Key Fields from Alpaca:
+        buying_power: Total buying power (depends on multiplier: 1x/2x/4x)
+        regt_buying_power: Reg T overnight buying power (more conservative)
+        daytrading_buying_power: Day trade buying power (more aggressive, PDT only)
+        multiplier: 1 (cash), 2 (margin), 4 (PDT margin)
+
+    Safety Metrics:
+        margin_utilization_pct: initial_margin / equity * 100
+        maintenance_margin_buffer_pct: (equity - maintenance_margin) / maintenance_margin * 100
     """
 
-    buying_power: Decimal | None = None  # Total buying power (cash + margin)
+    # Core margin fields
+    buying_power: Decimal | None = None  # Total buying power (based on multiplier)
     initial_margin: Decimal | None = None  # Margin required to open positions
     maintenance_margin: Decimal | None = None  # Margin required to maintain positions
     equity: Decimal | None = None  # Total account equity (net liquidation value)
+
+    # Extended fields from Alpaca for intraday vs overnight distinction
+    regt_buying_power: Decimal | None = None  # Reg T overnight buying power
+    daytrading_buying_power: Decimal | None = None  # Day trading buying power (4x for PDT)
+    multiplier: int | None = None  # Account multiplier: 1=cash, 2=margin, 4=PDT
 
     @property
     def margin_available(self) -> Decimal | None:
@@ -45,8 +65,13 @@ class MarginInfo:
     def margin_utilization_pct(self) -> Decimal | None:
         """Calculate margin utilization as percentage of equity.
 
+        Formula: (initial_margin / equity) * 100
+
         Returns:
             Margin utilization percentage (0-100+) or None if data insufficient
+
+        Example:
+            equity=$10,000, initial_margin=$5,000 -> 50% utilization
 
         """
         if self.initial_margin is None or self.equity is None or self.equity <= 0:
@@ -57,15 +82,59 @@ class MarginInfo:
     def maintenance_margin_buffer_pct(self) -> Decimal | None:
         """Calculate buffer above maintenance margin as percentage.
 
+        Formula: ((equity - maintenance_margin) / maintenance_margin) * 100
+
         A higher buffer means more safety margin before a margin call.
+        At 0%, you're at the margin call threshold.
+        Negative means margin call territory.
 
         Returns:
             Buffer percentage or None if data insufficient
+
+        Example:
+            equity=$10,000, maintenance_margin=$4,000 -> 150% buffer
+            equity=$5,000, maintenance_margin=$4,000 -> 25% buffer (danger zone)
 
         """
         if self.equity is None or self.maintenance_margin is None or self.maintenance_margin <= 0:
             return None
         return ((self.equity - self.maintenance_margin) / self.maintenance_margin) * Decimal("100")
+
+    @property
+    def effective_buying_power(self) -> Decimal | None:
+        """Get the effective buying power for overnight positions.
+
+        Uses regt_buying_power (Reg T) if available for overnight safety,
+        otherwise falls back to general buying_power.
+
+        Returns:
+            Conservative buying power for overnight position sizing
+
+        """
+        # Prefer RegT buying power for overnight positions (more conservative)
+        if self.regt_buying_power is not None:
+            return self.regt_buying_power
+        return self.buying_power
+
+    @property
+    def is_margin_account(self) -> bool:
+        """Check if this is a margin-enabled account.
+
+        Returns:
+            True if multiplier > 1 (margin or PDT)
+
+        """
+        return self.multiplier is not None and self.multiplier > 1
+
+    @property
+    def is_pdt_account(self) -> bool:
+        """Check if this is a Pattern Day Trader account.
+
+        Returns:
+            True if multiplier == 4 (PDT margin)
+
+        """
+        return self.multiplier == 4
 
     def is_margin_available(self) -> bool:
         """Check if margin data is available.
@@ -75,6 +144,104 @@ class MarginInfo:
 
         """
         return self.buying_power is not None
+
+    def is_within_safety_limits(self, config: MarginSafetyConfig) -> tuple[bool, str | None]:
+        """Check if current margin state is within safety limits.
+
+        Args:
+            config: MarginSafetyConfig with safety thresholds
+
+        Returns:
+            Tuple of (is_safe, reason_if_unsafe)
+
+        """
+        # Check margin utilization
+        utilization = self.margin_utilization_pct
+        if utilization is not None:
+            max_util = Decimal(str(config.max_margin_utilization_pct))
+            if utilization > max_util:
+                return (
+                    False,
+                    f"Margin utilization {utilization:.1f}% exceeds max {max_util:.1f}%",
+                )
+
+        # Check maintenance margin buffer
+        buffer = self.maintenance_margin_buffer_pct
+        if buffer is not None:
+            min_buffer = Decimal(str(config.min_maintenance_margin_buffer_pct))
+            if buffer < min_buffer:
+                return (
+                    False,
+                    f"Maintenance margin buffer {buffer:.1f}% below min {min_buffer:.1f}%",
+                )
+
+        return (True, None)
+
+    def is_approaching_warning_threshold(
+        self, config: MarginSafetyConfig
+    ) -> tuple[bool, str | None]:
+        """Check if margin utilization is approaching warning threshold.
+
+        Args:
+            config: MarginSafetyConfig with warning thresholds
+
+        Returns:
+            Tuple of (is_warning, warning_message)
+
+        """
+        utilization = self.margin_utilization_pct
+        if utilization is not None:
+            warning_threshold = Decimal(str(config.margin_warning_threshold_pct))
+            if utilization > warning_threshold:
+                return (
+                    True,
+                    f"Margin utilization {utilization:.1f}% exceeds warning threshold {warning_threshold:.1f}%",
+                )
+
+        return (False, None)
+
+    def calculate_safe_deployment_limit(
+        self,
+        config: MarginSafetyConfig,
+        current_positions_value: Decimal,
+    ) -> Decimal | None:
+        """Calculate maximum safe deployment based on margin constraints.
+
+        This ensures we don't exceed margin safety limits even if
+        buying_power would allow more.
+
+        Args:
+            config: MarginSafetyConfig with safety thresholds
+            current_positions_value: Current market value of positions
+
+        Returns:
+            Maximum safe deployment amount, or None if insufficient data
+
+        """
+        if self.equity is None or self.maintenance_margin is None:
+            return None
+
+        # Method 1: Cap based on max margin utilization
+        # If max utilization is 75%, we can use at most 75% of equity as initial margin
+        # Assuming ~50% initial margin requirement (typical for stocks),
+        # we can deploy at most equity * max_util% * 2
+        Decimal(str(config.max_margin_utilization_pct)) / Decimal("100")
+
+        # Method 2: Ensure we maintain minimum buffer above maintenance margin
+        # buffer = (equity - maintenance_margin) / maintenance_margin
+        # We need: (equity_after - mm_after) / mm_after >= min_buffer
+        # This is complex because mm_after depends on new positions
+
+        # Simpler approach: cap at max_equity_deployment_pct * equity
+        max_deployment = Decimal(str(config.max_equity_deployment_pct))
+        safe_limit = self.equity * max_deployment
+
+        # Also cap at effective buying power
+        effective_bp = self.effective_buying_power
+        if effective_bp is not None:
+            safe_limit = min(safe_limit, effective_bp)
+
+        return safe_limit
 
 
 @dataclass(frozen=True)

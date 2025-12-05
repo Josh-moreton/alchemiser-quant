@@ -39,6 +39,54 @@ class LoggingSettings(BaseModel):
     local_log_file: str | None = None
 
 
+class MarginSafetyConfig(BaseModel):
+    """Margin safety configuration for risk management.
+
+    Professional-grade margin controls to prevent margin calls:
+
+    Margin Utilization:
+        margin_utilization = initial_margin / equity * 100
+
+    Maintenance Margin Buffer:
+        buffer = (equity - maintenance_margin) / maintenance_margin * 100
+        Higher buffer = more safety from margin call
+
+    Example configurations:
+        Conservative: max_utilization=50%, min_buffer=50%, max_deployment=120%
+        Moderate:     max_utilization=60%, min_buffer=35%, max_deployment=140%
+        Aggressive:   max_utilization=75%, min_buffer=25%, max_deployment=150%
+    """
+
+    # Maximum margin utilization allowed (initial_margin / equity * 100)
+    # At 75%, you're using 75% of your equity as margin
+    # Higher = more leverage risk, lower = more conservative
+    max_margin_utilization_pct: float = 75.0
+
+    # Warning threshold for margin utilization - triggers alerts
+    # When utilization exceeds this, a warning is logged/sent
+    margin_warning_threshold_pct: float = 60.0
+
+    # Minimum buffer above maintenance margin required
+    # buffer = (equity - maintenance_margin) / maintenance_margin * 100
+    # At 25%, you have 25% cushion before margin call
+    # Alpaca requires maintenance margin to be met or positions are liquidated
+    min_maintenance_margin_buffer_pct: float = 25.0
+
+    # Hard cap on equity_deployment_pct regardless of buying power
+    # Even if Alpaca gives you 4x buying power, limit leverage exposure
+    # 1.5 = max 150% of equity can be deployed
+    max_equity_deployment_pct: float = 1.50
+
+    # Whether to use RegT (overnight) buying power vs day-trade buying power
+    # True = conservative overnight requirements
+    # False = allows higher intraday leverage but positions must be closed same-day
+    use_overnight_buying_power: bool = True
+
+    # If True, block trades when margin data is unavailable
+    # If False, fall back to cash-only mode when margin data missing
+    require_margin_data_for_leverage: bool = True
+
+
 class AlpacaSettings(BaseModel):
     """Connection settings for the Alpaca trading API."""
 
@@ -46,27 +94,38 @@ class AlpacaSettings(BaseModel):
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     paper_trading: bool = True
 
+    # Margin Safety Configuration
+    margin_safety: MarginSafetyConfig = Field(default_factory=MarginSafetyConfig)
+
     # Capital Deployment Configuration
     # ================================
-    # capital_deployment_pct: What percentage of actual cash (equity minus positions) to deploy.
-    # - 1.00 (100%) = Deploy all available cash, no reserve
-    # - 0.99 (99%)  = Keep 1% cash reserve (conservative)
-    # - 1.02 (102%) = Use margin to deploy 2% more than cash (leverage)
+    # equity_deployment_pct: What percentage of portfolio EQUITY to deploy.
+    # Equity = net liquidation value = cash + positions market value
     #
-    # When > 1.0 (leverage mode):
-    # - Requires margin-enabled Alpaca account
-    # - The planner will validate against buying_power before proceeding
-    # - If buying_power check fails, falls back to cash-only deployment
+    # This is the correct mental model:
+    # - You put $10,000 in the account, equity = $10,000
+    # - With 0.95 deployment, you deploy $9,500 (keep 5% cash reserve)
+    # - With 1.10 deployment, you deploy $11,000 (use 10% margin on top of equity)
     #
-    # Note: This multiplies base capital (cash + expected sell proceeds),
-    # not total portfolio value or buying_power.
-    # This gives predictable leverage relative to your deployable capital.
+    # Values:
+    # - 0.95 (95%)  = Keep 5% cash reserve, conservative
+    # - 1.00 (100%) = Deploy all equity, no reserve, no margin
+    # - 1.10 (110%) = Use margin for 10% extra on top of equity
+    # - 1.50 (150%) = Use margin for 50% extra (capped by margin_safety.max_equity_deployment_pct)
     #
-    # Set via environment variable: ALPACA_CAPITAL_DEPLOYMENT_PCT=1.02
-    capital_deployment_pct: float = 1.0  # Default: deploy 100% of cash (no leverage)
+    # Safety: The planner validates this against:
+    # - margin_safety.max_equity_deployment_pct (hard cap)
+    # - margin_safety.max_margin_utilization_pct (utilization limit)
+    # - margin_safety.min_maintenance_margin_buffer_pct (margin call prevention)
+    # - Available buying_power from Alpaca (actual limit)
+    #
+    # Set via environment variable: ALPACA_EQUITY_DEPLOYMENT_PCT=1.10
+    equity_deployment_pct: float = 1.0  # Default: deploy 100% of equity (no leverage)
 
-    # Legacy alias for backward compatibility - will be removed in future
-    # If set, overrides capital_deployment_pct with (1.0 - cash_reserve_pct)
+    # Legacy aliases for backward compatibility - will be removed in future
+    # capital_deployment_pct is the old name for equity_deployment_pct
+    capital_deployment_pct: float | None = None
+    # If set, overrides with (1.0 - cash_reserve_pct)
     cash_reserve_pct: float | None = None
 
     slippage_bps: int = 5
@@ -77,27 +136,41 @@ class AlpacaSettings(BaseModel):
 
     @property
     def effective_deployment_pct(self) -> float:
-        """Get the effective capital deployment percentage.
+        """Get the effective equity deployment percentage.
 
-        Handles backward compatibility with legacy cash_reserve_pct setting.
+        Handles backward compatibility with legacy settings.
+        Caps at margin_safety.max_equity_deployment_pct.
+
+        Resolution order:
+        1. cash_reserve_pct (legacy) -> converts to 1.0 - value
+        2. capital_deployment_pct (legacy alias)
+        3. equity_deployment_pct (current)
 
         Returns:
-            Deployment multiplier (e.g., 1.02 for 102% deployment)
+            Deployment multiplier (e.g., 1.10 for 110% of equity)
 
         """
+        raw_pct: float
         if self.cash_reserve_pct is not None:
             # Legacy mode: convert cash_reserve_pct to deployment_pct
-            # cash_reserve_pct=0.01 means 99% deployment
-            # cash_reserve_pct=-0.02 means 102% deployment
-            return 1.0 - self.cash_reserve_pct
-        return self.capital_deployment_pct
+            # cash_reserve_pct=0.05 means 95% deployment
+            # cash_reserve_pct=-0.10 means 110% deployment
+            raw_pct = 1.0 - self.cash_reserve_pct
+        elif self.capital_deployment_pct is not None:
+            # Legacy alias
+            raw_pct = self.capital_deployment_pct
+        else:
+            raw_pct = self.equity_deployment_pct
+
+        # Cap at safety maximum
+        return min(raw_pct, self.margin_safety.max_equity_deployment_pct)
 
     @property
     def is_leverage_enabled(self) -> bool:
         """Check if leverage mode is enabled (deployment > 100%).
 
         Returns:
-            True if deploying more than 100% of cash
+            True if deploying more than 100% of equity
 
         """
         return self.effective_deployment_pct > 1.0
