@@ -23,8 +23,9 @@ from the_alchemiser.shared.events.schemas import (
     ErrorNotificationRequested,
     TradingNotificationRequested,
 )
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
+configure_application_logging()
 logger = get_logger(__name__)
 
 

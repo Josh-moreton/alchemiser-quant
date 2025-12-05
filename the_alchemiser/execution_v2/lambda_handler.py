@@ -28,12 +28,13 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
     unwrap_sqs_event,
 )
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
+configure_application_logging()
 logger = get_logger(__name__)
 
 

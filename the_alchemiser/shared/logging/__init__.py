@@ -11,11 +11,7 @@ This package provides structlog-based structured logging infrastructure with:
 """
 
 # Structlog configuration functions
-from .config import (
-    configure_application_logging,
-    configure_production_logging,
-    configure_test_logging,
-)
+from .config import configure_application_logging, configure_test_logging
 
 # Context management (still using contextvars)
 from .context import (
@@ -43,7 +39,6 @@ from .structlog_trading import (
 __all__ = [
     "bind_trading_context",
     "configure_application_logging",
-    "configure_production_logging",
     "configure_structlog",
     "configure_test_logging",
     "generate_request_id",

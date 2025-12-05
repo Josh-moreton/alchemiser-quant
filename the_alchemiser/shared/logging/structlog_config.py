@@ -4,8 +4,8 @@ Structlog configuration for the Alchemiser trading platform.
 
 This module provides structlog configuration including custom processors for
 Alchemiser-specific context, Decimal serialization, and output formatting.
-Output format is either JSON (production) or console (development), controlled
-by the structured_format parameter - these formats are mutually exclusive.
+Output format is always human-readable (ConsoleRenderer) across all
+environments.
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def add_alchemiser_context(
 
 
 def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
-    """Provide default JSON serialization for structlog JSONRenderer.
+    """Serialize common domain types into human-friendly forms.
 
     Supports common domain types used in The Alchemiser so logging never crashes:
     - Decimal -> str (preserve precision)
@@ -83,28 +83,23 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
     - Sets/Tuples -> list
     - datetime -> ISO 8601 string
 
-    For unknown types, raise TypeError to let json detect unsupported objects (maintains tests).
+    For unknown types, return the original object (ConsoleRenderer can handle many
+    builtin types and we prefer not to throw while logging).
     """
-    # Precise numbers
     if isinstance(obj, Decimal):
         return str(obj)
 
-    # Domain value objects
     if isinstance(obj, Symbol):
         return obj.value
 
-    # Dataclasses
     if is_dataclass(obj) and not isinstance(obj, type):
         return asdict(obj)
 
-    # Pydantic-like objects without importing pydantic directly
     model_dump = getattr(obj, "model_dump", None)
     if callable(model_dump):
         try:
             return model_dump()
         except (TypeError, ValueError, AttributeError) as e:
-            # Log the error for debugging but continue with fallback
-            # Use stdlib logging since structlog may not be configured yet
             logging.getLogger(__name__).debug(
                 "Failed to serialize Pydantic model via model_dump: %s. Falling back to str().",
                 e,
@@ -112,90 +107,77 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
             )
             return str(obj)
 
-    # Common container/temporal types
     if isinstance(obj, set | tuple):
         return list(obj)
     if isinstance(obj, datetime):
         return obj.isoformat()
 
-    # Keep strict behavior for unsupported types
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    return obj
+
+
+def normalize_event_values(
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
+    """Normalize event values for human-readable logging without failing serialization."""
+    normalized: dict[str, Any] = {}
+    for key, value in event_dict.items():
+        try:
+            normalized[key] = decimal_serializer(value)
+        except Exception:
+            normalized[key] = value
+    return normalized
 
 
 def configure_structlog(
     *,
-    structured_format: bool = True,
     console_level: int = logging.INFO,
     file_level: int = logging.DEBUG,
     file_path: str | None = None,
 ) -> None:
-    """Configure structlog with stdlib logging handlers for proper console/file separation.
-
-    This follows the proper pattern: let stdlib logging handle routing to different
-    handlers with different levels, while structlog handles formatting.
+    """Configure structlog with human-readable output for console and optional file.
 
     Args:
-        structured_format: If True, use JSON for file output; if False, use human-readable
         console_level: Log level for console output (INFO keeps terminal clean)
         file_level: Log level for file output (DEBUG captures everything)
         file_path: Optional file path for logging. If None, only console logging is used.
                    In development, typically set to 'logs/trade_run.log'.
 
     """
-    # Set up stdlib logging handlers first
     root_logger = logging.getLogger()
-    root_logger.setLevel(console_level)  # Allow all levels through to handlers
-    root_logger.handlers.clear()  # Clear any existing handlers
+    min_level = min(console_level, file_level) if file_path else console_level
+    root_logger.setLevel(min_level)
+    root_logger.handlers.clear()
 
-    # Console handler (INFO+ only for clean terminal)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(console_level)
-    console_handler.setFormatter(logging.Formatter("%(message)s"))  # Just the message
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
     root_logger.addHandler(console_handler)
 
-    # File handler (DEBUG+ for detailed logs)
-    # In AWS Lambda, the filesystem is read-only except for /tmp. Avoid creating files unless
-    # a writable path is explicitly provided via environment or caller.
     if file_path:
         try:
             log_path = Path(file_path)
-            # Only attempt to create dirs if parent is writable
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_handler = logging.FileHandler(file_path)
             file_handler.setLevel(file_level)
-            file_handler.setFormatter(logging.Formatter("%(message)s"))  # Structlog formats
+            file_handler.setFormatter(logging.Formatter("%(message)s"))
             root_logger.addHandler(file_handler)
         except OSError as e:
-            # Fall back to console-only if file logging setup fails (e.g., read-only FS)
-            # Log to console handler which is already configured
             root_logger.warning(
                 "Failed to configure file logging at %s: %s. Falling back to console-only logging.",
                 file_path,
                 e,
             )
 
-    # Configure structlog processors
     processors: list[Any] = [
-        # Merge context variables automatically
         structlog.contextvars.merge_contextvars,
-        # Add our custom context
         add_alchemiser_context,
-        # Add timestamp in ISO format
         structlog.processors.TimeStamper(fmt="iso"),
-        # Add log level
         structlog.processors.add_log_level,
-        # Add caller info for debugging
         structlog.processors.StackInfoRenderer(),
-        # Pretty exceptions are handled by renderers; include exc_info via logger when needed
+        normalize_event_values,
+        structlog.dev.ConsoleRenderer(),
     ]
-
-    if structured_format:
-        # JSON output for production/file logging
-        processors.append(structlog.processors.JSONRenderer(default=decimal_serializer))
-    else:
-        # Human-readable output for development
-        processors.append(structlog.dev.ConsoleRenderer())
 
     structlog.configure(
         processors=processors,

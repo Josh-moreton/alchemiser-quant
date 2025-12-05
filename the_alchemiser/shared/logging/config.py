@@ -2,9 +2,8 @@
 
 Configuration management for structlog-based logging system.
 
-This module provides application-level logging configuration functions for different
-environments including production, test, and development configurations.
-All configurations now use structlog by default.
+This module provides application-level logging configuration functions for human-readable
+logging across environments. All configurations now use structlog by default.
 """
 
 from __future__ import annotations
@@ -25,82 +24,44 @@ def configure_test_logging(log_level: int = logging.WARNING) -> None:
         >>> configure_test_logging(log_level=logging.DEBUG)
 
     """
-    configure_structlog(
-        structured_format=False,  # Console format for readability in tests
-        console_level=log_level,
-        file_level=log_level,
-    )
+    configure_structlog(console_level=log_level, file_level=log_level)
 
 
-def configure_production_logging(
-    log_level: int = logging.INFO,
-    log_file_path: str | None = None,
+def configure_application_logging(
     *,
+    log_level: int = logging.INFO,
     console_level: int | None = None,
+    log_file_path: str | None = None,
 ) -> None:
-    """Configure structlog for production environment with JSON output.
-
-    Args:
-        log_level: Base log level for handlers (default: INFO).
-        log_file_path: Optional path/URI for file logging. Falls back to LOG_FILE_PATH env var.
-        console_level: Override for console handler level. Defaults to log_level if not provided.
-
-    Example:
-        >>> configure_production_logging(log_level=logging.INFO)
-        >>> configure_production_logging(log_file_path="/tmp/app.log", console_level=logging.WARNING)
-
-    Note:
-        File logging may fail silently if the log file path is not writable.
-        In AWS Lambda environments, only /tmp is writable. The underlying
-        structlog_config module catches OSError and falls back to console-only logging.
-
-    """
-    effective_console_level = console_level if console_level is not None else log_level
-    # In Lambda, avoid file logging by default. Allow opt-in via LOG_FILE_PATH env var
-    effective_log_file = log_file_path or os.getenv("LOG_FILE_PATH")
-    configure_structlog(
-        structured_format=True,  # JSON format for production
-        console_level=effective_console_level,
-        file_level=log_level,
-        file_path=effective_log_file,
-    )
-
-
-def configure_application_logging() -> None:
-    """Configure application logging with structlog.
-
-    Automatically selects appropriate configuration based on environment.
-    Production uses JSON format, development uses console format with clean terminal output.
+    """Configure application logging with structlog (human-readable everywhere).
 
     Environment Detection:
-        - Production: AWS_LAMBDA_FUNCTION_NAME environment variable is set (not None)
-        - Development: AWS_LAMBDA_FUNCTION_NAME is not set
+        - Lambda (AWS_LAMBDA_FUNCTION_NAME set): console only unless LOG_FILE_PATH provided
+        - Non-Lambda: console plus local file logging (logs/trade_run.log) by default
 
-    Example:
-        >>> # In Lambda (production)
-        >>> configure_application_logging()  # Uses JSON format, console-only
-        >>>
-        >>> # In local development
-        >>> configure_application_logging()  # Uses console format, logs to logs/trade_run.log
-
-    Note:
-        In development, file logging to logs/trade_run.log may fail silently if the
-        directory doesn't exist. The underlying structlog_config module catches OSError
-        and falls back to console-only logging.
+    Args:
+        log_level: Base log level for handlers (default: INFO)
+        console_level: Optional console level override (defaults to log_level)
+        log_file_path: Optional explicit file path. If not provided, falls back to
+            LOG_FILE_PATH env var, then to a development default when not in Lambda.
 
     """
-    # Determine if we're in production (Lambda environment)
-    # Use explicit None check to handle empty string case correctly
-    is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+    is_lambda = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
-    if is_production:
-        configure_production_logging(log_level=logging.INFO)
-    else:
-        # Development environment - clean console, detailed file
-        # Default to local file logging for development only
-        configure_structlog(
-            structured_format=False,  # Human-readable for development
-            console_level=logging.INFO,  # Clean console (no debug spam)
-            file_level=logging.DEBUG,  # File captures everything for debugging
-            file_path="logs/trade_run.log",
-        )
+    effective_console_level = console_level if console_level is not None else log_level
+
+    # Prefer explicit parameter, then env var. Only default to local file when not in Lambda.
+    env_log_file = os.getenv("LOG_FILE_PATH")
+    default_dev_file = None if is_lambda else "logs/trade_run.log"
+    effective_log_file = log_file_path or env_log_file or default_dev_file
+
+    effective_file_level = log_level
+    if not is_lambda and effective_log_file:
+        # In dev, keep detailed file logging for debugging
+        effective_file_level = logging.DEBUG
+
+    configure_structlog(
+        console_level=effective_console_level,
+        file_level=effective_file_level,
+        file_path=effective_log_file,
+    )
