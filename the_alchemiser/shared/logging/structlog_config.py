@@ -124,22 +124,26 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
 
 def configure_structlog(
     *,
-    structured_format: bool = True,
     console_level: int = logging.INFO,
     file_level: int = logging.DEBUG,
     file_path: str | None = None,
+    use_colors: bool = True,
+    include_timestamp: bool = True,
 ) -> None:
-    """Configure structlog with stdlib logging handlers for proper console/file separation.
+    """Configure structlog with beautiful, enterprise-grade human-readable output.
 
     This follows the proper pattern: let stdlib logging handle routing to different
     handlers with different levels, while structlog handles formatting.
 
     Args:
-        structured_format: If True, use JSON for file output; if False, use human-readable
         console_level: Log level for console output (INFO keeps terminal clean)
         file_level: Log level for file output (DEBUG captures everything)
         file_path: Optional file path for logging. If None, only console logging is used.
                    In development, typically set to 'logs/trade_run.log'.
+        use_colors: If True, use ANSI colors in output. Set False for CloudWatch
+                    (ANSI codes don't render and appear as garbage characters).
+        include_timestamp: If True, add ISO timestamp to logs. Set False for Lambda
+                           since CloudWatch automatically adds timestamps.
 
     """
     # Set up stdlib logging handlers first
@@ -181,21 +185,26 @@ def configure_structlog(
         structlog.contextvars.merge_contextvars,
         # Add our custom context
         add_alchemiser_context,
-        # Add timestamp in ISO format
-        structlog.processors.TimeStamper(fmt="iso"),
         # Add log level
         structlog.processors.add_log_level,
         # Add caller info for debugging
         structlog.processors.StackInfoRenderer(),
-        # Pretty exceptions are handled by renderers; include exc_info via logger when needed
     ]
 
-    if structured_format:
-        # JSON output for production/file logging
-        processors.append(structlog.processors.JSONRenderer(default=decimal_serializer))
-    else:
-        # Human-readable output for development
-        processors.append(structlog.dev.ConsoleRenderer())
+    # Only add timestamp locally - CloudWatch provides its own timestamp
+    if include_timestamp:
+        processors.append(structlog.processors.TimeStamper(fmt="iso"))
+
+    # Beautiful human-readable output with enterprise-grade formatting
+    processors.append(
+        structlog.dev.ConsoleRenderer(
+            colors=use_colors,
+            pad_event=50,
+            pad_level=True,
+            sort_keys=False,
+            exception_formatter=structlog.dev.plain_traceback,
+        )
+    )
 
     structlog.configure(
         processors=processors,
