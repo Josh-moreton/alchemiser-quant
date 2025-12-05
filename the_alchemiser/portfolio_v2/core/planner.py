@@ -379,25 +379,17 @@ class RebalancePlanCalculator:
                 operation="_validate_leverage_capacity",
             )
 
-        # Check if buying power can cover our deployment
-        if deployable_capital > buying_power:
-            logger.error(
-                "Insufficient buying power for leverage request",
-                module=MODULE_NAME,
-                action="_validate_leverage_capacity",
-                deployable_capital_requested=str(deployable_capital),
-                buying_power_available=str(buying_power),
-                equity=str(equity),
-                margin_required=str(margin_required),
-                deficit=str(deployable_capital - buying_power),
-            )
-            raise PortfolioError(
-                f"Insufficient buying power: need ${deployable_capital} but only "
-                f"${buying_power} buying power available. "
-                f"Consider reducing equity_deployment_pct.",
-                module=MODULE_NAME,
-                operation="_validate_leverage_capacity",
-            )
+        # Log margin capacity for observability (actual validation happens in _validate_capital_constraints
+        # after we calculate the actual trades needed)
+        logger.info(
+            "Margin capacity check",
+            module=MODULE_NAME,
+            action="_validate_leverage_capacity",
+            deployable_capital_target=str(deployable_capital),
+            buying_power_available=str(buying_power),
+            equity=str(equity),
+            margin_required=str(margin_required),
+        )
 
         # Validate against margin safety limits
         is_safe, safety_reason = margin_info.is_within_safety_limits(margin_safety_config)
@@ -509,8 +501,8 @@ class RebalancePlanCalculator:
         available_capital = snapshot.cash + total_sell_proceeds
 
         if leverage_enabled:
-            # In leverage mode, check that buys are covered by buying power
-            # buying_power already accounts for cash, margin, and existing positions
+            # In leverage mode, check that NET buys (after sell proceeds) are covered
+            # Selling positions frees up buying power, so we only need BP for the net increase
             if snapshot.margin.buying_power is None:
                 raise PortfolioError(
                     "Margin buying power is not available in leverage mode.",
@@ -519,11 +511,14 @@ class RebalancePlanCalculator:
                 )
             # Use effective buying power for overnight safety
             effective_bp = snapshot.margin.effective_buying_power or snapshot.margin.buying_power
-            if total_buy_amount > effective_bp:
+            # Net capital needed = buys - sells (sells free up buying power)
+            net_buy_needed = total_buy_amount - total_sell_proceeds
+            if net_buy_needed > effective_bp:
                 raise PortfolioError(
-                    f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
-                    f"but only ${effective_bp} available (margin buying power). "
-                    f"Deficit: ${total_buy_amount - effective_bp}. "
+                    f"Cannot execute rebalance: requires ${net_buy_needed} net BUY capital "
+                    f"(total buys: ${total_buy_amount}, sell proceeds: ${total_sell_proceeds}) "
+                    f"but only ${effective_bp} buying power available. "
+                    f"Deficit: ${net_buy_needed - effective_bp}. "
                     f"Consider reducing equity_deployment_pct.",
                     module=MODULE_NAME,
                     operation="_validate_capital_constraints",
