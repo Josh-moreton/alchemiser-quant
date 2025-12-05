@@ -36,9 +36,7 @@ PRIORITY_THRESHOLD_100 = Decimal("100")
 PRIORITY_THRESHOLD_50 = Decimal("50")
 
 # Portfolio weight validation tolerance
-# Allows for Decimal precision errors while catching over-allocation bugs
-# Tighter than StrategyAllocation's ±1% since we're validating execution feasibility
-# Match the tolerance from StrategyAllocation DTO (0.99 to 1.01)
+# Matches tolerance from StrategyAllocation DTO (0.99 to 1.01)
 # Weights should sum to ~100% of deployable capital
 TARGET_WEIGHT_SUM_MAX = Decimal("1.01")  # Allow 1% over for strategy flexibility
 TARGET_WEIGHT_SUM_MIN = Decimal("0.99")  # Warn if more than 1% under-allocated
@@ -279,11 +277,7 @@ class RebalancePlanCalculator:
         deployable_capital = base_capital * deployment_pct
 
         leverage_enabled = settings.alpaca.is_leverage_enabled
-        margin_required = Decimal("0")
-
-        if leverage_enabled:
-            # When using leverage, calculate how much margin we need
-            margin_required = deployable_capital - base_capital
+        margin_required = deployable_capital - base_capital if leverage_enabled else Decimal("0")
 
         logger.info(
             "Calculating deployable capital",
@@ -399,7 +393,11 @@ class RebalancePlanCalculator:
             action="_validate_leverage_capacity",
             deployable_capital=str(deployable_capital),
             buying_power=str(buying_power),
-            buying_power_utilization_pct=f"{float(deployable_capital / buying_power) * 100:.1f}%",
+            buying_power_utilization_pct=(
+                f"{float(deployable_capital / buying_power) * 100:.1f}%"
+                if buying_power > Decimal("0")
+                else "N/A"
+            ),
             margin_utilization_pct=(
                 f"{float(margin_info.margin_utilization_pct):.1f}%"
                 if margin_info.margin_utilization_pct
@@ -452,20 +450,19 @@ class RebalancePlanCalculator:
         available_capital = snapshot.cash + total_sell_proceeds
 
         if leverage_enabled:
-            # In leverage mode, we already validated against buying_power
-            # Just check that buys are covered by cash + sells + margin
-            margin_available = (
-                snapshot.margin.buying_power - available_capital
-                if snapshot.margin.buying_power
-                else Decimal("0")
-            )
-            total_available = available_capital + margin_available
-
-            if total_buy_amount > total_available:
+            # In leverage mode, check that buys are covered by buying power
+            # buying_power already accounts for cash, margin, and existing positions
+            if snapshot.margin.buying_power is None:
+                raise PortfolioError(
+                    "Margin buying power is not available in leverage mode.",
+                    module=MODULE_NAME,
+                    operation="_validate_capital_constraints",
+                )
+            if total_buy_amount > snapshot.margin.buying_power:
                 raise PortfolioError(
                     f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
-                    f"but only ${total_available} available (cash + sells + margin). "
-                    f"Deficit: ${total_buy_amount - total_available}",
+                    f"but only ${snapshot.margin.buying_power} available (margin buying power). "
+                    f"Deficit: ${total_buy_amount - snapshot.margin.buying_power}",
                     module=MODULE_NAME,
                     operation="_validate_capital_constraints",
                 )

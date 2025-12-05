@@ -58,8 +58,9 @@ class AlpacaSettings(BaseModel):
     # - The planner will validate against buying_power before proceeding
     # - If buying_power check fails, falls back to cash-only deployment
     #
-    # Note: This multiplies CASH, not total portfolio value or buying_power.
-    # This gives predictable leverage relative to your actual money.
+    # Note: This multiplies base capital (cash + expected sell proceeds),
+    # not total portfolio value or buying_power.
+    # This gives predictable leverage relative to your deployable capital.
     #
     # Set via environment variable: ALPACA_CAPITAL_DEPLOYMENT_PCT=1.02
     capital_deployment_pct: float = 1.0  # Default: deploy 100% of cash (no leverage)
