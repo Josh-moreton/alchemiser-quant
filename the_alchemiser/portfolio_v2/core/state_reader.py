@@ -340,8 +340,17 @@ class PortfolioStateReader:
                 cash = self._data_adapter.get_account_cash()
                 margin_info = MarginInfo()  # Empty margin info
 
-            # Check for negative or zero cash balance - liquidate and retry
-            if cash <= Decimal("0"):
+            # Check for negative equity - this indicates a real problem (margin call territory)
+            # Negative cash is normal for margin accounts, but negative equity means losses exceed deposits
+            equity = margin_info.equity if margin_info.equity else cash
+            if equity <= Decimal("0"):
+                logger.error(
+                    "Account has negative equity - attempting liquidation",
+                    module=MODULE_NAME,
+                    action="build_snapshot",
+                    cash=str(cash),
+                    equity=str(equity),
+                )
                 cash, positions = self._handle_negative_cash_balance(cash)
                 # After liquidation, positions should be empty, so no prices needed
                 # But we still need to fetch prices for any requested symbols
