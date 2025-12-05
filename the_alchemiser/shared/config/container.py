@@ -43,7 +43,6 @@ class ApplicationContainer(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
             "the_alchemiser.main",
-            "the_alchemiser.lambda_handler",
         ]
     )
 
