@@ -15,6 +15,7 @@ Thread-safety depends on the AlpacaManager instance provided.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,21 @@ logger = get_logger(__name__)
 
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.adapters.alpaca_data_adapter"
+
+
+@dataclass(frozen=True)
+class AccountInfo:
+    """Complete account information from Alpaca.
+
+    Contains all capital-related fields for proper margin-aware trading.
+    """
+
+    cash: Decimal  # Settled cash balance
+    buying_power: Decimal | None  # Total buying power (cash + margin)
+    equity: Decimal | None  # Account equity (net liquidation value)
+    portfolio_value: Decimal | None  # Total portfolio value
+    initial_margin: Decimal | None  # Margin used to open positions
+    maintenance_margin: Decimal | None  # Margin required to maintain positions
 
 
 class AlpacaDataAdapter:
@@ -406,6 +422,151 @@ class AlpacaDataAdapter:
                 f"Failed to retrieve cash balance: {e}",
                 context={
                     "operation": "get_account_cash",
+                    "error": str(e),
+                    "correlation_id": correlation_id,
+                },
+            ) from e
+
+    def get_account_info(
+        self,
+        *,
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
+    ) -> AccountInfo:
+        """Get complete account information including margin data.
+
+        Returns cash, buying power, equity, and margin information for
+        proper capital management in both cash and margin accounts.
+
+        Args:
+            correlation_id: Optional correlation ID for distributed tracing
+            causation_id: Optional causation ID linking to triggering event
+
+        Returns:
+            AccountInfo with all available capital and margin fields.
+            Margin fields may be None if not available from broker.
+
+        Raises:
+            DataProviderError: If account information cannot be retrieved
+                or cash field is missing (cash is required).
+
+        Pre-conditions:
+            - AlpacaManager must be authenticated and connected
+
+        Post-conditions:
+            - Returns AccountInfo with at least cash field populated
+            - Margin fields are None if not available from broker
+
+        Thread-safety:
+            Depends on AlpacaManager thread-safety
+
+        """
+        logger.debug(
+            "Fetching complete account information",
+            module=MODULE_NAME,
+            action="get_account_info",
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+        )
+
+        try:
+            account_data = self._alpaca_manager.get_account()
+            if not account_data:
+                error_msg = "Account information unavailable"
+                logger.error(
+                    error_msg,
+                    module=MODULE_NAME,
+                    action="get_account_info",
+                    correlation_id=correlation_id,
+                    causation_id=causation_id,
+                )
+                raise DataProviderError(
+                    error_msg,
+                    context={
+                        "operation": "get_account_info",
+                        "correlation_id": correlation_id,
+                    },
+                )
+
+            # Cash is required
+            cash_value = account_data.get("cash")
+            if cash_value is None:
+                error_msg = "Cash information not available in account"
+                logger.error(
+                    error_msg,
+                    module=MODULE_NAME,
+                    action="get_account_info",
+                    account_keys=list(account_data.keys()),
+                    correlation_id=correlation_id,
+                    causation_id=causation_id,
+                )
+                raise DataProviderError(
+                    error_msg,
+                    context={
+                        "operation": "get_account_info",
+                        "available_keys": list(account_data.keys()),
+                        "correlation_id": correlation_id,
+                    },
+                )
+
+            cash = Decimal(str(cash_value))
+
+            # Extract optional margin fields with safe conversion
+            def _safe_decimal(value: object) -> Decimal | None:
+                if value is None:
+                    return None
+                try:
+                    return Decimal(str(value))
+                except (ValueError, TypeError):
+                    return None
+
+            buying_power = _safe_decimal(account_data.get("buying_power"))
+            equity = _safe_decimal(account_data.get("equity"))
+            portfolio_value = _safe_decimal(account_data.get("portfolio_value"))
+            initial_margin = _safe_decimal(account_data.get("initial_margin"))
+            maintenance_margin = _safe_decimal(account_data.get("maintenance_margin"))
+
+            account_info = AccountInfo(
+                cash=cash,
+                buying_power=buying_power,
+                equity=equity,
+                portfolio_value=portfolio_value,
+                initial_margin=initial_margin,
+                maintenance_margin=maintenance_margin,
+            )
+
+            logger.debug(
+                "Retrieved complete account information",
+                module=MODULE_NAME,
+                action="get_account_info",
+                cash=str(cash),
+                buying_power=str(buying_power) if buying_power else "N/A",
+                equity=str(equity) if equity else "N/A",
+                initial_margin=str(initial_margin) if initial_margin else "N/A",
+                maintenance_margin=str(maintenance_margin) if maintenance_margin else "N/A",
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+            )
+
+            return account_info
+
+        except DataProviderError:
+            # Re-raise our own exceptions
+            raise
+        except (AttributeError, KeyError, ValueError, TypeError) as e:
+            logger.error(
+                "Failed to retrieve account information",
+                module=MODULE_NAME,
+                action="get_account_info",
+                error_type=e.__class__.__name__,
+                error_message=str(e),
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+            )
+            raise DataProviderError(
+                f"Failed to retrieve account information: {e}",
+                context={
+                    "operation": "get_account_info",
                     "error": str(e),
                     "correlation_id": correlation_id,
                 },

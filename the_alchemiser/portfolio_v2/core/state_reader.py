@@ -16,10 +16,11 @@ from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
+        AccountInfo,
         AlpacaDataAdapter,
     )
 
-from ..models.portfolio_snapshot import PortfolioSnapshot
+from ..models.portfolio_snapshot import MarginInfo, PortfolioSnapshot
 
 logger = get_logger(__name__)
 
@@ -197,6 +198,7 @@ class PortfolioStateReader:
         prices: dict[str, Decimal],
         cash: Decimal,
         total_value: Decimal,
+        margin: MarginInfo | None = None,
     ) -> PortfolioSnapshot:
         """Create and validate portfolio snapshot.
 
@@ -205,13 +207,18 @@ class PortfolioStateReader:
             prices: Current prices
             cash: Cash balance
             total_value: Total portfolio value
+            margin: Optional margin information
 
         Returns:
             Validated PortfolioSnapshot
 
         """
         snapshot = PortfolioSnapshot(
-            positions=positions, prices=prices, cash=cash, total_value=total_value
+            positions=positions,
+            prices=prices,
+            cash=cash,
+            total_value=total_value,
+            margin=margin if margin else MarginInfo(),
         )
 
         # Validate snapshot consistency
@@ -224,6 +231,24 @@ class PortfolioStateReader:
                 snapshot_total=str(snapshot.total_value),
             )
 
+        # Log margin information if available
+        if margin and margin.is_margin_available():
+            logger.debug(
+                "Margin information included in snapshot",
+                module=MODULE_NAME,
+                action="build_snapshot",
+                buying_power=str(margin.buying_power),
+                equity=str(margin.equity) if margin.equity else "N/A",
+                margin_utilization_pct=(
+                    str(margin.margin_utilization_pct) if margin.margin_utilization_pct else "N/A"
+                ),
+                maintenance_buffer_pct=(
+                    str(margin.maintenance_margin_buffer_pct)
+                    if margin.maintenance_margin_buffer_pct
+                    else "N/A"
+                ),
+            )
+
         logger.debug(
             "Portfolio snapshot built successfully",
             module=MODULE_NAME,
@@ -233,19 +258,37 @@ class PortfolioStateReader:
             total_value=str(total_value),
             cash_balance=str(cash),
             position_value=str(total_value - cash),
+            has_margin_info=margin is not None and margin.is_margin_available(),
         )
 
         return snapshot
 
+    def _build_margin_info_from_account(self, account_info: AccountInfo) -> MarginInfo:
+        """Build MarginInfo from AccountInfo.
+
+        Args:
+            account_info: Account information from adapter
+
+        Returns:
+            MarginInfo with available margin data
+
+        """
+        return MarginInfo(
+            buying_power=account_info.buying_power,
+            initial_margin=account_info.initial_margin,
+            maintenance_margin=account_info.maintenance_margin,
+            equity=account_info.equity,
+        )
+
     def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:
-        """Build current portfolio snapshot with positions, prices, and cash.
+        """Build current portfolio snapshot with positions, prices, cash, and margin info.
 
         Args:
             symbols: Optional set of symbols to include prices for.
                     If None, includes all symbols from current positions.
 
         Returns:
-            PortfolioSnapshot with current state
+            PortfolioSnapshot with current state including margin information
 
         Raises:
             Exception: If snapshot cannot be built due to data errors
@@ -259,8 +302,40 @@ class PortfolioStateReader:
         )
 
         try:
-            # Step 1: Get cash balance first
-            cash = self._data_adapter.get_account_cash()
+            # Step 1: Get complete account info (cash + margin data)
+            try:
+                account_info = self._data_adapter.get_account_info()
+                cash = account_info.cash
+                margin_info = self._build_margin_info_from_account(account_info)
+
+                # Log margin availability for observability
+                if margin_info.is_margin_available():
+                    logger.info(
+                        "Margin account detected",
+                        module=MODULE_NAME,
+                        action="build_snapshot",
+                        cash=str(cash),
+                        buying_power=str(margin_info.buying_power),
+                        equity=str(margin_info.equity) if margin_info.equity else "N/A",
+                    )
+                else:
+                    logger.debug(
+                        "Cash account (no margin data available)",
+                        module=MODULE_NAME,
+                        action="build_snapshot",
+                        cash=str(cash),
+                    )
+
+            except Exception as e:
+                # Fallback to cash-only if get_account_info fails
+                logger.warning(
+                    "Failed to get account info, falling back to cash-only mode",
+                    module=MODULE_NAME,
+                    action="build_snapshot",
+                    error=str(e),
+                )
+                cash = self._data_adapter.get_account_cash()
+                margin_info = MarginInfo()  # Empty margin info
 
             # Check for negative or zero cash balance - liquidate and retry
             if cash <= Decimal("0"):
@@ -270,6 +345,8 @@ class PortfolioStateReader:
                 prices = {}
                 if symbols:
                     prices = self._data_adapter.get_current_prices(list(symbols))
+                # Margin info may be stale after liquidation, fetch fresh
+                margin_info = MarginInfo()
             else:
                 # Step 2: Get current positions
                 positions = self._data_adapter.get_positions()
@@ -288,8 +365,10 @@ class PortfolioStateReader:
             # Step 5: Calculate total portfolio value
             total_value = self._calculate_portfolio_value(positions, prices, cash)
 
-            # Step 6: Create and validate snapshot
-            return self._create_and_validate_snapshot(positions, prices, cash, total_value)
+            # Step 6: Create and validate snapshot with margin info
+            return self._create_and_validate_snapshot(
+                positions, prices, cash, total_value, margin_info
+            )
 
         except Exception as e:
             logger.error(

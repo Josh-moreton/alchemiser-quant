@@ -81,12 +81,11 @@ def build_allocation_comparison(
         },
     )
 
-    # Apply cash reserve to avoid buying power issues with broker constraints
-    # This ensures we don't try to use 100% of portfolio value which can
-    # exceed available buying power
+    # Apply capital deployment percentage to avoid buying power issues
+    # This controls what percentage of cash is deployed (100% = all cash, 102% = leverage)
     settings = load_settings()
-    usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
-    effective_portfolio_value = portfolio_value_money.multiply(usage_multiplier)
+    deployment_multiplier = Decimal(str(settings.alpaca.effective_deployment_pct))
+    effective_portfolio_value = portfolio_value_money.multiply(deployment_multiplier)
 
     # Calculate target values in dollars using effective portfolio value
     target_values = {}

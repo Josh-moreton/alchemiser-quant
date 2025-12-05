@@ -45,16 +45,61 @@ class AlpacaSettings(BaseModel):
     endpoint: str = "https://api.alpaca.markets"
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     paper_trading: bool = True
-    # Float is acceptable for percentage reserves (1% = 0.01) as precision of ~0.01% is sufficient
-    # for cash reserve buffers. Decimal would be overkill for this use case.
-    cash_reserve_pct: float = (
-        0.01  # Default is 1% cash reserve; adjust as needed to avoid buying power issues
-    )
+
+    # Capital Deployment Configuration
+    # ================================
+    # capital_deployment_pct: What percentage of actual cash (equity minus positions) to deploy.
+    # - 1.00 (100%) = Deploy all available cash, no reserve
+    # - 0.99 (99%)  = Keep 1% cash reserve (conservative)
+    # - 1.02 (102%) = Use margin to deploy 2% more than cash (leverage)
+    #
+    # When > 1.0 (leverage mode):
+    # - Requires margin-enabled Alpaca account
+    # - The planner will validate against buying_power before proceeding
+    # - If buying_power check fails, falls back to cash-only deployment
+    #
+    # Note: This multiplies CASH, not total portfolio value or buying_power.
+    # This gives predictable leverage relative to your actual money.
+    #
+    # Set via environment variable: ALPACA_CAPITAL_DEPLOYMENT_PCT=1.02
+    capital_deployment_pct: float = 1.0  # Default: deploy 100% of cash (no leverage)
+
+    # Legacy alias for backward compatibility - will be removed in future
+    # If set, overrides capital_deployment_pct with (1.0 - cash_reserve_pct)
+    cash_reserve_pct: float | None = None
+
     slippage_bps: int = 5
     enable_websocket_orders: bool = True
     # Credentials - typically loaded from .env file or environment variables
     key: str | None = Field(default=None, alias="ALPACA_KEY")
     secret: str | None = Field(default=None, alias="ALPACA_SECRET")
+
+    @property
+    def effective_deployment_pct(self) -> float:
+        """Get the effective capital deployment percentage.
+
+        Handles backward compatibility with legacy cash_reserve_pct setting.
+
+        Returns:
+            Deployment multiplier (e.g., 1.02 for 102% deployment)
+
+        """
+        if self.cash_reserve_pct is not None:
+            # Legacy mode: convert cash_reserve_pct to deployment_pct
+            # cash_reserve_pct=0.01 means 99% deployment
+            # cash_reserve_pct=-0.02 means 102% deployment
+            return 1.0 - self.cash_reserve_pct
+        return self.capital_deployment_pct
+
+    @property
+    def is_leverage_enabled(self) -> bool:
+        """Check if leverage mode is enabled (deployment > 100%).
+
+        Returns:
+            True if deploying more than 100% of cash
+
+        """
+        return self.effective_deployment_pct > 1.0
 
 
 class AwsSettings(BaseModel):

@@ -296,12 +296,11 @@ def _process_symbol_rebalance(
     logger.info(f"CALCULATED_CURRENT_WEIGHT: {current_weight}")
     logger.info(f"CALCULATED_WEIGHT_DIFF: {weight_diff}")
 
-    # Apply cash reserve to avoid buying power issues with broker constraints
-    # This ensures we don't try to use 100% of portfolio value which can
-    # exceed available buying power
+    # Apply capital deployment percentage to control cash usage
+    # This controls what percentage of cash is deployed (100% = all cash, 102% = leverage)
     settings = load_settings()
-    usage_multiplier = 1.0 - settings.alpaca.cash_reserve_pct
-    effective_portfolio_value = total_portfolio_value * usage_multiplier
+    deployment_multiplier = settings.alpaca.effective_deployment_pct
+    effective_portfolio_value = total_portfolio_value * deployment_multiplier
     target_value = effective_portfolio_value * target_weight
     trade_amount = target_value - current_value
     needs_rebalance = abs(weight_diff) >= min_trade_threshold
@@ -921,10 +920,10 @@ def calculate_rebalance_amounts_decimal(
 
     symbols_needing_rebalance = 0
 
-    # Apply cash reserve to avoid buying power issues
+    # Apply capital deployment percentage to control cash usage
     settings = load_settings()
-    usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
-    effective_portfolio_value = total_portfolio_value * usage_multiplier
+    deployment_multiplier = Decimal(str(settings.alpaca.effective_deployment_pct))
+    effective_portfolio_value = total_portfolio_value * deployment_multiplier
 
     for symbol in all_symbols:
         target_weight = target_weights.get(symbol, Decimal("0"))

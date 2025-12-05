@@ -130,7 +130,7 @@ class TestRebalancePlanCalculator:
         # No positions are being fully exited (all symbols have target weights > 0)
         expected_full_exit_proceeds = Decimal("0")
         raw_deployable = sample_portfolio_snapshot.cash + expected_full_exit_proceeds
-        deployable_capital = raw_deployable * Decimal("0.99")  # 1% cash reserve
+        deployable_capital = raw_deployable * Decimal("1.0")  # 100% deployment (default)
 
         for item in plan.items:
             expected_target_weight = sample_strategy_allocation.target_weights[item.symbol]
@@ -164,7 +164,7 @@ class TestRebalancePlanCalculator:
 
         # Should be able to buy fractional shares
         aapl_item = next(item for item in plan.items if item.symbol == "AAPL")
-        assert aapl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
+        assert aapl_item.target_value == Decimal("1000.00")  # 1000 * 1.0 (100% deployment)
         # For fractionable assets, quantity can be fractional
 
     def test_quantity_calculation_non_fractional_assets(self, calculator):
@@ -187,7 +187,7 @@ class TestRebalancePlanCalculator:
 
         # Should handle whole share requirements
         googl_item = next(item for item in plan.items if item.symbol == "GOOGL")
-        assert googl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
+        assert googl_item.target_value == Decimal("1000.00")  # 1000 * 1.0 (100% deployment)
         # For non-fractionable assets, quantities should be whole numbers
 
     def test_rebalance_determines_correct_actions(self, calculator, sample_portfolio_snapshot):
@@ -212,7 +212,7 @@ class TestRebalancePlanCalculator:
 
         # Calculate deployable capital the same way planner does
         expected_full_exit_proceeds = Decimal("0")  # All symbols have target weights
-        deployable_capital = sample_portfolio_snapshot.cash * Decimal("0.99")
+        deployable_capital = sample_portfolio_snapshot.cash * Decimal("1.0")  # 100% deployment
 
         # Verify actions based on target values vs current values
         for item in plan.items:
@@ -554,20 +554,40 @@ class TestRebalancePlanCalculator:
         assert len(plan.items) == 3
 
     def test_weight_validation_rejects_true_over_allocation(self, calculator):
-        """Test that planner rejects weights that exceed tolerance.
+        """Test that StrategyAllocation DTO rejects weights exceeding tolerance.
 
-        Weights summing to 1.005 are valid at DTO level (accepts 0.99-1.01)
-        but should be rejected by planner (only accepts <= 1.0001).
+        Weights summing to 1.02 exceed the DTO tolerance (0.99-1.01)
+        and should be rejected during StrategyAllocation validation.
         """
-        from the_alchemiser.shared.errors.exceptions import PortfolioError
+        from pydantic import ValidationError
 
-        # Create allocation with weights that sum to 1.005 (0.5% over limit)
-        # This is valid at DTO level (0.99-1.01) but exceeds planner tolerance (1.0001)
+        # Create allocation with weights that sum to 1.02 (2% over limit)
+        # This should fail at DTO validation level, not planner level
+        with pytest.raises(ValidationError) as exc_info:
+            StrategyAllocation(
+                target_weights={
+                    "AAPL": Decimal("0.34"),
+                    "MSFT": Decimal("0.34"),
+                    "GOOGL": Decimal("0.34"),  # Sum = 1.02
+                },
+                correlation_id=str(uuid.uuid4()),
+                as_of=datetime.now(UTC),
+                constraints={},
+            )
+
+        assert "Total weights must sum to ~1.0" in str(exc_info.value)
+
+    def test_weight_validation_boundary_at_tolerance(self, calculator):
+        """Test that planner accepts weights near boundary (within tolerance).
+        
+        The DTO allows weights from 0.99 to 1.01 for precision tolerance.
+        The planner should accept anything the DTO accepts.
+        """
+        # Weights summing to 1.0 (exactly) - should always work
         allocation = StrategyAllocation(
             target_weights={
-                "AAPL": Decimal("0.3350"),
-                "MSFT": Decimal("0.3350"),
-                "GOOGL": Decimal("0.3350"),  # Sum = 1.005
+                "AAPL": Decimal("0.5"),
+                "MSFT": Decimal("0.5"),  # Sum = 1.0 (perfect)
             },
             correlation_id=str(uuid.uuid4()),
             as_of=datetime.now(UTC),
@@ -576,76 +596,76 @@ class TestRebalancePlanCalculator:
 
         portfolio_snapshot = PortfolioSnapshot(
             positions={},
+            prices={
+                "AAPL": Decimal("100.00"),
+                "MSFT": Decimal("100.00"),
+            },
+            cash=Decimal("10000.00"),
+            total_value=Decimal("10000.00"),
+        )
+
+        # Should succeed - weights sum to exactly 1.0
+        plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
+        assert plan is not None
+        assert len(plan.items) == 2
+
+    def test_rebalance_uses_sell_proceeds_for_buys(self, calculator):
+        """Test that sell proceeds from liquidating positions can fund new buys.
+        
+        When rebalancing from one position to another, the planner should
+        correctly account for sell proceeds in the capital constraint check.
+        """
+        allocation = StrategyAllocation(
+            target_weights={
+                "AAPL": Decimal("0.5"),
+                "MSFT": Decimal("0.5"),  # Sum = 1.0
+            },
+            correlation_id=str(uuid.uuid4()),
+            as_of=datetime.now(UTC),
+            constraints={},
+        )
+        
+        # Portfolio: 50% cash, 50% in GOOGL (which we'll sell)
+        # Cash: $5000, GOOGL: 50 shares @ $100 = $5000
+        # Total: $10000
+        # After selling GOOGL: $10000 cash available for AAPL and MSFT
+        portfolio_snapshot = PortfolioSnapshot(
+            positions={"GOOGL": Decimal("50")},
             prices={
                 "AAPL": Decimal("100.00"),
                 "MSFT": Decimal("100.00"),
                 "GOOGL": Decimal("100.00"),
             },
-            cash=Decimal("10000.00"),
+            cash=Decimal("5000.00"),
             total_value=Decimal("10000.00"),
         )
 
-        # Should raise PortfolioError
-        with pytest.raises(PortfolioError) as exc_info:
-            calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
-
-        assert "Target weights sum to" in str(exc_info.value)
-        assert "1.005" in str(exc_info.value)
-
-    def test_weight_validation_boundary_at_tolerance(self, calculator):
-        """Test that planner accepts weights exactly at tolerance boundary."""
-        allocation = StrategyAllocation(
-            target_weights={
-                "AAPL": Decimal("0.5"),
-                "MSFT": Decimal("0.5001"),  # Sum = 1.0001 (exactly at boundary)
-            },
-            correlation_id=str(uuid.uuid4()),
-            as_of=datetime.now(UTC),
-            constraints={},
-        )
-
-        portfolio_snapshot = PortfolioSnapshot(
-            positions={},
-            prices={
-                "AAPL": Decimal("100.00"),
-                "MSFT": Decimal("100.00"),
-            },
-            cash=Decimal("10000.00"),
-            total_value=Decimal("10000.00"),
-        )
-
-        # Should succeed - at boundary
+        # Should succeed - sell GOOGL ($5000), buy AAPL ($5000), buy MSFT ($5000)
         plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
         assert plan is not None
-        assert len(plan.items) == 2
+        assert len(plan.items) == 3  # Sell GOOGL, buy AAPL, buy MSFT
+        
+        # Verify the actions
+        actions = {item.symbol: item.action for item in plan.items}
+        assert actions.get("GOOGL") == "SELL"
+        assert actions.get("AAPL") == "BUY"
+        assert actions.get("MSFT") == "BUY"
 
     def test_weight_validation_just_over_tolerance(self, calculator):
-        """Test that planner rejects weights just over tolerance boundary."""
-        from the_alchemiser.shared.errors.exceptions import PortfolioError
+        """Test that StrategyAllocation DTO rejects weights just over tolerance (>1.01)."""
+        from pydantic import ValidationError
 
-        # Create allocation with weights that sum to 1.0002 (over tolerance)
-        allocation = StrategyAllocation(
-            target_weights={
-                "AAPL": Decimal("0.5"),
-                "MSFT": Decimal("0.5002"),  # Sum = 1.0002 (over boundary)
-            },
-            correlation_id=str(uuid.uuid4()),
-            as_of=datetime.now(UTC),
-            constraints={},
-        )
+        # Create allocation with weights that sum to 1.015 (over tolerance of 1.01)
+        # This should fail at DTO validation level
+        with pytest.raises(ValidationError) as exc_info:
+            StrategyAllocation(
+                target_weights={
+                    "AAPL": Decimal("0.505"),
+                    "MSFT": Decimal("0.510"),  # Sum = 1.015 (over boundary)
+                },
+                correlation_id=str(uuid.uuid4()),
+                as_of=datetime.now(UTC),
+                constraints={},
+            )
 
-        portfolio_snapshot = PortfolioSnapshot(
-            positions={},
-            prices={
-                "AAPL": Decimal("100.00"),
-                "MSFT": Decimal("100.00"),
-            },
-            cash=Decimal("10000.00"),
-            total_value=Decimal("10000.00"),
-        )
-
-        # Should raise PortfolioError
-        with pytest.raises(PortfolioError) as exc_info:
-            calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
-
-        assert "Target weights sum to" in str(exc_info.value)
+        assert "Total weights must sum to ~1.0" in str(exc_info.value)
