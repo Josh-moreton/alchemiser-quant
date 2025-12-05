@@ -5,11 +5,6 @@ Global pytest configuration and fixtures for all test levels.
 Provides common fixtures for unit, integration, functional, and end-to-end tests.
 """
 
-# Configure test logging BEFORE any other imports
-from the_alchemiser.shared.logging.config import configure_test_logging
-
-configure_test_logging()
-
 import os
 
 # Add the project root to Python path for imports

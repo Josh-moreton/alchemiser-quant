@@ -11,12 +11,6 @@ Runs signal generation and publishes SignalGenerated to EventBridge.
 
 from __future__ import annotations
 
-# Configure logging BEFORE any other imports (they may create module-level loggers)
-# ruff: noqa: E402
-from the_alchemiser.shared.logging.config import configure_application_logging
-
-configure_application_logging()
-
 import uuid
 from datetime import UTC, datetime
 from typing import Any

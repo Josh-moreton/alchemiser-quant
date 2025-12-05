@@ -118,13 +118,8 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
     if isinstance(obj, datetime):
         return obj.isoformat()
 
-    # Handle exceptions - convert to string representation
-    if isinstance(obj, BaseException):
-        return f"{type(obj).__name__}: {obj}"
-
-    # Fallback for unknown types - convert to string instead of crashing
-    # This prevents "Object of type X is not JSON serializable" errors
-    return str(obj)
+    # Keep strict behavior for unsupported types
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 def configure_structlog(
@@ -149,9 +144,7 @@ def configure_structlog(
     """
     # Set up stdlib logging handlers first
     root_logger = logging.getLogger()
-    # Set root level to the minimum of console and file levels to allow proper filtering
-    min_level = min(console_level, file_level) if file_path else console_level
-    root_logger.setLevel(min_level)
+    root_logger.setLevel(logging.DEBUG)  # Allow all levels through to handlers
     root_logger.handlers.clear()  # Clear any existing handlers
 
     # Console handler (INFO+ only for clean terminal)
@@ -184,8 +177,6 @@ def configure_structlog(
 
     # Configure structlog processors
     processors: list[Any] = [
-        # Filter by log level early to avoid unnecessary processing
-        structlog.stdlib.filter_by_level,
         # Merge context variables automatically
         structlog.contextvars.merge_contextvars,
         # Add our custom context
