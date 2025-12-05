@@ -66,6 +66,28 @@ def configure_production_logging(
     )
 
 
+def _get_log_level_from_env() -> int:
+    """Get log level from LOGGING__LEVEL environment variable.
+
+    Supports standard Python logging level names (case-insensitive):
+    DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+    Returns:
+        int: Logging level constant, defaults to INFO if not set or invalid.
+
+    """
+    level_name = os.getenv("LOGGING__LEVEL", "INFO").upper()
+    level_map = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "WARN": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
+    return level_map.get(level_name, logging.INFO)
+
+
 def configure_application_logging() -> None:
     """Configure application logging with structlog.
 
@@ -75,6 +97,10 @@ def configure_application_logging() -> None:
     Environment Detection:
         - Production: AWS_LAMBDA_FUNCTION_NAME environment variable is set (not None)
         - Development: AWS_LAMBDA_FUNCTION_NAME is not set
+
+    Log Level:
+        Controlled by LOGGING__LEVEL environment variable (default: INFO).
+        Supports: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
     Example:
         >>> # In Lambda (production)
@@ -93,14 +119,17 @@ def configure_application_logging() -> None:
     # Use explicit None check to handle empty string case correctly
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
+    # Get log level from environment (respects LOGGING__LEVEL from template.yaml)
+    log_level = _get_log_level_from_env()
+
     if is_production:
-        configure_production_logging(log_level=logging.INFO)
+        configure_production_logging(log_level=log_level)
     else:
         # Development environment - clean console, detailed file
         # Default to local file logging for development only
         configure_structlog(
             structured_format=False,  # Human-readable for development
-            console_level=logging.INFO,  # Clean console (no debug spam)
+            console_level=log_level,  # Respect env var for console
             file_level=logging.DEBUG,  # File captures everything for debugging
             file_path="logs/trade_run.log",
         )

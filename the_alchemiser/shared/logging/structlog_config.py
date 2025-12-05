@@ -144,7 +144,9 @@ def configure_structlog(
     """
     # Set up stdlib logging handlers first
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Allow all levels through to handlers
+    # Set root level to the minimum of console and file levels to allow proper filtering
+    min_level = min(console_level, file_level) if file_path else console_level
+    root_logger.setLevel(min_level)
     root_logger.handlers.clear()  # Clear any existing handlers
 
     # Console handler (INFO+ only for clean terminal)
@@ -177,6 +179,8 @@ def configure_structlog(
 
     # Configure structlog processors
     processors: list[Any] = [
+        # Filter by log level early to avoid unnecessary processing
+        structlog.stdlib.filter_by_level,
         # Merge context variables automatically
         structlog.contextvars.merge_contextvars,
         # Add our custom context
