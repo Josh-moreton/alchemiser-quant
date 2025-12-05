@@ -119,8 +119,8 @@ class AlpacaSettings(BaseModel):
     # - margin_safety.min_maintenance_margin_buffer_pct (margin call prevention)
     # - Available buying_power from Alpaca (actual limit)
     #
-    # Set via environment variable: ALPACA_EQUITY_DEPLOYMENT_PCT=1.10
-    equity_deployment_pct: float = 1.10  # Deploy 110% of equity (10% margin usage)
+    # Set via environment variable: ALPACA__EQUITY_DEPLOYMENT_PCT=1.10
+    equity_deployment_pct: float = 1.0  # Default: 100% of equity (no leverage)
 
     # Legacy aliases for backward compatibility - will be removed in future
     # capital_deployment_pct is the old name for equity_deployment_pct
