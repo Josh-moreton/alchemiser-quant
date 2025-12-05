@@ -144,7 +144,7 @@ def configure_structlog(
     """
     # Set up stdlib logging handlers first
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Allow all levels through to handlers
+    root_logger.setLevel(console_level)  # Allow all levels through to handlers
     root_logger.handlers.clear()  # Clear any existing handlers
 
     # Console handler (INFO+ only for clean terminal)
