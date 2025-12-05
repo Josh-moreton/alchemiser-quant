@@ -120,7 +120,7 @@ class AlpacaSettings(BaseModel):
     # - Available buying_power from Alpaca (actual limit)
     #
     # Set via environment variable: ALPACA_EQUITY_DEPLOYMENT_PCT=1.10
-    equity_deployment_pct: float = 1.0  # Default: deploy 100% of equity (no leverage)
+    equity_deployment_pct: float = 1.10  # Deploy 110% of equity (10% margin usage)
 
     # Legacy aliases for backward compatibility - will be removed in future
     # capital_deployment_pct is the old name for equity_deployment_pct
