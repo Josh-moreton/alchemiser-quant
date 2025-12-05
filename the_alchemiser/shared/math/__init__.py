@@ -37,7 +37,6 @@ from .trading_math import (
     calculate_dynamic_limit_price,
     calculate_dynamic_limit_price_with_symbol,
     calculate_position_size,
-    calculate_rebalance_amounts,
     calculate_slippage_buffer,
 )
 
@@ -53,7 +52,6 @@ __all__ = [
     "calculate_moving_average_return",
     "calculate_percentage_change",
     "calculate_position_size",
-    "calculate_rebalance_amounts",
     "calculate_rolling_metric",
     "calculate_slippage_buffer",
     "calculate_stdev_returns",

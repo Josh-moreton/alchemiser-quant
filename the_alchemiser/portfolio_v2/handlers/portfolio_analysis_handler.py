@@ -79,8 +79,9 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
     Returns:
         Dictionary with cash, buying_power, and portfolio_value as Decimal
 
-    Raises:
-        NegativeCashBalanceError: If cash balance is negative or zero
+    Note:
+        Negative cash is allowed for margin accounts - margin safety checks
+        are performed separately in the rebalancing logic.
 
     """
     if isinstance(account_info, dict):
@@ -96,14 +97,6 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
             "buying_power": _to_decimal_safe(getattr(account_info, "buying_power", 0)),
             "portfolio_value": _to_decimal_safe(getattr(account_info, "portfolio_value", 0)),
         }
-
-    # Validate cash balance is not negative
-    if result["cash"] <= Decimal("0"):
-        raise NegativeCashBalanceError(
-            f"Invalid cash balance: {result['cash']}. Cannot proceed with portfolio analysis.",
-            cash_balance=str(result["cash"]),
-            module=MODULE_NAME,
-        )
 
     return result
 

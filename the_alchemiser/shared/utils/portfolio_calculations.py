@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.
+"""Business Unit: shared | Status: DEPRECATED.
 
 Portfolio calculation utilities for allocation analysis and comparison.
+
+.. deprecated::
+    This module applies equity_deployment_pct to total portfolio value rather
+    than using the proper equity-based calculation with margin safety validation.
+    For margin-aware trading, use `the_alchemiser.portfolio_v2.core.planner.RebalancePlanCalculator` instead.
 
 This module provides shared calculation functions for portfolio allocation
 analysis, avoiding duplication across modules. These utilities are used by
@@ -27,6 +32,12 @@ def build_allocation_comparison(
     correlation_id: str | None = None,
 ) -> dict[str, dict[str, Decimal]]:
     """Build allocation comparison between target and current portfolio states.
+
+    .. deprecated::
+        This function multiplies deployment_pct by total portfolio value.
+        For margin-aware trading with proper capital constraints, use
+        `RebalancePlanCalculator.build_plan()` which correctly applies
+        deployment_pct to base capital (cash + expected sell proceeds).
 
     Args:
         consolidated_portfolio: Target allocation percentages by symbol (Decimal precision)
@@ -81,12 +92,13 @@ def build_allocation_comparison(
         },
     )
 
-    # Apply cash reserve to avoid buying power issues with broker constraints
-    # This ensures we don't try to use 100% of portfolio value which can
-    # exceed available buying power
+    # Apply capital deployment percentage to avoid buying power issues
+    # WARNING: This multiplies total portfolio value, not base capital.
+    # For margin-aware trading, use RebalancePlanCalculator which multiplies
+    # base capital (cash + sell proceeds) instead.
     settings = load_settings()
-    usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
-    effective_portfolio_value = portfolio_value_money.multiply(usage_multiplier)
+    deployment_multiplier = Decimal(str(settings.alpaca.effective_deployment_pct))
+    effective_portfolio_value = portfolio_value_money.multiply(deployment_multiplier)
 
     # Calculate target values in dollars using effective portfolio value
     target_values = {}

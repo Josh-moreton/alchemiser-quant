@@ -18,7 +18,7 @@ class TestMathPackageExports:
         # Verify __all__ is defined
         assert hasattr(math, "__all__")
         assert isinstance(math.__all__, list)
-        assert len(math.__all__) == 18  # Total count of exported symbols
+        assert len(math.__all__) == 17  # Total count of exported symbols
 
         # Verify all symbols in __all__ are actually exported
         for symbol in math.__all__:
@@ -54,7 +54,6 @@ class TestMathPackageExports:
             calculate_dynamic_limit_price,
             calculate_dynamic_limit_price_with_symbol,
             calculate_position_size,
-            calculate_rebalance_amounts,
             calculate_slippage_buffer,
         )
 
@@ -63,7 +62,6 @@ class TestMathPackageExports:
         assert callable(calculate_dynamic_limit_price)
         assert callable(calculate_dynamic_limit_price_with_symbol)
         assert callable(calculate_position_size)
-        assert callable(calculate_rebalance_amounts)
         assert callable(calculate_slippage_buffer)
 
     def test_trading_math_protocol_importable(self) -> None:
@@ -110,7 +108,6 @@ class TestMathPackageExports:
             "calculate_dynamic_limit_price",
             "calculate_dynamic_limit_price_with_symbol",
             "calculate_position_size",
-            "calculate_rebalance_amounts",
             "calculate_slippage_buffer",
             "TickSizeProvider",
             # From num

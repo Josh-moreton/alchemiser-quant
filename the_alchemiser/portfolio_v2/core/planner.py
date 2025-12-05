@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.config.config import MarginSafetyConfig, load_settings
 from the_alchemiser.shared.errors.exceptions import PortfolioError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import (
@@ -36,9 +36,10 @@ PRIORITY_THRESHOLD_100 = Decimal("100")
 PRIORITY_THRESHOLD_50 = Decimal("50")
 
 # Portfolio weight validation tolerance
-# Allows for Decimal precision errors while catching over-allocation bugs
-# Tighter than StrategyAllocation's ±1% since we're validating execution feasibility
-TARGET_WEIGHT_SUM_MAX = Decimal("1.0001")  # Allow 0.01% over for precision errors
+# Matches tolerance from StrategyAllocation DTO (0.99 to 1.01)
+# Weights should sum to ~100% of deployable capital
+TARGET_WEIGHT_SUM_MAX = Decimal("1.01")  # Allow 1% over for strategy flexibility
+TARGET_WEIGHT_SUM_MIN = Decimal("0.99")  # Warn if more than 1% under-allocated
 
 
 class RebalancePlanCalculator:
@@ -74,23 +75,23 @@ class RebalancePlanCalculator:
         if causation_id is None:
             causation_id = correlation_id
 
-        # CRITICAL: Validate target weights sum to <= 1.0 to prevent over-allocation
-        # Allow small tolerance for Decimal precision errors
+        # Validate target weights sum to ~1.0 (distribute 100% of deployable capital)
+        # Matches tolerance from StrategyAllocation DTO (0.99 to 1.01)
         total_target_weight = sum(strategy.target_weights.values())
         if total_target_weight > TARGET_WEIGHT_SUM_MAX:
             raise PortfolioError(
-                f"Target weights sum to {total_target_weight}, must be <= 1.0 "
-                f"(tolerance: {TARGET_WEIGHT_SUM_MAX}). "
-                f"This would result in attempting to deploy more than 100% of capital.",
+                f"Target weights sum to {total_target_weight}, must be <= {TARGET_WEIGHT_SUM_MAX}. "
+                f"Weights represent distribution of deployable capital, not leverage. "
+                f"Use equity_deployment_pct for leverage control.",
                 module=MODULE_NAME,
                 operation="build_plan",
                 correlation_id=correlation_id,
             )
 
-        # Warn if target weights are significantly under-allocated (may indicate issue)
-        if total_target_weight < Decimal("0.5") and strategy.target_weights:
+        # Warn if target weights are significantly under-allocated
+        if total_target_weight < TARGET_WEIGHT_SUM_MIN and strategy.target_weights:
             logger.warning(
-                "Target weights sum to less than 50% - verify this is intentional",
+                f"Target weights sum to less than {TARGET_WEIGHT_SUM_MIN} - verify intentional",
                 module=MODULE_NAME,
                 action="build_plan",
                 correlation_id=correlation_id,
@@ -226,22 +227,30 @@ class RebalancePlanCalculator:
     ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
         """Calculate target and current dollar values for all symbols.
 
-        Uses deployable capital (cash + expected sell proceeds) rather than
-        total portfolio value to ensure target allocations never exceed
-        available buying power.
+        Capital Calculation Logic (Equity-Based):
+        1. Use portfolio equity (total_value) as the base for deployment
+        2. Deployable capital = equity * equity_deployment_pct
+        3. If leverage enabled (deployment > 100%), validate against:
+           - Buying power limits
+           - Margin safety thresholds (utilization, maintenance buffer)
+
+        This approach means:
+        - equity_deployment_pct=0.95 deploys 95% of portfolio value
+        - equity_deployment_pct=1.10 deploys 110% of portfolio value (10% margin)
 
         Args:
             strategy: Strategy allocation with target weights
-            snapshot: Portfolio snapshot
+            snapshot: Portfolio snapshot (includes margin info if available)
 
         Returns:
             Tuple of (target_values, current_values) by symbol
 
         Raises:
-            PortfolioError: If target allocation exceeds available capital
+            PortfolioError: If target allocation exceeds available capital or safety limits
 
         """
-        current_values = {}
+        settings = load_settings()
+        current_values: dict[str, Decimal] = {}
         all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
 
         # First pass: Calculate current values for all positions
@@ -250,8 +259,6 @@ class RebalancePlanCalculator:
             current_price = snapshot.prices.get(symbol, Decimal("0"))
 
             # CRITICAL: Fail fast if we own a position but have no price data
-            # Without valid price data, we cannot calculate correct trade amounts
-            # and could generate incorrect BUY orders for positions we already own
             if current_quantity > Decimal("0") and current_price <= Decimal("0"):
                 raise PortfolioError(
                     f"Missing or invalid price data for owned position {symbol} "
@@ -263,44 +270,223 @@ class RebalancePlanCalculator:
 
             current_values[symbol] = current_quantity * current_price
 
-        # Calculate expected sell proceeds from positions being fully exited
-        # (where target_weight = 0 or symbol not in target allocation)
-        expected_full_exit_proceeds = Decimal("0")
-        for symbol, current_value in current_values.items():
-            target_weight = strategy.target_weights.get(symbol, Decimal("0"))
-            if target_weight == Decimal("0") and current_value > Decimal("0"):
-                # This position will be fully liquidated
-                expected_full_exit_proceeds += current_value
+        # Calculate deployable capital using EQUITY-BASED deployment
+        # This is the key change: we use total portfolio value (equity) as the base
+        deployment_pct = Decimal(str(settings.alpaca.effective_deployment_pct))
+        equity = snapshot.total_value  # This is the user's portfolio equity
+        deployable_capital = equity * deployment_pct
 
-        # Calculate deployable capital: cash + expected full exits, with reserve
-        # This is the actual capital available for new allocations
-        settings = load_settings()
-        usage_multiplier = Decimal("1") - Decimal(str(settings.alpaca.cash_reserve_pct))
-        raw_deployable = snapshot.cash + expected_full_exit_proceeds
-        deployable_capital = raw_deployable * usage_multiplier
+        leverage_enabled = settings.alpaca.is_leverage_enabled
+        margin_required = deployable_capital - equity if leverage_enabled else Decimal("0")
 
-        logger.debug(
-            "Calculating deployable capital",
+        logger.info(
+            "Calculating deployable capital (equity-based)",
             module=MODULE_NAME,
             action="_calculate_dollar_values",
+            portfolio_equity=str(equity),
             current_cash=str(snapshot.cash),
-            expected_full_exit_proceeds=str(expected_full_exit_proceeds),
-            raw_deployable=str(raw_deployable),
-            usage_multiplier=str(usage_multiplier),
+            deployment_pct=f"{float(deployment_pct) * 100:.1f}%",
             deployable_capital=str(deployable_capital),
+            leverage_enabled=leverage_enabled,
+            margin_required=str(margin_required) if leverage_enabled else "N/A",
         )
 
+        # If leverage enabled, validate against buying power AND margin safety limits
+        if leverage_enabled:
+            deployable_capital = self._validate_leverage_capacity(
+                snapshot=snapshot,
+                deployable_capital=deployable_capital,
+                equity=equity,
+                margin_required=margin_required,
+                margin_safety_config=settings.alpaca.margin_safety,
+            )
+
         # Second pass: Calculate target values based on deployable capital
-        # This prevents over-allocation by only allocating what we can actually deploy
-        target_values = {}
+        target_values: dict[str, Decimal] = {}
         for symbol in all_symbols:
             target_weight = strategy.target_weights.get(symbol, Decimal("0"))
             target_values[symbol] = target_weight * deployable_capital
 
-        # Validate capital constraints: BUY orders must not exceed deployable capital
-        # This is a safety check - with the corrected logic above, this should always pass
+        # Final validation: total buy amount must not exceed what we can actually get
+        self._validate_capital_constraints(
+            snapshot=snapshot,
+            target_values=target_values,
+            current_values=current_values,
+            deployable_capital=deployable_capital,
+            leverage_enabled=leverage_enabled,
+        )
+
+        return target_values, current_values
+
+    def _validate_leverage_capacity(
+        self,
+        snapshot: PortfolioSnapshot,
+        deployable_capital: Decimal,
+        equity: Decimal,
+        margin_required: Decimal,
+        margin_safety_config: MarginSafetyConfig,
+    ) -> Decimal:
+        """Validate that leverage request can be fulfilled safely.
+
+        Performs three-level validation:
+        1. Margin data availability
+        2. Buying power limits (from Alpaca)
+        3. Margin safety thresholds (our risk management)
+
+        Args:
+            snapshot: Portfolio snapshot with margin info
+            deployable_capital: Total capital we want to deploy
+            equity: Portfolio equity (base for deployment calculation)
+            margin_required: How much margin we need beyond equity
+            margin_safety_config: MarginSafetyConfig with safety thresholds
+
+        Returns:
+            Validated deployable capital (may be reduced for safety)
+
+        Raises:
+            PortfolioError: If leverage cannot be used safely
+
+        """
+        # Check if margin info is available
+        if not snapshot.margin.is_margin_available():
+            logger.warning(
+                "Leverage requested but margin data unavailable - falling back to cash-only",
+                module=MODULE_NAME,
+                action="_validate_leverage_capacity",
+                deployable_capital_requested=str(deployable_capital),
+                equity=str(equity),
+                margin_required=str(margin_required),
+            )
+            raise PortfolioError(
+                f"Cannot use leverage: margin data unavailable from broker. "
+                f"Requested ${deployable_capital} but only ${equity} equity available. "
+                f"Reduce equity_deployment_pct to 1.0 or below for cash-only mode.",
+                module=MODULE_NAME,
+                operation="_validate_leverage_capacity",
+            )
+
+        margin_info = snapshot.margin
+
+        # Use effective buying power (prefers RegT for overnight safety)
+        buying_power = margin_info.effective_buying_power
+        if buying_power is None:
+            buying_power = margin_info.buying_power
+
+        if buying_power is None:
+            raise PortfolioError(
+                "buying_power unexpectedly None after margin availability check",
+                module=MODULE_NAME,
+                operation="_validate_leverage_capacity",
+            )
+
+        # Log margin capacity for observability (actual validation happens in _validate_capital_constraints
+        # after we calculate the actual trades needed)
+        logger.info(
+            "Margin capacity check",
+            module=MODULE_NAME,
+            action="_validate_leverage_capacity",
+            deployable_capital_target=str(deployable_capital),
+            buying_power_available=str(buying_power),
+            equity=str(equity),
+            margin_required=str(margin_required),
+        )
+
+        # Validate against margin safety limits
+        is_safe, safety_reason = margin_info.is_within_safety_limits(margin_safety_config)
+        if not is_safe:
+            logger.error(
+                "Margin safety limit exceeded",
+                module=MODULE_NAME,
+                action="_validate_leverage_capacity",
+                safety_reason=safety_reason,
+                margin_utilization_pct=(
+                    f"{float(margin_info.margin_utilization_pct):.1f}%"
+                    if margin_info.margin_utilization_pct
+                    else "N/A"
+                ),
+                maintenance_buffer_pct=(
+                    f"{float(margin_info.maintenance_margin_buffer_pct):.1f}%"
+                    if margin_info.maintenance_margin_buffer_pct
+                    else "N/A"
+                ),
+            )
+            raise PortfolioError(
+                f"Margin safety limit exceeded: {safety_reason}. "
+                f"Reduce equity_deployment_pct or wait for margin conditions to improve.",
+                module=MODULE_NAME,
+                operation="_validate_leverage_capacity",
+            )
+
+        # Check for warning thresholds and log
+        is_warning, warning_msg = margin_info.is_approaching_warning_threshold(margin_safety_config)
+        if is_warning:
+            logger.warning(
+                "Margin approaching warning threshold",
+                module=MODULE_NAME,
+                action="_validate_leverage_capacity",
+                warning_message=warning_msg,
+                margin_utilization_pct=(
+                    f"{float(margin_info.margin_utilization_pct):.1f}%"
+                    if margin_info.margin_utilization_pct
+                    else "N/A"
+                ),
+            )
+
+        # Log successful validation with margin metrics
+        logger.info(
+            "Leverage capacity validated with margin safety",
+            module=MODULE_NAME,
+            action="_validate_leverage_capacity",
+            deployable_capital=str(deployable_capital),
+            buying_power=str(buying_power),
+            buying_power_utilization_pct=(
+                f"{float(deployable_capital / buying_power) * 100:.1f}%"
+                if buying_power > Decimal("0")
+                else "N/A"
+            ),
+            margin_utilization_pct=(
+                f"{float(margin_info.margin_utilization_pct):.1f}%"
+                if margin_info.margin_utilization_pct
+                else "N/A"
+            ),
+            maintenance_buffer_pct=(
+                f"{float(margin_info.maintenance_margin_buffer_pct):.1f}%"
+                if margin_info.maintenance_margin_buffer_pct
+                else "N/A"
+            ),
+            is_margin_account=margin_info.is_margin_account,
+            is_pdt_account=margin_info.is_pdt_account,
+            multiplier=margin_info.multiplier,
+        )
+
+        return deployable_capital
+
+    def _validate_capital_constraints(
+        self,
+        snapshot: PortfolioSnapshot,
+        target_values: dict[str, Decimal],
+        current_values: dict[str, Decimal],
+        deployable_capital: Decimal,
+        *,
+        leverage_enabled: bool,
+    ) -> None:
+        """Validate that total buy orders don't exceed available capital.
+
+        Args:
+            snapshot: Portfolio snapshot
+            target_values: Target dollar values by symbol
+            current_values: Current dollar values by symbol
+            deployable_capital: Total capital to deploy
+            leverage_enabled: Whether leverage mode is active
+
+        Raises:
+            PortfolioError: If buy orders exceed available capital
+
+        """
         total_buy_amount = Decimal("0")
         total_sell_proceeds = Decimal("0")
+
+        all_symbols = set(target_values.keys()) | set(current_values.keys())
 
         for symbol in all_symbols:
             target_value = target_values.get(symbol, Decimal("0"))
@@ -308,47 +494,58 @@ class RebalancePlanCalculator:
             trade_amount = target_value - current_value
 
             if trade_amount > Decimal("0"):
-                # This is a BUY order
                 total_buy_amount += trade_amount
             elif trade_amount < Decimal("0"):
-                # This is a SELL order - will release capital
                 total_sell_proceeds += abs(trade_amount)
 
         available_capital = snapshot.cash + total_sell_proceeds
 
-        if total_buy_amount > available_capital:
-            logger.error(
-                "Rebalance plan exceeds available capital",
-                module=MODULE_NAME,
-                action="_calculate_dollar_values",
-                total_buy_amount=str(total_buy_amount),
-                total_sell_proceeds=str(total_sell_proceeds),
-                current_cash=str(snapshot.cash),
-                available_capital=str(available_capital),
-                deficit=str(total_buy_amount - available_capital),
-                target_symbols=sorted(strategy.target_weights.keys()),
-                deployable_capital=str(deployable_capital),
-            )
-            raise PortfolioError(
-                f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
-                f"but only ${available_capital} available "
-                f"(current cash: ${snapshot.cash}, sell proceeds: ${total_sell_proceeds}). "
-                f"Deficit: ${total_buy_amount - available_capital}"
-            )
+        if leverage_enabled:
+            # In leverage mode, check that NET buys (after sell proceeds) are covered
+            # Selling positions frees up buying power, so we only need BP for the net increase
+            if snapshot.margin.buying_power is None:
+                raise PortfolioError(
+                    "Margin buying power is not available in leverage mode.",
+                    module=MODULE_NAME,
+                    operation="_validate_capital_constraints",
+                )
+            # Use effective buying power for overnight safety
+            effective_bp = snapshot.margin.effective_buying_power or snapshot.margin.buying_power
+            # Net capital needed = buys - sells (sells free up buying power)
+            net_buy_needed = total_buy_amount - total_sell_proceeds
+            if net_buy_needed > effective_bp:
+                raise PortfolioError(
+                    f"Cannot execute rebalance: requires ${net_buy_needed} net BUY capital "
+                    f"(total buys: ${total_buy_amount}, sell proceeds: ${total_sell_proceeds}) "
+                    f"but only ${effective_bp} buying power available. "
+                    f"Deficit: ${net_buy_needed - effective_bp}. "
+                    f"Consider reducing equity_deployment_pct.",
+                    module=MODULE_NAME,
+                    operation="_validate_capital_constraints",
+                )
+        else:
+            # Cash-only mode: buys must be covered by cash + sells
+            if total_buy_amount > available_capital:
+                raise PortfolioError(
+                    f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
+                    f"but only ${available_capital} available "
+                    f"(current cash: ${snapshot.cash}, sell proceeds: ${total_sell_proceeds}). "
+                    f"Deficit: ${total_buy_amount - available_capital}",
+                    module=MODULE_NAME,
+                    operation="_validate_capital_constraints",
+                )
 
         logger.info(
             "Capital constraint validation passed",
             module=MODULE_NAME,
-            action="_calculate_dollar_values",
+            action="_validate_capital_constraints",
             total_buy_amount=str(total_buy_amount),
             total_sell_proceeds=str(total_sell_proceeds),
             current_cash=str(snapshot.cash),
             available_capital=str(available_capital),
-            surplus=str(available_capital - total_buy_amount),
+            leverage_enabled=leverage_enabled,
             deployable_capital=str(deployable_capital),
         )
-
-        return target_values, current_values
 
     def _calculate_trade_items(
         self,

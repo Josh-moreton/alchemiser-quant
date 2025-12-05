@@ -140,6 +140,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "MicroservicesAlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
+        "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -169,6 +170,7 @@ else
         "MicroservicesAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
+        "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
