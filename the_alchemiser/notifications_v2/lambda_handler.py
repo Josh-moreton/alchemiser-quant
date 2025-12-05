@@ -8,6 +8,12 @@ email notifications using the NotificationService.
 
 from __future__ import annotations
 
+# Configure logging BEFORE any other imports (they may create module-level loggers)
+# ruff: noqa: E402
+from the_alchemiser.shared.logging.config import configure_application_logging
+
+configure_application_logging()
+
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any

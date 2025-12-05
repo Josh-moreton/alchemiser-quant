@@ -65,8 +65,3 @@ __all__ = [
 
 # Alias for convenience - get_logger returns structlog logger
 get_logger = get_structlog_logger
-
-# Auto-configure logging on module import
-# This ensures logging is configured before any logger is created,
-# respecting LOGGING__LEVEL environment variable (defaults to INFO)
-configure_application_logging()

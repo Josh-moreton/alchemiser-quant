@@ -7,6 +7,16 @@
 - **Idempotency & traceability:** Event handlers must be idempotent; propagate `correlation_id` and `causation_id`; tolerate replays.
 - **Tooling:** Use Poetry for everything. Example: `poetry run python -m the_alchemiser` (no system Python).
 - **AWS CLI:** Always use `--no-cli-pager` or pipe to `cat` to avoid interactive pagers that block automation.
+- **Lambda handler logging:** Every `lambda_handler.py` MUST configure logging at the top before other imports:
+  ```python
+  """Business Unit: <name> | Status: current."""
+  from __future__ import annotations
+  # Configure logging BEFORE any other imports (they may create module-level loggers)
+  # ruff: noqa: E402
+  from the_alchemiser.shared.logging.config import configure_application_logging
+  configure_application_logging()
+  # ... other imports follow
+  ```
 - **Version Management (MANDATORY):** AI agents MUST update version numbers for every code change using semantic versioning:
   - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring, test additions
   - **MINOR** (`make bump-minor`): New features, new modules, significant refactoring, API additions (backward compatible)
