@@ -68,9 +68,10 @@ class MarginSafetyConfig(BaseModel):
 
     # Minimum buffer above maintenance margin required
     # buffer = (equity - maintenance_margin) / maintenance_margin * 100
-    # At 25%, you have 25% cushion before margin call
+    # At 10%, you have 10% cushion before margin call
     # Alpaca requires maintenance margin to be met or positions are liquidated
-    min_maintenance_margin_buffer_pct: float = 25.0
+    # Note: With 110% equity deployment, expect ~12% buffer which is safe
+    min_maintenance_margin_buffer_pct: float = 10.0
 
     # Hard cap on equity_deployment_pct regardless of buying power
     # Even if Alpaca gives you 4x buying power, limit leverage exposure
