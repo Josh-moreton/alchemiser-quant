@@ -1,93 +1,144 @@
 # The Alchemiser
 
-A multi-strategy quantitative trading system built on event-driven architecture. Combines multiple quantitative strategies (KMLM, Nuclear, and others) into a single, resilient execution engine with strict module boundaries and end-to-end traceability.
+A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies (KMLM, Nuclear, and others) into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 
 ## System Architecture
 
-The Alchemiser is organized into five key business modules communicating exclusively through events:
+The Alchemiser is deployed as **4 independent AWS Lambda microservices** communicating via EventBridge, SQS, and SNS:
 
 ```mermaid
 graph TB
-    subgraph "Business Modules"
-        S[Strategy v2<br/>Signal Generation]
-        P[Portfolio v2<br/>Rebalance Planning]
-        E[Execution v2<br/>Order Management]
-        O[Orchestration<br/>Workflow Coordination]
-        SH[Shared<br/>Events, DTOs, Services]
+    subgraph "AWS Lambda Microservices"
+        S[Strategy Lambda<br/>Signal Generation]
+        P[Portfolio Lambda<br/>Rebalance Planning]
+        E[Execution Lambda<br/>Order Management]
+        N[Notifications Lambda<br/>Email via SNS]
+    end
+
+    subgraph "AWS Event Infrastructure"
+        EB[EventBridge<br/>Event Routing]
+        SQS[SQS Queue<br/>Execution Buffer]
+        SNS[SNS Topic<br/>Email Delivery]
+    end
+
+    subgraph "AWS Storage"
+        DDB[DynamoDB<br/>Trade Ledger]
+        S3[S3 Bucket<br/>Performance Reports]
     end
 
     subgraph "External Systems"
         A[Alpaca API<br/>Market Data & Trading]
-        AWS[AWS Lambda<br/>Cloud Deployment]
-        L[Logs & Metrics<br/>Observability]
+        EMAIL[Email<br/>Notifications]
     end
 
-    S --> SH
-    P --> SH
-    E --> SH
-    O --> SH
-    SH --> A
-    O --> AWS
-    SH --> L
+    S -->|SignalGenerated| EB
+    EB -->|SignalGenerated| P
+    P -->|RebalancePlanned| EB
+    EB -->|RebalancePlanned| SQS
+    SQS --> E
+    E -->|TradeExecuted| EB
+    E -->|WorkflowFailed| EB
+    EB -->|TradeExecuted/WorkflowFailed| N
+    N --> SNS
+    SNS --> EMAIL
 
-    classDef module fill:#e1f5fe
-    classDef shared fill:#f3e5f5
+    S --> A
+    P --> A
+    E --> A
+    E --> DDB
+    N --> S3
+
+    classDef lambda fill:#ff9900,color:#000
+    classDef aws fill:#232f3e,color:#fff
+    classDef storage fill:#3f8624,color:#fff
     classDef external fill:#fff3e0
 
-    class S,P,E,O module
-    class SH shared
-    class A,AWS,L external
+    class S,P,E,N lambda
+    class EB,SQS,SNS aws
+    class DDB,S3 storage
+    class A,EMAIL external
 ```
 
-### Module Boundaries
+### Lambda Microservices
 
-- **Strategy v2**: Generates trading signals from market data
-- **Portfolio v2**: Converts signals into rebalance plans
-- **Execution v2**: Executes trades via Alpaca broker
-- **Orchestration**: Coordinates workflows through event handlers
-- **Shared**: Common DTOs, events, adapters, and utilities
+| Lambda | Handler | Trigger | Publishes To |
+|--------|---------|---------|--------------|
+| **Strategy** | `strategy_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET M-F) | EventBridge: `SignalGenerated` |
+| **Portfolio** | `portfolio_v2.lambda_handler` | EventBridge: `SignalGenerated` | EventBridge: `RebalancePlanned` |
+| **Execution** | `execution_v2.lambda_handler` | SQS Queue (from EventBridge) | EventBridge: `TradeExecuted`, `WorkflowCompleted/Failed` |
+| **Notifications** | `notifications_v2.lambda_handler` | EventBridge: `TradeExecuted`, `WorkflowFailed` | SNS → Email |
+
+### Module Structure
+
+```
+the_alchemiser/
+├── strategy_v2/      # Lambda: Signal generation from market data
+├── portfolio_v2/     # Lambda: Converts signals to rebalance plans
+├── execution_v2/     # Lambda: Executes trades via Alpaca (SQS-triggered)
+├── notifications_v2/ # Lambda: Sends email notifications via SNS
+└── shared/           # Common DTOs, events, adapters, utilities
+```
 
 **Critical Constraint**: Business modules only import from `shared/`. No cross-module dependencies allowed.
 
 ## Event-Driven Workflow
 
-The system operates through a pure event-driven architecture with idempotent, traceable workflows:
+The system operates through AWS EventBridge for event routing with SQS buffering for reliable execution:
 
 ```mermaid
 sequenceDiagram
-    participant O as Orchestration
-    participant S as Strategy v2
-    participant P as Portfolio v2
-    participant E as Execution v2
-    participant Bus as Event Bus
+    participant Sched as EventBridge Schedule
+    participant S as Strategy Lambda
+    participant EB as EventBridge
+    participant P as Portfolio Lambda
+    participant SQS as SQS Queue
+    participant E as Execution Lambda
+    participant N as Notifications Lambda
+    participant SNS as SNS Topic
     participant A as Alpaca API
 
-    Note over O,A: Complete Trading Workflow
+    Note over Sched,A: Daily Trading Workflow (9:35 AM ET)
 
-    O->>Bus: WorkflowStarted
-    Bus->>S: WorkflowStarted
-
+    Sched->>S: Trigger (cron)
     S->>A: Fetch market data
     A-->>S: Price/volume data
-    S->>S: Calculate signals (Nuclear, TECL, KLM)
-    S->>Bus: SignalGenerated
+    S->>S: Run DSL strategies
+    S->>EB: SignalGenerated
 
-    Bus->>P: SignalGenerated
-    P->>A: Get current positions/cash
+    EB->>P: Route to Portfolio
+    P->>A: Get positions/cash
     A-->>P: Account snapshot
     P->>P: Calculate rebalance plan
-    P->>Bus: RebalancePlanned
+    P->>EB: RebalancePlanned
 
-    Bus->>E: RebalancePlanned
+    EB->>SQS: Buffer for execution
+    SQS->>E: Trigger (batch=1)
     E->>A: Place orders
     A-->>E: Order confirmations
-    E->>Bus: TradeExecuted
+    E->>EB: TradeExecuted
 
-    Bus->>O: TradeExecuted
-    O->>Bus: WorkflowCompleted
+    EB->>N: Route to Notifications
+    N->>SNS: Publish notification
+    SNS-->>N: Email sent
 
-    Note over O,A: All events include correlation_id for traceability
+    Note over Sched,A: All events include correlation_id for traceability
 ```
+
+## AWS Resources (template.yaml)
+
+| Resource | Type | Purpose |
+|----------|------|---------|
+| `StrategyFunction` | Lambda | Entry point, runs DSL strategies |
+| `PortfolioFunction` | Lambda | Converts signals to trade plans |
+| `ExecutionFunction` | Lambda | Executes trades via Alpaca |
+| `NotificationsFunction` | Lambda | Sends email notifications |
+| `AlchemiserEventBus` | EventBridge | Routes events between Lambdas |
+| `ExecutionQueue` | SQS | Buffers execution requests (reliability) |
+| `ExecutionDLQ` | SQS | Dead letter queue (3 retries) |
+| `TradingNotificationsTopic` | SNS | Email notification delivery |
+| `DLQAlertTopic` | SNS | Alerts when messages hit DLQ |
+| `TradeLedgerTable` | DynamoDB | Trade history persistence |
+| `PerformanceReportsBucket` | S3 | CSV strategy reports |
 
 ## Event Types and Schemas
 
@@ -95,20 +146,13 @@ All events extend `BaseEvent` with correlation tracking and metadata:
 
 ### Core Workflow Events
 
-| Event | Publisher | Consumer | Schema |
-|-------|-----------|----------|---------|
-| `WorkflowStarted` | Orchestration | Strategy v2 | `workflow_type`, `requested_by`, `configuration` |
-| `SignalGenerated` | Strategy v2 | Portfolio v2 | `signals_data`, `consolidated_portfolio`, `signal_count` |
-| `RebalancePlanned` | Portfolio v2 | Execution v2 | `rebalance_plan`, `allocation_comparison`, `trades_required` |
-| `TradeExecuted` | Execution v2 | Orchestration | `execution_data`, `orders_placed`, `orders_succeeded` |
-| `WorkflowCompleted` | Orchestration | System | `workflow_type`, `success`, `summary` |
-
-### Additional Events
-
-- `StartupEvent`: System initialization trigger
-- `WorkflowFailed`: Error handling and recovery
-- `ExecutionPhaseCompleted`: Multi-phase trade coordination
-- `PortfolioStateChanged`: Position/balance updates
+| Event | Publisher | Consumer | Key Fields |
+|-------|-----------|----------|------------|
+| `SignalGenerated` | Strategy Lambda | Portfolio Lambda | `signals_data`, `consolidated_portfolio`, `signal_count` |
+| `RebalancePlanned` | Portfolio Lambda | Execution Lambda (via SQS) | `rebalance_plan`, `allocation_comparison`, `trades_required` |
+| `TradeExecuted` | Execution Lambda | Notifications Lambda | `execution_data`, `orders_placed`, `orders_succeeded` |
+| `WorkflowCompleted` | Execution Lambda | Notifications Lambda | `workflow_type`, `success`, `summary` |
+| `WorkflowFailed` | Any Lambda | Notifications Lambda | `failure_reason`, `failure_step`, `error_details` |
 
 All events include:
 - `correlation_id`: End-to-end workflow tracking
@@ -121,64 +165,64 @@ All events include:
 
 ### Strategy v2 (`strategy_v2/`)
 
-**Purpose**: Generate trading signals from market data using multiple quantitative strategies.
+**Purpose**: Generate trading signals from market data using multiple quantitative strategies via DSL.
 
-**Inputs**: Market data via shared Alpaca adapters
+**Trigger**: EventBridge Schedule (9:35 AM ET, M-F)
 **Outputs**: `SignalGenerated` events with strategy allocations
 
 **Key Components**:
+- `lambda_handler.py`: Lambda entry point
 - `engines/`: Strategy implementations (Nuclear, TECL, KLM)
-- `indicators/`: Technical indicator calculations
+- `dsl/`: Clojure-inspired DSL for strategy definitions
 - `handlers/`: Event handlers for signal generation
 - `adapters/`: Market data access layer
-
-**Boundaries**: No portfolio sizing or execution concerns. Pure signal generation only.
 
 ### Portfolio v2 (`portfolio_v2/`)
 
 **Purpose**: Convert strategy signals into executable rebalance plans.
 
-**Inputs**: `SignalGenerated` events
+**Trigger**: EventBridge (`SignalGenerated` events)
 **Outputs**: `RebalancePlanned` events with trade specifications
 
 **Key Components**:
+- `lambda_handler.py`: Lambda entry point
 - `core/planner.py`: Rebalance plan calculator
 - `core/state_reader.py`: Portfolio snapshot builder
 - `adapters/`: Account data access
 - `handlers/`: Event handlers for portfolio analysis
 
-**Boundaries**: No order placement or execution logic. Focuses on BUY/SELL/HOLD decisions with trade amounts.
-
 ### Execution v2 (`execution_v2/`)
 
 **Purpose**: Execute trades through broker API with proper safeguards.
 
-**Inputs**: `RebalancePlanned` events
-**Outputs**: `TradeExecuted` events with execution results
+**Trigger**: SQS Queue (buffered `RebalancePlanned` events)
+**Outputs**: `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed` events
 
 **Key Components**:
+- `lambda_handler.py`: Lambda entry point with SQS batch handling
 - `core/execution_manager.py`: Order placement coordination
 - `handlers/`: Event handlers for trade execution
 - `models/`: Execution result DTOs
 
-**Boundaries**: No recalculation of plans. Pure order execution with slippage controls.
+### Notifications v2 (`notifications_v2/`)
 
-### Orchestration (`orchestration/`)
+**Purpose**: Send email notifications for trade results and failures.
 
-**Purpose**: Coordinate complete workflows and handle cross-cutting concerns.
+**Trigger**: EventBridge (`TradeExecuted`, `WorkflowFailed` events)
+**Outputs**: SNS messages → Email subscriptions
 
 **Key Components**:
-- `event_driven_orchestrator.py`: Primary workflow coordinator
-- `system.py`: System bootstrap and configuration
-
-**Responsibilities**: Workflow state tracking, error handling, notifications, and recovery.
+- `lambda_handler.py`: Lambda entry point
+- `service.py`: Notification service
+- `strategy_report_service.py`: CSV report generation
 
 ### Shared (`shared/`)
 
-**Purpose**: Common services, DTOs, and protocols used across modules.
+**Purpose**: Common services, DTOs, and protocols used across all Lambdas.
 
 **Key Components**:
-- `events/`: Event bus, schemas, and handlers
+- `events/`: Event schemas, EventBridge publisher
+- `notifications/`: SNS publisher for email notifications
 - `schemas/`: DTOs for data exchange
 - `adapters/`: External service integrations (Alpaca)
 - `config/`: Dependency injection container
@@ -210,8 +254,8 @@ make type-check
 # Check module boundaries
 make import-check
 
-# Full validation suite
-make migration-check
+# Run tests
+pytest tests/
 ```
 
 ### Testing
@@ -224,6 +268,7 @@ pytest
 pytest tests/strategy_v2/
 pytest tests/portfolio_v2/
 pytest tests/execution_v2/
+pytest tests/notifications_v2/
 ```
 
 ## Configuration
@@ -235,6 +280,12 @@ pytest tests/execution_v2/
 ALPACA_API_KEY=your_api_key
 ALPACA_SECRET_KEY=your_secret_key
 ALPACA_BASE_URL=https://api.alpaca.markets  # or https://paper-api.alpaca.markets
+
+# AWS Resources (set automatically in Lambda)
+EVENT_BUS_NAME=alchemiser-dev-events
+SNS_NOTIFICATION_TOPIC_ARN=arn:aws:sns:...
+TRADE_LEDGER__TABLE_NAME=alchemiser-dev-trade-ledger
+PERFORMANCE_REPORTS_BUCKET=alchemiser-dev-reports
 
 # Optional
 LOG_LEVEL=INFO
@@ -251,9 +302,6 @@ make deploy-dev
 
 # Deploy to production (creates release tag)
 make deploy-prod
-
-# Or use the deprecated direct deploy
-make deploy
 ```
 
 #### Ephemeral Deployments (Feature Branch Testing)
@@ -261,11 +309,8 @@ make deploy
 Deploy any feature branch as an isolated, temporary stack:
 
 ```bash
-# Deploy ephemeral stack with 24-hour TTL (uses current branch by default)
+# Deploy ephemeral stack with 24-hour TTL
 make deploy-ephemeral TTL_HOURS=24
-
-# Or specify a different branch
-make deploy-ephemeral BRANCH=feature/my-feature TTL_HOURS=24
 
 # List active ephemeral stacks
 make list-ephemeral
@@ -274,14 +319,7 @@ make list-ephemeral
 make destroy-ephemeral STACK=alchemiser-ephem-feature-my-feature-a1b2c3d
 ```
 
-Ephemeral stacks are:
-- Fully isolated from dev/prod
-- Automatically cleaned up after TTL expires
-- Ideal for realistic testing of infrastructure changes
-
 📖 **[Full Ephemeral Deployments Documentation](docs/EPHEMERAL_DEPLOYMENTS.md)**
-
-For CI/CD details, see **[DEPLOYMENT_WORKFLOW.md](docs/DEPLOYMENT_WORKFLOW.md)**
 
 ## Observability
 
@@ -294,20 +332,17 @@ All events and operations include structured metadata:
   "timestamp": "2024-01-15T10:30:00Z",
   "level": "INFO",
   "correlation_id": "wf-123e4567-e89b-12d3",
-  "event_type": "SignalGenerated",
   "module": "strategy_v2",
   "component": "SignalGenerationHandler",
   "message": "Generated signals for 5 strategies"
 }
 ```
 
-### Key Metrics
+### Monitoring
 
-- `event_published_total`: Events published by type
-- `event_handler_latency_ms`: Handler processing time
-- `workflow_duration_ms`: End-to-end workflow timing
-- `orders_placed_total`: Trade execution metrics
-- `orders_succeeded_total`: Successful order fills
+- **CloudWatch Logs**: Each Lambda has its own log group
+- **DLQ Alerts**: SNS alerts when messages hit the execution DLQ
+- **Trade Ledger**: All trades persisted in DynamoDB for analysis
 
 ## Error Handling
 
@@ -322,9 +357,9 @@ Each event includes deterministic hashes for deduplication.
 
 ### Failure Recovery
 
-- `WorkflowFailed` events trigger recovery processes
-- Correlation IDs enable precise error tracking
-- Failed workflows can be replayed from any point
+- `WorkflowFailed` events trigger notification to operators
+- SQS DLQ captures failed executions after 3 retries
+- Correlation IDs enable precise error tracking across all Lambdas
 
 ## Strategies Implemented
 
@@ -339,12 +374,14 @@ Multi-timeframe ensemble combining trend following with mean reversion signals.
 
 ## Architecture Principles
 
-1. **Event-Driven Communication**: All inter-module communication via events
-2. **Strict Boundaries**: No cross-module imports outside `shared/`
-3. **DTO-First**: Type-safe data contracts with Pydantic validation
-4. **Idempotent Operations**: Safe under retries and message reordering
-5. **Correlation Tracking**: End-to-end traceability via correlation IDs
-6. **Immutable State**: No shared mutable state between modules
+1. **Microservices**: Each Lambda is independently deployable and scalable
+2. **Event-Driven Communication**: All inter-Lambda communication via EventBridge
+3. **Reliable Execution**: SQS buffering with DLQ for trade execution
+4. **Strict Boundaries**: No cross-module imports outside `shared/`
+5. **DTO-First**: Type-safe data contracts with Pydantic validation
+6. **Idempotent Operations**: Safe under retries and message reordering
+7. **Correlation Tracking**: End-to-end traceability via correlation IDs
+8. **SNS Notifications**: Email delivery without SMTP credentials
 
 ---
 

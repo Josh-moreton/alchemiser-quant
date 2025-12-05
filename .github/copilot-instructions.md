@@ -58,18 +58,53 @@
 - Use constants, config, or environment variables; 12-factor friendly.
 
 ## Architecture boundaries
-- Business modules under `the_alchemiser/`: `strategy_v2`, `portfolio_v2`, `execution_v2`, `orchestration`, `shared`.
+- Business modules under `the_alchemiser/`: `strategy_v2`, `portfolio_v2`, `execution_v2`, `notifications_v2`, `shared`.
+- Each business module is deployed as an **independent Lambda function**.
 - Allowed imports: business modules → `shared`.
-- Orchestrators may import business **APIs via their `__init__`** only.
 - **No cross business-module imports** or deep path imports.
 - Shared utilities live in `shared/` and **must have zero** dependencies on business modules.
-- Event contracts and schemas: `shared/events`, `shared/schemas` (extend, don’t duplicate).
+- Event contracts and schemas: `shared/events`, `shared/schemas` (extend, don't duplicate).
+
+## Multi-Lambda microservices architecture
+The system is deployed as **4 independent Lambda functions** connected via AWS services:
+
+### Lambda Functions
+| Lambda | Handler | Trigger | Publishes To |
+|--------|---------|---------|--------------|
+| Strategy | `strategy_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | EventBridge (`SignalGenerated`) |
+| Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | EventBridge (`RebalancePlanned`) |
+| Execution | `execution_v2.lambda_handler` | SQS Queue (buffered from EventBridge) | EventBridge (`TradeExecuted`) |
+| Notifications | `notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS Topic → Email |
+
+### Event routing
+- **EventBridge** routes events between Lambdas based on `source` and `detail-type`
+- **SQS** buffers `RebalancePlanned` events for reliable execution (with DLQ after 3 retries)
+- **SNS** delivers email notifications via topic subscriptions
 
 ## Event-driven workflow
-- **Strategy** emits `SignalGenerated` after adapter data pull; payload includes `schema_version`, correlation/causation IDs, and DTO dumps.
-- **Portfolio** consumes `SignalGenerated`, creates `RebalancePlan`, publishes `RebalancePlanned` with allocation deltas and plan metadata.
-- **Execution** consumes `RebalancePlanned`, executes via broker adapters, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`.
-- **Orchestration** wires handlers via `EventBus` (`orchestration/event_driven_orchestrator.py`). Prefer registry/event wiring over direct imports.
+- **Strategy Lambda** runs on schedule, fetches market data, emits `SignalGenerated` to EventBridge
+- **Portfolio Lambda** triggered by EventBridge rule on `SignalGenerated`, creates `RebalancePlan`, publishes `RebalancePlanned`
+- **Execution Lambda** triggered by SQS (EventBridge routes `RebalancePlanned` → SQS), executes trades, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`
+- **Notifications Lambda** triggered by EventBridge on `TradeExecuted` or `WorkflowFailed`, sends email via SNS
+
+### Publishing events
+```python
+# To EventBridge (routes to other Lambdas)
+from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
+publish_to_eventbridge(my_event)
+
+# To SNS (for email notifications)
+from the_alchemiser.shared.notifications.sns_publisher import publish_notification
+publish_notification(subject="...", message="...")
+```
+
+### AWS Resources (defined in template.yaml)
+- `AlchemiserEventBus` - EventBridge bus for event routing
+- `ExecutionQueue` / `ExecutionDLQ` - SQS for reliable trade execution
+- `TradingNotificationsTopic` - SNS topic for email notifications
+- `DLQAlertTopic` - SNS for DLQ monitoring alerts
+- `TradeLedgerTable` - DynamoDB for trade history
+- `PerformanceReportsBucket` - S3 for CSV performance reports
 
 ## Typing & DTO policy
 - DTOs in `shared/schemas/` with `ConfigDict(strict=True, frozen=True)`, explicit field types, and versioned via `schema_version`.

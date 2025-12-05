@@ -16,40 +16,103 @@ make bump-patch                       # Version bump after changes (REQUIRED)
 
 ## Project Overview
 
-Alchemiser is a **multi-strategy quantitative trading system** deployed on AWS Lambda. It uses an **event-driven architecture** where business modules communicate exclusively through events.
+Alchemiser is a **multi-strategy quantitative trading system** deployed as **multiple AWS Lambda microservices**. It uses an **event-driven architecture** where Lambdas communicate via EventBridge, SQS, and SNS.
 
 ### Tech Stack
 - **Language**: Python 3.12+
 - **Framework**: AWS SAM (Serverless Application Model)
 - **Broker**: Alpaca Markets API
+- **Messaging**: EventBridge (events), SQS (execution queue), SNS (notifications)
+- **Storage**: DynamoDB (trade ledger), S3 (performance reports)
 - **Dependencies**: Poetry for package management
 - **Testing**: pytest with Hypothesis for property tests
 - **Typing**: mypy with strict mode
 
 ## Architecture
 
+### Multi-Lambda Microservices
+
+The system is deployed as **4 independent Lambda functions** that communicate asynchronously:
+
+```
+┌─────────────────┐     EventBridge      ┌─────────────────┐
+│  Strategy       │──────────────────────▶│  Portfolio      │
+│  Lambda         │   SignalGenerated     │  Lambda         │
+└─────────────────┘                       └─────────────────┘
+        │                                         │
+        │                                         │ RebalancePlanned
+        │                                         ▼
+        │                                 ┌─────────────────┐
+        │                                 │  SQS Queue      │
+        │                                 │  (with DLQ)     │
+        │                                 └─────────────────┘
+        │                                         │
+        │                                         ▼
+        │                                 ┌─────────────────┐
+        │     WorkflowFailed              │  Execution      │
+        └────────────────────────────────▶│  Lambda         │
+                                          └─────────────────┘
+                                                  │
+                        TradeExecuted / WorkflowFailed
+                                                  ▼
+                                          ┌─────────────────┐
+                                          │  Notifications  │
+                                          │  Lambda         │
+                                          └─────────────────┘
+                                                  │
+                                                  ▼ SNS
+                                          ┌─────────────────┐
+                                          │  Email          │
+                                          │  Subscription   │
+                                          └─────────────────┘
+```
+
 ### Module Structure
 ```
 the_alchemiser/
-├── strategy_v2/      # Signal generation from market data
-├── portfolio_v2/     # Converts signals to rebalance plans
-├── execution_v2/     # Executes trades via Alpaca
-├── orchestration/    # Workflow coordination
-├── reporting/        # PDF report generation (separate Lambda)
-├── notifications_v2/ # Email notifications
+├── strategy_v2/      # Lambda: Signal generation from market data
+├── portfolio_v2/     # Lambda: Converts signals to rebalance plans
+├── execution_v2/     # Lambda: Executes trades via Alpaca (SQS-triggered)
+├── notifications_v2/ # Lambda: Sends email notifications via SNS
 └── shared/           # DTOs, events, adapters, utilities
 ```
 
+**Note**: The `orchestration/` module has been removed as workflow coordination is now handled by AWS EventBridge and SQS.
+
 ### Critical Architecture Rules
 1. **Business modules only import from `shared/`** - no cross-module imports
-2. **Event-driven communication** - modules publish/consume events via `EventBus`
-3. **DTOs at boundaries** - never pass raw dicts between modules
-4. **Idempotent handlers** - all event handlers must be safe under replay
+2. **Event-driven communication** - Lambdas publish/consume events via EventBridge
+3. **SQS for execution** - Trade execution is buffered via SQS for reliability
+4. **SNS for notifications** - Email notifications via SNS topic subscriptions
+5. **DTOs at boundaries** - never pass raw dicts between modules
+6. **Idempotent handlers** - all event handlers must be safe under replay
 
-### Event Flow
+### Event Flow (Multi-Lambda)
 ```
-WorkflowStarted → SignalGenerated → RebalancePlanned → TradeExecuted → WorkflowCompleted
+[EventBridge Schedule] → Strategy Lambda
+        ↓ (SignalGenerated via EventBridge)
+    Portfolio Lambda
+        ↓ (RebalancePlanned via EventBridge → SQS)
+    Execution Lambda (SQS-triggered)
+        ↓ (TradeExecuted/WorkflowFailed via EventBridge)
+    Notifications Lambda → SNS → Email
 ```
+
+### AWS Resources (template.yaml)
+
+| Resource | Type | Purpose |
+|----------|------|---------|
+| `StrategyFunction` | Lambda | Entry point, signal generation |
+| `PortfolioFunction` | Lambda | Rebalance planning |
+| `ExecutionFunction` | Lambda | Trade execution (SQS-triggered) |
+| `NotificationsFunction` | Lambda | Email via SNS |
+| `AlchemiserEventBus` | EventBridge | Event routing between Lambdas |
+| `ExecutionQueue` | SQS | Reliable trade execution buffer |
+| `ExecutionDLQ` | SQS | Dead letter queue for failed executions |
+| `TradingNotificationsTopic` | SNS | Email notification delivery |
+| `DLQAlertTopic` | SNS | DLQ monitoring alerts |
+| `TradeLedgerTable` | DynamoDB | Trade history persistence |
+| `PerformanceReportsBucket` | S3 | CSV performance reports |
 
 ## Code Style & Guardrails
 
@@ -140,12 +203,32 @@ make bump-major   # Breaking changes
 
 The bump command commits both your changes AND the version bump together.
 
-## Lambda Architecture
+## Lambda Handlers
 
-### Main Trading Lambda
-- Handler: `the_alchemiser.lambda_handler.lambda_handler`
-- Uses `ApplicationContainer` for dependency injection
-- Heavy dependencies: pandas, numpy, alpaca-py
+Each microservice has its own Lambda handler:
+
+| Lambda | Handler Path | Trigger | Publishes |
+|--------|--------------|---------|-----------|
+| Strategy | `the_alchemiser.strategy_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | `SignalGenerated` |
+| Portfolio | `the_alchemiser.portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | `RebalancePlanned` |
+| Execution | `the_alchemiser.execution_v2.lambda_handler` | SQS Queue | `TradeExecuted`, `WorkflowCompleted` |
+| Notifications | `the_alchemiser.notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS messages |
+
+### Publishing to EventBridge
+```python
+from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
+
+# Publish event to EventBridge (routes to other Lambdas)
+publish_to_eventbridge(signal_generated_event)
+```
+
+### Publishing to SNS (Notifications)
+```python
+from the_alchemiser.shared.notifications.sns_publisher import publish_notification
+
+# Send email via SNS topic
+publish_notification(subject="Trade Executed", message="...")
+```
 
 ## Common Patterns
 
@@ -253,11 +336,17 @@ logger.info(
 
 | Purpose | Location |
 |---------|----------|
-| Main entry point | `the_alchemiser/lambda_handler.py` |
+| Strategy Lambda handler | `the_alchemiser/strategy_v2/lambda_handler.py` |
+| Portfolio Lambda handler | `the_alchemiser/portfolio_v2/lambda_handler.py` |
+| Execution Lambda handler | `the_alchemiser/execution_v2/lambda_handler.py` |
+| Notifications Lambda handler | `the_alchemiser/notifications_v2/lambda_handler.py` |
 | Event schemas | `the_alchemiser/shared/events/schemas.py` |
+| EventBridge publisher | `the_alchemiser/shared/events/eventbridge_publisher.py` |
+| SNS publisher | `the_alchemiser/shared/notifications/sns_publisher.py` |
 | DTOs | `the_alchemiser/shared/schemas/` |
 | DI Container | `the_alchemiser/shared/config/container.py` |
 | Strategy engines | `the_alchemiser/strategy_v2/engines/` |
+| Infrastructure (SAM) | `template.yaml` |
 | Tests | `tests/` (mirrors source structure) |
 
 ## Pre-Commit Checklist
