@@ -54,35 +54,80 @@ OrderSideLiteral = Literal["buy", "sell"]
 
 
 # Account Information Types
-class AccountInfo(TypedDict):
-    """Trading account information and balances.
+class AccountInfo(TypedDict, total=False):
+    """Trading account information and balances from Alpaca GET /v2/account.
 
     All monetary values are Decimal types for precision in financial calculations.
     Convert from API string/float responses to Decimal at the adapter boundary.
 
-    Fields:
+    Using total=False because not all fields are always available from the API.
+
+    Core Fields:
         account_id: Unique account identifier
         equity: Total account equity (cash + market value of positions) in USD
         cash: Available cash balance in USD
-        buying_power: Available buying power in USD (considers margin/leverage)
-        day_trades_remaining: Number of day trades remaining (PDT rule)
+        buying_power: Available buying power in USD (depends on multiplier)
         portfolio_value: Total portfolio value in USD (same as equity)
         last_equity: Previous day's closing equity in USD
-        daytrading_buying_power: Buying power for day trading in USD
-        regt_buying_power: Regulation T buying power in USD
+        long_market_value: Market value of long positions
+        short_market_value: Market value of short positions
+
+    Margin Fields:
+        initial_margin: Margin required to open positions
+        maintenance_margin: Margin required to maintain positions
+        last_maintenance_margin: Previous day's maintenance margin
+        sma: Special Memorandum Account balance
+
+    Buying Power Variants:
+        regt_buying_power: Regulation T buying power in USD (overnight positions)
+        daytrading_buying_power: Day trading buying power in USD (PDT 4x)
+        multiplier: Account type multiplier (1=cash, 2=margin, 4=PDT)
+
+    Day Trading Status:
+        daytrade_count: Number of day trades in last 5 business days
+        pattern_day_trader: Whether flagged as pattern day trader
+
+    Account Status:
         status: Account status (ACTIVE or INACTIVE)
+        trading_blocked: Whether trading is blocked
+        transfers_blocked: Whether transfers are blocked
+        account_blocked: Whether account is blocked
+        shorting_enabled: Whether shorting is enabled
     """
 
+    # Identity
     account_id: str
+    status: Literal["ACTIVE", "INACTIVE"]
+
+    # Core financial values
     equity: MonetaryValue
     cash: MonetaryValue
     buying_power: MonetaryValue
-    day_trades_remaining: int
     portfolio_value: MonetaryValue
     last_equity: MonetaryValue
-    daytrading_buying_power: MonetaryValue
-    regt_buying_power: MonetaryValue
-    status: Literal["ACTIVE", "INACTIVE"]
+    long_market_value: MonetaryValue
+    short_market_value: MonetaryValue
+
+    # Margin fields
+    initial_margin: MonetaryValue
+    maintenance_margin: MonetaryValue
+    last_maintenance_margin: MonetaryValue
+    sma: MonetaryValue  # Special Memorandum Account
+
+    # Buying power variants
+    regt_buying_power: MonetaryValue  # Reg T overnight
+    daytrading_buying_power: MonetaryValue  # PDT 4x intraday
+    multiplier: int  # 1=cash, 2=margin, 4=PDT
+
+    # Day trading status
+    daytrade_count: int
+    pattern_day_trader: bool
+
+    # Account status flags
+    trading_blocked: bool
+    transfers_blocked: bool
+    account_blocked: bool
+    shorting_enabled: bool
 
 
 # Enriched Account Types for Display/Reporting

@@ -65,6 +65,9 @@ class AlpacaAccountService:
     def get_account_dict(self) -> dict[str, Any] | None:
         """Get account information as a plain dictionary for convenience.
 
+        Returns all account fields from the Alpaca GET /v2/account endpoint:
+        https://docs.alpaca.markets/reference/getaccount-1
+
         Note: Financial values are returned as strings to preserve precision.
         Convert to Decimal for calculations.
 
@@ -80,25 +83,45 @@ class AlpacaAccountService:
             if not account_obj:
                 return None
 
-            # Build dict from known attributes with proper type handling
+            # Helper to safely extract string value from account attribute
+            def _safe_str(attr_name: str) -> str | None:
+                val = getattr(account_obj, attr_name, None)
+                return str(val) if val is not None else None
+
+            # Build dict from all known attributes per Alpaca API
+            # See: https://docs.alpaca.markets/reference/getaccount-1
             return {
+                # Identity fields
                 "id": getattr(account_obj, "id", None),
                 "account_number": getattr(account_obj, "account_number", None),
                 "status": getattr(account_obj, "status", None),
                 "currency": getattr(account_obj, "currency", None),
-                # Return financial values as strings to preserve precision
-                "buying_power": str(getattr(account_obj, "buying_power", "0"))
-                if getattr(account_obj, "buying_power", None) is not None
-                else None,
-                "cash": str(getattr(account_obj, "cash", "0"))
-                if getattr(account_obj, "cash", None) is not None
-                else None,
-                "equity": str(getattr(account_obj, "equity", "0"))
-                if getattr(account_obj, "equity", None) is not None
-                else None,
-                "portfolio_value": str(getattr(account_obj, "portfolio_value", "0"))
-                if getattr(account_obj, "portfolio_value", None) is not None
-                else None,
+                # Core financial values (as strings for precision)
+                "buying_power": _safe_str("buying_power"),
+                "cash": _safe_str("cash"),
+                "equity": _safe_str("equity"),
+                "portfolio_value": _safe_str("portfolio_value"),
+                "last_equity": _safe_str("last_equity"),
+                "long_market_value": _safe_str("long_market_value"),
+                "short_market_value": _safe_str("short_market_value"),
+                # Margin fields - critical for leverage safety
+                "initial_margin": _safe_str("initial_margin"),
+                "maintenance_margin": _safe_str("maintenance_margin"),
+                "last_maintenance_margin": _safe_str("last_maintenance_margin"),
+                "sma": _safe_str("sma"),  # Special Memorandum Account
+                # Buying power variants
+                "regt_buying_power": _safe_str("regt_buying_power"),  # Reg T overnight
+                "daytrading_buying_power": _safe_str("daytrading_buying_power"),  # PDT 4x
+                # Account type indicator: 1=cash, 2=margin, 4=PDT
+                "multiplier": _safe_str("multiplier"),
+                # Day trading status
+                "daytrade_count": getattr(account_obj, "daytrade_count", None),
+                "pattern_day_trader": getattr(account_obj, "pattern_day_trader", None),
+                # Account status flags
+                "trading_blocked": getattr(account_obj, "trading_blocked", None),
+                "transfers_blocked": getattr(account_obj, "transfers_blocked", None),
+                "account_blocked": getattr(account_obj, "account_blocked", None),
+                "shorting_enabled": getattr(account_obj, "shorting_enabled", None),
             }
         except TradingClientError:
             # Already logged in _get_account_object

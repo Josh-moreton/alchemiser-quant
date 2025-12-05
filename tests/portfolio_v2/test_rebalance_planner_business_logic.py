@@ -409,9 +409,8 @@ class TestRebalancePlanCalculator:
         )
 
         # Try to allocate to very expensive assets that require fractional shares
-        # but broker doesn't support them (simulated by high prices)
-        # Deployable = ($10 + $150) * 0.99 = $158.40
-        # But we'll manipulate prices to make even one share cost more
+        # With equity-based deployment: deployable = $160 * 0.99 = $158.40
+        # But GOOGL at $2000/share would need fractional (which planner handles)
         impossible_allocation = StrategyAllocation(
             target_weights={
                 "GOOGL": Decimal("1.0"),  # Would need $158.40 but GOOGL is $2000/share
@@ -426,9 +425,7 @@ class TestRebalancePlanCalculator:
         plan = calculator.build_plan(impossible_allocation, impossible_snapshot, str(uuid.uuid4()))
         assert plan is not None
 
-        # The validation catches when BUY orders exceed cash + sell proceeds
-        # Let's create a scenario where that actually happens by having a position
-        # that partially sells but we try to buy more than available
+        # Create scenario with partial position retention
         truly_impossible_snapshot = PortfolioSnapshot(
             positions={
                 "AAPL": Decimal("1"),  # Will keep partial position
@@ -441,9 +438,9 @@ class TestRebalancePlanCalculator:
             total_value=Decimal("55.00"),
         )
 
-        # This creates targets but shouldn't raise an error with current logic
-        # because deployable capital = ($5 + 0) * 0.99 = $4.95
-        # (AAPL not fully exited, so no proceeds counted in deployable)
+        # With equity-based deployment: deployable = $55 * 0.99 = $54.45
+        # AAPL at 20% = $10.89 target (sell ~$39.11 worth)
+        # GOOGL at 80% = $43.56 target (buy ~$43.56)
         still_possible = StrategyAllocation(
             target_weights={
                 "AAPL": Decimal("0.2"),  # Keep some AAPL
@@ -454,21 +451,20 @@ class TestRebalancePlanCalculator:
             constraints={},
         )
 
-        # This should succeed - AAPL sells partially ($50 -> $0.99), frees $49.01
-        # Available = $5 + $49.01 = $54.01; Buy GOOGL for ~$3.96, well within limits
+        # This should succeed - AAPL sells partially, proceeds fund GOOGL buy
+        # Available = cash + sell proceeds = $5 + ~$39 = ~$44 (enough for GOOGL buy)
         plan2 = calculator.build_plan(still_possible, truly_impossible_snapshot, str(uuid.uuid4()))
         assert plan2 is not None
 
     def test_prevents_over_allocation_with_partial_positions(self, calculator):
-        """Regression test: prevent allocating more than available capital.
+        """Regression test: prevent allocating more than available funding.
 
-        Original bug: when holding positions that should be reduced (not eliminated),
-        the planner would allocate based on total portfolio value rather than
-        available capital (cash + sells), leading to impossible trade plans.
-
-        This test specifically targets the scenario where partial position reductions
-        should free up capital, but the planner incorrectly tried to allocate the
-        full portfolio value.
+        With equity-based deployment:
+        - Deployable capital = equity * deployment_pct (what we CAN allocate)
+        - Available funding = cash + sell proceeds (what we CAN SPEND on buys)
+        
+        This test ensures BUY orders don't exceed available funding
+        (cash + proceeds from sales), even when partial positions are involved.
         """
         portfolio_snapshot = PortfolioSnapshot(
             positions={
@@ -480,23 +476,25 @@ class TestRebalancePlanCalculator:
                 "MSFT": Decimal("100.00"),
                 "GOOGL": Decimal("100.00"),
             },
-            cash=Decimal("100.00"),  # Very limited cash
+            cash=Decimal("100.00"),  # Limited cash
             total_value=Decimal("1600.00"),  # $1000 + $500 + $100
         )
 
-        # Allocation that requires significant capital redeployment
+        # Allocation that requires capital redeployment
+        # With equity = $1600 and deployment_pct = 0.99:
+        # Deployable capital = $1584
         allocation = StrategyAllocation(
             target_weights={
-                "AAPL": Decimal("0.3125"),  # Target: ~$500 (reduce by ~$500)
-                "MSFT": Decimal("0.15625"),  # Target: ~$250 (reduce by ~$250)
-                "GOOGL": Decimal("0.53125"),  # Target: ~$850 (buy ~$850)
+                "AAPL": Decimal("0.3125"),  # Target: ~$495 (reduce by ~$505)
+                "MSFT": Decimal("0.15625"),  # Target: ~$248 (reduce by ~$252)
+                "GOOGL": Decimal("0.53125"),  # Target: ~$842 (buy)
             },
             correlation_id=str(uuid.uuid4()),
             as_of=datetime.now(UTC),
             constraints={},
         )
 
-        # This should succeed with the corrected logic
+        # This should succeed - sell proceeds fund the GOOGL buy
         plan = calculator.build_plan(allocation, portfolio_snapshot, str(uuid.uuid4()))
 
         # Calculate capital availability and usage
@@ -504,9 +502,9 @@ class TestRebalancePlanCalculator:
         total_sell = sum(abs(item.trade_amount) for item in plan.items if item.action == "SELL")
         available = portfolio_snapshot.cash + total_sell
 
-        # This is the key assertion: BUY orders must not exceed available capital
+        # Key assertion: BUY orders funded by cash + sell proceeds
         assert total_buy <= available, (
-            f"Over-allocation bug reproduced: trying to buy ${total_buy} "
+            f"Over-allocation: trying to buy ${total_buy} "
             f"with only ${available} available (cash: ${portfolio_snapshot.cash}, "
             f"sell proceeds: ${total_sell}). Deficit: ${total_buy - available}"
         )
@@ -519,7 +517,7 @@ class TestRebalancePlanCalculator:
         googl_item = next((item for item in plan.items if item.symbol == "GOOGL"), None)
         assert googl_item is not None
         assert googl_item.action == "BUY"
-        # The buy amount should be less than available capital
+        # The buy amount should be less than available funding
         assert googl_item.trade_amount <= available
 
     def test_weight_validation_accepts_precision_errors(self, calculator):
