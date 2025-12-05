@@ -13,6 +13,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+# Configure logging BEFORE any get_logger calls to ensure proper level filtering
+# This must happen at module level for Lambda cold starts
+from the_alchemiser.shared.logging.config import configure_application_logging
+
+configure_application_logging()
+
 from the_alchemiser.execution_v2.handlers.trading_execution_handler import (
     TradingExecutionHandler,
 )

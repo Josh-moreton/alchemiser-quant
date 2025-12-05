@@ -125,6 +125,14 @@ ignore = [ "E501", "B008", "B904", "D203", "D213",]
 fixable = [ "ALL",]
 unfixable = []
 
+[tool.ruff.lint.per-file-ignores]
+# Lambda handlers must configure logging before other imports to ensure proper log level filtering
+# This intentional pattern requires imports after module-level code execution
+"the_alchemiser/strategy_v2/lambda_handler.py" = ["E402"]
+"the_alchemiser/portfolio_v2/lambda_handler.py" = ["E402"]
+"the_alchemiser/execution_v2/lambda_handler.py" = ["E402"]
+"the_alchemiser/notifications_v2/lambda_handler.py" = ["E402"]
+
 [tool.pytest.ini_options]
 addopts = "-n auto --dist=loadscope -q --durations=10"
 testpaths = [ "tests",]

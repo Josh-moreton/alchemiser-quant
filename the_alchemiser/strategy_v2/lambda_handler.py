@@ -15,6 +15,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+# Configure logging BEFORE any get_logger calls to ensure proper level filtering
+# This must happen at module level for Lambda cold starts
+from the_alchemiser.shared.logging.config import configure_application_logging
+
+configure_application_logging()
+
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import (
     BaseEvent,

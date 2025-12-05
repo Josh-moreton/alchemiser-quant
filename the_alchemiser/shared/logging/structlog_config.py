@@ -144,10 +144,14 @@ def configure_structlog(
     """
     # Set up stdlib logging handlers first
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Allow all levels through to handlers
+
+    # Set root logger to the minimum of configured levels to allow filtering at handler level
+    # If no file logging, only console level matters
+    effective_min_level = console_level if file_path is None else min(console_level, file_level)
+    root_logger.setLevel(effective_min_level)
     root_logger.handlers.clear()  # Clear any existing handlers
 
-    # Console handler (INFO+ only for clean terminal)
+    # Console handler with configured level
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(console_level)
     console_handler.setFormatter(logging.Formatter("%(message)s"))  # Just the message

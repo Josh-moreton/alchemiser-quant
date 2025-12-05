@@ -13,6 +13,12 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
+# Configure logging BEFORE any get_logger calls to ensure proper level filtering
+# This must happen at module level for Lambda cold starts
+from the_alchemiser.shared.logging.config import configure_application_logging
+
+configure_application_logging()
+
 from the_alchemiser.notifications_v2.service import NotificationService
 from the_alchemiser.notifications_v2.strategy_report_service import (
     generate_performance_report_url,

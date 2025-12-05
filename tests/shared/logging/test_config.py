@@ -64,6 +64,7 @@ class TestConfigureTestLogging:
 class TestConfigureProductionLogging:
     """Test suite for configure_production_logging function."""
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_configures_with_default_info_level(self, mock_configure: MagicMock) -> None:
         """Test that configure_production_logging uses INFO level by default."""
@@ -76,6 +77,7 @@ class TestConfigureProductionLogging:
             file_path=None,
         )
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_uses_json_format(self, mock_configure: MagicMock) -> None:
         """Test that configure_production_logging uses JSON format."""
@@ -85,6 +87,7 @@ class TestConfigureProductionLogging:
         call_kwargs = mock_configure.call_args.kwargs
         assert call_kwargs["structured_format"] is True
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_custom_log_level(self, mock_configure: MagicMock) -> None:
         """Test that configure_production_logging accepts custom log level."""
@@ -97,6 +100,7 @@ class TestConfigureProductionLogging:
             file_path=None,
         )
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_custom_console_level(self, mock_configure: MagicMock) -> None:
         """Test that console_level can override base log_level."""
@@ -106,6 +110,7 @@ class TestConfigureProductionLogging:
         assert call_kwargs["console_level"] == logging.WARNING
         assert call_kwargs["file_level"] == logging.INFO
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_log_file_path(self, mock_configure: MagicMock) -> None:
         """Test that log_file_path parameter is passed through."""
@@ -132,6 +137,7 @@ class TestConfigureProductionLogging:
         call_kwargs = mock_configure.call_args.kwargs
         assert call_kwargs["file_path"] == "/param/log.log"
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_is_idempotent(self, mock_configure: MagicMock) -> None:
         """Test that multiple calls to configure_production_logging are safe."""
@@ -141,11 +147,70 @@ class TestConfigureProductionLogging:
         # Should be called twice
         assert mock_configure.call_count == 2
 
+    @patch.dict(os.environ, {"LOGGING__LEVEL": "WARNING"}, clear=True)
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_reads_logging_level_from_env(self, mock_configure: MagicMock) -> None:
+        """Test that LOGGING__LEVEL environment variable is respected."""
+        configure_production_logging()
+
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["console_level"] == logging.WARNING
+        assert call_kwargs["file_level"] == logging.WARNING
+
+    @patch.dict(os.environ, {"LOGGING__LEVEL": "DEBUG"}, clear=True)
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_reads_debug_level_from_env(self, mock_configure: MagicMock) -> None:
+        """Test that LOGGING__LEVEL=DEBUG is correctly parsed."""
+        configure_production_logging()
+
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["console_level"] == logging.DEBUG
+        assert call_kwargs["file_level"] == logging.DEBUG
+
+    @patch.dict(os.environ, {"LOGGING__LEVEL": "ERROR"}, clear=True)
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_reads_error_level_from_env(self, mock_configure: MagicMock) -> None:
+        """Test that LOGGING__LEVEL=ERROR is correctly parsed."""
+        configure_production_logging()
+
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["console_level"] == logging.ERROR
+        assert call_kwargs["file_level"] == logging.ERROR
+
+    @patch.dict(os.environ, {"LOGGING__LEVEL": "invalid_level"}, clear=True)
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_invalid_logging_level_defaults_to_info(self, mock_configure: MagicMock) -> None:
+        """Test that invalid LOGGING__LEVEL values default to INFO."""
+        configure_production_logging()
+
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["console_level"] == logging.INFO
+        assert call_kwargs["file_level"] == logging.INFO
+
+    @patch.dict(os.environ, {"LOGGING__LEVEL": "warning"}, clear=True)
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_logging_level_case_insensitive(self, mock_configure: MagicMock) -> None:
+        """Test that LOGGING__LEVEL is case-insensitive."""
+        configure_production_logging()
+
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["console_level"] == logging.WARNING
+
+    @patch.dict(os.environ, {"LOGGING__LEVEL": "WARNING"}, clear=True)
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_explicit_log_level_overrides_env(self, mock_configure: MagicMock) -> None:
+        """Test that explicit log_level parameter overrides LOGGING__LEVEL env var."""
+        configure_production_logging(log_level=logging.DEBUG)
+
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["console_level"] == logging.DEBUG
+        assert call_kwargs["file_level"] == logging.DEBUG
+
 
 class TestConfigureApplicationLogging:
     """Test suite for configure_application_logging function."""
 
-    @patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "my-lambda-function"})
+    @patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "my-lambda-function"}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_production_logging")
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_detects_lambda_environment(
@@ -154,8 +219,8 @@ class TestConfigureApplicationLogging:
         """Test that Lambda environment triggers production configuration."""
         configure_application_logging()
 
-        # Should call production logging, not structlog directly
-        mock_production.assert_called_once_with(log_level=logging.INFO)
+        # Should call production logging with no args (reads from env)
+        mock_production.assert_called_once_with()
         mock_structlog.assert_not_called()
 
     @patch.dict(os.environ, {}, clear=True)
@@ -176,7 +241,7 @@ class TestConfigureApplicationLogging:
         )
         mock_production.assert_not_called()
 
-    @patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": ""})
+    @patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": ""}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_production_logging")
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_empty_lambda_env_var_triggers_production(
@@ -190,7 +255,7 @@ class TestConfigureApplicationLogging:
         configure_application_logging()
 
         # With the fix (is not None), empty string should trigger production
-        mock_production.assert_called_once_with(log_level=logging.INFO)
+        mock_production.assert_called_once_with()
         mock_structlog.assert_not_called()
 
     @patch.dict(os.environ, {}, clear=True)
@@ -214,7 +279,7 @@ class TestConfigureApplicationLogging:
         assert call_kwargs["console_level"] == logging.INFO
         assert call_kwargs["file_level"] == logging.DEBUG
 
-    @patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "test-function"})
+    @patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "test-function"}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_production_logging")
     def test_is_idempotent(self, mock_production: MagicMock) -> None:
         """Test that multiple calls to configure_application_logging are safe."""
@@ -223,6 +288,19 @@ class TestConfigureApplicationLogging:
 
         # Should be called twice
         assert mock_production.call_count == 2
+
+    @patch.dict(
+        os.environ,
+        {"AWS_LAMBDA_FUNCTION_NAME": "test-function", "LOGGING__LEVEL": "WARNING"},
+        clear=True,
+    )
+    @patch("the_alchemiser.shared.logging.config.configure_production_logging")
+    def test_lambda_respects_logging_level_env_var(self, mock_production: MagicMock) -> None:
+        """Test that Lambda mode respects LOGGING__LEVEL when calling production config."""
+        configure_application_logging()
+
+        # Production logging is called without args, it will read LOGGING__LEVEL internally
+        mock_production.assert_called_once_with()
 
 
 class TestEdgeCases:

@@ -32,8 +32,20 @@ def configure_test_logging(log_level: int = logging.WARNING) -> None:
     )
 
 
+def _get_log_level_from_env() -> int:
+    """Get log level from LOGGING__LEVEL environment variable.
+
+    Returns:
+        Logging level integer (e.g., logging.INFO, logging.DEBUG).
+        Defaults to logging.INFO if not set or invalid.
+
+    """
+    level_str = os.getenv("LOGGING__LEVEL", "INFO").upper()
+    return getattr(logging, level_str, logging.INFO)
+
+
 def configure_production_logging(
-    log_level: int = logging.INFO,
+    log_level: int | None = None,
     log_file_path: str | None = None,
     *,
     console_level: int | None = None,
@@ -41,12 +53,14 @@ def configure_production_logging(
     """Configure structlog for production environment with JSON output.
 
     Args:
-        log_level: Base log level for handlers (default: INFO).
+        log_level: Base log level for handlers. If None, reads from LOGGING__LEVEL
+                   environment variable (default: INFO).
         log_file_path: Optional path/URI for file logging. Falls back to LOG_FILE_PATH env var.
         console_level: Override for console handler level. Defaults to log_level if not provided.
 
     Example:
-        >>> configure_production_logging(log_level=logging.INFO)
+        >>> configure_production_logging()  # Uses LOGGING__LEVEL env var
+        >>> configure_production_logging(log_level=logging.WARNING)
         >>> configure_production_logging(log_file_path="/tmp/app.log", console_level=logging.WARNING)
 
     Note:
@@ -55,13 +69,15 @@ def configure_production_logging(
         structlog_config module catches OSError and falls back to console-only logging.
 
     """
-    effective_console_level = console_level if console_level is not None else log_level
+    # Read from environment if not explicitly provided
+    effective_log_level = log_level if log_level is not None else _get_log_level_from_env()
+    effective_console_level = console_level if console_level is not None else effective_log_level
     # In Lambda, avoid file logging by default. Allow opt-in via LOG_FILE_PATH env var
     effective_log_file = log_file_path or os.getenv("LOG_FILE_PATH")
     configure_structlog(
         structured_format=True,  # JSON format for production
         console_level=effective_console_level,
-        file_level=log_level,
+        file_level=effective_log_level,
         file_path=effective_log_file,
     )
 
@@ -94,7 +110,8 @@ def configure_application_logging() -> None:
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
     if is_production:
-        configure_production_logging(log_level=logging.INFO)
+        # Reads LOGGING__LEVEL from environment (defaults to INFO)
+        configure_production_logging()
     else:
         # Development environment - clean console, detailed file
         # Default to local file logging for development only

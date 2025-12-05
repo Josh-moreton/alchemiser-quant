@@ -1,4 +1,16 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: shared | Status: DEPRECATED.
+
+DEPRECATED: This root lambda handler is no longer used in production.
+The microservices architecture uses individual Lambda handlers:
+- the_alchemiser.strategy_v2.lambda_handler
+- the_alchemiser.portfolio_v2.lambda_handler
+- the_alchemiser.execution_v2.lambda_handler
+- the_alchemiser.notifications_v2.lambda_handler
+
+This module is retained for backward compatibility and testing purposes only.
+It may be removed in a future release.
+
+---
 
 AWS Lambda Handler for The Alchemiser Quantitative Trading System.
 
