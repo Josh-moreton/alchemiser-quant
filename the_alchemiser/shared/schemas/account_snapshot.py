@@ -24,6 +24,7 @@ class AlpacaAccountData(BaseModel):
     """DTO for Alpaca account information in snapshot.
 
     Captures account-level financial metrics and status at snapshot time.
+    Includes all fields from Alpaca GET /v2/account endpoint.
     """
 
     model_config = ConfigDict(
@@ -32,10 +33,13 @@ class AlpacaAccountData(BaseModel):
         validate_assignment=True,
     )
 
+    # Identity fields
     account_id: str = Field(..., min_length=1, description="Alpaca account ID")
     account_number: str | None = Field(default=None, description="Alpaca account number")
     status: str = Field(..., description="Account status (e.g., ACTIVE)")
     currency: str = Field(default="USD", description="Account currency")
+
+    # Core financial values
     buying_power: Decimal = Field(..., ge=0, description="Available buying power")
     cash: Decimal = Field(..., ge=0, description="Cash balance")
     equity: Decimal = Field(..., ge=0, description="Total equity")
@@ -47,8 +51,37 @@ class AlpacaAccountData(BaseModel):
     short_market_value: Decimal | None = Field(
         default=None, description="Short positions market value"
     )
+
+    # Margin fields
     initial_margin: Decimal | None = Field(default=None, ge=0, description="Initial margin")
     maintenance_margin: Decimal | None = Field(default=None, ge=0, description="Maintenance margin")
+    last_maintenance_margin: Decimal | None = Field(
+        default=None, ge=0, description="Previous day maintenance margin"
+    )
+    sma: Decimal | None = Field(default=None, ge=0, description="Special Memorandum Account")
+
+    # Buying power variants
+    regt_buying_power: Decimal | None = Field(
+        default=None, ge=0, description="Regulation T buying power (overnight)"
+    )
+    daytrading_buying_power: Decimal | None = Field(
+        default=None, ge=0, description="Day trading buying power (PDT 4x)"
+    )
+    multiplier: int | None = Field(
+        default=None, ge=1, le=4, description="Account multiplier (1=cash, 2=margin, 4=PDT)"
+    )
+
+    # Day trading status
+    daytrade_count: int | None = Field(
+        default=None, ge=0, description="Day trades in last 5 business days"
+    )
+    pattern_day_trader: bool | None = Field(default=None, description="Pattern day trader flag")
+
+    # Account status flags
+    trading_blocked: bool | None = Field(default=None, description="Trading blocked status")
+    transfers_blocked: bool | None = Field(default=None, description="Transfers blocked status")
+    account_blocked: bool | None = Field(default=None, description="Account blocked status")
+    shorting_enabled: bool | None = Field(default=None, description="Shorting enabled status")
 
 
 class AlpacaPositionData(BaseModel):

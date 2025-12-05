@@ -98,6 +98,11 @@ class AccountSummary(BaseModel):
         trading_blocked: Whether trading is currently blocked.
         transfers_blocked: Whether transfers are currently blocked.
         account_blocked: Whether account is completely blocked.
+        initial_margin: Margin required to open positions.
+        maintenance_margin: Margin required to maintain positions.
+        regt_buying_power: Regulation T buying power (overnight positions).
+        daytrading_buying_power: Day trading buying power (PDT 4x).
+        multiplier: Account type multiplier (1=cash, 2=margin, 4=PDT).
         calculated_metrics: Derived financial metrics and ratios.
         schema_version: Schema version for backward compatibility tracking.
 
@@ -125,17 +130,45 @@ class AccountSummary(BaseModel):
         validate_assignment=True,
     )
 
+    # Identity
     account_id: str = Field(..., min_length=1, description="Alpaca account identifier")
+
+    # Core financial values
     equity: Decimal = Field(..., ge=0, description="Current account equity")
     cash: Decimal = Field(..., ge=0, description="Available cash balance")
     market_value: Decimal = Field(..., ge=0, description="Market value of positions")
     buying_power: Decimal = Field(..., ge=0, description="Available buying power")
     last_equity: Decimal = Field(..., ge=0, description="Previous day equity")
+
+    # Margin fields
+    initial_margin: Decimal | None = Field(
+        default=None, ge=0, description="Margin required to open positions"
+    )
+    maintenance_margin: Decimal | None = Field(
+        default=None, ge=0, description="Margin required to maintain positions"
+    )
+
+    # Buying power variants
+    regt_buying_power: Decimal | None = Field(
+        default=None, ge=0, description="Regulation T buying power (overnight)"
+    )
+    daytrading_buying_power: Decimal | None = Field(
+        default=None, ge=0, description="Day trading buying power (PDT 4x)"
+    )
+    multiplier: int | None = Field(
+        default=None, ge=1, le=4, description="Account multiplier (1=cash, 2=margin, 4=PDT)"
+    )
+
+    # Day trading status
     day_trade_count: int = Field(..., ge=0, description="Day trades in last 5 business days")
     pattern_day_trader: bool = Field(..., description="Pattern day trader flag status")
+
+    # Account status flags
     trading_blocked: bool = Field(..., description="Trading block status")
     transfers_blocked: bool = Field(..., description="Transfer block status")
     account_blocked: bool = Field(..., description="Complete account block status")
+
+    # Calculated metrics
     calculated_metrics: AccountMetrics = Field(
         ..., description="Calculated financial metrics and ratios"
     )

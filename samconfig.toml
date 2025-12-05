@@ -24,6 +24,7 @@ confirm_changeset = false
 fail_on_empty_changeset = false
 resolve_s3 = true
 # Provide stage parameter required by the template.
+# Note: EquityDeploymentPct comes from EQUITY_DEPLOYMENT_PCT env var via deploy.sh
 parameter_overrides = [
 	"Stage=dev",
 	"EnableMicroservices=true",

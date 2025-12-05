@@ -70,6 +70,16 @@ Parameters:
     Default: "7"
     Description: ALCHEMISER_DSL_MAX_WORKERS (string to align with Lambda env var type)
 
+  # Margin/Leverage configuration
+  EquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: ALPACA__EQUITY_DEPLOYMENT_PCT - percentage of equity to deploy (1.0=100%, 1.10=110% with margin)
+
+  ProdEquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: Equity deployment percentage for production (conservative default)
 
   # Production-only parameters (only used when Stage=prod)
   ProdAlpacaKey:
@@ -130,6 +140,10 @@ Globals:
 
         # DSL parallelism configuration
         ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
+
+        # Margin/Leverage configuration - controls how much of equity to deploy
+        # 1.0 = 100% of equity (no margin), 1.10 = 110% (10% margin usage)
+        ALPACA__EQUITY_DEPLOYMENT_PCT: !If [ IsDev, !Ref EquityDeploymentPct, !Ref ProdEquityDeploymentPct ]
 
         # Trade ledger DynamoDB table
         TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
