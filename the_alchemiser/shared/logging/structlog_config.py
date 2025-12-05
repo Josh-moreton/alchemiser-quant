@@ -118,8 +118,13 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
     if isinstance(obj, datetime):
         return obj.isoformat()
 
-    # Keep strict behavior for unsupported types
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    # Handle exceptions - convert to string representation
+    if isinstance(obj, BaseException):
+        return f"{type(obj).__name__}: {obj}"
+
+    # Fallback for unknown types - convert to string instead of crashing
+    # This prevents "Object of type X is not JSON serializable" errors
+    return str(obj)
 
 
 def configure_structlog(

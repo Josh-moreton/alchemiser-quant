@@ -59,7 +59,7 @@ def configure_production_logging(
     # In Lambda, avoid file logging by default. Allow opt-in via LOG_FILE_PATH env var
     effective_log_file = log_file_path or os.getenv("LOG_FILE_PATH")
     configure_structlog(
-        structured_format=True,  # JSON format for production
+        structured_format=False,  # Human-readable for CloudWatch console
         console_level=effective_console_level,
         file_level=log_level,
         file_path=effective_log_file,
