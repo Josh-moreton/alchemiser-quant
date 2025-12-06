@@ -421,19 +421,24 @@ class StrategyPerformanceReportService:
             timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
             object_key = f"reports/{timestamp}_{correlation_id[:8]}_closed_trades.csv"
 
-            put_object_params = {
-                "Bucket": self.bucket_name,
-                "Key": object_key,
-                "Body": csv_content.encode("utf-8"),
-                "ContentType": "text/csv",
-                "ContentDisposition": f'attachment; filename="closed_trades_{timestamp}.csv"',
-            }
-
-            # Add ExpectedBucketOwner if account ID is configured
+            # Add ExpectedBucketOwner if account ID is configured for security
             if self.account_id:
-                put_object_params["ExpectedBucketOwner"] = self.account_id
-
-            self._s3_client.put_object(**put_object_params)
+                self._s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=csv_content.encode("utf-8"),
+                    ContentType="text/csv",
+                    ContentDisposition=f'attachment; filename="closed_trades_{timestamp}.csv"',
+                    ExpectedBucketOwner=self.account_id,
+                )
+            else:
+                self._s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=csv_content.encode("utf-8"),
+                    ContentType="text/csv",
+                    ContentDisposition=f'attachment; filename="closed_trades_{timestamp}.csv"',
+                )
 
             # Generate presigned URL
             presigned_url = self._generate_presigned_url(object_key)
@@ -512,19 +517,24 @@ class StrategyPerformanceReportService:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
         object_key = f"reports/{timestamp}_{correlation_id[:8]}_strategy_performance.csv"
 
-        put_object_params = {
-            "Bucket": self.bucket_name,
-            "Key": object_key,
-            "Body": csv_content.encode("utf-8"),
-            "ContentType": "text/csv",
-            "ContentDisposition": f'attachment; filename="strategy_performance_{timestamp}.csv"',
-        }
-
-        # Add ExpectedBucketOwner if account ID is configured
+        # Add ExpectedBucketOwner if account ID is configured for security
         if self.account_id:
-            put_object_params["ExpectedBucketOwner"] = self.account_id
-
-        self._s3_client.put_object(**put_object_params)
+            self._s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=csv_content.encode("utf-8"),
+                ContentType="text/csv",
+                ContentDisposition=f'attachment; filename="strategy_performance_{timestamp}.csv"',
+                ExpectedBucketOwner=self.account_id,
+            )
+        else:
+            self._s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=csv_content.encode("utf-8"),
+                ContentType="text/csv",
+                ContentDisposition=f'attachment; filename="strategy_performance_{timestamp}.csv"',
+            )
 
         logger.debug(
             "CSV uploaded to S3",
@@ -547,17 +557,23 @@ class StrategyPerformanceReportService:
             Presigned URL valid for 7 days
 
         """
-        params = {"Bucket": self.bucket_name, "Key": object_key}
-
-        # Add ExpectedBucketOwner if account ID is configured
+        # Add ExpectedBucketOwner if account ID is configured for security
         if self.account_id:
-            params["ExpectedBucketOwner"] = self.account_id
-
-        presigned_url: str = self._s3_client.generate_presigned_url(
-            "get_object",
-            Params=params,
-            ExpiresIn=PRESIGNED_URL_EXPIRY_SECONDS,
-        )
+            presigned_url: str = self._s3_client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": self.bucket_name,
+                    "Key": object_key,
+                    "ExpectedBucketOwner": self.account_id,
+                },
+                ExpiresIn=PRESIGNED_URL_EXPIRY_SECONDS,
+            )
+        else:
+            presigned_url = self._s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket_name, "Key": object_key},
+                ExpiresIn=PRESIGNED_URL_EXPIRY_SECONDS,
+            )
 
         return presigned_url
 
