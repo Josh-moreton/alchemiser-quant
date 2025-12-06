@@ -34,7 +34,10 @@ class TestStrategyPerformanceReportServiceInit:
 
     def test_initialization_with_explicit_values(self) -> None:
         """Test service initializes with explicit config values."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -57,6 +60,7 @@ class TestStrategyPerformanceReportServiceInit:
                 },
             ),
             patch("boto3.client"),
+            patch("boto3.resource"),
         ):
             service = StrategyPerformanceReportService()
 
@@ -103,7 +107,10 @@ class TestCSVGeneration:
     @pytest.fixture
     def service(self, mock_repository: Mock) -> StrategyPerformanceReportService:
         """Create a service with mocked repository."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -211,7 +218,10 @@ class TestS3Operations:
     @pytest.fixture
     def service(self, mock_s3_client: MagicMock) -> StrategyPerformanceReportService:
         """Create a service with mocked S3 client."""
-        with patch("boto3.client", return_value=mock_s3_client):
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -259,6 +269,61 @@ class TestS3Operations:
 
         assert url == ("https://test-bucket.s3.amazonaws.com/reports/test.csv?signature=abc123")
 
+    def test_upload_to_s3_with_bucket_owner(self, mock_s3_client: MagicMock) -> None:
+        """Test CSV upload to S3 includes ExpectedBucketOwner when configured."""
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
+            service = StrategyPerformanceReportService(
+                table_name="test-table",
+                bucket_name="test-bucket",
+                bucket_owner="123456789012",
+            )
+            service._s3_client = mock_s3_client
+            service._repository = Mock()
+
+        csv_content = "header1,header2\nvalue1,value2"
+        correlation_id = "corr-security"
+
+        service._upload_to_s3(csv_content, correlation_id)
+
+        # Verify S3 put_object was called with ExpectedBucketOwner
+        mock_s3_client.put_object.assert_called_once()
+        call_kwargs = mock_s3_client.put_object.call_args.kwargs
+
+        assert call_kwargs["Bucket"] == "test-bucket"
+        assert call_kwargs["ExpectedBucketOwner"] == "123456789012"
+        assert call_kwargs["Body"] == csv_content.encode("utf-8")
+        assert call_kwargs["ContentType"] == "text/csv"
+
+    def test_upload_to_s3_without_bucket_owner(self, mock_s3_client: MagicMock) -> None:
+        """Test CSV upload to S3 without ExpectedBucketOwner when not configured."""
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
+            service = StrategyPerformanceReportService(
+                table_name="test-table",
+                bucket_name="test-bucket",
+                bucket_owner=None,
+            )
+            service._s3_client = mock_s3_client
+            service._repository = Mock()
+
+        csv_content = "header1,header2\nvalue1,value2"
+        correlation_id = "corr-no-owner"
+
+        service._upload_to_s3(csv_content, correlation_id)
+
+        # Verify S3 put_object was called WITHOUT ExpectedBucketOwner
+        mock_s3_client.put_object.assert_called_once()
+        call_kwargs = mock_s3_client.put_object.call_args.kwargs
+
+        assert call_kwargs["Bucket"] == "test-bucket"
+        assert "ExpectedBucketOwner" not in call_kwargs
+        assert call_kwargs["Body"] == csv_content.encode("utf-8")
+
 
 class TestStrategyDiscovery:
     """Test strategy discovery from DynamoDB."""
@@ -279,7 +344,10 @@ class TestStrategyDiscovery:
     @pytest.fixture
     def service(self, mock_table: MagicMock) -> StrategyPerformanceReportService:
         """Create a service with mocked DynamoDB table."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -371,7 +439,10 @@ class TestReportGeneration:
         self, mock_repository: Mock, mock_s3_client: MagicMock
     ) -> StrategyPerformanceReportService:
         """Create a fully mocked service."""
-        with patch("boto3.client", return_value=mock_s3_client):
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -420,7 +491,10 @@ class TestReportGeneration:
 
     def test_generate_report_url_no_bucket(self) -> None:
         """Test report generation fails gracefully without bucket."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name=None,

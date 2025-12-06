@@ -62,6 +62,7 @@ class StrategyPerformanceReportService:
         table_name: str | None = None,
         bucket_name: str | None = None,
         region: str | None = None,
+        bucket_owner: str | None = None,
     ) -> None:
         """Initialize report service.
 
@@ -69,11 +70,13 @@ class StrategyPerformanceReportService:
             table_name: DynamoDB table name (falls back to env var)
             bucket_name: S3 bucket name (falls back to env var)
             region: AWS region
+            bucket_owner: AWS account ID that owns the S3 bucket (falls back to env var)
 
         """
         self.table_name = table_name or os.environ.get("TRADE_LEDGER__TABLE_NAME")
         self.bucket_name = bucket_name or os.environ.get("PERFORMANCE_REPORTS_BUCKET")
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
+        self.bucket_owner = bucket_owner or os.environ.get("AWS_ACCOUNT_ID")
 
         self._s3_client = boto3.client("s3", region_name=self.region)
         self._repository: DynamoDBTradeLedgerRepository | None = None
@@ -110,6 +113,33 @@ class StrategyPerformanceReportService:
             Presigned URL valid for 7 days, or None if generation fails
 
         """
+        if not self._is_service_configured(correlation_id):
+            return None
+
+        try:
+            strategies = self._resolve_strategy_names(strategy_names, correlation_id)
+            if not strategies:
+                return None
+
+            return self._create_and_upload_report(strategies, correlation_id)
+
+        except AWSException as e:
+            self._log_aws_error(e, correlation_id)
+            return None
+        except Exception as e:
+            self._log_unexpected_error(e, correlation_id)
+            return None
+
+    def _is_service_configured(self, correlation_id: str) -> bool:
+        """Check if service is fully configured.
+
+        Args:
+            correlation_id: Correlation ID for logging
+
+        Returns:
+            True if service is configured, False otherwise
+
+        """
         if not self._repository or not self.bucket_name:
             logger.warning(
                 "Report service not fully configured",
@@ -119,59 +149,97 @@ class StrategyPerformanceReportService:
                     "correlation_id": correlation_id,
                 },
             )
-            return None
+            return False
+        return True
 
-        try:
-            # Discover strategies if not provided
-            if strategy_names is None:
-                strategy_names = self._discover_strategies()
+    def _resolve_strategy_names(
+        self,
+        strategy_names: list[str] | None,
+        correlation_id: str,
+    ) -> list[str]:
+        """Resolve strategy names from input or discovery.
 
-            if not strategy_names:
-                logger.info(
-                    "No strategies found for performance report",
-                    extra={"correlation_id": correlation_id},
-                )
-                return None
+        Args:
+            strategy_names: Optional list of strategy names
+            correlation_id: Correlation ID for logging
 
-            # Generate CSV content
-            csv_content = self._generate_csv(strategy_names, correlation_id)
+        Returns:
+            List of strategy names, empty if none found
 
-            # Upload to S3
-            object_key = self._upload_to_s3(csv_content, correlation_id)
+        """
+        if strategy_names is None:
+            strategy_names = self._discover_strategies()
 
-            # Generate presigned URL
-            presigned_url = self._generate_presigned_url(object_key)
-
+        if not strategy_names:
             logger.info(
-                "Performance report generated successfully",
-                extra={
-                    "correlation_id": correlation_id,
-                    "strategy_count": len(strategy_names),
-                    "object_key": object_key,
-                },
+                "No strategies found for performance report",
+                extra={"correlation_id": correlation_id},
             )
 
-            return presigned_url
+        return strategy_names
 
-        except AWSException as e:
-            logger.error(
-                f"Failed to generate performance report: {e}",
-                extra={
-                    "correlation_id": correlation_id,
-                    "error_type": type(e).__name__,
-                },
-            )
-            return None
-        except Exception as e:
-            logger.error(
-                f"Unexpected error generating performance report: {e}",
-                exc_info=True,
-                extra={
-                    "correlation_id": correlation_id,
-                    "error_type": type(e).__name__,
-                },
-            )
-            return None
+    def _create_and_upload_report(
+        self,
+        strategy_names: list[str],
+        correlation_id: str,
+    ) -> str:
+        """Generate CSV, upload to S3, and return presigned URL.
+
+        Args:
+            strategy_names: List of strategy names to include
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            Presigned URL for the uploaded report
+
+        """
+        csv_content = self._generate_csv(strategy_names, correlation_id)
+        object_key = self._upload_to_s3(csv_content, correlation_id)
+        presigned_url = self._generate_presigned_url(object_key)
+
+        logger.info(
+            "Performance report generated successfully",
+            extra={
+                "correlation_id": correlation_id,
+                "strategy_count": len(strategy_names),
+                "object_key": object_key,
+            },
+        )
+
+        return presigned_url
+
+    def _log_aws_error(self, error: Exception, correlation_id: str) -> None:
+        """Log AWS-specific error.
+
+        Args:
+            error: AWS exception
+            correlation_id: Correlation ID for tracing
+
+        """
+        logger.error(
+            f"Failed to generate performance report: {error}",
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(error).__name__,
+            },
+        )
+
+    def _log_unexpected_error(self, error: Exception, correlation_id: str) -> None:
+        """Log unexpected error.
+
+        Args:
+            error: Exception
+            correlation_id: Correlation ID for tracing
+
+        """
+        logger.error(
+            f"Unexpected error generating performance report: {error}",
+            exc_info=True,
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(error).__name__,
+            },
+        )
 
     def _discover_strategies(self) -> list[str]:
         """Discover all unique strategy names from DynamoDB.
@@ -418,13 +486,19 @@ class StrategyPerformanceReportService:
             timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
             object_key = f"reports/{timestamp}_{correlation_id[:8]}_closed_trades.csv"
 
-            self._s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=csv_content.encode("utf-8"),
-                ContentType="text/csv",
-                ContentDisposition=f'attachment; filename="closed_trades_{timestamp}.csv"',
-            )
+            put_params = {
+                "Bucket": self.bucket_name,
+                "Key": object_key,
+                "Body": csv_content.encode("utf-8"),
+                "ContentType": "text/csv",
+                "ContentDisposition": f'attachment; filename="closed_trades_{timestamp}.csv"',
+            }
+
+            # Add ExpectedBucketOwner for security if configured
+            if self.bucket_owner:
+                put_params["ExpectedBucketOwner"] = self.bucket_owner
+
+            self._s3_client.put_object(**put_params)
 
             # Generate presigned URL
             presigned_url = self._generate_presigned_url(object_key)
@@ -503,13 +577,19 @@ class StrategyPerformanceReportService:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
         object_key = f"reports/{timestamp}_{correlation_id[:8]}_strategy_performance.csv"
 
-        self._s3_client.put_object(
-            Bucket=self.bucket_name,
-            Key=object_key,
-            Body=csv_content.encode("utf-8"),
-            ContentType="text/csv",
-            ContentDisposition=f'attachment; filename="strategy_performance_{timestamp}.csv"',
-        )
+        put_params = {
+            "Bucket": self.bucket_name,
+            "Key": object_key,
+            "Body": csv_content.encode("utf-8"),
+            "ContentType": "text/csv",
+            "ContentDisposition": f'attachment; filename="strategy_performance_{timestamp}.csv"',
+        }
+
+        # Add ExpectedBucketOwner for security if configured
+        if self.bucket_owner:
+            put_params["ExpectedBucketOwner"] = self.bucket_owner
+
+        self._s3_client.put_object(**put_params)
 
         logger.debug(
             "CSV uploaded to S3",
