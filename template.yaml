@@ -729,6 +729,7 @@ Resources:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
+          PERFORMANCE_REPORTS_BUCKET_OWNER: !Ref AWS::AccountId
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
       Events:

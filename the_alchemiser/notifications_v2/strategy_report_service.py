@@ -61,6 +61,7 @@ class StrategyPerformanceReportService:
         self,
         table_name: str | None = None,
         bucket_name: str | None = None,
+        bucket_owner_account_id: str | None = None,
         region: str | None = None,
     ) -> None:
         """Initialize report service.
@@ -68,11 +69,15 @@ class StrategyPerformanceReportService:
         Args:
             table_name: DynamoDB table name (falls back to env var)
             bucket_name: S3 bucket name (falls back to env var)
+            bucket_owner_account_id: AWS account ID of bucket owner (falls back to env var)
             region: AWS region
 
         """
         self.table_name = table_name or os.environ.get("TRADE_LEDGER__TABLE_NAME")
         self.bucket_name = bucket_name or os.environ.get("PERFORMANCE_REPORTS_BUCKET")
+        self.bucket_owner_account_id = bucket_owner_account_id or os.environ.get(
+            "PERFORMANCE_REPORTS_BUCKET_OWNER"
+        )
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
 
         self._s3_client = boto3.client("s3", region_name=self.region)
@@ -418,13 +423,19 @@ class StrategyPerformanceReportService:
             timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
             object_key = f"reports/{timestamp}_{correlation_id[:8]}_closed_trades.csv"
 
-            self._s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=csv_content.encode("utf-8"),
-                ContentType="text/csv",
-                ContentDisposition=f'attachment; filename="closed_trades_{timestamp}.csv"',
-            )
+            put_object_params: dict[str, Any] = {
+                "Bucket": self.bucket_name,
+                "Key": object_key,
+                "Body": csv_content.encode("utf-8"),
+                "ContentType": "text/csv",
+                "ContentDisposition": f'attachment; filename="closed_trades_{timestamp}.csv"',
+            }
+
+            # Add ExpectedBucketOwner for security if configured
+            if self.bucket_owner_account_id:
+                put_object_params["ExpectedBucketOwner"] = self.bucket_owner_account_id
+
+            self._s3_client.put_object(**put_object_params)
 
             # Generate presigned URL
             presigned_url = self._generate_presigned_url(object_key)
@@ -503,13 +514,19 @@ class StrategyPerformanceReportService:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
         object_key = f"reports/{timestamp}_{correlation_id[:8]}_strategy_performance.csv"
 
-        self._s3_client.put_object(
-            Bucket=self.bucket_name,
-            Key=object_key,
-            Body=csv_content.encode("utf-8"),
-            ContentType="text/csv",
-            ContentDisposition=f'attachment; filename="strategy_performance_{timestamp}.csv"',
-        )
+        put_object_params: dict[str, Any] = {
+            "Bucket": self.bucket_name,
+            "Key": object_key,
+            "Body": csv_content.encode("utf-8"),
+            "ContentType": "text/csv",
+            "ContentDisposition": f'attachment; filename="strategy_performance_{timestamp}.csv"',
+        }
+
+        # Add ExpectedBucketOwner for security if configured
+        if self.bucket_owner_account_id:
+            put_object_params["ExpectedBucketOwner"] = self.bucket_owner_account_id
+
+        self._s3_client.put_object(**put_object_params)
 
         logger.debug(
             "CSV uploaded to S3",
