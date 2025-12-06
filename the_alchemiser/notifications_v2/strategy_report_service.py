@@ -421,7 +421,8 @@ class StrategyPerformanceReportService:
             timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
             object_key = f"reports/{timestamp}_{correlation_id[:8]}_closed_trades.csv"
 
-            # Add ExpectedBucketOwner if account ID is configured for security
+            # Add ExpectedBucketOwner if account ID is configured for security.
+            # Note: Using explicit conditional calls instead of dict unpacking to maintain type safety
             if self.account_id:
                 self._s3_client.put_object(
                     Bucket=self.bucket_name,
@@ -517,7 +518,8 @@ class StrategyPerformanceReportService:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
         object_key = f"reports/{timestamp}_{correlation_id[:8]}_strategy_performance.csv"
 
-        # Add ExpectedBucketOwner if account ID is configured for security
+        # Add ExpectedBucketOwner if account ID is configured for security.
+        # Note: Using explicit conditional calls instead of dict unpacking to maintain type safety
         if self.account_id:
             self._s3_client.put_object(
                 Bucket=self.bucket_name,
@@ -557,7 +559,8 @@ class StrategyPerformanceReportService:
             Presigned URL valid for 7 days
 
         """
-        # Add ExpectedBucketOwner if account ID is configured for security
+        # Add ExpectedBucketOwner if account ID is configured for security.
+        # Note: Using explicit conditional calls instead of dict construction to maintain type safety
         if self.account_id:
             presigned_url: str = self._s3_client.generate_presigned_url(
                 "get_object",
