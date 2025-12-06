@@ -731,6 +731,7 @@ Resources:
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           LOGGING__LEVEL: !Ref LoggingLevel
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule

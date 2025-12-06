@@ -34,7 +34,10 @@ class TestStrategyPerformanceReportServiceInit:
 
     def test_initialization_with_explicit_values(self) -> None:
         """Test service initializes with explicit config values."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -57,6 +60,7 @@ class TestStrategyPerformanceReportServiceInit:
                 },
             ),
             patch("boto3.client"),
+            patch("boto3.resource"),
         ):
             service = StrategyPerformanceReportService()
 
@@ -69,6 +73,7 @@ class TestStrategyPerformanceReportServiceInit:
         with (
             patch.dict("os.environ", {}, clear=True),
             patch("boto3.client"),
+            patch("boto3.resource"),
         ):
             service = StrategyPerformanceReportService(
                 table_name=None,
@@ -103,7 +108,10 @@ class TestCSVGeneration:
     @pytest.fixture
     def service(self, mock_repository: Mock) -> StrategyPerformanceReportService:
         """Create a service with mocked repository."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -211,7 +219,10 @@ class TestS3Operations:
     @pytest.fixture
     def service(self, mock_s3_client: MagicMock) -> StrategyPerformanceReportService:
         """Create a service with mocked S3 client."""
-        with patch("boto3.client", return_value=mock_s3_client):
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -259,6 +270,56 @@ class TestS3Operations:
 
         assert url == ("https://test-bucket.s3.amazonaws.com/reports/test.csv?signature=abc123")
 
+    def test_upload_to_s3_with_account_id(self, mock_s3_client: MagicMock) -> None:
+        """Test CSV upload includes ExpectedBucketOwner when account ID is set."""
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
+            service = StrategyPerformanceReportService(
+                table_name="test-table",
+                bucket_name="test-bucket",
+                region="us-east-1",
+                account_id="123456789012",
+            )
+            service._s3_client = mock_s3_client
+            service._repository = Mock()
+
+        csv_content = "header1,header2\nvalue1,value2"
+        correlation_id = "corr-789"
+
+        service._upload_to_s3(csv_content, correlation_id)
+
+        # Verify ExpectedBucketOwner is included
+        mock_s3_client.put_object.assert_called_once()
+        call_kwargs = mock_s3_client.put_object.call_args.kwargs
+        assert call_kwargs["ExpectedBucketOwner"] == "123456789012"
+
+    def test_generate_presigned_url_with_account_id(self, mock_s3_client: MagicMock) -> None:
+        """Test presigned URL includes ExpectedBucketOwner when account ID is set."""
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
+            service = StrategyPerformanceReportService(
+                table_name="test-table",
+                bucket_name="test-bucket",
+                region="us-east-1",
+                account_id="123456789012",
+            )
+            service._s3_client = mock_s3_client
+            service._repository = Mock()
+
+        object_key = "reports/2025-01-15_12-00-00_corr-789_strategy_performance.csv"
+
+        service._generate_presigned_url(object_key)
+
+        # Verify ExpectedBucketOwner is included in Params
+        mock_s3_client.generate_presigned_url.assert_called_once()
+        call_args = mock_s3_client.generate_presigned_url.call_args
+        params = call_args.kwargs["Params"]
+        assert params["ExpectedBucketOwner"] == "123456789012"
+
 
 class TestStrategyDiscovery:
     """Test strategy discovery from DynamoDB."""
@@ -279,7 +340,10 @@ class TestStrategyDiscovery:
     @pytest.fixture
     def service(self, mock_table: MagicMock) -> StrategyPerformanceReportService:
         """Create a service with mocked DynamoDB table."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -371,7 +435,10 @@ class TestReportGeneration:
         self, mock_repository: Mock, mock_s3_client: MagicMock
     ) -> StrategyPerformanceReportService:
         """Create a fully mocked service."""
-        with patch("boto3.client", return_value=mock_s3_client):
+        with (
+            patch("boto3.client", return_value=mock_s3_client),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name="test-bucket",
@@ -408,7 +475,10 @@ class TestReportGeneration:
 
     def test_generate_report_url_no_repository(self) -> None:
         """Test report generation fails gracefully without repository."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name=None,
                 bucket_name="test-bucket",
@@ -420,7 +490,10 @@ class TestReportGeneration:
 
     def test_generate_report_url_no_bucket(self) -> None:
         """Test report generation fails gracefully without bucket."""
-        with patch("boto3.client"):
+        with (
+            patch("boto3.client"),
+            patch("boto3.resource"),
+        ):
             service = StrategyPerformanceReportService(
                 table_name="test-table",
                 bucket_name=None,
