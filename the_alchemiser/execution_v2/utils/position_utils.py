@@ -134,37 +134,80 @@ class PositionUtils:
         """
         # Try real-time pricing first if available
         if self.pricing_service and self.enable_smart_execution:
-            try:
-                quote = self.pricing_service.get_quote_data(symbol)
-                if quote and hasattr(quote, "bid_price") and hasattr(quote, "ask_price"):
-                    bid = quote.bid_price
-                    ask = quote.ask_price
-                    if bid and ask and bid > 0 and ask > 0:
-                        mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
-                        logger.debug(f"💰 Real-time price for {symbol}: ${mid_price:.2f}")
-                        return mid_price
-            except (AttributeError, ValueError, TypeError) as exc:
-                logger.debug(
-                    "Could not get real-time price (data error)",
-                    symbol=symbol,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-            except Exception as exc:
-                logger.debug(
-                    "Could not get real-time price (unexpected error)",
-                    symbol=symbol,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
+            real_time_price = self._get_real_time_price(symbol)
+            if real_time_price is not None:
+                return real_time_price
 
         # Fallback to static pricing
+        return self._get_static_price(symbol)
+
+    def _get_real_time_price(self, symbol: str) -> Decimal | None:
+        """Get price from real-time pricing service.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Mid-price from real-time quote or None if unavailable
+
+        """
+        if not self.pricing_service:
+            return None
+
+        try:
+            quote = self.pricing_service.get_quote_data(symbol)
+            if not quote:
+                return None
+
+            if not (hasattr(quote, "bid_price") and hasattr(quote, "ask_price")):
+                return None
+
+            bid = quote.bid_price
+            ask = quote.ask_price
+
+            if not (bid and ask and bid > 0 and ask > 0):
+                return None
+
+            mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
+            logger.debug(f"💰 Real-time price for {symbol}: ${mid_price:.2f}")
+            return mid_price
+
+        except (AttributeError, ValueError, TypeError) as exc:
+            logger.debug(
+                "Could not get real-time price (data error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return None
+        except Exception as exc:
+            logger.debug(
+                "Could not get real-time price (unexpected error)",
+                symbol=symbol,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return None
+
+    def _get_static_price(self, symbol: str) -> Decimal | None:
+        """Get price from static Alpaca pricing.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Current price from Alpaca API or None if unavailable
+
+        """
         try:
             static_price = self.alpaca_manager.get_current_price(symbol)
-            if static_price and static_price > 0:
-                price_decimal = Decimal(str(static_price))
-                logger.debug(f"💰 Static price for {symbol}: ${price_decimal:.2f}")
-                return price_decimal
+            if not static_price or static_price <= 0:
+                return None
+
+            price_decimal = Decimal(str(static_price))
+            logger.debug(f"💰 Static price for {symbol}: ${price_decimal:.2f}")
+            return price_decimal
+
         except (TradingClientError, MarketDataError) as exc:
             logger.warning(
                 "⚠️ Could not get static price (client error)",
@@ -172,6 +215,7 @@ class PositionUtils:
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
+            return None
         except (ValueError, TypeError) as exc:
             logger.warning(
                 "⚠️ Could not get static price (conversion error)",
@@ -179,6 +223,7 @@ class PositionUtils:
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
+            return None
         except Exception as exc:
             logger.warning(
                 "⚠️ Could not get static price (unexpected error)",
@@ -186,8 +231,7 @@ class PositionUtils:
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
-
-        return None
+            return None
 
     def adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
         """Adjust quantity based on whether the symbol supports fractional shares.
