@@ -5,7 +5,7 @@
 - **Module header:** Every new module begins with `"""Business Unit: <name> | Status: current."""`.
 - **Typing:** Enforce strict typing (`mypy --config-file=pyproject.toml`). No `Any` in domain logic. DTOs are frozen.
 - **Idempotency & traceability:** Event handlers must be idempotent; propagate `correlation_id` and `causation_id`; tolerate replays.
-- **Tooling:** Use Poetry for everything. Example: `poetry run python -m the_alchemiser` (no system Python).
+- **Tooling:** Use Poetry for everything (no system Python).
 - **AWS CLI:** Always use `--no-cli-pager` or pipe to `cat` to avoid interactive pagers that block automation.
 - **Version Management (MANDATORY):** AI agents MUST update version numbers for every code change using semantic versioning:
   - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring, test additions
@@ -135,7 +135,6 @@ publish_notification(subject="...", message="...")
 - Format/lint/type-check: `make format && make type-check`.
 - Type-check only: `make type-check`.
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
-- Local trading: `poetry run python -m the_alchemiser` (paper/live via config).
 - **Deployment (CRITICAL - READ CAREFULLY):**
   - **DEV/BETA deployment:** `make deploy-beta` - ALWAYS use this for testing changes
   - **PRODUCTION deployment:** `make deploy` - ONLY after thorough testing in dev

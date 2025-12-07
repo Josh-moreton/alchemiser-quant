@@ -25,10 +25,13 @@ from the_alchemiser.shared.events import (
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.strategy_v2.handlers.signal_generation_handler import (
     SignalGenerationHandler,
 )
+
+# Initialize logging on cold start (must be before get_logger)
+configure_application_logging()
 
 logger = get_logger(__name__)
 
