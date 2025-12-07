@@ -30,13 +30,14 @@ from .strategy_profiles import (
 
 
 class LoggingSettings(BaseModel):
-    """Logging configuration options."""
+    """Logging configuration - minimal, as we use CloudWatch Insights filtering.
 
-    level: str = "INFO"
-    enable_s3_logging: bool = False  # Explicit opt-in for S3 logging
-    s3_log_uri: str = ""  # S3 URI for log files when S3 logging is enabled
-    console_level: str | None = None
-    local_log_file: str | None = None
+    All logs are emitted at DEBUG level to CloudWatch. Filter at query time:
+        fields @timestamp, level, event
+        | filter level in ["info", "warning", "error"]
+    """
+
+    # Placeholder - logging config is now handled by shared.logging module
 
 
 class MarginSafetyConfig(BaseModel):

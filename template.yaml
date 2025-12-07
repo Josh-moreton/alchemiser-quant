@@ -60,11 +60,6 @@ Parameters:
     Description: Email SMTP password for dev notifications (optional)
 
   # Runtime configuration parameters (override via CD for each environment)
-  LoggingLevel:
-    Type: String
-    Default: INFO
-    Description: LOGGING__LEVEL for application logging
-
   DslMaxWorkers:
     Type: String
     Default: "7"
@@ -119,8 +114,6 @@ Globals:
     MemorySize: 512
     Environment:
       Variables:
-        # Logging
-        LOGGING__LEVEL: !Ref LoggingLevel
         # Stage awareness for code-level profiles
         APP__STAGE: !If [ IsDev, "dev", "prod" ]
         # Alpaca Configuration
@@ -497,7 +490,6 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          LOGGING__LEVEL: !Ref LoggingLevel
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
     Metadata:
       BuildMethod: python3.12
@@ -569,7 +561,6 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          LOGGING__LEVEL: !Ref LoggingLevel
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -642,7 +633,6 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          LOGGING__LEVEL: !Ref LoggingLevel
       Events:
         ExecutionQueue:
           Type: SQS
@@ -731,7 +721,6 @@ Resources:
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           PERFORMANCE_REPORTS_BUCKET_OWNER: !Ref AWS::AccountId
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          LOGGING__LEVEL: !Ref LoggingLevel
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule

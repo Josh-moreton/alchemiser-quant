@@ -2,22 +2,29 @@
 
 Centralized logging system for the Alchemiser trading platform.
 
-This package provides structlog-based structured logging infrastructure with:
-- Structlog configuration with Alchemiser-specific processors
-- Context management for request/error tracking
-- Trading-specific logging helpers (order flow, repeg operations, data integrity)
-- Environment-specific configuration (production, test, development)
-- Decimal serialization for precise financial data
+Simple approach:
+- Lambda: Emit ALL logs as JSON to CloudWatch
+- Tests: Human-readable with configurable level
+- Filter at read-time in CloudWatch Insights, not at write-time
+
+CloudWatch Insights query examples:
+    # View INFO+ only
+    fields @timestamp, level, event, extra
+    | filter level in ["info", "warning", "error"]
+    | sort @timestamp desc
+
+    # View errors only
+    fields @timestamp, level, event, extra
+    | filter level = "error"
 """
 
-# Structlog configuration functions
+# Configuration functions
 from .config import (
     configure_application_logging,
-    configure_production_logging,
     configure_test_logging,
 )
 
-# Context management (still using contextvars)
+# Context management
 from .context import (
     generate_request_id,
     get_causation_id,
@@ -29,9 +36,13 @@ from .context import (
     set_error_id,
     set_request_id,
 )
-from .structlog_config import configure_structlog, get_structlog_logger
+from .structlog_config import (
+    configure_structlog_lambda,
+    configure_structlog_test,
+    get_structlog_logger,
+)
 
-# Structlog trading-specific helpers
+# Trading-specific helpers
 from .structlog_trading import (
     bind_trading_context,
     log_data_integrity_checkpoint,
@@ -43,8 +54,8 @@ from .structlog_trading import (
 __all__ = [
     "bind_trading_context",
     "configure_application_logging",
-    "configure_production_logging",
-    "configure_structlog",
+    "configure_structlog_lambda",
+    "configure_structlog_test",
     "configure_test_logging",
     "generate_request_id",
     "get_causation_id",
@@ -63,5 +74,5 @@ __all__ = [
     "set_request_id",
 ]
 
-# Alias for convenience - get_logger returns structlog logger
+# Alias for convenience
 get_logger = get_structlog_logger

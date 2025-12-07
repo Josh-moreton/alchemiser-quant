@@ -8,7 +8,7 @@ from io import StringIO
 from unittest.mock import patch
 
 from the_alchemiser.shared.logging.structlog_config import (
-    configure_structlog,
+    configure_structlog_lambda,
     get_structlog_logger,
 )
 from the_alchemiser.shared.value_objects.symbol import Symbol
@@ -17,11 +17,7 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 def test_structlog_serializes_symbol_value_object() -> None:
     """Ensure Symbol instances in logs are rendered as simple strings."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(
-            structured_format=True,
-            console_level=logging.DEBUG,
-            file_level=logging.DEBUG,
-        )
+        configure_structlog_lambda()
         logger = get_structlog_logger(__name__)
 
         sym = Symbol("TQQQ")
