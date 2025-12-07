@@ -25,7 +25,7 @@ tqdm==4.67.1
 typing-extensions==4.15.0
 typing-inspection==0.4.2
 tzdata==2025.2
-urllib3==2.5.0
+urllib3==2.6.0
 websockets==15.0.1
 # The following dependencies are required for the microservices API endpoints:
 # - fastapi: for building RESTful APIs for strategy, portfolio, and execution services
