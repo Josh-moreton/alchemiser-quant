@@ -4,19 +4,14 @@
 Simple environment-based secrets helper.
 
 This module provides environment variable loading for secrets:
-- All environments: Loads from environment variables (.env file or Lambda env vars)
+- All environments: Loads from Lambda environment variables
 - Trading mode determined by ALPACA_ENDPOINT value
-
-Note: env_loader is imported for its side-effect of loading the .env file
-into the environment before any os.getenv() calls are made.
 """
 
 from __future__ import annotations
 
 import os
 
-# Auto-load .env file into environment variables (side-effect import)
-from the_alchemiser.shared.config import env_loader  # noqa: F401
 from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
 

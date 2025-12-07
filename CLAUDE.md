@@ -324,7 +324,6 @@ The system uses different log formats based on the deployment environment:
 |-------------|--------|--------|-----------|----------|
 | **Prod Lambda** (APP__STAGE=prod) | JSON | No | No (CloudWatch adds) | CloudWatch Insights queries, log aggregation |
 | **Dev Lambda** (APP__STAGE=dev) | Human-readable | No | No (CloudWatch adds) | Easier debugging in CloudWatch |
-| **Local Development** | Human-readable | Yes | Yes | Beautiful terminal output + file logging |
 
 All Lambda handlers must initialize logging on cold start:
 ```python
@@ -358,7 +357,6 @@ logger.info(
 
 - `APP__STAGE`: Set to `prod` or `dev` (controls JSON vs human-readable format)
 - `LOG_LEVEL` or `LOGGING__LEVEL`: Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- `LOG_FILE_PATH`: Optional file path for logging (local development only)
 
 ## File Locations
 
