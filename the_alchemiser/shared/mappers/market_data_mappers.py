@@ -363,8 +363,9 @@ def bars_to_domain(
             )
             out.append(bar)
 
-        except (ValidationError, ValueError) as exc:
+        except ValueError as exc:
             # Expected errors - validation failures or conversion errors
+            # Note: Catches both ValueError and ValidationError (which inherits from ValueError)
             skipped_count += 1
             logger.warning(
                 "Failed to convert bar row to domain model",
