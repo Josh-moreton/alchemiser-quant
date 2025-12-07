@@ -30,6 +30,60 @@ from the_alchemiser.shared.services.real_time_pricing import RealTimePricingServ
 logger = get_logger(__name__)
 
 
+def _run_trading_stream(
+    trading_stream: TradingStream | None,
+    trading_lock: threading.Lock,
+    trading_ws_connected_setter: Callable[[bool], None],
+    correlation_id: str | None = None,
+) -> None:
+    """Run TradingStream in a separate thread with error handling.
+
+    Args:
+        trading_stream: TradingStream instance to run
+        trading_lock: Lock for thread safety
+        trading_ws_connected_setter: Callback to set connection status
+        correlation_id: Optional correlation ID for distributed tracing
+
+    Note:
+        This is a module-level function extracted from get_trading_service
+        to reduce cognitive complexity and improve testability.
+
+    """
+    try:
+        # Check stream validity inside the try block to handle concurrent nullification
+        with trading_lock:
+            if trading_stream is None:
+                return
+            ts = trading_stream
+
+        if ts is not None:
+            ts.run()
+    except OSError as exc:
+        logger.error(
+            "TradingStream terminated due to network error",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+    except (WebSocketError, TradingClientError) as exc:
+        logger.error(
+            "TradingStream terminated due to client error",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "TradingStream terminated due to unexpected error",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+            exc_info=True,
+        )
+    finally:
+        trading_ws_connected_setter(False)  # noqa: FBT003
+
+
 class WebSocketConnectionManager:
     """Singleton manager for ALL Alpaca WebSocket connections.
 
@@ -290,46 +344,23 @@ class WebSocketConnectionManager:
                     self._trading_callback = callback
                     self._trading_stream.subscribe_trade_updates(callback)
 
-                    # Extract runner to module level for better testability
-                    def _runner() -> None:
-                        try:
-                            # Check stream validity inside the try block to handle concurrent nullification
-                            with self._trading_lock:
-                                if self._trading_stream is None:
-                                    return
-                                ts = self._trading_stream
-
-                            if ts is not None:
-                                ts.run()
-                        except (OSError, TimeoutError, ConnectionError) as exc:
-                            logger.error(
-                                "TradingStream terminated due to network error",
-                                error=str(exc),
-                                error_type=type(exc).__name__,
-                                correlation_id=correlation_id,
-                            )
-                        except (WebSocketError, TradingClientError) as exc:
-                            logger.error(
-                                "TradingStream terminated due to client error",
-                                error=str(exc),
-                                error_type=type(exc).__name__,
-                                correlation_id=correlation_id,
-                            )
-                        except Exception as exc:
-                            logger.error(
-                                "TradingStream terminated due to unexpected error",
-                                error=str(exc),
-                                error_type=type(exc).__name__,
-                                correlation_id=correlation_id,
-                                exc_info=True,
-                            )
-                        finally:
-                            with self._trading_lock:
-                                self._trading_ws_connected = False
-
+                    # Use module-level function for better testability and reduced complexity
                     self._trading_ws_connected = True
+
+                    def _set_connected_status(status: bool) -> None:  # noqa: FBT001
+                        with self._trading_lock:
+                            self._trading_ws_connected = status
+
                     self._trading_stream_thread = threading.Thread(
-                        target=_runner, name="SharedTradingWS", daemon=True
+                        target=_run_trading_stream,
+                        args=(
+                            self._trading_stream,
+                            self._trading_lock,
+                            _set_connected_status,
+                            correlation_id,
+                        ),
+                        name="SharedTradingWS",
+                        daemon=True,
                     )
                     self._trading_stream_thread.start()
                     logger.info(
@@ -417,7 +448,7 @@ class WebSocketConnectionManager:
                                 "TradingStream stop() timed out after 5 seconds",
                                 correlation_id=correlation_id,
                             )
-                except (OSError, TimeoutError, RuntimeError) as e:
+                except (OSError, RuntimeError) as e:
                     logger.error(
                         "Error stopping TradingStream due to known error",
                         error=str(e),
@@ -580,7 +611,7 @@ class WebSocketConnectionManager:
                                     correlation_id=correlation_id,
                                 )
 
-                    except (OSError, TimeoutError, RuntimeError) as e:
+                    except (OSError, RuntimeError) as e:
                         logger.error(
                             "Error cleaning up connection manager due to known error",
                             error=str(e),
