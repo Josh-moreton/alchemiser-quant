@@ -39,7 +39,7 @@ def configure_production_logging(
     *,
     console_level: int | None = None,
 ) -> None:
-    """Configure structlog for production with beautiful human-readable output.
+    """Configure structlog for production with human-readable output optimized for CloudWatch.
 
     Args:
         log_level: Base log level for handlers. If None, reads from LOG_LEVEL env var
