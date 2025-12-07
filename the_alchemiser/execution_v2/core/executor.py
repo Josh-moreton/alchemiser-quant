@@ -5,6 +5,7 @@ Core executor for order placement and smart execution.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, TypedDict
@@ -31,6 +32,9 @@ from the_alchemiser.execution_v2.unified import (
     OrderSide,
     UnifiedOrderPlacementService,
     Urgency,
+)
+from the_alchemiser.execution_v2.unified import (
+    ExecutionResult as UnifiedExecutionResult,
 )
 from the_alchemiser.execution_v2.utils.execution_validator import (
     ExecutionValidator,
@@ -280,6 +284,84 @@ class Executor:
                     extra={"error": str(e), "error_type": type(e).__name__},
                 )
 
+    def _resolve_fill_price(
+        self,
+        execution_result: UnifiedExecutionResult,
+        symbol: str,
+        correlation_id: str | None,
+    ) -> Decimal:
+        """Resolve fill price with fallback logic.
+
+        Handles the race condition where Alpaca API reports "filled" before
+        avg_fill_price is populated. Uses tiered fallback strategy:
+        1. Quote mid-price (good estimate)
+        2. Limit order price from walk result
+        3. Fallback 0.01 (last resort)
+
+        Args:
+            execution_result: Result from unified placement service
+            symbol: Stock symbol
+            correlation_id: Correlation ID for tracking
+
+        Returns:
+            Resolved fill price
+
+        """
+        fill_price = execution_result.avg_fill_price
+
+        if not fill_price or fill_price <= 0:
+            # Try to get price from quote result (most accurate estimate)
+            if execution_result.quote_result and execution_result.quote_result.success:
+                fill_price = execution_result.quote_result.mid
+                logger.info(
+                    "Using quote mid price (avg_fill_price pending)",
+                    extra={
+                        "symbol": symbol,
+                        "estimated_price": str(fill_price),
+                        "correlation_id": correlation_id,
+                    },
+                )
+            elif execution_result.walk_result and execution_result.walk_result.order_attempts:
+                # Use the limit price from the first order attempt
+                fill_price = execution_result.walk_result.order_attempts[0].price
+                logger.info(
+                    "Using limit order price (avg_fill_price pending)",
+                    extra={
+                        "symbol": symbol,
+                        "estimated_price": str(fill_price),
+                        "correlation_id": correlation_id,
+                    },
+                )
+            else:
+                # Last resort: use a minimal positive value to pass validation
+                fill_price = Decimal("0.01")
+                logger.warning(
+                    "No price source available, using fallback minimum",
+                    extra={
+                        "symbol": symbol,
+                        "fallback_price": str(fill_price),
+                        "correlation_id": correlation_id,
+                    },
+                )
+
+        return fill_price
+
+    def _determine_order_type(self, execution_strategy: str) -> str:
+        """Determine order type based on execution strategy.
+
+        Args:
+            execution_strategy: Strategy used for execution
+
+        Returns:
+            Order type string ("LIMIT" or "MARKET")
+
+        """
+        if execution_strategy == "walk_the_book":
+            return "LIMIT"
+        if execution_strategy == "market_immediate":
+            return "MARKET"
+        return "LIMIT"  # Default to LIMIT for other strategies
+
     async def execute_order(
         self,
         symbol: str,
@@ -336,56 +418,11 @@ class Executor:
             # Convert ExecutionResult to OrderResult for backward compatibility
             action = "BUY" if order_side == OrderSide.BUY else "SELL"
 
-            # Handle avg_fill_price - it might be 0 or None if order just placed
-            # This is a known race condition with Alpaca API where order status is
-            # "filled" before avg_fill_price is populated. Use tiered fallback:
-            # 1. Quote mid-price (good estimate) - log at INFO
-            # 2. Limit order price from walk result - log at INFO
-            # 3. Fallback 0.01 (last resort) - log at WARNING
-            fill_price = execution_result.avg_fill_price
-            if not fill_price or fill_price <= 0:
-                # Try to get price from quote result (most accurate estimate)
-                if execution_result.quote_result and execution_result.quote_result.success:
-                    fill_price = execution_result.quote_result.mid
-                    logger.info(
-                        "Using quote mid price (avg_fill_price pending)",
-                        extra={
-                            "symbol": symbol,
-                            "estimated_price": str(fill_price),
-                            "correlation_id": correlation_id,
-                        },
-                    )
-                elif execution_result.walk_result and execution_result.walk_result.order_attempts:
-                    # Use the limit price from the first order attempt
-                    fill_price = execution_result.walk_result.order_attempts[0].price
-                    logger.info(
-                        "Using limit order price (avg_fill_price pending)",
-                        extra={
-                            "symbol": symbol,
-                            "estimated_price": str(fill_price),
-                            "correlation_id": correlation_id,
-                        },
-                    )
-                else:
-                    # Last resort: use a minimal positive value to pass validation
-                    # This is the only case that should generate a warning
-                    fill_price = Decimal("0.01")
-                    logger.warning(
-                        "No price source available, using fallback minimum",
-                        extra={
-                            "symbol": symbol,
-                            "fallback_price": str(fill_price),
-                            "correlation_id": correlation_id,
-                        },
-                    )
+            # Resolve fill price with fallback logic
+            fill_price = self._resolve_fill_price(execution_result, symbol, correlation_id)
 
-            # Determine order_type based on execution strategy
-            if execution_result.execution_strategy == "walk_the_book":
-                order_type = "LIMIT"  # Walk-the-book uses limit orders
-            elif execution_result.execution_strategy == "market_immediate":
-                order_type = "MARKET"
-            else:
-                order_type = "LIMIT"  # Default to LIMIT for other strategies
+            # Determine order type based on execution strategy
+            order_type = self._determine_order_type(execution_result.execution_strategy)
 
             return OrderResult(
                 symbol=symbol,
@@ -467,9 +504,125 @@ class Executor:
 
         return self._market_order_executor.execute_market_order(symbol, side, quantity)
 
-    async def execute_rebalance_plan(  # noqa: C901
-        self, plan: RebalancePlan
-    ) -> ExecutionResult:
+    def _validate_daily_trade_limit(self, plan: RebalancePlan) -> ExecutionResult | None:
+        """Validate plan against daily trade limit circuit breaker.
+
+        Args:
+            plan: Rebalance plan to validate
+
+        Returns:
+            ExecutionResult if limit exceeded (failure), None if validation passes
+
+        """
+        try:
+            self.daily_trade_limit_service.assert_within_limit(
+                plan.total_trade_value, plan.correlation_id
+            )
+            return None  # Validation passed
+        except DailyTradeLimitExceededError as e:
+            logger.critical(
+                "🚨 DAILY TRADE LIMIT EXCEEDED - HALTING EXECUTION",
+                extra={
+                    "plan_id": plan.plan_id,
+                    "proposed_trade_value": str(e.proposed_trade_value),
+                    "current_cumulative": str(e.current_cumulative),
+                    "daily_limit": str(e.daily_limit),
+                    "headroom": str(e.headroom),
+                    "correlation_id": plan.correlation_id,
+                },
+            )
+            return ExecutionResult(
+                success=False,
+                status=ExecutionStatus.FAILURE,
+                plan_id=plan.plan_id,
+                correlation_id=plan.correlation_id,
+                orders=[],
+                orders_placed=0,
+                orders_succeeded=0,
+                total_trade_value=Decimal("0"),
+                execution_timestamp=datetime.now(UTC),
+                metadata={"error": str(e), "reason": "daily_trade_limit_exceeded"},
+            )
+
+    def _check_and_log_slippage(self, orders: list[OrderResult], correlation_id: str) -> None:
+        """Check for and log significant slippage across orders.
+
+        Args:
+            orders: List of executed orders
+            correlation_id: Correlation ID for tracking
+
+        """
+        orders_with_slippage = [o for o in orders if o.has_significant_slippage]
+        if not orders_with_slippage:
+            return
+
+        for order in orders_with_slippage:
+            logger.warning(
+                f"📊 Significant slippage detected for {order.symbol}: "
+                f"{order.slippage_bps}bps (${order.slippage_amount})",
+                extra={
+                    "symbol": order.symbol,
+                    "action": order.action,
+                    "expected_price": str(order.expected_price),
+                    "actual_price": str(order.price),
+                    "slippage_bps": str(order.slippage_bps),
+                    "slippage_amount": str(order.slippage_amount),
+                    "correlation_id": correlation_id,
+                },
+            )
+
+        # Aggregate slippage alert if total is concerning
+        total_slippage = sum(abs(o.slippage_amount or Decimal("0")) for o in orders_with_slippage)
+        if total_slippage > Decimal("100"):  # Alert if > $100 total slippage
+            logger.error(
+                f"🚨 HIGH TOTAL SLIPPAGE: ${total_slippage} across {len(orders_with_slippage)} orders",
+                extra={
+                    "total_slippage_usd": str(total_slippage),
+                    "affected_orders": len(orders_with_slippage),
+                    "correlation_id": correlation_id,
+                },
+            )
+
+    def _log_execution_result(
+        self,
+        plan: RebalancePlan,
+        status: ExecutionStatus,
+        orders: list[OrderResult],
+        orders_placed: int,
+        orders_succeeded: int,
+    ) -> None:
+        """Log execution result with appropriate emoji and details.
+
+        Args:
+            plan: Rebalance plan that was executed
+            status: Execution status
+            orders: List of executed orders
+            orders_placed: Number of orders placed
+            orders_succeeded: Number of orders that succeeded
+
+        """
+        # Select emoji based on status
+        if status == ExecutionStatus.SUCCESS:
+            status_emoji = "✅"
+        elif status == ExecutionStatus.PARTIAL_SUCCESS:
+            status_emoji = "⚠️"
+        else:
+            status_emoji = "❌"
+
+        logger.info(
+            f"{status_emoji} Rebalance plan {plan.plan_id} completed: "
+            f"{orders_succeeded}/{orders_placed} orders succeeded (status: {status.value})"
+        )
+
+        # Additional logging for partial success to aid in debugging
+        if status == ExecutionStatus.PARTIAL_SUCCESS:
+            failed_orders = [order for order in orders if not order.success]
+            failed_symbols = [order.symbol for order in failed_orders]
+            logger.warning(
+                f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
+            )
+
+    async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
         This method is idempotent - repeated calls with the same plan_id will return
@@ -518,35 +671,9 @@ class Executor:
 
         # CRITICAL SAFETY CHECK: Validate against daily trade limit
         # This circuit breaker prevents runaway bugs from deploying excessive capital
-        try:
-            self.daily_trade_limit_service.assert_within_limit(
-                plan.total_trade_value, plan.correlation_id
-            )
-        except DailyTradeLimitExceededError as e:
-            logger.critical(
-                "🚨 DAILY TRADE LIMIT EXCEEDED - HALTING EXECUTION",
-                extra={
-                    "plan_id": plan.plan_id,
-                    "proposed_trade_value": str(e.proposed_trade_value),
-                    "current_cumulative": str(e.current_cumulative),
-                    "daily_limit": str(e.daily_limit),
-                    "headroom": str(e.headroom),
-                    "correlation_id": plan.correlation_id,
-                },
-            )
-            # Return a failed execution result
-            return ExecutionResult(
-                success=False,
-                status=ExecutionStatus.FAILURE,
-                plan_id=plan.plan_id,
-                correlation_id=plan.correlation_id,
-                orders=[],
-                orders_placed=0,
-                orders_succeeded=0,
-                total_trade_value=Decimal("0"),
-                execution_timestamp=datetime.now(UTC),
-                metadata={"error": str(e), "reason": "daily_trade_limit_exceeded"},
-            )
+        limit_result = self._validate_daily_trade_limit(plan)
+        if limit_result:
+            return limit_result
 
         # Cancel all orders to ensure clean order book at start
         logger.info("🧹 Cancelling all open orders to ensure clean order book...")
@@ -582,62 +709,18 @@ class Executor:
         # This enables the MAX_ORDER_PORTFOLIO_PCT safety check in PhaseExecutor
         self._phase_executor.set_portfolio_value(plan.total_portfolio_value)
 
-        # Phase 1: Execute SELL orders and monitor settlement
-        sell_order_ids: list[str] = []
-        if sell_items:
-            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
+        # Execute sell and buy phases
+        (
+            orders,
+            orders_placed,
+            orders_succeeded,
+            total_trade_value,
+        ) = await self._execute_sell_and_buy_phases(
+            sell_items, buy_items, plan.correlation_id, plan.plan_id
+        )
 
-            sell_orders, sell_stats = await self._execute_sell_phase(
-                sell_items, plan.correlation_id
-            )
-            orders.extend(sell_orders)
-            orders_placed += sell_stats["placed"]
-            orders_succeeded += sell_stats["succeeded"]
-            total_trade_value += sell_stats["trade_value"]
-
-            # Collect successful sell order IDs for settlement monitoring
-            sell_order_ids = [
-                order.order_id for order in sell_orders if order.success and order.order_id
-            ]
-
-        # Phase 2: Monitor settlement and execute BUY orders
-        if buy_items and sell_order_ids:
-            logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
-
-            # Wait for settlement and then execute buys
-            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
-                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
-            )
-
-            orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
-            total_trade_value += buy_stats["trade_value"]
-
-        elif buy_items:
-            # No sells to wait for, execute buys immediately
-            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
-
-            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
-            orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
-            total_trade_value += buy_stats["trade_value"]
-
-        # Log HOLD items
-        for item in hold_items:
-            logger.info(f"⏸️ Holding {item.symbol} - no action required")
-
-        # Clean up subscriptions after execution
-        self._cleanup_subscriptions(all_symbols)
-
-        # Record filled orders to trade ledger
-        self._record_orders_to_ledger(orders, plan)
-
-        # Record successful trades against daily limit for circuit breaker tracking
-        for order in orders:
-            if order.success and order.trade_amount > Decimal("0"):
-                self.daily_trade_limit_service.record_trade(order.trade_amount, plan.correlation_id)
+        # Post-execution cleanup and recording
+        self._post_execution_cleanup(orders, hold_items, all_symbols, plan)
 
         # Classify execution status
         success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)
@@ -657,56 +740,10 @@ class Executor:
         )
 
         # Enhanced logging with status classification
-        if status == ExecutionStatus.SUCCESS:
-            status_emoji = "✅"
-        elif status == ExecutionStatus.PARTIAL_SUCCESS:
-            status_emoji = "⚠️"
-        else:
-            status_emoji = "❌"
-        logger.info(
-            f"{status_emoji} Rebalance plan {plan.plan_id} completed: "
-            f"{orders_succeeded}/{orders_placed} orders succeeded (status: {status.value})"
-        )
-
-        # Additional logging for partial success to aid in debugging
-        if status == ExecutionStatus.PARTIAL_SUCCESS:
-            failed_orders = [order for order in orders if not order.success]
-            failed_symbols = [order.symbol for order in failed_orders]
-            logger.warning(
-                f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
-            )
+        self._log_execution_result(plan, status, orders, orders_placed, orders_succeeded)
 
         # SLIPPAGE ALERTING: Log warnings for orders with significant slippage
-        orders_with_slippage = [o for o in orders if o.has_significant_slippage]
-        if orders_with_slippage:
-            for order in orders_with_slippage:
-                logger.warning(
-                    f"📊 Significant slippage detected for {order.symbol}: "
-                    f"{order.slippage_bps}bps (${order.slippage_amount})",
-                    extra={
-                        "symbol": order.symbol,
-                        "action": order.action,
-                        "expected_price": str(order.expected_price),
-                        "actual_price": str(order.price),
-                        "slippage_bps": str(order.slippage_bps),
-                        "slippage_amount": str(order.slippage_amount),
-                        "correlation_id": plan.correlation_id,
-                    },
-                )
-
-            # Aggregate slippage alert if total is concerning
-            total_slippage = sum(
-                abs(o.slippage_amount or Decimal("0")) for o in orders_with_slippage
-            )
-            if total_slippage > Decimal("100"):  # Alert if > $100 total slippage
-                logger.error(
-                    f"🚨 HIGH TOTAL SLIPPAGE: ${total_slippage} across {len(orders_with_slippage)} orders",
-                    extra={
-                        "total_slippage_usd": str(total_slippage),
-                        "affected_orders": len(orders_with_slippage),
-                        "correlation_id": plan.correlation_id,
-                    },
-                )
+        self._check_and_log_slippage(orders, plan.correlation_id)
 
         # Trade ledger automatically persists to DynamoDB (no explicit call needed)
 
@@ -714,6 +751,103 @@ class Executor:
         self._execution_cache[plan.plan_id] = execution_result
 
         return execution_result
+
+    def _post_execution_cleanup(
+        self,
+        orders: list[OrderResult],
+        hold_items: list[RebalancePlanItem],
+        all_symbols: list[str],
+        plan: RebalancePlan,
+    ) -> None:
+        """Perform post-execution cleanup and recording.
+
+        Args:
+            orders: List of executed orders
+            hold_items: List of items to hold
+            all_symbols: All symbols that were subscribed
+            plan: Rebalance plan
+
+        """
+        # Log HOLD items
+        for item in hold_items:
+            logger.info(f"⏸️ Holding {item.symbol} - no action required")
+
+        # Clean up subscriptions after execution
+        self._cleanup_subscriptions(all_symbols)
+
+        # Record filled orders to trade ledger
+        self._record_orders_to_ledger(orders, plan)
+
+        # Record successful trades against daily limit for circuit breaker tracking
+        for order in orders:
+            if order.success and order.trade_amount > Decimal("0"):
+                self.daily_trade_limit_service.record_trade(order.trade_amount, plan.correlation_id)
+
+    async def _execute_sell_and_buy_phases(
+        self,
+        sell_items: list[RebalancePlanItem],
+        buy_items: list[RebalancePlanItem],
+        correlation_id: str,
+        plan_id: str,
+    ) -> tuple[list[OrderResult], int, int, Decimal]:
+        """Execute sell and buy phases with settlement monitoring.
+
+        Args:
+            sell_items: List of sell order items
+            buy_items: List of buy order items
+            correlation_id: Correlation ID for tracking
+            plan_id: Execution plan ID
+
+        Returns:
+            Tuple of (orders, orders_placed, orders_succeeded, total_trade_value)
+
+        """
+        orders: list[OrderResult] = []
+        orders_placed = 0
+        orders_succeeded = 0
+        total_trade_value = Decimal("0")
+
+        # Phase 1: Execute SELL orders and monitor settlement
+        sell_order_ids: list[str] = []
+        if sell_items:
+            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
+
+            sell_orders, sell_stats = await self._execute_sell_phase(sell_items, correlation_id)
+            orders.extend(sell_orders)
+            orders_placed += sell_stats["placed"]
+            orders_succeeded += sell_stats["succeeded"]
+            total_trade_value += sell_stats["trade_value"]
+
+            # Collect successful sell order IDs for settlement monitoring
+            sell_order_ids = [
+                order.order_id for order in sell_orders if order.success and order.order_id
+            ]
+
+        # Phase 2: Monitor settlement and execute BUY orders
+        if buy_items and sell_order_ids:
+            logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
+
+            # Wait for settlement and then execute buys
+            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
+                buy_items, sell_order_ids, correlation_id, plan_id
+            )
+
+            orders.extend(buy_orders)
+            orders_placed += buy_stats["placed"]
+            orders_succeeded += buy_stats["succeeded"]
+            total_trade_value += buy_stats["trade_value"]
+
+        elif buy_items:
+            # No sells to wait for, execute buys immediately
+            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
+
+            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, correlation_id)
+            orders.extend(buy_orders)
+            orders_placed += buy_stats["placed"]
+            orders_succeeded += buy_stats["succeeded"]
+            total_trade_value += buy_stats["trade_value"]
+
+        return orders, orders_placed, orders_succeeded, total_trade_value
 
     def _extract_all_symbols(self, plan: RebalancePlan) -> list[str]:
         """Extract all symbols from the rebalance plan."""
@@ -868,7 +1002,9 @@ class Executor:
 
         Note: Re-pegging logic has been removed with SmartExecutionStrategy deprecation.
         This method now simply returns orders unchanged for backward compatibility.
+        Uses asyncio.sleep(0) to satisfy async requirement for protocol compatibility.
         """
+        await asyncio.sleep(0)  # Yield control to satisfy async protocol
         return orders
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
