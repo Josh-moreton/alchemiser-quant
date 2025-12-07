@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "5.6.1"
+version = "5.7.1"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -109,7 +109,6 @@ pydantic = ">=2.0.0"
 pydantic-settings = ">=2.0.0"
 cachetools = "^6.2.2"
 dependency-injector = "^4.48.2"
-python-dotenv = "^1.2.1"
 structlog = "^25.5.0"
 boto3 = "^1.41.2"
 httpx = "^0.28.1"

@@ -60,6 +60,16 @@ class DecimalEncoder(json.JSONEncoder):
             return str(obj)
         if isinstance(obj, datetime):
             return obj.isoformat()
+        # Exception instances - serialize to dict with type and message
+        if isinstance(obj, Exception):
+            result: dict[str, Any] = {
+                "type": type(obj).__name__,
+                "message": str(obj),
+            }
+            # Include context if available (e.g., AlchemiserError subclasses)
+            if hasattr(obj, "context") and obj.context:
+                result["context"] = obj.context
+            return result
         return super().default(obj)
 
 

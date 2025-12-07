@@ -31,14 +31,6 @@ from urllib.parse import urlparse
 import requests
 from pathlib import Path
 
-# Optional .env support for local runs
-try:
-    from dotenv import load_dotenv  # type: ignore
-
-    load_dotenv()
-except Exception as exc:
-    logging.debug("dotenv not loaded: %s", exc)
-
 SESSION = requests.Session()
 SESSION.headers.update(
     {

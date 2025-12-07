@@ -138,7 +138,6 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "MicroservicesAlpacaKey=$ALPACA_KEY"
         "MicroservicesAlpacaSecret=$ALPACA_SECRET"
         "MicroservicesAlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
-        "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
@@ -168,7 +167,6 @@ else
         "MicroservicesAlpacaKey=$ALPACA_KEY"
         "MicroservicesAlpacaSecret=$ALPACA_SECRET"
         "MicroservicesAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
-        "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )

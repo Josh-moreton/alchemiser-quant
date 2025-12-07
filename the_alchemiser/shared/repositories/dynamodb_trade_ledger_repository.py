@@ -480,7 +480,7 @@ class DynamoDBTradeLedgerRepository:
 
         # Main signal item
         signal_item: dict[str, Any] = {
-            "PK": f"SIGNAL#{signal.signal_id}",
+            "PK": f"{SIGNAL_PREFIX}{signal.signal_id}",
             "SK": "METADATA",
             "EntityType": "SIGNAL",
             "signal_id": signal.signal_id,
@@ -500,13 +500,13 @@ class DynamoDBTradeLedgerRepository:
             "ledger_id": ledger_id,
             # GSI keys for query patterns
             "GSI1PK": f"CORR#{signal.correlation_id}",
-            "GSI1SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI1SK": f"{SIGNAL_PREFIX}{timestamp_str}#{signal.signal_id}",
             "GSI2PK": f"SYMBOL#{signal.symbol}",
-            "GSI2SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI2SK": f"{SIGNAL_PREFIX}{timestamp_str}#{signal.signal_id}",
             "GSI3PK": f"STRATEGY#{signal.strategy_name}",
-            "GSI3SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI3SK": f"{SIGNAL_PREFIX}{timestamp_str}#{signal.signal_id}",
             "GSI4PK": f"STATE#{signal.lifecycle_state}",
-            "GSI4SK": f"SIGNAL#{timestamp_str}#{signal.signal_id}",
+            "GSI4SK": f"{SIGNAL_PREFIX}{timestamp_str}#{signal.signal_id}",
         }
 
         # Optional fields
@@ -708,14 +708,16 @@ class DynamoDBTradeLedgerRepository:
             }
 
             # Get current item to extract timestamp for GSI4SK
-            response = self._table.get_item(Key={"PK": f"SIGNAL#{signal_id}", "SK": "METADATA"})
+            response = self._table.get_item(
+                Key={"PK": f"{SIGNAL_PREFIX}{signal_id}", "SK": "METADATA"}
+            )
             item = response.get("Item")
             if not item:
                 logger.warning(f"Signal {signal_id} not found for lifecycle update")
                 return
 
             timestamp_str = item.get("timestamp", datetime.now(UTC).isoformat())
-            expression_values[":gsi4sk"] = f"SIGNAL#{timestamp_str}#{signal_id}"
+            expression_values[":gsi4sk"] = f"{SIGNAL_PREFIX}{timestamp_str}#{signal_id}"
 
             if trade_ids is not None:
                 # Use SET with list_append for atomic append operation
@@ -728,7 +730,7 @@ class DynamoDBTradeLedgerRepository:
                 expression_values[":empty_list"] = []
 
             self._table.update_item(
-                Key={"PK": f"SIGNAL#{signal_id}", "SK": "METADATA"},
+                Key={"PK": f"{SIGNAL_PREFIX}{signal_id}", "SK": "METADATA"},
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_values,
             )

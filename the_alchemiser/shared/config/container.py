@@ -40,11 +40,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
     """Main application container orchestrating all dependencies."""
 
     # Wire configuration
-    wiring_config = containers.WiringConfiguration(
-        modules=[
-            "the_alchemiser.main",
-        ]
-    )
+    # Note: Business modules are wired dynamically via register_* functions
+    # called in create_for_environment() to avoid circular dependencies
+    wiring_config = containers.WiringConfiguration(modules=[])
 
     # Sub-containers (logical layers)
     config = providers.Container(ConfigProviders)

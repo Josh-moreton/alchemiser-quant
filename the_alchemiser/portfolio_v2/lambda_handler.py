@@ -26,8 +26,11 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
     unwrap_eventbridge_event,
 )
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
+
+# Initialize logging on cold start (must be before get_logger)
+configure_application_logging()
 
 logger = get_logger(__name__)
 
