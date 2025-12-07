@@ -12,7 +12,7 @@ Implements DSL control flow and conditional operators:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Literal, cast
+from typing import Any, Literal, TypeGuard, cast
 
 import structlog
 
@@ -804,11 +804,11 @@ def _try_add_ticker_symbol(child: ASTNode, symbols: list[str]) -> None:
     """
     atom_val = child.get_atom_value()
     if _is_likely_ticker_symbol(atom_val, symbols):
-        # Type narrowed to str by _is_likely_ticker_symbol check
-        symbols.append(cast(str, atom_val))
+        # Type narrowed to str by TypeGuard
+        symbols.append(atom_val)
 
 
-def _is_likely_ticker_symbol(atom_val: object, existing_symbols: list[str]) -> bool:
+def _is_likely_ticker_symbol(atom_val: object, existing_symbols: list[str]) -> TypeGuard[str]:
     """Check if an atom value is likely a ticker symbol.
 
     Args:
@@ -816,7 +816,7 @@ def _is_likely_ticker_symbol(atom_val: object, existing_symbols: list[str]) -> b
         existing_symbols: List of already found symbols
 
     Returns:
-        True if likely a ticker symbol
+        True if likely a ticker symbol (type narrowed to str)
 
     """
     return (
