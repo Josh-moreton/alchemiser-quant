@@ -118,6 +118,17 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
     if isinstance(obj, datetime):
         return obj.isoformat()
 
+    # Exception instances - serialize to dict with type and message
+    if isinstance(obj, Exception):
+        result: dict[str, Any] = {
+            "type": type(obj).__name__,
+            "message": str(obj),
+        }
+        # Include context if available (e.g., AlchemiserError subclasses)
+        if hasattr(obj, "context") and obj.context:
+            result["context"] = obj.context
+        return result
+
     # Keep strict behavior for unsupported types
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 

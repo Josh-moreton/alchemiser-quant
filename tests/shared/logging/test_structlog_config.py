@@ -33,6 +33,34 @@ def test_decimal_serializer_raises_on_unsupported_type() -> None:
         decimal_serializer(object())
 
 
+def test_decimal_serializer_handles_exception() -> None:
+    """Test that decimal_serializer converts Exception to dict with type and message."""
+    error = ValueError("test error message")
+    result = decimal_serializer(error)
+
+    assert isinstance(result, dict)
+    assert result["type"] == "ValueError"
+    assert result["message"] == "test error message"
+
+
+def test_decimal_serializer_handles_exception_with_context() -> None:
+    """Test that decimal_serializer includes context attribute from AlchemiserError subclasses."""
+    from the_alchemiser.shared.errors.exceptions import StrategyExecutionError
+
+    error = StrategyExecutionError(
+        message="DSL evaluation failed",
+        strategy_name="dsl_engine",
+        operation="evaluate",
+    )
+    result = decimal_serializer(error)
+
+    assert isinstance(result, dict)
+    assert result["type"] == "StrategyExecutionError"
+    assert "DSL evaluation failed" in result["message"]
+    assert "context" in result
+    assert result["context"]["strategy_name"] == "dsl_engine"
+
+
 def test_add_alchemiser_context_adds_system_identifier() -> None:
     """Test that add_alchemiser_context adds system identifier."""
     event_dict: dict[str, object] = {"event": "test"}
