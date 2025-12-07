@@ -195,7 +195,7 @@ def configure_structlog(
     if include_timestamp:
         processors.append(structlog.processors.TimeStamper(fmt="iso"))
 
-    # Beautiful human-readable output with enterprise-grade formatting
+    # Human-readable output with structured formatting for development and production environments
     processors.append(
         structlog.dev.ConsoleRenderer(
             colors=use_colors,
