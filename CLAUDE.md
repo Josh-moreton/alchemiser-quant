@@ -316,6 +316,28 @@ make destroy-ephemeral STACK=alchemiser-ephem-...
 
 ## Logging
 
+### Environment-Aware Logging
+
+The system uses different log formats based on the deployment environment:
+
+| Environment | Format | Colors | Timestamp | Use Case |
+|-------------|--------|--------|-----------|----------|
+| **Prod Lambda** (APP__STAGE=prod) | JSON | No | No (CloudWatch adds) | CloudWatch Insights queries, log aggregation |
+| **Dev Lambda** (APP__STAGE=dev) | Human-readable | No | No (CloudWatch adds) | Easier debugging in CloudWatch |
+| **Local Development** | Human-readable | Yes | Yes | Beautiful terminal output + file logging |
+
+All Lambda handlers must initialize logging on cold start:
+```python
+from the_alchemiser.shared.logging import configure_application_logging, get_logger
+
+# Initialize logging on cold start (must be before get_logger)
+configure_application_logging()
+
+logger = get_logger(__name__)
+```
+
+### Using the Logger
+
 Use structured logging with context:
 ```python
 from the_alchemiser.shared.logging import get_logger
@@ -331,6 +353,12 @@ logger.info(
 ```
 
 **Avoid**: `event=` as a kwarg (conflicts with structlog). Use `lambda_event=` instead.
+
+### Environment Variables
+
+- `APP__STAGE`: Set to `prod` or `dev` (controls JSON vs human-readable format)
+- `LOG_LEVEL` or `LOGGING__LEVEL`: Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `LOG_FILE_PATH`: Optional file path for logging (local development only)
 
 ## File Locations
 

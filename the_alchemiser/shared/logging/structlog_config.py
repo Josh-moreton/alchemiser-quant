@@ -4,8 +4,8 @@ Structlog configuration for the Alchemiser trading platform.
 
 This module provides structlog configuration including custom processors for
 Alchemiser-specific context, Decimal serialization, and output formatting.
-Output format is either JSON (production) or console (development), controlled
-by the structured_format parameter - these formats are mutually exclusive.
+Output format is either JSON (prod Lambda) or human-readable console (dev Lambda
+and local development), controlled by the use_json parameter.
 """
 
 from __future__ import annotations
@@ -129,8 +129,9 @@ def configure_structlog(
     file_path: str | None = None,
     use_colors: bool = True,
     include_timestamp: bool = True,
+    use_json: bool = False,
 ) -> None:
-    """Configure structlog with beautiful, enterprise-grade human-readable output.
+    """Configure structlog with flexible output formatting.
 
     This follows the proper pattern: let stdlib logging handle routing to different
     handlers with different levels, while structlog handles formatting.
@@ -142,8 +143,11 @@ def configure_structlog(
                    In development, typically set to 'logs/trade_run.log'.
         use_colors: If True, use ANSI colors in output. Set False for CloudWatch
                     (ANSI codes don't render and appear as garbage characters).
+                    Ignored when use_json=True.
         include_timestamp: If True, add ISO timestamp to logs. Set False for Lambda
                            since CloudWatch automatically adds timestamps.
+        use_json: If True, use JSON format for structured logging (production).
+                  If False, use human-readable console format (development).
 
     """
     # Set up stdlib logging handlers first
@@ -195,16 +199,21 @@ def configure_structlog(
     if include_timestamp:
         processors.append(structlog.processors.TimeStamper(fmt="iso"))
 
-    # Human-readable output with structured formatting for development and production environments
-    processors.append(
-        structlog.dev.ConsoleRenderer(
-            colors=use_colors,
-            pad_event=50,
-            pad_level=True,
-            sort_keys=False,
-            exception_formatter=structlog.dev.plain_traceback,
+    # Choose renderer based on format preference
+    if use_json:
+        # JSON format for production (queryable in CloudWatch Insights, log aggregators)
+        processors.append(structlog.processors.JSONRenderer(default=decimal_serializer))
+    else:
+        # Human-readable output for development and dev environments
+        processors.append(
+            structlog.dev.ConsoleRenderer(
+                colors=use_colors,
+                pad_event=50,
+                pad_level=True,
+                sort_keys=False,
+                exception_formatter=structlog.dev.plain_traceback,
+            )
         )
-    )
 
     structlog.configure(
         processors=processors,

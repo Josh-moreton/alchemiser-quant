@@ -96,7 +96,9 @@ def test_add_alchemiser_context_includes_causation_id() -> None:
 
 def test_configure_structlog_json_format() -> None:
     """Test that configure_structlog sets up JSON output."""
-    configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
+    configure_structlog(
+        console_level=logging.INFO, file_level=logging.INFO, use_json=True, use_colors=False
+    )
 
     logger = get_structlog_logger(__name__)
     assert logger is not None
@@ -105,7 +107,7 @@ def test_configure_structlog_json_format() -> None:
 def test_configure_structlog_console_format() -> None:
     """Test that configure_structlog sets up console output."""
     configure_structlog(
-        structured_format=False, console_level=logging.DEBUG, file_level=logging.DEBUG
+        console_level=logging.DEBUG, file_level=logging.DEBUG, use_json=False, use_colors=True
     )
 
     logger = get_structlog_logger(__name__)
@@ -114,7 +116,9 @@ def test_configure_structlog_console_format() -> None:
 
 def test_get_structlog_logger_returns_logger() -> None:
     """Test that get_structlog_logger returns a logger instance."""
-    configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
+    configure_structlog(
+        console_level=logging.INFO, file_level=logging.INFO, use_json=True, use_colors=False
+    )
 
     logger = get_structlog_logger(__name__)
     assert logger is not None
@@ -128,9 +132,10 @@ def test_structlog_handles_decimal_in_json() -> None:
     # Capture output - configure structlog AFTER patching stdout so handlers use patched stream
     with patch("sys.stdout", new=StringIO()) as fake_out:
         configure_structlog(
-            structured_format=True,
             console_level=logging.DEBUG,
             file_level=logging.DEBUG,
+            use_json=True,
+            use_colors=False,
         )
         logger = get_structlog_logger(__name__)
         logger.info("test", price=Decimal("150.25"), quantity=Decimal("100"))
@@ -154,9 +159,10 @@ def test_structlog_includes_context_vars() -> None:
     try:
         with patch("sys.stdout", new=StringIO()) as fake_out:
             configure_structlog(
-                structured_format=True,
                 console_level=logging.DEBUG,
                 file_level=logging.DEBUG,
+                use_json=True,
+                use_colors=False,
             )
             logger = get_structlog_logger(__name__)
             logger.info("test event")
@@ -182,9 +188,10 @@ def test_structlog_includes_all_event_tracing_ids() -> None:
     try:
         with patch("sys.stdout", new=StringIO()) as fake_out:
             configure_structlog(
-                structured_format=True,
                 console_level=logging.DEBUG,
                 file_level=logging.DEBUG,
+                use_json=True,
+                use_colors=False,
             )
             logger = get_structlog_logger(__name__)
             logger.info("test event")
@@ -208,9 +215,10 @@ def test_structlog_logger_bind() -> None:
     """Test that structlog logger supports bind for context."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
         configure_structlog(
-            structured_format=True,
             console_level=logging.DEBUG,
             file_level=logging.DEBUG,
+            use_json=True,
+            use_colors=False,
         )
         logger = get_structlog_logger(__name__)
         bound_logger = logger.bind(symbol="AAPL", strategy="momentum")
@@ -230,10 +238,11 @@ def test_configure_structlog_logs_file_handler_failure() -> None:
     with patch("sys.stdout", new=StringIO()) as fake_out:
         # Try to configure with an invalid file path (read-only directory)
         configure_structlog(
-            structured_format=True,
             console_level=logging.WARNING,
             file_level=logging.DEBUG,
             file_path="/invalid/read/only/path/test.log",
+            use_json=True,
+            use_colors=False,
         )
 
         output = fake_out.getvalue()

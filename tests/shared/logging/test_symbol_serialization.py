@@ -18,9 +18,10 @@ def test_structlog_serializes_symbol_value_object() -> None:
     """Ensure Symbol instances in logs are rendered as simple strings."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
         configure_structlog(
-            structured_format=True,
             console_level=logging.DEBUG,
             file_level=logging.DEBUG,
+            use_json=True,
+            use_colors=False,
         )
         logger = get_structlog_logger(__name__)
 

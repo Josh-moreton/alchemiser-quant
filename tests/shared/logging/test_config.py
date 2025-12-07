@@ -26,9 +26,10 @@ class TestConfigureTestLogging:
         configure_test_logging()
 
         mock_configure.assert_called_once_with(
-            structured_format=False,
             console_level=logging.WARNING,
             file_level=logging.WARNING,
+            use_colors=True,
+            include_timestamp=True,
         )
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
@@ -37,9 +38,10 @@ class TestConfigureTestLogging:
         configure_test_logging(log_level=logging.DEBUG)
 
         mock_configure.assert_called_once_with(
-            structured_format=False,
             console_level=logging.DEBUG,
             file_level=logging.DEBUG,
+            use_colors=True,
+            include_timestamp=True,
         )
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
@@ -47,9 +49,10 @@ class TestConfigureTestLogging:
         """Test that configure_test_logging uses console format for readability."""
         configure_test_logging()
 
-        # Verify structured_format is False (console format, not JSON)
+        # Verify use_colors and include_timestamp are True (human-readable format)
         call_kwargs = mock_configure.call_args.kwargs
-        assert call_kwargs["structured_format"] is False
+        assert call_kwargs["use_colors"] is True
+        assert call_kwargs["include_timestamp"] is True
 
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_is_idempotent(self, mock_configure: MagicMock) -> None:
@@ -64,39 +67,57 @@ class TestConfigureTestLogging:
 class TestConfigureProductionLogging:
     """Test suite for configure_production_logging function."""
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_configures_with_default_info_level(self, mock_configure: MagicMock) -> None:
         """Test that configure_production_logging uses INFO level by default."""
         configure_production_logging()
 
         mock_configure.assert_called_once_with(
-            structured_format=True,
             console_level=logging.INFO,
             file_level=logging.INFO,
             file_path=None,
+            use_colors=False,
+            include_timestamp=False,
+            use_json=False,  # No APP__STAGE set, defaults to dev (human-readable)
         )
 
+    @patch.dict(os.environ, {"APP__STAGE": "prod"})
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
-    def test_uses_json_format(self, mock_configure: MagicMock) -> None:
-        """Test that configure_production_logging uses JSON format."""
+    def test_uses_json_format_for_prod_stage(self, mock_configure: MagicMock) -> None:
+        """Test that configure_production_logging uses JSON format for prod stage."""
         configure_production_logging()
 
-        # Verify structured_format is True (JSON format)
+        # Verify use_json is True for prod stage
         call_kwargs = mock_configure.call_args.kwargs
-        assert call_kwargs["structured_format"] is True
+        assert call_kwargs["use_json"] is True
 
+    @patch.dict(os.environ, {"APP__STAGE": "dev"})
+    @patch("the_alchemiser.shared.logging.config.configure_structlog")
+    def test_uses_human_readable_format_for_dev_stage(self, mock_configure: MagicMock) -> None:
+        """Test that configure_production_logging uses human-readable format for dev stage."""
+        configure_production_logging()
+
+        # Verify use_json is False for dev stage
+        call_kwargs = mock_configure.call_args.kwargs
+        assert call_kwargs["use_json"] is False
+
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_custom_log_level(self, mock_configure: MagicMock) -> None:
         """Test that configure_production_logging accepts custom log level."""
         configure_production_logging(log_level=logging.WARNING)
 
         mock_configure.assert_called_once_with(
-            structured_format=True,
             console_level=logging.WARNING,
             file_level=logging.WARNING,
             file_path=None,
+            use_colors=False,
+            include_timestamp=False,
+            use_json=False,
         )
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_custom_console_level(self, mock_configure: MagicMock) -> None:
         """Test that console_level can override base log_level."""
@@ -106,6 +127,7 @@ class TestConfigureProductionLogging:
         assert call_kwargs["console_level"] == logging.WARNING
         assert call_kwargs["file_level"] == logging.INFO
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_accepts_log_file_path(self, mock_configure: MagicMock) -> None:
         """Test that log_file_path parameter is passed through."""
@@ -155,7 +177,7 @@ class TestConfigureApplicationLogging:
         configure_application_logging()
 
         # Should call production logging, not structlog directly
-        mock_production.assert_called_once_with(log_level=logging.INFO)
+        mock_production.assert_called_once_with()
         mock_structlog.assert_not_called()
 
     @patch.dict(os.environ, {}, clear=True)
@@ -169,10 +191,11 @@ class TestConfigureApplicationLogging:
 
         # Should call structlog directly for development, not production
         mock_structlog.assert_called_once_with(
-            structured_format=False,
             console_level=logging.INFO,
             file_level=logging.DEBUG,
             file_path="logs/trade_run.log",
+            use_colors=True,
+            include_timestamp=True,
         )
         mock_production.assert_not_called()
 
@@ -190,7 +213,7 @@ class TestConfigureApplicationLogging:
         configure_application_logging()
 
         # With the fix (is not None), empty string should trigger production
-        mock_production.assert_called_once_with(log_level=logging.INFO)
+        mock_production.assert_called_once_with()
         mock_structlog.assert_not_called()
 
     @patch.dict(os.environ, {}, clear=True)
@@ -200,7 +223,8 @@ class TestConfigureApplicationLogging:
         configure_application_logging()
 
         call_kwargs = mock_structlog.call_args.kwargs
-        assert call_kwargs["structured_format"] is False
+        assert call_kwargs["use_colors"] is True
+        assert call_kwargs["include_timestamp"] is True
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
@@ -244,6 +268,7 @@ class TestEdgeCases:
         call_kwargs = mock_configure.call_args.kwargs
         assert call_kwargs["console_level"] == logging.CRITICAL
 
+    @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
     def test_configure_production_logging_with_none_console_level(
         self, mock_configure: MagicMock
@@ -253,6 +278,8 @@ class TestEdgeCases:
 
         call_kwargs = mock_configure.call_args.kwargs
         assert call_kwargs["console_level"] == logging.WARNING
+        assert call_kwargs["use_colors"] is False
+        assert call_kwargs["include_timestamp"] is False
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("the_alchemiser.shared.logging.config.configure_structlog")
@@ -262,6 +289,8 @@ class TestEdgeCases:
 
         call_kwargs = mock_configure.call_args.kwargs
         assert call_kwargs["file_path"] is None
+        assert call_kwargs["use_colors"] is False
+        assert call_kwargs["include_timestamp"] is False
 
 
 class TestParameterNaming:

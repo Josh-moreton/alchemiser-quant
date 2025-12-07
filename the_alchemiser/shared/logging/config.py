@@ -39,7 +39,10 @@ def configure_production_logging(
     *,
     console_level: int | None = None,
 ) -> None:
-    """Configure structlog for production with human-readable output optimized for CloudWatch.
+    """Configure structlog for Lambda environments (dev and prod).
+
+    Dev Lambda uses human-readable format for easier debugging.
+    Prod Lambda uses JSON format for CloudWatch Insights queries and log aggregation.
 
     Args:
         log_level: Base log level for handlers. If None, reads from LOG_LEVEL env var
@@ -61,6 +64,7 @@ def configure_production_logging(
         LOG_LEVEL: Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL). Default: INFO
         LOGGING__LEVEL: Alternative env var (used by SAM template). Falls back to LOG_LEVEL.
         LOG_FILE_PATH: Optional file path for logging output.
+        APP__STAGE: Deployment stage ("dev" or "prod"). Determines log format.
 
     """
     # Read log level from environment variable if not explicitly provided
@@ -72,46 +76,61 @@ def configure_production_logging(
     effective_console_level = console_level if console_level is not None else log_level
     effective_log_file = log_file_path or os.getenv("LOG_FILE_PATH")
 
-    # Detect Lambda environment for CloudWatch-friendly output
-    is_lambda = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+    # Detect production stage (uses JSON) vs dev stage (uses human-readable)
+    stage = os.getenv("APP__STAGE", "").lower()
+    is_prod_stage = stage in ("prod", "production")
 
     configure_structlog(
         console_level=effective_console_level,
         file_level=log_level,
         file_path=effective_log_file,
-        use_colors=not is_lambda,  # No colors in CloudWatch (ANSI codes don't render)
-        include_timestamp=not is_lambda,  # CloudWatch adds its own timestamp
+        use_colors=False,  # No colors in CloudWatch (ANSI codes don't render)
+        include_timestamp=False,  # CloudWatch adds its own timestamp
+        use_json=is_prod_stage,  # JSON for prod Lambda, human-readable for dev Lambda
     )
 
 
 def configure_application_logging() -> None:
     """Configure application logging with structlog.
 
-    Automatically selects appropriate configuration based on environment.
-    Both production and development use beautiful human-readable output with proper
-    formatting for each environment.
+    Automatically selects appropriate configuration based on environment:
+    - **Prod Lambda** (APP__STAGE=prod): JSON format for CloudWatch Insights
+    - **Dev Lambda** (APP__STAGE=dev): Human-readable for easier debugging
+    - **Local Development**: Human-readable with colors and file logging
 
     Environment Detection:
-        - Production (Lambda): AWS_LAMBDA_FUNCTION_NAME env var is set
+        - **Prod Lambda** (AWS_LAMBDA_FUNCTION_NAME set, APP__STAGE=prod):
+          - JSON format (queryable in CloudWatch Insights)
+          - No ANSI colors
+          - No timestamp (CloudWatch adds its own)
+          - Log level from LOG_LEVEL env var (default: INFO)
+
+        - **Dev Lambda** (AWS_LAMBDA_FUNCTION_NAME set, APP__STAGE=dev):
+          - Human-readable format (easier debugging)
           - No ANSI colors (CloudWatch doesn't render them)
           - No timestamp (CloudWatch adds its own)
           - Log level from LOG_LEVEL env var (default: INFO)
-        - Development: AWS_LAMBDA_FUNCTION_NAME is not set
+
+        - **Local Development** (AWS_LAMBDA_FUNCTION_NAME not set):
+          - Human-readable format
           - Full ANSI colors for beautiful terminal output
           - Timestamps included
           - File logging to logs/trade_run.log
 
     Example:
-        >>> # In Lambda (production)
-        >>> configure_application_logging()  # Clean output for CloudWatch
+        >>> # In prod Lambda
+        >>> configure_application_logging()  # JSON output for CloudWatch Insights
+        >>>
+        >>> # In dev Lambda
+        >>> configure_application_logging()  # Human-readable output for debugging
         >>>
         >>> # In local development
         >>> configure_application_logging()  # Colored output, file logging
 
     Note:
-        In development, file logging to logs/trade_run.log may fail silently if the
-        directory doesn't exist. The underlying structlog_config module catches OSError
-        and falls back to console-only logging.
+        In local development, file logging to logs/trade_run.log may fail silently if
+        the directory doesn't exist. The underlying structlog_config module catches
+        OSError and falls back to console-only logging.
 
     """
     # Determine if we're in production (Lambda environment)
