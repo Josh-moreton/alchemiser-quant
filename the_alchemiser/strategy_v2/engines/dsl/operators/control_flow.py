@@ -694,27 +694,67 @@ def _extract_condition_type(condition: ASTNode) -> str:
     if not condition.is_list() or not condition.children:
         return "simple"
 
-    # Check if it's a comparison with indicator
     if len(condition.children) >= 3:
-        left_child = condition.children[1]
-        if left_child.is_list() and left_child.children:
-            func_name = (
-                left_child.children[0].get_symbol_name()
-                if left_child.children[0].is_symbol()
-                else ""
-            )
-            if func_name == "rsi":
-                return "rsi_check"
-            if func_name and (
-                func_name.startswith(("moving-average", "exponential-moving-average"))
-                or func_name == "ma"
-            ):
-                return "ma_comparison"
-            if func_name and func_name in DECISION_INDICATORS:
-                return f"{func_name}_check"
-        return "comparison"
+        return _get_comparison_condition_type(condition.children[1])
 
     return "expression"
+
+
+def _get_comparison_condition_type(left_child: ASTNode) -> str:
+    """Get condition type for comparison expressions.
+
+    Args:
+        left_child: The left child node of a comparison
+
+    Returns:
+        Condition type string
+
+    """
+    if not (left_child.is_list() and left_child.children):
+        return "comparison"
+
+    func_name = _get_func_name_from_node(left_child.children[0])
+    return _classify_indicator_type(func_name)
+
+
+def _get_func_name_from_node(node: ASTNode) -> str:
+    """Extract function name from a node.
+
+    Args:
+        node: The AST node to extract from
+
+    Returns:
+        Function name string, or empty string
+
+    """
+    if node.is_symbol():
+        name = node.get_symbol_name()
+        return name if name is not None else ""
+    return ""
+
+
+def _classify_indicator_type(func_name: str) -> str:
+    """Classify indicator type based on function name.
+
+    Args:
+        func_name: The function name to classify
+
+    Returns:
+        Indicator type string
+
+    """
+    if func_name == "rsi":
+        return "rsi_check"
+
+    if func_name and (
+        func_name.startswith(("moving-average", "exponential-moving-average")) or func_name == "ma"
+    ):
+        return "ma_comparison"
+
+    if func_name and func_name in DECISION_INDICATORS:
+        return f"{func_name}_check"
+
+    return "comparison"
 
 
 def _extract_symbols_from_condition(condition: ASTNode) -> list[str]:
@@ -734,25 +774,71 @@ def _extract_symbols_from_condition(condition: ASTNode) -> list[str]:
 
     # Recursively search for symbol atoms
     for child in condition.children:
-        if child.is_atom():
-            atom_val = child.get_atom_value()
-            if (
-                isinstance(atom_val, str)
-                and atom_val.isupper()
-                and len(atom_val) <= 5
-                and atom_val not in RESERVED_KEYWORDS
-                and atom_val not in symbols
-            ):
-                # Likely a ticker symbol
-                symbols.append(atom_val)
-        elif child.is_list():
-            # Recurse into nested lists
-            nested_symbols = _extract_symbols_from_condition(child)
-            for sym in nested_symbols:
-                if sym not in symbols:
-                    symbols.append(sym)
+        _process_child_for_symbols(child, symbols)
 
     return symbols
+
+
+def _process_child_for_symbols(child: ASTNode, symbols: list[str]) -> None:
+    """Process a child node to extract symbols.
+
+    Args:
+        child: The child AST node
+        symbols: List to append symbols to
+
+    """
+    if child.is_atom():
+        _try_add_ticker_symbol(child, symbols)
+    elif child.is_list():
+        nested_symbols = _extract_symbols_from_condition(child)
+        _merge_unique_symbols(nested_symbols, symbols)
+
+
+def _try_add_ticker_symbol(child: ASTNode, symbols: list[str]) -> None:
+    """Try to add a ticker symbol from an atom node.
+
+    Args:
+        child: The atom AST node
+        symbols: List to append symbol to if valid
+
+    """
+    atom_val = child.get_atom_value()
+    if _is_likely_ticker_symbol(atom_val, symbols):
+        # Type narrowed to str by _is_likely_ticker_symbol check
+        symbols.append(cast(str, atom_val))
+
+
+def _is_likely_ticker_symbol(atom_val: object, existing_symbols: list[str]) -> bool:
+    """Check if an atom value is likely a ticker symbol.
+
+    Args:
+        atom_val: The atom value to check
+        existing_symbols: List of already found symbols
+
+    Returns:
+        True if likely a ticker symbol
+
+    """
+    return (
+        isinstance(atom_val, str)
+        and atom_val.isupper()
+        and len(atom_val) <= 5
+        and atom_val not in RESERVED_KEYWORDS
+        and atom_val not in existing_symbols
+    )
+
+
+def _merge_unique_symbols(nested_symbols: list[str], symbols: list[str]) -> None:
+    """Merge unique symbols from nested list into main symbols list.
+
+    Args:
+        nested_symbols: Symbols from nested condition
+        symbols: Main symbols list to update
+
+    """
+    for sym in nested_symbols:
+        if sym not in symbols:
+            symbols.append(sym)
 
 
 def _extract_operator_type(condition: ASTNode) -> str:
@@ -770,21 +856,39 @@ def _extract_operator_type(condition: ASTNode) -> str:
 
     if len(condition.children) >= 1 and condition.children[0].is_symbol():
         op = condition.children[0].get_symbol_name()
-        if op == ">":
-            return "greater_than"
-        if op == "<":
-            return "less_than"
-        if op == ">=":
-            return "greater_than_or_equal"
-        if op == "<=":
-            return "less_than_or_equal"
-        if op == "=":
-            return "equal"
-        if op in ("and", "or"):
-            return op
-        return op or ""
+        return _map_operator_to_type(op)
 
     return ""
+
+
+def _map_operator_to_type(op: str | None) -> str:
+    """Map operator symbol to readable type string.
+
+    Args:
+        op: Operator symbol
+
+    Returns:
+        Operator type string
+
+    """
+    if not op:
+        return ""
+
+    operator_map = {
+        ">": "greater_than",
+        "<": "less_than",
+        ">=": "greater_than_or_equal",
+        "<=": "less_than_or_equal",
+        "=": "equal",
+    }
+
+    if op in operator_map:
+        return operator_map[op]
+
+    if op in ("and", "or"):
+        return op
+
+    return op
 
 
 def _extract_threshold(condition: ASTNode) -> float | None:
@@ -824,40 +928,98 @@ def _extract_indicator_info(condition: ASTNode) -> dict[str, Any] | None:
     if not condition.is_list() or not condition.children:
         return None
 
-    # Check left side of comparison for indicator call
     if len(condition.children) >= 2:
-        left_child = condition.children[1]
-        if left_child.is_list() and left_child.children:
-            func_name = (
-                left_child.children[0].get_symbol_name()
-                if left_child.children[0].is_symbol()
-                else ""
-            )
-            if func_name in DECISION_INDICATORS:
-                params: dict[str, Any] = {}
-                # Extract window parameter if present
-                if len(left_child.children) >= 3:
-                    param_node = left_child.children[2]
-                    if param_node.is_list() and param_node.children:
-                        # Parse map-style parameters like {:window 10}
-                        i = 0
-                        while i < len(param_node.children) - 1:
-                            key_node = param_node.children[i]
-                            val_node = param_node.children[i + 1]
-                            if key_node.is_symbol():
-                                key = key_node.get_symbol_name()
-                                if key and key.startswith(":"):
-                                    key = key[1:]  # Remove leading colon
-                                    if val_node.is_atom():
-                                        val = val_node.get_atom_value()
-                                        if isinstance(val, int | float | Decimal):
-                                            params[key] = (
-                                                int(val) if isinstance(val, int) else float(val)
-                                            )
-                            i += 2
-                return {"name": func_name, "params": params}
+        return _try_extract_indicator_from_comparison(condition.children[1])
 
     return None
+
+
+def _try_extract_indicator_from_comparison(left_child: ASTNode) -> dict[str, Any] | None:
+    """Try to extract indicator info from comparison left side.
+
+    Args:
+        left_child: The left child of a comparison
+
+    Returns:
+        Indicator info dict or None
+
+    """
+    if not (left_child.is_list() and left_child.children):
+        return None
+
+    func_name = _get_func_name_from_node(left_child.children[0])
+    if func_name not in DECISION_INDICATORS:
+        return None
+
+    params = _extract_indicator_params(left_child)
+    return {"name": func_name, "params": params}
+
+
+def _extract_indicator_params(indicator_node: ASTNode) -> dict[str, Any]:
+    """Extract parameters from an indicator node.
+
+    Args:
+        indicator_node: The indicator function call node
+
+    Returns:
+        Dictionary of parameters
+
+    """
+    if len(indicator_node.children) < 3:
+        return {}
+
+    param_node = indicator_node.children[2]
+    if not (param_node.is_list() and param_node.children):
+        return {}
+
+    return _parse_map_params(param_node)
+
+
+def _parse_map_params(param_node: ASTNode) -> dict[str, Any]:
+    """Parse map-style parameters like {:window 10}.
+
+    Args:
+        param_node: The parameter map node
+
+    Returns:
+        Dictionary of parsed parameters
+
+    """
+    params: dict[str, Any] = {}
+    i = 0
+
+    while i < len(param_node.children) - 1:
+        key_node = param_node.children[i]
+        val_node = param_node.children[i + 1]
+        _try_add_map_param(key_node, val_node, params)
+        i += 2
+
+    return params
+
+
+def _try_add_map_param(key_node: ASTNode, val_node: ASTNode, params: dict[str, Any]) -> None:
+    """Try to add a key-value pair to params dict.
+
+    Args:
+        key_node: The key AST node
+        val_node: The value AST node
+        params: Dictionary to update
+
+    """
+    if not key_node.is_symbol():
+        return
+
+    key = key_node.get_symbol_name()
+    if not (key and key.startswith(":")):
+        return
+
+    key = key[1:]  # Remove leading colon
+    if not val_node.is_atom():
+        return
+
+    val = val_node.get_atom_value()
+    if isinstance(val, int | float | Decimal):
+        params[key] = int(val) if isinstance(val, int) else float(val)
 
 
 def register_control_flow_operators(dispatcher: DslDispatcher) -> None:
