@@ -93,7 +93,7 @@ class TestNaturalLanguageGenerator:
 
     def test_generate_reasoning_with_empty_path(self, generator):
         """Test generation with empty decision path."""
-        result = generator.generate_reasoning([], {"TQQQ": 0.75}, "Nuclear")
+        result = generator.generate_reasoning([], {"TQQQ": 0.75})
         assert "TQQQ" in result or "allocation" in result.lower()
 
     def test_generate_reasoning_bullish_scenario(self, generator):
@@ -114,7 +114,7 @@ class TestNaturalLanguageGenerator:
         ]
         allocation = {"TQQQ": 0.75}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Nuclear")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Should be natural language (no technical symbols)
         assert "✓" not in result

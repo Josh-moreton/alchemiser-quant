@@ -20,14 +20,12 @@ class NaturalLanguageGenerator:
         self,
         decision_path: list[dict[str, Any]],
         allocation: dict[str, float],
-        strategy_name: str,
     ) -> str:
         """Generate natural language reasoning from decision path.
 
         Args:
             decision_path: List of decision nodes from DSL evaluation
             allocation: Final allocation dict {symbol: weight}
-            strategy_name: Name of strategy (e.g., "Nuclear")
 
         Returns:
             Natural language explanation like:
@@ -45,7 +43,7 @@ class NaturalLanguageGenerator:
         conditions_narrative = self._build_conditions_narrative(decision_path)
 
         # Step 3: Explain allocation rationale
-        allocation_rationale = self._explain_allocation(allocation, market_context, decision_path)
+        allocation_rationale = self._explain_allocation(allocation, market_context)
 
         # Step 4: Combine into natural sentence
         return self._compose_narrative(
@@ -100,27 +98,87 @@ class NaturalLanguageGenerator:
             condition = decision.get("condition", "").lower()
             result = decision.get("result", False)
 
-            # Check for bullish indicators
-            if result and ("above" in condition or ">" in condition):
-                if "moving" in condition or "ma" in condition:
-                    bullish_signals += 1
-                elif "rsi" in condition and any(str(th) in condition for th in ["70", "79", "80"]):
-                    # RSI > threshold is overbought but still bullish context
-                    bullish_signals += 1
-
-            # Check for bearish indicators
-            if (
-                result
-                and ("below" in condition or "<" in condition)
-                and ("moving" in condition or "ma" in condition)
-            ):
-                bearish_signals += 1
-
-            # Check for volatility signals
-            if "vix" in condition or "uvxy" in condition or "vixy" in condition:
+            # Check for volatility signals first
+            if self._is_volatility_signal(condition):
                 return "volatile"
 
-        # Determine overall sentiment
+            # Count bullish signals
+            if self._is_bullish_signal(condition, result):
+                bullish_signals += 1
+
+            # Count bearish signals
+            if self._is_bearish_signal(condition, result):
+                bearish_signals += 1
+
+        return self._determine_sentiment(bullish_signals, bearish_signals)
+
+    def _is_volatility_signal(self, condition: str) -> bool:
+        """Check if condition indicates volatility.
+
+        Args:
+            condition: Condition string (lowercase)
+
+        Returns:
+            True if volatility signal detected
+
+        """
+        return "vix" in condition or "uvxy" in condition or "vixy" in condition
+
+    def _is_bullish_signal(self, condition: str, result: bool) -> bool:
+        """Check if condition is a bullish signal.
+
+        Args:
+            condition: Condition string (lowercase)
+            result: Whether condition evaluated to True
+
+        Returns:
+            True if bullish signal detected
+
+        """
+        if not result:
+            return False
+
+        if "above" not in condition and ">" not in condition:
+            return False
+
+        # Moving average above is bullish
+        if "moving" in condition or "ma" in condition:
+            return True
+
+        # RSI above threshold is overbought but still bullish context
+        return "rsi" in condition and any(str(th) in condition for th in ["70", "79", "80"])
+
+    def _is_bearish_signal(self, condition: str, result: bool) -> bool:
+        """Check if condition is a bearish signal.
+
+        Args:
+            condition: Condition string (lowercase)
+            result: Whether condition evaluated to True
+
+        Returns:
+            True if bearish signal detected
+
+        """
+        if not result:
+            return False
+
+        if "below" not in condition and "<" not in condition:
+            return False
+
+        # Moving average below is bearish
+        return "moving" in condition or "ma" in condition
+
+    def _determine_sentiment(self, bullish_signals: int, bearish_signals: int) -> str:
+        """Determine overall sentiment from signal counts.
+
+        Args:
+            bullish_signals: Count of bullish signals
+            bearish_signals: Count of bearish signals
+
+        Returns:
+            Overall sentiment: "bullish", "bearish", or "neutral"
+
+        """
         if bullish_signals > bearish_signals:
             return "bullish"
         if bearish_signals > bullish_signals:
@@ -297,14 +355,12 @@ class NaturalLanguageGenerator:
         self,
         allocation: dict[str, float],
         market_context: dict[str, Any],
-        decision_path: list[dict[str, Any]],
     ) -> str:
         """Explain allocation decision based on context.
 
         Args:
             allocation: Symbol allocation weights
             market_context: Market context dict
-            decision_path: Decision path for additional context
 
         Returns:
             Human-readable allocation explanation

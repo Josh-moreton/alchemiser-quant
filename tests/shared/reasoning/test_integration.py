@@ -63,7 +63,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"TQQQ": 0.75, "BTAL": 0.25}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Nuclear")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Verify natural language output
         assert "✓" not in result, "Should not contain technical symbols"
@@ -105,7 +105,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"BTAL": 1.0}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Nuclear")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Verify natural language output
         assert "✓" not in result
@@ -139,7 +139,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"UVXY": 0.50, "CASH": 0.50}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Nuclear")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Verify natural language output
         assert "✓" not in result
@@ -159,7 +159,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"TQQQ": 0.75}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Strategy")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Should still generate something reasonable
         assert len(result) > 0
@@ -168,7 +168,7 @@ class TestNaturalLanguageGenerationIntegration:
 
     def test_empty_decision_path(self, generator):
         """Test with empty decision path."""
-        result = generator.generate_reasoning([], {"TQQQ": 0.75}, "Strategy")
+        result = generator.generate_reasoning([], {"TQQQ": 0.75})
 
         # Should generate simple allocation description
         assert len(result) > 0
@@ -188,7 +188,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"TQQQ": 0.40, "FNGU": 0.35, "BTAL": 0.25}
 
-        result = generator.generate_reasoning(decision_path, allocation, "MultiStrat")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         assert len(result) > 0
         # Should mention primary symbol
@@ -209,7 +209,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"TQQQ": 0.75}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Strategy")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Should be reasonably concise (under MAX_REASONING_LENGTH as per StrategySignal.reasoning)
         assert len(result) < MAX_REASONING_LENGTH, (
@@ -230,7 +230,7 @@ class TestNaturalLanguageGenerationIntegration:
 
         allocation = {"SPY": 1.0}
 
-        result = generator.generate_reasoning(decision_path, allocation, "Strategy")
+        result = generator.generate_reasoning(decision_path, allocation)
 
         # Should handle special characters gracefully
         assert len(result) > 0

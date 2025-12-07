@@ -629,7 +629,6 @@ class DslStrategyEngine:
             narrative = nl_generator.generate_reasoning(
                 decision_path=decision_path,
                 allocation=allocation,
-                strategy_name=strategy_name or "Strategy",
             )
 
             # Use narrative if it looks good (no technical symbols)
