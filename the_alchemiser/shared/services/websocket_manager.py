@@ -56,8 +56,7 @@ def _run_trading_stream(
                 return
             ts = trading_stream
 
-        if ts is not None:
-            ts.run()
+        ts.run()
     except OSError as exc:
         logger.error(
             "TradingStream terminated due to network error",
@@ -348,6 +347,7 @@ class WebSocketConnectionManager:
                     self._trading_ws_connected = True
 
                     def _set_connected_status(status: bool) -> None:  # noqa: FBT001
+                        """Set trading connection status thread-safely."""
                         with self._trading_lock:
                             self._trading_ws_connected = status
 
