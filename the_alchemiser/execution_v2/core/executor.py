@@ -518,7 +518,7 @@ class Executor:
             self.daily_trade_limit_service.assert_within_limit(
                 plan.total_trade_value, plan.correlation_id
             )
-            return None  # Validation passed
+            return None
         except DailyTradeLimitExceededError as e:
             logger.critical(
                 "🚨 DAILY TRADE LIMIT EXCEEDED - HALTING EXECUTION",
@@ -1002,9 +1002,14 @@ class Executor:
 
         Note: Re-pegging logic has been removed with SmartExecutionStrategy deprecation.
         This method now simply returns orders unchanged for backward compatibility.
-        Uses asyncio.sleep(0) to satisfy async requirement for protocol compatibility.
+
+        Design Note: This method MUST remain async to satisfy OrderMonitorCallback protocol
+        in phase_executor.py (line 49-72), which expects an async callable. The protocol
+        is used by PhaseExecutor._execute_phase_orders (line 309) with await. Changing
+        this would require protocol changes and updates to all callback implementations.
+        asyncio.sleep(0) yields control to the event loop as a minimal async operation.
         """
-        await asyncio.sleep(0)  # Yield control to satisfy async protocol
+        await asyncio.sleep(0)  # Yield control to satisfy async protocol requirement
         return orders
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
