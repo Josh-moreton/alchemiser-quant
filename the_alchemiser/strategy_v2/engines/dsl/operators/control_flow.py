@@ -59,6 +59,15 @@ DECISION_INDICATORS = {
 # Reserved keywords that should not be treated as ticker symbols
 RESERVED_KEYWORDS = {"TRUE", "FALSE", "AND", "OR", "IF", "ELSE", "NOT", "THEN"}
 
+# Operator symbol to type mapping
+OPERATOR_TYPE_MAP = {
+    ">": "greater_than",
+    "<": "less_than",
+    ">=": "greater_than_or_equal",
+    "<=": "less_than_or_equal",
+    "=": "equal",
+}
+
 
 def defsymphony(args: list[ASTNode], context: DslContext) -> DSLValue:
     """Evaluate defsymphony - main strategy definition.
@@ -874,16 +883,8 @@ def _map_operator_to_type(op: str | None) -> str:
     if not op:
         return ""
 
-    operator_map = {
-        ">": "greater_than",
-        "<": "less_than",
-        ">=": "greater_than_or_equal",
-        "<=": "less_than_or_equal",
-        "=": "equal",
-    }
-
-    if op in operator_map:
-        return operator_map[op]
+    if op in OPERATOR_TYPE_MAP:
+        return OPERATOR_TYPE_MAP[op]
 
     if op in ("and", "or"):
         return op
