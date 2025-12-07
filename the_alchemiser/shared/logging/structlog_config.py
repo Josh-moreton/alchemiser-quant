@@ -4,8 +4,8 @@ Structlog configuration for the Alchemiser trading platform.
 
 This module provides structlog configuration including custom processors for
 Alchemiser-specific context, Decimal serialization, and output formatting.
-Output format is either JSON (prod Lambda) or human-readable console (dev Lambda
-and local development), controlled by the use_json parameter.
+Output format is either JSON (Lambda environments) or human-readable console
+(local development), controlled by the use_json parameter.
 """
 
 from __future__ import annotations
