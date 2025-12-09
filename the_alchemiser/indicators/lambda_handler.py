@@ -5,6 +5,12 @@ Lambda handler for the Indicators Lambda function.
 This Lambda is invoked synchronously by the Strategy Lambda to compute
 technical indicators. It receives IndicatorRequest payloads and returns
 TechnicalIndicator responses.
+
+Architecture:
+    Strategy Lambda -> Indicators Lambda -> Data Lambda -> S3 Parquet
+
+The Indicators Lambda uses DataLambdaClient to fetch market data, avoiding
+the need for pyarrow in this layer. This keeps the layer under 250MB.
 """
 
 from __future__ import annotations
@@ -12,7 +18,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from the_alchemiser.data_v2.cached_market_data_adapter import CachedMarketDataAdapter
+from the_alchemiser.indicators.data_lambda_client import DataLambdaClient
 from the_alchemiser.indicators.indicator_service import IndicatorComputationError, IndicatorService
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
@@ -44,8 +50,8 @@ def _get_indicator_service() -> IndicatorService:
 
     logger.info("Creating new IndicatorService instance", module=MODULE_NAME)
 
-    # Create market data adapter (uses env vars MARKET_DATA_BUCKET via MarketDataStore)
-    market_data_adapter = CachedMarketDataAdapter()
+    # Create Data Lambda client (invokes Data Lambda for bars, no pyarrow needed)
+    market_data_adapter = DataLambdaClient()
 
     # Create and cache service
     _indicator_service = IndicatorService(market_data_service=market_data_adapter)

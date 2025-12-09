@@ -1,11 +1,11 @@
 # Indicators Lambda dependencies
-# Contains all pandas-dependent code for technical indicator calculations
+# Contains pandas-dependent code for technical indicator calculations
 # NOTE: boto3/botocore excluded - Lambda runtime provides them
+# NOTE: pyarrow NOT needed - Data Lambda handles Parquet I/O
 
 # Core data processing (pandas + numerical libraries)
 pandas==2.3.3
 numpy==1.26.4
-pyarrow==18.0.0
 
 # Pydantic for schemas/DTOs
 pydantic==2.12.4

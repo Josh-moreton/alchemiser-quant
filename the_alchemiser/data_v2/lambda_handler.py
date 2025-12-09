@@ -1,12 +1,18 @@
 """Business Unit: data | Status: current.
 
-Lambda handler for data refresh microservice.
+Lambda handler for data microservice.
 
-This is the entry point for the nightly data refresh workflow. It is triggered by:
-1. EventBridge Schedule (daily at 10 PM UTC, Mon-Fri)
-2. Manual invocation for testing or initial seeding
+This is the entry point for the Data Lambda which supports two actions:
+1. "refresh" (default): Fetch new market data from Alpaca and store in S3 Parquet
+   - Triggered by EventBridge Schedule (daily at 10 PM UTC, Mon-Fri)
+   - Triggered manually for testing or initial seeding
 
-Fetches new market data from Alpaca and stores in S3 Parquet format.
+2. "get_bars": Read historical bars from S3 cache
+   - Invoked synchronously by Indicators Lambda
+   - Returns list of BarModel data for indicator computation
+
+This design allows the Data Lambda to be the ONLY Lambda with pyarrow dependency,
+keeping the Indicators Lambda lightweight.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
+from .cached_market_data_adapter import CachedMarketDataAdapter
 from .data_refresh_service import DataRefreshService
 
 # Initialize logging on cold start (must be before get_logger)
@@ -28,27 +35,134 @@ configure_application_logging()
 
 logger = get_logger(__name__)
 
+# Singleton adapter for warm starts (get_bars action)
+_market_data_adapter: CachedMarketDataAdapter | None = None
 
-def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle scheduled or manual invocation for data refresh.
 
-    This handler:
-    1. Identifies all symbols from strategy configurations
-    2. Fetches incremental data from Alpaca for each symbol
-    3. Stores updated data in S3 as Parquet files
+def _get_market_data_adapter() -> CachedMarketDataAdapter:
+    """Get or create singleton market data adapter."""
+    global _market_data_adapter
+    if _market_data_adapter is None:
+        _market_data_adapter = CachedMarketDataAdapter()
+    return _market_data_adapter
+
+
+def _handle_get_bars(event: dict[str, Any]) -> dict[str, Any]:
+    """Handle get_bars action for fetching historical data.
 
     Args:
-        event: Lambda event (from schedule or manual invocation)
-            - correlation_id: Optional correlation ID for tracing
-            - symbols: Optional list of specific symbols to refresh (for testing)
-            - full_seed: Optional boolean to force full data seeding
+        event: Request with symbol, period, timeframe
+
+    Returns:
+        Response with bars list or error
+
+    """
+    symbol = event.get("symbol")
+    period = event.get("period", "1Y")
+    timeframe = event.get("timeframe", "1Day")
+    correlation_id = event.get("correlation_id", "unknown")
+
+    if not symbol:
+        return {
+            "statusCode": 400,
+            "body": {
+                "error": "ValidationError",
+                "message": "symbol is required",
+                "correlation_id": correlation_id,
+            },
+        }
+
+    logger.info(
+        "get_bars request",
+        symbol=symbol,
+        period=period,
+        timeframe=timeframe,
+        correlation_id=correlation_id,
+    )
+
+    try:
+        from the_alchemiser.shared.value_objects.symbol import Symbol
+
+        adapter = _get_market_data_adapter()
+        symbol_obj = Symbol(symbol)
+        bars = adapter.get_bars(symbol=symbol_obj, period=period, timeframe=timeframe)
+
+        # Serialize bars to dicts
+        bars_data = [
+            {
+                "symbol": bar.symbol,
+                "timestamp": bar.timestamp.isoformat(),
+                "open": str(bar.open),
+                "high": str(bar.high),
+                "low": str(bar.low),
+                "close": str(bar.close),
+                "volume": bar.volume,
+            }
+            for bar in bars
+        ]
+
+        logger.info(
+            "get_bars completed",
+            symbol=symbol,
+            bars_count=len(bars_data),
+            correlation_id=correlation_id,
+        )
+
+        return {
+            "statusCode": 200,
+            "body": {
+                "bars": bars_data,
+                "symbol": symbol,
+                "period": period,
+                "timeframe": timeframe,
+                "correlation_id": correlation_id,
+            },
+        }
+
+    except Exception as e:
+        logger.error(
+            "get_bars failed",
+            symbol=symbol,
+            error=str(e),
+            error_type=type(e).__name__,
+            correlation_id=correlation_id,
+        )
+        return {
+            "statusCode": 500,
+            "body": {
+                "error": type(e).__name__,
+                "message": str(e),
+                "correlation_id": correlation_id,
+            },
+        }
+
+
+def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
+    """Handle data Lambda invocations.
+
+    Supports two actions:
+    1. "get_bars": Read historical bars from S3 cache (sync, for Indicators Lambda)
+    2. "refresh" (default): Fetch new data from Alpaca and store to S3
+
+    Args:
+        event: Lambda event
+            - action: "get_bars" or "refresh" (default: "refresh")
+            - For get_bars: symbol, period, timeframe, correlation_id
+            - For refresh: correlation_id, symbols, full_seed
 
         context: Lambda context
 
     Returns:
-        Response indicating success/failure with refresh statistics
+        Response with bars data or refresh statistics
 
     """
+    # Route based on action
+    action = event.get("action", "refresh")
+
+    if action == "get_bars":
+        return _handle_get_bars(event)
+
+    # Default: data refresh workflow
     # Generate correlation ID for this workflow
     correlation_id = event.get("correlation_id") or f"data-refresh-{uuid.uuid4()}"
 

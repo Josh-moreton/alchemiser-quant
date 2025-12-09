@@ -1073,8 +1073,8 @@ Resources:
 
   # ========== INDICATORS LAMBDA ==========
   # Technical indicator computation microservice invoked by Strategy Lambda
-  # Contains pandas/numpy/pyarrow dependencies for efficient indicator calculations
-  # Reads market data from S3 Parquet files and computes RSI, MA, EMA, etc.
+  # Contains pandas/numpy dependencies for efficient indicator calculations
+  # Fetches market data via Data Lambda (which handles S3 Parquet I/O)
   IndicatorsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1088,12 +1088,11 @@ Resources:
       Role: !GetAtt IndicatorsExecutionRole.Arn
       Layers:
         - !Ref IndicatorsLayer
-      Timeout: 60  # Indicators computation is fast
+      Timeout: 90  # Includes Data Lambda invocation latency
       MemorySize: 512
       Environment:
         Variables:
-          MARKET_DATA_BUCKET: !Ref MarketDataBucket
-          MARKET_DATA_PREFIX: "historical/daily/"
+          DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -1128,11 +1127,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:GetObject
-                  - s3:ListBucket
+                  - lambda:InvokeFunction
                 Resource:
-                  - !GetAtt MarketDataBucket.Arn
-                  - !Sub "${MarketDataBucket.Arn}/*"
+                  - !GetAtt DataFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
