@@ -350,6 +350,23 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
+  # Indicators Layer: pandas + numpy + pyarrow for technical indicator computations
+  # Contains all heavy data science dependencies, allowing Strategy to be lightweight
+  IndicatorsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-indicators-deps"
+        - !Sub "alchemiser-${Stage}-indicators-deps"
+      Description: Indicators Lambda dependencies (pandas, numpy, pyarrow)
+      ContentUri: layers/indicators/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -586,6 +603,8 @@ Resources:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
           MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          # Indicators Lambda for technical indicator computations
+          INDICATORS_FUNCTION_NAME: !Ref IndicatorsFunction
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -639,6 +658,12 @@ Resources:
                 Resource:
                   - !GetAtt MarketDataBucket.Arn
                   - !Sub "${MarketDataBucket.Arn}/*"
+              # Permission to invoke Indicators Lambda for technical indicator computations
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt IndicatorsFunction.Arn
 
   # Portfolio Lambda - Rebalance planning microservice
   PortfolioFunction:
@@ -1046,6 +1071,69 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt DataFunction.Arn
 
+  # ========== INDICATORS LAMBDA ==========
+  # Technical indicator computation microservice invoked by Strategy Lambda
+  # Contains pandas/numpy/pyarrow dependencies for efficient indicator calculations
+  # Reads market data from S3 Parquet files and computes RSI, MA, EMA, etc.
+  IndicatorsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-indicators"
+        - !Sub "alchemiser-${Stage}-indicators"
+      Runtime: python3.12
+      CodeUri: ./
+      Handler: the_alchemiser.indicators.lambda_handler.lambda_handler
+      Role: !GetAtt IndicatorsExecutionRole.Arn
+      Layers:
+        - !Ref IndicatorsLayer
+      Timeout: 60  # Indicators computation is fast
+      MemorySize: 512
+      Environment:
+        Variables:
+          MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          MARKET_DATA_PREFIX: "historical/daily/"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  IndicatorsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: IndicatorsPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt MarketDataBucket.Arn
+                  - !Sub "${MarketDataBucket.Arn}/*"
+
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -1072,7 +1160,7 @@ Resources:
                 "properties": {
                   "title": "Latest Errors & Warnings (All Lambdas)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['ERROR', 'WARN', 'WARNING']\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| SOURCE '${IndicatorsLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['ERROR', 'WARN', 'WARNING']\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 0,
@@ -1084,7 +1172,7 @@ Resources:
                 "properties": {
                   "title": "Errors by Correlation ID (Trace Workflow Runs)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'ERROR'\n| sort @timestamp desc\n| limit 100"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| SOURCE '${IndicatorsLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'ERROR'\n| sort @timestamp desc\n| limit 100"
                 },
                 "x": 0,
                 "y": 8,
@@ -1096,7 +1184,7 @@ Resources:
                 "properties": {
                   "title": "Recent Workflow Runs (by correlation_id)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event in ['SignalGenerated', 'RebalancePlanned', 'TradeExecuted', 'WorkflowCompleted', 'WorkflowFailed']\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| SOURCE '${IndicatorsLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event in ['SignalGenerated', 'RebalancePlanned', 'TradeExecuted', 'WorkflowCompleted', 'WorkflowFailed']\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 16,
@@ -1110,6 +1198,7 @@ Resources:
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
+          IndicatorsLog: !Sub "/aws/lambda/${IndicatorsFunction}"
 
 Outputs:
   TradeLedgerTableName:

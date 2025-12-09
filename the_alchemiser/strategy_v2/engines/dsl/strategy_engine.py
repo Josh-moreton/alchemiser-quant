@@ -76,12 +76,11 @@ class DslStrategyEngine:
 
             self.settings = MinimalSettings()  # type: ignore[assignment]
 
-        # Initialize DSL engine with strategies directory as config path and real market data
+        # Initialize DSL engine with strategies directory as config path
         # Resolve strategies directory relative to this module to avoid depending on repo root
         strategies_path = Path(__file__).parent.parent.parent / "strategies"
         self.dsl_engine = DslEngine(
             strategy_config_path=str(strategies_path),
-            market_data_service=self.market_data_port,
         )
 
         configured_dsl_files = self.settings.strategy.dsl_files or [self.strategy_file]

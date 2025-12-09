@@ -27,10 +27,10 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
-from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.indicator_port import IndicatorPort
 from the_alchemiser.strategy_v2.errors import StrategyV2Error
 
-from .dsl_evaluator import DslEvaluator, IndicatorService
+from .dsl_evaluator import DslEvaluator
 from .sexpr_parser import SexprParseError, SexprParser
 
 
@@ -45,16 +45,20 @@ class DslEngine(EventHandler):
         self,
         strategy_config_path: str | None = None,
         event_bus: EventBus | None = None,
-        market_data_service: MarketDataPort | None = None,
+        indicator_service: IndicatorPort | None = None,
     ) -> None:
         """Initialize DSL engine.
 
         Args:
             strategy_config_path: Optional path to strategy config directory
             event_bus: Optional event bus for pub/sub
-            market_data_service: Optional market data service for real indicators
+            indicator_service: Optional pre-configured indicator service (for testing)
 
         """
+        from the_alchemiser.strategy_v2.adapters.indicator_lambda_client import (
+            IndicatorLambdaClient,
+        )
+
         self.logger = get_logger(__name__)
         self.event_bus = event_bus
         self.strategy_config_path = strategy_config_path or "."
@@ -65,11 +69,8 @@ class DslEngine(EventHandler):
         # Initialize components
         self.parser = SexprParser()
 
-        # Use real market data service if provided, otherwise fallback
-        if market_data_service:
-            self.indicator_service = IndicatorService(market_data_service)
-        else:
-            self.indicator_service = IndicatorService(None)
+        # Use provided indicator service or create Lambda client
+        self.indicator_service = indicator_service or IndicatorLambdaClient()
 
         self.evaluator = DslEvaluator(self.indicator_service, event_bus)
 

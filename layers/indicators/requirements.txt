@@ -1,7 +1,11 @@
-# Strategy Lambda dependencies
-# LIGHTWEIGHT: No pandas/numpy/pyarrow - indicators computed via Indicators Lambda
-# NO alpaca-py needed - Strategy reads from S3 cache only
+# Indicators Lambda dependencies
+# Contains all pandas-dependent code for technical indicator calculations
 # NOTE: boto3/botocore excluded - Lambda runtime provides them
+
+# Core data processing (pandas + numerical libraries)
+pandas==2.3.3
+numpy==1.26.4
+pyarrow==18.0.0
 
 # Pydantic for schemas/DTOs
 pydantic==2.12.4
@@ -13,16 +17,7 @@ typing-inspection==0.4.2
 # Logging
 structlog==25.5.0
 
-# DI container
-dependency-injector==4.48.2
-
-# Caching
-cachetools==6.2.1
-
-# Config
-pyyaml==6.0.3
-
-# Date/time
+# Date/time handling
 python-dateutil==2.9.0.post0
 pytz==2025.2
 tzdata==2025.2
