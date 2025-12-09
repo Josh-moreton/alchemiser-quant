@@ -90,9 +90,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def validate_environment() -> bool:
-    """Validate required environment variables are set."""
-    required_vars = ["ALPACA__KEY", "ALPACA__SECRET"]
-    missing = [v for v in required_vars if not os.environ.get(v)]
+    """Validate required environment variables are set.
+
+    Accepts both ALPACA_KEY/ALPACA_SECRET (single underscore) and
+    ALPACA__KEY/ALPACA__SECRET (double underscore) formats.
+    """
+    # Normalize: accept both single and double underscore formats
+    alpaca_key = os.environ.get("ALPACA__KEY") or os.environ.get("ALPACA_KEY")
+    alpaca_secret = os.environ.get("ALPACA__SECRET") or os.environ.get("ALPACA_SECRET")
+
+    missing = []
+    if not alpaca_key:
+        missing.append("ALPACA_KEY or ALPACA__KEY")
+    if not alpaca_secret:
+        missing.append("ALPACA_SECRET or ALPACA__SECRET")
 
     if missing:
         logger.error(
@@ -102,6 +113,10 @@ def validate_environment() -> bool:
         print(f"Error: Missing environment variables: {', '.join(missing)}")
         print("Set them in your environment or .env file")
         return False
+
+    # Set the double-underscore versions for downstream code
+    os.environ["ALPACA__KEY"] = alpaca_key
+    os.environ["ALPACA__SECRET"] = alpaca_secret
 
     # Check for bucket configuration
     bucket = os.environ.get("MARKET_DATA_BUCKET")

@@ -334,16 +334,16 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  # Data Refresh Layer: pandas + numpy + pyarrow + alpaca-py
-  DataRefreshLayer:
+  # Data Layer: pandas + numpy + pyarrow + alpaca-py
+  DataLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-data-refresh-deps"
-        - !Sub "alchemiser-${Stage}-data-refresh-deps"
-      Description: Data Refresh Lambda dependencies (pandas, pyarrow, alpaca-py)
-      ContentUri: layers/data-refresh/
+        - !Sub "${StackName}-data-deps"
+        - !Sub "alchemiser-${Stage}-data-deps"
+      Description: Data Lambda dependencies (pandas, pyarrow, alpaca-py)
+      ContentUri: layers/data/
       CompatibleRuntimes:
         - python3.12
       RetentionPolicy: Retain
@@ -937,23 +937,23 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt StrategyFunction.Arn
 
-  # ========== DATA REFRESH LAMBDA ==========
+  # ========== DATA LAMBDA ==========
   # Fetches historical market data from Alpaca and stores in S3 as Parquet
   # Runs nightly after market close to refresh data for all strategy symbols
-  DataRefreshFunction:
+  DataFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-data-refresh"
-        - !Sub "alchemiser-${Stage}-data-refresh"
+        - !Sub "${StackName}-data"
+        - !Sub "alchemiser-${Stage}-data"
       Runtime: python3.12
       CodeUri: ./
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
-      Role: !GetAtt DataRefreshExecutionRole.Arn
+      Role: !GetAtt DataExecutionRole.Arn
       Layers:
-        - !Ref DataRefreshLayer
-      Timeout: 900  # 15 minutes max for full data refresh
+        - !Ref DataLayer
+      Timeout: 900  # 15 minutes max for full data
       MemorySize: 1024
       Environment:
         Variables:
@@ -980,7 +980,7 @@ Resources:
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
 
-  DataRefreshExecutionRole:
+  DataExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -992,7 +992,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: DataRefreshPolicy
+        - PolicyName: DataPolicy
           PolicyDocument:
             Statement:
               - Effect: Allow
@@ -1009,27 +1009,27 @@ Resources:
                   - !GetAtt MarketDataBucket.Arn
                   - !Sub "${MarketDataBucket.Arn}/*"
 
-  # Scheduler to trigger Data Refresh (nightly after market close)
-  DataRefreshSchedule:
+  # Scheduler to trigger Data (nightly after market close)
+  DataSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-data-refresh-schedule"
-        - !Sub "alchemiser-${Stage}-data-refresh-schedule"
+        - !Sub "${StackName}-data-schedule"
+        - !Sub "alchemiser-${Stage}-data-schedule"
       Description: "Refresh market data daily at 10 PM UTC (Mon-Fri)"
       ScheduleExpression: "cron(0 22 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "UTC"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !GetAtt DataRefreshFunction.Arn
-        RoleArn: !GetAtt DataRefreshSchedulerRole.Arn
+        Arn: !GetAtt DataFunction.Arn
+        RoleArn: !GetAtt DataSchedulerRole.Arn
         Input: '{}'
         RetryPolicy:
           MaximumRetryAttempts: 2
 
-  DataRefreshSchedulerRole:
+  DataSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -1039,12 +1039,12 @@ Resources:
               Service: scheduler.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: InvokeDataRefresh
+        - PolicyName: InvokeData
           PolicyDocument:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt DataRefreshFunction.Arn
+                Resource: !GetAtt DataFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE

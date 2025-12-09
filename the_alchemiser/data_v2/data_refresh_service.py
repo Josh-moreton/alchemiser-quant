@@ -9,6 +9,7 @@ fetching new bars from Alpaca, and storing them in S3.
 from __future__ import annotations
 
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -32,6 +33,10 @@ DEFAULT_INITIAL_LOOKBACK_DAYS = 400
 
 # Minimum bars required for indicator computation
 MIN_BARS_REQUIRED = 252
+
+# Rate limiting: Alpaca allows 200 requests/minute for free tier
+# We'll be conservative with 100 requests/minute = 0.6s between requests
+API_RATE_LIMIT_DELAY = 0.6  # seconds between API calls
 
 
 class DataRefreshService:
@@ -279,8 +284,12 @@ class DataRefreshService:
 
         results: dict[str, bool] = {}
 
-        for symbol in sorted(symbols):
+        for i, symbol in enumerate(sorted(symbols)):
             results[symbol] = self.refresh_symbol(symbol)
+
+            # Rate limiting: pause between API calls (skip after last symbol)
+            if i < len(symbols) - 1:
+                time.sleep(API_RATE_LIMIT_DELAY)
 
         # Summary logging
         success_count = sum(results.values())
@@ -323,8 +332,9 @@ class DataRefreshService:
         start_date = (datetime.now(UTC) - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         results: dict[str, bool] = {}
+        sorted_symbols = sorted(symbols)
 
-        for symbol in sorted(symbols):
+        for i, symbol in enumerate(sorted_symbols):
             try:
                 # Fetch from Alpaca
                 bars = self._fetch_bars_from_alpaca(symbol, start_date, end_date)
@@ -346,6 +356,7 @@ class DataRefreshService:
                         "Seeded symbol",
                         symbol=symbol,
                         bars=len(bars),
+                        progress=f"{i + 1}/{len(sorted_symbols)}",
                     )
 
             except Exception as e:
@@ -355,6 +366,10 @@ class DataRefreshService:
                     error=str(e),
                 )
                 results[symbol] = False
+
+            # Rate limiting: pause between API calls (skip after last symbol)
+            if i < len(sorted_symbols) - 1:
+                time.sleep(API_RATE_LIMIT_DELAY)
 
         # Summary
         success_count = sum(results.values())

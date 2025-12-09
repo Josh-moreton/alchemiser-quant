@@ -1,13 +1,12 @@
 # Strategy Lambda dependencies
-# Reads: pandas + fastparquet for reading cached market data from S3 Parquet
+# Reads: pandas + pyarrow for reading cached market data from S3 Parquet
 # NO alpaca-py needed - Strategy reads from S3 cache only
 # NOTE: boto3/botocore excluded - Lambda runtime provides them
 
 # Core data processing
 pandas==2.3.3
 numpy==1.26.4
-fastparquet==2024.11.0
-cramjam==2.9.1
+pyarrow==18.0.0
 
 # Pydantic for schemas/DTOs
 pydantic==2.12.4

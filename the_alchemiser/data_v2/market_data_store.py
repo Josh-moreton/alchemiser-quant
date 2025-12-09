@@ -217,7 +217,7 @@ class MarketDataStore:
         # Check local cache first
         if use_cache and cache_path.exists():
             try:
-                df = pd.read_parquet(cache_path, engine="fastparquet")
+                df = pd.read_parquet(cache_path, engine="pyarrow")
                 logger.debug(
                     "Read from cache",
                     symbol=symbol,
@@ -243,12 +243,12 @@ class MarketDataStore:
                 tmp.write(response["Body"].read())
                 tmp_path = tmp.name
 
-            df = pd.read_parquet(tmp_path, engine="fastparquet")
+            df = pd.read_parquet(tmp_path, engine="pyarrow")
             Path(tmp_path).unlink()  # Clean up temp file
 
             # Update local cache
             if use_cache:
-                df.to_parquet(cache_path, index=False, engine="fastparquet")
+                df.to_parquet(cache_path, index=False, engine="pyarrow")
 
             logger.info(
                 "Read from S3",
@@ -286,7 +286,7 @@ class MarketDataStore:
         try:
             # Write to temp file first
             with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
-                df.to_parquet(tmp.name, index=False, compression="snappy", engine="fastparquet")
+                df.to_parquet(tmp.name, index=False, compression="snappy", engine="pyarrow")
                 tmp_path = Path(tmp.name)
 
             # Upload to S3
@@ -305,7 +305,7 @@ class MarketDataStore:
 
             # Update local cache
             cache_path = self._local_cache_path(symbol)
-            df.to_parquet(cache_path, index=False, engine="fastparquet")
+            df.to_parquet(cache_path, index=False, engine="pyarrow")
 
             logger.info(
                 "Wrote symbol data to S3",
