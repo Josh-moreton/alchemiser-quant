@@ -1054,38 +1054,8 @@ Resources:
   # OBSERVABILITY: CloudWatch Logs Insights & Dashboard
   # ============================================================================
   
-  # CloudWatch Log Group for Strategy Lambda (created automatically by Lambda, but we can customize retention)
-  StrategyLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${StrategyFunction}"
-      RetentionInDays: 14
-
-  PortfolioLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${PortfolioFunction}"
-      RetentionInDays: 14
-
-  ExecutionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${ExecutionFunction}"
-      RetentionInDays: 14
-
-  NotificationsLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${NotificationsFunction}"
-      RetentionInDays: 14
-
-  DataLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${DataFunction}"
-      RetentionInDays: 14
-
   # CloudWatch Dashboard for at-a-glance monitoring
+  # Note: Log groups are auto-created by Lambda; we reference them by name
   AlchemiserDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -1101,7 +1071,7 @@ Resources:
               "properties": {
                 "title": "Latest Errors & Warnings (All Lambdas)",
                 "region": "${AWS::Region}",
-                "query": "SOURCE '${StrategyLogGroup}'\n| SOURCE '${PortfolioLogGroup}'\n| SOURCE '${ExecutionLogGroup}'\n| SOURCE '${NotificationsLogGroup}'\n| SOURCE '${DataLogGroup}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['ERROR', 'WARN', 'WARNING']\n| sort @timestamp desc\n| limit 50"
+                "query": "SOURCE '/aws/lambda/${StrategyFunction}'\n| SOURCE '/aws/lambda/${PortfolioFunction}'\n| SOURCE '/aws/lambda/${ExecutionFunction}'\n| SOURCE '/aws/lambda/${NotificationsFunction}'\n| SOURCE '/aws/lambda/${DataFunction}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['ERROR', 'WARN', 'WARNING']\n| sort @timestamp desc\n| limit 50"
               },
               "x": 0,
               "y": 0,
@@ -1125,7 +1095,7 @@ Resources:
               "properties": {
                 "title": "Recent Workflow Runs (by correlation_id)",
                 "region": "${AWS::Region}",
-                "query": "SOURCE '${StrategyLogGroup}'\n| SOURCE '${PortfolioLogGroup}'\n| SOURCE '${ExecutionLogGroup}'\n| SOURCE '${NotificationsLogGroup}'\n| SOURCE '${DataLogGroup}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event in ['SignalGenerated', 'RebalancePlanned', 'TradeExecuted', 'WorkflowCompleted', 'WorkflowFailed']\n| sort @timestamp desc\n| limit 50"
+                "query": "SOURCE '/aws/lambda/${StrategyFunction}'\n| SOURCE '/aws/lambda/${PortfolioFunction}'\n| SOURCE '/aws/lambda/${ExecutionFunction}'\n| SOURCE '/aws/lambda/${NotificationsFunction}'\n| SOURCE '/aws/lambda/${DataFunction}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event in ['SignalGenerated', 'RebalancePlanned', 'TradeExecuted', 'WorkflowCompleted', 'WorkflowFailed']\n| sort @timestamp desc\n| limit 50"
               },
               "x": 0,
               "y": 16,
@@ -1143,7 +1113,7 @@ Resources:
                   [ "...", { "stat": "Sum", "label": "Execution", "period": 300 }, { "dimensions": { "FunctionName": "${ExecutionFunction}" } } ],
                   [ "...", { "stat": "Sum", "label": "Notifications", "period": 300 }, { "dimensions": { "FunctionName": "${NotificationsFunction}" } } ],
                   [ "...", { "stat": "Sum", "label": "Data", "period": 300 }, { "dimensions": { "FunctionName": "${DataFunction}" } } ]
-                ],
+                ],/aws/lambda/${StrategyFunction}'\n| SOURCE '/aws/lambda/${PortfolioFunction}'\n| SOURCE '/aws/lambda/${ExecutionFunction}'\n| SOURCE '/aws/lambda/${NotificationsFunction}'\n| SOURCE '/aws/lambda/${DataFunction
                 "period": 300,
                 "stat": "Sum",
                 "yAxis": {
