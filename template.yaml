@@ -900,6 +900,80 @@ Resources:
                 Resource:
                   - !Sub "${PerformanceReportsBucket.Arn}/*"
 
+  # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
+  # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization
+  MetricsFunction:
+    Type: AWS::Serverless::Function
+    Condition: !Not [ !Condition IsDev ]  # Production only
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-metrics"
+      Runtime: python3.12
+      CodeUri: ./
+      Handler: the_alchemiser.metrics_v2.lambda_handler.lambda_handler
+      Role: !GetAtt MetricsExecutionRole.Arn
+      Layers:
+        - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, boto3)
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+      Events:
+        TradeExecutedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.execution"
+              detail-type:
+                - "TradeExecuted"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  MetricsExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: !Not [ !Condition IsDev ]  # Production only
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: MetricsPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+
   # Scheduler to trigger Strategy (workflow entry point)
   StrategySchedule:
     Type: AWS::Scheduler::Schedule
@@ -1102,6 +1176,69 @@ Resources:
                 "y": 16,
                 "width": 24,
                 "height": 8
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Realized P&L by Strategy (Last 30 Days)",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 86400,
+                  "metrics": [
+                    [ "Alchemiser/Production", "RealizedPnL", { "stat": "Sum" } ]
+                  ],
+                  "yAxis": {
+                    "left": {
+                      "label": "P&L ($)"
+                    }
+                  },
+                  "view": "timeSeries",
+                  "stacked": false
+                },
+                "x": 0,
+                "y": 24,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Cumulative Realized P&L (All Strategies)",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 2592000,
+                  "metrics": [
+                    [ "Alchemiser/Production", "RealizedPnL", { "stat": "Sum" } ]
+                  ],
+                  "view": "singleValue"
+                },
+                "x": 12,
+                "y": 24,
+                "width": 6,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Trade Execution Count (Last 7 Days)",
+                  "region": "${AWS::Region}",
+                  "stat": "SampleCount",
+                  "period": 86400,
+                  "metrics": [
+                    [ "Alchemiser/Production", "RealizedPnL", { "stat": "SampleCount" } ]
+                  ],
+                  "yAxis": {
+                    "left": {
+                      "label": "Trades"
+                    }
+                  },
+                  "view": "timeSeries",
+                  "stacked": false
+                },
+                "x": 18,
+                "y": 24,
+                "width": 6,
+                "height": 6
               }
             ]
           }
