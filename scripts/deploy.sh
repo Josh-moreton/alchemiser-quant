@@ -71,7 +71,7 @@ rm -f requirements.txt
 # These are manually curated to ship only what each Lambda needs
 echo "📦 Verifying function-specific layer requirements..."
 
-LAYER_DIRS=("strategy" "portfolio" "execution" "notifications" "data-refresh")
+LAYER_DIRS=("strategy" "portfolio" "execution" "notifications" "data")
 for layer in "${LAYER_DIRS[@]}"; do
     if [ ! -f "layers/$layer/requirements.txt" ]; then
         echo "❌ Error: layers/$layer/requirements.txt not found"
@@ -98,10 +98,6 @@ echo ""
 echo "📦 Built package sizes:"
 for layer in "${LAYER_DIRS[@]}"; do
     layer_path=".aws-sam/build/${layer^}Layer"
-    # Handle data-refresh → DataRefreshLayer naming
-    if [ "$layer" = "data-refresh" ]; then
-        layer_path=".aws-sam/build/DataRefreshLayer"
-    fi
     if [ -d "$layer_path" ]; then
         echo "   ${layer} layer: $(du -sh "$layer_path" 2>/dev/null | cut -f1 || echo 'N/A')"
     fi
