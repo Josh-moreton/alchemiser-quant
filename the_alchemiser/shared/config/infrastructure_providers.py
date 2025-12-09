@@ -23,7 +23,8 @@ def _create_cached_market_data_adapter(market_data_service: MarketDataService) -
     Falls back to original MarketDataService if bucket not configured or import fails.
 
     Args:
-        market_data_service: Original Alpaca-backed market data service
+        market_data_service: Original Alpaca-backed market data service (used as fallback
+            for lambdas that need live data, e.g., Portfolio/Execution)
 
     Returns:
         CachedMarketDataAdapter if configured, else original MarketDataService
@@ -32,24 +33,22 @@ def _create_cached_market_data_adapter(market_data_service: MarketDataService) -
     bucket = os.environ.get("MARKET_DATA_BUCKET")
 
     if not bucket:
-        # No bucket configured - use original service
+        # No bucket configured - use original service (requires Alpaca)
         return market_data_service
 
     try:
-        # Import here to avoid circular dependencies and optional pyarrow dependency
+        # Import here to avoid circular dependencies and optional fastparquet dependency
         from the_alchemiser.data_v2.cached_market_data_adapter import (
             CachedMarketDataAdapter,
         )
         from the_alchemiser.data_v2.market_data_store import MarketDataStore
 
         store = MarketDataStore(bucket_name=bucket)
-        # Return cached adapter with Alpaca as fallback for quotes/missing data
-        return CachedMarketDataAdapter(
-            market_data_store=store,
-            fallback_port=market_data_service,
-        )
+        # Return cached adapter WITHOUT Alpaca fallback
+        # Strategy Lambda uses S3 cache only - no live API calls needed
+        return CachedMarketDataAdapter(market_data_store=store)
     except ImportError:
-        # PyArrow not available (not in this Lambda's layer)
+        # fastparquet not available (not in this Lambda's layer)
         return market_data_service
     except Exception:
         # Any other error - fall back to original service
