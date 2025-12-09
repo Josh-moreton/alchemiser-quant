@@ -1,6 +1,9 @@
 """Business Unit: utilities; Status: current.
 
 Infrastructure layer providers for dependency injection.
+
+Note: This module uses lazy imports to avoid pulling in alpaca-py for Lambdas
+that don't need it (e.g., Strategy Lambda uses S3 cache only).
 """
 
 from __future__ import annotations
@@ -10,49 +13,105 @@ from typing import TYPE_CHECKING
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.shared.brokers import AlpacaManager
-from the_alchemiser.shared.services.market_data_service import MarketDataService
-
 if TYPE_CHECKING:
+    from the_alchemiser.shared.brokers import AlpacaManager
+    from the_alchemiser.shared.services.market_data_service import MarketDataService
     from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 
-def _create_cached_market_data_adapter(market_data_service: MarketDataService) -> MarketDataPort:
-    """Create cached market data adapter if S3 bucket is configured.
+def _create_alpaca_manager(api_key: str, secret_key: str, *, paper: bool) -> AlpacaManager:
+    """Create AlpacaManager with lazy import.
 
-    Falls back to original MarketDataService if bucket not configured or import fails.
+    This function delays the import of AlpacaManager until it's actually needed,
+    allowing Lambdas that don't need Alpaca (like Strategy with S3 cache) to
+    avoid importing alpaca-py.
 
     Args:
-        market_data_service: Original Alpaca-backed market data service (used as fallback
-            for lambdas that need live data, e.g., Portfolio/Execution)
+        api_key: Alpaca API key
+        secret_key: Alpaca secret key
+        paper: Whether to use paper trading
 
     Returns:
-        CachedMarketDataAdapter if configured, else original MarketDataService
+        AlpacaManager instance
+
+    """
+    from the_alchemiser.shared.brokers import AlpacaManager
+
+    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+
+
+def _create_market_data_service(market_data_repo: object) -> MarketDataService:
+    """Create MarketDataService with lazy import.
+
+    Args:
+        market_data_repo: Repository for market data (typically AlpacaManager)
+
+    Returns:
+        MarketDataService instance
+
+    """
+    from the_alchemiser.shared.services.market_data_service import MarketDataService
+
+    return MarketDataService(market_data_repo=market_data_repo)  # type: ignore[arg-type]
+
+
+def _create_cached_market_data_adapter(
+    api_key: str, secret_key: str, *, paper: bool
+) -> MarketDataPort:
+    """Create market data adapter based on environment configuration.
+
+    If MARKET_DATA_BUCKET is set, returns S3-backed CachedMarketDataAdapter.
+    Otherwise, returns Alpaca-backed MarketDataService (requires alpaca-py).
+
+    This design ensures Strategy Lambda (with MARKET_DATA_BUCKET set) never
+    imports alpaca-py, while Execution/Portfolio Lambdas (without bucket or
+    needing live data) still get Alpaca access.
+
+    Args:
+        api_key: Alpaca API key (only used if falling back to Alpaca)
+        secret_key: Alpaca secret key (only used if falling back to Alpaca)
+        paper: Whether to use paper trading (only used if falling back to Alpaca)
+
+    Returns:
+        CachedMarketDataAdapter if MARKET_DATA_BUCKET set, else MarketDataService
 
     """
     bucket = os.environ.get("MARKET_DATA_BUCKET")
 
-    if not bucket:
-        # No bucket configured - use original service (requires Alpaca)
-        return market_data_service
+    if bucket:
+        try:
+            # Import here to avoid circular dependencies and optional fastparquet dependency
+            from the_alchemiser.data_v2.cached_market_data_adapter import (
+                CachedMarketDataAdapter,
+            )
+            from the_alchemiser.data_v2.market_data_store import MarketDataStore
 
-    try:
-        # Import here to avoid circular dependencies and optional fastparquet dependency
-        from the_alchemiser.data_v2.cached_market_data_adapter import (
-            CachedMarketDataAdapter,
-        )
-        from the_alchemiser.data_v2.market_data_store import MarketDataStore
+            store = MarketDataStore(bucket_name=bucket)
+            # Return cached adapter WITHOUT Alpaca fallback
+            # Strategy Lambda uses S3 cache only - no live API calls needed
+            return CachedMarketDataAdapter(market_data_store=store)
+        except ImportError as e:
+            # fastparquet not available - fall through to Alpaca
+            # This is expected for Lambdas without data_v2 dependencies
+            import logging
 
-        store = MarketDataStore(bucket_name=bucket)
-        # Return cached adapter WITHOUT Alpaca fallback
-        # Strategy Lambda uses S3 cache only - no live API calls needed
-        return CachedMarketDataAdapter(market_data_store=store)
-    except ImportError:
-        # fastparquet not available (not in this Lambda's layer)
-        return market_data_service
-    except Exception:
-        # Any other error - fall back to original service
-        return market_data_service
+            logging.getLogger(__name__).debug(
+                "CachedMarketDataAdapter not available (ImportError: %s), using Alpaca", e
+            )
+        except Exception as e:
+            # Unexpected error creating cache adapter - log and fall through to Alpaca
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to create CachedMarketDataAdapter: %s, falling back to Alpaca", e
+            )
+
+    # No bucket configured or cache creation failed - use Alpaca (requires alpaca-py)
+    from the_alchemiser.shared.brokers import AlpacaManager
+    from the_alchemiser.shared.services.market_data_service import MarketDataService
+
+    alpaca = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+    return MarketDataService(market_data_repo=alpaca)
 
 
 class InfrastructureProviders(containers.DeclarativeContainer):
@@ -80,28 +139,33 @@ class InfrastructureProviders(containers.DeclarativeContainer):
     config = providers.DependenciesContainer()
 
     # Alpaca broker client (Singleton pattern)
+    # Uses lazy import via factory to avoid importing alpaca-py until actually needed.
     # Ensures single connection pool to Alpaca APIs (trading, market data, account)
     # Implements: TradingRepository, MarketDataRepository, AccountRepository
     alpaca_manager = providers.Singleton(
-        AlpacaManager,
+        _create_alpaca_manager,
         api_key=config.alpaca_api_key,
         secret_key=config.alpaca_secret_key,
         paper=config.paper_trading,
     )
 
     # Base market data service (direct Alpaca access)
+    # Uses lazy import to avoid importing alpaca-py for Lambdas that don't need it
     # Used internally and as fallback for cached adapter
     _base_market_data_service = providers.Singleton(
-        MarketDataService,
+        _create_market_data_service,
         market_data_repo=alpaca_manager,
     )
 
     # Market data service with proper domain boundary (Singleton pattern)
-    # If MARKET_DATA_BUCKET is set, uses S3 cache with Alpaca fallback.
-    # Otherwise, uses direct Alpaca access.
+    # If MARKET_DATA_BUCKET is set, uses S3 cache (no Alpaca import needed).
+    # Otherwise, uses direct Alpaca access (imports alpaca-py lazily).
+    # This allows Strategy Lambda to run without alpaca-py in its layer.
     market_data_service = providers.Singleton(
         _create_cached_market_data_adapter,
-        market_data_service=_base_market_data_service,
+        api_key=config.alpaca_api_key,
+        secret_key=config.alpaca_secret_key,
+        paper=config.paper_trading,
     )
 
     # Backward compatibility aliases (deprecated, will be removed in v3.0.0)
