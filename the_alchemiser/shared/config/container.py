@@ -158,6 +158,39 @@ class ApplicationContainer(containers.DeclarativeContainer):
         return container
 
     @classmethod
+    def create_for_notifications(cls, env: str = "production") -> ApplicationContainer:
+        """Create container configured for Notifications Lambda only.
+
+        This creates a minimal container with NO business module dependencies.
+        Notifications only needs config access (paper_trading flag) and doesn't
+        need strategy/portfolio/execution modules which pull in pandas/alpaca-py.
+
+        Args:
+            env: Environment name (development, test, or production)
+
+        Returns:
+            Configured ApplicationContainer with minimal dependencies
+
+        """
+        logger.info(
+            "Creating ApplicationContainer for Notifications Lambda", extra={"environment": env}
+        )
+        container = cls()
+
+        # Load environment-specific configuration
+        if env == "test":
+            container.config.alpaca_api_key.override(TEST_API_KEY)
+            container.config.alpaca_secret_key.override(TEST_SECRET_KEY)
+            container.config.paper_trading.override(True)  # noqa: FBT003
+
+        # No business module wiring needed - notifications only uses config/events/logging
+        logger.info(
+            "ApplicationContainer for Notifications created successfully",
+            extra={"environment": env},
+        )
+        return container
+
+    @classmethod
     def create_for_testing(cls) -> ApplicationContainer:
         """Create container with test doubles for testing.
 

@@ -111,10 +111,8 @@ def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[
         Response with status code and message
 
     """
-    # Create ApplicationContainer for dependencies
-    logger.info("Creating ApplicationContainer", extra={"environment": "production"})
-    container = ApplicationContainer()
-    logger.info("ApplicationContainer created successfully", extra={"environment": "production"})
+    # Create minimal ApplicationContainer for notifications (no pandas/business modules)
+    container = ApplicationContainer.create_for_notifications("production")
 
     # Generate strategy performance report and get presigned URL
     report_url = _generate_strategy_report(correlation_id)
@@ -158,11 +156,10 @@ def _handle_workflow_failed(
     """
     # Create ApplicationContainer for dependencies
     logger.info(
-        "Creating ApplicationContainer for error notification", extra={"environment": "production"}
+        "Creating minimal ApplicationContainer for notifications (no pandas/business modules)"
     )
-    container = ApplicationContainer()
-
-    # Build ErrorNotificationRequested from WorkflowFailed event
+    container = ApplicationContainer.create_for_notifications("production")
+    logger.info("Processing WorkflowFailed event")
     notification_event = _build_error_notification(detail, correlation_id, source)
 
     # Create NotificationService and process the event
