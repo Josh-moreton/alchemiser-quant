@@ -350,23 +350,6 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  # Indicators Layer: pandas + numpy + pyarrow for technical indicator computations
-  # Contains all heavy data science dependencies, allowing Strategy to be lightweight
-  IndicatorsLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-indicators-deps"
-        - !Sub "alchemiser-${Stage}-indicators-deps"
-      Description: Indicators Lambda dependencies (pandas, numpy, pyarrow)
-      ContentUri: layers/indicators/
-      CompatibleRuntimes:
-        - python3.12
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: python3.12
-
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -602,9 +585,8 @@ Resources:
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
-          MARKET_DATA_BUCKET: !Ref MarketDataBucket
-          # Indicators Lambda for technical indicator computations
-          INDICATORS_FUNCTION_NAME: !Ref IndicatorsFunction
+          # Data Lambda for market data (bars from S3 Parquet)
+          DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -651,19 +633,12 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt MarketDataBucket.Arn
-                  - !Sub "${MarketDataBucket.Arn}/*"
-              # Permission to invoke Indicators Lambda for technical indicator computations
+              # Permission to invoke Data Lambda for market data
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
                 Resource:
-                  - !GetAtt IndicatorsFunction.Arn
+                  - !GetAtt DataFunction.Arn
 
   # Portfolio Lambda - Rebalance planning microservice
   PortfolioFunction:
@@ -1070,66 +1045,6 @@ Resources:
               - Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt DataFunction.Arn
-
-  # ========== INDICATORS LAMBDA ==========
-  # Technical indicator computation microservice invoked by Strategy Lambda
-  # Contains pandas/numpy dependencies for efficient indicator calculations
-  # Fetches market data via Data Lambda (which handles S3 Parquet I/O)
-  IndicatorsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-indicators"
-        - !Sub "alchemiser-${Stage}-indicators"
-      Runtime: python3.12
-      CodeUri: ./
-      Handler: the_alchemiser.indicators.lambda_handler.lambda_handler
-      Role: !GetAtt IndicatorsExecutionRole.Arn
-      Layers:
-        - !Ref IndicatorsLayer
-      Timeout: 90  # Includes Data Lambda invocation latency
-      MemorySize: 512
-      Environment:
-        Variables:
-          DATA_FUNCTION_NAME: !Ref DataFunction
-    Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
-
-  IndicatorsExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: IndicatorsPolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource:
-                  - !GetAtt DataFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE

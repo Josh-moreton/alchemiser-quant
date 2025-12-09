@@ -1,10 +1,13 @@
-"""Business Unit: indicators | Status: current.
+"""Business Unit: strategy | Status: current.
 
 Data Lambda client for fetching market data.
 
 This client invokes the Data Lambda synchronously to fetch historical bars,
-keeping pyarrow/Parquet dependencies in the Data Lambda only. This allows
-the Indicators Lambda to remain under the 250MB size limit.
+keeping pyarrow/Parquet dependencies in the Data Lambda only. Strategy Lambda
+uses this to get market data for indicator computation.
+
+Architecture:
+    Strategy Lambda -> Data Lambda -> S3 Parquet
 """
 
 from __future__ import annotations
@@ -30,11 +33,8 @@ class DataLambdaError(Exception):
 class DataLambdaClient(MarketDataPort):
     """Client for invoking Data Lambda to fetch market data.
 
-    This client enables the Indicators Lambda to fetch bars from S3 without
+    This client enables the Strategy Lambda to fetch bars from S3 without
     including pyarrow in its layer. The Data Lambda handles all Parquet I/O.
-
-    Architecture:
-        Indicators Lambda -> Data Lambda -> S3 Parquet
 
     Attributes:
         function_name: Name of the Data Lambda function
@@ -175,7 +175,7 @@ class DataLambdaClient(MarketDataPort):
     def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Get latest quote (not implemented for Lambda client).
 
-        The Indicators Lambda only needs get_bars for indicator computation.
+        Strategy only needs get_bars for indicator computation.
 
         Args:
             symbol: Trading symbol

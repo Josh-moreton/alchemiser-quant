@@ -1,7 +1,11 @@
 # Strategy Lambda dependencies
-# LIGHTWEIGHT: No pandas/numpy/pyarrow - indicators computed via Indicators Lambda
-# NO alpaca-py needed - Strategy reads from S3 cache only
+# Contains pandas/numpy for indicator computation (no pyarrow - Data Lambda handles Parquet)
+# NO alpaca-py needed - Strategy reads from Data Lambda via DataLambdaClient
 # NOTE: boto3/botocore excluded - Lambda runtime provides them
+
+# Data processing (for indicators)
+pandas==2.3.3
+numpy==1.26.4
 
 # Pydantic for schemas/DTOs
 pydantic==2.12.4
