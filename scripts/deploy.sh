@@ -71,7 +71,7 @@ rm -f requirements.txt
 # These are manually curated to ship only what each Lambda needs
 echo "📦 Verifying function-specific layer requirements..."
 
-LAYER_DIRS=("strategy" "portfolio" "execution" "notifications" "data" "indicators")
+LAYER_DIRS=("strategy" "portfolio" "execution" "notifications" "data")
 for layer in "${LAYER_DIRS[@]}"; do
     if [ ! -f "layers/$layer/requirements.txt" ]; then
         echo "❌ Error: layers/$layer/requirements.txt not found"
