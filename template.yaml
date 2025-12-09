@@ -1085,14 +1085,6 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${DataFunction}"
       RetentionInDays: 14
 
-
-  DashboardURL:
-    Description: "CloudWatch Dashboard for monitoring errors and warnings"
-    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AlchemiserDashboard}"
-
-  LogsInsightsURL:
-    Description: "CloudWatch Logs Insights for querying logs across all Lambdas"
-    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logsV2:logs-insights"
   # CloudWatch Dashboard for at-a-glance monitoring
   AlchemiserDashboard:
     Type: AWS::CloudWatch::Dashboard
@@ -1271,3 +1263,12 @@ Outputs:
   StackNameUsed:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "alchemiser-${Stage}" ]
+
+
+  DashboardURL:
+    Description: "CloudWatch Dashboard for monitoring errors and warnings"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AlchemiserDashboard}"
+
+  LogsInsightsURL:
+    Description: "CloudWatch Logs Insights for querying logs across all Lambdas"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logsV2:logs-insights"
