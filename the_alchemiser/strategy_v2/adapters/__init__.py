@@ -14,13 +14,15 @@ Module boundaries:
     - Imports from shared only (no portfolio/execution dependencies)
     - Re-exports adapter interfaces for strategy orchestration
     - Enforces dependency inversion via Protocol pattern
+
+Note: StrategyMarketDataAdapter is lazily imported because it depends on
+alpaca-py, which is not available in the Strategy Lambda runtime
+(uses cached S3 data via CachedMarketDataAdapter instead).
 """
 
 from __future__ import annotations
 
-from . import feature_pipeline, market_data_adapter
 from .feature_pipeline import FeaturePipeline
-from .market_data_adapter import MarketDataProvider, StrategyMarketDataAdapter
 
 __all__ = [
     "FeaturePipeline",
@@ -31,5 +33,15 @@ __all__ = [
 # Version for compatibility tracking
 __version__ = "2.0.0"
 
-# Clean up namespace to prevent module leakage
-del feature_pipeline, market_data_adapter
+
+def __getattr__(name: str) -> object:
+    """Lazy import for adapters that depend on alpaca-py."""
+    if name == "MarketDataProvider":
+        from .market_data_adapter import MarketDataProvider
+
+        return MarketDataProvider
+    if name == "StrategyMarketDataAdapter":
+        from .market_data_adapter import StrategyMarketDataAdapter
+
+        return StrategyMarketDataAdapter
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
