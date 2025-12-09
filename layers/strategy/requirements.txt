@@ -1,0 +1,32 @@
+# Strategy Lambda dependencies
+# Contains pandas/numpy for indicator computation (no pyarrow - Data Lambda handles Parquet)
+# NO alpaca-py needed - Strategy reads from Data Lambda via DataLambdaClient
+# NOTE: boto3/botocore excluded - Lambda runtime provides them
+
+# Data processing (for indicators)
+pandas==2.3.3
+numpy==1.26.4
+
+# Pydantic for schemas/DTOs
+pydantic==2.12.4
+pydantic-settings==2.12.0
+annotated-types==0.7.0
+typing-extensions==4.15.0
+typing-inspection==0.4.2
+
+# Logging
+structlog==25.5.0
+
+# DI container
+dependency-injector==4.48.2
+
+# Caching
+cachetools==6.2.1
+
+# Config
+pyyaml==6.0.3
+
+# Date/time
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2

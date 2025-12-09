@@ -21,7 +21,11 @@ def register_strategy(container: ApplicationContainer) -> None:
 
     This function wires up all strategy module components using constructor
     injection. It accesses infrastructure dependencies from the container
-    (AlpacaManager) and registers strategy services.
+    and registers strategy services.
+
+    Note: Strategy Lambda uses CachedMarketDataAdapter (S3-only) to avoid
+    requiring alpaca-py at runtime. Historical data is pre-populated by
+    the DataRefresh Lambda.
 
     Args:
         container: The main ApplicationContainer instance
@@ -33,19 +37,23 @@ def register_strategy(container: ApplicationContainer) -> None:
         >>> orchestrator = container.strategy_orchestrator()
 
     """
-    from the_alchemiser.strategy_v2.adapters.market_data_adapter import (
-        StrategyMarketDataAdapter,
+    from the_alchemiser.data_v2.cached_market_data_adapter import (
+        CachedMarketDataAdapter,
     )
+    from the_alchemiser.data_v2.market_data_store import MarketDataStore
     from the_alchemiser.strategy_v2.core.orchestrator import SingleStrategyOrchestrator
     from the_alchemiser.strategy_v2.core.registry import StrategyRegistry
 
     # Register strategy registry (singleton - shared state for registered strategies)
     container.strategy_registry = providers.Singleton(StrategyRegistry)
 
-    # Register market data adapter (uses AlpacaManager from infrastructure)
+    # Register market data store (reads from S3 Parquet)
+    container.market_data_store = providers.Singleton(MarketDataStore)
+
+    # Register market data adapter (uses S3 cache, no Alpaca fallback)
     container.strategy_market_data_adapter = providers.Factory(
-        StrategyMarketDataAdapter,
-        alpaca_manager=container.infrastructure.alpaca_manager,
+        CachedMarketDataAdapter,
+        market_data_store=container.market_data_store,
     )
 
     # Register strategy orchestrator (uses market data adapter)

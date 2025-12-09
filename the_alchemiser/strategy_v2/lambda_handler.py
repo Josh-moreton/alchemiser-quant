@@ -36,42 +36,6 @@ configure_application_logging()
 logger = get_logger(__name__)
 
 
-def _check_market_status(container: ApplicationContainer, correlation_id: str) -> tuple[bool, str]:
-    """Check if market is currently open.
-
-    Args:
-        container: Application container with Alpaca client
-        correlation_id: Correlation ID for logging
-
-    Returns:
-        Tuple of (is_open, status_string)
-
-    """
-    try:
-        trading_client = container.infrastructure.alpaca_manager().trading_client
-        clock = trading_client.get_clock()
-        is_open = clock.is_open
-        status = "open" if is_open else "closed"
-
-        if not is_open:
-            logger.warning(
-                "Market is closed - signal generation will proceed but orders skipped",
-                extra={"correlation_id": correlation_id, "market_status": status},
-            )
-        else:
-            logger.info(
-                "Market is open - full trading workflow will execute",
-                extra={"correlation_id": correlation_id, "market_status": status},
-            )
-        return is_open, status
-    except Exception as e:
-        logger.warning(
-            "Market status check failed, proceeding anyway",
-            extra={"correlation_id": correlation_id, "error": str(e)},
-        )
-        return False, "unknown"
-
-
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle scheduled or manual invocation for signal generation.
 
@@ -100,11 +64,12 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     )
 
     try:
-        # Create application container
-        container = ApplicationContainer.create_for_environment("production")
+        # Create application container (Strategy-only to avoid alpaca-py dependency)
+        container = ApplicationContainer.create_for_strategy("production")
 
-        # Check market status
-        market_is_open, market_status = _check_market_status(container, correlation_id)
+        # Note: Market status check removed - Strategy runs on schedule (Mon-Fri 9:35 AM).
+        # If market is closed, Portfolio/Execution will handle gracefully.
+        # This removes alpaca-py dependency from Strategy Lambda.
 
         # Create the WorkflowStarted event (used internally by handler)
         workflow_event = WorkflowStarted(
@@ -118,8 +83,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             requested_by="EventBridgeSchedule",
             configuration={
                 "live_trading": not container.config.paper_trading(),
-                "market_is_open": market_is_open,
-                "market_status": market_status,
             },
         )
 
@@ -155,7 +118,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 extra={
                     "correlation_id": correlation_id,
                     "signal_count": generated_event.signal_count,
-                    "market_status": market_status,
                 },
             )
             return {
@@ -164,7 +126,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                     "status": "success",
                     "correlation_id": correlation_id,
                     "signal_count": generated_event.signal_count,
-                    "market_status": market_status,
                 },
             }
 

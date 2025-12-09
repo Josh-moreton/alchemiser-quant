@@ -64,38 +64,23 @@ if ! poetry help export > /dev/null 2>&1; then
 fi
 
 # Remove any existing requirements.txt from root to avoid duplication
-# (dependencies come from the layer in dependencies/requirements.txt)
 echo "🧹 Removing root requirements.txt to avoid duplication with layer..."
 rm -f requirements.txt
 
-# Ensure dependencies layer has up-to-date requirements
-mkdir -p dependencies
-if poetry help export > /dev/null 2>&1; then
-    echo "📦 Updating dependencies layer requirements (production only)..."
-    poetry export --only=main -f requirements.txt --without-hashes -o dependencies/requirements.txt
-    # Strip AWS-managed SDKs to rely on Lambda's built-in boto3/botocore and slim the layer
-    if [ -f "dependencies/requirements.txt" ]; then
-        sed -i.bak '/^boto3[<=>]/d;/^botocore[<=>]/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak || true
-    fi
-    # Remove pydantic-core pin if present (allow resolver to pick compatible core)
-    sed -i.bak '/^pydantic-core==/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak
-else
-    if [ -f "dependencies/requirements.txt" ] && [ -s "dependencies/requirements.txt" ]; then
-        echo "⚠️  Poetry export unavailable; using existing dependencies/requirements.txt as-is."
-    else
-        echo "❌ Error: 'poetry export' is unavailable and no existing dependencies/requirements.txt found."
-        echo "   Try installing the plugin manually: 'poetry self add poetry-plugin-export'"
+# Function-specific layers are defined in layers/<function>/requirements.txt
+# These are manually curated to ship only what each Lambda needs
+echo "📦 Verifying function-specific layer requirements..."
+
+LAYER_DIRS=("strategy" "portfolio" "execution" "notifications" "data")
+for layer in "${LAYER_DIRS[@]}"; do
+    if [ ! -f "layers/$layer/requirements.txt" ]; then
+        echo "❌ Error: layers/$layer/requirements.txt not found"
         exit 1
     fi
-fi
+    echo "   ✅ layers/$layer/requirements.txt: $(wc -l < layers/$layer/requirements.txt | tr -d ' ') lines"
+done
 
-# Check if the dependencies file was created successfully
-if [ ! -f "dependencies/requirements.txt" ]; then
-    echo "❌ Error: Failed to create dependencies/requirements.txt"
-    exit 1
-fi
-
-echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
+echo "✅ All function-specific layer requirements verified"
 
 # Build the SAM application (skip if already built, e.g., by CI/CD)
 if [ -f ".aws-sam/build/template.yaml" ]; then
@@ -111,11 +96,14 @@ fi
 # Show actual built package sizes
 echo ""
 echo "📦 Built package sizes:"
-if [ -d ".aws-sam/build/DependenciesLayer" ]; then
-    echo "   Dependencies layer: $(du -sh .aws-sam/build/DependenciesLayer 2>/dev/null | cut -f1 || echo 'N/A')"
-fi
-if [ -d ".aws-sam/build/TradingSystemFunction" ]; then
-    echo "   Function code: $(du -sh .aws-sam/build/TradingSystemFunction 2>/dev/null | cut -f1 || echo 'N/A')"
+for layer in "${LAYER_DIRS[@]}"; do
+    layer_path=".aws-sam/build/${layer^}Layer"
+    if [ -d "$layer_path" ]; then
+        echo "   ${layer} layer: $(du -sh "$layer_path" 2>/dev/null | cut -f1 || echo 'N/A')"
+    fi
+done
+if [ -d ".aws-sam/build/StrategyFunction" ]; then
+    echo "   Strategy function code: $(du -sh .aws-sam/build/StrategyFunction 2>/dev/null | cut -f1 || echo 'N/A')"
 fi
 echo ""
 

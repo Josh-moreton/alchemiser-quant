@@ -13,13 +13,32 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any, Protocol
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
-from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from ..errors import ConfigurationError, StrategyExecutionError
 from ..models.context import StrategyContext
+
+
+class MarketDataAdapterProtocol(Protocol):
+    """Protocol for market data adapters to avoid importing StrategyMarketDataAdapter."""
+
+    def get_bars(
+        self,
+        symbols: list[str],
+        timeframe: str,
+        lookback_days: int,
+        end_date: datetime | None = None,
+    ) -> dict[str, list[Any]]:
+        """Get historical bars for symbols."""
+        ...
+
+    def get_current_prices(self, symbols: list[str]) -> dict[str, Decimal | None]:
+        """Get current prices for symbols."""
+        ...
+
 
 logger = get_logger(__name__)
 
@@ -34,15 +53,16 @@ class SingleStrategyOrchestrator:
     DTO generation with proper error handling and weight normalization.
     """
 
-    def __init__(self, market_data_adapter: StrategyMarketDataAdapter) -> None:
+    def __init__(self, market_data_adapter: MarketDataAdapterProtocol) -> None:
         """Initialize orchestrator with market data adapter.
 
         Args:
-            market_data_adapter: Configured market data adapter
+            market_data_adapter: Configured market data adapter implementing MarketDataAdapterProtocol
 
         Note:
             Market data adapter is stored for future engine integration.
             Currently unused as sample allocation doesn't require market data.
+            Uses protocol type to avoid importing alpaca-dependent StrategyMarketDataAdapter.
 
         """
         self._market_data = market_data_adapter

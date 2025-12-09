@@ -266,16 +266,84 @@ Resources:
         - Key: Service
           Value: trade-ledger
 
-  # Lambda Layer for dependencies
-  DependenciesLayer:
+  # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
+  # Each Lambda gets its own optimized layer with only required dependencies
+  # boto3/botocore excluded from all layers - Lambda runtime provides them
+
+  # Strategy Layer: pandas + numpy + pyarrow (for S3 Parquet cache) + alpaca-py
+  StrategyLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-dependencies"
-        - !Sub "alchemiser-${Stage}-dependencies"
-      Description: Dependencies for The Alchemiser Quantitative Trading System
-      ContentUri: dependencies/
+        - !Sub "${StackName}-strategy-deps"
+        - !Sub "alchemiser-${Stage}-strategy-deps"
+      Description: Strategy Lambda dependencies (pandas, pyarrow, alpaca-py)
+      ContentUri: layers/strategy/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Portfolio Layer: alpaca-py + pydantic (no pandas/numpy)
+  PortfolioLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-portfolio-deps"
+        - !Sub "alchemiser-${Stage}-portfolio-deps"
+      Description: Portfolio Lambda dependencies (alpaca-py, pydantic)
+      ContentUri: layers/portfolio/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Execution Layer: alpaca-py + pydantic (no pandas/numpy)
+  ExecutionLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-deps"
+        - !Sub "alchemiser-${Stage}-execution-deps"
+      Description: Execution Lambda dependencies (alpaca-py, pydantic)
+      ContentUri: layers/execution/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Notifications Layer: pydantic + structlog (minimal footprint)
+  NotificationsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notifications-deps"
+        - !Sub "alchemiser-${Stage}-notifications-deps"
+      Description: Notifications Lambda dependencies (pydantic, structlog)
+      ContentUri: layers/notifications/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Data Layer: pandas + numpy + pyarrow + alpaca-py
+  DataLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-deps"
+        - !Sub "alchemiser-${Stage}-data-deps"
+      Description: Data Lambda dependencies (pandas, pyarrow, alpaca-py)
+      ContentUri: layers/data/
       CompatibleRuntimes:
         - python3.12
       RetentionPolicy: Retain
@@ -364,6 +432,32 @@ Resources:
           Value: !Ref Stage
         - Key: Service
           Value: performance-reports
+
+  # ========== MARKET DATA S3 BUCKET ==========
+  # S3 bucket for historical market data (Parquet files) with versioning
+  MarketDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-market-data"
+        - !Sub "alchemiser-${Stage}-market-data"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: market-data
 
   # ========== TRADING NOTIFICATIONS SNS ==========
   # SNS Topic for trading notifications (trade results, workflow failures)
@@ -480,7 +574,7 @@ Resources:
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref StrategyLayer
       Timeout: 300
       MemorySize: 1024
       Environment:
@@ -491,6 +585,8 @@ Resources:
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
+          # Data Lambda for market data (bars from S3 Parquet)
+          DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -537,6 +633,12 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
+              # Permission to invoke Data Lambda for market data
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataFunction.Arn
 
   # Portfolio Lambda - Rebalance planning microservice
   PortfolioFunction:
@@ -551,7 +653,7 @@ Resources:
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref PortfolioLayer
       Timeout: 300
       MemorySize: 1024
       Environment:
@@ -621,7 +723,7 @@ Resources:
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
       # Note: Concurrency is limited by SQS BatchSize: 1 which processes one message at a time
@@ -711,7 +813,7 @@ Resources:
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref NotificationsLayer
       Timeout: 60
       MemorySize: 512
       Environment:
@@ -835,9 +937,179 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt StrategyFunction.Arn
 
+  # ========== DATA LAMBDA ==========
+  # Fetches historical market data from Alpaca and stores in S3 as Parquet
+  # Runs nightly after market close to refresh data for all strategy symbols
+  DataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data"
+        - !Sub "alchemiser-${Stage}-data"
+      Runtime: python3.12
+      CodeUri: ./
+      Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
+      Role: !GetAtt DataExecutionRole.Arn
+      Layers:
+        - !Ref DataLayer
+      Timeout: 900  # 15 minutes max for full data
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  DataExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DataPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt MarketDataBucket.Arn
+                  - !Sub "${MarketDataBucket.Arn}/*"
+
+  # Scheduler to trigger Data (nightly after market close)
+  DataSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-schedule"
+        - !Sub "alchemiser-${Stage}-data-schedule"
+      Description: "Refresh market data daily at 10 PM UTC (Mon-Fri)"
+      ScheduleExpression: "cron(0 22 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "UTC"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt DataFunction.Arn
+        RoleArn: !GetAtt DataSchedulerRole.Arn
+        Input: '{}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  DataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeData
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt DataFunction.Arn
+
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
+
+  # ============================================================================
+  # OBSERVABILITY: CloudWatch Logs Insights & Dashboard
+  # ============================================================================
+  
+  # CloudWatch Dashboard for at-a-glance monitoring
+  # Note: Log groups are auto-created by Lambda; we reference them by name
+  AlchemiserDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-monitoring"
+        - !Sub "alchemiser-${Stage}-monitoring"
+      DashboardBody: !Sub
+        - |
+          {
+            "widgets": [
+              {
+                "type": "log",
+                "properties": {
+                  "title": "Latest Errors & Warnings (All Lambdas)",
+                  "region": "${AWS::Region}",
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['ERROR', 'WARN', 'WARNING']\n| sort @timestamp desc\n| limit 50"
+                },
+                "x": 0,
+                "y": 0,
+                "width": 24,
+                "height": 8
+              },
+              {
+                "type": "log",
+                "properties": {
+                  "title": "Errors by Correlation ID (Trace Workflow Runs)",
+                  "region": "${AWS::Region}",
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'ERROR'\n| sort @timestamp desc\n| limit 100"
+                },
+                "x": 0,
+                "y": 8,
+                "width": 24,
+                "height": 8
+              },
+              {
+                "type": "log",
+                "properties": {
+                  "title": "Recent Workflow Runs (by correlation_id)",
+                  "region": "${AWS::Region}",
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event in ['SignalGenerated', 'RebalancePlanned', 'TradeExecuted', 'WorkflowCompleted', 'WorkflowFailed']\n| sort @timestamp desc\n| limit 50"
+                },
+                "x": 0,
+                "y": 16,
+                "width": 24,
+                "height": 8
+              }
+            ]
+          }
+        - StrategyLog: !Sub "/aws/lambda/${StrategyFunction}"
+          PortfolioLog: !Sub "/aws/lambda/${PortfolioFunction}"
+          ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
+          NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
+          DataLog: !Sub "/aws/lambda/${DataFunction}"
 
 Outputs:
   TradeLedgerTableName:
@@ -858,6 +1130,15 @@ Outputs:
         - !Sub "${StackName}-PerformanceReportsBucket"
         - !Sub "alchemiser-${Stage}-PerformanceReportsBucket"
 
+  MarketDataBucketName:
+    Description: "S3 bucket for historical market data (Parquet files)"
+    Value: !Ref MarketDataBucket
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-MarketDataBucket"
+        - !Sub "alchemiser-${Stage}-MarketDataBucket"
+
   DeploymentStage:
     Description: "Deployed stage"
     Value: !Ref Stage
@@ -865,3 +1146,12 @@ Outputs:
   StackNameUsed:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "alchemiser-${Stage}" ]
+
+
+  DashboardURL:
+    Description: "CloudWatch Dashboard for monitoring errors and warnings"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AlchemiserDashboard}"
+
+  LogsInsightsURL:
+    Description: "CloudWatch Logs Insights for querying logs across all Lambdas"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logsV2:logs-insights"

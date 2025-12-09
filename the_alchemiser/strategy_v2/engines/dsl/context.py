@@ -17,12 +17,11 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.trace import Trace
+from the_alchemiser.shared.types.indicator_port import IndicatorPort
 
 from .types import DSLValue
 
 if TYPE_CHECKING:
-    from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
-
     from .events import DslEventPublisher
 
 logger = get_logger(__name__)
@@ -86,7 +85,7 @@ class DslContext:
 
     def __init__(
         self,
-        indicator_service: IndicatorService,
+        indicator_service: IndicatorPort,
         event_publisher: DslEventPublisher,
         correlation_id: str,
         trace: Trace,
@@ -95,7 +94,7 @@ class DslContext:
         """Initialize DSL context.
 
         Args:
-            indicator_service: Service for computing indicators
+            indicator_service: Service for computing indicators (IndicatorPort)
             event_publisher: Publisher for DSL events
             correlation_id: Correlation ID for request tracking
             trace: Trace object for logging evaluation steps

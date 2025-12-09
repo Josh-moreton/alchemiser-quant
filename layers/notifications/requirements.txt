@@ -1,0 +1,24 @@
+# Notifications Lambda dependencies
+# Minimal footprint - just Pydantic for events + structlog
+# NOTE: boto3/botocore excluded - Lambda runtime provides them
+
+# Pydantic for schemas/DTOs
+pydantic==2.12.4
+pydantic-settings==2.12.0
+annotated-types==0.7.0
+typing-extensions==4.15.0
+typing-inspection==0.4.2
+
+# Logging
+structlog==25.5.0
+
+# DI container
+dependency-injector==4.48.2
+
+# Config
+pyyaml==6.0.3
+
+# Date/time (for event timestamps)
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2

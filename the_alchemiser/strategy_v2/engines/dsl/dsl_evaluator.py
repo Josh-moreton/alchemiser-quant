@@ -19,7 +19,7 @@ from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
-from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
+from the_alchemiser.shared.types.indicator_port import IndicatorPort
 
 from .context import DslContext
 from .dispatcher import DslDispatcher
@@ -34,7 +34,7 @@ from .types import DslEvaluationError, DSLValue
 __all__ = [
     "DslEvaluationError",
     "DslEvaluator",
-    "IndicatorService",
+    "IndicatorPort",
 ]
 
 
@@ -45,13 +45,11 @@ class DslEvaluator:
     registry with indicator service integration and event publishing.
     """
 
-    def __init__(
-        self, indicator_service: IndicatorService, event_bus: EventBus | None = None
-    ) -> None:
+    def __init__(self, indicator_service: IndicatorPort, event_bus: EventBus | None = None) -> None:
         """Initialize DSL evaluator.
 
         Args:
-            indicator_service: Service for computing indicators
+            indicator_service: Service for computing indicators (IndicatorPort)
             event_bus: Optional event bus for publishing events
 
         """

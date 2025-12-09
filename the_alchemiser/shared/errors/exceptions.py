@@ -278,6 +278,43 @@ class IndicatorCalculationError(AlchemiserError):
         self.symbol = symbol
 
 
+class IndicatorError(AlchemiserError):
+    """Raised when indicator service operations fail.
+
+    This is used by the IndicatorLambdaClient when invoking the Indicators Lambda
+    returns an error or fails.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        indicator_type: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Raise when indicator service operation fails.
+
+        Args:
+            message: Error message
+            symbol: Symbol being processed
+            indicator_type: Type of indicator that failed
+            correlation_id: Correlation ID for tracing
+
+        """
+        context: dict[str, Any] = {}
+        if symbol:
+            context["symbol"] = symbol
+        if indicator_type:
+            context["indicator_type"] = indicator_type
+        if correlation_id:
+            context["correlation_id"] = correlation_id
+
+        super().__init__(message, context)
+        self.symbol = symbol
+        self.indicator_type = indicator_type
+        self.correlation_id = correlation_id
+
+
 class MarketDataError(DataProviderError):
     """Raised when market data retrieval fails."""
 
