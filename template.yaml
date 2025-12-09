@@ -1050,6 +1050,192 @@ Resources:
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
 
+  # ============================================================================
+  # OBSERVABILITY: CloudWatch Logs Insights & Dashboard
+  # ============================================================================
+  
+  # CloudWatch Log Group for Strategy Lambda (created automatically by Lambda, but we can customize retention)
+  StrategyLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${StrategyFunction}"
+      RetentionInDays: 14
+
+  PortfolioLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${PortfolioFunction}"
+      RetentionInDays: 14
+
+  ExecutionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ExecutionFunction}"
+      RetentionInDays: 14
+
+  NotificationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${NotificationsFunction}"
+      RetentionInDays: 14
+
+  DataLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${DataFunction}"
+      RetentionInDays: 14
+
+
+  DashboardURL:
+    Description: "CloudWatch Dashboard for monitoring errors and warnings"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AlchemiserDashboard}"
+
+  LogsInsightsURL:
+    Description: "CloudWatch Logs Insights for querying logs across all Lambdas"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logsV2:logs-insights"
+  # CloudWatch Dashboard for at-a-glance monitoring
+  AlchemiserDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-monitoring"
+        - !Sub "alchemiser-${Stage}-monitoring"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "log",
+              "properties": {
+                "title": "Latest Errors & Warnings (All Lambdas)",
+                "region": "${AWS::Region}",
+                "query": "SOURCE '${StrategyLogGroup}'\n| SOURCE '${PortfolioLogGroup}'\n| SOURCE '${ExecutionLogGroup}'\n| SOURCE '${NotificationsLogGroup}'\n| SOURCE '${DataLogGroup}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['ERROR', 'WARN', 'WARNING']\n| sort @timestamp desc\n| limit 50"
+              },
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 8
+            },
+            {
+              "type": "log",
+              "properties": {
+                "title": "Errors by Correlation ID (Trace Workflow Runs)",
+                "region": "${AWS::Region}",
+                "query": "SOURCE '${StrategyLogGroup}'\n| SOURCE '${PortfolioLogGroup}'\n| SOURCE '${ExecutionLogGroup}'\n| SOURCE '${NotificationsLogGroup}'\n| SOURCE '${DataLogGroup}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'ERROR'\n| sort @timestamp desc\n| limit 100"
+              },
+              "x": 0,
+              "y": 8,
+              "width": 24,
+              "height": 8
+            },
+            {
+              "type": "log",
+              "properties": {
+                "title": "Recent Workflow Runs (by correlation_id)",
+                "region": "${AWS::Region}",
+                "query": "SOURCE '${StrategyLogGroup}'\n| SOURCE '${PortfolioLogGroup}'\n| SOURCE '${ExecutionLogGroup}'\n| SOURCE '${NotificationsLogGroup}'\n| SOURCE '${DataLogGroup}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event in ['SignalGenerated', 'RebalancePlanned', 'TradeExecuted', 'WorkflowCompleted', 'WorkflowFailed']\n| sort @timestamp desc\n| limit 50"
+              },
+              "x": 0,
+              "y": 16,
+              "width": 24,
+              "height": 8
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "title": "Lambda Errors (All Functions)",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", { "stat": "Sum", "label": "Strategy", "period": 300 }, { "dimensions": { "FunctionName": "${StrategyFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Portfolio", "period": 300 }, { "dimensions": { "FunctionName": "${PortfolioFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Execution", "period": 300 }, { "dimensions": { "FunctionName": "${ExecutionFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Notifications", "period": 300 }, { "dimensions": { "FunctionName": "${NotificationsFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Data", "period": 300 }, { "dimensions": { "FunctionName": "${DataFunction}" } } ]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              },
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "title": "Lambda Invocations (All Functions)",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", { "stat": "Sum", "label": "Strategy", "period": 300 }, { "dimensions": { "FunctionName": "${StrategyFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Portfolio", "period": 300 }, { "dimensions": { "FunctionName": "${PortfolioFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Execution", "period": 300 }, { "dimensions": { "FunctionName": "${ExecutionFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Notifications", "period": 300 }, { "dimensions": { "FunctionName": "${NotificationsFunction}" } } ],
+                  [ "...", { "stat": "Sum", "label": "Data", "period": 300 }, { "dimensions": { "FunctionName": "${DataFunction}" } } ]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              },
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "title": "SQS Queue Depth (Execution Queue)",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "AWS/SQS", "ApproximateNumberOfMessagesVisible", { "stat": "Average", "label": "Messages in Queue", "period": 60 }, { "dimensions": { "QueueName": "${ExecutionQueue.QueueName}" } } ],
+                  [ ".", "ApproximateNumberOfMessagesNotVisible", { "stat": "Average", "label": "Messages In-Flight", "period": 60 }, { "dimensions": { "QueueName": "${ExecutionQueue.QueueName}" } } ]
+                ],
+                "period": 60,
+                "stat": "Average",
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              },
+              "x": 0,
+              "y": 30,
+              "width": 12,
+              "height": 6
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "title": "DLQ Messages (Failed Executions)",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "AWS/SQS", "ApproximateNumberOfMessagesVisible", { "stat": "Average", "label": "DLQ Messages", "period": 60 }, { "dimensions": { "QueueName": "${ExecutionDLQ.QueueName}" } } ]
+                ],
+                "period": 60,
+                "stat": "Average",
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              },
+              "x": 12,
+              "y": 30,
+              "width": 12,
+              "height": 6
+            }
+          ]
+        }
+
 Outputs:
   TradeLedgerTableName:
     Description: "DynamoDB table for trade ledger persistence"
