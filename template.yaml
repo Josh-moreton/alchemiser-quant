@@ -266,16 +266,84 @@ Resources:
         - Key: Service
           Value: trade-ledger
 
-  # Lambda Layer for dependencies
-  DependenciesLayer:
+  # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
+  # Each Lambda gets its own optimized layer with only required dependencies
+  # boto3/botocore excluded from all layers - Lambda runtime provides them
+
+  # Strategy Layer: pandas + numpy + pyarrow (for S3 Parquet cache) + alpaca-py
+  StrategyLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-dependencies"
-        - !Sub "alchemiser-${Stage}-dependencies"
-      Description: Dependencies for The Alchemiser Quantitative Trading System
-      ContentUri: dependencies/
+        - !Sub "${StackName}-strategy-deps"
+        - !Sub "alchemiser-${Stage}-strategy-deps"
+      Description: Strategy Lambda dependencies (pandas, pyarrow, alpaca-py)
+      ContentUri: layers/strategy/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Portfolio Layer: alpaca-py + pydantic (no pandas/numpy)
+  PortfolioLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-portfolio-deps"
+        - !Sub "alchemiser-${Stage}-portfolio-deps"
+      Description: Portfolio Lambda dependencies (alpaca-py, pydantic)
+      ContentUri: layers/portfolio/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Execution Layer: alpaca-py + pydantic (no pandas/numpy)
+  ExecutionLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-deps"
+        - !Sub "alchemiser-${Stage}-execution-deps"
+      Description: Execution Lambda dependencies (alpaca-py, pydantic)
+      ContentUri: layers/execution/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Notifications Layer: pydantic + structlog (minimal footprint)
+  NotificationsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notifications-deps"
+        - !Sub "alchemiser-${Stage}-notifications-deps"
+      Description: Notifications Lambda dependencies (pydantic, structlog)
+      ContentUri: layers/notifications/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Data Refresh Layer: pandas + numpy + pyarrow + alpaca-py
+  DataRefreshLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-refresh-deps"
+        - !Sub "alchemiser-${Stage}-data-refresh-deps"
+      Description: Data Refresh Lambda dependencies (pandas, pyarrow, alpaca-py)
+      ContentUri: layers/data-refresh/
       CompatibleRuntimes:
         - python3.12
       RetentionPolicy: Retain
@@ -390,25 +458,6 @@ Resources:
           Value: !Ref Stage
         - Key: Service
           Value: market-data
-
-  # ========== PYARROW LAMBDA LAYER ==========
-  # Separate layer for PyArrow (only used by DataRefresh Lambda)
-  PyArrowLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-pyarrow"
-        - !Sub "alchemiser-${Stage}-pyarrow"
-      Description: PyArrow layer for Parquet file operations
-      ContentUri: layers/pyarrow/
-      CompatibleRuntimes:
-        - python3.12
-      CompatibleArchitectures:
-        - x86_64
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: python3.12
 
   # ========== TRADING NOTIFICATIONS SNS ==========
   # SNS Topic for trading notifications (trade results, workflow failures)
@@ -525,8 +574,7 @@ Resources:
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
-        - !Ref PyArrowLayer
+        - !Ref StrategyLayer
       Timeout: 300
       MemorySize: 1024
       Environment:
@@ -605,7 +653,7 @@ Resources:
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref PortfolioLayer
       Timeout: 300
       MemorySize: 1024
       Environment:
@@ -675,7 +723,7 @@ Resources:
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
       # Note: Concurrency is limited by SQS BatchSize: 1 which processes one message at a time
@@ -765,7 +813,7 @@ Resources:
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
+        - !Ref NotificationsLayer
       Timeout: 60
       MemorySize: 512
       Environment:
@@ -904,8 +952,7 @@ Resources:
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt DataRefreshExecutionRole.Arn
       Layers:
-        - !Ref DependenciesLayer
-        - !Ref PyArrowLayer
+        - !Ref DataRefreshLayer
       Timeout: 900  # 15 minutes max for full data refresh
       MemorySize: 1024
       Environment:
