@@ -64,8 +64,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     )
 
     try:
-        # Create application container
-        container = ApplicationContainer.create_for_environment("production")
+        # Create application container (Strategy-only to avoid alpaca-py dependency)
+        container = ApplicationContainer.create_for_strategy("production")
 
         # Note: Market status check removed - Strategy runs on schedule (Mon-Fri 9:35 AM).
         # If market is closed, Portfolio/Execution will handle gracefully.
