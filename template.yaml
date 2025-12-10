@@ -1037,7 +1037,8 @@ Resources:
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt DataExecutionRole.Arn
       Layers:
-        - !Ref DataLayer
+        - !Sub 'arn:aws:lambda:${AWS::Region}:336392948345:layer:AWSSDKPandas-Python312:20'  # AWS-managed awswrangler layer (latest)
+        - !Ref DataLayer  # Our minimal deps (alpaca-py, pydantic, etc)
       Timeout: 900  # 15 minutes max for full data
       MemorySize: 1024
       Environment:
