@@ -84,6 +84,9 @@ jobs:
       - name: Install SAM CLI
         uses: aws-actions/setup-sam@v2
 
+      - name: Clean old build artifacts
+        run: rm -rf .aws-sam
+
       - name: Build (matching target env)
         run: sam build --use-container --parallel --config-env "${{ steps.target.outputs.env }}"
 
