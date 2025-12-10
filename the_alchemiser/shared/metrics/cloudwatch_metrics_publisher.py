@@ -21,9 +21,9 @@ from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import 
 
 logger = get_logger(__name__)
 
-# CloudWatch configuration
-NAMESPACE = "Alchemiser/Production"
+# CloudWatch metric names
 METRIC_NAME_REALIZED_PNL = "RealizedPnL"
+METRIC_NAME_CAPITAL_DEPLOYED = "CapitalDeployedPct"
 
 # AWS exception types
 AWSException = (ClientError, BotoCoreError)
@@ -39,16 +39,19 @@ class CloudWatchMetricsPublisher:
     def __init__(
         self,
         trade_ledger_table_name: str,
+        stage: str,
         region: str = "us-east-1",
     ) -> None:
         """Initialize metrics publisher.
 
         Args:
             trade_ledger_table_name: DynamoDB trade ledger table name
+            stage: Deployment stage (dev or production)
             region: AWS region
 
         """
         self.region = region
+        self.namespace = f"Alchemiser/{stage.title()}"
         self._cloudwatch = boto3.client("cloudwatch", region_name=region)
         self._repository = DynamoDBTradeLedgerRepository(trade_ledger_table_name)
 
@@ -110,7 +113,7 @@ class CloudWatchMetricsPublisher:
             # Publish metrics in batch (CloudWatch supports up to 1000 per call)
             if metric_data:
                 self._cloudwatch.put_metric_data(
-                    Namespace=NAMESPACE,
+                    Namespace=self.namespace,
                     MetricData=metric_data,
                 )
 
@@ -119,6 +122,7 @@ class CloudWatchMetricsPublisher:
                     extra={
                         "correlation_id": correlation_id,
                         "strategy_count": len(metric_data),
+                        "namespace": self.namespace,
                     },
                 )
 
@@ -158,3 +162,61 @@ class CloudWatchMetricsPublisher:
                 total_pnl += lot.realized_pnl
 
         return total_pnl
+
+    def publish_capital_deployed_metric(
+        self, capital_deployed_pct: Decimal | None, correlation_id: str
+    ) -> None:
+        """Publish capital deployed percentage metric to CloudWatch.
+
+        Args:
+            capital_deployed_pct: Capital deployed as percentage (0-100), or None if unavailable
+            correlation_id: Correlation ID for tracing
+
+        """
+        if capital_deployed_pct is None:
+            logger.info(
+                "Capital deployed percentage not available, skipping metric",
+                extra={"correlation_id": correlation_id},
+            )
+            return
+
+        try:
+            timestamp = datetime.now(UTC)
+            self._cloudwatch.put_metric_data(
+                Namespace=self.namespace,
+                MetricData=[
+                    {
+                        "MetricName": METRIC_NAME_CAPITAL_DEPLOYED,
+                        "Value": float(capital_deployed_pct),
+                        "Unit": "Percent",
+                        "Timestamp": timestamp,
+                    }
+                ],
+            )
+
+            logger.info(
+                f"Published capital deployed metric: {capital_deployed_pct:.2f}%",
+                extra={
+                    "correlation_id": correlation_id,
+                    "capital_deployed_pct": str(capital_deployed_pct),
+                    "namespace": self.namespace,
+                },
+            )
+
+        except AWSException as e:
+            logger.error(
+                f"Failed to publish capital deployed metric: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error publishing capital deployed metric: {e}",
+                exc_info=True,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )

@@ -86,11 +86,31 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "body": "Configuration error: missing TRADE_LEDGER__TABLE_NAME",
             }
 
+        # Get deployment stage
+        stage = os.environ.get("STAGE", "production")
+
         # Create metrics publisher and publish strategy P&L
         publisher = CloudWatchMetricsPublisher(
             trade_ledger_table_name=trade_ledger_table,
+            stage=stage,
         )
         publisher.publish_strategy_pnl_metrics(correlation_id)
+
+        # Extract and publish capital deployed percentage from event metadata
+        metadata = detail.get("metadata", {})
+        if isinstance(metadata, dict):
+            capital_deployed_pct_str = metadata.get("capital_deployed_pct")
+            if capital_deployed_pct_str is not None:
+                try:
+                    from decimal import Decimal
+
+                    capital_deployed_pct = Decimal(str(capital_deployed_pct_str))
+                    publisher.publish_capital_deployed_metric(capital_deployed_pct, correlation_id)
+                except (TypeError, ValueError) as e:
+                    logger.warning(
+                        f"Failed to parse capital_deployed_pct: {e}",
+                        extra={"correlation_id": correlation_id},
+                    )
 
         logger.info(
             "Metrics published successfully",

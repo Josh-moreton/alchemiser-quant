@@ -918,6 +918,7 @@ Resources:
       Environment:
         Variables:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          STAGE: !Ref Stage
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
@@ -1185,7 +1186,7 @@ Resources:
                   "stat": "Sum",
                   "period": 86400,
                   "metrics": [
-                    [ "Alchemiser/Production", "RealizedPnL", { "stat": "Sum" } ]
+                    [ "Alchemiser/${StageTitle}", "RealizedPnL", { "stat": "Sum" } ]
                   ],
                   "yAxis": {
                     "left": {
@@ -1208,7 +1209,7 @@ Resources:
                   "stat": "Sum",
                   "period": 2592000,
                   "metrics": [
-                    [ "Alchemiser/Production", "RealizedPnL", { "stat": "Sum" } ]
+                    [ "Alchemiser/${StageTitle}", "RealizedPnL", { "stat": "Sum" } ]
                   ],
                   "view": "singleValue"
                 },
@@ -1220,12 +1221,12 @@ Resources:
               {
                 "type": "metric",
                 "properties": {
-                  "title": "Trade Execution Count (Last 7 Days)",
+                  "title": "Trade Count (Last 7 Days)",
                   "region": "${AWS::Region}",
                   "stat": "SampleCount",
                   "period": 86400,
                   "metrics": [
-                    [ "Alchemiser/Production", "RealizedPnL", { "stat": "SampleCount" } ]
+                    [ "Alchemiser/${StageTitle}", "RealizedPnL", { "stat": "SampleCount" } ]
                   ],
                   "yAxis": {
                     "left": {
@@ -1239,6 +1240,48 @@ Resources:
                 "y": 24,
                 "width": 6,
                 "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Capital Deployed (Last 7 Days)",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "metrics": [
+                    [ "Alchemiser/${StageTitle}", "CapitalDeployedPct", { "stat": "Average" } ]
+                  ],
+                  "yAxis": {
+                    "left": {
+                      "label": "%",
+                      "min": 0,
+                      "max": 100
+                    }
+                  },
+                  "view": "timeSeries",
+                  "stacked": false
+                },
+                "x": 0,
+                "y": 30,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Current Capital Deployed",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 300,
+                  "metrics": [
+                    [ "Alchemiser/${StageTitle}", "CapitalDeployedPct", { "stat": "Average" } ]
+                  ],
+                  "view": "singleValue"
+                },
+                "x": 12,
+                "y": 30,
+                "width": 6,
+                "height": 6
               }
             ]
           }
@@ -1247,6 +1290,7 @@ Resources:
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
+          StageTitle: !If [ IsDev, "Dev", "Production" ]
 
 Outputs:
   TradeLedgerTableName:
