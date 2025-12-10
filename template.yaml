@@ -102,8 +102,18 @@ Parameters:
 
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
+Mappings:
+  StageConfig:
+    dev:
+      TitleCase: "Dev"
+    prod:
+      TitleCase: "Production"
+    ephemeral:
+      TitleCase: "Ephemeral"
+
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
+  IsProduction: !Equals [ !Ref Stage, prod ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
@@ -904,7 +914,7 @@ Resources:
   # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization
   MetricsFunction:
     Type: AWS::Serverless::Function
-    Condition: !Not [ !Condition IsDev ]  # Production only
+    Condition: IsProduction
     Properties:
       FunctionName: !Sub "alchemiser-${Stage}-metrics"
       Runtime: python3.12
@@ -948,7 +958,7 @@ Resources:
 
   MetricsExecutionRole:
     Type: AWS::IAM::Role
-    Condition: !Not [ !Condition IsDev ]  # Production only
+    Condition: IsProduction
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -1290,7 +1300,7 @@ Resources:
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
-          StageTitle: !If [ IsDev, "Dev", "Production" ]
+          StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
 Outputs:
   TradeLedgerTableName:
