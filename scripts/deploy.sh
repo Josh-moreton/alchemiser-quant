@@ -35,13 +35,6 @@ if ! command -v sam &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker is running (required for --use-container builds)
-if ! docker info &> /dev/null; then
-    echo "❌ Error: Docker is not running. SAM requires Docker for Lambda-compatible builds."
-    echo "   Please start Docker Desktop and try again."
-    exit 1
-fi
-
 # Check if poetry is available
 if ! command -v poetry &> /dev/null; then
     echo "❌ Error: Poetry is not installed. Please install it first."
@@ -88,9 +81,8 @@ if [ -f ".aws-sam/build/template.yaml" ]; then
     echo "   (To force rebuild, run: rm -rf .aws-sam)"
 else
     echo "🔨 Building SAM application..."
-    # Use --use-container to build in Lambda-compatible environment
     # Note: CodeUri now points to the_alchemiser/ for cleaner packaging
-    sam build --use-container --parallel --config-env "$ENVIRONMENT"
+    sam build --parallel --config-env "$ENVIRONMENT"
 fi
 
 # Show actual built package sizes

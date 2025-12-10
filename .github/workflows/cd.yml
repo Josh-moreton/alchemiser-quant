@@ -88,7 +88,7 @@ jobs:
         run: rm -rf .aws-sam
 
       - name: Build (matching target env)
-        run: sam build --use-container --parallel --config-env "${{ steps.target.outputs.env }}"
+        run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
 
       - name: Prepare environment variables (dev)
         if: steps.target.outputs.env == 'dev'
