@@ -1,10 +1,13 @@
 # Data Refresh Lambda dependencies
-# Uses AWS SDK for pandas (awswrangler) - optimized for Lambda with pandas/pyarrow/numpy
+# Uses fastparquet (lightweight) instead of pyarrow (too large for Lambda layers)
 # Needs: alpaca-py for fetching market data from Alpaca API
 # NOTE: boto3/botocore excluded - Lambda runtime provides them
 
-# AWS SDK for pandas - includes pandas, pyarrow, numpy optimized for Lambda
-awswrangler==3.10.1
+# Core data processing - fastparquet is ~10MB vs pyarrow ~200MB
+pandas==2.3.3
+numpy==1.26.4
+fastparquet==2024.11.0
+cramjam==2.9.1  # Required compression library for fastparquet
 
 # Alpaca SDK (for fetching market data)
 alpaca-py==0.43.0
