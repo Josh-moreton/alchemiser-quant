@@ -581,7 +581,7 @@ Resources:
         - !Sub "alchemiser-${Stage}-strategy"
       Runtime: python3.12
       Architectures:
-        - arm64
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
@@ -662,7 +662,7 @@ Resources:
         - !Sub "alchemiser-${Stage}-portfolio"
       Runtime: python3.12
       Architectures:
-        - arm64
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
@@ -734,7 +734,7 @@ Resources:
         - !Sub "alchemiser-${Stage}-execution"
       Runtime: python3.12
       Architectures:
-        - arm64
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
@@ -826,7 +826,7 @@ Resources:
         - !Sub "alchemiser-${Stage}-notifications"
       Runtime: python3.12
       Architectures:
-        - arm64
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
@@ -927,7 +927,7 @@ Resources:
       FunctionName: !Sub "alchemiser-${Stage}-metrics"
       Runtime: python3.12
       Architectures:
-        - arm64
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.metrics_v2.lambda_handler.lambda_handler
       Role: !GetAtt MetricsExecutionRole.Arn
@@ -1044,12 +1044,12 @@ Resources:
         - !Sub "alchemiser-${Stage}-data"
       Runtime: python3.12
       Architectures:
-        - arm64
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt DataExecutionRole.Arn
       Layers:
-        - !Sub 'arn:aws:lambda:${AWS::Region}:336392948345:layer:AWSSDKPandas-Python312-Arm64:20'  # AWS-managed awswrangler layer for ARM64
+        - !Sub 'arn:aws:lambda:${AWS::Region}:336392948345:layer:AWSSDKPandas-Python312:21'  # AWS-managed awswrangler layer for x86_64
         - !Ref DataLayer  # Our minimal deps (alpaca-py, pydantic, etc)
       Timeout: 900  # 15 minutes max for full data
       MemorySize: 1024
