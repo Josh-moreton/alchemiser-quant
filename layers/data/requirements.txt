@@ -1,48 +1,20 @@
-# Data Refresh Lambda dependencies
-# NOTE: pandas, numpy, pyarrow, boto3 provided by AWS-managed awswrangler layer
-# This layer only contains dependencies NOT in awswrangler
-# Needs: alpaca-py for fetching market data from Alpaca API
-
-# Alpaca SDK (for fetching market data)
-alpaca-py==0.43.0
-
-# Pydantic for schemas/DTOs
-pydantic==2.12.4
-pydantic-settings==2.12.0
-annotated-types==0.7.0
-typing-extensions==4.15.0
-typing-inspection==0.4.2
-
-# Logging
-structlog==25.5.0
-
-# DI container
-dependency-injector==4.48.2
-
-# Caching
-cachetools==6.2.1
-
-# Config
-pyyaml==6.0.3
-
-# HTTP (for Alpaca SDK)
-httpx==0.28.1
-httpcore==1.0.9
-anyio==4.9.0
-sniffio==1.3.1
-h11==0.16.0
-requests==2.32.5
-certifi==2025.11.12
-charset-normalizer==3.4.4
-idna==3.11
-urllib3==2.6.0
-
-# Alpaca SDK dependencies
-msgpack==1.1.2
-sseclient-py==1.8.0
-websockets==15.0.1
-
-# Date/time
-python-dateutil==2.9.0.post0
-pytz==2025.2
-tzdata==2025.2
+# Data Lambda Layer - Reference Documentation
+# =============================================
+# This layer is built via Makefile, NOT pip install from this file.
+# The Makefile downloads pre-built awswrangler and adds alpaca-py.
+#
+# INCLUDED FROM AWSWRANGLER LAYER (3.10.0):
+#   - awswrangler, pandas, numpy, pyarrow
+#   - boto3, botocore, s3transfer
+#   - pydantic, requests, urllib3, certifi
+#   - openpyxl, fsspec, and more
+#
+# ADDED BY MAKEFILE:
+#   - alpaca-py (installed --no-deps to avoid pandas duplication)
+#   - msgpack, sseclient-py, websockets (alpaca-py runtime deps)
+#
+# Total size: ~186MB unzipped (under 250MB Lambda limit)
+#
+# To update versions, edit layers/data/Makefile:
+#   AWSWRANGLER_VERSION := 3.10.0
+#   ALPACA_PY_VERSION := 0.43.0
