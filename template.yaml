@@ -1094,7 +1094,7 @@ Resources:
                   - !GetAtt MarketDataBucket.Arn
                   - !Sub "${MarketDataBucket.Arn}/*"
 
-  # Scheduler to trigger Data (nightly after market close)
+  # Scheduler to trigger Data (nightly after market close + data lag)
   DataSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -1102,8 +1102,8 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-data-schedule"
         - !Sub "alchemiser-${Stage}-data-schedule"
-      Description: "Refresh market data daily at 10 PM UTC (Mon-Fri)"
-      ScheduleExpression: "cron(0 22 ? * MON-FRI *)"
+      Description: "Refresh market data daily at 4 AM UTC / 11 PM ET (Mon-Fri)"
+      ScheduleExpression: "cron(0 4 ? * TUE-SAT *)"  # Runs Tue-Sat to catch Mon-Fri data
       ScheduleExpressionTimezone: "UTC"
       FlexibleTimeWindow:
         Mode: "OFF"
