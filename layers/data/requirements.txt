@@ -1,12 +1,10 @@
 # Data Refresh Lambda dependencies
-# Needs: pandas + fastparquet for Parquet read/write to S3
+# Uses AWS SDK for pandas (awswrangler) - optimized for Lambda with pandas/pyarrow/numpy
 # Needs: alpaca-py for fetching market data from Alpaca API
 # NOTE: boto3/botocore excluded - Lambda runtime provides them
 
-# Core data processing
-pandas==2.3.3
-numpy==1.26.4
-pyarrow==19.0.0  # Required for Parquet support (pandas default)
+# AWS SDK for pandas - includes pandas, pyarrow, numpy optimized for Lambda
+awswrangler==3.10.1
 
 # Alpaca SDK (for fetching market data)
 alpaca-py==0.43.0
