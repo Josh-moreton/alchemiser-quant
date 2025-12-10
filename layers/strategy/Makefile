@@ -46,9 +46,11 @@ build-StrategyLayer:
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 	
-	# Add Strategy-specific deps not in awswrangler (structlog, dependency-injector, cachetools)
+	# Add Strategy-specific deps not in awswrangler
 	@echo "➕ Adding Strategy-specific dependencies..."
 	$(PIP) install -q \
+		pydantic \
+		pydantic-settings \
 		structlog \
 		dependency-injector \
 		cachetools \
