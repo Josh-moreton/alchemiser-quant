@@ -46,6 +46,15 @@ build-DataLayer:
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 	
+	# Add Data-specific deps not in awswrangler
+	@echo "➕ Adding Data-specific dependencies..."
+	$(PIP) install -q \
+		pydantic \
+		pydantic-settings \
+		structlog \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade
+	
 	# Cleanup
 	rm -f /tmp/awswrangler-layer.zip
 	
