@@ -24,8 +24,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.errors.exceptions import (
@@ -641,6 +643,8 @@ def bars_to_dataframe(bars: list[BarModel]) -> pd.DataFrame:
         >>> df['Close'].mean()  # Calculate average close price
 
     """
+    import pandas as pd  # Lazy import to avoid pulling pandas into all modules
+
     if not bars:
         return pd.DataFrame()
 
@@ -680,6 +684,7 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: str) -> list[BarModel]:
         >>> bars = dataframe_to_bars(df, "AAPL")
 
     """
+    # Note: pd.DataFrame type hint works via TYPE_CHECKING import
     bars = []
     for timestamp, row in df.iterrows():
         bars.append(
