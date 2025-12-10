@@ -1033,6 +1033,8 @@ Resources:
         - !Sub "${StackName}-data"
         - !Sub "alchemiser-${Stage}-data"
       Runtime: python3.12
+      Architectures:
+        - x86_64
       CodeUri: ./
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt DataExecutionRole.Arn
