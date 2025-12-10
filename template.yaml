@@ -280,7 +280,8 @@ Resources:
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
 
-  # Strategy Layer: pandas + numpy + pyarrow (for S3 Parquet cache) + alpaca-py
+  # Strategy Layer: awswrangler (pandas, numpy, pyarrow) + alpaca-py
+  # Built via Makefile: downloads pre-built awswrangler, adds alpaca-py
   StrategyLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -288,13 +289,15 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-deps"
         - !Sub "alchemiser-${Stage}-strategy-deps"
-      Description: Strategy Lambda dependencies (pandas, pyarrow, alpaca-py)
+      Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
       ContentUri: layers/strategy/
       CompatibleRuntimes:
         - python3.12
+      CompatibleArchitectures:
+        - x86_64
       RetentionPolicy: Retain
     Metadata:
-      BuildMethod: python3.12
+      BuildMethod: makefile
 
   # Portfolio Layer: alpaca-py + pydantic (no pandas/numpy)
   PortfolioLayer:
@@ -590,9 +593,7 @@ Resources:
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
-        # AWS-managed layer provides pandas, numpy, pyarrow (no container build needed)
-        - !Sub 'arn:aws:lambda:${AWS::Region}:336392948345:layer:AWSSDKPandas-Python312:20'
-        - !Ref StrategyLayer
+        - !Ref StrategyLayer  # awswrangler + alpaca-py (built via Makefile)
       Timeout: 300
       MemorySize: 1024
       Environment:
