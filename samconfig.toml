@@ -27,7 +27,6 @@ resolve_s3 = true
 # Note: EquityDeploymentPct comes from EQUITY_DEPLOYMENT_PCT env var via deploy.sh
 parameter_overrides = [
 	"Stage=dev",
-	"EnableMicroservices=true",
 ]
 
 [prod.deploy.parameters]
@@ -41,7 +40,6 @@ resolve_s3 = true
 # Prod parameters required by the template; credentials loaded via Secrets Manager
 parameter_overrides = [
 	"Stage=prod",
-	"EnableMicroservices=true",
 ]
 
 [ephemeral.build.parameters]

@@ -1,32 +1,21 @@
-# Strategy Lambda dependencies
-# Contains pandas/numpy for indicator computation (no pyarrow - Data Lambda handles Parquet)
-# NO alpaca-py needed - Strategy reads from Data Lambda via DataLambdaClient
-# NOTE: boto3/botocore excluded - Lambda runtime provides them
-
-# Data processing (for indicators)
-pandas==2.3.3
-numpy==1.26.4
-
-# Pydantic for schemas/DTOs
-pydantic==2.12.4
-pydantic-settings==2.12.0
-annotated-types==0.7.0
-typing-extensions==4.15.0
-typing-inspection==0.4.2
-
-# Logging
-structlog==25.5.0
-
-# DI container
-dependency-injector==4.48.2
-
-# Caching
-cachetools==6.2.1
-
-# Config
-pyyaml==6.0.3
-
-# Date/time
-python-dateutil==2.9.0.post0
-pytz==2025.2
-tzdata==2025.2
+# Strategy Lambda Layer - Reference Documentation
+# =============================================
+# This layer is built via Makefile, NOT pip install from this file.
+# The Makefile downloads pre-built awswrangler and adds alpaca-py.
+#
+# INCLUDED FROM AWSWRANGLER LAYER (3.10.0):
+#   - awswrangler, pandas, numpy, pyarrow
+#   - boto3, botocore, s3transfer
+#   - pydantic, requests, urllib3, certifi
+#   - openpyxl, fsspec, and more
+#
+# ADDED BY MAKEFILE:
+#   - alpaca-py (installed --no-deps to avoid pandas duplication)
+#   - msgpack, sseclient-py, websockets (alpaca-py runtime deps)
+#   - structlog, dependency-injector, cachetools (strategy-specific)
+#
+# Total size: ~190MB unzipped (under 250MB Lambda limit)
+#
+# To update versions, edit layers/strategy/Makefile:
+#   AWSWRANGLER_VERSION := 3.10.0
+#   ALPACA_PY_VERSION := 0.43.0

@@ -1,20 +1,23 @@
 """Business Unit: data | Status: current.
 
-Cached market data adapter for S3-backed market data.
+Cached market data adapter for S3-backed market data with live API fallback.
 
 This adapter implements the MarketDataPort interface using S3 Parquet storage
-as the primary data source. For Strategy Lambda, this is the ONLY data source -
-no live Alpaca API calls are made.
+as the primary data source. When cache misses occur, it falls back to the
+live Alpaca API to fetch data on-demand.
 
 Architecture:
-    S3 Cache (Parquet) -> IndicatorService -> DSL Strategy Engine
+    S3 Cache (Parquet) -> [cache miss?] -> Alpaca Live API
+           ↓
+    IndicatorService -> DSL Strategy Engine
 
     Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda reads only from S3 cache.
+    Strategy Lambda reads from S3 cache, with live API fallback.
 """
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -28,7 +31,7 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    pass
+    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = get_logger(__name__)
 
@@ -60,34 +63,143 @@ def _parse_period_to_days(period: str) -> int:
 
 
 class CachedMarketDataAdapter(MarketDataPort):
-    """Market data adapter that uses S3 cache as the sole data source.
+    """Market data adapter that uses S3 cache with live Alpaca API fallback.
 
     This adapter reads historical data from S3 Parquet files populated by the
-    nightly DataRefresh Lambda. It does NOT require alpaca-py or live API access.
+    nightly DataRefresh Lambda. When cache is empty or stale, it falls back to
+    the live Alpaca API to fetch data on-demand.
 
-    For Strategy Lambda, this removes the Alpaca SDK dependency entirely.
+    This ensures strategies can always run, even before the first data refresh.
 
     Attributes:
         market_data_store: S3-backed Parquet storage for historical data
+        _alpaca_manager: Lazy-loaded Alpaca client for fallback
 
     """
 
     def __init__(
         self,
         market_data_store: MarketDataStore | None = None,
+        *,
+        enable_live_fallback: bool = True,
     ) -> None:
         """Initialize cached market data adapter.
 
         Args:
             market_data_store: S3 store for historical data. If None, creates default.
+            enable_live_fallback: Whether to fall back to live Alpaca API on cache miss.
 
         """
         self.market_data_store = market_data_store or MarketDataStore()
+        self._alpaca_manager: AlpacaManager | None = None
+        self._enable_live_fallback = enable_live_fallback
 
-        logger.info("CachedMarketDataAdapter initialized (S3-only, no fallback)")
+        logger.info(
+            "CachedMarketDataAdapter initialized",
+            live_fallback_enabled=enable_live_fallback,
+        )
+
+    def _get_alpaca_manager(self) -> AlpacaManager:
+        """Lazy-load Alpaca manager for fallback queries."""
+        if self._alpaca_manager is None:
+            from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+
+            self._alpaca_manager = AlpacaManager(
+                api_key=os.environ.get("ALPACA__KEY", ""),
+                secret_key=os.environ.get("ALPACA__SECRET", ""),
+                paper=True,  # Data API works same for paper/live
+            )
+            logger.info("Alpaca manager initialized for live fallback")
+        return self._alpaca_manager
+
+    def _fetch_from_live_api(
+        self,
+        symbol_str: str,
+        lookback_days: int,
+    ) -> list[BarModel]:
+        """Fetch bars from live Alpaca API.
+
+        Args:
+            symbol_str: Ticker symbol
+            lookback_days: Number of days to look back
+
+        Returns:
+            List of BarModel objects from live API
+
+        """
+        from the_alchemiser.shared.services.market_data_service import MarketDataService
+
+        logger.info(
+            "Fetching from live Alpaca API (cache miss)",
+            symbol=symbol_str,
+            lookback_days=lookback_days,
+        )
+
+        try:
+            alpaca = self._get_alpaca_manager()
+            market_data_service = MarketDataService(alpaca)
+
+            # Calculate date range
+            end_date = datetime.now(UTC).date()
+            start_date = end_date - timedelta(days=lookback_days)
+
+            # Fetch bars from Alpaca (returns list of dicts)
+            bars_data = market_data_service.get_historical_bars(
+                symbol=symbol_str,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                timeframe="1Day",
+            )
+
+            if not bars_data:
+                logger.warning(
+                    "Live API returned no bars",
+                    symbol=symbol_str,
+                )
+                return []
+
+            # Convert dict data to BarModel list
+            bars: list[BarModel] = []
+            for bar_dict in bars_data:
+                # Parse timestamp
+                ts = bar_dict.get("timestamp")
+                if isinstance(ts, str):
+                    if ts.endswith("Z"):
+                        ts = ts[:-1] + "+00:00"
+                    ts = datetime.fromisoformat(ts)
+                elif ts is None:
+                    continue
+
+                bar = BarModel(
+                    symbol=symbol_str,
+                    timestamp=ts,
+                    open=Decimal(str(bar_dict["open"])),
+                    high=Decimal(str(bar_dict["high"])),
+                    low=Decimal(str(bar_dict["low"])),
+                    close=Decimal(str(bar_dict["close"])),
+                    volume=int(bar_dict["volume"]),
+                )
+                bars.append(bar)
+
+            logger.info(
+                "Live API returned bars",
+                symbol=symbol_str,
+                bars_count=len(bars),
+            )
+
+            return bars
+
+        except Exception as e:
+            logger.error(
+                "Live API fallback failed",
+                symbol=symbol_str,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return []
 
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
-        """Fetch historical bars from S3 cache.
+        """Fetch historical bars from S3 cache, with live API fallback.
 
         Args:
             symbol: Trading symbol
@@ -98,7 +210,7 @@ class CachedMarketDataAdapter(MarketDataPort):
             List of BarModel objects, oldest first
 
         Raises:
-            ValueError: If timeframe is not "1Day" or symbol data not found
+            ValueError: If timeframe is not "1Day"
 
         """
         symbol_str = str(symbol)
@@ -118,10 +230,12 @@ class CachedMarketDataAdapter(MarketDataPort):
 
         if df is None or df.empty:
             logger.warning(
-                "No cached data found - ensure DataRefresh has run",
+                "No cached data found",
                 symbol=symbol_str,
             )
-            # Return empty list - let caller handle missing data gracefully
+            # Fall back to live API if enabled
+            if self._enable_live_fallback:
+                return self._fetch_from_live_api(symbol_str, lookback_days)
             return []
 
         # Ensure timestamp column and sort
@@ -130,6 +244,9 @@ class CachedMarketDataAdapter(MarketDataPort):
                 "Cached data missing timestamp column",
                 symbol=symbol_str,
             )
+            # Fall back to live API if enabled
+            if self._enable_live_fallback:
+                return self._fetch_from_live_api(symbol_str, lookback_days)
             return []
 
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
@@ -145,6 +262,9 @@ class CachedMarketDataAdapter(MarketDataPort):
                 symbol=symbol_str,
                 lookback_days=lookback_days,
             )
+            # Fall back to live API if enabled
+            if self._enable_live_fallback:
+                return self._fetch_from_live_api(symbol_str, lookback_days)
             return []
 
         # Convert DataFrame to BarModel list
