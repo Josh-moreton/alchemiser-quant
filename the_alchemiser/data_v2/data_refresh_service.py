@@ -106,8 +106,8 @@ class DataRefreshService:
         # Get existing metadata
         metadata = self.market_data_store.get_metadata(symbol)
 
-        # Calculate end date (yesterday, since today's bar isn't complete)
-        end_date = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+        # Calculate end date (today - Alpaca will only return completed bars)
+        end_date = datetime.now(UTC).strftime("%Y-%m-%d")
 
         if metadata is None:
             # No existing data - fetch full history
