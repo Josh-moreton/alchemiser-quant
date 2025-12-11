@@ -136,7 +136,7 @@ publish_notification(subject="...", message="...")
 - Type-check only: `make type-check`.
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
 - **Deployment (CRITICAL - READ CAREFULLY):**
-  - **DEV/BETA deployment:** `make deploy-beta` - ALWAYS use this for testing changes
+  - **DEV deployment:** `make deploy-dev` - ALWAYS use this for testing changes
   - **PRODUCTION deployment:** `make deploy` - ONLY after thorough testing in dev
   - **NEVER run `sam deploy` directly** - it defaults to production!
   - **NEVER run `sam deploy --no-confirm-changeset`** without `--config-env dev`
