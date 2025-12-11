@@ -11,6 +11,7 @@ Implements DSL operators for computing technical indicators:
 - cumulative-return: Cumulative return calculation
 - exponential-moving-average-price: Exponential moving average
 - stdev-return: Standard deviation of returns
+- stdev-price: Standard deviation of raw prices
 - max-drawdown: Maximum drawdown calculation
 - ma: Deprecated moving average (raises error)
 - volatility: Deprecated volatility (raises error)
@@ -400,6 +401,54 @@ def stdev_return(args: list[ASTNode], context: DslContext) -> float:
     raise DslEvaluationError(f"Stdev return for {symbol_val} window={window} not available")
 
 
+def stdev_price(args: list[ASTNode], context: DslContext) -> float:
+    """Evaluate stdev-price via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError("stdev-price requires symbol and parameters")
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    window = params.get("window", 6)
+    if not isinstance(window, int | float):
+        window = int(context.as_decimal(window))
+
+    request = IndicatorRequest(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="stdev_price",
+        parameters={"window": window},
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if window == 6 and indicator.stdev_price_6 is not None:
+        return indicator.stdev_price_6
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_stdev_price_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
+
+    raise DslEvaluationError(f"Stdev price for {symbol_val} window={window} not available")
+
+
 def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate max-drawdown via IndicatorService."""
     if len(args) < 2:
@@ -458,6 +507,7 @@ def register_indicator_operators(dispatcher: DslDispatcher) -> None:
     dispatcher.register("cumulative-return", cumulative_return)
     dispatcher.register("exponential-moving-average-price", exponential_moving_average_price)
     dispatcher.register("stdev-return", stdev_return)
+    dispatcher.register("stdev-price", stdev_price)
     dispatcher.register("max-drawdown", max_drawdown)
     dispatcher.register("ma", moving_average)
     dispatcher.register("volatility", volatility)

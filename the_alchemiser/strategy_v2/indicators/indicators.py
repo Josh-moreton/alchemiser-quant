@@ -395,6 +395,59 @@ class TechnicalIndicators:
             raise MarketDataError(f"Failed to calculate standard deviation of returns: {e}") from e
 
     @staticmethod
+    def stdev_price(data: pd.Series, window: int) -> pd.Series:
+        """Return rolling standard deviation of raw price values.
+
+        Computes the volatility of prices over a rolling window. Unlike stdev_return
+        which measures return volatility, this indicator measures price volatility
+        directly in dollar terms. Useful for position sizing and risk assessment
+        when absolute price movement matters.
+
+        Args:
+            data (pd.Series): Price data series (typically closing prices).
+            window (int): Number of periods for the rolling window calculation.
+
+        Returns:
+            pd.Series: Standard deviation of raw prices in the same units as input.
+                The first (window-1) values will be NaN due to insufficient data.
+
+        Raises:
+            MarketDataError: If window is not positive or data contains invalid values.
+
+        Example:
+            >>> prices = pd.Series([100, 102, 98, 105, 103, 107])
+            >>> vol = TechnicalIndicators.stdev_price(prices, 3)
+            >>> print(f"3-day price stdev: ${vol.iloc[-1]:.2f}")
+            3-day price stdev: $2.00
+
+        Note:
+            Returns standard deviation of raw prices over a rolling window.
+            For a $100 stock with stdev_price of $5, prices typically vary by ~$5.
+
+        """
+        # Input validation
+        if window <= 0:
+            msg = f"Standard deviation window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to stdev_price calculation")
+            return pd.Series(dtype=float)
+
+        if len(data) < window:
+            logger.warning(
+                f"Insufficient data for stdev_price: {len(data)} < {window}, returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
+
+        try:
+            return data.rolling(window=window, min_periods=window).std()
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating standard deviation of prices: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate standard deviation of prices: {e}") from e
+
+    @staticmethod
     def max_drawdown(data: pd.Series, window: int) -> pd.Series:
         """Return rolling maximum drawdown over window (percentage magnitude).
 

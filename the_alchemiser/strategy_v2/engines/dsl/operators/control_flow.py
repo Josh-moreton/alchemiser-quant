@@ -34,6 +34,7 @@ DEFAULT_INDICATOR_WINDOWS = {
     "cumulative-return": 60,
     "exponential-moving-average-price": 12,
     "stdev-return": 6,
+    "stdev-price": 6,
     "max-drawdown": 60,
 }
 
@@ -45,6 +46,7 @@ RECOGNIZED_INDICATORS = {
     "cumulative-return",
     "exponential-moving-average-price",
     "stdev-return",
+    "stdev-price",
     "max-drawdown",
 }
 

@@ -76,6 +76,9 @@ class TechnicalIndicator(BaseModel):
     stdev_return_6: float | None = Field(
         default=None, ge=0, description="6-period return standard deviation"
     )
+    stdev_price_6: float | None = Field(
+        default=None, ge=0, description="6-period price standard deviation"
+    )
 
     # Volatility indicators
     volatility_14: float | None = Field(default=None, ge=0, description="14-period volatility")

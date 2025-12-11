@@ -412,6 +412,53 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
+    def _compute_stdev_price(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicator:
+        """Compute standard deviation of raw prices indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for standard deviation computation
+            parameters: Indicator parameters, including 'window' (default: 6)
+
+        Returns:
+            TechnicalIndicator with standard deviation of prices
+
+        Raises:
+            DslEvaluationError: If standard deviation cannot be computed or is NaN
+
+        """
+        window = int(parameters.get("window", 6))
+        std_series = self.technical_indicators.stdev_price(prices, window=window)
+
+        latest = float(std_series.iloc[-1]) if len(std_series) > 0 else None
+        if latest is None or pd.isna(latest):
+            logger.error(
+                "Standard deviation price computation failed",
+                module=MODULE_NAME,
+                symbol=symbol,
+                window=window,
+            )
+            raise DslEvaluationError(f"No stdev-price for {symbol} window={window}")
+
+        logger.debug(
+            "Standard deviation price computed",
+            module=MODULE_NAME,
+            symbol=symbol,
+            window=window,
+            value=latest,
+        )
+
+        return TechnicalIndicator(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None),
+            stdev_price_6=latest if window == 6 else None,
+            data_source="real_market_data",
+            metadata={"value": latest, "window": window},
+        )
+
     def _required_bars(self, ind_type: str, params: dict[str, int | float | str]) -> int:
         """Compute required bars based on indicator type and parameters.
 
@@ -438,6 +485,7 @@ class IndicatorService:
         if ind_type in {
             "moving_average_return",
             "stdev_return",
+            "stdev_price",
             "cumulative_return",
         }:
             # Need at least window plus some extra for pct_change/shift stability
@@ -613,6 +661,7 @@ class IndicatorService:
                 "cumulative_return": self._compute_cumulative_return,
                 "exponential_moving_average_price": self._compute_ema,
                 "stdev_return": self._compute_stdev_return,
+                "stdev_price": self._compute_stdev_price,
                 "max_drawdown": self._compute_max_drawdown,
             }
 

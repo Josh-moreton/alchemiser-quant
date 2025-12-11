@@ -244,10 +244,10 @@ class SignalGenerationHandler:
 
         """
         try:
-            from the_alchemiser.data_v2 import DataFreshnessValidator, MarketDataStore
-
             # Get bucket name from environment
             import os
+
+            from the_alchemiser.data_v2 import DataFreshnessValidator, MarketDataStore
 
             bucket_name = os.environ.get("MARKET_DATA_BUCKET")
             if not bucket_name:

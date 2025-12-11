@@ -51,6 +51,7 @@ INDICATOR_PATTERNS = [
     re.compile(r'\(cumulative-return\s+"([A-Z]{1,6})"'),
     re.compile(r'\(exponential-moving-average-price\s+"([A-Z]{1,6})"'),
     re.compile(r'\(stdev-return\s+"([A-Z]{1,6})"'),
+    re.compile(r'\(stdev-price\s+"([A-Z]{1,6})"'),
     re.compile(r'\(max-drawdown\s+"([A-Z]{1,6})"'),
     re.compile(r'\(volatility\s+"([A-Z]{1,6})"'),
 ]

@@ -25,6 +25,7 @@ IndicatorType = Literal[
     "cumulative_return",
     "exponential_moving_average_price",
     "stdev_return",
+    "stdev_price",
     "max_drawdown",
 ]
 
