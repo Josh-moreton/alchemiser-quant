@@ -232,6 +232,57 @@ class SignalGenerationHandler:
             self._emit_workflow_failure(event, str(e))
             raise
 
+    def _validate_data_freshness(self) -> None:
+        """Validate that cached market data is fresh enough for strategy execution.
+
+        Checks that all symbols have data through at least yesterday (accounting for
+        weekends/holidays). Logs warnings for stale data but does not block execution
+        since the fallback chain can refresh on-demand if needed.
+
+        Raises:
+            DataProviderError: If data validation cannot be performed (e.g., S3 unavailable)
+
+        """
+        try:
+            from the_alchemiser.data_v2 import DataFreshnessValidator, MarketDataStore
+
+            # Get bucket name from environment
+            import os
+
+            bucket_name = os.environ.get("MARKET_DATA_BUCKET")
+            if not bucket_name:
+                self.logger.warning(
+                    "MARKET_DATA_BUCKET not set - skipping data freshness validation"
+                )
+                return
+
+            # Create validator with MarketDataStore
+            store = MarketDataStore(bucket_name=bucket_name)
+            validator = DataFreshnessValidator(
+                market_data_store=store,
+                max_staleness_days=2,  # Tolerate 2 days for weekend data
+            )
+
+            # Validate all symbols in S3 (DSL strategies may reference any symbol)
+            # Don't raise on stale - just log warnings. Fallback chain handles refresh.
+            is_fresh, stale_symbols = validator.validate_data_freshness(raise_on_stale=False)
+
+            if not is_fresh and stale_symbols:
+                self.logger.warning(
+                    f"⚠️ Detected stale data for {len(stale_symbols)} symbols. "
+                    f"Fallback chain will refresh on-demand if needed. "
+                    f"Stale symbols: {list(stale_symbols.keys())[:10]}"
+                )
+
+        except ImportError as e:
+            self.logger.warning(f"Could not import data freshness validator: {e}")
+        except Exception as e:
+            # Don't fail signal generation if validation fails - log and continue
+            self.logger.warning(
+                f"Data freshness validation failed (non-fatal): {e}",
+                extra={"error_type": type(e).__name__},
+            )
+
     def _generate_signals(
         self, correlation_id: str
     ) -> tuple[dict[str, Any], ConsolidatedPortfolio, list[StrategySignal]]:
@@ -244,6 +295,9 @@ class SignalGenerationHandler:
             Tuple of (strategy_signals dict, ConsolidatedPortfolio, raw_signals list)
 
         """
+        # Validate data freshness before running strategies
+        self._validate_data_freshness()
+
         # Use DSL strategy engine directly for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
 

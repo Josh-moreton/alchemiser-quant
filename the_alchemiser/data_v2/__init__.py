@@ -11,6 +11,7 @@ Components:
     - DataRefreshService: Orchestrates incremental data updates from Alpaca (lazy import)
     - CachedMarketDataAdapter: MarketDataPort implementation using S3 cache
     - SymbolExtractor: Discovers symbols from strategy DSL files
+    - DataFreshnessValidator: Validates data freshness for strategy execution
 
 Note: DataRefreshService is NOT imported at module level to avoid pulling in
 alpaca-py for Lambdas that only need to READ from the cache (e.g., Strategy Lambda).
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING
 from the_alchemiser.data_v2.cached_market_data_adapter import (
     CachedMarketDataAdapter,
 )
+from the_alchemiser.data_v2.data_freshness_validator import DataFreshnessValidator
 from the_alchemiser.data_v2.market_data_store import MarketDataStore, SymbolMetadata
 from the_alchemiser.data_v2.symbol_extractor import (
     get_all_configured_symbols,
@@ -43,6 +45,7 @@ def __getattr__(name: str) -> object:
 
 __all__ = [
     "CachedMarketDataAdapter",
+    "DataFreshnessValidator",
     "DataRefreshService",
     "MarketDataStore",
     "SymbolMetadata",
