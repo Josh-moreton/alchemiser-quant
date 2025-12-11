@@ -55,7 +55,9 @@ class DslEngine(EventHandler):
             indicator_service: Optional pre-configured indicator service (for testing)
 
         """
-        from the_alchemiser.strategy_v2.adapters.data_lambda_client import DataLambdaClient
+        from the_alchemiser.data_v2.cached_market_data_adapter import (
+            CachedMarketDataAdapter,
+        )
         from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
         self.logger = get_logger(__name__)
@@ -68,13 +70,13 @@ class DslEngine(EventHandler):
         # Initialize components
         self.parser = SexprParser()
 
-        # Use provided indicator service or create one with DataLambdaClient
+        # Use provided indicator service or create one with CachedMarketDataAdapter
         if indicator_service:
             self.indicator_service = indicator_service
         else:
-            # DataLambdaClient fetches bars from Data Lambda (which reads S3 Parquet)
+            # CachedMarketDataAdapter reads bars directly from S3 Parquet
             # IndicatorService computes indicators locally using pandas/numpy
-            market_data_client = DataLambdaClient()
+            market_data_client = CachedMarketDataAdapter()
             self.indicator_service = IndicatorService(market_data_service=market_data_client)
 
         self.evaluator = DslEvaluator(self.indicator_service, event_bus)

@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.data_v2.cached_market_data_adapter import (
+    CachedMarketDataAdapter,
+)
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
     MarketDataError,
@@ -37,7 +40,6 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
-from the_alchemiser.strategy_v2.adapters.data_lambda_client import DataLambdaClient
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 from the_alchemiser.strategy_v2.errors import (
     ConfigurationError,
@@ -421,8 +423,8 @@ class SignalGenerationHandler:
         """
         indicators: dict[str, dict[str, float]] = {}
 
-        # Use DataLambdaClient for market data, IndicatorService for computation
-        market_data_client = DataLambdaClient()
+        # Use CachedMarketDataAdapter for market data, IndicatorService for computation
+        market_data_client = CachedMarketDataAdapter()
         indicator_service = IndicatorService(market_data_service=market_data_client)
 
         for symbol in symbols:
