@@ -659,6 +659,14 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !GetAtt DataFunction.Arn
+              # S3 permissions for market data bucket (freshness validation)
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt MarketDataBucket.Arn
+                  - !Sub "${MarketDataBucket.Arn}/*"
 
   # Portfolio Lambda - Rebalance planning microservice
   PortfolioFunction:

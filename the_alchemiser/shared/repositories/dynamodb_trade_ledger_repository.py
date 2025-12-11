@@ -144,6 +144,9 @@ class DynamoDBTradeLedgerRepository:
                 "direction": entry.direction,
                 "weight": str(weight),
                 "strategy_trade_value": str(strategy_trade_value),
+                # Add quantity and price for FIFO P&L calculation
+                "quantity": str(entry.filled_qty * weight),
+                "price": str(entry.fill_price),
                 "fill_timestamp": timestamp_str,
                 "created_at": datetime.now(UTC).isoformat(),
                 # GSI3 for strategy queries

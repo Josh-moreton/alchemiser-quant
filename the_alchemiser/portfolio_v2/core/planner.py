@@ -35,6 +35,12 @@ PRIORITY_THRESHOLD_1K = Decimal("1000")
 PRIORITY_THRESHOLD_100 = Decimal("100")
 PRIORITY_THRESHOLD_50 = Decimal("50")
 
+# Capital constraint validation tolerance
+# Handles Decimal arithmetic precision artifacts (e.g., 1E-25 differences)
+# that can occur when computing buy amounts vs available capital.
+# $0.01 tolerance is well below any meaningful trading threshold.
+CAPITAL_CONSTRAINT_TOLERANCE = Decimal("0.01")
+
 # Portfolio weight validation tolerance
 # Matches tolerance from StrategyAllocation DTO (0.99 to 1.01)
 # Weights should sum to ~100% of deployable capital
@@ -513,24 +519,28 @@ class RebalancePlanCalculator:
             effective_bp = snapshot.margin.effective_buying_power or snapshot.margin.buying_power
             # Net capital needed = buys - sells (sells free up buying power)
             net_buy_needed = total_buy_amount - total_sell_proceeds
-            if net_buy_needed > effective_bp:
+            # Use tolerance to handle Decimal precision artifacts (e.g., 1E-25 differences)
+            deficit = net_buy_needed - effective_bp
+            if deficit > CAPITAL_CONSTRAINT_TOLERANCE:
                 raise PortfolioError(
                     f"Cannot execute rebalance: requires ${net_buy_needed} net BUY capital "
                     f"(total buys: ${total_buy_amount}, sell proceeds: ${total_sell_proceeds}) "
                     f"but only ${effective_bp} buying power available. "
-                    f"Deficit: ${net_buy_needed - effective_bp}. "
+                    f"Deficit: ${deficit}. "
                     f"Consider reducing equity_deployment_pct.",
                     module=MODULE_NAME,
                     operation="_validate_capital_constraints",
                 )
         else:
             # Cash-only mode: buys must be covered by cash + sells
-            if total_buy_amount > available_capital:
+            # Use tolerance to handle Decimal precision artifacts (e.g., 1E-25 differences)
+            deficit = total_buy_amount - available_capital
+            if deficit > CAPITAL_CONSTRAINT_TOLERANCE:
                 raise PortfolioError(
                     f"Cannot execute rebalance: requires ${total_buy_amount} in BUY orders "
                     f"but only ${available_capital} available "
                     f"(current cash: ${snapshot.cash}, sell proceeds: ${total_sell_proceeds}). "
-                    f"Deficit: ${total_buy_amount - available_capital}",
+                    f"Deficit: ${deficit}",
                     module=MODULE_NAME,
                     operation="_validate_capital_constraints",
                 )

@@ -234,18 +234,24 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1000.00",
+                    "quantity": "10.0",
+                    "price": "100.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "500.00",
+                    "quantity": "5.0",
+                    "price": "100.00",
                     "symbol": "TSLA",
                     "fill_timestamp": "2025-01-16T10:00:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "800.00",
+                    "quantity": "10.0",
+                    "price": "80.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-17T15:00:00Z",
                 },
@@ -261,6 +267,8 @@ class TestDynamoDBTradeLedgerRepository:
         assert performance["total_buy_value"] == Decimal("1500.00")
         assert performance["total_sell_value"] == Decimal("800.00")
         assert performance["gross_pnl"] == Decimal("-700.00")
+        # Realized P&L: AAPL matched pair (80 - 100) * 10 = -200
+        assert performance["realized_pnl"] == Decimal("-200.00")
         assert set(performance["symbols_traded"]) == {"AAPL", "TSLA"}
 
     def test_compute_strategy_performance_no_trades(self, repository, mock_dynamodb_table):
@@ -276,7 +284,12 @@ class TestDynamoDBTradeLedgerRepository:
 
     def test_query_error_handling(self, repository, mock_dynamodb_table):
         """Test that query errors are handled gracefully."""
-        mock_dynamodb_table.query.side_effect = Exception("DynamoDB error")
+        from botocore.exceptions import ClientError
+
+        mock_dynamodb_table.query.side_effect = ClientError(
+            {"Error": {"Code": "InternalServerError", "Message": "DynamoDB error"}},
+            "Query",
+        )
 
         results = repository.query_trades_by_correlation("corr-123")
 
@@ -289,12 +302,16 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1000.00",
+                    "quantity": "10.0",
+                    "price": "100.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1200.00",
+                    "quantity": "10.0",
+                    "price": "120.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T10:00:00Z",
                 },
@@ -303,7 +320,7 @@ class TestDynamoDBTradeLedgerRepository:
 
         performance = repository.compute_strategy_performance("nuclear")
 
-        # Realized P&L should be sell value - buy value
+        # Realized P&L should be (sell_price - buy_price) * quantity = (120 - 100) * 10 = 200
         assert performance["realized_pnl"] == Decimal("200.00")
         assert performance["gross_pnl"] == Decimal("200.00")
         assert performance["total_trades"] == 2
@@ -315,24 +332,32 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1000.00",
+                    "quantity": "10.0",
+                    "price": "100.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1500.00",
+                    "quantity": "10.0",
+                    "price": "150.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T09:00:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1200.00",
+                    "quantity": "10.0",
+                    "price": "120.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T10:00:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1800.00",
+                    "quantity": "10.0",
+                    "price": "180.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-17T15:00:00Z",
                 },
@@ -341,8 +366,8 @@ class TestDynamoDBTradeLedgerRepository:
 
         performance = repository.compute_strategy_performance("nuclear")
 
-        # First pair: 1200 - 1000 = 200
-        # Second pair: 1800 - 1500 = 300
+        # First pair: (120 - 100) * 10 = 200
+        # Second pair: (180 - 150) * 10 = 300
         # Total realized P&L: 500
         assert performance["realized_pnl"] == Decimal("500.00")
         assert performance["gross_pnl"] == Decimal("500.00")
@@ -354,18 +379,24 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1000.00",
+                    "quantity": "10.0",
+                    "price": "100.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1500.00",
+                    "quantity": "10.0",
+                    "price": "150.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T09:00:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1200.00",
+                    "quantity": "10.0",
+                    "price": "120.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T10:00:00Z",
                 },
@@ -374,7 +405,7 @@ class TestDynamoDBTradeLedgerRepository:
 
         performance = repository.compute_strategy_performance("nuclear")
 
-        # Only one matched pair: 1200 - 1000 = 200
+        # Only one matched pair: (120 - 100) * 10 = 200
         # Second buy (1500) remains unmatched (open position)
         assert performance["realized_pnl"] == Decimal("200.00")
         # Gross P&L includes all trades: (1200) - (1000 + 1500) = -1300
@@ -387,24 +418,32 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1000.00",
+                    "quantity": "10.0",
+                    "price": "100.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1100.00",
+                    "quantity": "10.0",
+                    "price": "110.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T10:00:00Z",
                 },
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "2000.00",
+                    "quantity": "10.0",
+                    "price": "200.00",
                     "symbol": "TSLA",
                     "fill_timestamp": "2025-01-15T15:00:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1900.00",
+                    "quantity": "10.0",
+                    "price": "190.00",
                     "symbol": "TSLA",
                     "fill_timestamp": "2025-01-16T11:00:00Z",
                 },
@@ -413,8 +452,8 @@ class TestDynamoDBTradeLedgerRepository:
 
         performance = repository.compute_strategy_performance("nuclear")
 
-        # AAPL: 1100 - 1000 = 100
-        # TSLA: 1900 - 2000 = -100
+        # AAPL: (110 - 100) * 10 = 100
+        # TSLA: (190 - 200) * 10 = -100
         # Total realized P&L: 0
         assert performance["realized_pnl"] == Decimal("0.00")
 
@@ -425,18 +464,24 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1000.00",
+                    "quantity": "10.0",
+                    "price": "100.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "1200.00",
+                    "quantity": "10.0",
+                    "price": "120.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T09:00:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1150.00",
+                    "quantity": "10.0",
+                    "price": "115.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-17T15:00:00Z",
                 },
@@ -446,7 +491,7 @@ class TestDynamoDBTradeLedgerRepository:
         performance = repository.compute_strategy_performance("nuclear")
 
         # FIFO: First sell should match against first buy
-        # 1150 - 1000 = 150 (not 1150 - 1200 = -50)
+        # (115 - 100) * 10 = 150 (not (115 - 120) * 10 = -50)
         assert performance["realized_pnl"] == Decimal("150.00")
 
     def test_realized_pnl_loss_scenario(self, repository, mock_dynamodb_table):
@@ -456,12 +501,16 @@ class TestDynamoDBTradeLedgerRepository:
                 {
                     "direction": "BUY",
                     "strategy_trade_value": "2000.00",
+                    "quantity": "10.0",
+                    "price": "200.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-15T14:30:00Z",
                 },
                 {
                     "direction": "SELL",
                     "strategy_trade_value": "1500.00",
+                    "quantity": "10.0",
+                    "price": "150.00",
                     "symbol": "AAPL",
                     "fill_timestamp": "2025-01-16T10:00:00Z",
                 },
@@ -470,7 +519,7 @@ class TestDynamoDBTradeLedgerRepository:
 
         performance = repository.compute_strategy_performance("nuclear")
 
-        # Realized loss: 1500 - 2000 = -500
+        # Realized loss: (150 - 200) * 10 = -500
         assert performance["realized_pnl"] == Decimal("-500.00")
         assert performance["gross_pnl"] == Decimal("-500.00")
 
