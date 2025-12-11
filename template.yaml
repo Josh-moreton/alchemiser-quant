@@ -599,6 +599,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          MARKET_DATA_BUCKET: !Ref MarketDataBucket
           ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
