@@ -328,7 +328,8 @@ class DataRefreshService:
             lookback_days=lookback_days,
         )
 
-        end_date = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+        # Use today as end_date - Alpaca only returns completed bars
+        end_date = datetime.now(UTC).strftime("%Y-%m-%d")
         start_date = (datetime.now(UTC) - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         results: dict[str, bool] = {}

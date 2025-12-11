@@ -594,7 +594,7 @@ Resources:
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
         - !Ref StrategyLayer  # awswrangler + alpaca-py (built via Makefile)
-      Timeout: 300
+      Timeout: 900  # Max timeout for on-demand data fetching
       MemorySize: 1024
       Environment:
         Variables:
@@ -675,7 +675,7 @@ Resources:
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
         - !Ref PortfolioLayer
-      Timeout: 300
+      Timeout: 900  # Max timeout for comprehensive processing
       MemorySize: 1024
       Environment:
         Variables:

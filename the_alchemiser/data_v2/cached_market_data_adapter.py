@@ -1,18 +1,19 @@
 """Business Unit: data | Status: current.
 
-Cached market data adapter for S3-backed market data with live API fallback.
+Cached market data adapter for S3-backed market data with pluggable fallback.
 
 This adapter implements the MarketDataPort interface using S3 Parquet storage
-as the primary data source. When cache misses occur, it falls back to the
-live Alpaca API to fetch data on-demand.
+as the primary data source. When cache misses occur, it delegates to a
+configurable fallback adapter (e.g., DataLambdaClient for on-demand refresh,
+or direct Alpaca API calls).
 
 Architecture:
-    S3 Cache (Parquet) -> [cache miss?] -> Alpaca Live API
-           ↓
-    IndicatorService -> DSL Strategy Engine
+    S3 Cache (Parquet) -> [cache miss?] -> Fallback Adapter
+           ↓                                    ↓
+    IndicatorService <- DSL Strategy Engine <- Strategy Lambda
 
     Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda reads from S3 cache, with live API fallback.
+    Strategy Lambda reads from S3 cache, with fallback for on-demand fetch.
 """
 
 from __future__ import annotations
@@ -63,17 +64,23 @@ def _parse_period_to_days(period: str) -> int:
 
 
 class CachedMarketDataAdapter(MarketDataPort):
-    """Market data adapter that uses S3 cache with live Alpaca API fallback.
+    """Market data adapter that uses S3 cache with pluggable fallback.
 
     This adapter reads historical data from S3 Parquet files populated by the
-    nightly DataRefresh Lambda. When cache is empty or stale, it falls back to
-    the live Alpaca API to fetch data on-demand.
+    nightly DataRefresh Lambda. When cache is empty or stale, it delegates to
+    a configurable fallback adapter to fetch data on-demand.
+
+    Fallback options:
+    1. DataLambdaClient: Invokes Data Lambda for refresh (no alpaca-py needed)
+    2. Direct Alpaca API: Falls back to live Alpaca API (requires alpaca-py)
+    3. None: Returns empty data on cache miss
 
     This ensures strategies can always run, even before the first data refresh.
 
     Attributes:
         market_data_store: S3-backed Parquet storage for historical data
-        _alpaca_manager: Lazy-loaded Alpaca client for fallback
+        fallback_adapter: Optional MarketDataPort for cache miss handling
+        _alpaca_manager: Lazy-loaded Alpaca client for direct API fallback
 
     """
 
@@ -81,21 +88,27 @@ class CachedMarketDataAdapter(MarketDataPort):
         self,
         market_data_store: MarketDataStore | None = None,
         *,
-        enable_live_fallback: bool = True,
+        fallback_adapter: MarketDataPort | None = None,
+        enable_live_fallback: bool = False,
     ) -> None:
         """Initialize cached market data adapter.
 
         Args:
             market_data_store: S3 store for historical data. If None, creates default.
-            enable_live_fallback: Whether to fall back to live Alpaca API on cache miss.
+            fallback_adapter: Optional adapter to use on cache miss (e.g., DataLambdaClient).
+                             Takes precedence over enable_live_fallback.
+            enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
+                                 Only used if fallback_adapter is None.
 
         """
         self.market_data_store = market_data_store or MarketDataStore()
+        self._fallback_adapter = fallback_adapter
         self._alpaca_manager: AlpacaManager | None = None
         self._enable_live_fallback = enable_live_fallback
 
         logger.info(
             "CachedMarketDataAdapter initialized",
+            has_fallback_adapter=fallback_adapter is not None,
             live_fallback_enabled=enable_live_fallback,
         )
 
@@ -198,8 +211,52 @@ class CachedMarketDataAdapter(MarketDataPort):
             )
             return []
 
+    def _handle_cache_miss(
+        self,
+        symbol: Symbol,
+        symbol_str: str,
+        period: str,
+        timeframe: str,
+        lookback_days: int,
+    ) -> list[BarModel]:
+        """Handle cache miss by delegating to fallback.
+
+        Args:
+            symbol: Trading symbol object
+            symbol_str: Symbol as string
+            period: Lookback period string
+            timeframe: Bar interval string
+            lookback_days: Number of days to look back
+
+        Returns:
+            List of bars from fallback, or empty list
+
+        """
+        # Priority 1: Use pluggable fallback adapter (e.g., DataLambdaClient)
+        if self._fallback_adapter is not None:
+            logger.info(
+                "Cache miss - delegating to fallback adapter",
+                symbol=symbol_str,
+            )
+            return self._fallback_adapter.get_bars(symbol, period, timeframe)
+
+        # Priority 2: Direct Alpaca API fallback
+        if self._enable_live_fallback:
+            logger.info(
+                "Cache miss - falling back to live Alpaca API",
+                symbol=symbol_str,
+            )
+            return self._fetch_from_live_api(symbol_str, lookback_days)
+
+        # No fallback available
+        logger.warning(
+            "Cache miss and no fallback configured",
+            symbol=symbol_str,
+        )
+        return []
+
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
-        """Fetch historical bars from S3 cache, with live API fallback.
+        """Fetch historical bars from S3 cache, with fallback on miss.
 
         Args:
             symbol: Trading symbol
@@ -233,10 +290,7 @@ class CachedMarketDataAdapter(MarketDataPort):
                 "No cached data found",
                 symbol=symbol_str,
             )
-            # Fall back to live API if enabled
-            if self._enable_live_fallback:
-                return self._fetch_from_live_api(symbol_str, lookback_days)
-            return []
+            return self._handle_cache_miss(symbol, symbol_str, period, timeframe, lookback_days)
 
         # Ensure timestamp column and sort
         if "timestamp" not in df.columns:
@@ -244,10 +298,7 @@ class CachedMarketDataAdapter(MarketDataPort):
                 "Cached data missing timestamp column",
                 symbol=symbol_str,
             )
-            # Fall back to live API if enabled
-            if self._enable_live_fallback:
-                return self._fetch_from_live_api(symbol_str, lookback_days)
-            return []
+            return self._handle_cache_miss(symbol, symbol_str, period, timeframe, lookback_days)
 
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
@@ -262,10 +313,7 @@ class CachedMarketDataAdapter(MarketDataPort):
                 symbol=symbol_str,
                 lookback_days=lookback_days,
             )
-            # Fall back to live API if enabled
-            if self._enable_live_fallback:
-                return self._fetch_from_live_api(symbol_str, lookback_days)
-            return []
+            return self._handle_cache_miss(symbol, symbol_str, period, timeframe, lookback_days)
 
         # Convert DataFrame to BarModel list
         bars: list[BarModel] = []

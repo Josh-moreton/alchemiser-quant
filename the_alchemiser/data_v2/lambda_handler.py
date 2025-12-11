@@ -47,6 +47,84 @@ def _get_market_data_adapter() -> CachedMarketDataAdapter:
     return _market_data_adapter
 
 
+def _handle_refresh_single(event: dict[str, Any]) -> dict[str, Any]:
+    """Handle refresh_single action for on-demand data fetch.
+
+    Fetches fresh data from Alpaca for a single symbol and stores in S3.
+    Used by Strategy Lambda when cache miss occurs.
+
+    Args:
+        event: Request with symbol, correlation_id
+
+    Returns:
+        Response with refresh status
+
+    """
+    symbol = event.get("symbol")
+    correlation_id = event.get("correlation_id", "unknown")
+
+    if not symbol:
+        return {
+            "statusCode": 400,
+            "body": {
+                "error": "ValidationError",
+                "message": "symbol is required",
+                "correlation_id": correlation_id,
+            },
+        }
+
+    logger.info(
+        "refresh_single request",
+        symbol=symbol,
+        correlation_id=correlation_id,
+    )
+
+    try:
+        service = DataRefreshService()
+        success = service.refresh_symbol(symbol)
+
+        if success:
+            logger.info(
+                "refresh_single completed",
+                symbol=symbol,
+                correlation_id=correlation_id,
+            )
+            return {
+                "statusCode": 200,
+                "body": {
+                    "status": "success",
+                    "symbol": symbol,
+                    "correlation_id": correlation_id,
+                },
+            }
+        return {
+            "statusCode": 500,
+            "body": {
+                "status": "failed",
+                "symbol": symbol,
+                "message": "Failed to refresh symbol",
+                "correlation_id": correlation_id,
+            },
+        }
+
+    except Exception as e:
+        logger.error(
+            "refresh_single failed",
+            symbol=symbol,
+            error=str(e),
+            error_type=type(e).__name__,
+            correlation_id=correlation_id,
+        )
+        return {
+            "statusCode": 500,
+            "body": {
+                "error": type(e).__name__,
+                "message": str(e),
+                "correlation_id": correlation_id,
+            },
+        }
+
+
 def _handle_get_bars(event: dict[str, Any]) -> dict[str, Any]:
     """Handle get_bars action for fetching historical data.
 
@@ -161,6 +239,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     if action == "get_bars":
         return _handle_get_bars(event)
+
+    if action == "refresh_single":
+        return _handle_refresh_single(event)
 
     # Default: data refresh workflow
     # Generate correlation ID for this workflow

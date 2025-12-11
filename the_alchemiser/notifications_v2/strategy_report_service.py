@@ -499,7 +499,13 @@ class StrategyPerformanceReportService:
         Returns:
             S3 object key
 
+        Raises:
+            ValueError: If bucket_name is not configured
+
         """
+        if not self.bucket_name:
+            raise ValueError("bucket_name is required for S3 upload")
+
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
         object_key = f"reports/{timestamp}_{correlation_id[:8]}_strategy_performance.csv"
 

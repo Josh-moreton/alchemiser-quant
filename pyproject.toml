@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "6.6.0"
+version = "6.7.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -161,3 +161,4 @@ pytest-timeout = "^2.4.0"
 mypy-boto3-sns = "^1.41.0"
 mypy-boto3-s3 = "^1.42.1"
 mypy-boto3-events = "^1.41.0"
+boto3-stubs = {extras = ["events", "lambda", "s3", "sns"], version = "^1.42.7"}
