@@ -270,6 +270,55 @@ class TestStdevReturn:
 
 
 @pytest.mark.unit
+class TestStdevPrice:
+    """Test standard deviation of raw prices calculations."""
+
+    def test_stdev_price_calculation(self):
+        """Standard deviation price should calculate correctly."""
+        prices = pd.Series([100.0, 102.0, 98.0, 105.0, 103.0, 110.0])
+        stdev = TechnicalIndicators.stdev_price(prices, window=3)
+
+        # Should return a series of same length
+        assert len(stdev) == len(prices)
+
+        # Values should be positive (or NaN for insufficient data)
+        valid_values = stdev.dropna()
+        assert all(valid_values >= 0)
+
+    def test_stdev_price_known_values(self):
+        """Standard deviation price should match known calculation."""
+        # Simple case: constant prices should have zero stdev
+        prices = pd.Series([100.0, 100.0, 100.0, 100.0, 100.0])
+        stdev = TechnicalIndicators.stdev_price(prices, window=3)
+
+        # Last value should be zero (all same prices)
+        assert stdev.iloc[-1] == 0.0
+
+    def test_stdev_price_handles_insufficient_data(self):
+        """Standard deviation price should handle insufficient data."""
+        prices = pd.Series([100.0, 101.0])
+        stdev = TechnicalIndicators.stdev_price(prices, window=5)
+
+        # Should return zero series
+        assert all(stdev == 0)
+
+    def test_stdev_price_rejects_negative_window(self):
+        """Standard deviation price should reject negative window."""
+        prices = pd.Series([100.0] * 20)
+
+        with pytest.raises(MarketDataError, match="must be positive"):
+            TechnicalIndicators.stdev_price(prices, window=-1)
+
+    def test_stdev_price_handles_empty_series(self):
+        """Standard deviation price should handle empty series gracefully."""
+        prices = pd.Series(dtype=float)
+        stdev = TechnicalIndicators.stdev_price(prices, window=3)
+
+        assert len(stdev) == 0
+        assert isinstance(stdev, pd.Series)
+
+
+@pytest.mark.unit
 class TestMaxDrawdown:
     """Test maximum drawdown calculations."""
 
