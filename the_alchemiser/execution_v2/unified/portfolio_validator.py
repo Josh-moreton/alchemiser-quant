@@ -200,6 +200,8 @@ class PortfolioValidator:
         logger.warning(
             "Portfolio validation discrepancy detected",
             **log_extra,
+            initial_position=str(initial_position),
+            filled_qty=str(walk_result.total_filled),
             expected_position=str(expected_position),
             actual_position=str(actual_position),
             discrepancy=str(discrepancy),
@@ -356,9 +358,11 @@ class PortfolioValidator:
                 # This is just a warning, not a failure
                 # The actual close will use the current position
 
-            logger.debug(
+            logger.info(
                 "Pre-execution validation passed",
                 symbol=intent.symbol,
+                side=intent.side.value,
+                order_qty=str(intent.quantity),
                 initial_position=str(initial_position),
                 correlation_id=intent.correlation_id,
             )
