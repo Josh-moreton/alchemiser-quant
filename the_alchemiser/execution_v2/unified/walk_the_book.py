@@ -59,6 +59,7 @@ class OrderAttempt:
         status: Final status of this attempt
         filled_quantity: How much was filled
         avg_fill_price: Average fill price
+        broker_error_message: Error message from broker if order failed
 
     """
 
@@ -70,6 +71,7 @@ class OrderAttempt:
     status: OrderStatus
     filled_quantity: Decimal
     avg_fill_price: Decimal | None
+    broker_error_message: str | None = None
 
 
 @dataclass
@@ -189,6 +191,9 @@ class WalkTheBookStrategy:
                 limit_price=str(limit_price),
                 price_ratio=price_ratio,
                 remaining_quantity=str(remaining_quantity),
+                quote_bid=str(quote.bid),
+                quote_ask=str(quote.ask),
+                quote_spread=str(quote.spread),
             )
 
             # Place limit order for this step
@@ -228,10 +233,13 @@ class WalkTheBookStrategy:
 
             # Check if order failed
             if attempt.status == OrderStatus.REJECTED:
+                broker_error = attempt.broker_error_message or "Unknown rejection reason"
                 logger.error(
                     "Order rejected during walk-the-book",
                     **log_extra,
                     step=step_index + 1,
+                    broker_error=broker_error,
+                    limit_price=str(limit_price),
                 )
                 return WalkResult(
                     success=False,
@@ -239,7 +247,7 @@ class WalkTheBookStrategy:
                     final_order_id=None,
                     total_filled=total_filled,
                     avg_fill_price=None,
-                    error_message=f"Order rejected at step {step_index + 1}",
+                    error_message=f"Order rejected at step {step_index + 1}: {broker_error}",
                 )
 
             # Wait for this step's time period
@@ -395,6 +403,15 @@ class WalkTheBookStrategy:
             )
 
             if result.success and result.order_id:
+                logger.debug(
+                    "Limit order placed successfully",
+                    symbol=intent.symbol,
+                    step=step,
+                    quantity=str(quantity),
+                    limit_price=str(limit_price),
+                    order_id=result.order_id,
+                    correlation_id=intent.correlation_id,
+                )
                 return OrderAttempt(
                     step=step,
                     price=limit_price,
@@ -406,6 +423,18 @@ class WalkTheBookStrategy:
                     avg_fill_price=None,
                 )
 
+            # Extract error message from result - this is the actual broker rejection reason
+            broker_error = getattr(result, "error", None) or "Order rejected by broker"
+            logger.warning(
+                "Limit order rejected by broker",
+                symbol=intent.symbol,
+                step=step,
+                quantity=str(quantity),
+                limit_price=str(limit_price),
+                broker_error=broker_error,
+                result_status=getattr(result, "status", "unknown"),
+                correlation_id=intent.correlation_id,
+            )
             return OrderAttempt(
                 step=step,
                 price=limit_price,
@@ -415,14 +444,19 @@ class WalkTheBookStrategy:
                 status=OrderStatus.REJECTED,
                 filled_quantity=Decimal("0"),
                 avg_fill_price=None,
+                broker_error_message=broker_error,
             )
 
         except Exception as e:
+            error_msg = str(e)
             logger.error(
-                "Failed to place limit order",
+                "Failed to place limit order (exception)",
                 symbol=intent.symbol,
                 step=step,
-                error=str(e),
+                quantity=str(quantity),
+                limit_price=str(limit_price),
+                error=error_msg,
+                error_type=type(e).__name__,
                 correlation_id=intent.correlation_id,
             )
             return OrderAttempt(
@@ -434,6 +468,7 @@ class WalkTheBookStrategy:
                 status=OrderStatus.FAILED,
                 filled_quantity=Decimal("0"),
                 avg_fill_price=None,
+                broker_error_message=f"Exception: {error_msg}",
             )
 
     async def _place_market_order_step(

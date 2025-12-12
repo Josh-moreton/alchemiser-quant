@@ -288,6 +288,7 @@ class Executor:
         correlation_id: str | None = None,
         *,
         is_complete_exit: bool = False,
+        planned_trade_amount: Decimal | None = None,
     ) -> OrderResult:
         """Execute an order using the unified placement service.
 
@@ -297,6 +298,7 @@ class Executor:
             quantity: Number of shares
             correlation_id: Correlation ID for tracking
             is_complete_exit: If True and side is 'sell', this is a full position close
+            planned_trade_amount: Original planned dollar amount from rebalance plan (for audit)
 
         Returns:
             OrderResult with order details.
@@ -387,11 +389,16 @@ class Executor:
             else:
                 order_type = "LIMIT"  # Default to LIMIT for other strategies
 
+            # Calculate executed trade amount (may be 0 on failure)
+            executed_trade_amount = abs(execution_result.total_filled * fill_price)
+
             return OrderResult(
                 symbol=symbol,
                 action=action,  # type: ignore[arg-type]
-                trade_amount=abs(execution_result.total_filled * fill_price),
+                trade_amount=executed_trade_amount,
+                planned_trade_amount=planned_trade_amount,
                 shares=execution_result.total_filled,
+                planned_shares=quantity,
                 price=fill_price,
                 order_id=execution_result.final_order_id,
                 success=execution_result.success,
@@ -953,8 +960,10 @@ class Executor:
         return OrderResult(
             symbol=item.symbol,
             action=action,  # type: ignore[arg-type]
-            trade_amount=abs(item.trade_amount),
+            trade_amount=Decimal("0"),  # No trade occurred
+            planned_trade_amount=abs(item.trade_amount),  # Preserve original amount for audit
             shares=Decimal("0"),
+            planned_shares=None,  # Not known at this point
             price=None,
             order_id=None,
             success=False,
@@ -1024,7 +1033,9 @@ class Executor:
                         symbol=item.symbol,
                         action="SELL",
                         trade_amount=abs(item.trade_amount),
+                        planned_trade_amount=abs(item.trade_amount),
                         shares=shares,
+                        planned_shares=shares,
                         price=None,  # Will be filled when order completes
                         order_id=order_id,
                         success=True,
@@ -1049,6 +1060,7 @@ class Executor:
                 quantity=shares,
                 correlation_id=correlation_id,
                 is_complete_exit=is_full_liquidation,  # Flag for quantity adjustment in market fallback
+                planned_trade_amount=abs(item.trade_amount),  # Preserve original amount for audit
             )
 
             # Log result
