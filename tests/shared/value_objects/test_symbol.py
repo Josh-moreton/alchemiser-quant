@@ -106,10 +106,11 @@ class TestSymbol:
         with pytest.raises(ValueError, match="Symbol contains invalid characters"):
             Symbol("AAPL_TEST")
 
-    def test_symbol_with_slash_invalid(self):
-        """Test that symbol with slash raises ValueError."""
-        with pytest.raises(ValueError, match="Symbol contains invalid characters"):
-            Symbol("AAPL/USD")
+    def test_symbol_with_slash_valid(self):
+        """Test that symbol with slash is valid (e.g., BRK/B)."""
+        symbol = Symbol("BRK/B")
+        assert symbol.value == "BRK/B"
+        assert str(symbol) == "BRK/B"
 
     def test_symbol_too_long_invalid(self):
         """Test that symbol exceeding max length raises ValueError."""
@@ -178,6 +179,21 @@ class TestSymbol:
         with pytest.raises(ValueError, match="Symbol contains invalid characters"):
             Symbol("AAPL.")
 
+    def test_symbol_edge_case_consecutive_slashes_invalid(self):
+        """Test that symbol with consecutive slashes is invalid."""
+        with pytest.raises(ValueError, match="Symbol contains invalid characters"):
+            Symbol("A//B")
+
+    def test_symbol_edge_case_leading_slash_invalid(self):
+        """Test that symbol with leading slash is invalid."""
+        with pytest.raises(ValueError, match="Symbol contains invalid characters"):
+            Symbol("/AAPL")
+
+    def test_symbol_edge_case_trailing_slash_invalid(self):
+        """Test that symbol with trailing slash is invalid."""
+        with pytest.raises(ValueError, match="Symbol contains invalid characters"):
+            Symbol("AAPL/")
+
     def test_symbol_leading_whitespace_trimmed(self):
         """Test that leading whitespace is trimmed."""
         symbol = Symbol("  AAPL")
@@ -238,6 +254,11 @@ class TestSymbolBusinessRules:
         """Test BRK.B symbol (Berkshire Hathaway Class B) from test_trading_business_rules.py."""
         symbol = Symbol("BRK.B")
         assert symbol.value == "BRK.B"
+
+    def test_symbol_berkshire_hathaway_class_b_slash_format(self):
+        """Test BRK/B symbol (Berkshire Hathaway Class B with slash notation)."""
+        symbol = Symbol("BRK/B")
+        assert symbol.value == "BRK/B"
 
     def test_symbol_berkshire_hathaway_class_a(self):
         """Test BRK.A symbol (Berkshire Hathaway Class A)."""

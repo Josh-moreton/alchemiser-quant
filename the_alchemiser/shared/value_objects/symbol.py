@@ -18,7 +18,7 @@ class Symbol:
     Validation rules:
     - Must not be empty after stripping whitespace
     - Must not contain spaces
-    - Allowed characters: alphanumeric (A-Z, 0-9), dots (.), and hyphens (-)
+    - Allowed characters: alphanumeric (A-Z, 0-9), dots (.), hyphens (-), and slashes (/)
     - Maximum length: 10 characters (accommodates OTC stocks and crypto pairs)
     - Automatically normalized to uppercase
 
@@ -31,6 +31,8 @@ class Symbol:
         Symbol(value='BTCUSD')
         >>> Symbol("BRK-B")  # Hyphens allowed
         Symbol(value='BRK-B')
+        >>> Symbol("BRK/B")  # Slashes allowed (Berkshire Class B)
+        Symbol(value='BRK/B')
 
     Raises:
         ValueError: If symbol is empty, contains spaces, has invalid characters,
@@ -51,25 +53,30 @@ class Symbol:
         normalized = self.value.strip().upper()
 
         # Validate not empty
-        if not normalized or normalized.replace(".", "").replace("-", "") == "":
+        if not normalized or normalized.replace(".", "").replace("-", "").replace("/", "") == "":
             raise ValueError("Symbol must not be empty")
 
         # Validate no internal spaces
         if " " in normalized:
             raise ValueError("Symbol must not contain spaces")
 
-        # Validate allowed characters: alphanumeric, dots, and hyphens
-        # But disallow multiple consecutive dots or leading/trailing dots/hyphens
-        if ".." in normalized or "--" in normalized:
-            raise ValueError("Symbol contains invalid characters: consecutive dots or hyphens")
-        if normalized[0] in ".-" or normalized[-1] in ".-":
-            raise ValueError("Symbol contains invalid characters: leading or trailing dot/hyphen")
+        # Validate allowed characters: alphanumeric, dots, hyphens, and slashes
+        # But disallow multiple consecutive dots or leading/trailing special chars
+        if ".." in normalized or "--" in normalized or "//" in normalized:
+            raise ValueError(
+                "Symbol contains invalid characters: consecutive dots, hyphens, or slashes"
+            )
+        if normalized[0] in ".-/" or normalized[-1] in ".-/":
+            raise ValueError(
+                "Symbol contains invalid characters: leading or trailing dot/hyphen/slash"
+            )
 
         # Check for invalid characters
-        allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
+        allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-/")
         if not all(c in allowed_chars for c in normalized):
             raise ValueError(
-                "Symbol contains invalid characters: only alphanumeric, dots, and hyphens allowed"
+                "Symbol contains invalid characters: "
+                "only alphanumeric, dots, hyphens, and slashes allowed"
             )
 
         # Validate length (max 10 for OTC stocks and crypto pairs)
