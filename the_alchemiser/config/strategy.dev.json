@@ -1,14 +1,28 @@
 {
   "files": [        
-    "2026/beam.clj",
-    "2026/ftlt-2x.clj",
-    "2026/beefier.clj",
-    "2026/wakanda.clj"
+    "dev/2xftlt.clj",
+    "dev/beam.clj",
+    "dev/beefier.clj",
+    "dev/chicken.clj",
+    "dev/nova.clj",
+    "dev/rain.clj",
+    "dev/voxport.clj",
+    "dev/wakanda.clj",
+    "dev/bento.clj",
+    "dev/sisyphus.clj",
+    "dev/slow.clj"
   ],
   "allocations": {
-    "2026/beam.clj": 0.25,
-    "2026/ftlt-2x.clj": 0.25,
-    "2026/beefier.clj": 0.25,
-    "2026/wakanda.clj": 0.25
+    "dev/2xftlt.clj": 0.1,
+    "dev/beam.clj": 0.09,
+    "dev/beefier.clj": 0.09,
+    "dev/chicken.clj": 0.09,
+    "dev/nova.clj": 0.09,
+    "dev/rain.clj": 0.09,
+    "dev/voxport.clj": 0.09,
+    "dev/wakanda.clj": 0.09,
+    "dev/bento.clj": 0.09,
+    "dev/sisyphus.clj": 0.09,
+    "dev/slow.clj": 0.09
   }
 }
