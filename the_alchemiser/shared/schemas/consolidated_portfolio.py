@@ -79,6 +79,12 @@ class ConsolidatedPortfolio(BaseModel):
         ..., description="Target allocation weights by symbol (symbol -> weight 0-1)"
     )
 
+    # Strategy contribution tracking (for P&L attribution)
+    strategy_contributions: dict[str, dict[str, Decimal]] = Field(
+        default_factory=dict,
+        description="Per-strategy allocation breakdown: {strategy_id: {symbol: weight}}",
+    )
+
     # Correlation tracking
     correlation_id: str = Field(
         ..., min_length=1, max_length=100, description="Correlation ID for tracking"
@@ -345,6 +351,55 @@ class ConsolidatedPortfolio(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_strategy_contributions(self) -> ConsolidatedPortfolio:
+        """Validate strategy contributions are consistent with target allocations.
+
+        Ensures that for each symbol, the sum of strategy contributions matches
+        the total allocation weight. Empty strategy_contributions is valid for
+        backward compatibility.
+
+        Raises:
+            ValueError: If contributions don't sum correctly to target allocations
+
+        Examples:
+            Valid: target_allocations={"AAPL": 1.0}, strategy_contributions={}
+            Valid: target_allocations={"AAPL": 1.0}, strategy_contributions={"momentum": {"AAPL": 0.6}, "mean_rev": {"AAPL": 0.4}}
+            Invalid: target_allocations={"AAPL": 1.0}, strategy_contributions={"momentum": {"AAPL": 0.5}}
+
+        """
+        # Empty contributions is valid (backward compatibility)
+        if not self.strategy_contributions:
+            return self
+
+        # Validate each symbol's contributions sum to target allocation
+        for symbol, target_weight in self.target_allocations.items():
+            contribution_sum = Decimal("0")
+            for strategy_id, allocations in self.strategy_contributions.items():
+                if symbol in allocations:
+                    contribution_sum += allocations[symbol]
+
+            # Use same tolerance as allocation sum validation
+            diff = abs(target_weight - contribution_sum)
+            if diff > ALLOCATION_SUM_TOLERANCE:
+                logger.warning(
+                    "Strategy contributions don't match target allocation",
+                    extra={
+                        "module": "consolidated_portfolio",
+                        "validator": "validate_strategy_contributions",
+                        "symbol": symbol,
+                        "target_weight": str(target_weight),
+                        "contribution_sum": str(contribution_sum),
+                        "difference": str(diff),
+                    },
+                )
+                raise ValueError(
+                    f"Strategy contributions for {symbol} sum to {contribution_sum}, "
+                    f"expected {target_weight} (tolerance {ALLOCATION_SUM_TOLERANCE})"
+                )
+
+        return self
+
     @classmethod
     def from_dict_allocation(
         cls,
@@ -448,6 +503,19 @@ class ConsolidatedPortfolio(BaseModel):
                 normalized["target_allocations"] = {
                     symbol: Decimal(str(weight)) if not isinstance(weight, Decimal) else weight
                     for symbol, weight in allocations.items()
+                }
+
+        # Convert strategy_contributions from string to Decimal
+        if "strategy_contributions" in normalized:
+            contributions = normalized["strategy_contributions"]
+            if isinstance(contributions, dict):
+                normalized["strategy_contributions"] = {
+                    strategy_id: {
+                        symbol: Decimal(str(weight)) if not isinstance(weight, Decimal) else weight
+                        for symbol, weight in strategy_allocs.items()
+                    }
+                    for strategy_id, strategy_allocs in contributions.items()
+                    if isinstance(strategy_allocs, dict)
                 }
 
         # Parse timestamp if it's a string

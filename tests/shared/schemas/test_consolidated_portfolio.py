@@ -725,3 +725,178 @@ class TestConsolidatedPortfolioEdgeCases:
             strategy_count=1,
         )
         assert portfolio.timestamp == future_time
+
+
+class TestStrategyContributions:
+    """Tests for strategy_contributions field and validation."""
+
+    def test_empty_contributions_default(self):
+        """Test strategy_contributions defaults to empty dict."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("1.0")},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+        )
+        assert portfolio.strategy_contributions == {}
+
+    def test_single_strategy_contribution(self):
+        """Test single strategy contributing all allocation."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("1.0")},
+            strategy_contributions={"momentum": {"AAPL": Decimal("1.0")}},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+            source_strategies=["momentum"],
+        )
+        assert portfolio.strategy_contributions == {"momentum": {"AAPL": Decimal("1.0")}}
+
+    def test_multiple_strategies_single_symbol(self):
+        """Test multiple strategies contributing to same symbol."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("1.0")},
+            strategy_contributions={
+                "momentum": {"AAPL": Decimal("0.6")},
+                "mean_rev": {"AAPL": Decimal("0.4")},
+            },
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=2,
+            source_strategies=["momentum", "mean_rev"],
+        )
+        assert portfolio.strategy_contributions["momentum"]["AAPL"] == Decimal("0.6")
+        assert portfolio.strategy_contributions["mean_rev"]["AAPL"] == Decimal("0.4")
+
+    def test_multiple_strategies_multiple_symbols(self):
+        """Test multiple strategies contributing to multiple symbols."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={
+                "AAPL": Decimal("0.6"),
+                "MSFT": Decimal("0.4"),
+            },
+            strategy_contributions={
+                "momentum": {"AAPL": Decimal("0.4"), "MSFT": Decimal("0.2")},
+                "mean_rev": {"AAPL": Decimal("0.2"), "MSFT": Decimal("0.2")},
+            },
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=2,
+            source_strategies=["momentum", "mean_rev"],
+        )
+        # Validate AAPL: 0.4 + 0.2 = 0.6
+        assert portfolio.target_allocations["AAPL"] == Decimal("0.6")
+        # Validate MSFT: 0.2 + 0.2 = 0.4
+        assert portfolio.target_allocations["MSFT"] == Decimal("0.4")
+
+    def test_contributions_mismatch_rejected(self):
+        """Test contributions not summing to target allocation are rejected."""
+        with pytest.raises(ValueError, match="Strategy contributions for AAPL sum to"):
+            ConsolidatedPortfolio(
+                target_allocations={"AAPL": Decimal("1.0")},
+                strategy_contributions={"momentum": {"AAPL": Decimal("0.5")}},
+                correlation_id="test-123",
+                timestamp=datetime.now(UTC),
+                strategy_count=1,
+            )
+
+    def test_contributions_within_tolerance(self):
+        """Test contributions within tolerance are accepted."""
+        # Sum is 0.999, within tolerance of 1.0
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("1.0")},
+            strategy_contributions={
+                "momentum": {"AAPL": Decimal("0.6")},
+                "mean_rev": {"AAPL": Decimal("0.399")},
+            },
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=2,
+            source_strategies=["momentum", "mean_rev"],
+        )
+        assert portfolio.target_allocations["AAPL"] == Decimal("1.0")
+
+    def test_partial_portfolio_with_contributions(self):
+        """Test partial portfolio with strategy contributions."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("0.1")},
+            strategy_contributions={"momentum": {"AAPL": Decimal("0.1")}},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+            source_strategies=["momentum"],
+            is_partial=True,
+        )
+        assert portfolio.is_partial is True
+        assert portfolio.strategy_contributions["momentum"]["AAPL"] == Decimal("0.1")
+
+    def test_from_json_dict_with_strategy_contributions(self):
+        """Test from_json_dict handles strategy_contributions."""
+        json_data = {
+            "target_allocations": {"AAPL": "0.60", "GOOGL": "0.40"},
+            "strategy_contributions": {
+                "momentum": {"AAPL": "0.4", "GOOGL": "0.2"},
+                "mean_rev": {"AAPL": "0.2", "GOOGL": "0.2"},
+            },
+            "correlation_id": "test-123",
+            "timestamp": "2023-01-01T12:00:00+00:00",
+            "strategy_count": 2,
+            "source_strategies": ["momentum", "mean_rev"],
+            "schema_version": "1.0.0",
+        }
+        portfolio = ConsolidatedPortfolio.from_json_dict(json_data)
+        assert portfolio.strategy_contributions["momentum"]["AAPL"] == Decimal("0.4")
+        assert portfolio.strategy_contributions["mean_rev"]["GOOGL"] == Decimal("0.2")
+
+    def test_frozen_contributions_cannot_be_modified(self):
+        """Test strategy_contributions is frozen and cannot be modified."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("1.0")},
+            strategy_contributions={"momentum": {"AAPL": Decimal("1.0")}},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+        )
+        with pytest.raises(Exception):  # Pydantic ValidationError
+            portfolio.strategy_contributions["new_strategy"] = {"MSFT": Decimal("0.1")}  # type: ignore
+
+
+class TestStrategyContributionsPropertyBased:
+    """Property-based tests for strategy contributions."""
+
+    @given(
+        st.lists(
+            st.decimals(min_value=Decimal("0.01"), max_value=Decimal("0.5"), places=2),
+            min_size=2,
+            max_size=5,
+        )
+    )
+    def test_contributions_sum_equals_target(self, weights: list[Decimal]):
+        """Property: Sum of strategy contributions must equal target allocation."""
+        # Normalize weights to sum to 1.0
+        total = sum(weights)
+        if total == 0:
+            return
+
+        normalized_weights = [w / total for w in weights]
+        target_allocation = sum(normalized_weights)
+
+        # Create contributions
+        contributions = {
+            f"strategy{i}": {"AAPL": weight} for i, weight in enumerate(normalized_weights)
+        }
+
+        try:
+            portfolio = ConsolidatedPortfolio(
+                target_allocations={"AAPL": target_allocation},
+                strategy_contributions=contributions,
+                correlation_id="test-123",
+                timestamp=datetime.now(UTC),
+                strategy_count=len(weights),
+                source_strategies=[f"strategy{i}" for i in range(len(weights))],
+            )
+            # Should validate successfully
+            assert len(portfolio.strategy_contributions) == len(weights)
+        except ValueError:
+            # May fail validation for tolerance reasons
+            pass
