@@ -94,6 +94,11 @@ class DynamoDBTradeLedgerRepository:
         }
 
         # Optional fields
+        if entry.plan_id:
+            trade_item["plan_id"] = entry.plan_id
+            # GSI7 for plan_id queries
+            trade_item["GSI7PK"] = f"PLAN#{entry.plan_id}"
+            trade_item["GSI7SK"] = f"TRADE#{timestamp_str}#{entry.order_id}"
         if entry.bid_at_fill:
             trade_item["bid_at_fill"] = str(entry.bid_at_fill)
         if entry.ask_at_fill:
@@ -273,6 +278,35 @@ class DynamoDBTradeLedgerRepository:
                 strategy_name=strategy_name,
                 error=str(e),
             )
+            return []
+
+    def query_trades_by_plan(self, plan_id: str, limit: int | None = None) -> list[dict[str, Any]]:
+        """Query trades by plan_id using GSI7.
+
+        Args:
+            plan_id: Rebalance plan identifier
+            limit: Max items to return
+
+        Returns:
+            List of trade items (most recent first)
+
+        """
+        try:
+            kwargs: dict[str, Any] = {
+                "IndexName": "GSI7-PlanIndex",
+                "KeyConditionExpression": "GSI7PK = :pk",
+                "ExpressionAttributeValues": {":pk": f"PLAN#{plan_id}"},
+                "ScanIndexForward": False,
+            }
+
+            if limit:
+                kwargs["Limit"] = limit
+
+            response = self._table.query(**kwargs)
+            items = response.get("Items", [])
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error("Failed to query trades by plan_id", plan_id=plan_id, error=str(e))
             return []
 
     def _group_trades_by_symbol(

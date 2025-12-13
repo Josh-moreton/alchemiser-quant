@@ -102,6 +102,9 @@ class TradeLedgerService:
         if not self._is_order_recordable(order_result, correlation_id):
             return None
 
+        # Extract plan_id from rebalance plan
+        plan_id = rebalance_plan.plan_id if rebalance_plan else None
+
         # Extract strategy attribution
         strategy_names, strategy_weights = self._extract_strategy_attribution(
             order_result.symbol, rebalance_plan
@@ -118,6 +121,7 @@ class TradeLedgerService:
         entry = self._create_entry(
             order_result=order_result,
             correlation_id=correlation_id,
+            plan_id=plan_id,
             bid_at_fill=bid_at_fill,
             ask_at_fill=ask_at_fill,
             fill_timestamp=fill_timestamp,
@@ -243,6 +247,7 @@ class TradeLedgerService:
         self,
         order_result: OrderResult,
         correlation_id: str,
+        plan_id: str | None,
         bid_at_fill: Decimal | None,
         ask_at_fill: Decimal | None,
         fill_timestamp: datetime,
@@ -255,6 +260,7 @@ class TradeLedgerService:
         Args:
             order_result: The order execution result
             correlation_id: Correlation ID for traceability
+            plan_id: Rebalance plan ID for plan-level traceability
             bid_at_fill: Bid price at fill time
             ask_at_fill: Ask price at fill time
             fill_timestamp: Timestamp of the fill
@@ -274,6 +280,7 @@ class TradeLedgerService:
             entry = TradeLedgerEntry(
                 order_id=order_result.order_id,
                 correlation_id=correlation_id,
+                plan_id=plan_id,
                 symbol=order_result.symbol,
                 direction=order_result.action,
                 filled_qty=order_result.shares,

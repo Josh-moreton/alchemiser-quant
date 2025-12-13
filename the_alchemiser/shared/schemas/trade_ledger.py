@@ -39,6 +39,9 @@ class TradeLedgerEntry(BaseModel):
     # Core trade identification
     order_id: str = Field(..., min_length=1, description="Broker order ID")
     correlation_id: str = Field(..., min_length=1, description="Correlation ID for traceability")
+    plan_id: str | None = Field(
+        default=None, min_length=1, description="Rebalance plan ID for plan-level traceability"
+    )
 
     # Asset and direction
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")

@@ -155,6 +155,88 @@ class TestTradeLedgerService:
         assert entry.strategy_weights["momentum_strategy"] == Decimal("0.6")
         assert entry.strategy_weights["mean_reversion_strategy"] == Decimal("0.4")
 
+    def test_record_filled_order_with_plan_id(self):
+        """Test recording a filled order with plan_id from rebalance plan."""
+        service = TradeLedgerService()
+
+        # Create rebalance plan with plan_id
+        plan = RebalancePlan(
+            correlation_id="corr-plan",
+            causation_id="cause-plan",
+            timestamp=datetime.now(UTC),
+            plan_id="portfolio_v2_abc123_1702468800",
+            items=[
+                RebalancePlanItem(
+                    symbol="AAPL",
+                    current_weight=Decimal("0.0"),
+                    target_weight=Decimal("0.5"),
+                    weight_diff=Decimal("0.5"),
+                    target_value=Decimal("5000"),
+                    current_value=Decimal("0"),
+                    trade_amount=Decimal("5000"),
+                    action="BUY",
+                    priority=1,
+                )
+            ],
+            total_portfolio_value=Decimal("10000"),
+            total_trade_value=Decimal("5000"),
+        )
+
+        order_result = OrderResult(
+            symbol="AAPL",
+            action="BUY",
+            trade_amount=Decimal("5000.00"),
+            shares=Decimal("50"),
+            price=Decimal("100.00"),
+            order_id="order-plan",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-plan",
+            rebalance_plan=plan,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.plan_id == "portfolio_v2_abc123_1702468800"
+        assert entry.order_id == "order-plan"
+        assert entry.symbol == "AAPL"
+
+    def test_record_filled_order_without_plan(self):
+        """Test recording a filled order without rebalance plan has None plan_id."""
+        service = TradeLedgerService()
+
+        order_result = OrderResult(
+            symbol="TSLA",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-no-plan",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-no-plan",
+            rebalance_plan=None,  # No plan provided
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.plan_id is None
+        assert entry.order_id == "order-no-plan"
+
     def test_skip_recording_unsuccessful_order(self):
         """Test that unsuccessful orders are not recorded."""
         service = TradeLedgerService()

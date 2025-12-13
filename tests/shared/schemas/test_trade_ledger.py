@@ -26,6 +26,7 @@ class TestTradeLedgerEntry:
         entry = TradeLedgerEntry(
             order_id="order-123",
             correlation_id="corr-123",
+            plan_id="plan-123",
             symbol="AAPL",
             direction="BUY",
             filled_qty=Decimal("10.5"),
@@ -35,6 +36,7 @@ class TestTradeLedgerEntry:
         )
 
         assert entry.order_id == "order-123"
+        assert entry.plan_id == "plan-123"
         assert entry.symbol == "AAPL"
         assert entry.filled_qty == Decimal("10.5")
         assert entry.fill_price == Decimal("150.25")
@@ -69,6 +71,38 @@ class TestTradeLedgerEntry:
         )
 
         assert entry.symbol == "AAPL"  # Should be uppercase
+
+    def test_plan_id_optional(self) -> None:
+        """Test that plan_id is optional."""
+        entry = TradeLedgerEntry(
+            order_id="order-123",
+            correlation_id="corr-123",
+            plan_id=None,  # Optional
+            symbol="AAPL",
+            direction="BUY",
+            filled_qty=Decimal("10"),
+            fill_price=Decimal("150"),
+            fill_timestamp=datetime.now(UTC),
+            order_type="MARKET",
+        )
+
+        assert entry.plan_id is None
+
+    def test_plan_id_with_value(self) -> None:
+        """Test that plan_id can be set."""
+        entry = TradeLedgerEntry(
+            order_id="order-123",
+            correlation_id="corr-123",
+            plan_id="portfolio_v2_abc123_1702468800",
+            symbol="AAPL",
+            direction="BUY",
+            filled_qty=Decimal("10"),
+            fill_price=Decimal("150"),
+            fill_timestamp=datetime.now(UTC),
+            order_type="MARKET",
+        )
+
+        assert entry.plan_id == "portfolio_v2_abc123_1702468800"
 
     def test_symbol_whitespace_stripped(self) -> None:
         """Test symbol whitespace is stripped during normalization."""

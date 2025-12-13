@@ -215,6 +215,10 @@ Resources:
           AttributeType: S
         - AttributeName: GSI6SK
           AttributeType: S
+        - AttributeName: GSI7PK
+          AttributeType: S
+        - AttributeName: GSI7SK
+          AttributeType: S
       
       KeySchema:
         - AttributeName: PK
@@ -279,6 +283,16 @@ Resources:
             - AttributeName: GSI6PK
               KeyType: HASH
             - AttributeName: GSI6SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI7: Query by plan_id (plan-level P&L rollup)
+        - IndexName: GSI7-PlanIndex
+          KeySchema:
+            - AttributeName: GSI7PK
+              KeyType: HASH
+            - AttributeName: GSI7SK
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
