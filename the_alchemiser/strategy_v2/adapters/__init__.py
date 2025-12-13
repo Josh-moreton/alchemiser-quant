@@ -9,25 +9,18 @@ Public API:
     FeaturePipeline: Utility for computing features from raw market data
     MarketDataProvider: Protocol defining market data provider interface
     StrategyMarketDataAdapter: Alpaca-backed market data adapter implementation
-    DataLambdaClient: Client for invoking Data Lambda to fetch market data
 
 Module boundaries:
     - Imports from shared only (no portfolio/execution dependencies)
     - Re-exports adapter interfaces for strategy orchestration
     - Enforces dependency inversion via Protocol pattern
-
-Note: StrategyMarketDataAdapter is lazily imported because it depends on
-alpaca-py, which is not available in the Strategy Lambda runtime
-(uses DataLambdaClient to fetch data from Data Lambda instead).
 """
 
 from __future__ import annotations
 
-from .data_lambda_client import DataLambdaClient
 from .feature_pipeline import FeaturePipeline
 
 __all__ = [
-    "DataLambdaClient",
     "FeaturePipeline",
     "MarketDataProvider",
     "StrategyMarketDataAdapter",

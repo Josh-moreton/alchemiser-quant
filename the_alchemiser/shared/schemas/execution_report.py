@@ -69,6 +69,9 @@ class ExecutedOrder(BaseModel):
     )
 
     order_id: str = Field(..., min_length=1, description="Unique order identifier")
+    client_order_id: str | None = Field(
+        default=None, description="Client-specified order identifier for tracking"
+    )
     symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol")
     action: str = Field(..., description="Trading action (BUY, SELL)")
     quantity: Decimal = Field(..., gt=0, description="Order quantity")

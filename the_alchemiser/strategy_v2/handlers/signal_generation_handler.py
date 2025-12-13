@@ -37,7 +37,6 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
-from the_alchemiser.strategy_v2.adapters.data_lambda_client import DataLambdaClient
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 from the_alchemiser.strategy_v2.errors import (
     ConfigurationError,
@@ -421,8 +420,8 @@ class SignalGenerationHandler:
         """
         indicators: dict[str, dict[str, float]] = {}
 
-        # Use DataLambdaClient for market data, IndicatorService for computation
-        market_data_client = DataLambdaClient()
+        # Use container's market data adapter for consistency with DI pattern
+        market_data_client = self.container.strategy_market_data_adapter()
         indicator_service = IndicatorService(market_data_service=market_data_client)
 
         for symbol in symbols:

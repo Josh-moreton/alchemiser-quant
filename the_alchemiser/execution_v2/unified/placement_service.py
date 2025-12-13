@@ -12,13 +12,14 @@ This service orchestrates the entire order placement flow:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.utils.order_id_utils import generate_client_order_id
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -155,6 +156,14 @@ class UnifiedOrderPlacementService:
 
         """
         start_time = datetime.now(UTC)
+
+        # Generate client_order_id if not provided
+        client_order_id = intent.client_order_id
+        if not client_order_id:
+            client_order_id = generate_client_order_id(intent.symbol)
+            # Update intent with generated client_order_id
+            intent = replace(intent, client_order_id=client_order_id)
+
         log_extra = {
             "symbol": intent.symbol,
             "side": intent.side.value,
@@ -162,6 +171,7 @@ class UnifiedOrderPlacementService:
             "urgency": intent.urgency.value,
             "close_type": intent.close_type.value,
             "correlation_id": intent.correlation_id,
+            "client_order_id": client_order_id,
         }
 
         logger.info(
@@ -189,8 +199,6 @@ class UnifiedOrderPlacementService:
 
         # Use adjusted quantity if provided
         if preflight_result.adjusted_quantity:
-            from dataclasses import replace
-
             intent = replace(intent, quantity=preflight_result.adjusted_quantity)
             logger.info(
                 "Adjusted quantity from preflight validation",
@@ -313,6 +321,7 @@ class UnifiedOrderPlacementService:
                 side=intent.side.to_alpaca(),
                 qty=intent.quantity,
                 is_complete_exit=intent.is_full_close,
+                client_order_id=intent.client_order_id,
             )
 
             if executed_order.status in ["REJECTED", "CANCELED"]:

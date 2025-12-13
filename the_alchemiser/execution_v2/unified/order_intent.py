@@ -52,6 +52,7 @@ class OrderIntent:
     - Clearly distinguishes BUY vs SELL_PARTIAL vs SELL_FULL
     - Captures urgency for execution strategy selection
     - Provides single translation point to Alpaca API parameters
+    - Supports client order IDs for enhanced tracking
 
     Examples:
         >>> # Regular buy order
@@ -72,13 +73,14 @@ class OrderIntent:
         ...     urgency=Urgency.LOW
         ... )
 
-        >>> # Full close
+        >>> # Full close with custom client order ID
         >>> intent = OrderIntent(
         ...     side=OrderSide.SELL,
         ...     close_type=CloseType.FULL,
         ...     symbol="AAPL",
         ...     quantity=Decimal("10"),  # Full position size
-        ...     urgency=Urgency.HIGH
+        ...     urgency=Urgency.HIGH,
+        ...     client_order_id="custom-AAPL-12345"
         ... )
 
     """
@@ -89,6 +91,7 @@ class OrderIntent:
     quantity: Decimal
     urgency: Urgency
     correlation_id: str | None = None
+    client_order_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate order intent after initialization."""
@@ -134,6 +137,10 @@ class OrderIntent:
 
         Returns:
             Dictionary of parameters for Alpaca order submission
+
+        Note:
+            client_order_id is intentionally NOT included in this method as it
+            needs to be passed separately to the OrderRequest constructor.
 
         """
         return {
