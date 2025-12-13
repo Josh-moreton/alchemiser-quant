@@ -33,11 +33,21 @@ class OrderResult(BaseModel):
         validate_assignment=True,
     )
 
-    schema_version: str = Field(default="1.1", description="Schema version")
+    schema_version: str = Field(default="1.2", description="Schema version")
     symbol: str = Field(..., max_length=10, description="Trading symbol")
     action: Literal["BUY", "SELL"] = Field(..., description="BUY or SELL action")
     trade_amount: Decimal = Field(..., ge=Decimal("0"), description="Dollar amount traded")
+    planned_trade_amount: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        description="Original planned trade amount from rebalance plan (preserved on failures)",
+    )
     shares: Decimal = Field(..., ge=Decimal("0"), description="Number of shares ordered")
+    planned_shares: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        description="Originally planned shares before execution (preserved on failures)",
+    )
     price: Decimal | None = Field(default=None, gt=Decimal("0"), description="Execution price")
     order_id: str | None = Field(default=None, max_length=100, description="Broker order ID")
     success: bool = Field(..., description="Order success flag")

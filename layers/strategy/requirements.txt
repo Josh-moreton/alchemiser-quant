@@ -5,9 +5,13 @@
 #
 # INCLUDED FROM AWSWRANGLER LAYER (3.10.0):
 #   - awswrangler, pandas, numpy, pyarrow
-#   - boto3, botocore, s3transfer
+#   - boto3, botocore, s3transfer (redundant - Lambda runtime provides these)
 #   - pydantic, requests, urllib3, certifi
 #   - openpyxl, fsspec, and more
+#
+# NOTE: boto3/botocore are included in awswrangler but not used at runtime.
+# Lambda runtime provides boto3/botocore natively. The pre-built awswrangler
+# layer includes them, but we cannot exclude them from the downloaded artifact.
 #
 # ADDED BY MAKEFILE:
 #   - alpaca-py (installed --no-deps to avoid pandas duplication)

@@ -367,6 +367,7 @@ class UnifiedOrderPlacementService:
                     logger.warning(
                         "Portfolio validation failed after market order",
                         **log_extra,
+                        initial_position=str(initial_position),
                         validation_message=validation_result.validation_message,
                     )
 
@@ -438,6 +439,7 @@ class UnifiedOrderPlacementService:
                 logger.warning(
                     "Portfolio validation failed after walk-the-book",
                     **log_extra,
+                    initial_position=str(initial_position),
                     validation_message=validation_result.validation_message,
                 )
 
