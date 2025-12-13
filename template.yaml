@@ -623,14 +623,14 @@ Resources:
         - Id: ExecutionQueueTarget
           Arn: !GetAtt ExecutionQueue.Arn
 
-  # Strategy Lambda - Signal generation microservice (entry point)
+  # Strategy Worker Lambda - Executes strategy DSL files (invoked by orchestrator or directly)
   StrategyFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-strategy"
-        - !Sub "alchemiser-${Stage}-strategy"
+        - !Sub "${StackName}-strategy-worker"
+        - !Sub "alchemiser-${Stage}-strategy-worker"
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -715,27 +715,27 @@ Resources:
                   - !GetAtt MarketDataBucket.Arn
                   - !Sub "${MarketDataBucket.Arn}/*"
 
-  # ========== MULTI-NODE STRATEGY SCALING (Coordinator + Aggregator) ==========
+  # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running
   # each DSL file in a separate Lambda invocation and aggregating the results.
 
-  # Strategy Coordinator Lambda - Orchestrates parallel strategy execution
-  StrategyCoordinatorFunction:
+  # Strategy Orchestrator Lambda - Entry point that dispatches parallel strategy execution
+  StrategyOrchestratorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-coordinator"
-        - !Sub "alchemiser-${Stage}-coordinator"
+        - !Sub "${StackName}-strategy-orchestrator"
+        - !Sub "alchemiser-${Stage}-strategy-orchestrator"
       Runtime: python3.12
       Architectures:
         - x86_64
       CodeUri: ./
       Handler: the_alchemiser.coordinator_v2.lambda_handler.lambda_handler
-      Role: !GetAtt CoordinatorExecutionRole.Arn
+      Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
-      Timeout: 60  # Coordinator just dispatches, doesn't run strategies
+      Timeout: 60  # Orchestrator just dispatches, doesn't run strategies
       MemorySize: 512
       Environment:
         Variables:
@@ -762,7 +762,7 @@ Resources:
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
 
-  CoordinatorExecutionRole:
+  StrategyOrchestratorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -774,7 +774,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: CoordinatorPolicy
+        - PolicyName: StrategyOrchestratorPolicy
           PolicyDocument:
             Statement:
               - Effect: Allow
@@ -798,20 +798,20 @@ Resources:
                 Resource:
                   - !GetAtt StrategyFunction.Arn
 
-  # Signal Aggregator Lambda - Aggregates partial signals into consolidated portfolio
-  SignalAggregatorFunction:
+  # Signal Aggregator Lambda - Aggregates partial strategy signals into consolidated portfolio
+  StrategyAggregatorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-aggregator"
-        - !Sub "alchemiser-${Stage}-aggregator"
+        - !Sub "${StackName}-signal-aggregator"
+        - !Sub "alchemiser-${Stage}-signal-aggregator"
       Runtime: python3.12
       Architectures:
         - x86_64
       CodeUri: ./
       Handler: the_alchemiser.aggregator_v2.lambda_handler.lambda_handler
-      Role: !GetAtt AggregatorExecutionRole.Arn
+      Role: !GetAtt StrategyAggregatorExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
       Timeout: 60  # Aggregation should be fast
@@ -849,7 +849,7 @@ Resources:
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
 
-  AggregatorExecutionRole:
+  StrategyAggregatorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -861,7 +861,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: AggregatorPolicy
+        - PolicyName: StrategyAggregatorPolicy
           PolicyDocument:
             Statement:
               - Effect: Allow
