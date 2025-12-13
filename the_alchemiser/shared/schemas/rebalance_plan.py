@@ -92,6 +92,7 @@ class RebalancePlan(BaseModel):
 
     # Plan identification
     plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
+    strategy_id: str | None = Field(default=None, description="Strategy identifier for attribution")
 
     # Plan content
     items: list[RebalancePlanItem] = Field(
