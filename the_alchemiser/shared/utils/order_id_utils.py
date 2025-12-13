@@ -11,6 +11,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+# Constants
+LEGACY_STRATEGY_PREFIX = "alch"  # Legacy prefix for backward compatibility
+
 
 def generate_client_order_id(
     symbol: str,
@@ -86,6 +89,11 @@ def generate_client_order_id(
 
     # Add signal version if provided
     if signal_version is not None:
+        # Validate signal version doesn't contain hyphens (would break parsing)
+        if "-" in signal_version:
+            raise ValueError(
+                f"signal_version cannot contain hyphens (breaks parsing): {signal_version}"
+            )
         # Normalize version to have 'v' prefix if not present
         version_str = signal_version if signal_version.startswith("v") else f"v{signal_version}"
         client_order_id = f"{client_order_id}-{version_str}"
@@ -163,9 +171,9 @@ def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:
         if len(parts) < 4 or len(parts) > 5:
             return None
 
-        # Extract strategy_id - check if legacy "alch" prefix
+        # Extract strategy_id - check if legacy prefix
         strategy_id = parts[0]
-        if strategy_id == "alch":
+        if strategy_id == LEGACY_STRATEGY_PREFIX:
             strategy_id = "unknown"  # Mark as legacy/unknown strategy
 
         # Extract version if present (5th part)

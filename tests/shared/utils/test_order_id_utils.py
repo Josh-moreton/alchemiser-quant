@@ -8,6 +8,8 @@ Validates client_order_id generation and parsing functions.
 
 from __future__ import annotations
 
+import pytest
+
 from the_alchemiser.shared.utils.order_id_utils import (
     generate_client_order_id,
     parse_client_order_id,
@@ -244,8 +246,6 @@ class TestAlpacaLimits:
 
     def test_exceeds_48_char_limit_raises_error(self) -> None:
         """Test that exceeding 48-character limit raises ValueError."""
-        import pytest
-
         # Very long strategy name that would exceed limit
         # Format: {strategy}-{symbol}-{timestamp}-{uuid} = strategy + 1 + symbol + 1 + 15 + 1 + 8
         # For 48 chars: strategy + symbol can be at most 48 - 26 = 22 chars combined
@@ -256,13 +256,16 @@ class TestAlpacaLimits:
 
     def test_exceeds_limit_with_version_raises_error(self) -> None:
         """Test that exceeding limit with version raises ValueError."""
-        import pytest
-
         # Strategy + symbol + version that would exceed limit
         long_strategy = "a" * 25
 
         with pytest.raises(ValueError, match="exceeds Alpaca's 48-character limit"):
             generate_client_order_id("AAPL", strategy_id=long_strategy, signal_version="v1")
+
+    def test_signal_version_with_hyphen_raises_error(self) -> None:
+        """Test that signal version with hyphen raises ValueError."""
+        with pytest.raises(ValueError, match="signal_version cannot contain hyphens"):
+            generate_client_order_id("AAPL", "nuclear", signal_version="v1-beta")
 
 
 class TestBackwardCompatibility:
