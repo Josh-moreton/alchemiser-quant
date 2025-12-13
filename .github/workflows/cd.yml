@@ -98,7 +98,7 @@ jobs:
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
           ENABLE_MULTI_NODE_STRATEGY: ${{ vars.ENABLE_MULTI_NODE_STRATEGY }}
-          # Strategy config now packaged with code; no JSON vars required
+          ENABLE_PER_TRADE_EXECUTION: ${{ vars.ENABLE_PER_TRADE_EXECUTION }}
         run: |
           echo "Exporting dev ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -110,7 +110,7 @@ jobs:
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
           if [ -n "$ENABLE_MULTI_NODE_STRATEGY" ]; then echo "ENABLE_MULTI_NODE_STRATEGY=$ENABLE_MULTI_NODE_STRATEGY" >> $GITHUB_ENV; fi
-          # No strategy DSL JSON to export; handled by packaged config files
+          if [ -n "$ENABLE_PER_TRADE_EXECUTION" ]; then echo "ENABLE_PER_TRADE_EXECUTION=$ENABLE_PER_TRADE_EXECUTION" >> $GITHUB_ENV; fi
 
       - name: Prepare environment variables (prod)
         if: steps.target.outputs.env == 'prod'
@@ -123,7 +123,7 @@ jobs:
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
           ENABLE_MULTI_NODE_STRATEGY: ${{ vars.ENABLE_MULTI_NODE_STRATEGY }}
-          # Strategy config now packaged with code; no JSON vars required
+          ENABLE_PER_TRADE_EXECUTION: ${{ vars.ENABLE_PER_TRADE_EXECUTION }}
         run: |
           echo "Exporting prod ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -135,7 +135,7 @@ jobs:
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
           if [ -n "$ENABLE_MULTI_NODE_STRATEGY" ]; then echo "ENABLE_MULTI_NODE_STRATEGY=$ENABLE_MULTI_NODE_STRATEGY" >> $GITHUB_ENV; fi
-          # No strategy DSL JSON to export; handled by packaged config files
+          if [ -n "$ENABLE_PER_TRADE_EXECUTION" ]; then echo "ENABLE_PER_TRADE_EXECUTION=$ENABLE_PER_TRADE_EXECUTION" >> $GITHUB_ENV; fi
 
       - name: Deploy
         run: |
