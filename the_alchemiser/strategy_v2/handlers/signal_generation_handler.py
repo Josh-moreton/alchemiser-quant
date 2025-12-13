@@ -48,6 +48,9 @@ from the_alchemiser.strategy_v2.errors import (
 )
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
+# Default strategy identifier when not provided in signal metadata
+DEFAULT_STRATEGY_ID = "DSL"
+
 
 class SignalGenerationHandler:
     """Event handler for strategy signal generation.
@@ -308,8 +311,8 @@ class SignalGenerationHandler:
         strategy_signals = self._convert_signals_to_display_format(signals)
 
         # Create consolidated portfolio from signals (returns Decimal allocations)
-        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            signals
+        consolidated_portfolio_dict, strategy_contributions, contributing_strategies = (
+            self._build_consolidated_portfolio(signals)
         )
 
         # Instrumentation and fail-fast check for empty allocations
@@ -325,12 +328,12 @@ class SignalGenerationHandler:
             # Avoid constructing DTO with empty payload; surface actionable error
             raise DataProviderError("No positive target allocations produced by strategy signals")
 
-        # Create ConsolidatedPortfolio - from_dict_allocation handles both Decimal and float
-        # Pass Decimal values directly to preserve precision throughout the pipeline
+        # Create ConsolidatedPortfolio using factory method for consistency
         consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=correlation_id,
             source_strategies=contributing_strategies,
+            strategy_contributions=strategy_contributions,
         )
 
         return strategy_signals, consolidated_portfolio, signals
@@ -504,16 +507,33 @@ class SignalGenerationHandler:
 
     def _build_consolidated_portfolio(
         self, signals: list[StrategySignal]
-    ) -> tuple[dict[str, Decimal], list[str]]:
+    ) -> tuple[dict[str, Decimal], dict[str, dict[str, Decimal]], list[str]]:
         """Build consolidated portfolio from strategy signals.
 
         Returns allocations as Decimal to preserve precision per copilot instructions:
         "Money: Decimal with explicit contexts; never mix with float."
+
+        Returns:
+            Tuple of (consolidated_portfolio, strategy_contributions, contributing_strategies)
+            - consolidated_portfolio: {symbol: total_weight}
+            - strategy_contributions: {strategy_id: {symbol: weight}}
+            - contributing_strategies: list of strategy names
+
         """
         consolidated_portfolio: dict[str, Decimal] = {}
+        strategy_contributions: dict[str, dict[str, Decimal]] = {}
         contributing_strategies: list[str] = []
 
         for signal in signals:
+            # Extract strategy ID from signal metadata or use strategy_name
+            # Prefer explicit metadata, then strategy_name, finally fallback to DEFAULT_STRATEGY_ID
+            strategy_id = DEFAULT_STRATEGY_ID
+            if signal.metadata and "strategy_id" in signal.metadata:
+                strategy_id = signal.metadata["strategy_id"]
+            elif signal.strategy_name:
+                # Use strategy_name if available (aligns with single_file_signal_handler)
+                strategy_id = signal.strategy_name
+
             symbol = signal.symbol.value
             allocation = self._extract_signal_allocation(signal)
 
@@ -523,9 +543,20 @@ class SignalGenerationHandler:
                     consolidated_portfolio[symbol] += allocation
                 else:
                     consolidated_portfolio[symbol] = allocation
-                contributing_strategies.append("DSL")
 
-        return consolidated_portfolio, contributing_strategies
+                # Track per-strategy contribution
+                if strategy_id not in strategy_contributions:
+                    strategy_contributions[strategy_id] = {}
+
+                if symbol in strategy_contributions[strategy_id]:
+                    strategy_contributions[strategy_id][symbol] += allocation
+                else:
+                    strategy_contributions[strategy_id][symbol] = allocation
+
+                if strategy_id not in contributing_strategies:
+                    contributing_strategies.append(strategy_id)
+
+        return consolidated_portfolio, strategy_contributions, contributing_strategies
 
     def _extract_signal_allocation(self, signal: StrategySignal) -> Decimal:
         """Extract allocation percentage from signal.
