@@ -18,30 +18,93 @@ This checklist breaks down the recommendations into actionable implementation ta
 
 ## 🔴 Phase 1: Critical Auditability (P0)
 
-### Task 1.1: Persist RebalancePlan to S3
+### Task 1.1: Persist RebalancePlan to DynamoDB
 
 **Objective**: Enable reconstruction of decisions beyond 24h EventBridge retention.
 
 #### Implementation Steps:
 
-- [ ] Create S3 bucket or use existing bucket
-  - Suggested: `alchemiser-rebalance-plans-{env}`
-  - Lifecycle: 90-day retention, then archive to Glacier
+- [ ] Create DynamoDB table or extend existing TradeLedgerTable
+  - Option A: Create new `RebalancePlanTable` with dedicated schema
+  - Option B: Add to existing `TradeLedgerTable` with PK pattern `PLAN#{plan_id}`
+  - Recommended: Option A for cleaner separation
+  - TTL: 90-day retention (automatically delete old plans)
 
-- [ ] Add S3 persistence to `portfolio_v2/core/planner.py`
+- [ ] Add DynamoDB persistence to `portfolio_v2/core/planner.py`
   ```python
   # After line 195: logger.info("Rebalance plan built successfully", ...)
   
   # NEW CODE:
   if settings.persist_rebalance_plans:
-      s3_key = f"plans/{plan.correlation_id}/{plan.plan_id}.json"
-      s3_client.put_object(
-          Bucket=settings.rebalance_plans_bucket,
-          Key=s3_key,
-          Body=json.dumps(plan.to_dict()),
-          ContentType="application/json",
-          ServerSideEncryption="AES256",
+      from datetime import timedelta
+      
+      ttl_timestamp = int((datetime.now(UTC) + timedelta(days=90)).timestamp())
+      
+      dynamodb.put_item(
+          TableName=settings.rebalance_plans_table,
+          Item={
+              'PK': {'S': f'PLAN#{plan.plan_id}'},
+              'SK': {'S': f'CORRELATION#{plan.correlation_id}'},
+              'plan_data': {'S': json.dumps(plan.to_dict())},
+              'created_at': {'S': plan.timestamp.isoformat()},
+              'correlation_id': {'S': plan.correlation_id},
+              'causation_id': {'S': plan.causation_id},
+              'item_count': {'N': str(len(plan.items))},
+              'total_trade_value': {'S': str(plan.total_trade_value)},
+              'ttl': {'N': str(ttl_timestamp)}  # Auto-delete after 90 days
+          }
       )
+  ```
+
+- [ ] Add DynamoDB table definition in `template.yaml`
+  ```yaml
+  RebalancePlanTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-plans"
+        - !Sub "alchemiser-${Stage}-rebalance-plans"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: correlation_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      GlobalSecondaryIndexes:
+        - IndexName: CorrelationIdIndex
+          KeySchema:
+            - AttributeName: correlation_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      
+      Tags:
+        - Key: Purpose
+          Value: RebalancePlanArchive
+        - Key: Retention
+          Value: 90-days
   ```
 
 - [ ] Add configuration in `shared/config/config.py`
@@ -49,33 +112,47 @@ This checklist breaks down the recommendations into actionable implementation ta
   class AlpacaConfig:
       ...
       persist_rebalance_plans: bool = True
-      rebalance_plans_bucket: str = "alchemiser-rebalance-plans-prod"
+      rebalance_plans_table: str = "alchemiser-prod-rebalance-plans"
   ```
 
 - [ ] Update IAM role in `template.yaml`
   ```yaml
   Policies:
-    - S3CrudPolicy:
-        BucketName: !Ref RebalancePlansBucket
+    - DynamoDBCrudPolicy:
+        TableName: !Ref RebalancePlanTable
   ```
 
 - [ ] Create reconstruction utility
   ```python
   # New file: scripts/reconstruct_decision.py
   def reconstruct_decision(correlation_id: str) -> RebalancePlan:
-      """Fetch plan from S3 for historical analysis."""
+      """Fetch plan from DynamoDB for historical analysis."""
+      response = dynamodb.query(
+          TableName='RebalancePlanTable',
+          IndexName='CorrelationIdIndex',
+          KeyConditionExpression='correlation_id = :cid',
+          ExpressionAttributeValues={':cid': {'S': correlation_id}}
+      )
+      
+      if not response['Items']:
+          raise ValueError(f"No plan found for correlation_id: {correlation_id}")
+      
+      plan_data = json.loads(response['Items'][0]['plan_data']['S'])
+      return RebalancePlan.from_dict(plan_data)
   ```
 
 **Testing**:
 - [ ] Unit test: Plan serialization/deserialization
-- [ ] Integration test: S3 write and read
-- [ ] Verify encryption at rest
+- [ ] Integration test: DynamoDB write and read
+- [ ] Test TTL expiration (with short TTL in test environment)
 - [ ] Test reconstruction script with historical data
+- [ ] Test GSI query performance
 
 **Success Criteria**:
 - ✅ Plans persist for 90 days
 - ✅ Can answer "why no trade" beyond 24h window
 - ✅ Audit trail for compliance
+- ✅ Auto-cleanup via TTL after 90 days
 
 ---
 
@@ -380,7 +457,7 @@ This checklist breaks down the recommendations into actionable implementation ta
 
 - [ ] Create test suite: `tests/reconstruction/`
   - [ ] `test_reconstruct_from_broker.py`
-  - [ ] `test_reconstruct_from_s3_plans.py`
+  - [ ] `test_reconstruct_from_dynamodb_plans.py`
   - [ ] `test_reconstruct_multi_strategy_pnl.py`
 
 - [ ] Implement historical replay script
@@ -391,7 +468,7 @@ This checklist breaks down the recommendations into actionable implementation ta
       """
       Given correlation_id:
       1. Fetch SignalGenerated from logs
-      2. Fetch RebalancePlan from S3
+      2. Fetch RebalancePlan from DynamoDB
       3. Fetch fills from Alpaca
       4. Verify: plan matches actual execution
       """
@@ -400,7 +477,7 @@ This checklist breaks down the recommendations into actionable implementation ta
 - [ ] Run against production data (last 90 days)
 
 **Success Criteria**:
-- ✅ 100% of recent plans reconstructable from S3
+- ✅ 100% of recent plans reconstructable from DynamoDB
 - ✅ <1% discrepancy in P&L reconstruction
 - ✅ Automated test runs nightly
 
@@ -412,7 +489,7 @@ This checklist breaks down the recommendations into actionable implementation ta
 
 - [ ] Create CloudWatch dashboard with:
   - [ ] Metric: `OrdersWithStrategyID` (should be 100%)
-  - [ ] Metric: `PlansPersistedToS3` (should match plans created)
+  - [ ] Metric: `PlansPersisstedToDynamoDB` (should match plans created)
   - [ ] Metric: `AttributionReconstructionTime` (latency for lookups)
   - [ ] Alarm: Plan persistence failures
 
@@ -434,21 +511,24 @@ This checklist breaks down the recommendations into actionable implementation ta
 
 ### Task 5.1: Audit Trail Validation
 
-- [ ] Verify all plan writes are encrypted (AES256)
-- [ ] Implement access logging for S3 bucket
+- [ ] Verify all plan writes are encrypted (DynamoDB encryption at rest enabled)
+- [ ] Implement CloudTrail logging for DynamoDB table access
 - [ ] Create compliance report script
   ```python
   # scripts/compliance_report.py
   
   def generate_audit_trail(start_date: date, end_date: date) -> Report:
       """Generate regulatory-compliant trade decision audit."""
+      # Query DynamoDB for plans in date range
+      # Include suppression decisions from Trade Ledger
+      # Generate timestamped audit report
   ```
 
-- [ ] Test data retention policy (90 days → Glacier)
+- [ ] Test data retention policy (90 days via TTL)
 
 **Success Criteria**:
-- ✅ All plans encrypted at rest
-- ✅ Access audit trail for forensics
+- ✅ All plans encrypted at rest (DynamoDB default encryption)
+- ✅ Access audit trail via CloudTrail for forensics
 - ✅ Meets regulatory requirements
 
 ---
@@ -487,7 +567,7 @@ Track these KPIs after implementation:
 | Metric | Target | How to Measure |
 |--------|--------|----------------|
 | Attribution Coverage | >99% | Orders with valid strategy_id |
-| Plan Persistence Rate | 100% | Plans in S3 / Plans created |
+| Plan Persistence Rate | 100% | Plans in DynamoDB / Plans created |
 | Reconstruction Success Rate | >99.9% | Historical replays matching broker |
 | Suppressed Trade Visibility | 100% | Suppressions logged to ledger |
 | Multi-Strategy P&L Accuracy | <0.1% error | Decomposed P&L vs total |

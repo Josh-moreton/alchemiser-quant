@@ -349,8 +349,7 @@ Partial fills are logged but **not decomposed** back to originating strategy sig
    ```
 
 4. **No Persistence**:
-   - Not written to DynamoDB
-   - Not stored in S3
+   - Not written to DynamoDB (beyond embedded in events)
    - Not logged to CloudWatch (only summary metrics)
 
 ### What Decisions Does It Contain?
@@ -386,7 +385,7 @@ def _suppress_small_trades(
             )
 ```
 
-This decision is **ephemeral** - without the plan, you cannot know which trades were suppressed.
+This decision is **ephemeral** - without the plan in DynamoDB, you cannot know which trades were suppressed.
 
 ---
 
@@ -570,10 +569,19 @@ If the goal is **client_order_id + broker data as long-term source of truth**, t
    client_order_id = f"{strategy_id}-{symbol}-{timestamp}-{uuid}"
    ```
 
-2. **Persist RebalancePlan metadata** to S3:
+2. **Persist RebalancePlan metadata** to DynamoDB:
    ```python
-   s3_key = f"plans/{correlation_id}/{plan_id}.json"
-   s3.put_object(Bucket=bucket, Key=s3_key, Body=plan.to_dict())
+   # Add to TradeLedgerTable or create RebalancePlanTable
+   dynamodb.put_item(
+       TableName='RebalancePlanTable',
+       Item={
+           'PK': f'PLAN#{plan_id}',
+           'SK': f'CORRELATION#{correlation_id}',
+           'plan_data': plan.to_dict(),
+           'created_at': timestamp,
+           'ttl': timestamp + 90_days
+       }
+   )
    ```
 
 3. **Log suppression decisions** to Trade Ledger:

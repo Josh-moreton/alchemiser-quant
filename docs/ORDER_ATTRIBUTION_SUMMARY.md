@@ -214,7 +214,7 @@ nuclear-AAPL-20231201T093000-a1b2c3d4-v1
 | **Alpaca only** | ✅ YES | ❌ NO | ❌ NO | ⚠️ Approximate |
 | **Alpaca + Logs** | ✅ YES | ❌ NO | ⚠️ If < 24h | ✅ YES |
 | **Alpaca + Logs + EventBridge** | ✅ YES | ⚠️ Single strategy | ✅ YES | ✅ YES |
-| **Alpaca + Logs + S3 Plans** | ✅ YES | ⚠️ Single strategy | ✅ YES | ✅ YES |
+| **Alpaca + Logs + DynamoDB Plans** | ✅ YES | ⚠️ Single strategy | ✅ YES | ✅ YES |
 
 **Legend**:
 - ✅ Fully reconstructable
@@ -226,7 +226,7 @@ nuclear-AAPL-20231201T093000-a1b2c3d4-v1
 ## Recommendations Priority
 
 ### P0 - Critical for Auditability:
-1. **Persist RebalancePlan to S3** (90-day retention)
+1. **Persist RebalancePlan to DynamoDB** (90-day retention)
    - Enables reconstruction of "why no trade" decisions
    - Audit trail for regulatory compliance
 
@@ -271,7 +271,7 @@ For issue closure, recommend:
 
 1. ✅ **Accept analysis** - System is rebalance-plan-driven
 2. 📝 **Document gaps** - Create tech debt tickets for:
-   - Plan persistence to S3
+   - Plan persistence to DynamoDB
    - Strategy ID in client_order_id
    - Multi-strategy attribution tracking
 3. 🎯 **Define SLA** - Decide acceptable reconstruction time window (24h? 90d? Forever?)
