@@ -495,6 +495,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         notional: Decimal | None,
         *,
         is_complete_exit: bool,
+        client_order_id: str | None = None,
     ) -> ExecutedOrder:
         """Place internal market order with testable logic.
 
@@ -504,6 +505,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             qty: Quantity to trade as Decimal
             notional: Dollar amount to trade as Decimal
             is_complete_exit: If True and side is 'sell', use actual available quantity
+            client_order_id: Optional client order ID for tracking
 
         Returns:
             ExecutedOrder with execution details and status
@@ -533,6 +535,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             final_qty,
             notional_float,
             is_complete_exit=is_complete_exit,
+            client_order_id=client_order_id,
         )
 
     def place_market_order(
@@ -543,6 +546,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         notional: Decimal | None = None,
         *,
         is_complete_exit: bool = False,
+        client_order_id: str | None = None,
     ) -> ExecutedOrder:
         """Place a market order with validation and execution result return.
 
@@ -552,6 +556,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             qty: Quantity to trade as Decimal (use either qty OR notional)
             notional: Dollar amount to trade as Decimal (use either qty OR notional)
             is_complete_exit: If True and side is 'sell', use actual available quantity
+            client_order_id: Optional client order ID for tracking
 
         Returns:
             ExecutedOrder with execution details and status.
@@ -562,7 +567,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             side,
             float(qty) if qty is not None else None,
             lambda: self._place_market_order_internal(
-                symbol, side, qty, notional, is_complete_exit=is_complete_exit
+                symbol, side, qty, notional, is_complete_exit=is_complete_exit, client_order_id=client_order_id
             ),
         )
 
@@ -573,6 +578,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         quantity: float,
         limit_price: float,
         time_in_force: str = "day",
+        *,
+        client_order_id: str | None = None,
     ) -> OrderExecutionResult:
         """Place a limit order with validation and schema conversion.
 
@@ -582,13 +589,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             quantity: Number of shares
             limit_price: Limit price for the order
             time_in_force: Order time in force (default: 'day')
+            client_order_id: Optional client order ID for tracking
 
         Returns:
             OrderExecutionResult with execution details
 
         """
         return self._get_trading_service().place_limit_order(
-            symbol, side, quantity, limit_price, time_in_force
+            symbol, side, quantity, limit_price, time_in_force, client_order_id=client_order_id
         )
 
     def cancel_order(self, order_id: str) -> OrderCancellationResult:

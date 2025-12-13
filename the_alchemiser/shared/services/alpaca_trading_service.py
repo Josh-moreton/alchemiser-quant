@@ -265,6 +265,7 @@ class AlpacaTradingService:
         *,
         is_complete_exit: bool = False,
         correlation_id: str | None = None,
+        client_order_id: str | None = None,
     ) -> ExecutedOrder:
         """Place a market order with validation and execution result return.
 
@@ -275,6 +276,7 @@ class AlpacaTradingService:
             notional: Dollar amount to trade (use either qty OR notional)
             is_complete_exit: If True and side is 'sell', use available quantity
             correlation_id: Optional correlation ID for event tracing
+            client_order_id: Optional client order ID for tracking
 
         Returns:
             ExecutedOrder with execution details
@@ -317,6 +319,7 @@ class AlpacaTradingService:
                     qty=qty,
                     note="caller should have adjusted quantity",
                     correlation_id=correlation_id,
+                    client_order_id=client_order_id,
                 )
 
             # Create order request
@@ -326,6 +329,7 @@ class AlpacaTradingService:
                 notional=notional,
                 side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
                 time_in_force=TimeInForce.DAY,
+                client_order_id=client_order_id,
             )
 
             return self.place_order(order_request, correlation_id=correlation_id)
@@ -341,6 +345,7 @@ class AlpacaTradingService:
         time_in_force: str = "day",
         *,
         correlation_id: str | None = None,
+        client_order_id: str | None = None,
     ) -> OrderExecutionResult:
         """Place a limit order and return execution result.
 
@@ -351,6 +356,7 @@ class AlpacaTradingService:
             limit_price: Maximum price for buy orders, minimum for sell orders
             time_in_force: Order duration ('day', 'gtc', 'ioc', 'fok')
             correlation_id: Optional correlation ID for event tracing
+            client_order_id: Optional client order ID for tracking
 
         Returns:
             OrderExecutionResult with execution details
@@ -396,6 +402,7 @@ class AlpacaTradingService:
                 side=OrderSide.BUY if side == "buy" else OrderSide.SELL,
                 time_in_force=tif,
                 limit_price=limit_price,
+                client_order_id=client_order_id,
             )
 
             # Submit order
@@ -411,6 +418,7 @@ class AlpacaTradingService:
                 error=str(e),
                 error_type=type(e).__name__,
                 correlation_id=correlation_id,
+                client_order_id=client_order_id,
             )
             return AlpacaErrorHandler.create_error_result(e, "Limit order placement")
 
@@ -862,9 +870,13 @@ class AlpacaTradingService:
         # Extract basic order attributes
         order_data = self._extract_order_attributes(order)
 
+        # Extract client_order_id from order response
+        client_order_id = str(getattr(order, "client_order_id", "")) or None
+
         logger.info(
             "Successfully placed order",
             order_id=order_data["order_id"],
+            client_order_id=client_order_id,
             symbol=order_data["symbol"],
         )
 
@@ -876,6 +888,7 @@ class AlpacaTradingService:
 
         return ExecutedOrder(
             order_id=order_data["order_id"],
+            client_order_id=client_order_id,
             symbol=order_data["symbol"],
             action=order_data["action_value"],
             quantity=order_data["order_qty_decimal"],
