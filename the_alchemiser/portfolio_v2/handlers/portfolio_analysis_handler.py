@@ -94,6 +94,16 @@ def _get_execution_runs_table_name() -> str:
     return table_name
 
 
+def _get_rebalance_plan_table_name() -> str | None:
+    """Get the DynamoDB table name for rebalance plan persistence.
+
+    Returns:
+        Table name from environment variable, or None if not set.
+
+    """
+    return os.environ.get("REBALANCE_PLAN__TABLE_NAME", "") or None
+
+
 def _to_decimal_safe(value: object) -> Decimal:
     """Convert a value to Decimal safely, returning 0 for invalid values.
 
@@ -359,6 +369,9 @@ class PortfolioAnalysisHandler:
                     operation="_handle_signal_generated",
                     correlation_id=event.correlation_id,
                 )
+
+            # Persist rebalance plan for auditability (90-day TTL)
+            self._persist_rebalance_plan(rebalance_plan)
 
             # Emit RebalancePlanned event with proper causation
             self._emit_rebalance_planned_event(
@@ -1116,6 +1129,60 @@ class PortfolioAnalysisHandler:
 
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning(f"Failed to log final rebalance plan summary: {exc}")
+
+    def _persist_rebalance_plan(self, rebalance_plan: RebalancePlan) -> None:
+        """Persist rebalance plan to DynamoDB for auditability.
+
+        Plans are stored with 90-day TTL for answering "why didn't we trade X?"
+        beyond EventBridge's 24-hour retention.
+
+        Args:
+            rebalance_plan: The rebalance plan to persist
+
+        Note:
+            Persistence failure is logged but does not block the workflow.
+            Auditability is important but not critical for execution.
+
+        """
+        table_name = _get_rebalance_plan_table_name()
+        if not table_name:
+            self.logger.debug("Rebalance plan persistence disabled (no table configured)")
+            return
+
+        try:
+            from the_alchemiser.shared.config.config import load_settings
+            from the_alchemiser.shared.repositories.dynamodb_rebalance_plan_repository import (
+                DynamoDBRebalancePlanRepository,
+            )
+
+            settings = load_settings()
+            ttl_days = settings.rebalance_plan.ttl_days
+
+            repository = DynamoDBRebalancePlanRepository(
+                table_name=table_name,
+                ttl_days=ttl_days,
+            )
+            repository.save_plan(rebalance_plan)
+
+            self.logger.info(
+                "Persisted rebalance plan for auditability",
+                extra={
+                    "plan_id": rebalance_plan.plan_id,
+                    "correlation_id": rebalance_plan.correlation_id,
+                    "item_count": len(rebalance_plan.items),
+                    "ttl_days": ttl_days,
+                },
+            )
+
+        except Exception as exc:
+            # Log but don't block workflow - auditability is not critical path
+            self.logger.warning(
+                f"Failed to persist rebalance plan: {exc}",
+                extra={
+                    "plan_id": rebalance_plan.plan_id,
+                    "correlation_id": rebalance_plan.correlation_id,
+                },
+            )
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.

@@ -369,6 +369,61 @@ Resources:
         - Key: Service
           Value: execution-runs
 
+  # ========== REBALANCE PLAN TABLE (AUDITABILITY) ==========
+  # DynamoDB Table for persisting RebalancePlan documents with 90-day TTL
+  # Enables "why didn't we trade X?" queries beyond EventBridge's 24-hour retention
+  RebalancePlanTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-plans"
+        - !Sub "alchemiser-${Stage}-rebalance-plans"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      GlobalSecondaryIndexes:
+        # GSI1: Query by correlation_id for tracing workflow decisions
+        - IndexName: GSI1-CorrelationIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: rebalance-plans
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -980,6 +1035,8 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Rebalance plan persistence for auditability
+          REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
           # Per-trade execution configuration
           ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
           EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
@@ -1046,6 +1103,15 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt ExecutionRunsTable.Arn
+              # Rebalance plan persistence for auditability
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt RebalancePlanTable.Arn
+                  - !Sub "${RebalancePlanTable.Arn}/index/*"
 
   # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
@@ -1709,6 +1775,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-ExecutionRunsTable"
         - !Sub "alchemiser-${Stage}-ExecutionRunsTable"
+
+  RebalancePlanTableName:
+    Description: "DynamoDB table for rebalance plan auditability (90-day TTL)"
+    Value: !Ref RebalancePlanTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-RebalancePlanTable"
+        - !Sub "alchemiser-${Stage}-RebalancePlanTable"
 
   ExecutionFifoQueueUrl:
     Description: "SQS FIFO queue for per-trade execution"

@@ -470,6 +470,15 @@ class TradeLedgerSettings(BaseModel):
     table_name: str = Field(default="", description="DynamoDB table name for trade ledger storage")
 
 
+class RebalancePlanSettings(BaseModel):
+    """Rebalance plan persistence configuration for auditability."""
+
+    table_name: str = Field(
+        default="", description="DynamoDB table name for rebalance plan storage"
+    )
+    ttl_days: int = Field(default=90, description="TTL in days for automatic cleanup")
+
+
 class ExecutionSettings(BaseModel):
     """Trading execution parameters and safe defaults.
 
@@ -517,6 +526,7 @@ class Settings(BaseSettings):
     data: DataSettings = DataSettings()
     tracking: TrackingSettings = TrackingSettings()
     trade_ledger: TradeLedgerSettings = TradeLedgerSettings()
+    rebalance_plan: RebalancePlanSettings = RebalancePlanSettings()
     execution: ExecutionSettings = ExecutionSettings()
 
     model_config = SettingsConfigDict(
