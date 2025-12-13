@@ -416,6 +416,7 @@ class WalkTheBookStrategy:
                 quantity=float(quantity),
                 limit_price=float(limit_price),
                 time_in_force="day",
+                client_order_id=intent.client_order_id,
             )
 
             if result.success and result.order_id:
@@ -556,6 +557,7 @@ class WalkTheBookStrategy:
                 side=intent.side.to_alpaca(),
                 qty=quantity,
                 is_complete_exit=intent.is_full_close,
+                client_order_id=intent.client_order_id,
             )
 
             if executed.status in ["REJECTED", "CANCELED"]:
