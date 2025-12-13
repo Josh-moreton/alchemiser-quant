@@ -65,16 +65,17 @@ def decompose_pnl_to_strategies(
 
     """
     # Calculate total allocation for this symbol across all strategies
-    total_allocation = Decimal("0")
-    contributing_strategies = []
+    # Store strategy allocations for efficient access later
+    strategy_allocations: dict[str, Decimal] = {}
 
     for strategy_id, allocations in strategy_contributions.items():
         if symbol in allocations:
-            total_allocation += allocations[symbol]
-            contributing_strategies.append(strategy_id)
+            strategy_allocations[strategy_id] = allocations[symbol]
+
+    total_allocation = sum(strategy_allocations.values())
 
     # Validate that symbol has contributions
-    if not contributing_strategies:
+    if not strategy_allocations:
         logger.warning(
             "No strategy contributions found for symbol",
             extra={
@@ -93,17 +94,14 @@ def decompose_pnl_to_strategies(
                 "module": "pnl_attribution",
                 "function": "decompose_pnl_to_strategies",
                 "symbol": symbol,
-                "contributing_strategies": contributing_strategies,
+                "contributing_strategies": list(strategy_allocations.keys()),
             },
         )
         raise ValueError(f"Total allocation for {symbol} is zero")
 
     # Decompose P&L proportionally to each strategy
     result: dict[str, Decimal] = {}
-    for strategy_id in contributing_strategies:
-        allocations = strategy_contributions[strategy_id]
-        strategy_allocation = allocations[symbol]
-
+    for strategy_id, strategy_allocation in strategy_allocations.items():
         # Calculate proportion: strategy_allocation / total_allocation
         proportion = strategy_allocation / total_allocation
 
