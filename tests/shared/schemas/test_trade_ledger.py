@@ -104,6 +104,23 @@ class TestTradeLedgerEntry:
 
         assert entry.plan_id == "portfolio_v2_abc123_1702468800"
 
+    def test_plan_id_empty_string_rejected(self) -> None:
+        """Test that empty string plan_id is rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            TradeLedgerEntry(
+                order_id="order-123",
+                correlation_id="corr-123",
+                plan_id="",  # Empty string should be rejected
+                symbol="AAPL",
+                direction="BUY",
+                filled_qty=Decimal("10"),
+                fill_price=Decimal("150"),
+                fill_timestamp=datetime.now(UTC),
+                order_type="MARKET",
+            )
+
+        assert "plan_id" in str(exc_info.value).lower()
+
     def test_symbol_whitespace_stripped(self) -> None:
         """Test symbol whitespace is stripped during normalization."""
         entry = TradeLedgerEntry(
