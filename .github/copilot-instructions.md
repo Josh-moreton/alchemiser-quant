@@ -58,7 +58,7 @@
 - Use constants, config, or environment variables; 12-factor friendly.
 
 ## Architecture boundaries
-- Business modules under `the_alchemiser/`: `strategy_v2`, `portfolio_v2`, `execution_v2`, `notifications_v2`, `shared`.
+- Business modules under `the_alchemiser/`: `coordinator_v2`, `strategy_v2`, `aggregator_v2`, `portfolio_v2`, `execution_v2`, `notifications_v2`, `shared`.
 - Each business module is deployed as an **independent Lambda function**.
 - Allowed imports: business modules → `shared`.
 - **No cross business-module imports** or deep path imports.
@@ -66,26 +66,42 @@
 - Event contracts and schemas: `shared/events`, `shared/schemas` (extend, don't duplicate).
 
 ## Multi-Lambda microservices architecture
-The system is deployed as **4 independent Lambda functions** connected via AWS services:
+The system is deployed as **AWS Lambda functions** connected via AWS services. The Strategy layer supports **multi-node horizontal scaling**:
 
 ### Lambda Functions
 | Lambda | Handler | Trigger | Publishes To |
-|--------|---------|---------|--------------|
-| Strategy | `strategy_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | EventBridge (`SignalGenerated`) |
+|--------|---------|---------|---------------|
+| Strategy Orchestrator | `coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | Invokes Strategy Workers (async) |
+| Strategy Worker | `strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | EventBridge (`PartialSignalGenerated` or `SignalGenerated`) |
+| Signal Aggregator | `aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | EventBridge (`SignalGenerated`) |
 | Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | EventBridge (`RebalancePlanned`) |
 | Execution | `execution_v2.lambda_handler` | SQS Queue (buffered from EventBridge) | EventBridge (`TradeExecuted`) |
 | Notifications | `notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS Topic → Email |
+
+### Multi-Node Mode
+Controlled by `ENABLE_MULTI_NODE_STRATEGY` environment variable:
+- `false` (default): Legacy mode - Strategy Worker runs all DSL files sequentially
+- `true`: Multi-node mode - Orchestrator fans out to parallel workers, Aggregator merges results
 
 ### Event routing
 - **EventBridge** routes events between Lambdas based on `source` and `detail-type`
 - **SQS** buffers `RebalancePlanned` events for reliable execution (with DLQ after 3 retries)
 - **SNS** delivers email notifications via topic subscriptions
+- **DynamoDB** tracks aggregation sessions for multi-node coordination
 
 ## Event-driven workflow
-- **Strategy Lambda** runs on schedule, fetches market data, emits `SignalGenerated` to EventBridge
+
+### Multi-Node Mode (ENABLE_MULTI_NODE_STRATEGY=true)
+- **Strategy Orchestrator** runs on schedule, creates aggregation session, invokes Strategy Workers async (one per DSL file)
+- **Strategy Workers** run in parallel, each processing one DSL file, emit `PartialSignalGenerated` to EventBridge
+- **Signal Aggregator** triggered by EventBridge on `PartialSignalGenerated`, stores partial signals, merges when all complete, publishes `SignalGenerated`
 - **Portfolio Lambda** triggered by EventBridge rule on `SignalGenerated`, creates `RebalancePlan`, publishes `RebalancePlanned`
 - **Execution Lambda** triggered by SQS (EventBridge routes `RebalancePlanned` → SQS), executes trades, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`
 - **Notifications Lambda** triggered by EventBridge on `TradeExecuted` or `WorkflowFailed`, sends email via SNS
+
+### Legacy Mode (ENABLE_MULTI_NODE_STRATEGY=false)
+- **Strategy Worker** runs on schedule, processes all DSL files sequentially, emits `SignalGenerated` to EventBridge
+- Remainder of workflow is identical
 
 ### Publishing events
 ```python
@@ -99,7 +115,11 @@ publish_notification(subject="...", message="...")
 ```
 
 ### AWS Resources (defined in template.yaml)
+- `StrategyOrchestratorFunction` - Entry point Lambda, dispatches parallel strategy execution
+- `StrategyFunction` - Strategy Worker Lambda, executes single DSL file
+- `StrategyAggregatorFunction` - Signal Aggregator Lambda, merges partial signals
 - `AlchemiserEventBus` - EventBridge bus for event routing
+- `AggregationSessionsTable` - DynamoDB for multi-node session tracking
 - `ExecutionQueue` / `ExecutionDLQ` - SQS for reliable trade execution
 - `TradingNotificationsTopic` - SNS topic for email notifications
 - `DLQAlertTopic` - SNS for DLQ monitoring alerts

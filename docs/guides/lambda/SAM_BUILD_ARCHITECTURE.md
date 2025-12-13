@@ -55,10 +55,16 @@ After build, the Lambda package structure is:
 
 ### Dependencies
 
-Dependencies are packaged in a separate Lambda Layer:
-- **Source:** `dependencies/requirements.txt` (exported from Poetry, main group only)
-- **Location:** `DependenciesLayer` resource in template.yaml
+Dependencies are packaged in per-Lambda Layers (one layer per function):
+- **Source:** `layers/<function>/requirements.txt` (manually curated per-function)
+- **Location:** `StrategyLayer`, `PortfolioLayer`, `ExecutionLayer`, `NotificationsLayer`, `DataLayer` in template.yaml
 - **Exclusions:** boto3, botocore (AWS-managed, provided by Lambda runtime)
+
+**Per-Lambda Layer Benefits:**
+- Each function ships only the dependencies it needs
+- Reduced cold start times
+- Smaller deployment artifacts
+- Independent dependency management per function
 
 ## Build Configuration
 

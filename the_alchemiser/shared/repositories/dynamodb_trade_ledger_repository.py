@@ -719,7 +719,7 @@ class DynamoDBTradeLedgerRepository:
                 logger.warning(f"Signal {signal_id} not found for lifecycle update")
                 return
 
-            timestamp_str = item.get("timestamp", datetime.now(UTC).isoformat())
+            timestamp_str = str(item.get("timestamp", datetime.now(UTC).isoformat()))
             expression_values[":gsi4sk"] = f"{SIGNAL_PREFIX}{timestamp_str}#{signal_id}"
 
             if trade_ids is not None:
@@ -1036,7 +1036,7 @@ class DynamoDBTradeLedgerRepository:
             strategy_names: set[str] = set()
             for item in response.get("Items", []):
                 strategy_name = item.get("strategy_name")
-                if strategy_name:
+                if strategy_name and isinstance(strategy_name, str):
                     strategy_names.add(strategy_name)
 
             # Handle pagination
@@ -1052,7 +1052,7 @@ class DynamoDBTradeLedgerRepository:
                 )
                 for item in response.get("Items", []):
                     strategy_name = item.get("strategy_name")
-                    if strategy_name:
+                    if strategy_name and isinstance(strategy_name, str):
                         strategy_names.add(strategy_name)
 
             return sorted(strategy_names)

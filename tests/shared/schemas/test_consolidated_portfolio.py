@@ -350,6 +350,72 @@ class TestConsolidatedPortfolioValidation:
             portfolio.correlation_id = "new-id"  # type: ignore
 
 
+class TestPartialPortfolioValidation:
+    """Tests for partial portfolio allocations (is_partial flag)."""
+
+    def test_partial_portfolio_allows_low_allocation_sum(self):
+        """Test partial portfolio skips sum-to-1.0 validation."""
+        # This would fail validation without is_partial=True
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("0.1"), "GOOGL": Decimal("0.05")},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+            source_strategies=["strategy1.clj"],
+            is_partial=True,
+        )
+        assert portfolio.is_partial is True
+        total = sum(portfolio.target_allocations.values())
+        assert total == Decimal("0.15")
+
+    def test_full_portfolio_rejects_low_allocation_sum(self):
+        """Test non-partial portfolio requires sum ~1.0."""
+        with pytest.raises(ValueError, match="Total allocations must sum to ~1.0"):
+            ConsolidatedPortfolio(
+                target_allocations={"AAPL": Decimal("0.1")},
+                correlation_id="test-123",
+                timestamp=datetime.now(UTC),
+                strategy_count=1,
+                is_partial=False,
+            )
+
+    def test_partial_portfolio_defaults_to_false(self):
+        """Test is_partial defaults to False for backward compatibility."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("1.0")},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+        )
+        assert portfolio.is_partial is False
+
+    def test_full_portfolio_with_valid_sum_works(self):
+        """Test non-partial portfolio works with valid allocation sum."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"AAPL": Decimal("0.6"), "GOOGL": Decimal("0.4")},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+            is_partial=False,
+        )
+        assert portfolio.is_partial is False
+        total = sum(portfolio.target_allocations.values())
+        assert total == Decimal("1.0")
+
+    def test_partial_portfolio_single_small_allocation(self):
+        """Test partial portfolio with single small allocation."""
+        portfolio = ConsolidatedPortfolio(
+            target_allocations={"TQQQ": Decimal("0.025")},
+            correlation_id="test-123",
+            timestamp=datetime.now(UTC),
+            strategy_count=1,
+            source_strategies=["bento.clj"],
+            is_partial=True,
+        )
+        assert portfolio.is_partial is True
+        assert portfolio.target_allocations["TQQQ"] == Decimal("0.025")
+
+
 class TestConsolidatedPortfolioFactoryMethods:
     """Tests for ConsolidatedPortfolio factory methods."""
 
