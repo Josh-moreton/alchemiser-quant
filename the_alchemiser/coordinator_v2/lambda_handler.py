@@ -13,8 +13,10 @@ own Lambda invocation, with results aggregated by the Aggregator Lambda.
 
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.config.config import Settings
@@ -69,6 +71,16 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         coordinator_settings = CoordinatorSettings.from_environment()
         app_settings = Settings()
 
+        # Validate required environment variables
+        if not coordinator_settings.aggregation_table_name:
+            raise ValueError(
+                "AGGREGATION_TABLE_NAME environment variable is required for multi-node mode"
+            )
+        if not coordinator_settings.strategy_lambda_function_name:
+            raise ValueError(
+                "STRATEGY_FUNCTION_NAME environment variable is required for multi-node mode"
+            )
+
         # Get DSL files and allocations
         dsl_files = app_settings.strategy.dsl_files
         dsl_allocations = app_settings.strategy.dsl_allocations
@@ -76,14 +88,14 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         if not dsl_files:
             raise ValueError("No DSL strategy files configured")
 
-        # Build strategy configs list
-        strategy_configs: list[tuple[str, float]] = [
-            (dsl_file, dsl_allocations.get(dsl_file, 0.0)) for dsl_file in dsl_files
+        # Build strategy configs list with Decimal for precision
+        strategy_configs: list[tuple[str, Decimal]] = [
+            (dsl_file, Decimal(str(dsl_allocations.get(dsl_file, 0.0)))) for dsl_file in dsl_files
         ]
 
-        # Validate allocations sum to ~1.0
-        total_allocation = sum(alloc for _, alloc in strategy_configs)
-        if not (0.99 <= total_allocation <= 1.01):
+        # Validate allocations sum to ~1.0 using math.isclose per coding guidelines
+        total_allocation = float(sum(alloc for _, alloc in strategy_configs))
+        if not math.isclose(total_allocation, 1.0, rel_tol=0.01):
             logger.warning(
                 "Strategy allocations don't sum to 1.0",
                 extra={

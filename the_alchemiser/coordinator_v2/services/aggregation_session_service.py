@@ -18,9 +18,6 @@ from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
-    from mypy_boto3_dynamodb.type_defs import (
-        AttributeValueTypeDef,
-    )
 
 logger = get_logger(__name__)
 
@@ -68,7 +65,7 @@ class AggregationSessionService:
         self,
         session_id: str,
         correlation_id: str,
-        strategy_configs: list[tuple[str, float]],
+        strategy_configs: list[tuple[str, Decimal]],
         timeout_seconds: int = 600,
     ) -> dict[str, Any]:
         """Create a new aggregation session.
@@ -76,7 +73,7 @@ class AggregationSessionService:
         Args:
             session_id: Unique session identifier (usually correlation_id).
             correlation_id: Workflow correlation ID for tracing.
-            strategy_configs: List of (dsl_file, allocation) tuples.
+            strategy_configs: List of (dsl_file, allocation) tuples with Decimal allocations.
             timeout_seconds: Session timeout in seconds.
 
         Returns:
@@ -88,7 +85,7 @@ class AggregationSessionService:
         ttl = int((now + timedelta(hours=24)).timestamp())
 
         item = cast(
-            "dict[str, AttributeValueTypeDef]",
+            "dict[str, dict[str, Any]]",
             {
                 "PK": {"S": f"SESSION#{session_id}"},
                 "SK": {"S": "METADATA"},
@@ -168,7 +165,7 @@ class AggregationSessionService:
 
         # Store partial signal (idempotent - fails silently if exists)
         partial_item = cast(
-            "dict[str, AttributeValueTypeDef]",
+            "dict[str, dict[str, Any]]",
             {
                 "PK": {"S": f"SESSION#{session_id}"},
                 "SK": {"S": f"STRATEGY#{dsl_file}"},

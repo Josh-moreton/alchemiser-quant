@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.coordinator_v2.services.aggregation_session_service import (
@@ -78,8 +79,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         portfolio_merger = PortfolioMerger(allocation_tolerance=settings.allocation_tolerance)
 
         # Extract partial signal data
-        from decimal import Decimal
-
         allocation = Decimal(str(detail.get("allocation", "0")))
         consolidated_portfolio = detail.get("consolidated_portfolio", {})
         signals_data = detail.get("signals_data", {})

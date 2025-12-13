@@ -9,6 +9,7 @@ strategy execution across multiple concurrent Lambda invocations.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import boto3
@@ -53,7 +54,7 @@ class StrategyInvoker:
         session_id: str,
         correlation_id: str,
         dsl_file: str,
-        allocation: float,
+        allocation: Decimal,
         strategy_number: int,
         total_strategies: int,
     ) -> str:
@@ -63,7 +64,7 @@ class StrategyInvoker:
             session_id: Aggregation session ID.
             correlation_id: Workflow correlation ID.
             dsl_file: DSL strategy file name (e.g., '1-KMLM.clj').
-            allocation: Weight allocation for this file (0-1).
+            allocation: Weight allocation for this file (0-1) as Decimal.
             strategy_number: Order index (1-based).
             total_strategies: Total number of strategies in session.
 
@@ -75,7 +76,7 @@ class StrategyInvoker:
             "session_id": session_id,
             "correlation_id": correlation_id,
             "dsl_file": dsl_file,
-            "allocation": allocation,
+            "allocation": float(allocation),  # Convert Decimal to float for JSON serialization
             "strategy_number": strategy_number,
             "total_strategies": total_strategies,
             "mode": "single_strategy",  # Signal single-file mode
@@ -116,14 +117,14 @@ class StrategyInvoker:
         self,
         session_id: str,
         correlation_id: str,
-        strategy_configs: list[tuple[str, float]],
+        strategy_configs: list[tuple[str, Decimal]],
     ) -> list[str]:
         """Invoke Strategy Lambda for all strategy files in parallel.
 
         Args:
             session_id: Aggregation session ID.
             correlation_id: Workflow correlation ID.
-            strategy_configs: List of (dsl_file, allocation) tuples.
+            strategy_configs: List of (dsl_file, allocation) tuples with Decimal allocations.
 
         Returns:
             List of Lambda request IDs for all invocations.
