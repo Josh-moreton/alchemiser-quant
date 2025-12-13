@@ -1534,7 +1534,7 @@ Resources:
                 "properties": {
                   "title": "Latest Errors & Warnings (All Lambdas)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['error', 'warn', 'warning']\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${MetricsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['error', 'warn', 'warning']\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 0,
@@ -1546,7 +1546,7 @@ Resources:
                 "properties": {
                   "title": "Errors by Correlation ID (Trace Workflow Runs)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'error'\n| sort @timestamp desc\n| limit 100"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${MetricsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'error'\n| sort @timestamp desc\n| limit 100"
                 },
                 "x": 0,
                 "y": 8,
@@ -1558,7 +1558,7 @@ Resources:
                 "properties": {
                   "title": "Recent Workflow Runs (by correlation_id)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event like /SignalGenerated|PartialSignalGenerated|RebalancePlanned|TradeExecuted|WorkflowCompleted|WorkflowFailed/\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${MetricsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event like /SignalGenerated|PartialSignalGenerated|RebalancePlanned|TradeExecuted|WorkflowCompleted|WorkflowFailed/\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 16,
@@ -1678,6 +1678,7 @@ Resources:
           PortfolioLog: !Sub "/aws/lambda/${PortfolioFunction}"
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
+          MetricsLog: !Sub "/aws/lambda/${MetricsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
