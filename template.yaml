@@ -126,6 +126,7 @@ Conditions:
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
+  EnableMultiNode: !Equals [ !Ref EnableMultiNodeStrategy, "true" ]
 
 Globals:
   Function:
@@ -472,8 +473,8 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-reports"
+        - HasStackName
+        - !Sub "${StackName}-performance-reports"
         - !Sub "alchemiser-${Stage}-reports"
       LifecycleConfiguration:
         Rules:
@@ -501,8 +502,8 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-market-data"
+        - HasStackName
+        - !Sub "${StackName}-historical-market-data"
         - !Sub "alchemiser-${Stage}-market-data"
       VersioningConfiguration:
         Status: Enabled
@@ -1224,6 +1225,8 @@ Resources:
                 Resource: "*"
 
   # Scheduler to trigger Strategy (workflow entry point)
+  # When EnableMultiNodeStrategy=true, triggers Orchestrator (fan-out/fan-in)
+  # When EnableMultiNodeStrategy=false, triggers Strategy directly (legacy mode)
   StrategySchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -1231,13 +1234,19 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
         - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: "Execute trading strategy daily at 9:35 AM New York time"
+      Description: !If
+        - EnableMultiNode
+        - "Execute trading strategy (multi-node mode) daily at 9:35 AM New York time"
+        - "Execute trading strategy (legacy mode) daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !GetAtt StrategyFunction.Arn
+        Arn: !If
+          - EnableMultiNode
+          - !GetAtt StrategyOrchestratorFunction.Arn
+          - !GetAtt StrategyFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
         Input: '{"mode": "trade"}'
         RetryPolicy:
@@ -1258,7 +1267,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt StrategyFunction.Arn
+                Resource:
+                  - !GetAtt StrategyFunction.Arn
+                  - !GetAtt StrategyOrchestratorFunction.Arn
 
   # ========== DATA LAMBDA ==========
   # Fetches historical market data from Alpaca and stores in S3 as Parquet
@@ -1397,7 +1408,7 @@ Resources:
                 "properties": {
                   "title": "Latest Errors & Warnings (All Lambdas)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['error', 'warn', 'warning']\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['error', 'warn', 'warning']\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 0,
@@ -1409,7 +1420,7 @@ Resources:
                 "properties": {
                   "title": "Errors by Correlation ID (Trace Workflow Runs)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'error'\n| sort @timestamp desc\n| limit 100"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'error'\n| sort @timestamp desc\n| limit 100"
                 },
                 "x": 0,
                 "y": 8,
@@ -1421,7 +1432,7 @@ Resources:
                 "properties": {
                   "title": "Recent Workflow Runs (by correlation_id)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event like /SignalGenerated|RebalancePlanned|TradeExecuted|WorkflowCompleted|WorkflowFailed/\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event like /SignalGenerated|PartialSignalGenerated|RebalancePlanned|TradeExecuted|WorkflowCompleted|WorkflowFailed/\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 16,
@@ -1536,6 +1547,8 @@ Resources:
             ]
           }
         - StrategyLog: !Sub "/aws/lambda/${StrategyFunction}"
+          OrchestratorLog: !Sub "/aws/lambda/${StrategyOrchestratorFunction}"
+          AggregatorLog: !Sub "/aws/lambda/${StrategyAggregatorFunction}"
           PortfolioLog: !Sub "/aws/lambda/${PortfolioFunction}"
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
