@@ -3,6 +3,10 @@
 **Status**: Complete
 **Date**: 2025-12-13
 **Author**: Copilot Agent
+**Commit Hash**: 74ec1d3
+
+> **Note**: This document contains line number references accurate as of commit 74ec1d3 (2025-12-13).
+> As code evolves, line numbers may shift. Use function names and file paths for navigation.
 
 ## Executive Summary
 
