@@ -100,6 +100,15 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
+  # Multi-node strategy scaling
+  EnableMultiNodeStrategy:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable multi-node strategy scaling (fan-out to parallel Lambda invocations)
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -641,6 +650,8 @@ Resources:
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
+          # Multi-node strategy scaling
+          ENABLE_MULTI_NODE_STRATEGY: !Ref EnableMultiNodeStrategy
           # Data Lambda for market data (bars from S3 Parquet)
           DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
@@ -732,7 +743,7 @@ Resources:
           AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
           AGGREGATION_TIMEOUT_SECONDS: "600"
-          ENABLE_MULTI_NODE_STRATEGY: "true"
+          ENABLE_MULTI_NODE_STRATEGY: !Ref EnableMultiNodeStrategy
     Metadata:
       BuildMethod: python3.12
       BuildProperties:

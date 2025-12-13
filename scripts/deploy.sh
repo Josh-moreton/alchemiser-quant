@@ -117,6 +117,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "EnableMultiNodeStrategy=${ENABLE_MULTI_NODE_STRATEGY:-false}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -143,6 +144,7 @@ else
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "EnableMultiNodeStrategy=${ENABLE_MULTI_NODE_STRATEGY:-false}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")

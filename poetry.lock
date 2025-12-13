@@ -128,7 +128,6 @@ files = [
 
 [package.dependencies]
 botocore-stubs = "*"
-mypy-boto3-dynamodb = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"dynamodb\""}
 mypy-boto3-events = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"events\""}
 mypy-boto3-lambda = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"lambda\""}
 mypy-boto3-s3 = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"s3\""}
@@ -1574,18 +1573,6 @@ faster-cache = ["orjson"]
 install-types = ["pip"]
 mypyc = ["setuptools (>=50)"]
 reports = ["lxml"]
-
-[[package]]
-name = "mypy-boto3-dynamodb"
-version = "1.42.3"
-description = "Type annotations for boto3 DynamoDB 1.42.3 service generated with mypy-boto3-builder 8.12.0"
-optional = false
-python-versions = ">=3.9"
-groups = ["dev"]
-files = [
-    {file = "mypy_boto3_dynamodb-1.42.3-py3-none-any.whl", hash = "sha256:ed339bb2a61131531a23d55b85e51fd5aed085fff2d6ce1c36f88988b3a9bef4"},
-    {file = "mypy_boto3_dynamodb-1.42.3.tar.gz", hash = "sha256:6e390b7442eded84279fda6ddb8d8f14d0cfc52c8d16e64dab14e6239acb4a2a"},
-]
 
 [[package]]
 name = "mypy-boto3-events"
