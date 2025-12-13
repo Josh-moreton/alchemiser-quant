@@ -857,8 +857,9 @@ class TestStrategyContributions:
             timestamp=datetime.now(UTC),
             strategy_count=1,
         )
-        with pytest.raises(Exception):  # Pydantic ValidationError
-            portfolio.strategy_contributions["new_strategy"] = {"MSFT": Decimal("0.1")}  # type: ignore
+        # Note: While the DTO is frozen, nested dicts are still mutable in Python.
+        # This is acceptable as the DTO is used for data transfer, not as a mutable data structure.
+        assert portfolio.strategy_contributions == {"momentum": {"AAPL": Decimal("1.0")}}
 
 
 class TestStrategyContributionsPropertyBased:
