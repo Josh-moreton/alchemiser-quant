@@ -47,7 +47,9 @@ sam validate --region us-east-1 --lint
 
 # Check package size
 du -sh .aws-sam/build/TradingSystemFunction
-du -sh .aws-sam/build/DependenciesLayer
+du -sh .aws-sam/build/StrategyLayer
+du -sh .aws-sam/build/PortfolioLayer
+du -sh .aws-sam/build/ExecutionLayer
 ```
 
 ### Verify
@@ -114,9 +116,18 @@ find .aws-sam/build/TradingSystemFunction -name "*.pyc"
 |------|---------|-----------------|
 | `template.yaml` | SAM template | CodeUri, Handler, BuildProperties (all exclusions) |
 | `scripts/deploy.sh` | Deployment script | Build & deploy automation |
-| `dependencies/requirements.txt` | Lambda Layer | Production dependencies |
+| `layers/<function>/requirements.txt` | Per-Lambda Layers | Function-specific production dependencies |
 
 **Note:** AWS SAM does not support `.samignore` files. All exclusions are in template.yaml BuildProperties.
+
+### Per-Lambda Layer Architecture
+
+Each Lambda function has its own dedicated layer with curated dependencies:
+- `layers/strategy/requirements.txt` - Strategy Lambda dependencies
+- `layers/portfolio/requirements.txt` - Portfolio Lambda dependencies
+- `layers/execution/requirements.txt` - Execution Lambda dependencies
+- `layers/notifications/requirements.txt` - Notifications Lambda dependencies
+- `layers/data/requirements.txt` - Data Lambda dependencies
 
 ## Quick Checks
 

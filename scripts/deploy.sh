@@ -109,6 +109,9 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     fi
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
+    # Default to false if not set or empty
+    MULTI_NODE_PARAM=${ENABLE_MULTI_NODE_STRATEGY:-false}
+    if [[ -z "$MULTI_NODE_PARAM" ]]; then MULTI_NODE_PARAM="false"; fi
 
     PARAMS=(
         "Stage=dev"
@@ -117,6 +120,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "EnableMultiNodeStrategy=$MULTI_NODE_PARAM"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -135,6 +139,9 @@ else
     fi
     PROD_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
     EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
+    # Default to false if not set or empty
+    MULTI_NODE_PARAM=${ENABLE_MULTI_NODE_STRATEGY:-false}
+    if [[ -z "$MULTI_NODE_PARAM" ]]; then MULTI_NODE_PARAM="false"; fi
 
     PARAMS=(
         "Stage=prod"
@@ -143,6 +150,7 @@ else
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "EnableMultiNodeStrategy=$MULTI_NODE_PARAM"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")

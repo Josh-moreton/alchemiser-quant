@@ -50,15 +50,19 @@
 - This is the actual application code that runs
 - Imported and executed by the Lambda handler
 
-### Dependencies (Pre-installed in Layer)
-**Location:** Lambda Layer (built from `dependencies/requirements.txt`)
-**Includes:**
-- alpaca-py, pandas, numpy, etc.
-- All production dependencies
+### Dependencies (Pre-installed in Per-Function Layers)
+**Location:** Per-Lambda Layers (built from `layers/<function>/requirements.txt`)
+**Layer Files:**
+- `layers/strategy/requirements.txt` - Strategy function deps
+- `layers/portfolio/requirements.txt` - Portfolio function deps
+- `layers/execution/requirements.txt` - Execution function deps
+- `layers/notifications/requirements.txt` - Notifications function deps
+- `layers/data/requirements.txt` - Data function deps
 
 **Why Lambda Needs It:**
 - Application imports these at runtime
 - Pre-installed in `/opt/python/` (Lambda Layer mount point)
+- Each function only ships the dependencies it actually uses
 
 ## Build Process Flow
 
@@ -77,24 +81,26 @@
 
 ### Deployment (Lambda)
 ```
-1. Deployment script runs: poetry export --only=main -o dependencies/requirements.txt
-   ├─→ Reads: pyproject.toml (to get main dependencies)
-   ├─→ Reads: poetry.lock (for exact versions)
-   └─→ Writes: dependencies/requirements.txt
+1. Deployment script verifies per-function layer requirements:
+   ├─→ Checks: layers/strategy/requirements.txt
+   ├─→ Checks: layers/portfolio/requirements.txt
+   ├─→ Checks: layers/execution/requirements.txt
+   ├─→ Checks: layers/notifications/requirements.txt
+   └─→ Checks: layers/data/requirements.txt
 
-2. SAM builds Lambda Layer:
-   ├─→ Reads: dependencies/requirements.txt
+2. SAM builds per-function Lambda Layers:
+   ├─→ Reads: layers/<function>/requirements.txt for each function
    ├─→ Runs: pip install -r requirements.txt -t layer/
-   └─→ Creates: DependenciesLayer.zip
+   └─→ Creates: StrategyLayer.zip, PortfolioLayer.zip, etc.
 
-3. SAM builds Lambda Function:
-   ├─→ Reads: template.yaml (CodeUri: the_alchemiser/)
-   ├─→ Copies: the_alchemiser/** to function package
-   └─→ Creates: TradingSystemFunction.zip
+3. SAM builds Lambda Functions:
+   ├─→ Reads: template.yaml (CodeUri for each function)
+   ├─→ Copies: function code to package
+   └─→ Creates: StrategyFunction.zip, PortfolioFunction.zip, etc.
 
 4. Lambda deployment:
-   ├─→ Uploads: DependenciesLayer.zip → /opt/python/
-   ├─→ Uploads: TradingSystemFunction.zip → /var/task/
+   ├─→ Uploads: <Function>Layer.zip → /opt/python/ (per function)
+   ├─→ Uploads: <Function>.zip → /var/task/ (per function)
    └─→ Lambda runtime imports from both locations
 ```
 

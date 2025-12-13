@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "6.8.0"
+version = "7.0.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -101,8 +101,6 @@ alpaca-py = "0.43.2"
 numpy = "1.26.4"
 pandas = "^2.2.0"
 python-dateutil = "2.9.0.post0"
-tqdm = "4.67.1"
-setuptools = "80.9.0"
 requests = "2.32.5"
 PyYAML = "6.0.3"
 pydantic = ">=2.0.0"
@@ -110,7 +108,6 @@ pydantic-settings = ">=2.0.0"
 cachetools = "^6.2.2"
 dependency-injector = "^4.48.3"
 structlog = "^25.5.0"
-boto3 = "^1.42.7"
 httpx = "^0.28.1"
 
 [tool.poetry.urls]
@@ -162,3 +159,4 @@ mypy-boto3-sns = "^1.41.0"
 mypy-boto3-s3 = "^1.42.3"
 mypy-boto3-events = "^1.41.0"
 boto3-stubs = {extras = ["events", "lambda", "s3", "sns"], version = "^1.42.7"}
+boto3 = "^1.42.9"

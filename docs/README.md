@@ -78,6 +78,7 @@ Obsolete or superseded documentation.
 - **Bug fix history?** → [bug-fixes/](bug-fixes/)
 - **Code review?** → [code-reviews/](code-reviews/)
 - **System analysis?** → [analysis/](analysis/)
+- **Order attribution?** → [ORDER_ATTRIBUTION_SUMMARY.md](ORDER_ATTRIBUTION_SUMMARY.md)
 
 ### By Module
 - **strategy_v2** → [code-reviews/2025-10/strategy_v2/](code-reviews/2025-10/strategy_v2/)
@@ -128,6 +129,11 @@ related:
 - [Deployment Workflow](guides/deployment/DEPLOYMENT_WORKFLOW.md)
 - [Exception Quick Reference](guides/quick-references/EXCEPTIONS_QUICK_REFERENCE.md)
 
+### Order Attribution Analysis (December 2025)
+- [Executive Summary](ORDER_ATTRIBUTION_SUMMARY.md) - Quick overview with diagrams
+- [Detailed Analysis](ORDER_ATTRIBUTION_ANALYSIS.md) - Technical deep-dive
+- [Implementation Checklist](ORDER_ATTRIBUTION_CHECKLIST.md) - Actionable tasks
+
 ### Recent Updates
 - [October 2025 Bug Fixes](bug-fixes/2025-10/)
 - [October 2025 Code Reviews](code-reviews/2025-10/)
@@ -135,6 +141,6 @@ related:
 
 ---
 
-**Last Updated**: 2025-10-27  
-**Total Documents**: 392+  
+**Last Updated**: 2025-12-13  
+**Total Documents**: 395+  
 **Maintained By**: Alchemiser Development Team

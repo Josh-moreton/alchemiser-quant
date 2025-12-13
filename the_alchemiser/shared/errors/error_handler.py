@@ -421,11 +421,12 @@ class TradingSystemErrorHandler:
         """
         from the_alchemiser.shared.value_objects.identifier import Identifier
 
-        # Convert string order_id to Identifier if provided
-        typed_order_id = None
+        # Convert string order_id to Identifier if provided (for validation)
+        validated_order_id: str | None = None
         if order_id:
             try:
-                typed_order_id = Identifier.from_string(order_id)
+                # Validate via Identifier parsing, then convert back to string
+                validated_order_id = str(Identifier.from_string(order_id))
             except (ValueError, TypeError) as conv_error:
                 # Log conversion failure for debugging
                 logger.warning(
@@ -450,13 +451,13 @@ class TradingSystemErrorHandler:
                 "order_error_category": error_classification,
                 "order_error_code": "UNKNOWN",
                 "is_transient": False,
-                "order_id": typed_order_id,
+                "order_id": validated_order_id,
             },
         )
 
         # Create a simple OrderError object for return
         order_error = OrderError(str(error))
-        order_error.order_id = typed_order_id
+        order_error.order_id = validated_order_id
         return order_error
 
     def clear_errors(self) -> None:

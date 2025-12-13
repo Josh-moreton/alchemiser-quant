@@ -28,6 +28,7 @@ from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.strategy_v2.errors import StrategyV2Error
 
 from .dsl_evaluator import DslEvaluator
@@ -46,6 +47,7 @@ class DslEngine(EventHandler):
         strategy_config_path: str | None = None,
         event_bus: EventBus | None = None,
         indicator_service: IndicatorPort | None = None,
+        market_data_adapter: MarketDataPort | None = None,
     ) -> None:
         """Initialize DSL engine.
 
@@ -53,9 +55,9 @@ class DslEngine(EventHandler):
             strategy_config_path: Optional path to strategy config directory
             event_bus: Optional event bus for pub/sub
             indicator_service: Optional pre-configured indicator service (for testing)
+            market_data_adapter: Optional injected market data adapter (from DI container)
 
         """
-        from the_alchemiser.strategy_v2.adapters.data_lambda_client import DataLambdaClient
         from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
         self.logger = get_logger(__name__)
@@ -68,14 +70,19 @@ class DslEngine(EventHandler):
         # Initialize components
         self.parser = SexprParser()
 
-        # Use provided indicator service or create one with DataLambdaClient
+        # Use provided indicator service or create one with injected/default adapter
         if indicator_service:
             self.indicator_service = indicator_service
         else:
-            # DataLambdaClient fetches bars from Data Lambda (which reads S3 Parquet)
+            # Use injected adapter from DI container, or create default for testing
+            if market_data_adapter is None:
+                from the_alchemiser.data_v2.cached_market_data_adapter import (
+                    CachedMarketDataAdapter,
+                )
+
+                market_data_adapter = CachedMarketDataAdapter()
             # IndicatorService computes indicators locally using pandas/numpy
-            market_data_client = DataLambdaClient()
-            self.indicator_service = IndicatorService(market_data_service=market_data_client)
+            self.indicator_service = IndicatorService(market_data_service=market_data_adapter)
 
         self.evaluator = DslEvaluator(self.indicator_service, event_bus)
 

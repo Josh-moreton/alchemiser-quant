@@ -1,19 +1,18 @@
 """Business Unit: data | Status: current.
 
-Cached market data adapter for S3-backed market data with pluggable fallback.
+Cached market data adapter for S3-backed market data with optional fallback.
 
 This adapter implements the MarketDataPort interface using S3 Parquet storage
-as the primary data source. When cache misses occur, it delegates to a
-configurable fallback adapter (e.g., DataLambdaClient for on-demand refresh,
-or direct Alpaca API calls).
+as the primary data source. When cache misses occur, it can optionally delegate
+to a configurable fallback adapter (e.g., direct Alpaca API calls).
 
 Architecture:
-    S3 Cache (Parquet) -> [cache miss?] -> Fallback Adapter
+    S3 Cache (Parquet) -> [cache miss?] -> Fallback Adapter (optional)
            ↓                                    ↓
     IndicatorService <- DSL Strategy Engine <- Strategy Lambda
 
     Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda reads from S3 cache, with fallback for on-demand fetch.
+    Strategy Lambda reads from S3 cache directly.
 """
 
 from __future__ import annotations
@@ -64,18 +63,17 @@ def _parse_period_to_days(period: str) -> int:
 
 
 class CachedMarketDataAdapter(MarketDataPort):
-    """Market data adapter that uses S3 cache with pluggable fallback.
+    """Market data adapter that uses S3 cache with optional fallback.
 
     This adapter reads historical data from S3 Parquet files populated by the
-    nightly DataRefresh Lambda. When cache is empty or stale, it delegates to
-    a configurable fallback adapter to fetch data on-demand.
+    nightly DataRefresh Lambda. When cache is empty or stale, it can optionally
+    delegate to a configurable fallback adapter to fetch data on-demand.
 
     Fallback options:
-    1. DataLambdaClient: Invokes Data Lambda for refresh (no alpaca-py needed)
-    2. Direct Alpaca API: Falls back to live Alpaca API (requires alpaca-py)
-    3. None: Returns empty data on cache miss
+    1. Direct Alpaca API: Falls back to live Alpaca API (requires alpaca-py)
+    2. None (default): Returns empty data on cache miss
 
-    This ensures strategies can always run, even before the first data refresh.
+    In production, data should always be pre-populated by the scheduled refresh.
 
     Attributes:
         market_data_store: S3-backed Parquet storage for historical data
@@ -95,7 +93,7 @@ class CachedMarketDataAdapter(MarketDataPort):
 
         Args:
             market_data_store: S3 store for historical data. If None, creates default.
-            fallback_adapter: Optional adapter to use on cache miss (e.g., DataLambdaClient).
+            fallback_adapter: Optional adapter to use on cache miss.
                              Takes precedence over enable_live_fallback.
             enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
                                  Only used if fallback_adapter is None.
@@ -232,7 +230,7 @@ class CachedMarketDataAdapter(MarketDataPort):
             List of bars from fallback, or empty list
 
         """
-        # Priority 1: Use pluggable fallback adapter (e.g., DataLambdaClient)
+        # Priority 1: Use pluggable fallback adapter (if configured)
         if self._fallback_adapter is not None:
             logger.info(
                 "Cache miss - delegating to fallback adapter",
