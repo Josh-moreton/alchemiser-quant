@@ -245,3 +245,103 @@ class TestPortfolioMerger:
         assert "strategy1.clj" in result.source_strategies
         assert "strategy2.clj" in result.source_strategies
         assert result.strategy_count == 2
+
+    def test_merge_preserves_strategy_contributions(self, merger: PortfolioMerger) -> None:
+        """Test that strategy contributions are merged correctly across partials."""
+        partial_signals = [
+            {
+                "dsl_file": "momentum",
+                "signal_count": 2,
+                "consolidated_portfolio": {
+                    "target_allocations": {"AAPL": "0.6"},
+                    "strategy_contributions": {"momentum": {"AAPL": "0.6"}},
+                },
+            },
+            {
+                "dsl_file": "mean_rev",
+                "signal_count": 1,
+                "consolidated_portfolio": {
+                    "target_allocations": {"AAPL": "0.4"},
+                    "strategy_contributions": {"mean_rev": {"AAPL": "0.4"}},
+                },
+            },
+        ]
+
+        result = merger.merge_portfolios(partial_signals, "test-correlation")
+
+        # Verify target allocations summed correctly
+        assert result.target_allocations["AAPL"] == Decimal("1.0")
+
+        # Verify strategy contributions preserved
+        assert "momentum" in result.strategy_contributions
+        assert "mean_rev" in result.strategy_contributions
+        assert result.strategy_contributions["momentum"]["AAPL"] == Decimal("0.6")
+        assert result.strategy_contributions["mean_rev"]["AAPL"] == Decimal("0.4")
+
+    def test_merge_strategy_contributions_multiple_symbols(self, merger: PortfolioMerger) -> None:
+        """Test strategy contributions with multiple symbols across strategies."""
+        partial_signals = [
+            {
+                "dsl_file": "momentum",
+                "signal_count": 2,
+                "consolidated_portfolio": {
+                    "target_allocations": {"AAPL": "0.4", "MSFT": "0.2"},
+                    "strategy_contributions": {
+                        "momentum": {"AAPL": "0.4", "MSFT": "0.2"}
+                    },
+                },
+            },
+            {
+                "dsl_file": "mean_rev",
+                "signal_count": 2,
+                "consolidated_portfolio": {
+                    "target_allocations": {"AAPL": "0.2", "GOOGL": "0.2"},
+                    "strategy_contributions": {
+                        "mean_rev": {"AAPL": "0.2", "GOOGL": "0.2"}
+                    },
+                },
+            },
+        ]
+
+        result = merger.merge_portfolios(partial_signals, "test-correlation")
+
+        # Verify overlapping symbol (AAPL) summed correctly
+        assert result.target_allocations["AAPL"] == Decimal("0.6")
+        assert result.target_allocations["MSFT"] == Decimal("0.2")
+        assert result.target_allocations["GOOGL"] == Decimal("0.2")
+
+        # Verify contributions preserved with correct breakdown
+        assert result.strategy_contributions["momentum"]["AAPL"] == Decimal("0.4")
+        assert result.strategy_contributions["mean_rev"]["AAPL"] == Decimal("0.2")
+        assert result.strategy_contributions["momentum"]["MSFT"] == Decimal("0.2")
+        assert result.strategy_contributions["mean_rev"]["GOOGL"] == Decimal("0.2")
+        # mean_rev shouldn't have MSFT, momentum shouldn't have GOOGL
+        assert "MSFT" not in result.strategy_contributions["mean_rev"]
+        assert "GOOGL" not in result.strategy_contributions["momentum"]
+
+    def test_merge_backward_compatibility_without_contributions(self, merger: PortfolioMerger) -> None:
+        """Test merger handles partials without strategy_contributions (backward compat)."""
+        partial_signals = [
+            {
+                "dsl_file": "legacy_strategy",
+                "signal_count": 1,
+                "consolidated_portfolio": {
+                    "target_allocations": {"AAPL": "0.5"},
+                    # No strategy_contributions field
+                },
+            },
+            {
+                "dsl_file": "another_legacy",
+                "signal_count": 1,
+                "consolidated_portfolio": {
+                    "target_allocations": {"MSFT": "0.5"},
+                },
+            },
+        ]
+
+        result = merger.merge_portfolios(partial_signals, "test-correlation")
+
+        # Should still work, just with empty strategy_contributions
+        assert result.target_allocations["AAPL"] == Decimal("0.5")
+        assert result.target_allocations["MSFT"] == Decimal("0.5")
+        assert result.strategy_contributions == {}

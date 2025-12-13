@@ -526,10 +526,12 @@ class SignalGenerationHandler:
 
         for signal in signals:
             # Extract strategy ID from signal metadata or use strategy_name
+            # Prefer explicit metadata, then strategy_name, finally fallback to DEFAULT_STRATEGY_ID
             strategy_id = DEFAULT_STRATEGY_ID
             if signal.metadata and "strategy_id" in signal.metadata:
                 strategy_id = signal.metadata["strategy_id"]
             elif signal.strategy_name:
+                # Use strategy_name if available (aligns with single_file_signal_handler)
                 strategy_id = signal.strategy_name
 
             symbol = signal.symbol.value

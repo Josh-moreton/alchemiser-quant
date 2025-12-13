@@ -122,6 +122,9 @@ class PortfolioMerger:
                     merged_contributions[strategy_id] = {}
 
                 for symbol, weight in allocations.items():
+                    # Normalize symbol to uppercase (matches ConsolidatedPortfolio validation)
+                    symbol = symbol.strip().upper()
+
                     if not isinstance(weight, Decimal):
                         weight = Decimal(str(weight))
 
