@@ -49,8 +49,10 @@ docker info
 sam build --use-container --parallel
 
 # Check build succeeded
-ls -la .aws-sam/build/TradingSystemFunction/
-ls -la .aws-sam/build/DependenciesLayer/
+ls -la .aws-sam/build/StrategyFunction/
+ls -la .aws-sam/build/StrategyLayer/
+ls -la .aws-sam/build/PortfolioLayer/
+ls -la .aws-sam/build/ExecutionLayer/
 ```
 
 ### 3. Verify Package Structure
@@ -96,13 +98,19 @@ find .aws-sam/build/TradingSystemFunction -name ".vscode"
 ### 5. Check Package Size
 
 ```bash
-# Check function package size
-du -sh .aws-sam/build/TradingSystemFunction
-# Expected: <50MB (should be similar or smaller than before)
+# Check function package sizes
+du -sh .aws-sam/build/StrategyFunction
+du -sh .aws-sam/build/PortfolioFunction
+du -sh .aws-sam/build/ExecutionFunction
+# Expected: <50MB each
 
-# Check dependencies layer size
-du -sh .aws-sam/build/DependenciesLayer
-# Expected: ~149MB (unchanged from previous version)
+# Check per-function layer sizes
+du -sh .aws-sam/build/StrategyLayer
+du -sh .aws-sam/build/PortfolioLayer
+du -sh .aws-sam/build/ExecutionLayer
+du -sh .aws-sam/build/NotificationsLayer
+du -sh .aws-sam/build/DataLayer
+# Expected: Smaller than shared layer (function-specific deps only)
 ```
 
 ### 6. Test Local Invocation (Optional)

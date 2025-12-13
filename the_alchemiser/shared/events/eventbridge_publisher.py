@@ -33,6 +33,7 @@ EVENT_SOURCE_PREFIX = "alchemiser"
 # For WorkflowFailed, source is determined dynamically from the event's source_module
 EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "SignalGenerated": ("strategy", "SignalGenerated"),
+    "PartialSignalGenerated": ("strategy", "PartialSignalGenerated"),
     "RebalancePlanned": ("portfolio", "RebalancePlanned"),
     "TradeExecuted": ("execution", "TradeExecuted"),
     "WorkflowCompleted": ("execution", "WorkflowCompleted"),  # Terminal success event

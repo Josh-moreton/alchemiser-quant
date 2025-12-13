@@ -276,6 +276,42 @@ Resources:
         - Key: Service
           Value: trade-ledger
 
+  # ========== AGGREGATION SESSIONS TABLE (MULTI-NODE SCALING) ==========
+  # DynamoDB Table for tracking multi-node strategy aggregation sessions
+  AggregationSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-aggregation-sessions"
+        - !Sub "alchemiser-${Stage}-aggregation-sessions"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: aggregation-sessions
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -667,6 +703,171 @@ Resources:
                 Resource:
                   - !GetAtt MarketDataBucket.Arn
                   - !Sub "${MarketDataBucket.Arn}/*"
+
+  # ========== MULTI-NODE STRATEGY SCALING (Coordinator + Aggregator) ==========
+  # These Lambdas enable horizontal scaling of strategy execution by running
+  # each DSL file in a separate Lambda invocation and aggregating the results.
+
+  # Strategy Coordinator Lambda - Orchestrates parallel strategy execution
+  StrategyCoordinatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-coordinator"
+        - !Sub "alchemiser-${Stage}-coordinator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: ./
+      Handler: the_alchemiser.coordinator_v2.lambda_handler.lambda_handler
+      Role: !GetAtt CoordinatorExecutionRole.Arn
+      Layers:
+        - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
+      Timeout: 60  # Coordinator just dispatches, doesn't run strategies
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
+          STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
+          AGGREGATION_TIMEOUT_SECONDS: "600"
+          ENABLE_MULTI_NODE_STRATEGY: "true"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  CoordinatorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CoordinatorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt AggregationSessionsTable.Arn
+              # Permission to invoke Strategy Lambda for each file
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:InvokeAsync
+                Resource:
+                  - !GetAtt StrategyFunction.Arn
+
+  # Signal Aggregator Lambda - Aggregates partial signals into consolidated portfolio
+  SignalAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-aggregator"
+        - !Sub "alchemiser-${Stage}-aggregator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: ./
+      Handler: the_alchemiser.aggregator_v2.lambda_handler.lambda_handler
+      Role: !GetAtt AggregatorExecutionRole.Arn
+      Layers:
+        - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
+      Timeout: 60  # Aggregation should be fast
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
+          ALLOCATION_TOLERANCE: "0.01"
+      Events:
+        PartialSignalEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.strategy"
+              detail-type:
+                - "PartialSignalGenerated"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  AggregatorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AggregatorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt AggregationSessionsTable.Arn
+
+  # ========== END MULTI-NODE STRATEGY SCALING ==========
 
   # Portfolio Lambda - Rebalance planning microservice
   PortfolioFunction:
@@ -1339,6 +1540,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-TradeLedgerTable"
         - !Sub "alchemiser-${Stage}-TradeLedgerTable"
+
+  AggregationSessionsTableName:
+    Description: "DynamoDB table for multi-node strategy aggregation sessions"
+    Value: !Ref AggregationSessionsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-AggregationSessionsTable"
+        - !Sub "alchemiser-${Stage}-AggregationSessionsTable"
 
   PerformanceReportsBucketName:
     Description: "S3 bucket for strategy performance CSV reports"

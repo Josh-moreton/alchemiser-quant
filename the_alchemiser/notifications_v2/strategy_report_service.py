@@ -198,9 +198,9 @@ class StrategyPerformanceReportService:
             # Extract unique strategy names from PK values
             strategy_names: set[str] = set()
             for item in response.get("Items", []):
-                pk = item.get("PK", "")
-                if pk.startswith("STRATEGY#"):
-                    strategy_name = pk.replace("STRATEGY#", "")
+                pk_value = item.get("PK")
+                if isinstance(pk_value, str) and pk_value.startswith("STRATEGY#"):
+                    strategy_name = pk_value.replace("STRATEGY#", "")
                     strategy_names.add(strategy_name)
 
             # Handle pagination if needed
@@ -212,9 +212,9 @@ class StrategyPerformanceReportService:
                     ExclusiveStartKey=response["LastEvaluatedKey"],
                 )
                 for item in response.get("Items", []):
-                    pk = item.get("PK", "")
-                    if pk.startswith("STRATEGY#"):
-                        strategy_name = pk.replace("STRATEGY#", "")
+                    pk_value = item.get("PK")
+                    if isinstance(pk_value, str) and pk_value.startswith("STRATEGY#"):
+                        strategy_name = pk_value.replace("STRATEGY#", "")
                         strategy_names.add(strategy_name)
 
             return sorted(strategy_names)
