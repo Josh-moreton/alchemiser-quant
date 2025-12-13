@@ -119,12 +119,14 @@ class SingleFileSignalHandler:
                 return None
 
             # Build consolidated portfolio (partial - allocations < 1.0)
+            # Use is_partial=True to skip sum-to-1.0 validation for multi-node mode
             consolidated_portfolio = ConsolidatedPortfolio(
                 target_allocations=scaled_allocations,
                 correlation_id=correlation_id,
                 timestamp=datetime.now(UTC),
                 strategy_count=1,
                 source_strategies=[self.dsl_file],
+                is_partial=True,
             )
 
             # Build signals data for this file

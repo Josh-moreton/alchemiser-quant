@@ -101,10 +101,24 @@ class ConsolidatedPortfolio(BaseModel):
         default=None, description="Optional consolidation constraints and metadata"
     )
 
+    # Partial allocation flag (for multi-node mode)
+    is_partial: bool = Field(
+        default=False,
+        description=(
+            "If True, this portfolio is a partial allocation from a single strategy file "
+            "in multi-node mode. Partial portfolios skip the sum-to-1.0 validation as they "
+            "will be aggregated later. Only the final merged portfolio should have is_partial=False."
+        ),
+    )
+
     @field_validator("target_allocations")
     @classmethod
     def validate_allocations(cls, v: dict[str, Decimal]) -> dict[str, Decimal]:
-        """Validate target allocations.
+        """Validate target allocations structure and individual weights.
+
+        Validates symbols and individual weights (0-1). Sum validation is
+        performed in validate_allocation_sum model validator which has
+        access to is_partial flag.
 
         Args:
             v: Dictionary of symbol -> allocation weight
@@ -113,12 +127,12 @@ class ConsolidatedPortfolio(BaseModel):
             Normalized dictionary with uppercase symbols
 
         Raises:
-            ValueError: If allocations are empty, invalid, or don't sum to ~1.0
+            ValueError: If allocations are empty or individual weights invalid
 
         Examples:
             Valid: {"AAPL": Decimal("0.6"), "GOOGL": Decimal("0.4")}
+            Valid: {"AAPL": Decimal("0.1")} - partial allocation allowed
             Invalid: {"AAPL": Decimal("1.5")} - weight > 1.0
-            Invalid: {"AAPL": Decimal("0.5")} - sum != ~1.0
 
         """
         if not v:
@@ -130,7 +144,6 @@ class ConsolidatedPortfolio(BaseModel):
 
         # Normalize symbols to uppercase and validate weights
         normalized = {}
-        total_weight = Decimal("0")
 
         for symbol, weight in v.items():
             if not symbol or not isinstance(symbol, str):
@@ -169,22 +182,8 @@ class ConsolidatedPortfolio(BaseModel):
                 raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
 
             normalized[symbol_upper] = weight
-            total_weight += weight
 
-        # Allow small tolerance for weight sum (common with floating point conversions)
-        if not (ALLOCATION_SUM_MIN <= total_weight <= ALLOCATION_SUM_MAX):
-            logger.warning(
-                "Allocation sum out of tolerance",
-                extra={
-                    "module": "consolidated_portfolio",
-                    "validator": "validate_allocations",
-                    "total_weight": str(total_weight),
-                    "expected": "~1.0",
-                    "tolerance": str(ALLOCATION_SUM_TOLERANCE),
-                },
-            )
-            raise ValueError(f"Total allocations must sum to ~1.0, got {total_weight}")
-
+        # Note: Sum validation moved to model_validator to access is_partial flag
         return normalized
 
     @field_validator("correlation_id")
@@ -295,6 +294,55 @@ class ConsolidatedPortfolio(BaseModel):
                 f"Strategy count ({self.strategy_count}) does not match "
                 f"source_strategies length ({expected_count})"
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_allocation_sum(self) -> ConsolidatedPortfolio:
+        """Validate that allocations sum to ~1.0 for non-partial portfolios.
+
+        In multi-node mode, partial portfolios (is_partial=True) contain only
+        a portion of the total allocation and will be aggregated later.
+        Final/aggregated portfolios (is_partial=False) must sum to ~1.0.
+
+        Raises:
+            ValueError: If is_partial=False and allocations don't sum to ~1.0
+
+        Examples:
+            Valid: is_partial=False, allocations sum to 1.0
+            Valid: is_partial=True, allocations sum to 0.1 (partial)
+            Invalid: is_partial=False, allocations sum to 0.1
+
+        """
+        if self.is_partial:
+            # Partial portfolios skip sum validation - they will be aggregated
+            total_weight = sum(self.target_allocations.values())
+            logger.debug(
+                "Partial portfolio created (sum validation skipped)",
+                extra={
+                    "module": "consolidated_portfolio",
+                    "validator": "validate_allocation_sum",
+                    "total_weight": str(total_weight),
+                    "is_partial": True,
+                },
+            )
+            return self
+
+        # Full portfolio must sum to ~1.0
+        total_weight = sum(self.target_allocations.values())
+        if not (ALLOCATION_SUM_MIN <= total_weight <= ALLOCATION_SUM_MAX):
+            logger.warning(
+                "Allocation sum out of tolerance",
+                extra={
+                    "module": "consolidated_portfolio",
+                    "validator": "validate_allocation_sum",
+                    "total_weight": str(total_weight),
+                    "expected": "~1.0",
+                    "tolerance": str(ALLOCATION_SUM_TOLERANCE),
+                    "is_partial": False,
+                },
+            )
+            raise ValueError(f"Total allocations must sum to ~1.0, got {total_weight}")
+
         return self
 
     @classmethod
