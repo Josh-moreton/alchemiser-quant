@@ -102,7 +102,8 @@ def generate_client_order_id(
     if len(client_order_id) > MAX_CLIENT_ORDER_ID_LENGTH:
         raise ValueError(
             f"Generated client_order_id exceeds Alpaca's {MAX_CLIENT_ORDER_ID_LENGTH}-character limit: "
-            f"{len(client_order_id)} characters. Consider using a shorter strategy_id/prefix or symbol."
+            f"{len(client_order_id)} characters. Consider using shorter strategy_id/prefix, symbol, "
+            "or signal_version."
         )
 
     return client_order_id
@@ -172,6 +173,9 @@ def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:
             return None
 
         # Extract strategy_id - check if legacy prefix
+        # NOTE: We intentionally treat LEGACY_STRATEGY_PREFIX ("alch") as a legacy marker
+        # to distinguish old orders from new ones. If "alch" is needed as a strategy name
+        # going forward, use a different name like "alchemy" or "alchemiser".
         strategy_id = parts[0]
         if strategy_id == LEGACY_STRATEGY_PREFIX:
             strategy_id = "unknown"  # Mark as legacy/unknown strategy
