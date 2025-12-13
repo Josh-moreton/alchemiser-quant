@@ -12,7 +12,7 @@ This service orchestrates the entire order placement flow:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -162,7 +162,6 @@ class UnifiedOrderPlacementService:
         if not client_order_id:
             client_order_id = generate_client_order_id(intent.symbol)
             # Update intent with generated client_order_id
-            from dataclasses import replace
             intent = replace(intent, client_order_id=client_order_id)
 
         log_extra = {
@@ -200,8 +199,6 @@ class UnifiedOrderPlacementService:
 
         # Use adjusted quantity if provided
         if preflight_result.adjusted_quantity:
-            from dataclasses import replace
-
             intent = replace(intent, quantity=preflight_result.adjusted_quantity)
             logger.info(
                 "Adjusted quantity from preflight validation",

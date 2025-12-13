@@ -567,7 +567,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             side,
             float(qty) if qty is not None else None,
             lambda: self._place_market_order_internal(
-                symbol, side, qty, notional, is_complete_exit=is_complete_exit, client_order_id=client_order_id
+                symbol,
+                side,
+                qty,
+                notional,
+                is_complete_exit=is_complete_exit,
+                client_order_id=client_order_id,
             ),
         )
 

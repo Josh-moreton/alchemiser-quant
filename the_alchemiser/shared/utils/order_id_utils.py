@@ -37,33 +37,39 @@ def generate_client_order_id(
         Unique client order ID string
 
     Raises:
-        This function does not raise exceptions.
+        ValueError: If the generated ID exceeds Alpaca's 48-character limit.
 
     Examples:
         >>> # Basic usage
         >>> client_order_id = generate_client_order_id("AAPL")
-        >>> # Returns: "alch-AAPL-20240115T093000-a1b2c3d4"
+        >>> # Returns: "alch-AAPL-20250115T093000-a1b2c3d4"
 
         >>> # With custom strategy
         >>> client_order_id = generate_client_order_id("TSLA", strategy="momentum")
-        >>> # Returns: "momentum-TSLA-20240115T093000-a1b2c3d4"
+        >>> # Returns: "momentum-TSLA-20250115T093000-a1b2c3d4"
 
         >>> # With custom prefix
         >>> client_order_id = generate_client_order_id("NVDA", prefix="custom")
-        >>> # Returns: "custom-NVDA-20240115T093000-a1b2c3d4"
+        >>> # Returns: "custom-NVDA-20250115T093000-a1b2c3d4"
 
     Notes:
         - Client order IDs are useful for tracking orders across strategies
         - They enable better organization in Alpaca's order management
         - The timestamp ensures chronological ordering
         - The UUID suffix guarantees uniqueness even for concurrent orders
+        - Alpaca limits client_order_id to 48 characters
+        - Slashes in symbols (e.g., BTC/USD) are replaced with underscores
 
     """
+    # Alpaca's maximum client_order_id length
+    MAX_CLIENT_ORDER_ID_LENGTH = 48
+
     # Use prefix if provided, otherwise use strategy
     prefix_part = prefix if prefix is not None else strategy
 
-    # Normalize symbol to uppercase and remove any special characters
-    normalized_symbol = symbol.strip().upper().replace("/", "-")
+    # Normalize symbol to uppercase and replace slashes with underscores
+    # Using underscore instead of hyphen to preserve round-trip parsing
+    normalized_symbol = symbol.strip().upper().replace("/", "_")
 
     # Generate timestamp in compact format (YYYYMMDDTHHmmss)
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
@@ -72,7 +78,16 @@ def generate_client_order_id(
     uuid_suffix = str(uuid.uuid4())[:8]
 
     # Construct client order ID
-    return f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}"
+    client_order_id = f"{prefix_part}-{normalized_symbol}-{timestamp}-{uuid_suffix}"
+
+    # Validate length against Alpaca's limit
+    if len(client_order_id) > MAX_CLIENT_ORDER_ID_LENGTH:
+        raise ValueError(
+            f"Generated client_order_id exceeds Alpaca's {MAX_CLIENT_ORDER_ID_LENGTH}-character limit: "
+            f"{len(client_order_id)} characters. Consider using a shorter strategy/prefix."
+        )
+
+    return client_order_id
 
 
 def parse_client_order_id(client_order_id: str) -> dict[str, str] | None:
@@ -89,13 +104,13 @@ def parse_client_order_id(client_order_id: str) -> dict[str, str] | None:
         This function does not raise exceptions.
 
     Examples:
-        >>> client_order_id = "alch-AAPL-20240115T093000-a1b2c3d4"
+        >>> client_order_id = "alch-AAPL-20250115T093000-a1b2c3d4"
         >>> result = parse_client_order_id(client_order_id)
         >>> result
         {
             'strategy': 'alch',
             'symbol': 'AAPL',
-            'timestamp': '20240115T093000',
+            'timestamp': '20250115T093000',
             'uuid_suffix': 'a1b2c3d4'
         }
 
