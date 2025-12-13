@@ -25,9 +25,11 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.services.aggregation_session_service import (
+    AggregationSessionService,
+)
 
 from .config.coordinator_settings import CoordinatorSettings
-from .services.aggregation_session_service import AggregationSessionService
 from .services.strategy_invoker import StrategyInvoker
 
 # Initialize logging on cold start

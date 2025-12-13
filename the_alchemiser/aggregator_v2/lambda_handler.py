@@ -16,15 +16,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.coordinator_v2.services.aggregation_session_service import (
-    AggregationSessionService,
-)
 from the_alchemiser.shared.events import SignalGenerated, WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
     unwrap_eventbridge_event,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.services.aggregation_session_service import (
+    AggregationSessionService,
+)
 
 from .config.aggregator_settings import AggregatorSettings
 from .services.portfolio_merger import PortfolioMerger

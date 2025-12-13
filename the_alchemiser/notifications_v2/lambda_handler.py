@@ -4,10 +4,15 @@ Lambda handler for event-driven notifications microservice.
 
 Consumes TradeExecuted and WorkflowFailed events from EventBridge and sends
 email notifications using the NotificationService.
+
+Supports two execution modes:
+1. Legacy mode: Single TradeExecuted event per workflow - send notification immediately
+2. Per-trade mode: Multiple TradeExecuted events per run - aggregate when all complete
 """
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -24,6 +29,9 @@ from the_alchemiser.shared.events.schemas import (
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.services.execution_run_service import (
+    ExecutionRunService,
+)
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -102,6 +110,196 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
 def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
     """Handle TradeExecuted events by sending trading notifications.
+
+    Supports two modes:
+    1. Legacy mode: Single TradeExecuted event per workflow - send notification immediately
+    2. Per-trade mode: Check if run is complete, aggregate results, send single notification
+
+    Args:
+        detail: The detail payload from TradeExecuted event
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    # Check if this is a per-trade execution event
+    metadata = detail.get("metadata", {})
+    execution_mode = metadata.get("execution_mode", "legacy")
+    run_id = metadata.get("run_id")
+
+    if execution_mode == "per_trade" and run_id:
+        return _handle_per_trade_executed(detail, correlation_id, run_id)
+
+    # Legacy mode: Process single TradeExecuted event immediately
+    return _handle_legacy_trade_executed(detail, correlation_id)
+
+
+def _handle_per_trade_executed(
+    detail: dict[str, Any], correlation_id: str, run_id: str
+) -> dict[str, Any]:
+    """Handle TradeExecuted events from per-trade execution mode.
+
+    Checks if all trades in the run are complete. If so, aggregates results
+    and sends a single notification. If not, returns without sending notification.
+
+    Args:
+        detail: The detail payload from TradeExecuted event
+        correlation_id: Correlation ID for tracing
+        run_id: Execution run identifier
+
+    Returns:
+        Response with status code and message
+
+    """
+    trade_id = detail.get("metadata", {}).get("trade_id", "unknown")
+
+    logger.info(
+        f"Per-trade execution: Checking run completion for trade {trade_id}",
+        extra={
+            "correlation_id": correlation_id,
+            "run_id": run_id,
+            "trade_id": trade_id,
+        },
+    )
+
+    # Initialize ExecutionRunService
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE", "ExecutionRunsTable")
+    run_service = ExecutionRunService(table_name=table_name)
+
+    # Check if run is complete
+    if not run_service.is_run_complete(run_id):
+        # Not all trades complete yet - wait for more events
+        logger.info(
+            f"Run {run_id} not yet complete - waiting for more trades",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+                "trade_id": trade_id,
+            },
+        )
+        return {
+            "statusCode": 200,
+            "body": f"Trade {trade_id} recorded, run not yet complete",
+        }
+
+    # Run is complete - try to finalize and send notification
+    # Use conditional update to ensure only one invocation sends notification
+    finalized = run_service.mark_run_completed(run_id)
+
+    if not finalized:
+        # Another invocation already finalized - skip notification
+        logger.info(
+            f"Run {run_id} already finalized by another invocation",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+            },
+        )
+        return {
+            "statusCode": 200,
+            "body": f"Run {run_id} already finalized",
+        }
+
+    # This invocation wins - aggregate and send notification
+    logger.info(
+        f"🏁 Run {run_id} complete - aggregating results and sending notification",
+        extra={
+            "correlation_id": correlation_id,
+            "run_id": run_id,
+        },
+    )
+
+    # Get run metadata and all trade results
+    run_metadata = run_service.get_run(run_id)
+    trade_results = run_service.get_all_trade_results(run_id)
+
+    # Build aggregated TradeExecuted-like detail for notification
+    aggregated_detail = _aggregate_trade_results(run_metadata, trade_results, correlation_id)
+
+    # Process as legacy notification with aggregated data
+    return _handle_legacy_trade_executed(aggregated_detail, correlation_id)
+
+
+def _aggregate_trade_results(
+    run_metadata: dict[str, Any] | None,
+    trade_results: list[dict[str, Any]],
+    correlation_id: str,
+) -> dict[str, Any]:
+    """Aggregate individual trade results into a single notification payload.
+
+    Args:
+        run_metadata: Run metadata from DynamoDB
+        trade_results: List of individual trade results
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Aggregated detail dict in TradeExecuted format
+
+    """
+    if not run_metadata:
+        run_metadata = {}
+
+    total_trades = run_metadata.get("total_trades", len(trade_results))
+    succeeded_trades = run_metadata.get("succeeded_trades", 0)
+    failed_trades = run_metadata.get("failed_trades", 0)
+
+    # Calculate total trade value
+    total_trade_value = Decimal("0")
+    orders_executed = []
+    failed_symbols = []
+
+    for trade in trade_results:
+        trade_amount = trade.get("trade_amount", Decimal("0"))
+        if isinstance(trade_amount, str):
+            trade_amount = Decimal(trade_amount)
+        total_trade_value += abs(trade_amount)
+
+        # Build order summary for notification
+        order_summary = {
+            "symbol": trade.get("symbol"),
+            "action": trade.get("action"),
+            "status": trade.get("status"),
+            "order_id": trade.get("order_id"),
+            "trade_amount": str(trade_amount),
+        }
+        orders_executed.append(order_summary)
+
+        # Track failed symbols
+        if trade.get("status") == "FAILED":
+            failed_symbols.append(trade.get("symbol", "unknown"))
+
+    # Build aggregated payload
+    return {
+        "correlation_id": correlation_id,
+        "event_id": f"aggregated-trade-executed-{run_metadata.get('run_id', 'unknown')}",
+        "orders_placed": total_trades,
+        "orders_succeeded": succeeded_trades,
+        "success": failed_trades == 0,
+        "metadata": {
+            "execution_mode": "per_trade_aggregated",
+            "run_id": run_metadata.get("run_id"),
+            "plan_id": run_metadata.get("plan_id"),
+            "total_trade_value": str(total_trade_value),
+        },
+        "execution_data": {
+            "orders_executed": orders_executed,
+            "execution_summary": {
+                "total_trades": total_trades,
+                "succeeded": succeeded_trades,
+                "failed": failed_trades,
+                "total_value": str(total_trade_value),
+            },
+        },
+        "failure_reason": f"Failed symbols: {', '.join(failed_symbols)}"
+        if failed_symbols
+        else None,
+        "failed_symbols": failed_symbols,
+    }
+
+
+def _handle_legacy_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle TradeExecuted events in legacy mode (single event per workflow).
 
     Args:
         detail: The detail payload from TradeExecuted event

@@ -45,48 +45,42 @@ root_package = "the_alchemiser"
 include_external_packages = false
 unmatched_ignore_imports_alerting = "warn"
 
+# =============================================================================
+# ARCHITECTURE: Microservices with Shared Foundation
+# =============================================================================
+# AWS Lambda deployment enforces runtime isolation. These rules catch mistakes
+# early and prevent package bloat from accidental cross-imports.
+#
+# Business Lambdas: coordinator_v2, strategy_v2, aggregator_v2, portfolio_v2,
+#                   execution_v2, notifications_v2, metrics_v2
+# Foundation: shared, data_v2
+# =============================================================================
+
 [[tool.importlinter.contracts]]
-name = "Shared module isolation - prevent upward dependencies"
+name = "Foundation cannot import business modules"
 type = "forbidden"
-source_modules = [ "the_alchemiser.shared",]
-forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2",]
-
-[[tool.importlinter.contracts]]
-name = "Strategy module isolation"
-type = "forbidden"
-source_modules = [ "the_alchemiser.strategy_v2",]
-forbidden_modules = [ "the_alchemiser.portfolio_v2", "the_alchemiser.execution_v2",]
-
-[[tool.importlinter.contracts]]
-name = "Portfolio module isolation"
-type = "forbidden"
-source_modules = [ "the_alchemiser.portfolio_v2",]
-forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.execution_v2",]
-
-[[tool.importlinter.contracts]]
-name = "Execution module isolation"
-type = "forbidden"
-source_modules = [ "the_alchemiser.execution_v2",]
-forbidden_modules = [ "the_alchemiser.strategy_v2", "the_alchemiser.portfolio_v2",]
-
-[[tool.importlinter.contracts]]
-name = "Event-driven layered architecture enforcement"
-type = "layers"
-layers = [ "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2", "the_alchemiser.shared",]
-
-[[tool.importlinter.contracts]]
-name = "Deprecated DTO module forbidden"
-type = "forbidden"
-source_modules = [ "the_alchemiser",]
-forbidden_modules = [ "the_alchemiser.shared.dto",]
-
-[[tool.importlinter.contracts]]
-name = "Shared-only cross-module coupling"
-type = "independence"
-modules = [
+source_modules = ["the_alchemiser.shared", "the_alchemiser.data_v2"]
+forbidden_modules = [
+    "the_alchemiser.coordinator_v2",
     "the_alchemiser.strategy_v2",
+    "the_alchemiser.aggregator_v2",
     "the_alchemiser.portfolio_v2",
     "the_alchemiser.execution_v2",
+    "the_alchemiser.notifications_v2",
+    "the_alchemiser.metrics_v2",
+]
+
+[[tool.importlinter.contracts]]
+name = "Business modules are independent"
+type = "independence"
+modules = [
+    "the_alchemiser.coordinator_v2",
+    "the_alchemiser.strategy_v2",
+    "the_alchemiser.aggregator_v2",
+    "the_alchemiser.portfolio_v2",
+    "the_alchemiser.execution_v2",
+    "the_alchemiser.notifications_v2",
+    "the_alchemiser.metrics_v2",
 ]
 
 [tool.bandit]

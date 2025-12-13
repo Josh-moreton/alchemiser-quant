@@ -109,6 +109,15 @@ Parameters:
       - "false"
     Description: Enable multi-node strategy scaling (fan-out to parallel Lambda invocations)
 
+  # Per-trade execution scaling
+  EnablePerTradeExecution:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable per-trade execution scaling (one Lambda invocation per trade via SQS FIFO)
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -127,6 +136,7 @@ Conditions:
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
   EnableMultiNode: !Equals [ !Ref EnableMultiNodeStrategy, "true" ]
+  EnablePerTrade: !Equals [ !Ref EnablePerTradeExecution, "true" ]
 
 Globals:
   Function:
@@ -322,6 +332,43 @@ Resources:
         - Key: Service
           Value: aggregation-sessions
 
+  # ========== EXECUTION RUNS TABLE (PER-TRADE SCALING) ==========
+  # DynamoDB Table for tracking per-trade execution run state
+  # Follows same pattern as AggregationSessionsTable for Strategy multi-node
+  ExecutionRunsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-runs"
+        - !Sub "alchemiser-${Stage}-execution-runs"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: execution-runs
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -447,6 +494,33 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-execution-dlq"
         - !Sub "alchemiser-${Stage}-execution-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # SQS FIFO Queue for per-trade execution (used when EnablePerTradeExecution=true)
+  # FIFO guarantees ordering: sells processed before buys via sequence numbers in MessageGroupId
+  ExecutionFifoQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-fifo.fifo"
+        - !Sub "alchemiser-${Stage}-execution-fifo.fifo"
+      FifoQueue: true
+      ContentBasedDeduplication: false  # Use explicit MessageDeduplicationId (trade_id)
+      VisibilityTimeout: 900  # 15 mins for execution
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ExecutionFifoDLQ.Arn
+        maxReceiveCount: 3
+
+  ExecutionFifoDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-fifo-dlq.fifo"
+        - !Sub "alchemiser-${Stage}-execution-fifo-dlq.fifo"
+      FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 days
 
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
@@ -906,6 +980,10 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Per-trade execution configuration
+          ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
+          EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -952,6 +1030,22 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
+              # Per-trade execution: SQS FIFO queue access
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt ExecutionFifoQueue.Arn
+              # Per-trade execution: Execution runs table access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
@@ -980,11 +1074,22 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Per-trade execution configuration
+          ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
         ExecutionQueue:
           Type: SQS
           Properties:
             Queue: !GetAtt ExecutionQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+        # Per-trade execution: FIFO queue trigger
+        ExecutionFifoQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ExecutionFifoQueue.Arn
             BatchSize: 1
             FunctionResponseTypes:
               - ReportBatchItemFailures
@@ -1033,6 +1138,7 @@ Resources:
                   - sqs:GetQueueAttributes
                 Resource:
                   - !GetAtt ExecutionQueue.Arn
+                  - !GetAtt ExecutionFifoQueue.Arn
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -1043,6 +1149,15 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
+              # Per-trade execution: Execution runs table access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # ========== NOTIFICATIONS LAMBDA ==========
   # Consumes TradeExecuted and WorkflowFailed events and sends email notifications
@@ -1069,6 +1184,9 @@ Resources:
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Per-trade execution configuration (for run aggregation)
+          ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
@@ -1146,6 +1264,14 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - !Sub "${PerformanceReportsBucket.Arn}/*"
+              # Per-trade execution: Execution runs table access (for run aggregation)
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
   # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization
@@ -1573,6 +1699,24 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-AggregationSessionsTable"
         - !Sub "alchemiser-${Stage}-AggregationSessionsTable"
+
+  ExecutionRunsTableName:
+    Description: "DynamoDB table for per-trade execution run tracking"
+    Value: !Ref ExecutionRunsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-ExecutionRunsTable"
+        - !Sub "alchemiser-${Stage}-ExecutionRunsTable"
+
+  ExecutionFifoQueueUrl:
+    Description: "SQS FIFO queue for per-trade execution"
+    Value: !Ref ExecutionFifoQueue
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-ExecutionFifoQueue"
+        - !Sub "alchemiser-${Stage}-ExecutionFifoQueue"
 
   PerformanceReportsBucketName:
     Description: "S3 bucket for strategy performance CSV reports"

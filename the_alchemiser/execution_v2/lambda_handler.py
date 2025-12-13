@@ -2,8 +2,19 @@
 
 Lambda handler for execution microservice.
 
-Triggered by SQS when RebalancePlanned is published by portfolio (via EventBridge → SQS).
-Runs trade execution and publishes TradeExecuted to EventBridge.
+Supports two execution modes based on event source:
+1. Legacy mode: Triggered by SQS (standard queue) with RebalancePlanned events
+   - Processes full RebalancePlan in a single Lambda invocation
+   - Uses TradingExecutionHandler
+
+2. Per-trade mode: Triggered by SQS FIFO queue with TradeMessage events
+   - Processes one trade per Lambda invocation
+   - Uses SingleTradeHandler
+   - DynamoDB tracks run state; Notifications aggregates results
+
+The mode is detected by examining the event source ARN:
+- FIFO queue: Contains ".fifo" in ARN
+- Standard queue: No ".fifo" in ARN
 """
 
 from __future__ import annotations
@@ -13,6 +24,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution_v2.handlers.single_trade_handler import (
+    SingleTradeHandler,
+)
 from the_alchemiser.execution_v2.handlers.trading_execution_handler import (
     TradingExecutionHandler,
 )
@@ -232,6 +246,120 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         retry just those messages.
 
     """
+    # Detect execution mode from event source
+    records = event.get("Records", [])
+    if not records:
+        logger.warning("No records in SQS event")
+        return {"batchItemFailures": []}
+
+    # Check first record's eventSourceARN to detect FIFO queue
+    first_record = records[0]
+    event_source_arn = first_record.get("eventSourceARN", "")
+    is_fifo_queue = ".fifo" in event_source_arn
+
+    if is_fifo_queue:
+        logger.info(
+            "Per-trade execution mode: Processing TradeMessage from FIFO queue",
+            extra={"event_source_arn": event_source_arn, "record_count": len(records)},
+        )
+        return _process_fifo_trades(event, records)
+    logger.info(
+        "Legacy execution mode: Processing RebalancePlanned from standard queue",
+        extra={"event_source_arn": event_source_arn, "record_count": len(records)},
+    )
+    return _process_legacy_batch(event, records)
+
+
+def _process_fifo_trades(event: dict[str, Any], records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Process TradeMessage records from SQS FIFO queue (per-trade mode).
+
+    Each record contains a TradeMessage for a single trade.
+    Uses SingleTradeHandler for execution.
+
+    Args:
+        event: Full SQS event
+        records: List of SQS records
+
+    Returns:
+        Response with batch item failures for SQS
+
+    """
+    batch_item_failures: list[dict[str, str]] = []
+
+    # Create application container
+    container = ApplicationContainer.create_for_environment("production")
+
+    # Create single trade handler
+    handler = SingleTradeHandler(container)
+
+    for record in records:
+        message_id = record.get("messageId", "unknown")
+
+        try:
+            # Process the trade message
+            result = handler.handle_sqs_record(record)
+
+            if not result.get("success", False) and not result.get("skipped", False):
+                logger.error(
+                    "Per-trade execution failed",
+                    extra={
+                        "message_id": message_id,
+                        "trade_id": result.get("trade_id"),
+                        "error": result.get("error"),
+                    },
+                )
+                # Mark as failed for SQS retry
+                batch_item_failures.append({"itemIdentifier": message_id})
+            else:
+                logger.info(
+                    "Per-trade execution succeeded",
+                    extra={
+                        "message_id": message_id,
+                        "trade_id": result.get("trade_id"),
+                        "symbol": result.get("symbol"),
+                        "skipped": result.get("skipped", False),
+                    },
+                )
+
+        except Exception as e:
+            logger.error(
+                "Per-trade execution raised exception",
+                extra={
+                    "message_id": message_id,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
+            batch_item_failures.append({"itemIdentifier": message_id})
+
+        finally:
+            # Clean up WebSocket connections after each trade
+            try:
+                WebSocketConnectionManager.cleanup_all_instances()
+            except Exception as cleanup_error:
+                logger.warning(
+                    "Failed to cleanup WebSocket connections",
+                    extra={"error": str(cleanup_error)},
+                )
+
+    return {"batchItemFailures": batch_item_failures}
+
+
+def _process_legacy_batch(event: dict[str, Any], records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Process RebalancePlanned records from standard SQS queue (legacy mode).
+
+    Each record contains a RebalancePlanned event for full batch execution.
+    Uses TradingExecutionHandler for execution.
+
+    Args:
+        event: Full SQS event
+        records: List of SQS records
+
+    Returns:
+        Response with batch item failures for SQS
+
+    """
     # Track failed messages for SQS batch failure reporting
     batch_item_failures: list[dict[str, str]] = []
 
@@ -247,13 +375,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Return all messages as failed so they go to DLQ after retries
         return {
             "batchItemFailures": [
-                {"itemIdentifier": record.get("messageId", "")}
-                for record in event.get("Records", [])
+                {"itemIdentifier": record.get("messageId", "")} for record in records
             ]
         }
 
     # Process each message
-    records = event.get("Records", [])
     for i, detail in enumerate(domain_events):
         message_id = records[i].get("messageId", f"unknown-{i}") if i < len(records) else f"idx-{i}"
         correlation_id = detail.get("correlation_id", str(uuid.uuid4()))

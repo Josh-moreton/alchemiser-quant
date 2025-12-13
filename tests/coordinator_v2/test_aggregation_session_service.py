@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from the_alchemiser.coordinator_v2.services.aggregation_session_service import (
+from the_alchemiser.shared.services.aggregation_session_service import (
     AggregationSessionService,
 )
 

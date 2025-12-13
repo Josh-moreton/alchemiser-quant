@@ -10,6 +10,7 @@ analysis logic without orchestration concerns.
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -43,11 +44,54 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlanItem,
 )
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
+from the_alchemiser.shared.schemas.trade_message import TradeMessage
 
 from ..core.portfolio_service import PortfolioServiceV2
 
 # Module name constant for consistent logging and error reporting
 MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
+
+
+def _is_per_trade_execution_enabled() -> bool:
+    """Check if per-trade execution is enabled via feature flag.
+
+    Returns:
+        True if ENABLE_PER_TRADE_EXECUTION is set to 'true'.
+
+    """
+    return os.environ.get("ENABLE_PER_TRADE_EXECUTION", "false").lower() == "true"
+
+
+def _get_execution_fifo_queue_url() -> str:
+    """Get the SQS FIFO queue URL for per-trade execution.
+
+    Returns:
+        Queue URL from environment variable.
+
+    Raises:
+        ValueError: If EXECUTION_FIFO_QUEUE_URL is not set.
+
+    """
+    url = os.environ.get("EXECUTION_FIFO_QUEUE_URL", "")
+    if not url:
+        raise ValueError("EXECUTION_FIFO_QUEUE_URL environment variable is not set")
+    return url
+
+
+def _get_execution_runs_table_name() -> str:
+    """Get the DynamoDB table name for execution runs.
+
+    Returns:
+        Table name from environment variable.
+
+    Raises:
+        ValueError: If EXECUTION_RUNS_TABLE_NAME is not set.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        raise ValueError("EXECUTION_RUNS_TABLE_NAME environment variable is not set")
+    return table_name
 
 
 def _to_decimal_safe(value: object) -> Decimal:
@@ -759,6 +803,10 @@ class PortfolioAnalysisHandler:
     ) -> None:
         """Emit RebalancePlanned event with proper causation chain.
 
+        When per-trade execution is enabled (ENABLE_PER_TRADE_EXECUTION=true),
+        this method decomposes the plan into individual TradeMessages and
+        enqueues them to SQS FIFO instead of publishing RebalancePlanned.
+
         Args:
             rebalance_plan: Generated rebalance plan
             allocation_comparison: Allocation comparison data
@@ -788,6 +836,17 @@ class PortfolioAnalysisHandler:
             # Determine if actual trades (BUY/SELL) are required, not just HOLDs
             trades_required = any(item.action in ["BUY", "SELL"] for item in rebalance_plan.items)
 
+            # Check if per-trade execution is enabled
+            if _is_per_trade_execution_enabled() and trades_required:
+                # Use per-trade execution: decompose and enqueue to SQS FIFO
+                self._enqueue_trades_for_per_trade_execution(
+                    rebalance_plan=rebalance_plan,
+                    correlation_id=original_event.correlation_id,
+                    causation_id=original_event.event_id,
+                )
+                return
+
+            # Legacy mode: publish RebalancePlanned event to EventBridge
             event = RebalancePlanned(
                 correlation_id=original_event.correlation_id,
                 causation_id=original_event.event_id,  # Direct causation from SignalGenerated
@@ -837,6 +896,119 @@ class PortfolioAnalysisHandler:
                 },
             )
             raise
+
+    def _enqueue_trades_for_per_trade_execution(
+        self,
+        rebalance_plan: RebalancePlan,
+        correlation_id: str,
+        causation_id: str,
+    ) -> None:
+        """Decompose rebalance plan into individual trades and enqueue to SQS FIFO.
+
+        This method:
+        1. Creates TradeMessage for each BUY/SELL item (skips HOLD)
+        2. Creates run state entry in DynamoDB
+        3. Enqueues each trade message to SQS FIFO with ordering
+
+        Args:
+            rebalance_plan: The rebalance plan to decompose.
+            correlation_id: Workflow correlation ID.
+            causation_id: Event that caused this operation.
+
+        """
+        import boto3
+
+        from the_alchemiser.shared.services.execution_run_service import (
+            ExecutionRunService,
+        )
+
+        run_id = str(uuid.uuid4())
+        run_timestamp = datetime.now(UTC)
+
+        # Build TradeMessages for each BUY/SELL item
+        trade_messages: list[TradeMessage] = []
+        for item in rebalance_plan.items:
+            if item.action == "HOLD":
+                continue  # Skip HOLD items - no execution needed
+
+            # Compute sequence number (sells 1000-1999, buys 2000-2999)
+            sequence_number = TradeMessage.compute_sequence_number(item.action, item.priority)
+
+            # Determine if this is a complete exit (selling entire position)
+            is_complete_exit = (
+                item.action == "SELL"
+                and item.target_weight == Decimal("0")
+                and item.current_weight > Decimal("0")
+            )
+
+            trade_message = TradeMessage(
+                run_id=run_id,
+                trade_id=str(uuid.uuid4()),
+                plan_id=rebalance_plan.plan_id,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                symbol=item.symbol,
+                action=item.action,
+                trade_amount=item.trade_amount,
+                current_weight=item.current_weight,
+                target_weight=item.target_weight,
+                target_value=item.target_value,
+                current_value=item.current_value,
+                priority=item.priority,
+                phase=item.action,  # Phase matches action for simplicity
+                sequence_number=sequence_number,
+                is_complete_exit=is_complete_exit,
+                total_portfolio_value=rebalance_plan.total_portfolio_value,
+                total_run_trades=sum(
+                    1 for i in rebalance_plan.items if i.action in ["BUY", "SELL"]
+                ),
+                run_timestamp=run_timestamp,
+                metadata=rebalance_plan.metadata,
+            )
+            trade_messages.append(trade_message)
+
+        if not trade_messages:
+            self.logger.info(
+                "No trades to enqueue (all HOLD)",
+                extra={"correlation_id": correlation_id},
+            )
+            return
+
+        # Sort by sequence number (sells first, then buys)
+        trade_messages.sort(key=lambda m: m.sequence_number)
+
+        # Create run state entry in DynamoDB
+        run_service = ExecutionRunService(table_name=_get_execution_runs_table_name())
+        run_service.create_run(
+            run_id=run_id,
+            plan_id=rebalance_plan.plan_id,
+            correlation_id=correlation_id,
+            trade_messages=trade_messages,
+            run_timestamp=run_timestamp,
+        )
+
+        # Enqueue each trade message to SQS FIFO
+        sqs_client = boto3.client("sqs")
+        queue_url = _get_execution_fifo_queue_url()
+
+        for msg in trade_messages:
+            sqs_client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=msg.to_sqs_message_body(),
+                MessageGroupId=run_id,  # All trades in same run grouped together
+                MessageDeduplicationId=msg.trade_id,  # Unique per trade
+            )
+
+        self.logger.info(
+            "Enqueued trades for per-trade execution",
+            extra={
+                "run_id": run_id,
+                "correlation_id": correlation_id,
+                "trade_count": len(trade_messages),
+                "sell_count": sum(1 for m in trade_messages if m.phase == "SELL"),
+                "buy_count": sum(1 for m in trade_messages if m.phase == "BUY"),
+            },
+        )
 
     def _extract_trade_values(self, item: RebalancePlanItem) -> tuple[str, str, float]:
         """Extract action, symbol, and trade amount from a rebalance item.

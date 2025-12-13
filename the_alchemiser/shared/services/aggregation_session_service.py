@@ -1,4 +1,4 @@
-"""Business Unit: coordinator_v2 | Status: current.
+"""Business Unit: shared | Status: current.
 
 Service for managing aggregation sessions in DynamoDB.
 
