@@ -32,7 +32,7 @@ EventBridge Schedule (9:35 AM ET)
 
 ---
 
-## Proposed Architecture: Fan-Out/Fan-In with Signal Aggregator
+## Proposed Architecture: Fan-Out/Fan-In Using Lambda Concurrency
 
 ### High-Level Design
 
@@ -40,32 +40,41 @@ EventBridge Schedule (9:35 AM ET)
 EventBridge Schedule (9:35 AM ET)
         ↓
     Strategy Coordinator Lambda (NEW)
-        ├─ Reads strategy config
-        ├─ Splits strategies into batches
-        ├─ Writes aggregation state to DynamoDB
-        └─ Publishes StrategyBatchRequested events (one per batch)
+        ├─ Reads strategy config (all DSL files + allocations)
+        ├─ Creates aggregation session in DynamoDB
+        └─ Invokes Strategy Lambda ONCE PER STRATEGY FILE (parallel)
 
-        ↓ (Fan-out to multiple Strategy Lambda invocations)
+        ↓ (Fan-out: one Lambda invocation per strategy)
 
     ┌──────────────────────────────────────────────────┐
-    │  Strategy Lambda (Batch 1)                       │
-    │  ├─ KLM.clj (weight: 0.3)                       │
-    │  └─ momentum.clj (weight: 0.2)                  │
+    │  Strategy Lambda Invocation 1                    │
+    │  ├─ Evaluates: KLM.clj (weight: 0.25)           │
     │  └─ Publishes PartialSignalGenerated             │
     └──────────────────────────────────────────────────┘
 
     ┌──────────────────────────────────────────────────┐
-    │  Strategy Lambda (Batch 2)                       │
-    │  ├─ mean_reversion.clj (weight: 0.25)           │
-    │  └─ breakout.clj (weight: 0.25)                 │
+    │  Strategy Lambda Invocation 2                    │
+    │  ├─ Evaluates: momentum.clj (weight: 0.25)      │
     │  └─ Publishes PartialSignalGenerated             │
     └──────────────────────────────────────────────────┘
 
-        ↓ (All PartialSignalGenerated events)
+    ┌──────────────────────────────────────────────────┐
+    │  Strategy Lambda Invocation 3                    │
+    │  ├─ Evaluates: mean_reversion.clj (weight: 0.25)│
+    │  └─ Publishes PartialSignalGenerated             │
+    └──────────────────────────────────────────────────┘
+
+    ┌──────────────────────────────────────────────────┐
+    │  Strategy Lambda Invocation 4                    │
+    │  ├─ Evaluates: breakout.clj (weight: 0.25)      │
+    │  └─ Publishes PartialSignalGenerated             │
+    └──────────────────────────────────────────────────┘
+
+        ↓ (All PartialSignalGenerated events arrive in parallel)
 
     Signal Aggregator Lambda (NEW)
         ├─ Collects partial signals in DynamoDB
-        ├─ Waits for all batches to complete
+        ├─ Waits for ALL strategy files to complete
         ├─ Aggregates into consolidated portfolio
         └─ Publishes ONE SignalGenerated event
 
@@ -82,10 +91,10 @@ EventBridge Schedule (9:35 AM ET)
 
 | Component | Type | Purpose | Trigger |
 |-----------|------|---------|---------|
-| **Strategy Coordinator** | Lambda (new) | Split strategies into batches, initiate parallel execution | EventBridge Schedule |
-| **Strategy Worker** | Lambda (existing, modified) | Evaluate assigned strategy batch, emit partial signals | StrategyBatchRequested event |
+| **Strategy Coordinator** | Lambda (new) | Read config, create session, invoke Strategy Lambda once per file | EventBridge Schedule |
+| **Strategy Worker** | Lambda (existing, modified) | Evaluate SINGLE strategy file, emit partial signal | Direct Lambda invoke from Coordinator |
 | **Signal Aggregator** | Lambda (new) | Collect partial signals, aggregate, emit consolidated signal | PartialSignalGenerated event |
-| **Aggregation State Table** | DynamoDB (new) | Track which batches completed, store partial signals | - |
+| **Aggregation State Table** | DynamoDB (new) | Track which strategies completed, store partial signals | - |
 
 ---
 
@@ -97,75 +106,98 @@ EventBridge Schedule (9:35 AM ET)
 
 **Responsibilities**:
 1. Read all configured DSL strategies and their allocations
-2. Split strategies into **configurable batches** (e.g., 10 strategies per batch)
-3. Create **aggregation session** in DynamoDB with:
+2. Create **aggregation session** in DynamoDB with:
    - Session ID (correlation_id)
-   - Expected batch count
-   - Batch configurations
+   - Expected strategy count (number of files)
+   - Strategy file configurations
    - Timestamp, timeout
-4. Publish **StrategyBatchRequested** events to EventBridge (one per batch)
+3. **Directly invoke Strategy Lambda** once per strategy file (async invocation)
+4. Lambda's natural concurrency handles parallelism
 
 **Configuration**:
 ```python
-STRATEGY_BATCH_SIZE: int = 10          # Max strategies per batch
-STRATEGY_MAX_PARALLEL_BATCHES: int = 5 # Max concurrent Lambda executions
-AGGREGATION_TIMEOUT_SECONDS: int = 600 # 10 minutes max wait
+AGGREGATION_TIMEOUT_SECONDS: int = 600      # 10 minutes max wait
+STRATEGY_LAMBDA_FUNCTION_NAME: str          # ARN of Strategy Lambda
+MAX_CONCURRENT_STRATEGIES: int = 1000       # Lambda account concurrency limit
 ```
 
-**Batching Strategy**:
+**Invocation Logic**:
 ```python
-# Example: 25 strategies with batch_size=10
-# Batch 1: strategies[0:10]   - combined weight: 0.35
-# Batch 2: strategies[10:20]  - combined weight: 0.40
-# Batch 3: strategies[20:25]  - combined weight: 0.25
-```
+def lambda_handler(event, context):
+    correlation_id = generate_request_id()
 
-**Event Published**:
-```python
-class StrategyBatchRequested(BaseEvent):
-    event_type: str = "StrategyBatchRequested"
+    # Read all strategy files from settings
+    dsl_files = settings.dsl_files  # ["KLM.clj", "momentum.clj", ...]
+    dsl_allocations = settings.dsl_allocations  # {"KLM.clj": 0.25, ...}
 
-    session_id: str                          # Aggregation session ID
-    batch_id: str                            # e.g., "batch-1-of-3"
-    batch_number: int                        # 1, 2, 3...
-    total_batches: int                       # 3
+    # Create aggregation session
+    session_id = create_aggregation_session(
+        correlation_id=correlation_id,
+        total_strategies=len(dsl_files),
+        strategy_configs=[(file, dsl_allocations[file]) for file in dsl_files]
+    )
 
-    dsl_files: list[str]                     # ["KLM.clj", "momentum.clj"]
-    dsl_allocations: dict[str, float]        # {"KLM.clj": 0.3, "momentum.clj": 0.2}
+    # Invoke Strategy Lambda once per file (parallel async invocations)
+    lambda_client = boto3.client('lambda')
 
-    timeout_at: datetime                     # Session expiry
+    for dsl_file in dsl_files:
+        payload = {
+            "session_id": session_id,
+            "correlation_id": correlation_id,
+            "dsl_file": dsl_file,
+            "allocation": float(dsl_allocations[dsl_file]),
+            "total_strategies": len(dsl_files)
+        }
+
+        # Async invocation - returns immediately, Lambda runs in parallel
+        lambda_client.invoke(
+            FunctionName=STRATEGY_LAMBDA_FUNCTION_NAME,
+            InvocationType='Event',  # Async
+            Payload=json.dumps(payload)
+        )
+
+    return {
+        "statusCode": 200,
+        "body": {
+            "session_id": session_id,
+            "correlation_id": correlation_id,
+            "strategies_invoked": len(dsl_files)
+        }
+    }
 ```
 
 **DynamoDB Schema** (`AggregationSessionsTable`):
 ```python
+# Session metadata
 {
     "PK": "SESSION#<session_id>",
     "SK": "METADATA",
     "session_id": str,
     "correlation_id": str,
-    "total_batches": int,
-    "completed_batches": int,
+    "total_strategies": int,              # Total number of strategy files
+    "completed_strategies": int,          # Counter (atomic increment)
     "status": "PENDING" | "AGGREGATING" | "COMPLETED" | "FAILED",
     "created_at": datetime,
     "timeout_at": datetime,
-    "batch_configs": [
+    "TTL": int,                           # Auto-cleanup after 24h
+    "strategy_configs": [
         {
-            "batch_id": str,
-            "dsl_files": list[str],
-            "dsl_allocations": dict[str, float]
+            "dsl_file": str,
+            "allocation": float
         }
     ]
 }
 
-# One item per batch completion:
+# One item per strategy completion
 {
     "PK": "SESSION#<session_id>",
-    "SK": "BATCH#<batch_id>",
-    "batch_id": str,
+    "SK": "STRATEGY#<dsl_file>",
+    "dsl_file": str,                      # "KLM.clj"
+    "allocation": float,                  # 0.25
     "completed_at": datetime,
     "signal_count": int,
-    "consolidated_portfolio": dict,  # Partial portfolio from this batch
-    "signals_data": dict             # Partial signals data
+    "consolidated_portfolio": dict,       # Partial portfolio from this strategy
+    "signals_data": dict                  # Signals from this strategy
 }
 ```
 
@@ -176,9 +208,9 @@ class StrategyBatchRequested(BaseEvent):
 **File**: `the_alchemiser/strategy_v2/lambda_handler.py` (MODIFIED)
 
 **Changes**:
-1. **New trigger**: Listen for `StrategyBatchRequested` events (in addition to direct schedule)
-2. **Batch mode**: When triggered by event, only evaluate strategies in `dsl_files` from event
-3. **Emit PartialSignalGenerated** instead of `SignalGenerated` when in batch mode
+1. **New trigger**: Direct Lambda invocation from Coordinator (async)
+2. **Single-file mode**: Evaluate exactly ONE strategy file per invocation
+3. **Emit PartialSignalGenerated** instead of `SignalGenerated` when in single-file mode
 
 **Event Published** (new):
 ```python
@@ -187,13 +219,14 @@ class PartialSignalGenerated(BaseEvent):
     schema_version: str
 
     session_id: str                          # Links to aggregation session
-    batch_id: str                            # Which batch this came from
-    batch_number: int
-    total_batches: int
+    dsl_file: str                            # Which strategy file (e.g., "KLM.clj")
+    allocation: Decimal                      # File weight (e.g., 0.25)
+    strategy_number: int                     # 1, 2, 3... (for ordering)
+    total_strategies: int                    # Total number of strategies in session
 
     # Same as SignalGenerated:
-    signals_data: dict[str, Any]             # Strategy signals (subset)
-    consolidated_portfolio: dict[str, Any]   # Partial portfolio (weights sum < 1.0)
+    signals_data: dict[str, Any]             # Strategy signals (single strategy)
+    consolidated_portfolio: dict[str, Any]   # Partial portfolio (sum < 1.0)
     signal_count: int
     metadata: dict[str, Any]
 ```
@@ -201,31 +234,61 @@ class PartialSignalGenerated(BaseEvent):
 **Logic Changes**:
 ```python
 def lambda_handler(event, context):
-    # Detect if triggered by StrategyBatchRequested event
-    if "detail-type" in event and event["detail-type"] == "StrategyBatchRequested":
-        # BATCH MODE
-        batch_request = StrategyBatchRequested.from_json_dict(event["detail"])
+    # Detect if triggered by Coordinator (single-file mode)
+    if "session_id" in event and "dsl_file" in event:
+        # SINGLE-FILE MODE (new)
+        session_id = event["session_id"]
+        correlation_id = event["correlation_id"]
+        dsl_file = event["dsl_file"]
+        allocation = Decimal(str(event["allocation"]))
+        total_strategies = event["total_strategies"]
 
-        # Override DSL config with batch-specific files
-        settings.dsl_files = batch_request.dsl_files
-        settings.dsl_allocations = batch_request.dsl_allocations
+        # Override settings to evaluate ONLY this file
+        temp_settings = Settings(
+            dsl_files=[dsl_file],
+            dsl_allocations={dsl_file: float(allocation)}
+        )
 
-        # Generate signals (existing logic)
+        # Generate signals for this single file (existing DSL engine logic)
         handler = SignalGenerationHandler(...)
-        partial_signal_event = handler.handle_event(...)
+        signals = handler.generate_signals(temp_settings)
 
-        # Publish PartialSignalGenerated (not SignalGenerated)
-        publish_to_eventbridge(partial_signal_event)
+        # Build PartialSignalGenerated event
+        partial_signal = PartialSignalGenerated(
+            event_id=generate_request_id(),
+            correlation_id=correlation_id,
+            causation_id=session_id,
+            timestamp=datetime.now(UTC),
+            source_module="strategy_v2",
+            source_component="StrategyWorker",
+
+            session_id=session_id,
+            dsl_file=dsl_file,
+            allocation=allocation,
+            strategy_number=event.get("strategy_number", 0),
+            total_strategies=total_strategies,
+
+            signals_data=signals.signals_data,
+            consolidated_portfolio=signals.consolidated_portfolio.to_dict(),
+            signal_count=signals.signal_count,
+            metadata={"single_file_mode": True}
+        )
+
+        # Publish to EventBridge (triggers Aggregator)
+        publish_to_eventbridge(partial_signal)
+
+        return {"statusCode": 200, "session_id": session_id}
 
     else:
-        # LEGACY MODE (single invocation, all strategies)
+        # LEGACY MODE (all strategies in single invocation)
         # Existing logic unchanged - for backward compatibility
+        # This path used when triggered by EventBridge schedule directly
         ...
 ```
 
 **Backward Compatibility**:
-- Direct schedule invocations continue to work (single SignalGenerated)
-- Batch mode only activated when triggered by StrategyBatchRequested event
+- Direct EventBridge schedule invocations continue to work (single SignalGenerated)
+- Single-file mode only activated when invoked by Coordinator with specific payload
 - No breaking changes to existing deployments
 
 ---
@@ -251,20 +314,27 @@ def lambda_handler(event, context):
     # 1. Store partial signal in DynamoDB
     store_partial_signal(
         session_id=partial_signal.session_id,
-        batch_id=partial_signal.batch_id,
+        dsl_file=partial_signal.dsl_file,
         consolidated_portfolio=partial_signal.consolidated_portfolio,
-        signals_data=partial_signal.signals_data
+        signals_data=partial_signal.signals_data,
+        allocation=partial_signal.allocation
     )
 
-    # 2. Check if all batches completed (atomic increment)
+    # 2. Check if all strategies completed (atomic increment)
     session = get_aggregation_session(partial_signal.session_id)
-    completed_count = increment_completed_batches(session_id)
+    completed_count = increment_completed_strategies(session_id)
 
-    if completed_count < session.total_batches:
-        logger.info(f"Waiting for more batches: {completed_count}/{session.total_batches}")
+    if completed_count < session.total_strategies:
+        logger.info(
+            f"Waiting for more strategies: {completed_count}/{session.total_strategies}",
+            session_id=session_id,
+            completed=completed_count,
+            total=session.total_strategies
+        )
         return  # Not ready yet
 
-    # 3. All batches complete - aggregate!
+    # 3. All strategies complete - aggregate!
+    logger.info(f"All strategies completed, starting aggregation", session_id=session_id)
     all_partial_signals = get_all_partial_signals(session_id)
 
     # 4. Merge consolidated portfolios
@@ -286,25 +356,39 @@ def lambda_handler(event, context):
         signals_data=merged_signals_data,
         consolidated_portfolio=merged_portfolio.to_dict(),
         signal_count=sum(s.signal_count for s in all_partial_signals),
-        metadata={"aggregation_session_id": session_id}
+        metadata={
+            "aggregation_session_id": session_id,
+            "strategies_aggregated": len(all_partial_signals)
+        }
     )
 
     publish_to_eventbridge(signal_generated)
 
     # 7. Mark session as completed
     update_session_status(session_id, "COMPLETED")
+
+    logger.info(
+        f"Aggregation completed successfully",
+        session_id=session_id,
+        total_strategies=len(all_partial_signals),
+        total_signals=signal_generated.signal_count
+    )
 ```
 
 **Portfolio Merging**:
 ```python
 def merge_portfolios(partial_signals: list[PartialSignalGenerated]) -> ConsolidatedPortfolio:
     """
-    Merge multiple partial portfolios into one consolidated portfolio.
+    Merge multiple partial portfolios (one per strategy file) into one consolidated portfolio.
 
     Example:
-        Batch 1: {"AAPL": 0.3, "SPY": 0.2}  (total: 0.5)
-        Batch 2: {"TSLA": 0.25, "QQQ": 0.25} (total: 0.5)
-        Merged:  {"AAPL": 0.3, "SPY": 0.2, "TSLA": 0.25, "QQQ": 0.25} (total: 1.0)
+        Strategy 1 (KLM.clj, weight=0.5): {"AAPL": 1.0} → scaled: {"AAPL": 0.5}
+        Strategy 2 (momentum.clj, weight=0.3): {"SPY": 1.0} → scaled: {"SPY": 0.3}
+        Strategy 3 (mean_rev.clj, weight=0.2): {"TSLA": 1.0} → scaled: {"TSLA": 0.2}
+        Merged: {"AAPL": 0.5, "SPY": 0.3, "TSLA": 0.2} (total: 1.0)
+
+    Note: Each strategy already returns a scaled portfolio (allocation applied by DSL engine),
+    so we just need to sum across all strategies.
     """
     merged_allocations: dict[str, Decimal] = {}
 
@@ -315,8 +399,14 @@ def merge_portfolios(partial_signals: list[PartialSignalGenerated]) -> Consolida
 
         for symbol, weight in portfolio.target_allocations.items():
             if symbol in merged_allocations:
-                # Symbol appears in multiple batches (shouldn't happen with proper batching)
-                logger.warning(f"Symbol {symbol} in multiple batches, summing weights")
+                # Symbol appears in multiple strategies - sum their allocations
+                logger.info(
+                    f"Symbol {symbol} in multiple strategies, summing weights",
+                    symbol=symbol,
+                    previous_weight=merged_allocations[symbol],
+                    adding_weight=weight,
+                    strategy=partial.dsl_file
+                )
                 merged_allocations[symbol] += weight
             else:
                 merged_allocations[symbol] = weight
@@ -324,14 +414,20 @@ def merge_portfolios(partial_signals: list[PartialSignalGenerated]) -> Consolida
     # Validate total allocation
     total = sum(merged_allocations.values())
     if not (Decimal("0.99") <= total <= Decimal("1.01")):
-        raise AggregationError(f"Invalid total allocation: {total}")
+        raise AggregationError(
+            f"Invalid total allocation: {total}. "
+            f"Expected ~1.0. Allocations: {merged_allocations}"
+        )
+
+    # Collect source strategy names
+    source_strategies = [p.dsl_file for p in partial_signals]
 
     return ConsolidatedPortfolio(
         target_allocations=merged_allocations,
         correlation_id=partial_signals[0].correlation_id,
         timestamp=datetime.now(UTC),
-        strategy_count=sum(p.signal_count for p in partial_signals),
-        source_strategies=list(merged_allocations.keys())
+        strategy_count=len(partial_signals),
+        source_strategies=source_strategies
     )
 ```
 
@@ -339,17 +435,23 @@ def merge_portfolios(partial_signals: list[PartialSignalGenerated]) -> Consolida
 ```python
 # Timeout handling (DynamoDB TTL + CloudWatch rule)
 if session.timeout_at < datetime.now(UTC):
-    logger.error(f"Aggregation session {session_id} timed out")
-    publish_to_eventbridge(WorkflowFailed(...))
+    logger.error(
+        f"Aggregation session {session_id} timed out",
+        session_id=session_id,
+        completed=session.completed_strategies,
+        total=session.total_strategies
+    )
+    publish_to_eventbridge(WorkflowFailed(
+        correlation_id=session.correlation_id,
+        error_message=f"Aggregation timeout after {AGGREGATION_TIMEOUT_SECONDS}s",
+        error_type="AggregationTimeout"
+    ))
     update_session_status(session_id, "FAILED")
     return
 
-# Partial failure handling
-if any(batch.status == "FAILED" for batch in session.batches):
-    logger.error(f"One or more batches failed in session {session_id}")
-    publish_to_eventbridge(WorkflowFailed(...))
-    update_session_status(session_id, "FAILED")
-    return
+# Strategy failure handling
+# Note: Individual strategy failures are handled by publishing WorkflowFailed from Strategy Lambda
+# Aggregator will timeout if not all strategies report back
 ```
 
 ---
@@ -384,27 +486,29 @@ put_item({
     "PK": "SESSION#abc123",
     "SK": "METADATA",
     "session_id": "abc123",
+    "total_strategies": 4,
+    "completed_strategies": 0,
     ...
 })
 
-# 2. Store partial signal (atomic)
+# 2. Store partial signal (atomic, idempotent)
 update_item(
-    Key={"PK": "SESSION#abc123", "SK": "BATCH#batch-1"},
-    UpdateExpression="SET consolidated_portfolio = :portfolio, ...",
-    ConditionExpression="attribute_not_exists(SK)"  # Idempotency
+    Key={"PK": "SESSION#abc123", "SK": "STRATEGY#KLM.clj"},
+    UpdateExpression="SET consolidated_portfolio = :portfolio, signals_data = :signals, ...",
+    ConditionExpression="attribute_not_exists(SK)"  # Prevents duplicate processing
 )
 
 # 3. Increment completed counter (atomic)
 update_item(
     Key={"PK": "SESSION#abc123", "SK": "METADATA"},
-    UpdateExpression="ADD completed_batches :one",
+    UpdateExpression="ADD completed_strategies :one",
     ExpressionAttributeValues={":one": 1},
     ReturnValues="UPDATED_NEW"
 )
 
 # 4. Get all partial signals (single query)
 query(
-    KeyConditionExpression="PK = :session AND begins_with(SK, 'BATCH#')",
+    KeyConditionExpression="PK = :session AND begins_with(SK, 'STRATEGY#')",
     ExpressionAttributeValues={":session": "SESSION#abc123"}
 )
 ```
@@ -423,44 +527,31 @@ query(
 # File: the_alchemiser/shared/events/schemas.py
 
 @dataclass(frozen=True)
-class StrategyBatchRequested(BaseEvent):
-    """Request to execute a batch of strategies."""
-    event_type: str = "StrategyBatchRequested"
-    schema_version: str = "1.0.0"
-
-    session_id: str
-    batch_id: str
-    batch_number: int
-    total_batches: int
-    dsl_files: list[str]
-    dsl_allocations: dict[str, float]
-    timeout_at: datetime
-
-
-@dataclass(frozen=True)
 class PartialSignalGenerated(BaseEvent):
-    """Signals from a subset of strategies (one batch)."""
+    """Signals from a single strategy file."""
     event_type: str = "PartialSignalGenerated"
     schema_version: str = "1.0.0"
 
-    session_id: str
-    batch_id: str
-    batch_number: int
-    total_batches: int
-    signals_data: dict[str, Any]
-    consolidated_portfolio: dict[str, Any]  # Partial (sum < 1.0)
+    session_id: str                          # Aggregation session ID
+    dsl_file: str                            # Strategy file name (e.g., "KLM.clj")
+    allocation: Decimal                      # File allocation weight (0-1)
+    strategy_number: int                     # Order index (for debugging)
+    total_strategies: int                    # Total strategies in session
+
+    signals_data: dict[str, Any]             # Strategy signals (single file)
+    consolidated_portfolio: dict[str, Any]   # Partial portfolio (sum < 1.0)
     signal_count: int
     metadata: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class AggregationCompleted(BaseEvent):
-    """All batches aggregated successfully."""
+    """All strategies aggregated successfully (internal event)."""
     event_type: str = "AggregationCompleted"
     schema_version: str = "1.0.0"
 
     session_id: str
-    total_batches: int
+    total_strategies: int
     total_signals: int
     aggregated_signal_event_id: str  # The SignalGenerated event ID
 ```
@@ -483,16 +574,14 @@ class AggregationCompleted(BaseEvent):
       MemorySize: 512
       Environment:
         Variables:
-          STRATEGY_BATCH_SIZE: 10
-          STRATEGY_MAX_PARALLEL_BATCHES: 5
           AGGREGATION_TIMEOUT_SECONDS: 600
           AGGREGATION_SESSIONS_TABLE: !Ref AggregationSessionsTable
-          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          STRATEGY_LAMBDA_FUNCTION_NAME: !Ref StrategyFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AggregationSessionsTable
-        - EventBridgePutEventsPolicy:
-            EventBusName: !Ref AlchemiserEventBus
+        - LambdaInvokePolicy:
+            FunctionName: !Ref StrategyFunction
       Events:
         DailySchedule:
           Type: Schedule
@@ -560,20 +649,16 @@ class AggregationCompleted(BaseEvent):
     Type: AWS::Serverless::Function
     Properties:
       # ... existing properties ...
+      Environment:
+        Variables:
+          # Add any needed env vars for single-file mode
+          SINGLE_FILE_MODE_ENABLED: "true"
       Events:
         # REMOVE DailySchedule (moved to Coordinator)
         # DailySchedule: ...  ← DELETE THIS
 
-        # ADD batch execution trigger
-        BatchRequest:
-          Type: EventBridgeRule
-          Properties:
-            EventBusName: !Ref AlchemiserEventBus
-            Pattern:
-              detail-type:
-                - StrategyBatchRequested
-            RetryPolicy:
-              MaximumRetryAttempts: 2
+        # Strategy Lambda is now invoked directly by Coordinator (no EventBridge trigger needed)
+        # It still listens for PartialSignalGenerated to publish to EventBridge
 ```
 
 ---
@@ -621,7 +706,7 @@ dsl_allocations = {
 }
 ```
 
-### New Config (Multi-Node with Batching)
+### New Config (Multi-Node, One Invocation Per File)
 ```python
 # Settings (same as before)
 dsl_files = ["KLM.clj", "momentum.clj", "mean_reversion.clj", "breakout.clj"]
@@ -632,12 +717,13 @@ dsl_allocations = {
     "breakout.clj": 0.25
 }
 
-# Coordinator will automatically batch:
-STRATEGY_BATCH_SIZE = 2  # 2 strategies per batch
+# Coordinator automatically invokes Strategy Lambda once per file (4 parallel invocations):
+# Invocation 1: KLM.clj (0.25)
+# Invocation 2: momentum.clj (0.25)
+# Invocation 3: mean_reversion.clj (0.25)
+# Invocation 4: breakout.clj (0.25)
 
-# Result: 2 parallel Strategy Lambda invocations:
-# Batch 1: KLM.clj (0.25) + momentum.clj (0.25) = 0.5 total weight
-# Batch 2: mean_reversion.clj (0.25) + breakout.clj (0.25) = 0.5 total weight
+# All 4 run concurrently, results aggregated by Aggregator Lambda
 ```
 
 ---
@@ -651,14 +737,14 @@ STRATEGY_BATCH_SIZE = 2  # 2 strategies per batch
 - **Limit**: ~100 strategies max (memory/timeout constraints)
 
 ### Multi-Node (Proposed)
-- **Execution time**: ~T_strategy (all batches run in parallel)
-- **Memory per batch**: Proportional to batch_size
-- **Cost**: N_batches + 1 (coordinator) + 1 (aggregator) Lambda invocations
-- **Limit**: Virtually unlimited (1000s of strategies possible)
+- **Execution time**: ~T_strategy (all strategies run in parallel)
+- **Memory per invocation**: Proportional to single strategy complexity
+- **Cost**: N_strategies + 1 (coordinator) + 1 (aggregator) Lambda invocations
+- **Limit**: Up to Lambda account concurrency limit (default 1000, can increase to 10,000+)
 
-**Example**: 100 strategies with batch_size=10
+**Example**: 100 strategies
 - Current: 1 Lambda, 10GB memory, 5+ minutes
-- Proposed: 10 parallel Lambdas, 1GB each, ~30 seconds + aggregation overhead
+- Proposed: 100 parallel Lambdas, 512MB each, ~30 seconds + aggregation overhead (~5s)
 
 ---
 
@@ -672,7 +758,8 @@ STRATEGY_BATCH_SIZE = 2  # 2 strategies per batch
 - AggregationSessionsFailed (count)
 - AggregationSessionDuration (ms)
 - PartialSignalsReceived (count per session)
-- BatchExecutionDuration (ms per batch)
+- StrategyExecutionDuration (ms per strategy file)
+- ConcurrentStrategyInvocations (gauge)
 ```
 
 ### CloudWatch Alarms
@@ -688,12 +775,12 @@ AggregationTimeoutAlarm:
     AlarmActions:
       - !Ref DLQAlertTopic
 
-# Batch failure alarm
-BatchFailureAlarm:
+# Strategy failure alarm
+StrategyFailureAlarm:
   Type: AWS::CloudWatch::Alarm
   Properties:
     MetricName: StrategyLambdaErrors
-    Threshold: 2
+    Threshold: 3
     ComparisonOperator: GreaterThanOrEqualToThreshold
     EvaluationPeriods: 1
     AlarmActions:
@@ -703,36 +790,41 @@ BatchFailureAlarm:
 ### Logs Insights Queries
 ```sql
 -- Aggregation session timeline
-fields @timestamp, message, session_id, batch_id, completed_batches, total_batches
+fields @timestamp, message, session_id, dsl_file, completed_strategies, total_strategies
 | filter source_module = "aggregator_v2"
 | sort @timestamp asc
 
--- Failed batches
-fields @timestamp, correlation_id, batch_id, error
+-- Failed strategies
+fields @timestamp, correlation_id, dsl_file, error
 | filter event_type = "WorkflowFailed" and source_module = "strategy_v2"
-| stats count() by batch_id
+| stats count() by dsl_file
 
 -- Aggregation duration
-fields @timestamp, session_id, duration_ms
+fields @timestamp, session_id, duration_ms, total_strategies
 | filter message = "Aggregation completed"
-| stats avg(duration_ms), max(duration_ms), min(duration_ms)
+| stats avg(duration_ms), max(duration_ms), min(duration_ms) by total_strategies
+
+-- Strategy execution times
+fields @timestamp, dsl_file, duration_ms
+| filter source_module = "strategy_v2" and message = "Strategy completed"
+| stats avg(duration_ms), max(duration_ms), min(duration_ms) by dsl_file
 ```
 
 ---
 
 ## Error Scenarios & Recovery
 
-### Scenario 1: One Batch Fails
-**Detection**: PartialSignalGenerated event not received for batch N
+### Scenario 1: One Strategy Fails
+**Detection**: PartialSignalGenerated event not received for strategy file
 **Recovery**:
 1. Aggregator times out after 10 minutes
 2. Publishes WorkflowFailed event
 3. Notifications Lambda sends alert email
-4. Operator investigates failed batch in CloudWatch Logs
-5. Can manually replay batch or full session
+4. Operator investigates failed strategy in CloudWatch Logs
+5. Can manually re-invoke specific strategy Lambda or full session
 
 ### Scenario 2: Aggregator Lambda Fails
-**Detection**: SignalGenerated event not published after all batches complete
+**Detection**: SignalGenerated event not published after all strategies complete
 **Recovery**:
 1. EventBridge retries PartialSignalGenerated delivery (up to 2x)
 2. If still failing, message goes to DLQ
@@ -743,8 +835,8 @@ fields @timestamp, session_id, duration_ms
 **Detection**: DynamoDB session shows TIMEOUT status
 **Recovery**:
 1. CloudWatch alarm fires on AggregationSessionsFailed metric
-2. Operator reviews which batches didn't complete
-3. Can manually invoke missing batches
+2. Operator reviews which strategies didn't complete
+3. Can manually invoke missing strategy Lambdas with same session_id
 4. Or re-run entire session via Coordinator
 
 ### Scenario 4: DynamoDB Throttling
@@ -760,15 +852,16 @@ fields @timestamp, session_id, duration_ms
 
 ### Unit Tests
 ```python
-# Test batch splitting logic
-def test_coordinator_splits_strategies_into_batches():
-    strategies = ["A", "B", "C", "D", "E"]
-    allocations = {"A": 0.2, "B": 0.2, "C": 0.2, "D": 0.2, "E": 0.2}
+# Test coordinator invocation logic
+def test_coordinator_invokes_lambda_per_strategy():
+    strategies = ["A.clj", "B.clj", "C.clj"]
+    allocations = {"A.clj": 0.33, "B.clj": 0.33, "C.clj": 0.34}
 
-    batches = create_batches(strategies, allocations, batch_size=2)
+    with mock.patch('boto3.client') as mock_lambda:
+        invoke_all_strategies(strategies, allocations, session_id="test-123")
 
-    assert len(batches) == 3  # [AB, CD, E]
-    assert sum(b.total_weight for b in batches) == 1.0
+        # Should invoke Lambda 3 times (once per strategy)
+        assert mock_lambda.return_value.invoke.call_count == 3
 
 # Test portfolio merging
 def test_aggregator_merges_partial_portfolios():
@@ -794,25 +887,26 @@ def test_aggregator_handles_duplicate_partial_signals():
 
 ### Integration Tests
 ```python
-# Test end-to-end flow with 2 batches
+# Test end-to-end flow with 4 strategies
 @pytest.mark.integration
-def test_multi_batch_signal_aggregation():
+def test_multi_strategy_signal_aggregation():
     # 1. Invoke Coordinator
     coordinator_response = invoke_coordinator_lambda({
-        "strategies": 4,
-        "batch_size": 2
+        "dsl_files": ["A.clj", "B.clj", "C.clj", "D.clj"],
+        "dsl_allocations": {"A.clj": 0.25, "B.clj": 0.25, "C.clj": 0.25, "D.clj": 0.25}
     })
     session_id = coordinator_response["session_id"]
 
-    # 2. Verify 2 StrategyBatchRequested events published
-    batch_events = get_eventbridge_events("StrategyBatchRequested")
-    assert len(batch_events) == 2
-
-    # 3. Wait for all batches to complete
+    # 2. Wait for all strategies to complete
     wait_for_condition(
         lambda: get_session_status(session_id) == "COMPLETED",
         timeout=120
     )
+
+    # 3. Verify 4 PartialSignalGenerated events published
+    partial_events = get_eventbridge_events("PartialSignalGenerated")
+    assert len(partial_events) == 4
+    assert all(e.session_id == session_id for e in partial_events)
 
     # 4. Verify SignalGenerated event published
     signal_events = get_eventbridge_events("SignalGenerated")
@@ -826,9 +920,9 @@ def test_multi_batch_signal_aggregation():
 
 ### Load Tests
 ```python
-# Test 100 strategies across 10 batches
+# Test 100 strategies running in parallel
 @pytest.mark.load
-def test_large_scale_batching():
+def test_large_scale_parallel_execution():
     strategies = [f"strategy_{i}.clj" for i in range(100)]
     allocations = {s: 0.01 for s in strategies}  # Equal weight
 
@@ -836,18 +930,18 @@ def test_large_scale_batching():
 
     session_id = invoke_coordinator({
         "dsl_files": strategies,
-        "dsl_allocations": allocations,
-        "batch_size": 10
+        "dsl_allocations": allocations
     })
 
     wait_for_completion(session_id, timeout=300)
 
     duration = time.time() - start_time
-    assert duration < 120  # Should complete in under 2 minutes
+    assert duration < 60  # Should complete in under 1 minute (parallel execution)
 
     # Verify no data loss
     final_signal = get_final_signal_event(session_id)
-    assert len(final_signal.consolidated_portfolio) == 100
+    assert len(final_signal.consolidated_portfolio) <= 100  # May have duplicate symbols
+    assert abs(sum(final_signal.consolidated_portfolio.values()) - 1.0) < 0.01
 ```
 
 ---
@@ -879,18 +973,22 @@ aws cloudformation deploy \
 - **Total**: ~$3/month
 
 ### Proposed (Multi-Node)
-Assuming 50 strategies, batch_size=10 (5 batches):
+Assuming 50 strategies (50 parallel invocations):
 - **Coordinator Lambda**: 1 invocation/day × 512MB × 10s = ~$0.001/day
-- **Strategy Lambda**: 5 invocations/day × 256MB × 1min = ~$0.02/day
+- **Strategy Lambda**: 50 invocations/day × 512MB × 30s = ~$0.05/day
 - **Aggregator Lambda**: 1 invocation/day × 1GB × 5s = ~$0.001/day
-- **DynamoDB**: Minimal (5 writes + 1 query per day)
-- **Total**: ~$6/month
+- **DynamoDB**: Minimal (50 writes + 1 query per day)
+- **Total**: ~$15/month
 
-**Cost increase**: 2x (but handles 5x-10x more strategies)
+**Cost increase**: 5x (but handles 50x more strategies)
 
-### At Scale (500 strategies, 50 batches)
-- **Strategy Lambda**: 50 invocations/day × 256MB × 1min = ~$0.20/day
-- **Total**: ~$60/month (handles 100x more strategies than single Lambda)
+### At Scale (500 strategies, 500 parallel invocations)
+- **Strategy Lambda**: 500 invocations/day × 512MB × 30s = ~$0.50/day
+- **Total**: ~$150/month (handles 500x more strategies than single Lambda)
+
+**Note**: Lambda has a default account concurrency limit of 1000. For 500+ concurrent invocations, ensure:
+- Reserve capacity for other Lambdas in your account
+- Request limit increase if needed (up to 10,000+)
 
 ---
 
@@ -957,15 +1055,17 @@ Assuming 50 strategies, batch_size=10 (5 batches):
 
 ## Summary
 
-This scaling plan enables **horizontal scaling of strategy execution** while maintaining **backward compatibility** and **minimal changes to existing components**.
+This scaling plan enables **horizontal scaling of strategy execution using AWS Lambda's natural concurrency** while maintaining **backward compatibility** and **minimal changes to existing components**.
 
 ### Key Benefits
-✅ **Scalable**: Handle 1000s of strategies across parallel Lambda nodes
-✅ **Reliable**: Atomic aggregation with DynamoDB, built-in retries
+✅ **Scalable**: Handle 1000s of strategies with parallel Lambda invocations (limited only by account concurrency)
+✅ **Simple**: One Lambda invocation per strategy file - no complex batching logic
+✅ **Reliable**: Atomic aggregation with DynamoDB, built-in retries, idempotent operations
 ✅ **Observable**: Full event traceability, CloudWatch metrics and alarms
 ✅ **Cost-effective**: Pay only for what you use, linear cost scaling
 ✅ **Maintainable**: Clear separation of concerns, single-responsibility Lambdas
 ✅ **Backward compatible**: Existing flow still works during migration
+✅ **Natural AWS pattern**: Leverages Lambda's strengths (concurrency, auto-scaling)
 
 ### Next Steps
 1. Review and approve this plan
