@@ -64,6 +64,8 @@ jobs:
           echo "📋 See docs/TEST_FIXES_SUMMARY.md for fix roadmap"
           echo "🎯 Target: v2.20.4 - all tests passing"
 
-      - name: Validate SAM build (dev)
+      - name: Set up AWS SAM
         uses: aws-actions/setup-sam@v2
-      - run: sam build --parallel --config-env dev
+
+      - name: Validate SAM build (dev)
+        run: sam build --parallel --config-env dev
