@@ -32,52 +32,70 @@ Alchemiser is a **multi-strategy quantitative trading system** deployed as **mul
 
 ### Multi-Lambda Microservices
 
-The system is deployed as **4 independent Lambda functions** that communicate asynchronously:
+The system is deployed as **AWS Lambda functions** that communicate asynchronously. The Strategy layer supports **multi-node horizontal scaling**:
 
 ```
-┌─────────────────┐     EventBridge      ┌─────────────────┐
-│  Strategy       │──────────────────────▶│  Portfolio      │
-│  Lambda         │   SignalGenerated     │  Lambda         │
-└─────────────────┘                       └─────────────────┘
-        │                                         │
-        │                                         │ RebalancePlanned
-        │                                         ▼
-        │                                 ┌─────────────────┐
-        │                                 │  SQS Queue      │
-        │                                 │  (with DLQ)     │
-        │                                 └─────────────────┘
-        │                                         │
-        │                                         ▼
-        │                                 ┌─────────────────┐
-        │     WorkflowFailed              │  Execution      │
-        └────────────────────────────────▶│  Lambda         │
-                                          └─────────────────┘
-                                                  │
-                        TradeExecuted / WorkflowFailed
-                                                  ▼
-                                          ┌─────────────────┐
-                                          │  Notifications  │
-                                          │  Lambda         │
-                                          └─────────────────┘
-                                                  │
-                                                  ▼ SNS
-                                          ┌─────────────────┐
-                                          │  Email          │
-                                          │  Subscription   │
-                                          └─────────────────┘
+                              MULTI-NODE STRATEGY SCALING
+                              ===========================
+┌─────────────────────┐
+│  Strategy           │──┬──▶ Strategy Worker 1 ──┐
+│  Orchestrator       │  │                         │ PartialSignalGenerated
+│  (Entry Point)      │  ├──▶ Strategy Worker 2 ──┼──────────────────────────┐
+└─────────────────────┘  │                         │                          │
+        │                └──▶ Strategy Worker N ──┘                          ▼
+        │                                                            ┌─────────────────┐
+        │ Creates session                                            │  Signal         │
+        ▼                                                            │  Aggregator     │
+┌─────────────────┐                                                  └─────────────────┘
+│  DynamoDB       │◀──────────────────────────────────────────────────────────│
+│  (Sessions)     │                                                           │
+└─────────────────┘                                                           │
+                                                                              │ SignalGenerated
+                                                                              ▼
+                        ┌─────────────────┐     EventBridge      ┌─────────────────┐
+                        │  Portfolio      │◀─────────────────────│                 │
+                        │  Lambda         │                      └─────────────────┘
+                        └─────────────────┘
+                                │ RebalancePlanned
+                                ▼
+                        ┌─────────────────┐
+                        │  SQS Queue      │
+                        │  (with DLQ)     │
+                        └─────────────────┘
+                                │
+                                ▼
+                        ┌─────────────────┐
+                        │  Execution      │
+                        │  Lambda         │
+                        └─────────────────┘
+                                │
+          TradeExecuted / WorkflowFailed
+                                ▼
+                        ┌─────────────────┐
+                        │  Notifications  │
+                        │  Lambda         │
+                        └─────────────────┘
+                                │
+                                ▼ SNS
+                        ┌─────────────────┐
+                        │  Email          │
+                        │  Subscription   │
+                        └─────────────────┘
 ```
 
 ### Module Structure
 ```
 the_alchemiser/
-├── strategy_v2/      # Lambda: Signal generation from market data
+├── coordinator_v2/   # Lambda: Strategy Orchestrator (entry point, fans out)
+├── strategy_v2/      # Lambda: Strategy Worker (executes single DSL file)
+├── aggregator_v2/    # Lambda: Signal Aggregator (merges partial signals)
 ├── portfolio_v2/     # Lambda: Converts signals to rebalance plans
 ├── execution_v2/     # Lambda: Executes trades via Alpaca (SQS-triggered)
 ├── notifications_v2/ # Lambda: Sends email notifications via SNS
 └── shared/           # DTOs, events, adapters, utilities
 ```
 
-**Note**: The `orchestration/` module has been removed as workflow coordination is now handled by AWS EventBridge and SQS.
+**Note**: Multi-node mode is controlled by `ENABLE_MULTI_NODE_STRATEGY` env var. When `false` (default), Strategy Worker runs all strategies sequentially (legacy mode).
 
 ### Critical Architecture Rules
 1. **Business modules only import from `shared/`** - no cross-module imports
@@ -87,9 +105,24 @@ the_alchemiser/
 5. **DTOs at boundaries** - never pass raw dicts between modules
 6. **Idempotent handlers** - all event handlers must be safe under replay
 
-### Event Flow (Multi-Lambda)
+### Event Flow (Multi-Node Mode)
 ```
-[EventBridge Schedule] → Strategy Lambda
+[EventBridge Schedule] → Strategy Orchestrator
+        ↓ (Async Lambda Invoke)
+    Strategy Worker 1, 2, ... N (parallel)
+        ↓ (PartialSignalGenerated via EventBridge)
+    Signal Aggregator (merges when all complete)
+        ↓ (SignalGenerated via EventBridge)
+    Portfolio Lambda
+        ↓ (RebalancePlanned via EventBridge → SQS)
+    Execution Lambda (SQS-triggered)
+        ↓ (TradeExecuted/WorkflowFailed via EventBridge)
+    Notifications Lambda → SNS → Email
+```
+
+### Event Flow (Legacy Mode - ENABLE_MULTI_NODE_STRATEGY=false)
+```
+[EventBridge Schedule] → Strategy Worker (runs all DSL files sequentially)
         ↓ (SignalGenerated via EventBridge)
     Portfolio Lambda
         ↓ (RebalancePlanned via EventBridge → SQS)
@@ -102,11 +135,14 @@ the_alchemiser/
 
 | Resource | Type | Purpose |
 |----------|------|---------|
-| `StrategyFunction` | Lambda | Entry point, signal generation |
+| `StrategyOrchestratorFunction` | Lambda | Entry point, dispatches parallel strategy execution |
+| `StrategyFunction` | Lambda | Worker, executes single DSL strategy file |
+| `StrategyAggregatorFunction` | Lambda | Merges partial signals into consolidated portfolio |
 | `PortfolioFunction` | Lambda | Rebalance planning |
 | `ExecutionFunction` | Lambda | Trade execution (SQS-triggered) |
 | `NotificationsFunction` | Lambda | Email via SNS |
 | `AlchemiserEventBus` | EventBridge | Event routing between Lambdas |
+| `AggregationSessionsTable` | DynamoDB | Tracks multi-node aggregation sessions |
 | `ExecutionQueue` | SQS | Reliable trade execution buffer |
 | `ExecutionDLQ` | SQS | Dead letter queue for failed executions |
 | `TradingNotificationsTopic` | SNS | Email notification delivery |
@@ -209,7 +245,9 @@ Each microservice has its own Lambda handler:
 
 | Lambda | Handler Path | Trigger | Publishes |
 |--------|--------------|---------|-----------|
-| Strategy | `the_alchemiser.strategy_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | `SignalGenerated` |
+| Strategy Orchestrator | `the_alchemiser.coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | Invokes Strategy Workers |
+| Strategy Worker | `the_alchemiser.strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | `PartialSignalGenerated` or `SignalGenerated` |
+| Signal Aggregator | `the_alchemiser.aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | `SignalGenerated` |
 | Portfolio | `the_alchemiser.portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | `RebalancePlanned` |
 | Execution | `the_alchemiser.execution_v2.lambda_handler` | SQS Queue | `TradeExecuted`, `WorkflowCompleted` |
 | Notifications | `the_alchemiser.notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS messages |
@@ -362,7 +400,9 @@ logger.info(
 
 | Purpose | Location |
 |---------|----------|
-| Strategy Lambda handler | `the_alchemiser/strategy_v2/lambda_handler.py` |
+| Strategy Orchestrator handler | `the_alchemiser/coordinator_v2/lambda_handler.py` |
+| Strategy Worker handler | `the_alchemiser/strategy_v2/lambda_handler.py` |
+| Signal Aggregator handler | `the_alchemiser/aggregator_v2/lambda_handler.py` |
 | Portfolio Lambda handler | `the_alchemiser/portfolio_v2/lambda_handler.py` |
 | Execution Lambda handler | `the_alchemiser/execution_v2/lambda_handler.py` |
 | Notifications Lambda handler | `the_alchemiser/notifications_v2/lambda_handler.py` |

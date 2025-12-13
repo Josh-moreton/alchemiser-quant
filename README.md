@@ -4,12 +4,19 @@ A multi-strategy quantitative trading system built on event-driven microservices
 
 ## System Architecture
 
-The Alchemiser is deployed as **4 independent AWS Lambda microservices** communicating via EventBridge, SQS, and SNS:
+The Alchemiser is deployed as **AWS Lambda microservices** communicating via EventBridge, SQS, and SNS. The Strategy layer supports **multi-node horizontal scaling** for parallel strategy execution:
 
 ```mermaid
 graph TB
+    subgraph "Strategy Scaling (Multi-Node Mode)"
+        SO[Strategy Orchestrator<br/>Entry Point]
+        SW1[Strategy Worker 1<br/>DSL File 1]
+        SW2[Strategy Worker 2<br/>DSL File 2]
+        SWN[Strategy Worker N<br/>DSL File N]
+        SA[Signal Aggregator<br/>Merge Results]
+    end
+
     subgraph "AWS Lambda Microservices"
-        S[Strategy Lambda<br/>Signal Generation]
         P[Portfolio Lambda<br/>Rebalance Planning]
         E[Execution Lambda<br/>Order Management]
         N[Notifications Lambda<br/>Email via SNS]
@@ -19,6 +26,7 @@ graph TB
         EB[EventBridge<br/>Event Routing]
         SQS[SQS Queue<br/>Execution Buffer]
         SNS[SNS Topic<br/>Email Delivery]
+        DDB2[DynamoDB<br/>Aggregation Sessions]
     end
 
     subgraph "AWS Storage"
@@ -31,7 +39,17 @@ graph TB
         EMAIL[Email<br/>Notifications]
     end
 
-    S -->|SignalGenerated| EB
+    SO -->|Invoke Async| SW1
+    SO -->|Invoke Async| SW2
+    SO -->|Invoke Async| SWN
+    SO --> DDB2
+    SW1 -->|PartialSignalGenerated| EB
+    SW2 -->|PartialSignalGenerated| EB
+    SWN -->|PartialSignalGenerated| EB
+    EB -->|PartialSignalGenerated| SA
+    SA --> DDB2
+    SA -->|SignalGenerated| EB
+
     EB -->|SignalGenerated| P
     P -->|RebalancePlanned| EB
     EB -->|RebalancePlanned| SQS
@@ -42,37 +60,45 @@ graph TB
     N --> SNS
     SNS --> EMAIL
 
-    S --> A
+    SW1 --> A
+    SW2 --> A
+    SWN --> A
     P --> A
     E --> A
     E --> DDB
     N --> S3
 
     classDef lambda fill:#ff9900,color:#000
+    classDef orchestrator fill:#ff6600,color:#000
     classDef aws fill:#232f3e,color:#fff
     classDef storage fill:#3f8624,color:#fff
     classDef external fill:#fff3e0
 
-    class S,P,E,N lambda
-    class EB,SQS,SNS aws
+    class P,E,N,SW1,SW2,SWN lambda
+    class SO,SA orchestrator
+    class EB,SQS,SNS,DDB2 aws
     class DDB,S3 storage
     class A,EMAIL external
 ```
 
 ### Lambda Microservices
 
-| Lambda | Handler | Trigger | Publishes To |
-|--------|---------|---------|--------------|
-| **Strategy** | `strategy_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET M-F) | EventBridge: `SignalGenerated` |
-| **Portfolio** | `portfolio_v2.lambda_handler` | EventBridge: `SignalGenerated` | EventBridge: `RebalancePlanned` |
-| **Execution** | `execution_v2.lambda_handler` | SQS Queue (from EventBridge) | EventBridge: `TradeExecuted`, `WorkflowCompleted/Failed` |
-| **Notifications** | `notifications_v2.lambda_handler` | EventBridge: `TradeExecuted`, `WorkflowFailed` | SNS → Email |
+| Lambda | Function Name | Handler | Trigger | Publishes To |
+|--------|---------------|---------|---------|---------------|
+| **Strategy Orchestrator** | `alchemiser-{stage}-strategy-orchestrator` | `coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET M-F) | Invokes Strategy Workers |
+| **Strategy Worker** | `alchemiser-{stage}-strategy-worker` | `strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | EventBridge: `PartialSignalGenerated` or `SignalGenerated` |
+| **Signal Aggregator** | `alchemiser-{stage}-signal-aggregator` | `aggregator_v2.lambda_handler` | EventBridge: `PartialSignalGenerated` | EventBridge: `SignalGenerated` |
+| **Portfolio** | `alchemiser-{stage}-portfolio` | `portfolio_v2.lambda_handler` | EventBridge: `SignalGenerated` | EventBridge: `RebalancePlanned` |
+| **Execution** | `alchemiser-{stage}-execution` | `execution_v2.lambda_handler` | SQS Queue (from EventBridge) | EventBridge: `TradeExecuted`, `WorkflowCompleted/Failed` |
+| **Notifications** | `alchemiser-{stage}-notifications` | `notifications_v2.lambda_handler` | EventBridge: `TradeExecuted`, `WorkflowFailed` | SNS → Email |
 
 ### Module Structure
 
 ```
 the_alchemiser/
-├── strategy_v2/      # Lambda: Signal generation from market data
+├── coordinator_v2/   # Lambda: Strategy Orchestrator (fans out to workers)
+├── strategy_v2/      # Lambda: Strategy Worker (executes single DSL file)
+├── aggregator_v2/    # Lambda: Signal Aggregator (merges partial signals)
 ├── portfolio_v2/     # Lambda: Converts signals to rebalance plans
 ├── execution_v2/     # Lambda: Executes trades via Alpaca (SQS-triggered)
 ├── notifications_v2/ # Lambda: Sends email notifications via SNS
@@ -88,7 +114,9 @@ The system operates through AWS EventBridge for event routing with SQS buffering
 ```mermaid
 sequenceDiagram
     participant Sched as EventBridge Schedule
-    participant S as Strategy Lambda
+    participant SO as Strategy Orchestrator
+    participant SW as Strategy Workers (N)
+    participant SA as Signal Aggregator
     participant EB as EventBridge
     participant P as Portfolio Lambda
     participant SQS as SQS Queue
@@ -97,13 +125,24 @@ sequenceDiagram
     participant SNS as SNS Topic
     participant A as Alpaca API
 
-    Note over Sched,A: Daily Trading Workflow (9:35 AM ET)
+    Note over Sched,A: Daily Trading Workflow (9:35 AM ET) - Multi-Node Mode
 
-    Sched->>S: Trigger (cron)
-    S->>A: Fetch market data
-    A-->>S: Price/volume data
-    S->>S: Run DSL strategies
-    S->>EB: SignalGenerated
+    Sched->>SO: Trigger (cron)
+    SO->>SO: Create aggregation session
+    SO->>SW: Invoke async (DSL file 1)
+    SO->>SW: Invoke async (DSL file 2)
+    SO->>SW: Invoke async (DSL file N)
+    
+    par Parallel Strategy Execution
+        SW->>A: Fetch market data
+        A-->>SW: Price/volume data
+        SW->>SW: Run single DSL strategy
+        SW->>EB: PartialSignalGenerated
+    end
+
+    EB->>SA: Route partial signals
+    SA->>SA: Merge portfolios when all complete
+    SA->>EB: SignalGenerated (consolidated)
 
     EB->>P: Route to Portfolio
     P->>A: Get positions/cash
@@ -128,11 +167,14 @@ sequenceDiagram
 
 | Resource | Type | Purpose |
 |----------|------|---------|
-| `StrategyFunction` | Lambda | Entry point, runs DSL strategies |
+| `StrategyOrchestratorFunction` | Lambda | Entry point, dispatches parallel strategy execution |
+| `StrategyFunction` | Lambda | Worker, executes single DSL strategy file |
+| `StrategyAggregatorFunction` | Lambda | Merges partial signals into consolidated portfolio |
 | `PortfolioFunction` | Lambda | Converts signals to trade plans |
 | `ExecutionFunction` | Lambda | Executes trades via Alpaca |
 | `NotificationsFunction` | Lambda | Sends email notifications |
 | `AlchemiserEventBus` | EventBridge | Routes events between Lambdas |
+| `AggregationSessionsTable` | DynamoDB | Tracks multi-node aggregation sessions |
 | `ExecutionQueue` | SQS | Buffers execution requests (reliability) |
 | `ExecutionDLQ` | SQS | Dead letter queue (3 retries) |
 | `TradingNotificationsTopic` | SNS | Email notification delivery |
@@ -148,7 +190,8 @@ All events extend `BaseEvent` with correlation tracking and metadata:
 
 | Event | Publisher | Consumer | Key Fields |
 |-------|-----------|----------|------------|
-| `SignalGenerated` | Strategy Lambda | Portfolio Lambda | `signals_data`, `consolidated_portfolio`, `signal_count` |
+| `PartialSignalGenerated` | Strategy Worker | Signal Aggregator | `session_id`, `dsl_file`, `strategy_number`, `total_strategies`, `signals_data` |
+| `SignalGenerated` | Signal Aggregator (or Worker in legacy mode) | Portfolio Lambda | `signals_data`, `consolidated_portfolio`, `signal_count` |
 | `RebalancePlanned` | Portfolio Lambda | Execution Lambda (via SQS) | `rebalance_plan`, `allocation_comparison`, `trades_required` |
 | `TradeExecuted` | Execution Lambda | Notifications Lambda | `execution_data`, `orders_placed`, `orders_succeeded` |
 | `WorkflowCompleted` | Execution Lambda | Notifications Lambda | `workflow_type`, `success`, `summary` |
@@ -163,19 +206,53 @@ All events include:
 
 ## Business Module Details
 
-### Strategy v2 (`strategy_v2/`)
+### Strategy Layer (Multi-Node Scaling)
 
-**Purpose**: Generate trading signals from market data using multiple quantitative strategies via DSL.
+The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
+
+#### Strategy Orchestrator (`coordinator_v2/`)
+
+**Purpose**: Entry point that dispatches parallel strategy execution.
 
 **Trigger**: EventBridge Schedule (9:35 AM ET, M-F)
-**Outputs**: `SignalGenerated` events with strategy allocations
+**Outputs**: Invokes Strategy Workers asynchronously
 
 **Key Components**:
 - `lambda_handler.py`: Lambda entry point
+- `session_service.py`: Creates aggregation sessions in DynamoDB
+- `strategy_invoker.py`: Invokes Strategy Workers via Lambda API
+
+#### Strategy Worker (`strategy_v2/`)
+
+**Purpose**: Execute a single DSL strategy file and generate partial signals.
+
+**Trigger**: Orchestrator (async invoke) or EventBridge Schedule (legacy mode)
+**Outputs**: `PartialSignalGenerated` events (multi-node) or `SignalGenerated` (legacy)
+
+**Key Components**:
+- `lambda_handler.py`: Lambda entry point (dual-mode: legacy + single-file)
 - `engines/`: Strategy implementations (Nuclear, TECL, KLM)
 - `dsl/`: Clojure-inspired DSL for strategy definitions
 - `handlers/`: Event handlers for signal generation
 - `adapters/`: Market data access layer
+
+#### Signal Aggregator (`aggregator_v2/`)
+
+**Purpose**: Collect partial signals from all workers and merge into consolidated portfolio.
+
+**Trigger**: EventBridge (`PartialSignalGenerated` events)
+**Outputs**: `SignalGenerated` events with merged portfolio
+
+**Key Components**:
+- `lambda_handler.py`: Lambda entry point
+- `portfolio_merger.py`: Merges partial allocations with validation
+- `settings.py`: Aggregator configuration
+
+#### Multi-Node Mode
+
+Controlled by `ENABLE_MULTI_NODE_STRATEGY` environment variable:
+- `false` (default): Legacy mode - single Lambda runs all strategies sequentially
+- `true`: Multi-node mode - Orchestrator fans out to parallel workers
 
 ### Portfolio v2 (`portfolio_v2/`)
 
