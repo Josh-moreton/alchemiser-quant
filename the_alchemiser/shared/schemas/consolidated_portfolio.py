@@ -375,7 +375,7 @@ class ConsolidatedPortfolio(BaseModel):
         # Validate each symbol's contributions sum to target allocation
         for symbol, target_weight in self.target_allocations.items():
             contribution_sum = Decimal("0")
-            for strategy_id, allocations in self.strategy_contributions.items():
+            for _strategy_id, allocations in self.strategy_contributions.items():
                 if symbol in allocations:
                     contribution_sum += allocations[symbol]
 

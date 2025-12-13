@@ -518,6 +518,7 @@ class SignalGenerationHandler:
             - consolidated_portfolio: {symbol: total_weight}
             - strategy_contributions: {strategy_id: {symbol: weight}}
             - contributing_strategies: list of strategy names
+
         """
         consolidated_portfolio: dict[str, Decimal] = {}
         strategy_contributions: dict[str, dict[str, Decimal]] = {}
