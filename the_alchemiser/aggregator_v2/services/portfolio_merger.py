@@ -85,9 +85,12 @@ class PortfolioMerger:
             portfolio_data = partial["consolidated_portfolio"]
 
             # Handle both raw dict and nested format
+            # Note: The fallback for target_allocations (using portfolio_data directly)
+            # is for backward compatibility with raw dict format. strategy_contributions
+            # defaults to empty dict as it's a new field that may not be present.
             if isinstance(portfolio_data, dict):
                 target_allocations = portfolio_data.get("target_allocations", portfolio_data)
-                # Also get strategy_contributions if present
+                # Also get strategy_contributions if present (defaults to empty for backward compat)
                 strategy_contributions = portfolio_data.get("strategy_contributions", {})
             else:
                 target_allocations = portfolio_data

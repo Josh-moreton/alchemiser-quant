@@ -407,6 +407,7 @@ class ConsolidatedPortfolio(BaseModel):
         correlation_id: str,
         source_strategies: list[str] | None = None,
         timestamp: datetime | None = None,
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> ConsolidatedPortfolio:
         """Create ConsolidatedPortfolio from dict allocation data.
 
@@ -415,6 +416,7 @@ class ConsolidatedPortfolio(BaseModel):
             correlation_id: Correlation ID for tracking
             source_strategies: Optional list of contributing strategy names
             timestamp: Optional timestamp; defaults to datetime.now(UTC) if not provided
+            strategy_contributions: Optional per-strategy allocation breakdown
 
         Returns:
             ConsolidatedPortfolio instance
@@ -438,6 +440,7 @@ class ConsolidatedPortfolio(BaseModel):
 
         return cls(
             target_allocations=target_allocations,
+            strategy_contributions=strategy_contributions or {},
             correlation_id=correlation_id,
             timestamp=timestamp or datetime.now(UTC),
             strategy_count=len(source_strategies) if source_strategies else 1,

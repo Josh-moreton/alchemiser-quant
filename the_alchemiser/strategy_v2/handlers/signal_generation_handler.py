@@ -48,6 +48,9 @@ from the_alchemiser.strategy_v2.errors import (
 )
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
+# Default strategy identifier when not provided in signal metadata
+DEFAULT_STRATEGY_ID = "DSL"
+
 
 class SignalGenerationHandler:
     """Event handler for strategy signal generation.
@@ -325,15 +328,12 @@ class SignalGenerationHandler:
             # Avoid constructing DTO with empty payload; surface actionable error
             raise DataProviderError("No positive target allocations produced by strategy signals")
 
-        # Create ConsolidatedPortfolio - from_dict_allocation handles both Decimal and float
-        # Pass Decimal values directly to preserve precision throughout the pipeline
-        consolidated_portfolio = ConsolidatedPortfolio(
-            target_allocations=consolidated_portfolio_dict,
-            strategy_contributions=strategy_contributions,
+        # Create ConsolidatedPortfolio using factory method for consistency
+        consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
+            allocation_dict=consolidated_portfolio_dict,
             correlation_id=correlation_id,
-            timestamp=datetime.now(UTC),
-            strategy_count=len(contributing_strategies),
             source_strategies=contributing_strategies,
+            strategy_contributions=strategy_contributions,
         )
 
         return strategy_signals, consolidated_portfolio, signals
@@ -526,7 +526,7 @@ class SignalGenerationHandler:
 
         for signal in signals:
             # Extract strategy ID from signal metadata or use strategy_name
-            strategy_id = "DSL"
+            strategy_id = DEFAULT_STRATEGY_ID
             if signal.metadata and "strategy_id" in signal.metadata:
                 strategy_id = signal.metadata["strategy_id"]
             elif signal.strategy_name:
