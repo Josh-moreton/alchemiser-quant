@@ -1,85 +1,94 @@
 # The Alchemiser
 
-A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies (KMLM, Nuclear, and others) into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
+A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 
 ## System Architecture
 
 The Alchemiser is deployed as **AWS Lambda microservices** communicating via EventBridge, SQS, and SNS. The Strategy layer supports **multi-node horizontal scaling** for parallel strategy execution:
 
 ```mermaid
-graph TB
-    subgraph "Strategy Scaling (Multi-Node Mode)"
-        SO[Strategy Orchestrator<br/>Entry Point]
-        SW1[Strategy Worker 1<br/>DSL File 1]
-        SW2[Strategy Worker 2<br/>DSL File 2]
-        SWN[Strategy Worker N<br/>DSL File N]
-        SA[Signal Aggregator<br/>Merge Results]
+flowchart LR
+    subgraph Trigger["⏰ Trigger"]
+        SCHED[EventBridge Schedule<br/>9:35 AM ET M-F]
     end
 
-    subgraph "AWS Lambda Microservices"
-        P[Portfolio Lambda<br/>Rebalance Planning]
-        E[Execution Lambda<br/>Order Management]
-        N[Notifications Lambda<br/>Email via SNS]
+    subgraph Strategy["🎯 Strategy Layer"]
+        direction TB
+        SO[Strategy Orchestrator]
+        subgraph Workers["Parallel Workers"]
+            direction LR
+            SW1[Worker 1<br/>nuclear.clj]
+            SW2[Worker 2<br/>tecl.clj]
+            SWN[Worker N<br/>klm.clj]
+        end
+        SA[Signal Aggregator]
+        SO -->|invoke async| SW1
+        SO -->|invoke async| SW2
+        SO -->|invoke async| SWN
+        SW1 -->|PartialSignal| SA
+        SW2 -->|PartialSignal| SA
+        SWN -->|PartialSignal| SA
     end
 
-    subgraph "AWS Event Infrastructure"
-        EB[EventBridge<br/>Event Routing]
-        SQS[SQS Queue<br/>Execution Buffer]
-        SNS[SNS Topic<br/>Email Delivery]
-        DDB2[DynamoDB<br/>Aggregation Sessions]
+    subgraph Portfolio["📊 Portfolio Layer"]
+        P[Portfolio Lambda<br/>Rebalance Planner]
     end
 
-    subgraph "AWS Storage"
-        DDB[DynamoDB<br/>Trade Ledger]
-        S3[S3 Bucket<br/>Performance Reports]
+    subgraph Execution["⚡ Execution Layer"]
+        SQS[(SQS Queue)]
+        E[Execution Lambda<br/>Walk-the-Book Orders]
     end
 
-    subgraph "External Systems"
-        A[Alpaca API<br/>Market Data & Trading]
-        EMAIL[Email<br/>Notifications]
+    subgraph Notifications["📧 Notifications"]
+        N[Notifications Lambda]
+        SNS[SNS Topic]
     end
 
-    SO -->|Invoke Async| SW1
-    SO -->|Invoke Async| SW2
-    SO -->|Invoke Async| SWN
-    SO --> DDB2
-    SW1 -->|PartialSignalGenerated| EB
-    SW2 -->|PartialSignalGenerated| EB
-    SWN -->|PartialSignalGenerated| EB
-    EB -->|PartialSignalGenerated| SA
-    SA --> DDB2
-    SA -->|SignalGenerated| EB
+    subgraph DataStores["💾 Data Stores"]
+        direction TB
+        S3_DATA[(S3 Historical<br/>Datalake)]
+        S3_REPORTS[(S3 Performance<br/>Reports)]
+        DDB_LEDGER[(DynamoDB<br/>Trade Ledger)]
+        DDB_AGG[(DynamoDB<br/>Aggregation Sessions)]
+    end
 
-    EB -->|SignalGenerated| P
-    P -->|RebalancePlanned| EB
-    EB -->|RebalancePlanned| SQS
-    SQS --> E
-    E -->|TradeExecuted| EB
-    E -->|WorkflowFailed| EB
-    EB -->|TradeExecuted/WorkflowFailed| N
+    subgraph External["🌐 External"]
+        ALPACA[Alpaca API]
+    end
+
+    %% Main Flow
+    SCHED ==>|cron trigger| SO
+    SA ==>|SignalGenerated| P
+    P ==>|RebalancePlanned| SQS
+    SQS ==> E
+    E ==>|TradeExecuted| N
     N --> SNS
-    SNS --> EMAIL
 
-    SW1 --> A
-    SW2 --> A
-    SWN --> A
-    P --> A
-    E --> A
-    E --> DDB
-    N --> S3
-
-    classDef lambda fill:#ff9900,color:#000
-    classDef orchestrator fill:#ff6600,color:#000
-    classDef aws fill:#232f3e,color:#fff
-    classDef storage fill:#3f8624,color:#fff
-    classDef external fill:#fff3e0
-
-    class P,E,N,SW1,SW2,SWN lambda
-    class SO,SA orchestrator
-    class EB,SQS,SNS,DDB2 aws
-    class DDB,S3 storage
-    class A,EMAIL external
+    %% Data Access
+    SW1 -.->|fetch prices| S3_DATA
+    SW2 -.->|fetch prices| S3_DATA
+    SWN -.->|fetch prices| S3_DATA
+    SW1 -.->|live data| ALPACA
+    SW2 -.->|live data| ALPACA
+    SWN -.->|live data| ALPACA
+    SO -.-> DDB_AGG
+    SA -.-> DDB_AGG
+    P -.->|positions| ALPACA
+    E ==>|limit orders| ALPACA
+    E -.-> DDB_LEDGER
+    N -.-> S3_REPORTS
 ```
+
+### Workflow Summary
+
+| Step | Component | Action |
+|------|-----------|--------|
+| 1 | **Strategy Orchestrator** | Triggered by schedule, creates aggregation session, invokes workers async |
+| 2 | **Strategy Workers** | Execute `.clj` DSL files in parallel, fetch data from S3 datalake + Alpaca |
+| 3 | **Signal Aggregator** | Merges partial signals into single consolidated portfolio |
+| 4 | **Portfolio Lambda** | Compares target vs current positions, creates rebalance plan |
+| 5 | **Execution Lambda** | Places limit orders using walk-the-book strategy via Alpaca |
+| 6 | **Notifications Lambda** | Sends trade summaries via SNS email |
 
 ### Lambda Microservices
 
