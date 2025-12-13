@@ -40,14 +40,21 @@ class TestDslEngine:
         return bus
 
     @pytest.fixture
-    def engine(self):
-        """Create engine instance without event bus."""
-        return DslEngine()
+    def mock_market_data_adapter(self):
+        """Create mock market data adapter."""
+        from the_alchemiser.shared.types.market_data_port import MarketDataPort
+        adapter = Mock(spec=MarketDataPort)
+        return adapter
 
     @pytest.fixture
-    def engine_with_bus(self, mock_event_bus):
+    def engine(self, mock_market_data_adapter):
+        """Create engine instance without event bus."""
+        return DslEngine(market_data_adapter=mock_market_data_adapter)
+
+    @pytest.fixture
+    def engine_with_bus(self, mock_event_bus, mock_market_data_adapter):
         """Create engine instance with event bus."""
-        return DslEngine(event_bus=mock_event_bus)
+        return DslEngine(event_bus=mock_event_bus, market_data_adapter=mock_market_data_adapter)
 
     def test_init_default(self, engine):
         """Test default initialization."""
@@ -59,14 +66,14 @@ class TestDslEngine:
         assert isinstance(engine._processed_events, set)
         assert len(engine._processed_events) == 0
 
-    def test_init_with_config_path(self):
+    def test_init_with_config_path(self, mock_market_data_adapter):
         """Test initialization with config path."""
-        engine = DslEngine(strategy_config_path="/test/path")
+        engine = DslEngine(strategy_config_path="/test/path", market_data_adapter=mock_market_data_adapter)
         assert engine.strategy_config_path == "/test/path"
 
-    def test_init_with_event_bus_subscribes(self, mock_event_bus):
+    def test_init_with_event_bus_subscribes(self, mock_event_bus, mock_market_data_adapter):
         """Test initialization with event bus subscribes to events."""
-        engine = DslEngine(event_bus=mock_event_bus)
+        engine = DslEngine(event_bus=mock_event_bus, market_data_adapter=mock_market_data_adapter)
 
         # Verify subscription
         mock_event_bus.subscribe.assert_called_once_with("StrategyEvaluationRequested", engine)
@@ -192,14 +199,14 @@ class TestDslEngine:
         path = engine._resolve_strategy_path("provided.clj", "ignored_id")
         assert path == "provided.clj"
 
-    def test_resolve_strategy_path_tries_strategy_id(self, engine, tmp_path):
+    def test_resolve_strategy_path_tries_strategy_id(self, engine, tmp_path, mock_market_data_adapter):
         """Test _resolve_strategy_path tries strategy_id based paths."""
         # Create temporary strategy file
         strategy_file = tmp_path / "test_strategy.clj"
         strategy_file.write_text("(portfolio [])")
 
         # Create engine with temp directory
-        engine = DslEngine(strategy_config_path=str(tmp_path))
+        engine = DslEngine(strategy_config_path=str(tmp_path), market_data_adapter=mock_market_data_adapter)
 
         # Resolve should find the file
         path = engine._resolve_strategy_path("", "test_strategy")

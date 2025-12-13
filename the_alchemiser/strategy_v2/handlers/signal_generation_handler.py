@@ -18,9 +18,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.data_v2.cached_market_data_adapter import (
-    CachedMarketDataAdapter,
-)
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
     MarketDataError,
@@ -423,8 +420,8 @@ class SignalGenerationHandler:
         """
         indicators: dict[str, dict[str, float]] = {}
 
-        # Use CachedMarketDataAdapter for market data, IndicatorService for computation
-        market_data_client = CachedMarketDataAdapter()
+        # Use container's market data adapter for consistency with DI pattern
+        market_data_client = self.container.strategy_market_data_adapter()
         indicator_service = IndicatorService(market_data_service=market_data_client)
 
         for symbol in symbols:
