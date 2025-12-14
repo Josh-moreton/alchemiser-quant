@@ -47,6 +47,10 @@ class RebalancePlanItem(BaseModel):
     )
     action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
     priority: int = Field(..., ge=1, le=5, description="Execution priority (1=highest)")
+    strategy_id: str | None = Field(
+        default=None,
+        description="Primary strategy identifier for order attribution (highest-weight contributor)",
+    )
 
     @field_validator("symbol")
     @classmethod

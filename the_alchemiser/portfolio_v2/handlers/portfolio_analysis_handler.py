@@ -354,11 +354,16 @@ class PortfolioAnalysisHandler:
             account_info = account_data.get("account_info", {})
             if not isinstance(account_info, dict):
                 account_info = _normalize_account_info(account_info)
+
+            # Extract strategy contributions for order attribution
+            strategy_contributions = getattr(consolidated_portfolio, "strategy_contributions", None)
+
             rebalance_plan = self._create_rebalance_plan_from_allocation(
                 allocation_comparison,
                 account_info,
                 event.correlation_id,
                 strategy_names,
+                strategy_contributions=strategy_contributions,
             )
 
             # If no rebalance plan could be created, treat as failure and stop
@@ -661,6 +666,7 @@ class PortfolioAnalysisHandler:
         account_info: dict[str, Any],
         correlation_id: str,
         strategy_names: list[str] | None = None,
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> RebalancePlan:
         """Create rebalance plan from allocation comparison.
 
@@ -669,6 +675,7 @@ class PortfolioAnalysisHandler:
             account_info: Account information with Decimal values
             correlation_id: Correlation ID from the triggering event
             strategy_names: List of strategy names that generated the signals
+            strategy_contributions: Per-strategy allocation breakdown for attribution
 
         Returns:
             RebalancePlan with trade items
@@ -703,6 +710,7 @@ class PortfolioAnalysisHandler:
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # In handler context, caused by signal generation workflow
+                strategy_contributions=strategy_contributions,
             )
 
             # Add strategy attribution to metadata using model_copy
