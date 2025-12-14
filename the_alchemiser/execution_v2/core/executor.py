@@ -395,6 +395,11 @@ class Executor:
             # Calculate executed trade amount (may be 0 on failure)
             executed_trade_amount = abs(execution_result.total_filled * fill_price)
 
+            # Extract client_order_id from updated intent for strategy attribution
+            client_order_id = (
+                execution_result.intent.client_order_id if execution_result.intent else None
+            )
+
             return OrderResult(
                 symbol=symbol,
                 action=action,  # type: ignore[arg-type]
@@ -409,6 +414,7 @@ class Executor:
                 timestamp=datetime.now(UTC),
                 order_type=order_type,  # type: ignore[arg-type]
                 filled_at=datetime.now(UTC) if execution_result.success else None,
+                client_order_id=client_order_id,
             )
 
         # Fallback to market order if unified service not available

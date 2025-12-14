@@ -63,6 +63,11 @@ class OrderResult(BaseModel):
         default="MARKET", description="Order type"
     )
     filled_at: datetime | None = Field(default=None, description="Fill timestamp")
+    client_order_id: str | None = Field(
+        default=None,
+        max_length=48,
+        description="Client order ID for strategy attribution (Alpaca max 48 chars)",
+    )
 
     # Slippage tracking fields (v1.1)
     expected_price: Decimal | None = Field(

@@ -716,7 +716,9 @@ class PortfolioAnalysisHandler:
             # Add strategy attribution to metadata using model_copy
             strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
             strategy_attribution = self._build_strategy_attribution(
-                rebalance_plan, strategy_names or ["DSL"]
+                rebalance_plan,
+                strategy_names or ["DSL"],
+                strategy_contributions=strategy_contributions,
             )
 
             if rebalance_plan.metadata is None:
@@ -787,34 +789,85 @@ class PortfolioAnalysisHandler:
         return f"{strategy_names[0]} (+{len(strategy_names) - 1} others)"
 
     def _build_strategy_attribution(
-        self, rebalance_plan: RebalancePlan, strategy_names: list[str]
+        self,
+        rebalance_plan: RebalancePlan,
+        strategy_names: list[str],
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> dict[str, dict[str, float]]:
         """Build per-symbol strategy attribution metadata.
+
+        Uses actual strategy contribution weights when available from the
+        ConsolidatedPortfolio. Falls back to equal distribution only when
+        strategy_contributions is not provided.
 
         Args:
             rebalance_plan: The rebalance plan with items
             strategy_names: List of strategy names
+            strategy_contributions: Per-strategy allocation breakdown from ConsolidatedPortfolio
+                Format: {strategy_id: {symbol: Decimal weight}}
 
         Returns:
-            Dictionary mapping symbol to strategy weights
+            Dictionary mapping symbol to strategy weights (as floats for JSON serialization)
 
         """
-        strategy_attribution = {}
+        strategy_attribution: dict[str, dict[str, float]] = {}
 
-        # For each symbol in the plan, assign full attribution to strategies
         for item in rebalance_plan.items:
-            symbol = item.symbol
+            symbol = item.symbol.upper()
 
-            # For single strategy, assign 100% weight
+            # Try to use actual contribution weights if available
+            if strategy_contributions:
+                symbol_weights = self._extract_symbol_weights(symbol, strategy_contributions)
+                if symbol_weights:
+                    strategy_attribution[symbol] = symbol_weights
+                    continue
+
+            # Fallback: single strategy gets 100%, multiple get equal distribution
             if len(strategy_names) == 1:
                 strategy_attribution[symbol] = {strategy_names[0]: 1.0}
             else:
-                # For multiple strategies, distribute equally
-                # In the future, this could be weighted based on signal strength
                 weight_per_strategy = 1.0 / len(strategy_names)
                 strategy_attribution[symbol] = dict.fromkeys(strategy_names, weight_per_strategy)
 
         return strategy_attribution
+
+    def _extract_symbol_weights(
+        self,
+        symbol: str,
+        strategy_contributions: dict[str, dict[str, Decimal]],
+    ) -> dict[str, float] | None:
+        """Extract per-strategy weights for a symbol from strategy_contributions.
+
+        Args:
+            symbol: The trading symbol (uppercase)
+            strategy_contributions: {strategy_id: {symbol: Decimal weight}}
+
+        Returns:
+            Dict of {strategy_name: float weight} normalized to sum to 1.0,
+            or None if no strategies contribute to this symbol.
+
+        """
+        symbol_weights: dict[str, Decimal] = {}
+
+        for strategy_id, allocations in strategy_contributions.items():
+            # Normalize keys for comparison
+            normalized_allocations = {k.upper(): v for k, v in allocations.items()}
+            if symbol in normalized_allocations:
+                weight = normalized_allocations[symbol]
+                if weight > Decimal("0"):
+                    symbol_weights[strategy_id] = weight
+
+        if not symbol_weights:
+            return None
+
+        # Normalize weights to sum to 1.0
+        total_weight = sum(symbol_weights.values())
+        if total_weight <= Decimal("0"):
+            return None
+
+        return {
+            strategy: float(weight / total_weight) for strategy, weight in symbol_weights.items()
+        }
 
     def _emit_rebalance_planned_event(
         self,

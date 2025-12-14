@@ -116,6 +116,18 @@ def parse_client_order_id(client_order_id: str) -> dict[str, str | None] | None:
     - Legacy: alch-SYMBOL-TIMESTAMP-UUID (4 parts)
     - New: STRATEGY-SYMBOL-TIMESTAMP-UUID[-VERSION] (4 or 5 parts)
 
+    .. note::
+        **Status: Ready for Integration**
+
+        This function is tested but not yet wired into production flows.
+        It's designed as a fallback mechanism to extract strategy_id from
+        client_order_id when rebalance plan metadata is unavailable
+        (e.g., manual orders or pre-existing positions).
+
+        Integration point: ``execution_v2/services/trade_ledger.py``
+        in ``_extract_strategy_attribution()`` as fallback when
+        ``rebalance_plan.metadata["strategy_attribution"]`` is missing.
+
     Args:
         client_order_id: Client order ID string to parse
 
