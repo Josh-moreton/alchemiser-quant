@@ -35,6 +35,7 @@ from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import 
 )
 from the_alchemiser.shared.schemas.strategy_lot import StrategyLot
 from the_alchemiser.shared.schemas.trade_ledger import TradeLedger, TradeLedgerEntry
+from the_alchemiser.shared.utils.order_id_utils import parse_client_order_id
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.models.execution_result import OrderResult
@@ -102,9 +103,9 @@ class TradeLedgerService:
         if not self._is_order_recordable(order_result, correlation_id):
             return None
 
-        # Extract strategy attribution
+        # Extract strategy attribution (with client_order_id fallback)
         strategy_names, strategy_weights = self._extract_strategy_attribution(
-            order_result.symbol, rebalance_plan
+            order_result.symbol, rebalance_plan, order_result
         )
 
         # Extract and validate quote data
@@ -306,50 +307,81 @@ class TradeLedgerService:
             return None
 
     def _extract_strategy_attribution(
-        self, symbol: str, rebalance_plan: RebalancePlan | None
+        self,
+        symbol: str,
+        rebalance_plan: RebalancePlan | None,
+        order_result: OrderResult | None = None,
     ) -> tuple[list[str], dict[str, Decimal] | None]:
-        """Extract strategy attribution from rebalance plan metadata.
+        """Extract strategy attribution from rebalance plan metadata or client_order_id.
+
+        Attempts attribution in order:
+        1. Rebalance plan metadata (has full multi-strategy weights)
+        2. Client order ID parsing (fallback for single-strategy attribution)
 
         Args:
             symbol: Trading symbol
             rebalance_plan: Optional rebalance plan with strategy metadata
+            order_result: Optional order result with client_order_id for fallback
 
         Returns:
             Tuple of (strategy_names, strategy_weights)
 
         """
-        if not rebalance_plan or not rebalance_plan.metadata:
-            logger.debug(
-                "No strategy attribution available",
-                extra={
-                    "symbol": symbol,
-                    "has_plan": rebalance_plan is not None,
-                    "has_metadata": rebalance_plan.metadata is not None
-                    if rebalance_plan
-                    else False,
-                },
-            )
-            return [], None
+        # Normalize symbol for lookup
+        symbol_upper = symbol.strip().upper()
 
-        # Check for strategy attribution in metadata
-        # Format: {"strategy_attribution": {"SYMBOL": {"strategy1": 0.6, "strategy2": 0.4}}}
-        strategy_attr = rebalance_plan.metadata.get("strategy_attribution", {})
-        symbol_attr = strategy_attr.get(symbol, {})
+        # Try rebalance plan metadata first (has full multi-strategy weights)
+        if rebalance_plan and rebalance_plan.metadata:
+            strategy_attr = rebalance_plan.metadata.get("strategy_attribution", {})
+            # Try exact match and uppercase fallback
+            symbol_attr = strategy_attr.get(symbol_upper, {}) or strategy_attr.get(symbol, {})
 
-        if not symbol_attr:
-            logger.debug(
-                "No strategy attribution for symbol",
-                extra={
-                    "symbol": symbol,
-                    "available_symbols": list(strategy_attr.keys()) if strategy_attr else [],
-                },
-            )
-            return [], None
+            if symbol_attr:
+                strategy_names = list(symbol_attr.keys())
+                strategy_weights = {
+                    name: Decimal(str(weight)) for name, weight in symbol_attr.items()
+                }
+                logger.debug(
+                    "Strategy attribution from rebalance plan",
+                    extra={
+                        "symbol": symbol_upper,
+                        "strategies": strategy_names,
+                        "source": "rebalance_plan_metadata",
+                    },
+                )
+                return strategy_names, strategy_weights
 
-        strategy_names = list(symbol_attr.keys())
-        strategy_weights = {name: Decimal(str(weight)) for name, weight in symbol_attr.items()}
+        # Fallback: Extract from client_order_id (single-strategy attribution)
+        if order_result and order_result.client_order_id:
+            parsed = parse_client_order_id(order_result.client_order_id)
+            if parsed:
+                strategy_id = parsed.get("strategy_id")
+                if strategy_id and strategy_id != "unknown":
+                    logger.info(
+                        "Strategy attribution from client_order_id fallback",
+                        extra={
+                            "symbol": symbol_upper,
+                            "strategy_id": strategy_id,
+                            "client_order_id": order_result.client_order_id,
+                            "source": "client_order_id",
+                        },
+                    )
+                    # Single strategy gets 100% weight
+                    return [strategy_id], {strategy_id: Decimal("1.0")}
 
-        return strategy_names, strategy_weights
+        # No attribution available
+        logger.debug(
+            "No strategy attribution available",
+            extra={
+                "symbol": symbol_upper,
+                "has_plan": rebalance_plan is not None,
+                "has_metadata": rebalance_plan.metadata is not None if rebalance_plan else False,
+                "has_client_order_id": order_result.client_order_id is not None
+                if order_result
+                else False,
+            },
+        )
+        return [], None
 
     def get_ledger(self) -> TradeLedger:
         """Get the current trade ledger.

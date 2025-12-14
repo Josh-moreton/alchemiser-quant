@@ -160,7 +160,9 @@ class UnifiedOrderPlacementService:
         # Generate client_order_id if not provided
         client_order_id = intent.client_order_id
         if not client_order_id:
-            client_order_id = generate_client_order_id(intent.symbol)
+            # Use strategy_id from intent if available, otherwise use "alch" as default
+            strategy_id = intent.strategy_id if intent.strategy_id else "alch"
+            client_order_id = generate_client_order_id(intent.symbol, strategy_id)
             # Update intent with generated client_order_id
             intent = replace(intent, client_order_id=client_order_id)
 

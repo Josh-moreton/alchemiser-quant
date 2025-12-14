@@ -18,6 +18,10 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
 )
+from the_alchemiser.shared.utils.strategy_attribution import (
+    get_primary_strategy_for_symbol,
+    get_single_strategy_id,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
@@ -61,6 +65,7 @@ class RebalancePlanCalculator:
         snapshot: PortfolioSnapshot,
         correlation_id: str,
         causation_id: str | None = None,
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> RebalancePlan:
         """Build rebalance plan from strategy allocation and portfolio snapshot.
 
@@ -69,6 +74,8 @@ class RebalancePlanCalculator:
             snapshot: Current portfolio snapshot
             correlation_id: Correlation ID for tracking
             causation_id: Causation ID for event traceability (defaults to correlation_id)
+            strategy_contributions: Per-strategy allocation breakdown for attribution
+                Format: {strategy_id: {symbol: weight}}
 
         Returns:
             RebalancePlan with trade items and metadata
@@ -122,8 +129,10 @@ class RebalancePlanCalculator:
             # Step 2: Calculate target and current dollar values
             target_values, current_values = self._calculate_dollar_values(strategy, snapshot)
 
-            # Step 3: Calculate trade amounts and actions
-            trade_items = self._calculate_trade_items(target_values, current_values)
+            # Step 3: Calculate trade amounts and actions (with strategy attribution)
+            trade_items = self._calculate_trade_items(
+                target_values, current_values, strategy_contributions
+            )
 
             # Step 3.5: Suppress micro trades below 1% of total portfolio value
             min_trade_threshold = self._min_trade_threshold(portfolio_value)
@@ -136,6 +145,9 @@ class RebalancePlanCalculator:
                 percentage="1%",
             )
             trade_items = self._suppress_small_trades(trade_items, min_trade_threshold)
+
+            # Determine plan-level strategy_id (single strategy case)
+            plan_strategy_id = get_single_strategy_id(strategy_contributions or {})
 
             # Ensure we have at least one item (required by DTO)
             if not trade_items:
@@ -156,6 +168,7 @@ class RebalancePlanCalculator:
                         trade_amount=Decimal("0"),
                         action="HOLD",
                         priority=5,
+                        strategy_id=plan_strategy_id,
                     )
                 ]
 
@@ -170,6 +183,7 @@ class RebalancePlanCalculator:
                 causation_id=causation_id,  # Use provided causation_id for event traceability
                 timestamp=datetime.now(UTC),
                 plan_id=f"portfolio_v2_{correlation_id}_{int(datetime.now(UTC).timestamp())}",
+                strategy_id=plan_strategy_id,  # Primary strategy for single-strategy case
                 items=trade_items,
                 total_portfolio_value=portfolio_value,
                 total_trade_value=total_trade_value,
@@ -190,6 +204,7 @@ class RebalancePlanCalculator:
                 action="build_plan",
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                strategy_id=plan_strategy_id,
                 item_count=len(trade_items),
                 total_trade_value=str(total_trade_value),
             )
@@ -561,12 +576,14 @@ class RebalancePlanCalculator:
         self,
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> list[RebalancePlanItem]:
         """Calculate trade items with amounts and actions.
 
         Args:
             target_values: Target dollar values by symbol
             current_values: Current dollar values by symbol
+            strategy_contributions: Per-strategy allocation breakdown for attribution
 
         Returns:
             List of RebalancePlanItem items
@@ -598,6 +615,9 @@ class RebalancePlanCalculator:
                     trade_amount=Decimal("0"),
                     action="HOLD",
                     priority=0,
+                    strategy_id=get_primary_strategy_for_symbol(
+                        symbol, strategy_contributions or {}
+                    ),
                 )
                 items.append(item)
             return items
@@ -628,6 +648,11 @@ class RebalancePlanCalculator:
             # Calculate priority (higher trade amounts get higher priority)
             priority = self._calculate_priority(abs(final_trade_amount))
 
+            # Get primary strategy for this symbol (highest-weight contributor)
+            symbol_strategy_id = get_primary_strategy_for_symbol(
+                symbol, strategy_contributions or {}
+            )
+
             # Create trade item
             item = RebalancePlanItem(
                 symbol=symbol,
@@ -639,6 +664,7 @@ class RebalancePlanCalculator:
                 trade_amount=final_trade_amount,
                 action=action,
                 priority=priority,
+                strategy_id=symbol_strategy_id,
             )
 
             items.append(item)

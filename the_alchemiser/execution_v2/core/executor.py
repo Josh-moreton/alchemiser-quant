@@ -289,6 +289,7 @@ class Executor:
         *,
         is_complete_exit: bool = False,
         planned_trade_amount: Decimal | None = None,
+        strategy_id: str | None = None,
     ) -> OrderResult:
         """Execute an order using the unified placement service.
 
@@ -299,6 +300,7 @@ class Executor:
             correlation_id: Correlation ID for tracking
             is_complete_exit: If True and side is 'sell', this is a full position close
             planned_trade_amount: Original planned dollar amount from rebalance plan (for audit)
+            strategy_id: Strategy identifier for order attribution
 
         Returns:
             OrderResult with order details.
@@ -330,6 +332,7 @@ class Executor:
                 quantity=quantity,
                 urgency=urgency,
                 correlation_id=correlation_id,
+                strategy_id=strategy_id,
             )
 
             # Execute via unified service
@@ -392,6 +395,11 @@ class Executor:
             # Calculate executed trade amount (may be 0 on failure)
             executed_trade_amount = abs(execution_result.total_filled * fill_price)
 
+            # Extract client_order_id from updated intent for strategy attribution
+            client_order_id = (
+                execution_result.intent.client_order_id if execution_result.intent else None
+            )
+
             return OrderResult(
                 symbol=symbol,
                 action=action,  # type: ignore[arg-type]
@@ -406,6 +414,7 @@ class Executor:
                 timestamp=datetime.now(UTC),
                 order_type=order_type,  # type: ignore[arg-type]
                 filled_at=datetime.now(UTC) if execution_result.success else None,
+                client_order_id=client_order_id,
             )
 
         # Fallback to market order if unified service not available
@@ -1061,6 +1070,7 @@ class Executor:
                 correlation_id=correlation_id,
                 is_complete_exit=is_full_liquidation,  # Flag for quantity adjustment in market fallback
                 planned_trade_amount=abs(item.trade_amount),  # Preserve original amount for audit
+                strategy_id=item.strategy_id,  # For order attribution
             )
 
             # Log result

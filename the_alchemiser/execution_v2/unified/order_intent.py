@@ -92,6 +92,7 @@ class OrderIntent:
     urgency: Urgency
     correlation_id: str | None = None
     client_order_id: str | None = None
+    strategy_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate order intent after initialization."""

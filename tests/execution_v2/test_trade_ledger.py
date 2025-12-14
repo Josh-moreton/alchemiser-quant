@@ -155,6 +155,77 @@ class TestTradeLedgerService:
         assert entry.strategy_weights["momentum_strategy"] == Decimal("0.6")
         assert entry.strategy_weights["mean_reversion_strategy"] == Decimal("0.4")
 
+    def test_record_filled_order_with_client_order_id_fallback(self):
+        """Test strategy attribution fallback via client_order_id parsing.
+
+        When rebalance_plan is None or lacks strategy_attribution metadata,
+        the service should fall back to parsing the client_order_id to extract
+        the strategy name.
+        """
+        service = TradeLedgerService()
+
+        # Create order result with client_order_id but no rebalance_plan
+        # client_order_id format: {strategy_id}-{symbol}-{timestamp}-{uuid}
+        order_result = OrderResult(
+            symbol="AAPL",
+            action="BUY",
+            trade_amount=Decimal("5000.00"),
+            shares=Decimal("50"),
+            price=Decimal("100.00"),
+            order_id="alpaca-order-xyz",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+            client_order_id="momentum-AAPL-20241214T120000-abc12345",
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-fallback",
+            rebalance_plan=None,  # No plan - forces client_order_id fallback
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        # Strategy extracted from client_order_id prefix
+        assert entry.strategy_names == ["momentum"]
+        assert entry.strategy_weights is not None
+        assert entry.strategy_weights["momentum"] == Decimal("1.0")
+
+    def test_record_filled_order_no_attribution_available(self):
+        """Test when neither rebalance_plan nor client_order_id has attribution."""
+        service = TradeLedgerService()
+
+        # Order without client_order_id and no rebalance_plan
+        order_result = OrderResult(
+            symbol="TSLA",
+            action="SELL",
+            trade_amount=Decimal("3000.00"),
+            shares=Decimal("10"),
+            price=Decimal("300.00"),
+            order_id="alpaca-order-abc",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",
+            filled_at=datetime.now(UTC),
+            client_order_id=None,  # No client_order_id
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-no-attr",
+            rebalance_plan=None,  # No plan
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        # No attribution available - returns empty lists
+        assert entry.strategy_names == []
+        assert entry.strategy_weights is None
+
     def test_skip_recording_unsuccessful_order(self):
         """Test that unsuccessful orders are not recorded."""
         service = TradeLedgerService()
