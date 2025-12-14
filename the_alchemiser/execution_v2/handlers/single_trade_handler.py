@@ -37,6 +37,7 @@ from the_alchemiser.shared.events import (
     EventBus,
     TradeExecuted,
 )
+from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.trade_message import TradeMessage
 from the_alchemiser.shared.services.execution_run_service import (
@@ -89,7 +90,7 @@ class SingleTradeHandler:
         if run_service:
             self.run_service = run_service
         else:
-            table_name = os.environ.get("EXECUTION_RUNS_TABLE", "ExecutionRunsTable")
+            table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "ExecutionRunsTable")
             self.run_service = ExecutionRunService(table_name=table_name)
 
         # Track processed idempotency keys for this invocation
@@ -320,6 +321,7 @@ class SingleTradeHandler:
                         correlation_id=correlation_id,
                         is_complete_exit=is_full_liquidation,
                         planned_trade_amount=abs(trade_message.trade_amount),
+                        strategy_id=trade_message.strategy_id,
                     )
                 )
 
@@ -602,6 +604,10 @@ class SingleTradeHandler:
             )
 
             self.event_bus.publish(event)
+
+            # Publish to EventBridge for Notifications Lambda to receive
+            publish_to_eventbridge(event)
+
             self.logger.info(
                 f"📡 Emitted TradeExecuted event for {trade_message.symbol}",
                 extra={

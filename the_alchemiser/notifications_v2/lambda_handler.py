@@ -164,7 +164,7 @@ def _handle_per_trade_executed(
     )
 
     # Initialize ExecutionRunService
-    table_name = os.environ.get("EXECUTION_RUNS_TABLE", "ExecutionRunsTable")
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "ExecutionRunsTable")
     run_service = ExecutionRunService(table_name=table_name)
 
     # Check if run is complete

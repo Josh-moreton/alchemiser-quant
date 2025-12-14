@@ -1021,6 +1021,7 @@ class PortfolioAnalysisHandler:
                 plan_id=rebalance_plan.plan_id,
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                strategy_id=rebalance_plan.strategy_id,
                 symbol=item.symbol,
                 action=item.action,
                 trade_amount=item.trade_amount,

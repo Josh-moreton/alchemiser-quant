@@ -57,6 +57,9 @@ class TradeMessage(BaseModel):
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
+    strategy_id: str | None = Field(
+        default=None, description="Strategy identifier for attribution tracking"
+    )
 
     # ========== Trade content (from RebalancePlanItem) ==========
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
