@@ -32,6 +32,7 @@ import sys
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+import logging
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
@@ -75,6 +76,24 @@ def _load_local_env_files() -> None:
 # Load .env early so CLI --auto-fetch and other features
 # can pick up credentials from .env automatically.
 _load_local_env_files()
+
+# Ensure logs directory exists and add a file handler so every run
+# writes a timestamped backtest log. We keep console output intact.
+logs_dir = project_root / "logs"
+logs_dir.mkdir(parents=True, exist_ok=True)
+_ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+_logfile = logs_dir / f"backtest_{_ts}.log"
+try:
+    _fh = logging.FileHandler(_logfile, encoding="utf-8")
+    _fh.setLevel(logging.INFO)
+    _fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    _fh.setFormatter(_fmt)
+    logging.getLogger().addHandler(_fh)
+    # Inform user which file is being written to
+    print(f"Backtest logs will be written to: {_logfile}")
+except Exception:
+    # Non-fatal: continue without file logging
+    pass
 
 from the_alchemiser.backtest_v2 import BacktestConfig, BacktestEngine
 from the_alchemiser.backtest_v2.core.portfolio_engine import (
