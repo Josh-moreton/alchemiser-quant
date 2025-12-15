@@ -102,11 +102,17 @@ bump-patch:
 	poetry version patch; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	CHANGED=0; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
+		CHANGED=1; \
+	fi; \
+	if [ $$CHANGED -eq 1 ]; then \
+		echo "📤 Pushing commit to origin (current branch)..."; \
+		git push origin HEAD; \
 	fi
 
 bump-minor:
@@ -127,11 +133,17 @@ bump-minor:
 	poetry version minor; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	CHANGED=0; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
+		CHANGED=1; \
+	fi; \
+	if [ $$CHANGED -eq 1 ]; then \
+		echo "📤 Pushing commit to origin (current branch)..."; \
+		git push origin HEAD; \
 	fi
 
 bump-major:
@@ -152,11 +164,17 @@ bump-major:
 	poetry version major; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	CHANGED=0; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
+		CHANGED=1; \
+	fi; \
+	if [ $$CHANGED -eq 1 ]; then \
+		echo "📤 Pushing commit to origin (current branch)..."; \
+		git push origin HEAD; \
 	fi
 
 # ============================================================================

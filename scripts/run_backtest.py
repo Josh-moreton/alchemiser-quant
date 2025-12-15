@@ -9,12 +9,12 @@ or entire portfolios (from config JSON) against historical market data.
 Usage:
     # Single strategy
     python scripts/run_backtest.py strategies/core/main.clj \
-        --start 2023-01-01 --end 2024-01-01 \
+        --start 2025-01-01 --end 2025-12-01 \
         --capital 100000 --output results/backtest.json
 
     # Portfolio from config file
     python scripts/run_backtest.py the_alchemiser/config/strategy.dev.json \
-        --portfolio --start 2024-01-01 --end 2024-12-01
+        --portfolio --start 2025-01-01 --end 2025-12-01
 
     # Auto-fetch missing data before running
     python scripts/run_backtest.py strategies/core/main.clj \
