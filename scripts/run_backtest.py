@@ -37,6 +37,45 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+
+def _load_local_env_files() -> None:
+    """Load environment variables from .env in project root.
+
+    This helper is intentionally simple: it accepts lines of the form
+    KEY=VALUE and skips comments/blank lines. Existing environment
+    variables are not overwritten.
+    """
+    env_files = [project_root / ".env"]
+    for ef in env_files:
+        if not ef.exists():
+            continue
+        try:
+            for raw in ef.read_text().splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                key = key.strip()
+                val = val.strip()
+                # Strip optional surrounding quotes
+                if (val.startswith('"') and val.endswith('"')) or (
+                    val.startswith("'") and val.endswith("'")
+                ):
+                    val = val[1:-1]
+                # Only set if not already present in environment
+                if key and os.environ.get(key) is None:
+                    os.environ[key] = val
+        except Exception:
+            # Non-fatal: continue with available env vars
+            continue
+
+
+# Load .env early so CLI --auto-fetch and other features
+# can pick up credentials from .env automatically.
+_load_local_env_files()
+
 from the_alchemiser.backtest_v2 import BacktestConfig, BacktestEngine
 from the_alchemiser.backtest_v2.core.portfolio_engine import (
     PortfolioBacktestConfig,
