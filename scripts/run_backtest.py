@@ -439,9 +439,16 @@ Examples:
         "--report",
         nargs="?",
         const="auto",
-        default=None,
+        default="auto",
         metavar="PATH",
-        help="Generate HTML report. If PATH not given, saves to results/backtest_<timestamp>.html",
+        help="Generate HTML report (default: enabled). Use --no-report to disable.",
+    )
+
+    parser.add_argument(
+        "--no-report",
+        action="store_true",
+        default=False,
+        help="Disable HTML report generation",
     )
 
     parser.add_argument(
@@ -587,8 +594,8 @@ def run_portfolio_backtest(
 
         print(f"Equity curve saved to: {csv_path}")
 
-    # Generate HTML report if requested
-    if args.report:
+    # Generate HTML report by default (unless --no-report)
+    if args.report and not args.no_report:
         _generate_report(result, args.report, "html", config_path.stem)
 
     # Generate PDF report if requested
