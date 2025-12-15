@@ -129,20 +129,23 @@ def _generate_report(
     report_type: str,
     strategy_name: str,
 ) -> None:
-    """Generate HTML or PDF report.
+    """Generate HTML report using QuantStats.
 
     Args:
         result: BacktestResult or PortfolioBacktestResult
         path_arg: Path argument from CLI ("auto" for default, or specific path)
-        report_type: "html" or "pdf"
+        report_type: "html" (pdf no longer supported)
         strategy_name: Strategy name for default filename
 
     """
+    if report_type == "pdf":
+        print("Warning: PDF reports are no longer supported. Generating HTML instead.", file=sys.stderr)
+        report_type = "html"
+
     try:
         from the_alchemiser.backtest_v2.reporting import generate_report
     except ImportError as e:
         print(f"Warning: Could not import reporting module: {e}", file=sys.stderr)
-        print("Install matplotlib with: poetry install --with dev", file=sys.stderr)
         return
 
     # Determine output path
@@ -150,7 +153,7 @@ def _generate_report(
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         safe_name = re.sub(r"[^\w\-]", "_", strategy_name)
-        filename = f"backtest_{safe_name}_{ts}.{report_type}"
+        filename = f"backtest_{safe_name}_{ts}.html"
         output_path = RESULTS_DIR / filename
     else:
         output_path = Path(path_arg)
@@ -158,19 +161,10 @@ def _generate_report(
 
     # Generate report
     try:
-        if report_type == "html":
-            generate_report(result, output_path)
-            print(f"\n📊 HTML report saved to: {output_path}")
-        else:
-            # PDF not yet supported for portfolio results
-            if hasattr(result, "strategy_results"):
-                print("Warning: PDF reports not yet supported for portfolio results. Use --report for HTML.", file=sys.stderr)
-                return
-            from the_alchemiser.backtest_v2.reporting import generate_pdf_report
-            generate_pdf_report(result, output_path)
-            print(f"\n📄 PDF report saved to: {output_path}")
+        generate_report(result, output_path)
+        print(f"\n📊 QuantStats tearsheet saved to: {output_path}")
     except Exception as e:
-        print(f"Warning: Failed to generate {report_type.upper()} report: {e}", file=sys.stderr)
+        print(f"Warning: Failed to generate report: {e}", file=sys.stderr)
 
 
 def extract_symbols_from_clj(strategy_path: Path) -> set[str]:
