@@ -11,12 +11,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pandas as pd
 
-from the_alchemiser.backtest_v2.core.result import Trade
 from the_alchemiser.shared.logging import get_logger
+
+if TYPE_CHECKING:
+    from the_alchemiser.backtest_v2.core.result import Trade
 
 logger = get_logger(__name__)
 

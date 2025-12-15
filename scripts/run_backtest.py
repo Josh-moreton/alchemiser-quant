@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: backtest | Status: current.
+r"""Business Unit: backtest | Status: current.
 
 CLI script for running backtests on DSL strategies.
 
@@ -8,13 +8,17 @@ or entire portfolios (from config JSON) against historical market data.
 
 Usage:
     # Single strategy
-    python scripts/run_backtest.py strategies/core/main.clj \\
-        --start 2023-01-01 --end 2024-01-01 \\
+    python scripts/run_backtest.py strategies/core/main.clj \
+        --start 2023-01-01 --end 2024-01-01 \
         --capital 100000 --output results/backtest.json
 
     # Portfolio from config file
-    python scripts/run_backtest.py the_alchemiser/config/strategy.dev.json \\
+    python scripts/run_backtest.py the_alchemiser/config/strategy.dev.json \
         --portfolio --start 2024-01-01 --end 2024-12-01
+
+    # Auto-fetch missing data before running
+    python scripts/run_backtest.py strategies/core/main.clj \
+        --start 2023-01-01 --end 2024-01-01 --fetch-data
 
 """
 
@@ -22,6 +26,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -39,6 +45,135 @@ from the_alchemiser.backtest_v2.core.portfolio_engine import (
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Benchmark symbols always needed
+BENCHMARK_SYMBOLS = ["SPY"]
+
+
+def extract_symbols_from_clj(strategy_path: Path) -> set[str]:
+    """Extract ticker symbols from a .clj strategy file.
+
+    Args:
+        strategy_path: Path to the strategy file
+
+    Returns:
+        Set of ticker symbols found in the file
+
+    """
+    symbols: set[str] = set()
+
+    if not strategy_path.exists():
+        return symbols
+
+    content = strategy_path.read_text()
+
+    # Pattern for symbols in quotes: "SPY", "AAPL", etc.
+    quote_pattern = r'"([A-Z]{1,5})"'
+    symbols.update(re.findall(quote_pattern, content))
+
+    return symbols
+
+
+def extract_symbols_from_portfolio_config(
+    config_path: Path,
+    strategies_base_dir: str,
+) -> set[str]:
+    """Extract all symbols from a portfolio config file.
+
+    Args:
+        config_path: Path to the portfolio JSON config
+        strategies_base_dir: Base directory for strategy files
+
+    Returns:
+        Set of ticker symbols needed
+
+    """
+    symbols: set[str] = set()
+
+    if not config_path.exists():
+        return symbols
+
+    with config_path.open() as f:
+        config = json.load(f)
+
+    strategies = config.get("strategies", [])
+    strategies_base = Path(strategies_base_dir)
+
+    for strategy_config in strategies:
+        dsl_file = strategy_config.get("dsl_file", "")
+        if dsl_file:
+            strategy_path = strategies_base / dsl_file
+            if strategy_path.exists():
+                symbols.update(extract_symbols_from_clj(strategy_path))
+
+    return symbols
+
+
+def fetch_missing_data(
+    args: argparse.Namespace,
+    input_path: Path,
+    data_dir: Path,
+) -> int:
+    """Fetch missing market data for backtest.
+
+    Args:
+        args: Parsed command line arguments
+        input_path: Path to strategy or config file
+        data_dir: Historical data directory
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+
+    """
+    from the_alchemiser.backtest_v2.adapters.data_fetcher import BacktestDataFetcher
+
+    # Check for API credentials
+    if not os.environ.get("ALPACA__KEY") or not os.environ.get("ALPACA__SECRET"):
+        print("Error: Alpaca credentials not set for --fetch-data.", file=sys.stderr)
+        print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
+        return 1
+
+    # Extract symbols
+    symbols: set[str] = set()
+
+    if args.portfolio:
+        symbols.update(extract_symbols_from_portfolio_config(
+            input_path,
+            args.strategies_dir,
+        ))
+    else:
+        symbols.update(extract_symbols_from_clj(input_path))
+
+    # Always include benchmark
+    symbols.update(BENCHMARK_SYMBOLS)
+
+    if not symbols:
+        print("Warning: No symbols extracted from strategy file.", file=sys.stderr)
+        return 0
+
+    # Initialize fetcher and check for missing data
+    fetcher = BacktestDataFetcher(data_dir=data_dir)
+    missing = fetcher.get_missing_symbols(list(symbols))
+
+    if not missing:
+        print("All required data is available locally.")
+        return 0
+
+    print(f"Fetching {len(missing)} missing symbols: {', '.join(sorted(missing)[:10])}")
+    if len(missing) > 10:
+        print(f"  ... and {len(missing) - 10} more")
+
+    # Fetch missing data
+    results = fetcher.fetch_symbols(list(missing))
+
+    failed = [s for s, ok in results.items() if not ok]
+    if failed:
+        print(f"Warning: Failed to fetch {len(failed)} symbols: {', '.join(failed[:5])}")
+        if args.verbose:
+            for sym in failed:
+                print(f"  - {sym}")
+
+    return 0
 
 
 def parse_date(date_str: str) -> datetime:
@@ -155,6 +290,12 @@ Examples:
     )
 
     parser.add_argument(
+        "--fetch-data",
+        action="store_true",
+        help="Automatically fetch missing data before running backtest",
+    )
+
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -172,8 +313,12 @@ Examples:
     # Validate data directory
     data_dir = Path(args.data_dir)
     if not data_dir.exists():
-        print(f"Error: Data directory not found: {data_dir}", file=sys.stderr)
-        return 1
+        # Create it if fetch-data is enabled
+        if args.fetch_data:
+            data_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            print(f"Error: Data directory not found: {data_dir}", file=sys.stderr)
+            return 1
 
     # Parse dates
     try:
@@ -183,11 +328,16 @@ Examples:
         print(f"Error: Invalid date format. Use YYYY-MM-DD. {e}", file=sys.stderr)
         return 1
 
+    # Fetch missing data if requested
+    if args.fetch_data:
+        fetch_result = fetch_missing_data(args, input_path, data_dir)
+        if fetch_result != 0:
+            return fetch_result
+
     # Route to portfolio or single strategy backtest
     if args.portfolio:
         return run_portfolio_backtest_cli(args, input_path, start_date, end_date, data_dir)
-    else:
-        return run_single_strategy_backtest(args, input_path, start_date, end_date, data_dir)
+    return run_single_strategy_backtest(args, input_path, start_date, end_date, data_dir)
 
 
 def run_portfolio_backtest_cli(
@@ -262,7 +412,7 @@ def run_portfolio_backtest_cli(
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with output_path.open("w") as f:
             json.dump(result.to_dict(), f, indent=2, default=str)
 
         print(f"\nResults saved to: {output_path}")
@@ -313,7 +463,6 @@ def run_single_strategy_backtest(
         Exit code
 
     """
-
     # Create configuration
     try:
         config = BacktestConfig(
@@ -361,7 +510,7 @@ def run_single_strategy_backtest(
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with output_path.open("w") as f:
             json.dump(result.to_dict(), f, indent=2, default=str)
 
         print(f"\nResults saved to: {output_path}")
