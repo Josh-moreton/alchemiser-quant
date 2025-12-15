@@ -13,10 +13,11 @@ help:
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
 	@echo ""
 	@echo "Backtesting:"
-	@echo "  backtest strategy=<path> start=<date> end=<date>  Run single strategy backtest"
-	@echo "  backtest portfolio=<config> start=<date> end=<date>  Run portfolio backtest"
-	@echo "  backtest ... report=1      Generate HTML report"
-	@echo "  backtest ... fetch=1       Pre-fetch missing data"
+	@echo "  backtest                             Run portfolio backtest (last 2 months, strategy.dev.json)"
+	@echo "  backtest start=<date> end=<date>    Run with custom date range"
+	@echo "  backtest ... config=<file>          Use custom config file"
+	@echo "  backtest ... report=1               Generate HTML report"
+	@echo "  backtest ... fetch=1                Pre-fetch missing data"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs id=<correlation-id>  Fetch workflow logs (errors/warnings)"
@@ -192,47 +193,19 @@ bump-major:
 # BACKTESTING
 # ============================================================================
 
-# Run backtests on DSL strategies
-# Usage (single strategy):
-#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01
-#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01 capital=50000
-#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01 report=1
-#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01 fetch=1
-#
-# Usage (portfolio):
-#   make backtest portfolio=the_alchemiser/config/strategy.dev.json start=2024-01-01 end=2024-12-01
-#   make backtest portfolio=the_alchemiser/config/strategy.dev.json start=2024-01-01 end=2024-12-01 report=1
+# Run portfolio backtests
+# Usage:
+#   make backtest                                    # Last 2 months, strategy.dev.json
+#   make backtest start=2024-01-01 end=2024-12-01   # Custom date range
+#   make backtest config=the_alchemiser/config/strategy.prod.json
+#   make backtest capital=50000 report=1
+#   make backtest fetch=1
+
 backtest:
-	@if [ -z "$(start)" ] || [ -z "$(end)" ]; then \
-		echo "❌ Missing required parameters!"; \
-		echo ""; \
-		echo "Usage (single strategy):"; \
-		echo "  make backtest strategy=<path.clj> start=<YYYY-MM-DD> end=<YYYY-MM-DD>"; \
-		echo ""; \
-		echo "Usage (portfolio):"; \
-		echo "  make backtest portfolio=<config.json> start=<YYYY-MM-DD> end=<YYYY-MM-DD>"; \
-		echo ""; \
-		echo "Options:"; \
-		echo "  capital=<amount>   Initial capital (default: 100000)"; \
-		echo "  report=1           Generate HTML report"; \
-		echo "  pdf=1              Generate PDF report"; \
-		echo "  fetch=1            Pre-fetch missing data before backtest"; \
-		echo "  autofetch=1        Auto-fetch missing data during backtest"; \
-		echo "  output=<file.json> Save results to JSON file"; \
-		echo "  csv=<file.csv>     Save equity curve to CSV"; \
-		echo "  verbose=1          Enable verbose output"; \
-		echo ""; \
-		exit 1; \
-	fi; \
-	ARGS="--start $(start) --end $(end)"; \
-	if [ -n "$(strategy)" ]; then \
-		ARGS="$(strategy) $$ARGS"; \
-	elif [ -n "$(portfolio)" ]; then \
-		ARGS="$(portfolio) --portfolio $$ARGS"; \
-	else \
-		echo "❌ Must specify either strategy=<path> or portfolio=<config>"; \
-		exit 1; \
-	fi; \
+	@ARGS=""; \
+	if [ -n "$(config)" ]; then ARGS="$$ARGS --config $(config)"; fi; \
+	if [ -n "$(start)" ]; then ARGS="$$ARGS --start $(start)"; fi; \
+	if [ -n "$(end)" ]; then ARGS="$$ARGS --end $(end)"; fi; \
 	if [ -n "$(capital)" ]; then ARGS="$$ARGS --capital $(capital)"; fi; \
 	if [ -n "$(report)" ]; then ARGS="$$ARGS --report"; fi; \
 	if [ -n "$(pdf)" ]; then ARGS="$$ARGS --pdf"; fi; \
