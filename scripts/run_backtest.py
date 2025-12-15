@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 r"""Business Unit: backtest | Status: current.
 
-CLI script for running backtests on DSL strategies.
+CLI script for running portfolio backtests on DSL strategies.
 
-Provides a command-line interface for backtesting .clj strategy files
-or entire portfolios (from config JSON) against historical market data.
+Provides a command-line interface for backtesting portfolios (from config JSON)
+against historical market data.
 
 Usage:
-    # Single strategy
-    python scripts/run_backtest.py strategies/core/main.clj \
-        --start 2025-01-01 --end 2025-12-01 \
-        --capital 100000 --output results/backtest.json
+    # Default: last 2 months, strategy.dev.json
+    python scripts/run_backtest.py
 
-    # Portfolio from config file
-    python scripts/run_backtest.py the_alchemiser/config/strategy.dev.json \
-        --portfolio --start 2025-01-01 --end 2025-12-01
+    # Custom date range
+    python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-01
 
-    # Auto-fetch missing data before running
-    python scripts/run_backtest.py strategies/core/main.clj \
-        --start 2023-01-01 --end 2024-01-01 --fetch-data
+    # Custom config file
+    python scripts/run_backtest.py --config the_alchemiser/config/strategy.prod.json
+
+    # Generate HTML report
+    python scripts/run_backtest.py --report
+
+    # Auto-fetch missing data
+    python scripts/run_backtest.py --auto-fetch
 
 """
 
@@ -29,14 +31,17 @@ import json
 import os
 import re
 import sys
-from datetime import UTC, datetime
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import logging
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+# Default configuration
+DEFAULT_CONFIG = project_root / "the_alchemiser" / "config" / "strategy.dev.json"
+DEFAULT_LOOKBACK_MONTHS = 2
 
 
 def _load_local_env_files() -> None:
@@ -83,7 +88,6 @@ logs_dir.mkdir(parents=True, exist_ok=True)
 _ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 _logfile = logs_dir / f"backtest_{_ts}.log"
 
-from the_alchemiser.backtest_v2 import BacktestConfig, BacktestEngine
 from the_alchemiser.backtest_v2.core.portfolio_engine import (
     PortfolioBacktestConfig,
     PortfolioBacktestEngine,
@@ -227,14 +231,14 @@ def extract_symbols_from_portfolio_config(
 
 def fetch_missing_data(
     args: argparse.Namespace,
-    input_path: Path,
+    config_path: Path,
     data_dir: Path,
 ) -> int:
     """Fetch missing market data for backtest.
 
     Args:
         args: Parsed command line arguments
-        input_path: Path to strategy or config file
+        config_path: Path to portfolio config file
         data_dir: Historical data directory
 
     Returns:
@@ -249,22 +253,18 @@ def fetch_missing_data(
         print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
         return 1
 
-    # Extract symbols
+    # Extract symbols from portfolio config
     symbols: set[str] = set()
-
-    if args.portfolio:
-        symbols.update(extract_symbols_from_portfolio_config(
-            input_path,
-            args.strategies_dir,
-        ))
-    else:
-        symbols.update(extract_symbols_from_clj(input_path))
+    symbols.update(extract_symbols_from_portfolio_config(
+        config_path,
+        args.strategies_dir,
+    ))
 
     # Always include benchmark
     symbols.update(BENCHMARK_SYMBOLS)
 
     if not symbols:
-        print("Warning: No symbols extracted from strategy file.", file=sys.stderr)
+        print("Warning: No symbols extracted from config file.", file=sys.stderr)
         return 0
 
     # Initialize fetcher and check for missing data
@@ -306,6 +306,19 @@ def parse_date(date_str: str) -> datetime:
     return dt.replace(tzinfo=UTC)
 
 
+def get_default_date_range() -> tuple[datetime, datetime]:
+    """Get default date range (last 2 months).
+
+    Returns:
+        Tuple of (start_date, end_date) as timezone-aware datetimes
+
+    """
+    end_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    # Go back DEFAULT_LOOKBACK_MONTHS months
+    start_date = end_date - timedelta(days=DEFAULT_LOOKBACK_MONTHS * 30)
+    return start_date, end_date
+
+
 def main() -> int:
     """Run backtest from command line arguments.
 
@@ -314,57 +327,47 @@ def main() -> int:
 
     """
     parser = argparse.ArgumentParser(
-        description="Backtest DSL strategies against historical market data",
+        description="Backtest portfolio strategies against historical market data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Single strategy backtest
-    python scripts/run_backtest.py strategies/core/main.clj --start 2023-01-01 --end 2024-01-01
+    # Default: last 2 months, strategy.dev.json
+    python scripts/run_backtest.py
 
-    # Portfolio backtest from config file
-    python scripts/run_backtest.py the_alchemiser/config/strategy.dev.json \\
-        --portfolio --start 2024-01-01 --end 2024-12-01
+    # Custom date range
+    python scripts/run_backtest.py --start 2024-01-01 --end 2024-12-01
 
-    # With custom capital and output
-    python scripts/run_backtest.py strategies/core/main.clj \\
-        --start 2023-01-01 --end 2024-01-01 \\
-        --capital 50000 --output results/my_backtest.json
+    # Custom config file
+    python scripts/run_backtest.py --config the_alchemiser/config/strategy.prod.json
 
-    # Generate HTML report (auto-saved to results/)
-    python scripts/run_backtest.py strategies/core/main.clj \\
-        --start 2023-01-01 --end 2024-01-01 --report
+    # Generate HTML report
+    python scripts/run_backtest.py --report
 
-    # Generate PDF report to specific path
-    python scripts/run_backtest.py strategies/core/main.clj \\
-        --start 2023-01-01 --end 2024-01-01 --pdf results/my_report.pdf
+    # With custom capital
+    python scripts/run_backtest.py --capital 50000 --report
         """,
     )
 
     parser.add_argument(
-        "strategy",
+        "--config",
+        "-c",
         type=str,
-        help="Path to .clj strategy file OR .json portfolio config file (with --portfolio)",
-    )
-
-    parser.add_argument(
-        "--portfolio",
-        "-p",
-        action="store_true",
-        help="Run portfolio backtest using JSON config file with strategy allocations",
+        default=str(DEFAULT_CONFIG),
+        help=f"Path to portfolio config JSON file (default: {DEFAULT_CONFIG.relative_to(project_root)})",
     )
 
     parser.add_argument(
         "--start",
         type=str,
-        required=True,
-        help="Backtest start date (YYYY-MM-DD)",
+        default=None,
+        help="Backtest start date (YYYY-MM-DD). Default: 2 months ago",
     )
 
     parser.add_argument(
         "--end",
         type=str,
-        required=True,
-        help="Backtest end date (YYYY-MM-DD)",
+        default=None,
+        help="Backtest end date (YYYY-MM-DD). Default: today",
     )
 
     parser.add_argument(
@@ -454,10 +457,10 @@ Examples:
 
     args = parser.parse_args()
 
-    # Validate input file
-    input_path = Path(args.strategy)
-    if not input_path.exists():
-        print(f"Error: File not found: {input_path}", file=sys.stderr)
+    # Validate config file
+    config_path = Path(args.config)
+    if not config_path.exists():
+        print(f"Error: Config file not found: {config_path}", file=sys.stderr)
         return 1
 
     # Validate data directory
@@ -470,27 +473,26 @@ Examples:
             print(f"Error: Data directory not found: {data_dir}", file=sys.stderr)
             return 1
 
-    # Parse dates
+    # Parse dates (use defaults if not provided)
+    default_start, default_end = get_default_date_range()
     try:
-        start_date = parse_date(args.start)
-        end_date = parse_date(args.end)
+        start_date = parse_date(args.start) if args.start else default_start
+        end_date = parse_date(args.end) if args.end else default_end
     except ValueError as e:
         print(f"Error: Invalid date format. Use YYYY-MM-DD. {e}", file=sys.stderr)
         return 1
 
     # Fetch missing data if requested
     if args.fetch_data:
-        fetch_result = fetch_missing_data(args, input_path, data_dir)
+        fetch_result = fetch_missing_data(args, config_path, data_dir)
         if fetch_result != 0:
             return fetch_result
 
-    # Route to portfolio or single strategy backtest
-    if args.portfolio:
-        return run_portfolio_backtest_cli(args, input_path, start_date, end_date, data_dir)
-    return run_single_strategy_backtest(args, input_path, start_date, end_date, data_dir)
+    # Run portfolio backtest
+    return run_portfolio_backtest(args, config_path, start_date, end_date, data_dir)
 
 
-def run_portfolio_backtest_cli(
+def run_portfolio_backtest(
     args: argparse.Namespace,
     config_path: Path,
     start_date: datetime,
@@ -608,128 +610,6 @@ def run_portfolio_backtest_cli(
                 print(f"  - [{strategy}] {err['date']}: {err['error']}")
             if len(result.errors) > 10:
                 print(f"  ... and {len(result.errors) - 10} more")
-
-    return 0
-
-
-def run_single_strategy_backtest(
-    args: argparse.Namespace,
-    strategy_path: Path,
-    start_date: datetime,
-    end_date: datetime,
-    data_dir: Path,
-) -> int:
-    """Run single strategy backtest.
-
-    Args:
-        args: Parsed command line arguments
-        strategy_path: Path to strategy file
-        start_date: Backtest start date
-        end_date: Backtest end date
-        data_dir: Historical data directory
-
-    Returns:
-        Exit code
-
-    """
-    # Check API credentials if auto-fetch is enabled
-    if args.auto_fetch:
-        if not os.environ.get("ALPACA__KEY") or not os.environ.get("ALPACA__SECRET"):
-            print("Error: Alpaca credentials not set for --auto-fetch.", file=sys.stderr)
-            print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
-            return 1
-
-    # Create configuration
-    try:
-        config = BacktestConfig(
-            strategy_path=strategy_path,
-            start_date=start_date,
-            end_date=end_date,
-            initial_capital=Decimal(str(args.capital)),
-            data_dir=data_dir,
-            slippage_bps=Decimal(str(args.slippage)),
-            auto_fetch_missing=args.auto_fetch,
-            auto_fetch_lookback_days=args.auto_fetch_lookback,
-        )
-    except ValueError as e:
-        print(f"Error: Invalid configuration: {e}", file=sys.stderr)
-        return 1
-
-    # Print configuration
-    print("=" * 60)
-    print("BACKTEST CONFIGURATION")
-    print("=" * 60)
-    print(f"Strategy:        {strategy_path}")
-    print(f"Start Date:      {start_date.date()}")
-    print(f"End Date:        {end_date.date()}")
-    print(f"Initial Capital: ${args.capital:,.2f}")
-    print(f"Slippage:        {args.slippage} bps")
-    print(f"Data Directory:  {data_dir}")
-    if args.auto_fetch:
-        print(f"Auto-Fetch:      ENABLED (lookback: {args.auto_fetch_lookback} days)")
-    print("=" * 60)
-    print()
-
-    # Run backtest
-    try:
-        engine = BacktestEngine(config)
-        result = engine.run()
-
-        # Report auto-fetched symbols if any
-        if args.auto_fetch and engine._fetched_symbols:
-            print(f"\n📥 Auto-fetched {len(engine._fetched_symbols)} symbols:")
-            for sym in sorted(engine._fetched_symbols):
-                print(f"   - {sym}")
-            print()
-    except Exception as e:
-        print(f"Error: Backtest failed: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-
-            traceback.print_exc()
-        return 1
-
-    # Print summary
-    print(result.summary())
-
-    # Save JSON output if requested
-    if args.output:
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with output_path.open("w") as f:
-            json.dump(result.to_dict(), f, indent=2, default=str)
-
-        print(f"\nResults saved to: {output_path}")
-
-    # Save CSV equity curve if requested
-    if args.csv:
-        csv_path = Path(args.csv)
-        csv_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Combine strategy and benchmark curves
-        combined = result.equity_curve.copy()
-        combined["benchmark"] = result.benchmark_curve["close"]
-        combined.to_csv(csv_path)
-
-        print(f"Equity curve saved to: {csv_path}")
-
-    # Generate HTML report if requested
-    if args.report:
-        _generate_report(result, args.report, "html", strategy_path.stem)
-
-    # Generate PDF report if requested
-    if args.pdf:
-        _generate_report(result, args.pdf, "pdf", strategy_path.stem)
-
-    # Print errors if any
-    if result.errors:
-        print(f"\nWarning: {len(result.errors)} evaluation errors occurred.")
-        if args.verbose:
-            for err in result.errors[:5]:  # Show first 5
-                print(f"  - {err['date']}: {err['error']}")
-            if len(result.errors) > 5:
-                print(f"  ... and {len(result.errors) - 5} more")
 
     return 0
 
