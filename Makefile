@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs
 
 # Default target
 help:
@@ -11,6 +11,11 @@ help:
 	@echo "  run-pnl-weekly  Show weekly P&L report"
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
+	@echo "Observability:"
+	@echo "  logs id=<correlation-id>  Fetch workflow logs (errors/warnings)"
+	@echo "  logs id=<id> all=1        Fetch all logs for a workflow"
+	@echo "  logs id=<id> stage=prod   Fetch logs from production"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
@@ -176,6 +181,33 @@ bump-major:
 		echo "📤 Pushing commit to origin (current branch)..."; \
 		git push origin HEAD; \
 	fi
+
+# ============================================================================
+# OBSERVABILITY
+# ============================================================================
+
+# Fetch workflow logs by correlation_id
+# Usage: make logs id=workflow-abc123
+#        make logs id=workflow-abc123 all=1
+#        make logs id=workflow-abc123 stage=prod
+#        make logs id=workflow-abc123 all=1 verbose=1
+logs:
+	@if [ -z "$(id)" ]; then \
+		echo "❌ Missing correlation/session id!"; \
+		echo ""; \
+		echo "Usage: make logs id=<correlation-id>"; \
+		echo "       make logs id=<id> all=1        # Show all logs, not just errors"; \
+		echo "       make logs id=<id> stage=prod   # Query production environment"; \
+		echo "       make logs id=<id> verbose=1    # Include raw/debug logs"; \
+		echo ""; \
+		exit 1; \
+	fi; \
+	ARGS="--correlation-id $(id)"; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
+	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
+	poetry run python scripts/fetch_workflow_logs.py $$ARGS
 
 # ============================================================================
 # DEPLOYMENT (via GitHub Actions CI/CD)
