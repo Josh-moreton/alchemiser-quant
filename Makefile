@@ -17,12 +17,18 @@ help:
 	@echo "  backtest start=<date> end=<date>    Run with custom date range"
 	@echo "  backtest ... config=<file>          Use custom config file"
 	@echo "  backtest ... report=1               Generate HTML report"
-	@echo "  backtest ... fetch=1                Pre-fetch missing data"
+	@echo "  backtest ... no-auto-fetch=1        Disable S3 auto-fetch (local only)"
+	@echo ""
+	@echo "Data Management:"
+	@echo "  sync-data                            Sync all symbols from S3 to local"
+	@echo "  sync-data force=1                   Force re-download all data"
+	@echo "  seed-data                            Seed S3 from Alpaca (requires API keys)"
 	@echo ""
 	@echo "Observability:"
-	@echo "  logs id=<correlation-id>  Fetch workflow logs (errors/warnings)"
-	@echo "  logs id=<id> all=1        Fetch all logs for a workflow"
-	@echo "  logs id=<id> stage=prod   Fetch logs from production"
+	@echo "  logs                       Fetch logs from most recent workflow (dev)"
+	@echo "  logs stage=prod            Fetch logs from most recent workflow (prod)"
+	@echo "  logs id=<correlation-id>   Fetch logs for specific workflow"
+	@echo "  logs id=<id> all=1         Fetch all logs for a workflow"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
@@ -210,33 +216,45 @@ backtest:
 	if [ -n "$(report)" ]; then ARGS="$$ARGS --report"; fi; \
 	if [ -n "$(pdf)" ]; then ARGS="$$ARGS --pdf"; fi; \
 	if [ -n "$(fetch)" ]; then ARGS="$$ARGS --fetch-data"; fi; \
-	if [ -n "$(autofetch)" ]; then ARGS="$$ARGS --auto-fetch"; fi; \
+	if [ -n "$$(echo '$(no-auto-fetch)' | tr -d ' ')" ]; then ARGS="$$ARGS --no-auto-fetch"; fi; \
 	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
 	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
 	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
 	poetry run python scripts/run_backtest.py $$ARGS
 
+# Sync data from S3 to local storage
+# Usage: make sync-data
+#        make sync-data force=1  (re-download all)
+sync-data:
+	@echo "📥 Syncing market data from S3 to local..."
+	@ARGS=""; \
+	if [ -n "$(force)" ]; then ARGS="--force"; fi; \
+	poetry run python -c "from the_alchemiser.backtest_v2.adapters.data_fetcher import BacktestDataFetcher; from pathlib import Path; f = BacktestDataFetcher(Path('data/historical')); r = f.sync_all_from_s3(force_full=$(if $(force),True,False)); print(f'Synced {sum(r.values())}/{len(r)} symbols')"
+
+# Seed S3 from Alpaca (requires API credentials)
+# Usage: make seed-data
+seed-data:
+	@echo "🌱 Seeding S3 from Alpaca..."
+	@if [ -z "$${ALPACA__KEY:-$$ALPACA_KEY}" ] || [ -z "$${ALPACA__SECRET:-$$ALPACA_SECRET}" ]; then \
+		echo "❌ Alpaca credentials not set!"; \
+		echo "Set ALPACA__KEY and ALPACA__SECRET in your .env or environment"; \
+		exit 1; \
+	fi
+	poetry run python scripts/seed_market_data.py
+
 # ============================================================================
 # OBSERVABILITY
 # ============================================================================
 
-# Fetch workflow logs by correlation_id
-# Usage: make logs id=workflow-abc123
-#        make logs id=workflow-abc123 all=1
-#        make logs id=workflow-abc123 stage=prod
-#        make logs id=workflow-abc123 all=1 verbose=1
+# Fetch workflow logs by correlation_id (or auto-detect most recent)
+# Usage: make logs                        # Most recent workflow in dev
+#        make logs stage=prod             # Most recent workflow in prod
+#        make logs id=workflow-abc123     # Specific workflow
+#        make logs id=<id> all=1          # All logs, not just errors
+#        make logs id=<id> verbose=1      # Include raw/debug logs
 logs:
-	@if [ -z "$(id)" ]; then \
-		echo "❌ Missing correlation/session id!"; \
-		echo ""; \
-		echo "Usage: make logs id=<correlation-id>"; \
-		echo "       make logs id=<id> all=1        # Show all logs, not just errors"; \
-		echo "       make logs id=<id> stage=prod   # Query production environment"; \
-		echo "       make logs id=<id> verbose=1    # Include raw/debug logs"; \
-		echo ""; \
-		exit 1; \
-	fi; \
-	ARGS="--correlation-id $(id)"; \
+	@ARGS=""; \
+	if [ -n "$(id)" ]; then ARGS="$$ARGS --correlation-id $(id)"; fi; \
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
 	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \

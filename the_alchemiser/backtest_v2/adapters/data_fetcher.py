@@ -2,23 +2,31 @@
 
 Data fetcher for backtest module.
 
-Fetch historical market data from Alpaca and store locally as Parquet files
+Fetch historical market data from S3 and store locally as Parquet files
 for use in backtesting. Supports incremental updates and initial seeding.
+
+Data Cascade:
+    1. Local Parquet files (fastest, offline-first)
+    2. S3 bucket fallback (alchemiser-{stage}-market-data)
+
+Note: Alpaca API is NOT used for backtests. All historical data comes from
+S3 which is seeded separately via scripts/seed_market_data.py.
 """
 
 from __future__ import annotations
 
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pandas as pd
 
-from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.services.market_data_service import MarketDataService
+
+if TYPE_CHECKING:
+    from the_alchemiser.data_v2.market_data_store import MarketDataStore
 
 logger = get_logger(__name__)
 
@@ -28,59 +36,98 @@ MODULE_NAME: Final[str] = "backtest_v2.adapters.data_fetcher"
 # Default lookback for initial data seeding (1+ year for 252 trading days)
 DEFAULT_LOOKBACK_DAYS: Final[int] = 400
 
-# Rate limiting: Conservative to stay under Alpaca limits
-API_RATE_LIMIT_DELAY: Final[float] = 0.6  # seconds between API calls
+# Rate limiting: Conservative for S3 calls (generous limit)
+API_RATE_LIMIT_DELAY: Final[float] = 0.1  # seconds between S3 calls
 
 
 class BacktestDataFetcher:
-    """Fetch historical market data from Alpaca to local Parquet files.
+    """Fetch historical market data from S3 to local Parquet files.
 
-    Designed specifically for the backtest module. Downloads OHLCV data
-    and stores it in the standard backtest data directory structure:
+    Designed specifically for the backtest module with offline-first approach.
+    Downloads OHLCV data from S3 and stores it locally in the standard
+    backtest data directory structure:
     data/historical/{SYMBOL}/{YEAR}/daily.parquet
+
+    Data Cascade:
+        1. Check local Parquet files (fastest)
+        2. Fetch from S3 bucket (alchemiser-{stage}-market-data)
+        3. Fail gracefully with clear error message
 
     Attributes:
         data_dir: Root directory for historical data storage
-        alpaca_manager: Alpaca client for API access
-        market_data_service: Service wrapper for Alpaca data calls
+        market_data_store: S3 store for fetching data when not local
 
     Example:
         >>> fetcher = BacktestDataFetcher(data_dir=Path("data/historical"))
-        >>> results = fetcher.fetch_symbols(["SPY", "AAPL", "QQQ"], lookback_days=400)
-        >>> print(f"Fetched {sum(results.values())} of {len(results)} symbols")
+        >>> results = fetcher.fetch_symbols(["SPY", "AAPL", "QQQ"])
+        >>> print(f"Synced {sum(results.values())} of {len(results)} symbols from S3")
 
     """
 
     def __init__(
         self,
         data_dir: Path | str,
-        alpaca_manager: AlpacaManager | None = None,
+        market_data_store: MarketDataStore | None = None,
     ) -> None:
         """Initialize the data fetcher.
 
         Args:
             data_dir: Root directory for storing historical data
-            alpaca_manager: Optional Alpaca client. If None, creates from env vars.
+            market_data_store: Optional S3 store. If None, creates from env vars.
 
         """
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize Alpaca client
-        if alpaca_manager is None:
-            alpaca_manager = AlpacaManager(
-                api_key=os.environ.get("ALPACA__KEY", ""),
-                secret_key=os.environ.get("ALPACA__SECRET", ""),
-                paper=True,
-            )
-        self.alpaca_manager = alpaca_manager
-        self.market_data_service = MarketDataService(alpaca_manager)
+        self._market_data_store = market_data_store
+        self._s3_available: bool | None = None  # Cached availability check
 
         logger.info(
             "BacktestDataFetcher initialized",
             module=MODULE_NAME,
             data_dir=str(self.data_dir),
         )
+
+    @property
+    def market_data_store(self) -> MarketDataStore | None:
+        """Lazy-initialized S3 market data store.
+
+        Returns None if S3 is not available (no bucket configured or no credentials).
+        """
+        if self._market_data_store is not None:
+            return self._market_data_store
+
+        if self._s3_available is False:
+            return None
+
+        try:
+            from the_alchemiser.data_v2.market_data_store import MarketDataStore
+
+            # Try to get bucket name from env
+            bucket_name = os.environ.get("MARKET_DATA_BUCKET")
+            stage = os.environ.get("APP__STAGE", "dev")
+
+            if not bucket_name:
+                bucket_name = f"alchemiser-{stage}-market-data"
+
+            self._market_data_store = MarketDataStore(bucket_name=bucket_name)
+            self._s3_available = True
+
+            logger.info(
+                "S3 market data store initialized",
+                module=MODULE_NAME,
+                bucket=bucket_name,
+            )
+            return self._market_data_store
+
+        except Exception as e:
+            logger.warning(
+                "S3 market data store not available - will use local data only",
+                module=MODULE_NAME,
+                error=str(e),
+            )
+            self._s3_available = False
+            return None
 
     def _get_symbol_metadata(self, symbol: str) -> dict[str, str | int] | None:
         """Get metadata about existing local data for a symbol.
@@ -127,82 +174,79 @@ class BacktestDataFetcher:
             "row_count": len(combined),
         }
 
-    def _fetch_from_alpaca(
+    def _fetch_from_s3(
         self,
         symbol: str,
-        start_date: str,
-        end_date: str,
     ) -> pd.DataFrame:
-        """Fetch historical bars from Alpaca API.
+        """Fetch historical data from S3 bucket.
 
         Args:
             symbol: Ticker symbol
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
 
         Returns:
-            DataFrame with OHLCV data indexed by timestamp
+            DataFrame with OHLCV data indexed by timestamp, or empty DataFrame
 
         """
-        bars_list = self.market_data_service.get_historical_bars(
-            symbol=symbol,
-            start_date=start_date,
-            end_date=end_date,
-            timeframe="1Day",
-        )
-
-        if not bars_list:
+        store = self.market_data_store
+        if store is None:
             logger.warning(
-                "No bars returned from Alpaca",
+                "S3 not available for fetching",
                 module=MODULE_NAME,
                 symbol=symbol,
-                start_date=start_date,
-                end_date=end_date,
             )
             return pd.DataFrame()
 
-        # Convert to DataFrame
-        df = pd.DataFrame(bars_list)
+        try:
+            df = store.read_symbol_data(symbol.upper(), use_cache=False)
 
-        # Normalize column names
-        column_mapping = {
-            "t": "timestamp",
-            "o": "Open",
-            "h": "High",
-            "l": "Low",
-            "c": "Close",
-            "v": "Volume",
-            "open": "Open",
-            "high": "High",
-            "low": "Low",
-            "close": "Close",
-            "volume": "Volume",
-        }
-        df = df.rename(columns=column_mapping)
+            if df is None or df.empty:
+                logger.debug(
+                    "No data in S3 for symbol",
+                    module=MODULE_NAME,
+                    symbol=symbol,
+                )
+                return pd.DataFrame()
 
-        # Set timestamp as index
-        if "timestamp" in df.columns:
-            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-            df = df.set_index("timestamp")
-        elif "Date" in df.columns:
-            df["Date"] = pd.to_datetime(df["Date"], utc=True)
-            df = df.set_index("Date")
+            # Normalize column names (S3 stores use lowercase)
+            column_mapping = {
+                "timestamp": "timestamp",
+                "open": "Open",
+                "high": "High",
+                "low": "Low",
+                "close": "Close",
+                "volume": "Volume",
+            }
+            df = df.rename(columns=column_mapping)
 
-        # Keep only required columns
-        required_cols = ["Open", "High", "Low", "Close", "Volume"]
-        df = df[[c for c in required_cols if c in df.columns]]
+            # Set timestamp as index
+            if "timestamp" in df.columns:
+                df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+                df = df.set_index("timestamp")
 
-        # Sort by index
-        df = df.sort_index()
+            # Keep only required columns
+            required_cols = ["Open", "High", "Low", "Close", "Volume"]
+            df = df[[c for c in required_cols if c in df.columns]]
 
-        logger.debug(
-            "Fetched bars from Alpaca",
-            module=MODULE_NAME,
-            symbol=symbol,
-            rows=len(df),
-        )
+            # Sort by index
+            df = df.sort_index()
 
-        return df
+            logger.info(
+                "Fetched data from S3",
+                module=MODULE_NAME,
+                symbol=symbol,
+                rows=len(df),
+            )
+
+            return df
+
+        except Exception as e:
+            logger.error(
+                "Failed to fetch from S3",
+                module=MODULE_NAME,
+                symbol=symbol,
+                error=str(e),
+            )
+            return pd.DataFrame()
 
     def _save_to_parquet(self, symbol: str, df: pd.DataFrame) -> bool:
         """Save DataFrame to Parquet files organized by year.
@@ -279,14 +323,15 @@ class BacktestDataFetcher:
         *,
         force_full: bool = False,
     ) -> bool:
-        """Fetch data for a single symbol.
+        """Fetch data for a single symbol from S3.
 
-        Performs incremental update if data already exists, unless force_full=True.
+        Downloads data from S3 bucket and stores locally. Does NOT use Alpaca API.
+        For seeding S3 with fresh data, use scripts/seed_market_data.py.
 
         Args:
             symbol: Ticker symbol
-            lookback_days: Number of days to fetch for new symbols
-            force_full: If True, fetch full history even if data exists
+            lookback_days: Unused (kept for API compatibility)
+            force_full: If True, re-fetch from S3 even if local data exists
 
         Returns:
             True if successful, False otherwise
@@ -295,53 +340,29 @@ class BacktestDataFetcher:
         symbol_upper = symbol.upper()
 
         try:
-            # Calculate date range
-            end_date = datetime.now(UTC).strftime("%Y-%m-%d")
-
+            # Check if we already have local data
             metadata = self._get_symbol_metadata(symbol_upper)
             if metadata and not force_full:
-                # Incremental update
-                last_date = datetime.strptime(str(metadata["last_date"]), "%Y-%m-%d").replace(
-                    tzinfo=UTC
-                )
-                start_date = (last_date + timedelta(days=1)).strftime("%Y-%m-%d")
-
-                if start_date > end_date:
-                    logger.info(
-                        "Symbol data is up to date",
-                        module=MODULE_NAME,
-                        symbol=symbol_upper,
-                        last_date=str(metadata["last_date"]),
-                    )
-                    return True
-
                 logger.info(
-                    "Performing incremental update",
+                    "Symbol data already available locally",
                     module=MODULE_NAME,
                     symbol=symbol_upper,
-                    start_date=start_date,
-                    end_date=end_date,
+                    last_date=str(metadata["last_date"]),
+                    rows=metadata["row_count"],
                 )
-            else:
-                # Full fetch
-                start_date = (datetime.now(UTC) - timedelta(days=lookback_days)).strftime(
-                    "%Y-%m-%d"
-                )
-                logger.info(
-                    "Fetching full history",
-                    module=MODULE_NAME,
-                    symbol=symbol_upper,
-                    start_date=start_date,
-                    end_date=end_date,
-                    lookback_days=lookback_days,
-                )
+                return True
 
-            # Fetch from Alpaca
-            df = self._fetch_from_alpaca(symbol_upper, start_date, end_date)
+            # Fetch from S3
+            logger.info(
+                "Fetching symbol from S3",
+                module=MODULE_NAME,
+                symbol=symbol_upper,
+            )
+            df = self._fetch_from_s3(symbol_upper)
 
             if df.empty:
                 logger.warning(
-                    "No data available",
+                    "No data available in S3",
                     module=MODULE_NAME,
                     symbol=symbol_upper,
                 )
@@ -352,7 +373,7 @@ class BacktestDataFetcher:
 
             if success:
                 logger.info(
-                    "Successfully fetched symbol data",
+                    "Successfully synced symbol from S3",
                     module=MODULE_NAME,
                     symbol=symbol_upper,
                     rows=len(df),
@@ -362,7 +383,7 @@ class BacktestDataFetcher:
 
         except Exception as e:
             logger.error(
-                "Error fetching symbol",
+                "Error fetching symbol from S3",
                 module=MODULE_NAME,
                 symbol=symbol_upper,
                 error=str(e),
@@ -377,22 +398,21 @@ class BacktestDataFetcher:
         *,
         force_full: bool = False,
     ) -> dict[str, bool]:
-        """Fetch data for multiple symbols with rate limiting.
+        """Fetch data for multiple symbols from S3 with rate limiting.
 
         Args:
             symbols: List of ticker symbols
-            lookback_days: Number of days to fetch for new symbols
-            force_full: If True, fetch full history for all symbols
+            lookback_days: Unused (kept for API compatibility)
+            force_full: If True, re-fetch all from S3 even if local data exists
 
         Returns:
             Dict mapping symbol to success status
 
         """
         logger.info(
-            "Starting batch fetch",
+            "Starting batch sync from S3",
             module=MODULE_NAME,
             symbol_count=len(symbols),
-            lookback_days=lookback_days,
             force_full=force_full,
         )
 
@@ -415,7 +435,7 @@ class BacktestDataFetcher:
         failed_symbols = [s for s, ok in results.items() if not ok]
 
         logger.info(
-            "Batch fetch complete",
+            "Batch sync complete",
             module=MODULE_NAME,
             total=len(results),
             success=success_count,
@@ -424,6 +444,54 @@ class BacktestDataFetcher:
         )
 
         return results
+
+    def sync_all_from_s3(self, *, force_full: bool = False) -> dict[str, bool]:
+        """Sync all symbols from S3 to local storage.
+
+        Discovers all symbols available in S3 and downloads them locally.
+        This is useful for offline development.
+
+        Args:
+            force_full: If True, re-download even if local data exists
+
+        Returns:
+            Dict mapping symbol to success status
+
+        """
+        store = self.market_data_store
+        if store is None:
+            logger.error(
+                "S3 not available - cannot sync",
+                module=MODULE_NAME,
+            )
+            return {}
+
+        try:
+            # List all symbols in S3
+            s3_symbols = store.list_symbols()
+
+            if not s3_symbols:
+                logger.warning(
+                    "No symbols found in S3 bucket",
+                    module=MODULE_NAME,
+                )
+                return {}
+
+            logger.info(
+                "Found symbols in S3",
+                module=MODULE_NAME,
+                count=len(s3_symbols),
+            )
+
+            return self.fetch_symbols(s3_symbols, force_full=force_full)
+
+        except Exception as e:
+            logger.error(
+                "Failed to list S3 symbols",
+                module=MODULE_NAME,
+                error=str(e),
+            )
+            return {}
 
     def get_available_symbols(self) -> list[str]:
         """Get list of symbols with local data.

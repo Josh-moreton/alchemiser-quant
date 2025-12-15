@@ -7,7 +7,13 @@ This script queries all Lambda log groups for a given workflow run, filters for
 errors/warnings/failures, and presents a chronological timeline of events.
 
 Usage:
-    # Fetch errors/warnings for a workflow run
+    # Auto-detect most recent workflow run
+    python scripts/fetch_workflow_logs.py
+
+    # Most recent run from production
+    python scripts/fetch_workflow_logs.py --stage prod
+
+    # Fetch errors/warnings for a specific workflow run
     python scripts/fetch_workflow_logs.py --correlation-id workflow-abc123
 
     # Show all logs (not just errors)
@@ -88,6 +94,94 @@ def get_log_groups(stage: str) -> list[str]:
 def colour(text: str, colour_name: str) -> str:
     """Apply ANSI colour to text."""
     return f"{COLOURS.get(colour_name, '')}{text}{COLOURS['reset']}"
+
+
+def find_most_recent_workflow(
+    logs_client: Any,
+    stage: str,
+    hours_back: int = 48,
+) -> str | None:
+    """Find the most recent workflow run from the strategy orchestrator.
+
+    Args:
+        logs_client: boto3 CloudWatch Logs client
+        stage: Environment stage (dev or prod)
+        hours_back: Maximum hours to search back
+
+    Returns:
+        The correlation_id of the most recent workflow, or None if not found
+
+    """
+    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
+
+    end_time = datetime.now(UTC)
+    search_start = end_time - timedelta(hours=hours_back)
+
+    start_ms = int(search_start.timestamp() * 1000)
+    end_ms = int(end_time.timestamp() * 1000)
+
+    print(f"   Searching last {hours_back} hours in {colour(stage.upper(), 'cyan')} environment...")
+
+    try:
+        # Search for any logs with a correlation_id field
+        # CloudWatch filter patterns don't support wildcards, so we just filter
+        # for existence of the correlation_id field
+        response = logs_client.filter_log_events(
+            logGroupName=orchestrator_log_group,
+            startTime=start_ms,
+            endTime=end_ms,
+            filterPattern='{ $.correlation_id = * }',
+            limit=200,  # Get recent events
+        )
+
+        events = response.get("events", [])
+        if not events:
+            # Try alternative: look for "workflow" in the message as fallback
+            response = logs_client.filter_log_events(
+                logGroupName=orchestrator_log_group,
+                startTime=start_ms,
+                endTime=end_ms,
+                filterPattern='"workflow-"',
+                limit=200,
+            )
+            events = response.get("events", [])
+
+        if not events:
+            return None
+
+        # Parse events and find unique correlation_ids, taking the most recent
+        correlation_ids: dict[str, int] = {}  # correlation_id -> timestamp
+        for event in events:
+            try:
+                message = json.loads(event["message"])
+                cid = message.get("correlation_id", "")
+                if cid and cid.startswith("workflow-"):
+                    ts = event["timestamp"]
+                    if cid not in correlation_ids or ts > correlation_ids[cid]:
+                        correlation_ids[cid] = ts
+            except json.JSONDecodeError:
+                # Try to extract from raw message
+                raw = event.get("message", "")
+                match = re.search(r'workflow-[a-f0-9-]+', raw)
+                if match:
+                    cid = match.group(0)
+                    ts = event["timestamp"]
+                    if cid not in correlation_ids or ts > correlation_ids[cid]:
+                        correlation_ids[cid] = ts
+
+        if not correlation_ids:
+            return None
+
+        # Return the most recent one
+        most_recent = max(correlation_ids.items(), key=lambda x: x[1])
+        return most_recent[0]
+
+    except logs_client.exceptions.ResourceNotFoundException:
+        print(f"   {colour('⚠️  Orchestrator log group not found', 'yellow')}")
+        return None
+    except ClientError as e:
+        print(f"   {colour(f'❌ Error searching logs: {e}', 'red')}")
+        return None
 
 
 def detect_workflow_time_range(
@@ -398,18 +492,20 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --correlation-id workflow-abc123
-  %(prog)s --session-id workflow-abc123 --all
-  %(prog)s --correlation-id workflow-abc123 --stage prod --output logs.json
+  %(prog)s                                       # Most recent workflow in dev
+  %(prog)s --stage prod                          # Most recent workflow in prod
+  %(prog)s --correlation-id workflow-abc123      # Specific workflow
+  %(prog)s --session-id workflow-abc123 --all    # All logs for specific workflow
+  %(prog)s --stage prod --output logs.json       # Save to file
         """,
     )
 
-    # Correlation ID - support both names
-    id_group = parser.add_mutually_exclusive_group(required=True)
+    # Correlation ID - support both names, now optional
+    id_group = parser.add_mutually_exclusive_group(required=False)
     id_group.add_argument(
         "--correlation-id",
         type=str,
-        help="Correlation ID to search for (e.g., workflow-abc123)",
+        help="Correlation ID to search for (default: auto-detect most recent)",
     )
     id_group.add_argument(
         "--session-id",
@@ -473,8 +569,28 @@ Examples:
         for key in COLOURS:
             COLOURS[key] = ""
 
-    # Get correlation ID (from either argument)
+    # Get correlation ID (from either argument, or auto-detect)
     correlation_id = args.correlation_id or args.session_id
+
+    if not correlation_id:
+        # Auto-detect most recent workflow
+        print(f"\n{colour('🔍 Finding most recent workflow run...', 'bold')}")
+        logs_client = boto3.client("logs", region_name=REGION)
+        correlation_id = find_most_recent_workflow(
+            logs_client,
+            args.stage,
+            hours_back=args.hours_back,
+        )
+
+        if not correlation_id:
+            print(f"\n{colour('❌', 'red')} No recent workflow runs found in {args.stage}")
+            print("   Tips:")
+            print("   - Try a different --stage (dev or prod)")
+            print("   - Increase --hours-back to search further")
+            print("   - Provide a specific --correlation-id")
+            return 1
+
+        print(f"   {colour('✓', 'green')} Found: {colour(correlation_id, 'cyan')}")
 
     print(f"\n{colour('🔍 Fetching logs for workflow:', 'bold')}")
     print(f"   Correlation ID: {colour(correlation_id, 'cyan')}")

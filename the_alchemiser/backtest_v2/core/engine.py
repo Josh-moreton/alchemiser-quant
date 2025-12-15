@@ -100,6 +100,7 @@ class BacktestEngine:
             from the_alchemiser.backtest_v2.adapters.data_fetcher import (
                 BacktestDataFetcher,
             )
+
             self._data_fetcher = BacktestDataFetcher(data_dir=config.data_dir)
 
         # Initialize simulator
@@ -182,7 +183,7 @@ class BacktestEngine:
         correlation_id: str,
         retry_count: int,
     ) -> dict[str, Decimal] | None:
-        """Internal evaluation method with retry logic for auto-fetch.
+        """Evaluate strategy with retry logic for auto-fetch.
 
         Args:
             date: Evaluation date
@@ -228,23 +229,23 @@ class BacktestEngine:
                 and retry_count < max_retries
             ):
                 missing_symbol = self._extract_missing_symbol(error_str)
-                if missing_symbol and missing_symbol not in self._fetched_symbols:
-                    # Attempt to fetch the missing symbol
-                    if self._auto_fetch_symbol(missing_symbol):
-                        # Clear the market data cache for this symbol and retry
-                        if missing_symbol in self.market_data._data_cache:
-                            del self.market_data._data_cache[missing_symbol]
+                if (
+                    missing_symbol
+                    and missing_symbol not in self._fetched_symbols
+                    and self._auto_fetch_symbol(missing_symbol)
+                ):
+                    # Clear the market data cache for this symbol and retry
+                    if missing_symbol in self.market_data._data_cache:
+                        del self.market_data._data_cache[missing_symbol]
 
-                        logger.info(
-                            "Retrying evaluation after auto-fetch",
-                            module=MODULE_NAME,
-                            symbol=missing_symbol,
-                            date=date.isoformat(),
-                            retry_count=retry_count + 1,
-                        )
-                        return self._evaluate_with_retry(
-                            date, ast, correlation_id, retry_count + 1
-                        )
+                    logger.info(
+                        "Retrying evaluation after auto-fetch",
+                        module=MODULE_NAME,
+                        symbol=missing_symbol,
+                        date=date.isoformat(),
+                        retry_count=retry_count + 1,
+                    )
+                    return self._evaluate_with_retry(date, ast, correlation_id, retry_count + 1)
 
             # Record the error
             error_record: dict[str, object] = {
@@ -301,18 +302,17 @@ class BacktestEngine:
         )
 
         try:
-            result = self._data_fetcher.fetch_symbol(
+            success = self._data_fetcher.fetch_symbol(
                 symbol=symbol,
                 lookback_days=self.config.auto_fetch_lookback_days,
             )
 
-            if result.get("status") == "success":
+            if success:
                 self._fetched_symbols.add(symbol)
                 logger.info(
                     "Auto-fetch successful",
                     module=MODULE_NAME,
                     symbol=symbol,
-                    bars_fetched=result.get("bars_fetched", 0),
                 )
                 return True
 
@@ -320,8 +320,6 @@ class BacktestEngine:
                 "Auto-fetch returned non-success status",
                 module=MODULE_NAME,
                 symbol=symbol,
-                status=result.get("status"),
-                error=result.get("error"),
             )
             return False
 
@@ -497,6 +495,7 @@ def run_backtest(
     initial_capital: float = 100_000,
     data_dir: str | Path = "data/historical",
     slippage_bps: float = 5,
+    *,
     auto_fetch_missing: bool = False,
     auto_fetch_lookback_days: int = 600,
 ) -> BacktestResult:

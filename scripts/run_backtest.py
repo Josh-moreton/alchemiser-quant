@@ -22,6 +22,9 @@ Usage:
     # Auto-fetch missing data
     python scripts/run_backtest.py --auto-fetch
 
+    # Skip auto-fetch (use only local data)
+    python scripts/run_backtest.py --no-auto-fetch
+
 """
 
 from __future__ import annotations
@@ -234,7 +237,7 @@ def fetch_missing_data(
     config_path: Path,
     data_dir: Path,
 ) -> int:
-    """Fetch missing market data for backtest.
+    """Fetch missing market data from S3 for backtest.
 
     Args:
         args: Parsed command line arguments
@@ -246,12 +249,6 @@ def fetch_missing_data(
 
     """
     from the_alchemiser.backtest_v2.adapters.data_fetcher import BacktestDataFetcher
-
-    # Check for API credentials
-    if not os.environ.get("ALPACA__KEY") or not os.environ.get("ALPACA__SECRET"):
-        print("Error: Alpaca credentials not set for --fetch-data.", file=sys.stderr)
-        print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
-        return 1
 
     # Extract symbols from portfolio config
     symbols: set[str] = set()
@@ -275,16 +272,17 @@ def fetch_missing_data(
         print("All required data is available locally.")
         return 0
 
-    print(f"Fetching {len(missing)} missing symbols: {', '.join(sorted(missing)[:10])}")
+    print(f"Syncing {len(missing)} missing symbols from S3: {', '.join(sorted(missing)[:10])}")
     if len(missing) > 10:
         print(f"  ... and {len(missing) - 10} more")
 
-    # Fetch missing data
+    # Fetch missing data from S3
     results = fetcher.fetch_symbols(list(missing))
 
     failed = [s for s, ok in results.items() if not ok]
     if failed:
-        print(f"Warning: Failed to fetch {len(failed)} symbols: {', '.join(failed[:5])}")
+        print(f"Warning: {len(failed)} symbols not found in S3: {', '.join(failed[:5])}")
+        print("  Run 'make seed-data' to populate S3 with these symbols.")
         if args.verbose:
             for sym in failed:
                 print(f"  - {sym}")
@@ -420,14 +418,14 @@ Examples:
     parser.add_argument(
         "--auto-fetch",
         action="store_true",
-        help="Auto-fetch missing symbols during backtest (on-the-fly)",
+        default=True,
+        help="Auto-fetch missing symbols from S3 during backtest (default: enabled)",
     )
 
     parser.add_argument(
-        "--auto-fetch-lookback",
-        type=int,
-        default=600,
-        help="Lookback days for auto-fetch (default: 600)",
+        "--no-auto-fetch",
+        action="store_true",
+        help="Disable auto-fetch - use only local data",
     )
 
     parser.add_argument(
@@ -456,6 +454,10 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    # Handle --no-auto-fetch flag
+    if args.no_auto_fetch:
+        args.auto_fetch = False
 
     # Validate config file
     config_path = Path(args.config)
@@ -512,13 +514,6 @@ def run_portfolio_backtest(
         Exit code
 
     """
-    # Check API credentials if auto-fetch is enabled
-    if args.auto_fetch:
-        if not os.environ.get("ALPACA__KEY") or not os.environ.get("ALPACA__SECRET"):
-            print("Error: Alpaca credentials not set for --auto-fetch.", file=sys.stderr)
-            print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
-            return 1
-
     # Create portfolio configuration
     try:
         config = PortfolioBacktestConfig.from_config_file(
@@ -530,7 +525,7 @@ def run_portfolio_backtest(
             strategies_base_dir=args.strategies_dir,
             slippage_bps=args.slippage,
             auto_fetch_missing=args.auto_fetch,
-            auto_fetch_lookback_days=args.auto_fetch_lookback,
+            auto_fetch_lookback_days=400,  # Default lookback for S3 sync
         )
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
         print(f"Error: Invalid portfolio configuration: {e}", file=sys.stderr)
@@ -547,8 +542,7 @@ def run_portfolio_backtest(
     print(f"Initial Capital: ${args.capital:,.2f}")
     print(f"Slippage:        {args.slippage} bps")
     print(f"Data Directory:  {data_dir}")
-    if args.auto_fetch:
-        print(f"Auto-Fetch:      ENABLED (lookback: {args.auto_fetch_lookback} days)")
+    print(f"Auto-Fetch:      {'ENABLED (S3 fallback)' if args.auto_fetch else 'DISABLED (local only)'}")
     print("-" * 70)
     print("Strategy Allocations:")
     for s in config.strategies:

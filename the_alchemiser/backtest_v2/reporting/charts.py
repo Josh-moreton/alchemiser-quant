@@ -15,17 +15,16 @@ import math
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 
 if TYPE_CHECKING:
     from the_alchemiser.backtest_v2.core.result import BacktestResult
 
 # Import matplotlib with Agg backend for headless operation
-import matplotlib
+import matplotlib  # type: ignore[import-not-found]
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt  # type: ignore[import-not-found]
+from matplotlib.figure import Figure  # type: ignore[import-not-found]
 
 
 def _fig_to_base64(fig: Figure) -> str:
@@ -93,13 +92,20 @@ def create_equity_chart(
     if not result.benchmark_curve.empty:
         bench_dates = result.benchmark_curve.index
         bench_values = result.benchmark_curve["close"].astype(float)
-        ax.plot(bench_dates, bench_values, label="SPY Benchmark", color="#A23B72", linewidth=1.5, linestyle="--")
+        ax.plot(
+            bench_dates,
+            bench_values,
+            label="SPY Benchmark",
+            color="#A23B72",
+            linewidth=1.5,
+            linestyle="--",
+        )
 
     ax.set_title("Portfolio Value Over Time", fontsize=14, fontweight="bold")
     ax.set_xlabel("Date", fontsize=11)
     ax.set_ylabel("Portfolio Value ($)", fontsize=11)
     ax.legend(loc="upper left", fontsize=10)
-    ax.grid(True, alpha=0.3)
+    ax.grid(visible=True, alpha=0.3)
 
     # Format y-axis with dollar signs
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x:,.0f}"))
@@ -142,11 +148,13 @@ def create_drawdown_chart(
     ax.set_title("Drawdown", fontsize=14, fontweight="bold")
     ax.set_xlabel("Date", fontsize=11)
     ax.set_ylabel("Drawdown (%)", fontsize=11)
-    ax.grid(True, alpha=0.3)
+    ax.grid(visible=True, alpha=0.3)
 
     # Add horizontal line at max drawdown
     max_dd = float(result.metrics.max_drawdown) * 100
-    ax.axhline(y=-max_dd, color="#8B0000", linestyle="--", linewidth=1, label=f"Max DD: {max_dd:.1f}%")
+    ax.axhline(
+        y=-max_dd, color="#8B0000", linestyle="--", linewidth=1, label=f"Max DD: {max_dd:.1f}%"
+    )
     ax.legend(loc="lower left", fontsize=10)
 
     plt.xticks(rotation=45)
@@ -187,7 +195,9 @@ def create_monthly_returns_heatmap(
 
     # Create pivot table for heatmap
     if len(monthly_returns) == 0:
-        ax.text(0.5, 0.5, "Insufficient data for monthly returns", ha="center", va="center", fontsize=14)
+        ax.text(
+            0.5, 0.5, "Insufficient data for monthly returns", ha="center", va="center", fontsize=14
+        )
         if as_base64:
             return _fig_to_base64(fig)
         return _fig_to_bytes(fig)
@@ -253,7 +263,9 @@ def create_rolling_sharpe_chart(
     fig, ax = plt.subplots(figsize=(12, 4))
 
     if result.equity_curve.empty or len(result.equity_curve) < window:
-        ax.text(0.5, 0.5, "Insufficient data for rolling Sharpe", ha="center", va="center", fontsize=14)
+        ax.text(
+            0.5, 0.5, "Insufficient data for rolling Sharpe", ha="center", va="center", fontsize=14
+        )
         if as_base64:
             return _fig_to_base64(fig)
         return _fig_to_bytes(fig)
@@ -280,7 +292,7 @@ def create_rolling_sharpe_chart(
     ax.set_xlabel("Date", fontsize=11)
     ax.set_ylabel("Sharpe Ratio", fontsize=11)
     ax.legend(loc="upper right", fontsize=10)
-    ax.grid(True, alpha=0.3)
+    ax.grid(visible=True, alpha=0.3)
 
     plt.xticks(rotation=45)
     fig.tight_layout()
@@ -320,13 +332,21 @@ def create_trade_distribution_chart(
     ax.set_title("Trade Value Distribution", fontsize=14, fontweight="bold")
     ax.set_xlabel("Trade Value ($)", fontsize=11)
     ax.set_ylabel("Frequency", fontsize=11)
-    ax.grid(True, alpha=0.3, axis="y")
+    ax.grid(visible=True, alpha=0.3, axis="y")
 
     # Add statistics
     mean_val = np.mean(trade_values)
     median_val = np.median(trade_values)
-    ax.axvline(mean_val, color="#E74C3C", linestyle="--", linewidth=2, label=f"Mean: ${mean_val:,.0f}")
-    ax.axvline(median_val, color="#27AE60", linestyle="--", linewidth=2, label=f"Median: ${median_val:,.0f}")
+    ax.axvline(
+        mean_val, color="#E74C3C", linestyle="--", linewidth=2, label=f"Mean: ${mean_val:,.0f}"
+    )
+    ax.axvline(
+        median_val,
+        color="#27AE60",
+        linestyle="--",
+        linewidth=2,
+        label=f"Median: ${median_val:,.0f}",
+    )
     ax.legend(loc="upper right", fontsize=10)
 
     fig.tight_layout()

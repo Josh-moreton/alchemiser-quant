@@ -111,5 +111,5 @@ class BacktestConfig:
             ),
             benchmark_symbol=str(data.get("benchmark_symbol", "SPY")),
             auto_fetch_missing=bool(data.get("auto_fetch_missing", False)),
-            auto_fetch_lookback_days=int(data.get("auto_fetch_lookback_days", 600)),
+            auto_fetch_lookback_days=int(str(data.get("auto_fetch_lookback_days", 600))),
         )

@@ -117,6 +117,7 @@ class PortfolioBacktestConfig:
         data_dir: str | Path = "data/historical",
         strategies_base_dir: str | Path = "the_alchemiser/strategy_v2/strategies",
         slippage_bps: float = 5,
+        *,
         auto_fetch_missing: bool = False,
         auto_fetch_lookback_days: int = 600,
     ) -> PortfolioBacktestConfig:

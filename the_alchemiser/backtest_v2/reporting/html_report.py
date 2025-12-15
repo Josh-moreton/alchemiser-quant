@@ -8,9 +8,9 @@ Supports both single BacktestResult and PortfolioBacktestResult.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from the_alchemiser.backtest_v2.reporting.charts import (
     create_drawdown_chart,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from the_alchemiser.backtest_v2.core.portfolio_engine import PortfolioBacktestResult
     from the_alchemiser.backtest_v2.core.result import BacktestResult
 
-    AnyBacktestResult = Union[BacktestResult, PortfolioBacktestResult]
+    AnyBacktestResult = BacktestResult | PortfolioBacktestResult
 
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -483,7 +483,7 @@ def generate_html_report(
     for trade in reversed(recent_trades):
         badge_class = "badge-buy" if trade.action == "BUY" else "badge-sell"
         row = f"""<tr>
-            <td>{trade.date.strftime('%Y-%m-%d')}</td>
+            <td>{trade.date.strftime("%Y-%m-%d")}</td>
             <td>{trade.symbol}</td>
             <td><span class="badge {badge_class}">{trade.action}</span></td>
             <td>{trade.shares:,.0f}</td>
@@ -493,14 +493,20 @@ def generate_html_report(
         </tr>"""
         trades_rows.append(row)
 
-    trades_html = "\n".join(trades_rows) if trades_rows else "<tr><td colspan='7'>No trades executed</td></tr>"
+    trades_html = (
+        "\n".join(trades_rows)
+        if trades_rows
+        else "<tr><td colspan='7'>No trades executed</td></tr>"
+    )
 
     # Generate errors section if any
     errors_section = ""
     if result.errors:
         error_rows = []
         for err in result.errors[:20]:  # Show first 20
-            row = f"<tr><td>{err.get('date', 'N/A')}</td><td>{err.get('error', 'Unknown')}</td></tr>"
+            row = (
+                f"<tr><td>{err.get('date', 'N/A')}</td><td>{err.get('error', 'Unknown')}</td></tr>"
+            )
             error_rows.append(row)
         errors_html = "\n".join(error_rows)
         errors_section = f"""
@@ -519,10 +525,10 @@ def generate_html_report(
         strategy_path=strategy_path,
         start_date=config.get("start_date", "N/A"),
         end_date=config.get("end_date", "N/A"),
-        initial_capital=float(config.get("initial_capital", 0)),
+        initial_capital=float(str(config.get("initial_capital", 0))),
         trading_days=config.get("trading_days", 0),
         total_trades=config.get("total_trades", 0),
-        slippage_bps=float(config.get("slippage_bps", 0)),
+        slippage_bps=float(str(config.get("slippage_bps", 0))),
         # Metrics
         total_return=_format_pct(total_return),
         return_class=_value_class(total_return),
@@ -559,7 +565,7 @@ def generate_html_report(
         # Errors
         errors_section=errors_section,
         # Footer
-        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
     )
 
     # Save if path provided
@@ -861,7 +867,9 @@ def generate_portfolio_html_report(
     if result.errors:
         error_rows = []
         for err in result.errors[:20]:
-            row = f"<tr><td>{err.get('date', 'N/A')}</td><td>{err.get('error', 'Unknown')}</td></tr>"
+            row = (
+                f"<tr><td>{err.get('date', 'N/A')}</td><td>{err.get('error', 'Unknown')}</td></tr>"
+            )
             error_rows.append(row)
         errors_html = "\n".join(error_rows)
         errors_section = f"""
@@ -879,7 +887,7 @@ def generate_portfolio_html_report(
         num_strategies=num_strategies,
         start_date=config.get("start_date", "N/A"),
         end_date=config.get("end_date", "N/A"),
-        initial_capital=float(config.get("initial_capital", 0)),
+        initial_capital=float(str(config.get("initial_capital", 0))),
         total_return=_format_pct(total_return),
         return_class=_value_class(total_return),
         cagr=_format_pct(cagr),
@@ -900,7 +908,7 @@ def generate_portfolio_html_report(
         drawdown_chart=drawdown_chart,
         strategy_rows=strategy_html,
         errors_section=errors_section,
-        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
     )
 
     # Save if path provided
@@ -929,4 +937,4 @@ def generate_report(
     # Check if this is a portfolio result by looking for strategy_results attribute
     if hasattr(result, "strategy_results"):
         return generate_portfolio_html_report(result, output_path)  # type: ignore[arg-type]
-    return generate_html_report(result, output_path)  # type: ignore[arg-type]
+    return generate_html_report(result, output_path)
