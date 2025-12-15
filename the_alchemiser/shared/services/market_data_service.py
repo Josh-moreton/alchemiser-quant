@@ -260,11 +260,33 @@ class MarketDataService(MarketDataPort):
                 symbol, bid_price_raw, ask_price_raw, bid_size, ask_size, timestamp
             )
         if bid_valid:
+            # REM-006: Log one-sided quote usage for visibility
+            self.logger.warning(
+                "One-sided quote: bid-only fallback used",
+                extra={
+                    "symbol": symbol,
+                    "bid_price": bid_price_raw,
+                    "ask_price": ask_price_raw,
+                    "one_sided_quote": True,
+                    "fallback_type": "bid_only",
+                },
+            )
             # Bid-only fallback: use bid for both sides
             return self._create_quote_model(
                 symbol, bid_price_raw, bid_price_raw, bid_size, 0, timestamp
             )
         if ask_valid:
+            # REM-006: Log one-sided quote usage for visibility
+            self.logger.warning(
+                "One-sided quote: ask-only fallback used",
+                extra={
+                    "symbol": symbol,
+                    "bid_price": bid_price_raw,
+                    "ask_price": ask_price_raw,
+                    "one_sided_quote": True,
+                    "fallback_type": "ask_only",
+                },
+            )
             # Ask-only fallback: use ask for both sides
             return self._create_quote_model(
                 symbol, ask_price_raw, ask_price_raw, 0, ask_size, timestamp

@@ -13,11 +13,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import matplotlib  # type: ignore[import-not-found]
+import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # type: ignore[import-not-found]
-from matplotlib.backends.backend_pdf import PdfPages  # type: ignore[import-not-found]
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.figure import Figure
 
 from the_alchemiser.backtest_v2.reporting.charts import (
     create_drawdown_chart,
@@ -43,7 +44,7 @@ def _format_ratio(value: float) -> str:
     return f"{value:.2f}"
 
 
-def _create_summary_page(result: BacktestResult) -> plt.Figure:
+def _create_summary_page(result: BacktestResult) -> Figure:
     """Create the summary page with metrics table.
 
     Args:
@@ -78,7 +79,7 @@ def _create_summary_page(result: BacktestResult) -> plt.Figure:
     )
 
     # Create two columns of metrics
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.75])
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.75))
     ax.axis("off")
 
     # Left column - Performance Metrics
@@ -155,7 +156,7 @@ def _create_chart_page(
     chart_func: Callable[..., str | bytes],
     title: str,
     **kwargs: object,
-) -> plt.Figure:
+) -> Figure:
     """Create a page with a single chart.
 
     Args:
@@ -183,14 +184,14 @@ def _create_chart_page(
 
     img = Image.open(io.BytesIO(chart_bytes))
 
-    ax = fig.add_axes([0.05, 0.05, 0.9, 0.85])
+    ax = fig.add_axes((0.05, 0.05, 0.9, 0.85))
     ax.imshow(img)
     ax.axis("off")
 
     return fig
 
 
-def _create_trades_page(result: BacktestResult, page_num: int = 0) -> plt.Figure | None:
+def _create_trades_page(result: BacktestResult, page_num: int = 0) -> Figure | None:
     """Create a page with trades table.
 
     Args:
@@ -217,7 +218,7 @@ def _create_trades_page(result: BacktestResult, page_num: int = 0) -> plt.Figure
         y=0.98,
     )
 
-    ax = fig.add_axes([0.05, 0.05, 0.9, 0.88])
+    ax = fig.add_axes((0.05, 0.05, 0.9, 0.88))
     ax.axis("off")
 
     # Table data
@@ -243,7 +244,7 @@ def _create_trades_page(result: BacktestResult, page_num: int = 0) -> plt.Figure
         cellLoc="center",
         colWidths=[0.12, 0.1, 0.08, 0.12, 0.14, 0.14, 0.12],
     )
-    table.auto_set_font_size(auto=False)
+    table.auto_set_font_size(value=False)
     table.set_fontsize(8)
     table.scale(1.2, 1.5)
 
@@ -371,12 +372,12 @@ def _save_bytes_to_pdf_page(pdf: PdfPages, img_bytes: bytes, title: str) -> None
     fig = plt.figure(figsize=(11, 8.5))
     fig.suptitle(title, fontsize=16, fontweight="bold", y=0.98)
 
-    ax = fig.add_axes([0.05, 0.05, 0.9, 0.85])
+    ax = fig.add_axes((0.05, 0.05, 0.9, 0.85))
     img = plt.imread(tmp_path)
     ax.imshow(img)
     ax.axis("off")
 
-    pdf.savefig(fig, bbox_inches="tight")
+    pdf.savefig(fig, bbox_inches="tight")  # type: ignore[no-untyped-call]
     plt.close(fig)
 
     # Clean up temp file

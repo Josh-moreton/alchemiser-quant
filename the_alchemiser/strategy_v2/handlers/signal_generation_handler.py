@@ -395,7 +395,7 @@ class SignalGenerationHandler:
 
     def _extract_technical_indicators_for_symbols(
         self, symbols: list[str]
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, dict[str, float | bool | list[str] | str]]:
         """Extract current technical indicators for given symbols.
 
         Fetches RSI(10), RSI(20), current price, and 200-day MA for each symbol
@@ -419,9 +419,11 @@ class SignalGenerationHandler:
         Note:
             Falls back to 0.0 values if indicator fetch fails for a symbol.
             This ensures email generation doesn't break on data issues.
+            Includes fallback_used (bool), fallback_fields (list[str]), and
+            optionally fetch_error (str) for debugging/monitoring.
 
         """
-        indicators: dict[str, dict[str, float]] = {}
+        indicators: dict[str, dict[str, float | bool | list[str] | str]] = {}
 
         # Use container's market data adapter for consistency with DI pattern
         market_data_client = self.container.strategy_market_data_adapter()
@@ -471,36 +473,85 @@ class SignalGenerationHandler:
                 price_ind = indicator_service.get_indicator(price_request)
                 ma_200_ind = indicator_service.get_indicator(ma_200_request)
 
-                # Build indicators dict
+                # REM-002: Track if any fallback values were used
+                fallback_used = False
+                fallback_fields: list[str] = []
+
+                # Check RSI fallbacks (None means fallback was used per REM-005)
+                rsi_10_value = rsi_10_ind.rsi_10
+                if rsi_10_value is None:
+                    rsi_10_value = 0.0  # Display as 0.0 in email but flag it
+                    fallback_used = True
+                    fallback_fields.append("rsi_10")
+
+                rsi_20_value = rsi_20_ind.rsi_20
+                if rsi_20_value is None:
+                    rsi_20_value = 0.0
+                    fallback_used = True
+                    fallback_fields.append("rsi_20")
+
+                # Check price fallback (None means no data per REM-007)
+                price_value = price_ind.current_price
+                if price_value is None:
+                    price_value = Decimal("0")
+                    fallback_used = True
+                    fallback_fields.append("current_price")
+
+                # Check MA fallback
+                ma_200_value = ma_200_ind.ma_200
+                if ma_200_value is None:
+                    ma_200_value = 0.0
+                    fallback_used = True
+                    fallback_fields.append("ma_200")
+
+                # Build indicators dict with fallback tracking
                 indicators[symbol] = {
-                    "rsi_10": float(rsi_10_ind.rsi_10 or 0.0),
-                    "rsi_20": float(rsi_20_ind.rsi_20 or 0.0),
-                    "current_price": float(price_ind.current_price or 0.0),
-                    "ma_200": float(ma_200_ind.ma_200 or 0.0),
+                    "rsi_10": float(rsi_10_value),
+                    "rsi_20": float(rsi_20_value),
+                    "current_price": float(price_value),
+                    "ma_200": float(ma_200_value),
+                    "fallback_used": fallback_used,
+                    "fallback_fields": fallback_fields,
                 }
 
-                self.logger.debug(
-                    f"Fetched technical indicators for {symbol}",
-                    extra={
-                        "symbol": symbol,
-                        "rsi_10": indicators[symbol]["rsi_10"],
-                        "rsi_20": indicators[symbol]["rsi_20"],
-                        "current_price": indicators[symbol]["current_price"],
-                        "ma_200": indicators[symbol]["ma_200"],
-                    },
-                )
+                if fallback_used:
+                    self.logger.warning(
+                        f"Technical indicators for {symbol} using fallback values",
+                        extra={
+                            "symbol": symbol,
+                            "fallback_fields": fallback_fields,
+                            "rsi_10": indicators[symbol]["rsi_10"],
+                            "rsi_20": indicators[symbol]["rsi_20"],
+                            "current_price": indicators[symbol]["current_price"],
+                            "ma_200": indicators[symbol]["ma_200"],
+                        },
+                    )
+                else:
+                    self.logger.debug(
+                        f"Fetched technical indicators for {symbol}",
+                        extra={
+                            "symbol": symbol,
+                            "rsi_10": indicators[symbol]["rsi_10"],
+                            "rsi_20": indicators[symbol]["rsi_20"],
+                            "current_price": indicators[symbol]["current_price"],
+                            "ma_200": indicators[symbol]["ma_200"],
+                        },
+                    )
 
             except Exception as e:
                 self.logger.warning(
                     f"Failed to fetch technical indicators for {symbol}: {e}",
-                    extra={"symbol": symbol, "error": str(e)},
+                    extra={"symbol": symbol, "error": str(e), "error_type": type(e).__name__},
                 )
-                # Fallback to zero values so email generation doesn't break
+                # REM-002: Fallback to zero values but flag them explicitly
                 indicators[symbol] = {
                     "rsi_10": 0.0,
                     "rsi_20": 0.0,
                     "current_price": 0.0,
                     "ma_200": 0.0,
+                    "fallback_used": True,
+                    "fallback_fields": ["rsi_10", "rsi_20", "current_price", "ma_200"],
+                    "fetch_error": str(e),
                 }
 
         return indicators

@@ -20,11 +20,12 @@ if TYPE_CHECKING:
     from the_alchemiser.backtest_v2.core.result import BacktestResult
 
 # Import matplotlib with Agg backend for headless operation
-import matplotlib  # type: ignore[import-not-found]
+import matplotlib
+from matplotlib.ticker import FuncFormatter
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # type: ignore[import-not-found]
-from matplotlib.figure import Figure  # type: ignore[import-not-found]
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 
 def _fig_to_base64(fig: Figure) -> str:
@@ -108,7 +109,7 @@ def create_equity_chart(
     ax.grid(visible=True, alpha=0.3)
 
     # Format y-axis with dollar signs
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"${x:,.0f}"))
 
     # Rotate x-axis labels
     plt.xticks(rotation=45)
@@ -213,7 +214,7 @@ def create_monthly_returns_heatmap(
         data[year_idx, month_idx] = val
 
     # Create heatmap
-    cmap = plt.cm.RdYlGn
+    cmap = matplotlib.colormaps["RdYlGn"]
     im = ax.imshow(data, cmap=cmap, aspect="auto", vmin=-10, vmax=10)
 
     # Set ticks
@@ -335,8 +336,8 @@ def create_trade_distribution_chart(
     ax.grid(visible=True, alpha=0.3, axis="y")
 
     # Add statistics
-    mean_val = np.mean(trade_values)
-    median_val = np.median(trade_values)
+    mean_val = float(np.mean(trade_values))
+    median_val = float(np.median(trade_values))
     ax.axvline(
         mean_val, color="#E74C3C", linestyle="--", linewidth=2, label=f"Mean: ${mean_val:,.0f}"
     )
