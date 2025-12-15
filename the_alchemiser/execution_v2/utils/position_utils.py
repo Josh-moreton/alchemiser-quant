@@ -141,8 +141,30 @@ class PositionUtils:
                     ask = quote.ask_price
                     if bid and ask and bid > 0 and ask > 0:
                         mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
-                        logger.debug(f"💰 Real-time price for {symbol}: ${mid_price:.2f}")
+                        logger.debug(
+                            "💰 Real-time price for symbol",
+                            extra={
+                                "symbol": symbol,
+                                "price": str(mid_price),
+                                "bid": str(bid),
+                                "ask": str(ask),
+                                "source": "real_time_websocket",
+                            },
+                        )
                         return mid_price
+                    logger.warning(
+                        "⚠️ Real-time quote has invalid bid/ask",
+                        extra={
+                            "symbol": symbol,
+                            "bid": str(bid) if bid else None,
+                            "ask": str(ask) if ask else None,
+                        },
+                    )
+                else:
+                    logger.debug(
+                        "Real-time quote not available for symbol",
+                        extra={"symbol": symbol, "quote_exists": quote is not None},
+                    )
             except (AttributeError, ValueError, TypeError) as exc:
                 logger.debug(
                     "Could not get real-time price (data error)",
@@ -163,8 +185,22 @@ class PositionUtils:
             static_price = self.alpaca_manager.get_current_price(symbol)
             if static_price and static_price > 0:
                 price_decimal = Decimal(str(static_price))
-                logger.debug(f"💰 Static price for {symbol}: ${price_decimal:.2f}")
+                logger.debug(
+                    "💰 Static price for symbol",
+                    extra={
+                        "symbol": symbol,
+                        "price": str(price_decimal),
+                        "source": "alpaca_rest_api",
+                    },
+                )
                 return price_decimal
+            logger.warning(
+                "⚠️ Static price unavailable or zero",
+                extra={
+                    "symbol": symbol,
+                    "static_price": str(static_price) if static_price else None,
+                },
+            )
         except (TradingClientError, MarketDataError) as exc:
             logger.warning(
                 "⚠️ Could not get static price (client error)",
@@ -187,6 +223,10 @@ class PositionUtils:
                 error_type=type(exc).__name__,
             )
 
+        logger.error(
+            "🚨 All price discovery methods failed",
+            extra={"symbol": symbol, "real_time_enabled": self.enable_smart_execution},
+        )
         return None
 
     def adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
