@@ -341,16 +341,40 @@ class BacktestDataFetcher:
 
         try:
             # Check if we already have local data
-            metadata = self._get_symbol_metadata(symbol_upper)
-            if metadata and not force_full:
-                logger.info(
-                    "Symbol data already available locally",
-                    module=MODULE_NAME,
-                    symbol=symbol_upper,
-                    last_date=str(metadata["last_date"]),
-                    rows=metadata["row_count"],
-                )
-                return True
+            local_metadata = self._get_symbol_metadata(symbol_upper)
+
+            if local_metadata and not force_full:
+                # Check if S3 has newer data
+                store = self.market_data_store
+                if store is not None:
+                    s3_metadata = store.get_metadata(symbol_upper)
+                    if s3_metadata and s3_metadata.last_bar_date > str(local_metadata["last_date"]):
+                        logger.info(
+                            "S3 has newer data, will refresh",
+                            module=MODULE_NAME,
+                            symbol=symbol_upper,
+                            local_last_date=str(local_metadata["last_date"]),
+                            s3_last_date=s3_metadata.last_bar_date,
+                        )
+                    else:
+                        logger.info(
+                            "Symbol data already up to date locally",
+                            module=MODULE_NAME,
+                            symbol=symbol_upper,
+                            last_date=str(local_metadata["last_date"]),
+                            rows=local_metadata["row_count"],
+                        )
+                        return True
+                else:
+                    # No S3 available, use local data
+                    logger.info(
+                        "Symbol data available locally (S3 unavailable)",
+                        module=MODULE_NAME,
+                        symbol=symbol_upper,
+                        last_date=str(local_metadata["last_date"]),
+                        rows=local_metadata["row_count"],
+                    )
+                    return True
 
             # Fetch from S3
             logger.info(
