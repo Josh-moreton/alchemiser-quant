@@ -360,6 +360,58 @@ class ExecutionRunService:
             "created_at": item["created_at"]["S"],
         }
 
+    def get_trade_result(self, run_id: str, trade_id: str) -> dict[str, Any] | None:
+        """Get a single trade result by ID.
+
+        Efficient O(1) lookup for checking if a trade exists/completed.
+        Prefer this over get_all_trade_results() for duplicate detection.
+
+        Args:
+            run_id: Run identifier.
+            trade_id: Trade identifier.
+
+        Returns:
+            Trade result dict or None if not found.
+
+        """
+        import json
+
+        response = self._client.get_item(
+            TableName=self._table_name,
+            Key={
+                "PK": {"S": f"RUN#{run_id}"},
+                "SK": {"S": f"TRADE#{trade_id}"},
+            },
+        )
+
+        item = response.get("Item")
+        if not item:
+            return None
+
+        trade: dict[str, Any] = {
+            "trade_id": item["trade_id"]["S"],
+            "symbol": item["symbol"]["S"],
+            "action": item["action"]["S"],
+            "phase": item["phase"]["S"],
+            "sequence_number": int(item["sequence_number"]["N"]),
+            "trade_amount": Decimal(item["trade_amount"]["N"]),
+            "status": item["status"]["S"],
+        }
+
+        # Optional fields
+        if "order_id" in item:
+            trade["order_id"] = item["order_id"]["S"]
+        if "error_message" in item:
+            trade["error_message"] = item["error_message"]["S"]
+        if "started_at" in item:
+            trade["started_at"] = item["started_at"]["S"]
+        if "completed_at" in item:
+            trade["completed_at"] = item["completed_at"]["S"]
+        if "execution_data" in item:
+            trade["execution_data"] = json.loads(item["execution_data"]["S"])
+
+        return trade
+
     def get_all_trade_results(self, run_id: str) -> list[dict[str, Any]]:
         """Get all trade results for a run.
 
@@ -506,3 +558,103 @@ class ExecutionRunService:
             "Updated run status",
             extra={"run_id": run_id, "status": status},
         )
+
+    def find_stuck_runs(self, max_age_minutes: int = 30) -> list[dict[str, Any]]:
+        """Find runs that have been in RUNNING status for too long.
+
+        Used for monitoring and alerting on potential orphaned runs.
+        A run is considered "stuck" if it's been RUNNING for longer than
+        max_age_minutes without completing.
+
+        Note: This uses a Scan operation which is expensive. Should only be
+        called periodically (e.g., every 5-10 minutes) for monitoring.
+
+        Args:
+            max_age_minutes: Maximum age in minutes before a run is considered stuck.
+
+        Returns:
+            List of stuck run metadata dicts.
+
+        """
+        from datetime import timedelta
+
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=max_age_minutes)
+        cutoff_iso = cutoff_time.isoformat()
+
+        # Scan for RUNNING runs (this is expensive but acceptable for monitoring)
+        # In production, consider using a GSI on status + created_at
+        response = self._client.scan(
+            TableName=self._table_name,
+            FilterExpression="#status = :running AND SK = :metadata AND created_at < :cutoff",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":running": {"S": "RUNNING"},
+                ":metadata": {"S": "METADATA"},
+                ":cutoff": {"S": cutoff_iso},
+            },
+        )
+
+        stuck_runs = []
+        for item in response.get("Items", []):
+            stuck_runs.append(
+                {
+                    "run_id": item["run_id"]["S"],
+                    "plan_id": item["plan_id"]["S"],
+                    "correlation_id": item["correlation_id"]["S"],
+                    "total_trades": int(item["total_trades"]["N"]),
+                    "completed_trades": int(item["completed_trades"]["N"]),
+                    "created_at": item["created_at"]["S"],
+                    "status": item["status"]["S"],
+                }
+            )
+
+        if stuck_runs:
+            logger.warning(
+                f"Found {len(stuck_runs)} stuck runs (RUNNING > {max_age_minutes} mins)",
+                extra={"stuck_run_count": len(stuck_runs)},
+            )
+
+        return stuck_runs
+
+    def emit_stuck_runs_metric(self, max_age_minutes: int = 30) -> int:
+        """Find stuck runs and emit CloudWatch metric.
+
+        This can be called by a scheduled Lambda or monitoring script
+        to track stuck runs over time.
+
+        Args:
+            max_age_minutes: Maximum age in minutes before a run is considered stuck.
+
+        Returns:
+            Count of stuck runs found.
+
+        """
+        import boto3
+
+        stuck_runs = self.find_stuck_runs(max_age_minutes)
+        count = len(stuck_runs)
+
+        # Emit CloudWatch metric
+        try:
+            cloudwatch = boto3.client("cloudwatch")
+            cloudwatch.put_metric_data(
+                Namespace="Alchemiser/Execution",
+                MetricData=[
+                    {
+                        "MetricName": "StuckRuns",
+                        "Value": count,
+                        "Unit": "Count",
+                        "Dimensions": [
+                            {"Name": "TableName", "Value": self._table_name},
+                        ],
+                    }
+                ],
+            )
+            logger.debug(
+                f"Emitted StuckRuns metric: {count}",
+                extra={"stuck_run_count": count},
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit StuckRuns metric: {e}")
+
+        return count

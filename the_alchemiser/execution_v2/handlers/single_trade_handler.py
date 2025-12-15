@@ -202,21 +202,24 @@ class SingleTradeHandler:
         if idempotency_key in self._processed_keys:
             return True
 
-        # Check DynamoDB for cross-invocation deduplication
+        # Check DynamoDB for cross-invocation deduplication using efficient GetItem
         try:
-            run = self.run_service.get_run(trade_message.run_id)
-            if run is None:
-                # Run doesn't exist - not a duplicate
-                return False
-
-            # Get all trade results for this run
-            trade_results = self.run_service.get_all_trade_results(trade_message.run_id)
-
-            # Check if this trade_id is already in results
-            for result in trade_results:
-                if result.get("trade_id") == trade_message.trade_id:
-                    self.logger.debug(f"Trade already exists in DynamoDB: {trade_message.trade_id}")
+            # Direct lookup is O(1) vs O(n) for get_all_trade_results
+            trade_result = self.run_service.get_trade_result(
+                trade_message.run_id, trade_message.trade_id
+            )
+            if trade_result is not None:
+                # Trade already exists - check if it's completed
+                status = trade_result.get("status", "PENDING")
+                if status in ("COMPLETED", "FAILED"):
+                    self.logger.debug(
+                        f"Trade already completed in DynamoDB: {trade_message.trade_id} (status={status})"
+                    )
                     return True
+                # Trade exists but still PENDING/RUNNING - not a duplicate completion
+                self.logger.debug(
+                    f"Trade exists but not completed: {trade_message.trade_id} (status={status})"
+                )
 
             return False
 

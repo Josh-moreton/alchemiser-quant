@@ -1009,11 +1009,14 @@ class PortfolioAnalysisHandler:
             sequence_number = TradeMessage.compute_sequence_number(item.action, item.priority)
 
             # Determine if this is a complete exit (selling entire position)
+            # is_complete_exit and is_full_liquidation are equivalent for SELL actions
             is_complete_exit = (
                 item.action == "SELL"
                 and item.target_weight == Decimal("0")
                 and item.current_weight > Decimal("0")
             )
+            # is_full_liquidation: target_weight=0 regardless of action (for Executor logic)
+            is_full_liquidation = item.target_weight == Decimal("0")
 
             trade_message = TradeMessage(
                 run_id=run_id,
@@ -1033,6 +1036,7 @@ class PortfolioAnalysisHandler:
                 phase=item.action,  # Phase matches action for simplicity
                 sequence_number=sequence_number,
                 is_complete_exit=is_complete_exit,
+                is_full_liquidation=is_full_liquidation,
                 total_portfolio_value=rebalance_plan.total_portfolio_value,
                 total_run_trades=sum(
                     1 for i in rebalance_plan.items if i.action in ["BUY", "SELL"]
@@ -1062,17 +1066,48 @@ class PortfolioAnalysisHandler:
             run_timestamp=run_timestamp,
         )
 
-        # Enqueue each trade message to SQS FIFO
+        # Enqueue each trade message to SQS FIFO with error handling
+        # If any enqueue fails, mark run as FAILED to prevent orphaned runs
         sqs_client = boto3.client("sqs")
         queue_url = _get_execution_fifo_queue_url()
+        enqueued_count = 0
 
-        for msg in trade_messages:
-            sqs_client.send_message(
-                QueueUrl=queue_url,
-                MessageBody=msg.to_sqs_message_body(),
-                MessageGroupId=run_id,  # All trades in same run grouped together
-                MessageDeduplicationId=msg.trade_id,  # Unique per trade
+        try:
+            for msg in trade_messages:
+                sqs_client.send_message(
+                    QueueUrl=queue_url,
+                    MessageBody=msg.to_sqs_message_body(),
+                    MessageGroupId=run_id,  # All trades in same run grouped together
+                    MessageDeduplicationId=msg.trade_id,  # Unique per trade
+                )
+                enqueued_count += 1
+
+        except Exception as enqueue_error:
+            # SQS enqueue failed - mark run as FAILED to prevent inconsistent state
+            self.logger.error(
+                f"SQS enqueue failed after {enqueued_count}/{len(trade_messages)} messages: {enqueue_error}",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "enqueued_count": enqueued_count,
+                    "total_trades": len(trade_messages),
+                    "error_type": type(enqueue_error).__name__,
+                },
             )
+            # Mark run as FAILED so it doesn't wait forever for missing trades
+            try:
+                run_service.update_run_status(run_id, "FAILED")
+                self.logger.info(
+                    f"Marked run {run_id} as FAILED due to SQS enqueue error",
+                    extra={"run_id": run_id, "correlation_id": correlation_id},
+                )
+            except Exception as status_error:
+                self.logger.error(
+                    f"Failed to mark run as FAILED: {status_error}",
+                    extra={"run_id": run_id, "correlation_id": correlation_id},
+                )
+            # Re-raise to surface the error
+            raise
 
         self.logger.info(
             "Enqueued trades for per-trade execution",

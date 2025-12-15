@@ -693,6 +693,55 @@ Resources:
         - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
+  # CloudWatch Alarm for FIFO DLQ messages (per-trade execution failures)
+  FifoDLQMessageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: EnablePerTrade
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-fifo-dlq-messages"
+        - !Sub "alchemiser-${Stage}-fifo-dlq-messages"
+      AlarmDescription: "Alert when per-trade execution messages hit FIFO DLQ after 3 retries"
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ExecutionFifoDLQ.QueueName
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # CloudWatch Alarm for stuck execution runs (RUNNING > 30 mins)
+  # Detects orphaned runs where trades never completed
+  StuckRunsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: EnablePerTrade
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-stuck-execution-runs"
+        - !Sub "alchemiser-${Stage}-stuck-execution-runs"
+      AlarmDescription: "Alert when execution runs are stuck in RUNNING state for >30 minutes"
+      MetricName: StuckRuns
+      Namespace: Alchemiser/Execution
+      Statistic: Maximum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref ExecutionRunsTable
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
   # Policy to allow EventBridge to send messages to SQS
   ExecutionQueuePolicy:
     Type: AWS::SQS::QueuePolicy

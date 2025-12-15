@@ -163,8 +163,17 @@ def _handle_per_trade_executed(
         },
     )
 
-    # Initialize ExecutionRunService
-    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "ExecutionRunsTable")
+    # Initialize ExecutionRunService - fail fast if not configured
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME")
+    if not table_name:
+        logger.error(
+            "EXECUTION_RUNS_TABLE_NAME not configured - cannot process per-trade events",
+            extra={"correlation_id": correlation_id, "run_id": run_id},
+        )
+        return {
+            "statusCode": 500,
+            "body": "EXECUTION_RUNS_TABLE_NAME environment variable not configured",
+        }
     run_service = ExecutionRunService(table_name=table_name)
 
     # Check if run is complete
