@@ -65,6 +65,8 @@ class PortfolioBacktestConfig:
         data_dir: Path to historical data directory
         slippage_bps: Slippage in basis points
         commission_per_share: Commission per share traded
+        auto_fetch_missing: Auto-fetch missing symbol data during backtest
+        auto_fetch_lookback_days: Lookback days for auto-fetch
 
     """
 
@@ -75,6 +77,8 @@ class PortfolioBacktestConfig:
     data_dir: Path = Path("data/historical")
     slippage_bps: Decimal = Decimal("5")
     commission_per_share: Decimal = Decimal("0")
+    auto_fetch_missing: bool = False
+    auto_fetch_lookback_days: int = 600
 
     def __post_init__(self) -> None:
         """Validate configuration."""
@@ -113,6 +117,8 @@ class PortfolioBacktestConfig:
         data_dir: str | Path = "data/historical",
         strategies_base_dir: str | Path = "the_alchemiser/strategy_v2/strategies",
         slippage_bps: float = 5,
+        auto_fetch_missing: bool = False,
+        auto_fetch_lookback_days: int = 600,
     ) -> PortfolioBacktestConfig:
         """Create config from a strategy.{env}.json file.
 
@@ -124,6 +130,8 @@ class PortfolioBacktestConfig:
             data_dir: Path to historical data directory
             strategies_base_dir: Base directory for strategy files
             slippage_bps: Slippage in basis points
+            auto_fetch_missing: Auto-fetch missing symbol data during backtest
+            auto_fetch_lookback_days: Lookback days for auto-fetch
 
         Returns:
             PortfolioBacktestConfig
@@ -162,6 +170,8 @@ class PortfolioBacktestConfig:
             initial_capital=Decimal(str(initial_capital)),
             data_dir=Path(data_dir),
             slippage_bps=Decimal(str(slippage_bps)),
+            auto_fetch_missing=auto_fetch_missing,
+            auto_fetch_lookback_days=auto_fetch_lookback_days,
         )
 
 
@@ -379,6 +389,8 @@ class PortfolioBacktestEngine:
                 data_dir=self.config.data_dir,
                 slippage_bps=self.config.slippage_bps,
                 commission_per_share=self.config.commission_per_share,
+                auto_fetch_missing=self.config.auto_fetch_missing,
+                auto_fetch_lookback_days=self.config.auto_fetch_lookback_days,
             )
 
             engine = BacktestEngine(strategy_config)

@@ -37,6 +37,8 @@ class BacktestConfig:
         commission_per_share: Commission per share traded (default: 0)
         benchmark_symbol: Benchmark for comparison (always SPY)
         rebalance_frequency: Rebalance frequency (always 'daily')
+        auto_fetch_missing: Automatically fetch missing symbol data (default: False)
+        auto_fetch_lookback_days: Lookback days for auto-fetch (default: 600)
 
     Example:
         >>> config = BacktestConfig(
@@ -44,6 +46,7 @@ class BacktestConfig:
         ...     start_date=datetime(2023, 1, 1, tzinfo=UTC),
         ...     end_date=datetime(2024, 1, 1, tzinfo=UTC),
         ...     initial_capital=Decimal("100000"),
+        ...     auto_fetch_missing=True,
         ... )
 
     """
@@ -57,6 +60,8 @@ class BacktestConfig:
     commission_per_share: Decimal = DEFAULT_COMMISSION_PER_SHARE
     benchmark_symbol: str = "SPY"
     rebalance_frequency: str = "daily"
+    auto_fetch_missing: bool = False
+    auto_fetch_lookback_days: int = 600
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
@@ -105,4 +110,6 @@ class BacktestConfig:
                 str(data.get("commission_per_share", DEFAULT_COMMISSION_PER_SHARE))
             ),
             benchmark_symbol=str(data.get("benchmark_symbol", "SPY")),
+            auto_fetch_missing=bool(data.get("auto_fetch_missing", False)),
+            auto_fetch_lookback_days=int(data.get("auto_fetch_lookback_days", 600)),
         )

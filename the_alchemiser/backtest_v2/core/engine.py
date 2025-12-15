@@ -9,11 +9,12 @@ rebalancing.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pandas as pd
 
@@ -32,6 +33,9 @@ from the_alchemiser.strategy_v2.engines.dsl.dsl_evaluator import DslEvaluator
 from the_alchemiser.strategy_v2.engines.dsl.sexpr_parser import SexprParser
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
+if TYPE_CHECKING:
+    from the_alchemiser.backtest_v2.adapters.data_fetcher import BacktestDataFetcher
+
 logger = get_logger(__name__)
 
 # Module constant
@@ -39,6 +43,11 @@ MODULE_NAME = "backtest_v2.core.engine"
 
 # Benchmark symbol
 BENCHMARK_SYMBOL: Final[str] = "SPY"
+
+# Regex pattern to extract missing symbol from error messages
+MISSING_SYMBOL_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"No historical data found for symbol: (\w+)"
+)
 
 
 class BacktestEngine:
@@ -77,12 +86,21 @@ class BacktestEngine:
         self.config = config
         self.parser = SexprParser()
         self.errors: list[dict[str, object]] = []
+        self._fetched_symbols: set[str] = set()  # Track auto-fetched symbols
+        self._data_fetcher: BacktestDataFetcher | None = None
 
         # Initialize market data adapter (start with end date, will update per day)
         self.market_data = BacktestMarketDataAdapter(
             data_dir=config.data_dir,
             as_of=config.end_date,
         )
+
+        # Initialize data fetcher if auto-fetch is enabled
+        if config.auto_fetch_missing:
+            from the_alchemiser.backtest_v2.adapters.data_fetcher import (
+                BacktestDataFetcher,
+            )
+            self._data_fetcher = BacktestDataFetcher(data_dir=config.data_dir)
 
         # Initialize simulator
         self.simulator = PortfolioSimulator(
@@ -98,6 +116,7 @@ class BacktestEngine:
             start=config.start_date.isoformat(),
             end=config.end_date.isoformat(),
             initial_capital=str(config.initial_capital),
+            auto_fetch_enabled=config.auto_fetch_missing,
         )
 
     def _get_trading_days(self) -> list[datetime]:
@@ -142,6 +161,9 @@ class BacktestEngine:
     ) -> dict[str, Decimal] | None:
         """Evaluate strategy DSL at a specific date.
 
+        If auto_fetch_missing is enabled, will attempt to fetch missing symbol
+        data and retry evaluation once.
+
         Args:
             date: Evaluation date (point-in-time)
             ast: Parsed AST from strategy file
@@ -151,6 +173,28 @@ class BacktestEngine:
             Target weights dict or None if evaluation failed
 
         """
+        return self._evaluate_with_retry(date, ast, correlation_id, retry_count=0)
+
+    def _evaluate_with_retry(
+        self,
+        date: datetime,
+        ast: object,
+        correlation_id: str,
+        retry_count: int,
+    ) -> dict[str, Decimal] | None:
+        """Internal evaluation method with retry logic for auto-fetch.
+
+        Args:
+            date: Evaluation date
+            ast: Parsed AST
+            correlation_id: Correlation ID
+            retry_count: Current retry attempt (max 3)
+
+        Returns:
+            Target weights dict or None if evaluation failed
+
+        """
+        max_retries = 3  # Limit retries to prevent infinite loops
         try:
             # Update market data adapter to this date
             self.market_data.set_as_of(date)
@@ -175,9 +219,37 @@ class BacktestEngine:
             return allocation.target_weights
 
         except Exception as e:
+            error_str = str(e)
+
+            # Check if this is a missing symbol error and auto-fetch is enabled
+            if (
+                self.config.auto_fetch_missing
+                and self._data_fetcher is not None
+                and retry_count < max_retries
+            ):
+                missing_symbol = self._extract_missing_symbol(error_str)
+                if missing_symbol and missing_symbol not in self._fetched_symbols:
+                    # Attempt to fetch the missing symbol
+                    if self._auto_fetch_symbol(missing_symbol):
+                        # Clear the market data cache for this symbol and retry
+                        if missing_symbol in self.market_data._data_cache:
+                            del self.market_data._data_cache[missing_symbol]
+
+                        logger.info(
+                            "Retrying evaluation after auto-fetch",
+                            module=MODULE_NAME,
+                            symbol=missing_symbol,
+                            date=date.isoformat(),
+                            retry_count=retry_count + 1,
+                        )
+                        return self._evaluate_with_retry(
+                            date, ast, correlation_id, retry_count + 1
+                        )
+
+            # Record the error
             error_record: dict[str, object] = {
                 "date": date.isoformat(),
-                "error": str(e),
+                "error": error_str,
                 "error_type": type(e).__name__,
                 "correlation_id": correlation_id,
             }
@@ -187,11 +259,81 @@ class BacktestEngine:
                 "Strategy evaluation failed",
                 module=MODULE_NAME,
                 date=date.isoformat(),
-                error=str(e),
+                error=error_str,
                 correlation_id=correlation_id,
             )
 
             return None
+
+    def _extract_missing_symbol(self, error_str: str) -> str | None:
+        """Extract missing symbol from error message.
+
+        Args:
+            error_str: Error message string
+
+        Returns:
+            Symbol string if found, None otherwise
+
+        """
+        match = MISSING_SYMBOL_PATTERN.search(error_str)
+        if match:
+            return match.group(1).upper()
+        return None
+
+    def _auto_fetch_symbol(self, symbol: str) -> bool:
+        """Attempt to auto-fetch data for a missing symbol.
+
+        Args:
+            symbol: Symbol to fetch
+
+        Returns:
+            True if fetch was successful, False otherwise
+
+        """
+        if self._data_fetcher is None:
+            return False
+
+        logger.info(
+            "Auto-fetching missing symbol data",
+            module=MODULE_NAME,
+            symbol=symbol,
+            lookback_days=self.config.auto_fetch_lookback_days,
+        )
+
+        try:
+            result = self._data_fetcher.fetch_symbol(
+                symbol=symbol,
+                lookback_days=self.config.auto_fetch_lookback_days,
+            )
+
+            if result.get("status") == "success":
+                self._fetched_symbols.add(symbol)
+                logger.info(
+                    "Auto-fetch successful",
+                    module=MODULE_NAME,
+                    symbol=symbol,
+                    bars_fetched=result.get("bars_fetched", 0),
+                )
+                return True
+
+            logger.warning(
+                "Auto-fetch returned non-success status",
+                module=MODULE_NAME,
+                symbol=symbol,
+                status=result.get("status"),
+                error=result.get("error"),
+            )
+            return False
+
+        except Exception as e:
+            logger.warning(
+                "Auto-fetch failed with exception",
+                module=MODULE_NAME,
+                symbol=symbol,
+                error=str(e),
+            )
+            self._fetched_symbols.add(symbol)  # Mark as attempted to avoid retrying
+            return False
 
     def _generate_benchmark_curve(
         self,
@@ -355,6 +497,8 @@ def run_backtest(
     initial_capital: float = 100_000,
     data_dir: str | Path = "data/historical",
     slippage_bps: float = 5,
+    auto_fetch_missing: bool = False,
+    auto_fetch_lookback_days: int = 600,
 ) -> BacktestResult:
     """Run a backtest on a DSL strategy file.
 
@@ -365,6 +509,8 @@ def run_backtest(
         initial_capital: Starting capital
         data_dir: Path to historical data directory
         slippage_bps: Slippage in basis points
+        auto_fetch_missing: Auto-fetch missing symbol data from Alpaca API
+        auto_fetch_lookback_days: Lookback days for auto-fetch (default 600)
 
     Returns:
         BacktestResult with complete results
@@ -375,6 +521,7 @@ def run_backtest(
         ...     strategy_path="strategies/core/main.clj",
         ...     start_date=datetime(2023, 1, 1, tzinfo=UTC),
         ...     end_date=datetime(2024, 1, 1, tzinfo=UTC),
+        ...     auto_fetch_missing=True,
         ... )
         >>> print(result.summary())
 
@@ -392,6 +539,8 @@ def run_backtest(
         initial_capital=Decimal(str(initial_capital)),
         data_dir=Path(data_dir),
         slippage_bps=Decimal(str(slippage_bps)),
+        auto_fetch_missing=auto_fetch_missing,
+        auto_fetch_lookback_days=auto_fetch_lookback_days,
     )
 
     engine = BacktestEngine(config)

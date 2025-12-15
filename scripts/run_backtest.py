@@ -292,7 +292,20 @@ Examples:
     parser.add_argument(
         "--fetch-data",
         action="store_true",
-        help="Automatically fetch missing data before running backtest",
+        help="Pre-fetch missing data before running backtest (one-time scan)",
+    )
+
+    parser.add_argument(
+        "--auto-fetch",
+        action="store_true",
+        help="Auto-fetch missing symbols during backtest (on-the-fly)",
+    )
+
+    parser.add_argument(
+        "--auto-fetch-lookback",
+        type=int,
+        default=600,
+        help="Lookback days for auto-fetch (default: 600)",
     )
 
     parser.add_argument(
@@ -360,6 +373,13 @@ def run_portfolio_backtest_cli(
         Exit code
 
     """
+    # Check API credentials if auto-fetch is enabled
+    if args.auto_fetch:
+        if not os.environ.get("ALPACA__KEY") or not os.environ.get("ALPACA__SECRET"):
+            print("Error: Alpaca credentials not set for --auto-fetch.", file=sys.stderr)
+            print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
+            return 1
+
     # Create portfolio configuration
     try:
         config = PortfolioBacktestConfig.from_config_file(
@@ -370,6 +390,8 @@ def run_portfolio_backtest_cli(
             data_dir=data_dir,
             strategies_base_dir=args.strategies_dir,
             slippage_bps=args.slippage,
+            auto_fetch_missing=args.auto_fetch,
+            auto_fetch_lookback_days=args.auto_fetch_lookback,
         )
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
         print(f"Error: Invalid portfolio configuration: {e}", file=sys.stderr)
@@ -386,6 +408,8 @@ def run_portfolio_backtest_cli(
     print(f"Initial Capital: ${args.capital:,.2f}")
     print(f"Slippage:        {args.slippage} bps")
     print(f"Data Directory:  {data_dir}")
+    if args.auto_fetch:
+        print(f"Auto-Fetch:      ENABLED (lookback: {args.auto_fetch_lookback} days)")
     print("-" * 70)
     print("Strategy Allocations:")
     for s in config.strategies:
@@ -463,6 +487,13 @@ def run_single_strategy_backtest(
         Exit code
 
     """
+    # Check API credentials if auto-fetch is enabled
+    if args.auto_fetch:
+        if not os.environ.get("ALPACA__KEY") or not os.environ.get("ALPACA__SECRET"):
+            print("Error: Alpaca credentials not set for --auto-fetch.", file=sys.stderr)
+            print("Set ALPACA__KEY and ALPACA__SECRET environment variables.", file=sys.stderr)
+            return 1
+
     # Create configuration
     try:
         config = BacktestConfig(
@@ -472,6 +503,8 @@ def run_single_strategy_backtest(
             initial_capital=Decimal(str(args.capital)),
             data_dir=data_dir,
             slippage_bps=Decimal(str(args.slippage)),
+            auto_fetch_missing=args.auto_fetch,
+            auto_fetch_lookback_days=args.auto_fetch_lookback,
         )
     except ValueError as e:
         print(f"Error: Invalid configuration: {e}", file=sys.stderr)
@@ -487,6 +520,8 @@ def run_single_strategy_backtest(
     print(f"Initial Capital: ${args.capital:,.2f}")
     print(f"Slippage:        {args.slippage} bps")
     print(f"Data Directory:  {data_dir}")
+    if args.auto_fetch:
+        print(f"Auto-Fetch:      ENABLED (lookback: {args.auto_fetch_lookback} days)")
     print("=" * 60)
     print()
 
@@ -494,6 +529,13 @@ def run_single_strategy_backtest(
     try:
         engine = BacktestEngine(config)
         result = engine.run()
+
+        # Report auto-fetched symbols if any
+        if args.auto_fetch and engine._fetched_symbols:
+            print(f"\n📥 Auto-fetched {len(engine._fetched_symbols)} symbols:")
+            for sym in sorted(engine._fetched_symbols):
+                print(f"   - {sym}")
+            print()
     except Exception as e:
         print(f"Error: Backtest failed: {e}", file=sys.stderr)
         if args.verbose:

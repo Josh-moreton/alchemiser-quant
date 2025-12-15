@@ -80,11 +80,13 @@ class TestWeightEqual:
         context.evaluate_node = Mock()
         return context
 
-    def test_weight_equal_empty_args(self, mock_context):
-        """Test weight-equal with no arguments."""
-        result = weight_equal([], mock_context)
-        assert isinstance(result, PortfolioFragment)
-        assert result.weights == {}
+    def test_weight_equal_empty_args_raises_error(self, mock_context):
+        """Test weight-equal with no arguments raises error.
+
+        DSL strategies must always produce a non-empty allocation.
+        """
+        with pytest.raises(DslEvaluationError, match="requires at least one asset argument"):
+            weight_equal([], mock_context)
 
     def test_weight_equal_single_asset(self, mock_context):
         """Test weight-equal with single asset."""
@@ -114,6 +116,18 @@ class TestWeightEqual:
         assert isinstance(result, PortfolioFragment)
         assert len(result.weights) == 2
         assert result.weights == {"AAPL": Decimal("0.5"), "GOOGL": Decimal("0.5")}
+
+    def test_weight_equal_empty_result_raises_error(self, mock_context):
+        """Test weight-equal raises error when all args evaluate to empty.
+
+        DSL strategies must always produce a non-empty allocation.
+        """
+        # Simulate args that evaluate to empty lists (like filter returning no matches)
+        mock_context.evaluate_node.side_effect = [[], []]
+        args = [ASTNode.list_node([]), ASTNode.list_node([])]
+
+        with pytest.raises(DslEvaluationError, match="evaluated to zero assets"):
+            weight_equal(args, mock_context)
 
 
 @pytest.mark.unit
@@ -196,14 +210,16 @@ class TestWeightInverseVolatility:
         with pytest.raises(DslEvaluationError, match="requires window and assets"):
             weight_inverse_volatility([], mock_context)
 
-    def test_weight_inverse_volatility_no_assets(self, mock_context):
-        """Test weight-inverse-volatility with window but no assets."""
+    def test_weight_inverse_volatility_no_assets_raises_error(self, mock_context):
+        """Test weight-inverse-volatility with window but no assets raises error.
+
+        DSL strategies must always produce a non-empty allocation.
+        """
         mock_context.evaluate_node.return_value = 6
         args = [ASTNode.atom(Decimal("6"))]
 
-        result = weight_inverse_volatility(args, mock_context)
-        assert isinstance(result, PortfolioFragment)
-        assert result.weights == {}
+        with pytest.raises(DslEvaluationError, match="evaluated to zero assets"):
+            weight_inverse_volatility(args, mock_context)
 
     def test_weight_inverse_volatility_basic(self, mock_context):
         """Test weight-inverse-volatility with valid data."""

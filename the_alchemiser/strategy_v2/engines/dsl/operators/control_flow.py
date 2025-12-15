@@ -248,6 +248,11 @@ def _evaluate_branch(
     Returns:
         Tuple of (branch_taken, result)
 
+    Raises:
+        DslEvaluationError: If condition is falsy and no else branch is provided.
+            DSL strategies must always produce an allocation - an if without else
+            that evaluates to false is an evaluation failure, not a valid "hold".
+
     """
     if condition_result:
         branch_taken: Literal["then", "else"] = "then"
@@ -259,7 +264,22 @@ def _evaluate_branch(
         result = context.evaluate_node(else_expr, context.correlation_id, context.trace)
         return branch_taken, result
 
-    return "else", None
+    # FAIL-FAST: if without else and condition is false is an evaluation failure.
+    # DSL strategies must always return a valid allocation. Missing else clause
+    # means the strategy author didn't handle the false case.
+    logger.error(
+        "DSL if-condition evaluated to false with no else branch - strategy must handle both cases",
+        extra={
+            "correlation_id": context.correlation_id,
+            "condition_result": condition_result,
+            "component": "dsl_control_flow",
+        },
+    )
+    raise DslEvaluationError(
+        "if-condition evaluated to false but no else branch provided. "
+        "DSL strategies must always produce an allocation - add an else clause "
+        "to handle the false case (e.g., hold current positions, fallback allocation)."
+    )
 
 
 def _log_branch_result(
