@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest
 
 # Default target
 help:
@@ -11,6 +11,12 @@ help:
 	@echo "  run-pnl-weekly  Show weekly P&L report"
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
+	@echo "Backtesting:"
+	@echo "  backtest strategy=<path> start=<date> end=<date>  Run single strategy backtest"
+	@echo "  backtest portfolio=<config> start=<date> end=<date>  Run portfolio backtest"
+	@echo "  backtest ... report=1      Generate HTML report"
+	@echo "  backtest ... fetch=1       Pre-fetch missing data"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs id=<correlation-id>  Fetch workflow logs (errors/warnings)"
@@ -181,6 +187,61 @@ bump-major:
 		echo "📤 Pushing commit to origin (current branch)..."; \
 		git push origin HEAD; \
 	fi
+
+# ============================================================================
+# BACKTESTING
+# ============================================================================
+
+# Run backtests on DSL strategies
+# Usage (single strategy):
+#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01
+#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01 capital=50000
+#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01 report=1
+#   make backtest strategy=strategies/dev/beam.clj start=2024-01-01 end=2024-12-01 fetch=1
+#
+# Usage (portfolio):
+#   make backtest portfolio=the_alchemiser/config/strategy.dev.json start=2024-01-01 end=2024-12-01
+#   make backtest portfolio=the_alchemiser/config/strategy.dev.json start=2024-01-01 end=2024-12-01 report=1
+backtest:
+	@if [ -z "$(start)" ] || [ -z "$(end)" ]; then \
+		echo "❌ Missing required parameters!"; \
+		echo ""; \
+		echo "Usage (single strategy):"; \
+		echo "  make backtest strategy=<path.clj> start=<YYYY-MM-DD> end=<YYYY-MM-DD>"; \
+		echo ""; \
+		echo "Usage (portfolio):"; \
+		echo "  make backtest portfolio=<config.json> start=<YYYY-MM-DD> end=<YYYY-MM-DD>"; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  capital=<amount>   Initial capital (default: 100000)"; \
+		echo "  report=1           Generate HTML report"; \
+		echo "  pdf=1              Generate PDF report"; \
+		echo "  fetch=1            Pre-fetch missing data before backtest"; \
+		echo "  autofetch=1        Auto-fetch missing data during backtest"; \
+		echo "  output=<file.json> Save results to JSON file"; \
+		echo "  csv=<file.csv>     Save equity curve to CSV"; \
+		echo "  verbose=1          Enable verbose output"; \
+		echo ""; \
+		exit 1; \
+	fi; \
+	ARGS="--start $(start) --end $(end)"; \
+	if [ -n "$(strategy)" ]; then \
+		ARGS="$(strategy) $$ARGS"; \
+	elif [ -n "$(portfolio)" ]; then \
+		ARGS="$(portfolio) --portfolio $$ARGS"; \
+	else \
+		echo "❌ Must specify either strategy=<path> or portfolio=<config>"; \
+		exit 1; \
+	fi; \
+	if [ -n "$(capital)" ]; then ARGS="$$ARGS --capital $(capital)"; fi; \
+	if [ -n "$(report)" ]; then ARGS="$$ARGS --report"; fi; \
+	if [ -n "$(pdf)" ]; then ARGS="$$ARGS --pdf"; fi; \
+	if [ -n "$(fetch)" ]; then ARGS="$$ARGS --fetch-data"; fi; \
+	if [ -n "$(autofetch)" ]; then ARGS="$$ARGS --auto-fetch"; fi; \
+	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
+	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	poetry run python scripts/run_backtest.py $$ARGS
 
 # ============================================================================
 # OBSERVABILITY
