@@ -16,8 +16,13 @@ from the_alchemiser.shared.errors.exceptions import (
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
+from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
 
 logger = get_logger(__name__)
+
+# Price validation thresholds (aligned with executor.py)
+MIN_REASONABLE_PRICE = Decimal("0.50")  # Sub-$0.50 prices are suspicious
+MAX_SPREAD_PERCENT = 15.0  # >15% spread triggers REST fallback
 
 
 class PositionUtils:
@@ -123,7 +128,12 @@ class PositionUtils:
         logger.info("✅ Subscription cleanup complete")
 
     def get_price_for_estimation(self, symbol: str) -> Decimal | None:
-        """Get current price for trade estimation.
+        """Get current price for trade estimation with validation and fallback.
+
+        Uses a multi-stage approach:
+        1. Try real-time WebSocket pricing with quote validation
+        2. If quote looks suspicious, fall back to REST API immediately
+        3. If real-time unavailable, use REST API directly
 
         Args:
             symbol: Stock symbol
@@ -139,27 +149,50 @@ class PositionUtils:
                 if quote and hasattr(quote, "bid_price") and hasattr(quote, "ask_price"):
                     bid = quote.bid_price
                     ask = quote.ask_price
-                    if bid and ask and bid > 0 and ask > 0:
-                        mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
-                        logger.debug(
-                            "💰 Real-time price for symbol",
+
+                    # Validate quote before using it
+                    if bid and ask:
+                        is_suspicious, reasons = detect_suspicious_quote_prices(
+                            bid_price=bid,
+                            ask_price=ask,
+                            min_price=float(MIN_REASONABLE_PRICE),
+                            max_spread_percent=MAX_SPREAD_PERCENT,
+                        )
+
+                        if is_suspicious:
+                            logger.warning(
+                                "⚠️ Suspicious real-time quote detected, falling back to REST",
+                                extra={
+                                    "symbol": symbol,
+                                    "bid": str(bid),
+                                    "ask": str(ask),
+                                    "reasons": reasons,
+                                    "action": "rest_fallback",
+                                },
+                            )
+                            # Skip to REST fallback below
+                        elif bid > 0 and ask > 0:
+                            mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
+                            logger.debug(
+                                "💰 Real-time price for symbol (validated)",
+                                extra={
+                                    "symbol": symbol,
+                                    "price": str(mid_price),
+                                    "bid": str(bid),
+                                    "ask": str(ask),
+                                    "source": "real_time_websocket_validated",
+                                },
+                            )
+                            return mid_price
+                    else:
+                        logger.warning(
+                            "⚠️ Real-time quote has invalid bid/ask",
                             extra={
                                 "symbol": symbol,
-                                "price": str(mid_price),
-                                "bid": str(bid),
-                                "ask": str(ask),
-                                "source": "real_time_websocket",
+                                "bid": str(bid) if bid else None,
+                                "ask": str(ask) if ask else None,
                             },
                         )
-                        return mid_price
-                    logger.warning(
-                        "⚠️ Real-time quote has invalid bid/ask",
-                        extra={
-                            "symbol": symbol,
-                            "bid": str(bid) if bid else None,
-                            "ask": str(ask) if ask else None,
-                        },
-                    )
                 else:
                     logger.debug(
                         "Real-time quote not available for symbol",
@@ -180,11 +213,37 @@ class PositionUtils:
                     error_type=type(exc).__name__,
                 )
 
-        # Fallback to static pricing
+        # Fallback to REST API (static pricing)
+        return self._get_price_from_rest_api(symbol)
+
+    def _get_price_from_rest_api(self, symbol: str) -> Decimal | None:
+        """Get price from REST API as fallback.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Price from REST API or None if unavailable
+
+        """
         try:
             static_price = self.alpaca_manager.get_current_price(symbol)
             if static_price and static_price > 0:
                 price_decimal = Decimal(str(static_price))
+
+                # Validate REST API price too
+                if price_decimal < MIN_REASONABLE_PRICE:
+                    logger.error(
+                        "🚨 REST API returned suspicious price",
+                        extra={
+                            "symbol": symbol,
+                            "price": str(price_decimal),
+                            "min_reasonable": str(MIN_REASONABLE_PRICE),
+                            "source": "alpaca_rest_api",
+                        },
+                    )
+                    return None
+
                 logger.debug(
                     "💰 Static price for symbol",
                     extra={
