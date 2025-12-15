@@ -77,35 +77,93 @@ def _load_local_env_files() -> None:
 # can pick up credentials from .env automatically.
 _load_local_env_files()
 
-# Ensure logs directory exists and add a file handler so every run
-# writes a timestamped backtest log. We keep console output intact.
+# Create logs directory early (file handler added after imports)
 logs_dir = project_root / "logs"
 logs_dir.mkdir(parents=True, exist_ok=True)
-_ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+_ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 _logfile = logs_dir / f"backtest_{_ts}.log"
-try:
-    _fh = logging.FileHandler(_logfile, encoding="utf-8")
-    _fh.setLevel(logging.INFO)
-    _fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-    _fh.setFormatter(_fmt)
-    logging.getLogger().addHandler(_fh)
-    # Inform user which file is being written to
-    print(f"Backtest logs will be written to: {_logfile}")
-except Exception:
-    # Non-fatal: continue without file logging
-    pass
 
 from the_alchemiser.backtest_v2 import BacktestConfig, BacktestEngine
 from the_alchemiser.backtest_v2.core.portfolio_engine import (
     PortfolioBacktestConfig,
     PortfolioBacktestEngine,
 )
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import configure_structlog_lambda, get_logger
+
+# Configure structlog to use stdlib logging (required for file handler to work)
+configure_structlog_lambda()
+
+# Add file handler to capture logs to file
+# This works because configure_structlog_lambda sets up stdlib logging integration
+try:
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)  # Ensure all levels are captured
+    _fh = logging.FileHandler(_logfile, encoding="utf-8")
+    _fh.setLevel(logging.DEBUG)  # Capture all levels to file
+    _fh.setFormatter(logging.Formatter("%(message)s"))  # Keep JSON format from structlog
+    root_logger.addHandler(_fh)
+    print(f"Backtest logs will be written to: {_logfile}")
+except Exception:
+    # Non-fatal: continue without file logging
+    pass
 
 logger = get_logger(__name__)
 
 # Benchmark symbols always needed
 BENCHMARK_SYMBOLS = ["SPY"]
+
+# Default results directory for reports
+RESULTS_DIR = project_root / "results"
+
+
+def _generate_report(
+    result: object,
+    path_arg: str,
+    report_type: str,
+    strategy_name: str,
+) -> None:
+    """Generate HTML or PDF report.
+
+    Args:
+        result: BacktestResult or PortfolioBacktestResult
+        path_arg: Path argument from CLI ("auto" for default, or specific path)
+        report_type: "html" or "pdf"
+        strategy_name: Strategy name for default filename
+
+    """
+    try:
+        from the_alchemiser.backtest_v2.reporting import generate_report
+    except ImportError as e:
+        print(f"Warning: Could not import reporting module: {e}", file=sys.stderr)
+        print("Install matplotlib with: poetry install --with dev", file=sys.stderr)
+        return
+
+    # Determine output path
+    if path_arg == "auto":
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        safe_name = re.sub(r"[^\w\-]", "_", strategy_name)
+        filename = f"backtest_{safe_name}_{ts}.{report_type}"
+        output_path = RESULTS_DIR / filename
+    else:
+        output_path = Path(path_arg)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Generate report
+    try:
+        if report_type == "html":
+            generate_report(result, output_path)
+            print(f"\n📊 HTML report saved to: {output_path}")
+        else:
+            # PDF not yet supported for portfolio results
+            if hasattr(result, "strategy_results"):
+                print("Warning: PDF reports not yet supported for portfolio results. Use --report for HTML.", file=sys.stderr)
+                return
+            from the_alchemiser.backtest_v2.reporting import generate_pdf_report
+            generate_pdf_report(result, output_path)
+            print(f"\n📄 PDF report saved to: {output_path}")
+    except Exception as e:
+        print(f"Warning: Failed to generate {report_type.upper()} report: {e}", file=sys.stderr)
 
 
 def extract_symbols_from_clj(strategy_path: Path) -> set[str]:
@@ -272,10 +330,13 @@ Examples:
         --start 2023-01-01 --end 2024-01-01 \\
         --capital 50000 --output results/my_backtest.json
 
-    # Adjust slippage
+    # Generate HTML report (auto-saved to results/)
     python scripts/run_backtest.py strategies/core/main.clj \\
-        --start 2023-01-01 --end 2024-01-01 \\
-        --slippage 10
+        --start 2023-01-01 --end 2024-01-01 --report
+
+    # Generate PDF report to specific path
+    python scripts/run_backtest.py strategies/core/main.clj \\
+        --start 2023-01-01 --end 2024-01-01 --pdf results/my_report.pdf
         """,
     )
 
@@ -371,6 +432,24 @@ Examples:
         "-v",
         action="store_true",
         help="Enable verbose output",
+    )
+
+    parser.add_argument(
+        "--report",
+        nargs="?",
+        const="auto",
+        default=None,
+        metavar="PATH",
+        help="Generate HTML report. If PATH not given, saves to results/backtest_<timestamp>.html",
+    )
+
+    parser.add_argument(
+        "--pdf",
+        nargs="?",
+        const="auto",
+        default=None,
+        metavar="PATH",
+        help="Generate PDF report. If PATH not given, saves to results/backtest_<timestamp>.pdf",
     )
 
     args = parser.parse_args()
@@ -512,6 +591,14 @@ def run_portfolio_backtest_cli(
 
         print(f"Equity curve saved to: {csv_path}")
 
+    # Generate HTML report if requested
+    if args.report:
+        _generate_report(result, args.report, "html", config_path.stem)
+
+    # Generate PDF report if requested
+    if args.pdf:
+        _generate_report(result, args.pdf, "pdf", config_path.stem)
+
     # Print errors if any
     if result.errors:
         print(f"\nWarning: {len(result.errors)} evaluation errors occurred.")
@@ -626,6 +713,14 @@ def run_single_strategy_backtest(
         combined.to_csv(csv_path)
 
         print(f"Equity curve saved to: {csv_path}")
+
+    # Generate HTML report if requested
+    if args.report:
+        _generate_report(result, args.report, "html", strategy_path.stem)
+
+    # Generate PDF report if requested
+    if args.pdf:
+        _generate_report(result, args.pdf, "pdf", strategy_path.stem)
 
     # Print errors if any
     if result.errors:
