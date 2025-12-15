@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "8.4.0"
+version = "8.4.2"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -149,6 +149,7 @@ hypothesis = "^6.148.7"
 pytest-xdist = "^3.8.0"
 pytest-randomly = "^4.0.1"
 pytest-timeout = "^2.4.0"
+matplotlib = "^3.8"
 mypy-boto3-sns = "^1.41.0"
 mypy-boto3-s3 = "^1.42.3"
 mypy-boto3-events = "^1.41.0"

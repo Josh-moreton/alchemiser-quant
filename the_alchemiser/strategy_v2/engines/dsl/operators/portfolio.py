@@ -184,8 +184,9 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
 def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
     """Evaluate weight-equal - allocate equal weight to all assets using Decimal arithmetic."""
     if not args:
-        return PortfolioFragment(
-            fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
+        raise DslEvaluationError(
+            "weight-equal requires at least one asset argument. "
+            "DSL strategies must always produce a non-empty allocation."
         )
 
     # Collect all assets from all arguments
@@ -195,8 +196,9 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
         all_assets.extend(collect_assets_from_value(result))
 
     if not all_assets:
-        return PortfolioFragment(
-            fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
+        raise DslEvaluationError(
+            "DSL weight-equal received no assets after evaluation. "
+            "Strategies must always produce a non-empty allocation."
         )
 
     # Deduplicate while preserving order
@@ -256,19 +258,19 @@ def _collect_assets_from_args(args: list[ASTNode], context: DslContext) -> list[
     """
     all_assets: list[str] = []
 
+    def _extract_assets(value: DSLValue) -> None:
+        """Recursively extract asset symbols from a DSL value."""
+        if isinstance(value, PortfolioFragment):
+            all_assets.extend(value.weights.keys())
+        elif isinstance(value, list):
+            for item in value:
+                _extract_assets(item)
+        elif isinstance(value, str):
+            all_assets.append(value)
+
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-
-        if isinstance(result, PortfolioFragment):
-            all_assets.extend(result.weights.keys())
-        elif isinstance(result, list):
-            for item in result:
-                if isinstance(item, PortfolioFragment):
-                    all_assets.extend(item.weights.keys())
-                elif isinstance(item, str):
-                    all_assets.append(item)
-        elif isinstance(result, str):
-            all_assets.append(result)
+        _extract_assets(result)
 
     return all_assets
 
@@ -418,14 +420,19 @@ def weight_inverse_volatility(args: list[ASTNode], context: DslContext) -> Portf
     all_assets = _collect_assets_from_args(args[1:], context)
 
     if not all_assets:
-        return PortfolioFragment(
-            fragment_id=str(uuid.uuid4()),
-            source_step="weight_inverse_volatility",
-            weights={},
+        raise DslEvaluationError(
+            "DSL weight-inverse-volatility received no assets. "
+            "Strategies must always produce a non-empty allocation."
         )
 
     # Calculate and normalize inverse volatility weights
     normalized_weights = _calculate_inverse_weights(all_assets, window, context)
+
+    if not normalized_weights:
+        raise DslEvaluationError(
+            f"DSL weight-inverse-volatility could not compute valid weights for assets: {all_assets}. "
+            "All volatility calculations failed."
+        )
 
     return PortfolioFragment(
         fragment_id=str(uuid.uuid4()),
