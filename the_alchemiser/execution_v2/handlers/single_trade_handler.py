@@ -526,6 +526,10 @@ class SingleTradeHandler:
     def _calculate_shares(self, trade_message: TradeMessage) -> Decimal:
         """Calculate shares to trade from trade amount.
 
+        For full liquidations (target_weight = 0), fetches the actual position
+        from Alpaca to ensure we sell exactly what we hold, avoiding floating-point
+        precision mismatches between calculated and actual positions.
+
         Args:
             trade_message: The trade message
 
@@ -536,6 +540,43 @@ class SingleTradeHandler:
             MarketDataError: If unable to get price for share calculation
 
         """
+        # CRITICAL: For full liquidations, use actual position from Alpaca
+        # This avoids floating-point precision errors between calculated and actual positions
+        is_full_liquidation = (
+            trade_message.is_full_liquidation or trade_message.target_weight <= Decimal("0")
+        )
+        if is_full_liquidation and trade_message.action == "SELL":
+            try:
+                alpaca_manager = self.container.infrastructure.alpaca_manager()
+                position = alpaca_manager.get_position(trade_message.symbol)
+                if position:
+                    actual_qty = getattr(position, "qty", None)
+                    if actual_qty and Decimal(str(actual_qty)) > 0:
+                        shares = Decimal(str(actual_qty))
+                        # Calculate what we would have used for comparison logging
+                        calculated_shares = None
+                        if trade_message.estimated_price and trade_message.estimated_price > 0:
+                            calculated_shares = (
+                                abs(trade_message.trade_amount) / trade_message.estimated_price
+                            )
+                        self.logger.info(
+                            "Using actual position for full liquidation",
+                            extra={
+                                "symbol": trade_message.symbol,
+                                "actual_position": str(shares),
+                                "calculated_would_be": str(calculated_shares)
+                                if calculated_shares
+                                else "unknown",
+                            },
+                        )
+                        return shares
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to fetch position for full liquidation, "
+                    f"falling back to calculation: {e}",
+                    extra={"symbol": trade_message.symbol},
+                )
+
         # If explicit shares provided, use those
         if trade_message.shares and trade_message.shares > 0:
             return trade_message.shares
