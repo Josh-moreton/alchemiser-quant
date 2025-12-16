@@ -544,6 +544,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 adjusted_qty_dec, used_rounding = fractionability_detector.convert_to_whole_shares(
                     normalized_symbol, qty_dec, price
                 )
+                # Use Decimal for numeric comparisons to avoid float precision issues
                 adjusted_qty_float = float(adjusted_qty_dec)
 
                 if used_rounding:
@@ -555,12 +556,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     )
 
                 # If rounding leads to zero, treat as no-op and return an error-like ExecutedOrder
-                if adjusted_qty_float <= 0:
+                # Note: We only round buy orders here. Sell orders (including liquidations)
+                # must preserve fractional quantities where supported by the broker. Tests
+                # (see tests/test_position_utils.py) verify that sell side preserves
+                # fractional behavior for liquidation paths.
+                if adjusted_qty_dec <= 0:
                     return AlpacaErrorHandler.create_executed_order_error_result(
                         "NO_OP",
                         normalized_symbol,
                         side_normalized,
-                        adjusted_qty_float,
+                        float(adjusted_qty_dec),
                         "Rounded to zero for non-fractionable asset; skipping order",
                     )
 
