@@ -5,14 +5,14 @@ Lambda handler for event-driven notifications microservice.
 Consumes TradeExecuted and WorkflowFailed events from EventBridge and sends
 email notifications using the NotificationService.
 
-Supports two execution modes:
-1. Legacy mode: Single TradeExecuted event per workflow - send notification immediately
-2. Per-trade mode: Multiple TradeExecuted events per run - aggregate when all complete
+Supports per-trade execution mode where multiple TradeExecuted events per run
+are aggregated when all trades complete before sending a single notification.
 """
 
 from __future__ import annotations
 
 import os
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -111,9 +111,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
     """Handle TradeExecuted events by sending trading notifications.
 
-    Supports two modes:
-    1. Legacy mode: Single TradeExecuted event per workflow - send notification immediately
-    2. Per-trade mode: Check if run is complete, aggregate results, send single notification
+    Checks if run is complete, aggregates results, and sends a single notification
+    when all trades in the run have completed.
 
     Args:
         detail: The detail payload from TradeExecuted event
@@ -123,16 +122,19 @@ def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[
         Response with status code and message
 
     """
-    # Check if this is a per-trade execution event
+    # Get run_id from metadata
     metadata = detail.get("metadata", {})
-    execution_mode = metadata.get("execution_mode", "legacy")
     run_id = metadata.get("run_id")
 
-    if execution_mode == "per_trade" and run_id:
+    if run_id:
         return _handle_per_trade_executed(detail, correlation_id, run_id)
 
-    # Legacy mode: Process single TradeExecuted event immediately
-    return _handle_legacy_trade_executed(detail, correlation_id)
+    # Fallback for events without run_id (e.g., manual testing)
+    logger.warning(
+        "TradeExecuted event without run_id - processing immediately",
+        extra={"correlation_id": correlation_id},
+    )
+    return _handle_single_trade_executed(detail, correlation_id)
 
 
 def _handle_per_trade_executed(
@@ -226,8 +228,8 @@ def _handle_per_trade_executed(
     # Build aggregated TradeExecuted-like detail for notification
     aggregated_detail = _aggregate_trade_results(run_metadata, trade_results, correlation_id)
 
-    # Process as legacy notification with aggregated data
-    return _handle_legacy_trade_executed(aggregated_detail, correlation_id)
+    # Process the aggregated notification
+    return _handle_single_trade_executed(aggregated_detail, correlation_id)
 
 
 def _aggregate_trade_results(
@@ -278,19 +280,34 @@ def _aggregate_trade_results(
         if trade.get("status") == "FAILED":
             failed_symbols.append(trade.get("symbol", "unknown"))
 
+    # Capture capital deployed percentage after all trades complete
+    # Add small delay to allow trades to settle in Alpaca's system
+    logger.info(
+        "Waiting 2 seconds for trade settlement before capturing capital deployed metric",
+        extra={"correlation_id": correlation_id, "run_id": run_metadata.get("run_id")},
+    )
+    time.sleep(2)
+    capital_deployed_pct = _capture_capital_deployed_pct(correlation_id)
+
     # Build aggregated payload
+    metadata: dict[str, object] = {
+        "execution_mode": "per_trade_aggregated",
+        "run_id": run_metadata.get("run_id"),
+        "plan_id": run_metadata.get("plan_id"),
+        "total_trade_value": str(total_trade_value),
+    }
+
+    # Add capital deployed percentage if available
+    if capital_deployed_pct is not None:
+        metadata["capital_deployed_pct"] = str(capital_deployed_pct)
+
     return {
         "correlation_id": correlation_id,
         "event_id": f"aggregated-trade-executed-{run_metadata.get('run_id', 'unknown')}",
         "orders_placed": total_trades,
         "orders_succeeded": succeeded_trades,
         "success": failed_trades == 0,
-        "metadata": {
-            "execution_mode": "per_trade_aggregated",
-            "run_id": run_metadata.get("run_id"),
-            "plan_id": run_metadata.get("plan_id"),
-            "total_trade_value": str(total_trade_value),
-        },
+        "metadata": metadata,
         "execution_data": {
             "orders_executed": orders_executed,
             "execution_summary": {
@@ -307,8 +324,10 @@ def _aggregate_trade_results(
     }
 
 
-def _handle_legacy_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
-    """Handle TradeExecuted events in legacy mode (single event per workflow).
+def _handle_single_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle TradeExecuted events as a single notification.
+
+    Used for aggregated trade results or events without run_id (e.g., manual testing).
 
     Args:
         detail: The detail payload from TradeExecuted event
@@ -494,6 +513,75 @@ def _generate_strategy_report(correlation_id: str) -> str | None:
         # Don't fail the notification if report generation fails
         logger.warning(
             f"Failed to generate strategy performance report: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        return None
+
+
+def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
+    """Capture capital deployed percentage from Alpaca account.
+
+    Called once per run after all trades complete (not per trade).
+    Polls the Alpaca account to calculate what percentage of total equity
+    is currently deployed in positions. This uses equity (not buying power)
+    to give an accurate representation of capital usage regardless of
+    leverage settings.
+
+    Formula: capital_deployed_pct = (long_market_value / equity) * 100
+
+    Args:
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Capital deployed as a percentage (0-100), or None if calculation fails
+
+    """
+    try:
+        # Create minimal container for Alpaca access
+        container = ApplicationContainer.create_for_notifications("production")
+        alpaca_manager = container.infrastructure.alpaca_manager()
+        account = alpaca_manager.get_account_object()
+
+        if not account:
+            logger.warning(
+                "Failed to fetch account for capital deployed calculation",
+                extra={"correlation_id": correlation_id},
+            )
+            return None
+
+        equity = Decimal(str(account.equity))
+        long_market_value = (
+            Decimal(str(account.long_market_value)) if account.long_market_value else Decimal("0")
+        )
+
+        if equity <= 0:
+            logger.warning(
+                "Account equity is zero or negative, cannot calculate capital deployed",
+                extra={"correlation_id": correlation_id, "equity": str(equity)},
+            )
+            return None
+
+        capital_deployed_pct = (long_market_value / equity) * Decimal("100")
+
+        logger.info(
+            f"📊 Capital deployed: {capital_deployed_pct:.2f}% "
+            f"(positions: ${long_market_value:,.2f} / equity: ${equity:,.2f})",
+            extra={
+                "correlation_id": correlation_id,
+                "capital_deployed_pct": str(capital_deployed_pct),
+                "long_market_value": str(long_market_value),
+                "equity": str(equity),
+            },
+        )
+
+        return capital_deployed_pct.quantize(Decimal("0.01"))
+
+    except Exception as e:
+        logger.warning(
+            f"Failed to calculate capital deployed percentage: {e}",
             extra={
                 "correlation_id": correlation_id,
                 "error_type": type(e).__name__,

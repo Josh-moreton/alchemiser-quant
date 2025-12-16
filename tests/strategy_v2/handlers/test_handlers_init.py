@@ -15,22 +15,22 @@ def test_handlers_module_exports() -> None:
 
     # Verify __all__ attribute exists and contains expected exports
     assert hasattr(handlers, "__all__")
-    assert "SignalGenerationHandler" in handlers.__all__
+    assert "PartialSignalHandler" in handlers.__all__
 
     # Verify the handler class is accessible
-    assert hasattr(handlers, "SignalGenerationHandler")
+    assert hasattr(handlers, "PartialSignalHandler")
 
 
-def test_signal_generation_handler_import() -> None:
-    """Test that SignalGenerationHandler can be imported directly."""
-    from the_alchemiser.strategy_v2.handlers import SignalGenerationHandler
+def test_partial_signal_handler_import() -> None:
+    """Test that PartialSignalHandler can be imported directly."""
+    from the_alchemiser.strategy_v2.handlers import PartialSignalHandler
 
     # Verify it's a class
-    assert isinstance(SignalGenerationHandler, type)
+    assert isinstance(PartialSignalHandler, type)
 
     # Verify the class has expected methods
-    assert hasattr(SignalGenerationHandler, "handle_event")
-    assert hasattr(SignalGenerationHandler, "can_handle")
+    assert hasattr(PartialSignalHandler, "handle_event")
+    assert hasattr(PartialSignalHandler, "can_handle")
 
 
 def test_handlers_module_structure() -> None:

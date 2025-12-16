@@ -1277,10 +1277,14 @@ class DynamoDBTradeLedgerRepository:
         """
         # Get all registered strategies from metadata
         metadata_list = self.list_strategy_metadata()
-        strategy_names = {m.get("strategy_name") for m in metadata_list if m.get("strategy_name")}
+        strategy_names: set[str] = set()
+        for m in metadata_list:
+            name = m.get("strategy_name")
+            if name and isinstance(name, str):
+                strategy_names.add(name)
 
         # Also include strategies with lots but no metadata (shouldn't happen, but be safe)
-        strategies_with_lots = set(self.discover_strategies_with_closed_lots())
+        strategies_with_lots: set[str] = set(self.discover_strategies_with_closed_lots())
 
         # Query for strategies with open lots too
         try:
@@ -1294,7 +1298,7 @@ class DynamoDBTradeLedgerRepository:
             )
             for item in response.get("Items", []):
                 name = item.get("strategy_name")
-                if name:
+                if name and isinstance(name, str):
                     strategies_with_lots.add(name)
         except DynamoDBException:
             pass  # Best effort
