@@ -1207,3 +1207,105 @@ class DynamoDBTradeLedgerRepository:
                 error=str(e),
             )
             return False
+
+    def get_strategy_summary(self, strategy_name: str) -> dict[str, Any]:
+        """Get aggregated statistics for a strategy.
+
+        Calculates comprehensive metrics from all lots for the strategy.
+
+        Args:
+            strategy_name: Strategy name (filename stem)
+
+        Returns:
+            Dict with keys:
+                - open_lot_count: Number of open lots
+                - closed_lot_count: Number of closed lots
+                - open_position_value: Market value at entry (open lots only)
+                - total_realized_pnl: Sum of realized P&L from closed lots
+                - winning_trades: Count of closed lots with positive P&L
+                - losing_trades: Count of closed lots with negative or zero P&L
+                - win_rate: Percentage of winning trades (0-100)
+                - avg_profit_per_trade: Average realized P&L per closed lot
+
+        """
+        from decimal import Decimal
+
+        lots = self.query_all_lots_by_strategy(strategy_name)
+
+        open_lot_count = 0
+        closed_lot_count = 0
+        open_position_value = Decimal("0")
+        total_realized_pnl = Decimal("0")
+        winning_trades = 0
+        losing_trades = 0
+
+        for lot in lots:
+            if lot.is_open:
+                open_lot_count += 1
+                # Use entry cost basis as position value (current price would require market data)
+                open_position_value += lot.remaining_qty * lot.entry_price
+            else:
+                closed_lot_count += 1
+                pnl = lot.realized_pnl
+                total_realized_pnl += pnl
+                if pnl > 0:
+                    winning_trades += 1
+                else:
+                    losing_trades += 1
+
+        # Calculate derived metrics
+        total_trades = closed_lot_count
+        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else Decimal("0")
+        avg_profit = (total_realized_pnl / total_trades) if total_trades > 0 else Decimal("0")
+
+        return {
+            "strategy_name": strategy_name,
+            "open_lot_count": open_lot_count,
+            "closed_lot_count": closed_lot_count,
+            "open_position_value": open_position_value,
+            "total_realized_pnl": total_realized_pnl,
+            "winning_trades": winning_trades,
+            "losing_trades": losing_trades,
+            "win_rate": Decimal(str(win_rate)),
+            "avg_profit_per_trade": avg_profit,
+        }
+
+    def get_all_strategy_summaries(self) -> list[dict[str, Any]]:
+        """Get aggregated statistics for all strategies.
+
+        Returns:
+            List of strategy summary dicts
+
+        """
+        # Get all registered strategies from metadata
+        metadata_list = self.list_strategy_metadata()
+        strategy_names = {m.get("strategy_name") for m in metadata_list if m.get("strategy_name")}
+
+        # Also include strategies with lots but no metadata (shouldn't happen, but be safe)
+        strategies_with_lots = set(self.discover_strategies_with_closed_lots())
+
+        # Query for strategies with open lots too
+        try:
+            response = self._table.scan(
+                FilterExpression="begins_with(PK, :pk) AND is_open = :open",
+                ExpressionAttributeValues={
+                    ":pk": "LOT#",
+                    ":open": True,
+                },
+                ProjectionExpression="strategy_name",
+            )
+            for item in response.get("Items", []):
+                name = item.get("strategy_name")
+                if name:
+                    strategies_with_lots.add(name)
+        except DynamoDBException:
+            pass  # Best effort
+
+        all_strategies = strategy_names | strategies_with_lots
+        summaries = []
+
+        for strategy_name in sorted(all_strategies):
+            summary = self.get_strategy_summary(strategy_name)
+            summaries.append(summary)
+
+        return summaries
