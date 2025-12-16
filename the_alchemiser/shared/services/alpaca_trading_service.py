@@ -247,6 +247,106 @@ class AlpacaTradingService:
             self._track_submitted_order(order)
             return self._create_success_order_result(order, order_request)
         except Exception as e:
+            # Defensive: detect broker rejection related to fractional/partial orders
+            msg = str(e).lower()
+            symbol = getattr(order_request, "symbol", "unknown")
+
+            try:
+                is_fractional_reject = False
+                if "partial" in msg and (
+                    "fraction" in msg
+                    or "partial order" in msg
+                    or "cannot send partial" in msg
+                    or "sending partial" in msg
+                ):
+                    is_fractional_reject = True
+
+                # Attempt a single defensive retry: round down to whole shares and resubmit
+                if (
+                    is_fractional_reject
+                    and hasattr(order_request, "qty")
+                    and getattr(order_request, "qty", None) is not None
+                    and getattr(order_request, "notional", None) is None
+                ):
+                    try:
+                        orig_qty_val = getattr(order_request, "qty", None)
+                        if orig_qty_val is None:
+                            raise ValueError("No qty available for retry")
+                        original_qty = float(orig_qty_val)
+                        int_qty = int(original_qty)
+                        if int_qty <= 0:
+                            # Rounded to zero -> return failed executed order indicating no-op
+                            logger.info(
+                                "Rounded rejected fractional order to zero; skipping",
+                                symbol=symbol,
+                            )
+                            return AlpacaErrorHandler.create_executed_order_error_result(
+                                "NO_OP",
+                                symbol,
+                                "buy"
+                                if str(getattr(order_request, "side", "")).lower().find("buy") >= 0
+                                else "sell",
+                                float(int_qty),
+                                "Rounded to zero after fractional rejection; skipping order",
+                            )
+
+                        # Create a new MarketOrderRequest with integer qty and resubmit once
+                        from alpaca.trading.requests import MarketOrderRequest as _MktReq
+
+                        new_req = _MktReq(
+                            symbol=symbol,
+                            qty=int_qty,
+                            notional=None,
+                            side=getattr(order_request, "side", None),
+                            time_in_force=getattr(order_request, "time_in_force", None),
+                            client_order_id=getattr(order_request, "client_order_id", None),
+                        )
+
+                        logger.info(
+                            "Retrying order with rounded whole-share qty after fractional rejection",
+                            symbol=symbol,
+                            original_qty=original_qty,
+                            adjusted_qty=int_qty,
+                        )
+
+                        # Try submitting the new request via circuit breaker once
+                        def _submit_retry() -> Order:
+                            res = self._trading_client.submit_order(new_req)
+                            if isinstance(res, dict):
+                                raise ValueError(
+                                    f"Unexpected dict response from submit_order: {res}"
+                                )
+                            return res
+
+                        try:
+                            order = self._circuit_breaker.call(_submit_retry)
+                            self._track_submitted_order(order)
+                            return self._create_success_order_result(order, new_req)
+                        except Exception as retry_exc:
+                            logger.error(
+                                "Retry after fractional rejection failed",
+                                symbol=symbol,
+                                error=str(retry_exc),
+                                error_type=type(retry_exc).__name__,
+                            )
+                            return self._create_failed_order_result(order_request, retry_exc)
+
+                    except Exception as inner_e:
+                        logger.error(
+                            "Error while attempting fractional-rejection retry",
+                            symbol=symbol,
+                            error=str(inner_e),
+                        )
+
+            except Exception as inner_exc:
+                # Log the inspection error and fall through to default failure handling
+                logger.debug(
+                    "Error inspecting failure for fractional rejection",
+                    symbol=symbol,
+                    error=str(inner_exc),
+                    error_type=type(inner_exc).__name__,
+                )
+
             logger.error(
                 "Failed to place order",
                 error=str(e),
