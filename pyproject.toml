@@ -155,3 +155,4 @@ mypy-boto3-s3 = "^1.42.3"
 mypy-boto3-events = "^1.41.0"
 boto3-stubs = {extras = ["events", "lambda", "s3", "sns"], version = "^1.42.7"}
 boto3 = "^1.42.9"
+ipython = "^9.8.0"
