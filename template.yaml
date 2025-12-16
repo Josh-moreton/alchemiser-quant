@@ -1791,7 +1791,7 @@ Resources:
           PortfolioLog: !Sub "/aws/lambda/${PortfolioFunction}"
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
-          MetricsLog: !If [ IsProduction, !Sub "/aws/lambda/${MetricsFunction}", "/aws/lambda/metrics-not-deployed" ]
+          MetricsLog: !Sub "/aws/lambda/${MetricsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
