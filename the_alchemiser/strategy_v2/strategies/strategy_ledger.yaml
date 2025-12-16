@@ -1,67 +1,8 @@
-rains_core_catalysts:
-  strategy_name: rains_core_catalysts
-  display_name: Rain's Core Catalysts
-  source_url: https://app.composer.trade/symphony/LFq0CG35nQ9zSxS4VOih/details
-  filename: rains_core_catalysts.clj
-  date_updated: '2025-12-16'
-  assets:
-  - BIL
-  - BSV
-  - EDC
-  - EDZ
-  - LQD
-  - PSQ
-  - SOXL
-  - SOXS
-  - SPXL
-  - SPXU
-  - SQQQ
-  - TECL
-  - TECS
-  - TLT
-  - TMF
-  - TMV
-  - TQQQ
-  - UGE
-  - UPRO
-  - UVXY
-  - VBF
-  - VIXY
-  - XLP
-  - XLU
-  - XLV
-  frontrunners:
-  - AGG
-  - BBH
-  - DBE
-  - DIA
-  - DLN
-  - EEM
-  - IEF
-  - IEI
-  - IGIB
-  - ISCB
-  - IWM
-  - KMLM
-  - MHD
-  - MMT
-  - PIM
-  - QQQ
-  - QQQE
-  - SH
-  - SHV
-  - SMH
-  - SPY
-  - VOX
-  - VTV
-  - XLF
-  - XLK
-  - XLY
-nuclear:
-  strategy_name: nuclear
+nuclear_feaver:
+  strategy_name: nuclear_feaver
   display_name: Nuclear Energy with Feaver Frontrunner V5 | BT 2022-03-24
   source_url: https://app.composer.trade/symphony/rJwkCH61aJBBnYPooxhx/details
-  filename: dev/nuclear.clj
+  filename: nuclear_feaver.clj
   date_updated: '2025-12-16'
   assets:
   - BTAL
@@ -85,11 +26,11 @@ nuclear:
   - VOX
   - VTV
   - XLF
-beam:
-  strategy_name: beam
+beam_chain:
+  strategy_name: beam_chain
   display_name: BEAM Chain Algo Test 1
   source_url: https://app.composer.trade/symphony/AbyvpflKdp1GLQA7GeIj/details
-  filename: dev/beam.clj
+  filename: beam_chain.clj
   date_updated: '2025-12-16'
   assets:
   - AIQ
@@ -117,11 +58,11 @@ beam:
   - EWU
   - IWM
   - TLT
-beefier:
-  strategy_name: beefier
+beefier_3x:
+  strategy_name: beefier_3x
   display_name: 3x Beefier V4.1.1xxx | A Better \
   source_url: https://app.composer.trade/symphony/AXee7YIjZMivbNqY6UBp/details
-  filename: dev/beefier.clj
+  filename: beefier_3x.clj
   date_updated: '2025-12-16'
   assets:
   - AGG
@@ -170,11 +111,11 @@ beefier:
   - IEF
   - SPY
   - TLT
-chicken:
-  strategy_name: chicken
+chicken_rice:
+  strategy_name: chicken_rice
   display_name: Combo 10 General FrankRound's Chicken & Fried Rice V0.7 (96,11,2012)
   source_url: https://app.composer.trade/symphony/5NinIDQpXS7WGEgkVvfz/details
-  filename: dev/chicken.clj
+  filename: chicken_rice.clj
   date_updated: '2025-12-16'
   assets:
   - BIL
@@ -219,11 +160,11 @@ chicken:
   - VTV
   - XLF
   - XLK
-nova:
-  strategy_name: nova
+nova_ibit:
+  strategy_name: nova_ibit
   display_name: JM314 - Copy of NOVA | IBIT Switcher Sort w/Safety 15d Max DD | v1
   source_url: https://app.composer.trade/symphony/7JKrFyRcuwGRt3L0T29H/details
-  filename: dev/nova.clj
+  filename: nova_ibit.clj
   date_updated: '2025-12-16'
   assets:
   - BIL
@@ -299,11 +240,11 @@ nova:
   - XLF
   - XLP
   - XLY
-rain:
-  strategy_name: rain
+rains_em_dancer:
+  strategy_name: rains_em_dancer
   display_name: Rain's Unified EM Leverage -> Safe Sectors | 25% EDC/YINN Dancer
   source_url: https://app.composer.trade/symphony/PC1Oyzo0745lxdBOM6Mh/details
-  filename: dev/rain.clj
+  filename: rains_em_dancer.clj
   date_updated: '2025-12-16'
   assets:
   - BIL
@@ -335,12 +276,12 @@ rain:
   - SHV
   - SPY
   - XLU
-simons:
-  strategy_name: simons
+simons_kmlm:
+  strategy_name: simons_kmlm
   display_name: Simons KMLM switcher (single pops)| BT 4/13/22 = A.R. 466% / D.D.
     22% V2
   source_url: https://app.composer.trade/symphony/u5iBJE751BM5FKPRJvKf/details
-  filename: dev/simons.clj
+  filename: simons_kmlm.clj
   date_updated: '2025-12-16'
   assets:
   - LABU
@@ -364,11 +305,11 @@ simons:
   - XLK
   - XLP
   - XLY
-starburst:
-  strategy_name: starburst
+ftl_starburst:
+  strategy_name: ftl_starburst
   display_name: FTL Starburst | Interstellar Mods
   source_url: https://app.composer.trade/symphony/DBjSH3cAA9KHfZv25JjU/details
-  filename: dev/starburst.clj
+  filename: ftl_starburst.clj
   date_updated: '2025-12-16'
   assets:
   - AVUV
@@ -459,11 +400,11 @@ starburst:
   - XLP
   - XLU
   - XLY
-bento:
-  strategy_name: bento
+bento_collection:
+  strategy_name: bento_collection
   display_name: Bento Collection | 4.8.25
   source_url: https://app.composer.trade/symphony/P4urjtc0mmBXFXsDpg3B/details
-  filename: dev/bento.clj
+  filename: bento_collection.clj
   date_updated: '2025-12-16'
   assets:
   - AGG
@@ -583,11 +524,11 @@ bento:
   - XLF
   - XLP
   - XLY
-sisyphus:
-  strategy_name: sisyphus
+sisyphus_lowvol:
+  strategy_name: sisyphus_lowvol
   display_name: (A) Sisyphus V0.1 (309,7.4,2022) - Avoid High Vol
   source_url: https://app.composer.trade/symphony/ONACiUnAkqNuwRY1domP/details
-  filename: dev/sisyphus.clj
+  filename: sisyphus_lowvol.clj
   date_updated: '2025-12-16'
   assets:
   - BIL
@@ -669,3 +610,138 @@ sisyphus:
   - XLF
   - XLP
   - XLY
+ftlt_2x:
+  strategy_name: ftlt_2x
+  display_name: FTLT w/2x|120,21,2007 (Public)
+  source_url: https://app.composer.trade/symphony/EzMkw9DDcnrhI43TwaiR/details
+  filename: ftlt_2x.clj
+  date_updated: '2025-12-16'
+  assets:
+  - BKT
+  - EVN
+  - IAU
+  - MMU
+  - NAN
+  - PMM
+  - QID
+  - QLD
+  - ROM
+  - TLT
+  - USD
+  - VBF
+  - XLK
+  - XLU
+  frontrunners:
+  - AGG
+  - FDL
+  - LQD
+  - PSQ
+  - QQQ
+  - SPY
+  - XLF
+  - XLP
+wakanda:
+  strategy_name: wakanda
+  display_name: Wakanda Forever Fund | BT 03-20-2015
+  source_url: https://app.composer.trade/symphony/HpCckmkAxIVgQDwOHAZl/details
+  filename: wakanda.clj
+  date_updated: '2025-12-16'
+  assets:
+  - AGG
+  - BIL
+  - BSV
+  - BTAL
+  - CURE
+  - DBC
+  - DGRO
+  - DRN
+  - DRV
+  - EDV
+  - EEM
+  - EFA
+  - EPI
+  - ERX
+  - EUO
+  - EWZ
+  - FAS
+  - GLD
+  - HDGE
+  - IEF
+  - MVV
+  - NUGT
+  - PDBC
+  - PSQ
+  - PUI
+  - QLD
+  - QQQ
+  - QUAL
+  - RPV
+  - RSP
+  - SCHD
+  - SDS
+  - SDY
+  - SH
+  - SHV
+  - SHY
+  - SJB
+  - SOXL
+  - SOXS
+  - SPLV
+  - SPXL
+  - SPXS
+  - SPXU
+  - SPY
+  - SQQQ
+  - SRTY
+  - SSO
+  - STIP
+  - SVXY
+  - TBF
+  - TBT
+  - TECL
+  - TECS
+  - TLT
+  - TMF
+  - TMV
+  - TNA
+  - TQQQ
+  - TTT
+  - TYD
+  - TYO
+  - TZA
+  - UCO
+  - UGL
+  - UPRO
+  - URTY
+  - USD
+  - USDU
+  - UUP
+  - UVXY
+  - VGIT
+  - VGLT
+  - VIXM
+  - VIXY
+  - VTIP
+  - VWO
+  - XLE
+  - XLF
+  - XLP
+  - XLU
+  - XLV
+  - XLY
+  - YCS
+  frontrunners:
+  - BND
+  - IEI
+  - LQD
+  - QQQE
+  - SHYG
+  - SOXX
+  - SPHB
+  - SPTL
+  - TLH
+  - VOOG
+  - VOOV
+  - VOX
+  - VTV
+  - XLK
