@@ -532,19 +532,50 @@ class SingleTradeHandler:
         Returns:
             Number of shares to trade
 
+        Raises:
+            MarketDataError: If unable to get price for share calculation
+
         """
         # If explicit shares provided, use those
         if trade_message.shares and trade_message.shares > 0:
             return trade_message.shares
 
         # Otherwise calculate from trade_amount and estimated price
-        # This is a simplified calculation - in production, get real-time price
         if trade_message.estimated_price and trade_message.estimated_price > 0:
             shares = abs(trade_message.trade_amount) / trade_message.estimated_price
             return shares.quantize(Decimal("0.000001"))
 
-        # Fallback: Use trade_amount as shares (for notional orders)
-        return abs(trade_message.trade_amount)
+        # No estimated price provided - fetch current market price
+        # This is critical: we must NOT use trade_amount (dollars) as shares
+        try:
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            current_price = alpaca_manager.get_current_price(trade_message.symbol)
+
+            if current_price and current_price > 0:
+                shares = abs(trade_message.trade_amount) / Decimal(str(current_price))
+                self.logger.debug(
+                    f"Calculated shares from current price: {shares:.6f} "
+                    f"(${abs(trade_message.trade_amount):.2f} / ${current_price:.2f})",
+                    extra={
+                        "symbol": trade_message.symbol,
+                        "trade_amount": str(trade_message.trade_amount),
+                        "current_price": str(current_price),
+                        "shares": str(shares),
+                    },
+                )
+                return shares.quantize(Decimal("0.000001"))
+
+            # Price is None or 0 - this is an error condition
+            raise MarketDataError(
+                f"Unable to get valid price for {trade_message.symbol}: price={current_price}"
+            )
+
+        except MarketDataError:
+            raise
+        except Exception as e:
+            raise MarketDataError(
+                f"Failed to fetch price for {trade_message.symbol} to calculate shares: {e}"
+            ) from e
 
     def _emit_trade_executed_event(
         self,
