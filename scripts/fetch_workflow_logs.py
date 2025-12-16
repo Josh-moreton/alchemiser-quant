@@ -115,73 +115,84 @@ def find_most_recent_workflow(
     orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
 
     end_time = datetime.now(UTC)
-    search_start = end_time - timedelta(hours=hours_back)
+    # Start with a narrow window (last 2 hours) to find recent workflows faster
+    # CloudWatch returns events oldest-first, so we search in reverse time order
+    search_windows = [
+        timedelta(hours=2),
+        timedelta(hours=6),
+        timedelta(hours=24),
+        timedelta(hours=hours_back),
+    ]
 
-    start_ms = int(search_start.timestamp() * 1000)
-    end_ms = int(end_time.timestamp() * 1000)
+    print(f"   Searching in {colour(stage.upper(), 'cyan')} environment...")
 
-    print(f"   Searching last {hours_back} hours in {colour(stage.upper(), 'cyan')} environment...")
+    for window in search_windows:
+        search_start = end_time - window
+        start_ms = int(search_start.timestamp() * 1000)
+        end_ms = int(end_time.timestamp() * 1000)
 
-    try:
-        # Search for any logs with a correlation_id field
-        # CloudWatch filter patterns don't support wildcards, so we just filter
-        # for existence of the correlation_id field
-        response = logs_client.filter_log_events(
-            logGroupName=orchestrator_log_group,
-            startTime=start_ms,
-            endTime=end_ms,
-            filterPattern='{ $.correlation_id = * }',
-            limit=200,  # Get recent events
-        )
-
-        events = response.get("events", [])
-        if not events:
-            # Try alternative: look for "workflow" in the message as fallback
+        try:
+            # Search for any logs with a correlation_id field
+            # CloudWatch filter patterns don't support wildcards, so we just filter
+            # for existence of the correlation_id field
             response = logs_client.filter_log_events(
                 logGroupName=orchestrator_log_group,
                 startTime=start_ms,
                 endTime=end_ms,
-                filterPattern='"workflow-"',
-                limit=200,
+                filterPattern='{ $.correlation_id = * }',
+                limit=500,  # Higher limit to ensure we capture recent events
             )
+
             events = response.get("events", [])
+            if not events:
+                # Try alternative: look for "workflow" in the message as fallback
+                response = logs_client.filter_log_events(
+                    logGroupName=orchestrator_log_group,
+                    startTime=start_ms,
+                    endTime=end_ms,
+                    filterPattern='"workflow-"',
+                    limit=500,
+                )
+                events = response.get("events", [])
 
-        if not events:
+            if not events:
+                # No events in this window, try a larger window
+                continue
+
+            # Parse events and find unique correlation_ids, taking the most recent
+            correlation_ids: dict[str, int] = {}  # correlation_id -> timestamp
+            for event in events:
+                try:
+                    message = json.loads(event["message"])
+                    cid = message.get("correlation_id", "")
+                    if cid and cid.startswith("workflow-"):
+                        ts = event["timestamp"]
+                        if cid not in correlation_ids or ts > correlation_ids[cid]:
+                            correlation_ids[cid] = ts
+                except json.JSONDecodeError:
+                    # Try to extract from raw message
+                    raw = event.get("message", "")
+                    match = re.search(r'workflow-[a-f0-9-]+', raw)
+                    if match:
+                        cid = match.group(0)
+                        ts = event["timestamp"]
+                        if cid not in correlation_ids or ts > correlation_ids[cid]:
+                            correlation_ids[cid] = ts
+
+            if correlation_ids:
+                # Return the most recent one
+                most_recent = max(correlation_ids.items(), key=lambda x: x[1])
+                return most_recent[0]
+
+        except logs_client.exceptions.ResourceNotFoundException:
+            print(f"   {colour('⚠️  Orchestrator log group not found', 'yellow')}")
+            return None
+        except ClientError as e:
+            print(f"   {colour(f'❌ Error searching logs: {e}', 'red')}")
             return None
 
-        # Parse events and find unique correlation_ids, taking the most recent
-        correlation_ids: dict[str, int] = {}  # correlation_id -> timestamp
-        for event in events:
-            try:
-                message = json.loads(event["message"])
-                cid = message.get("correlation_id", "")
-                if cid and cid.startswith("workflow-"):
-                    ts = event["timestamp"]
-                    if cid not in correlation_ids or ts > correlation_ids[cid]:
-                        correlation_ids[cid] = ts
-            except json.JSONDecodeError:
-                # Try to extract from raw message
-                raw = event.get("message", "")
-                match = re.search(r'workflow-[a-f0-9-]+', raw)
-                if match:
-                    cid = match.group(0)
-                    ts = event["timestamp"]
-                    if cid not in correlation_ids or ts > correlation_ids[cid]:
-                        correlation_ids[cid] = ts
-
-        if not correlation_ids:
-            return None
-
-        # Return the most recent one
-        most_recent = max(correlation_ids.items(), key=lambda x: x[1])
-        return most_recent[0]
-
-    except logs_client.exceptions.ResourceNotFoundException:
-        print(f"   {colour('⚠️  Orchestrator log group not found', 'yellow')}")
-        return None
-    except ClientError as e:
-        print(f"   {colour(f'❌ Error searching logs: {e}', 'red')}")
-        return None
+    # No workflows found in any window
+    return None
 
 
 def detect_workflow_time_range(

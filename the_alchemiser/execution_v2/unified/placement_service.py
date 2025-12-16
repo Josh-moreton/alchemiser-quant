@@ -211,7 +211,7 @@ class UnifiedOrderPlacementService:
         # Step 2: Pre-execution portfolio validation (get initial position)
         initial_position = Decimal("0")
         if self.enable_validation:
-            can_execute, initial_position, validation_error = (
+            can_execute, initial_position, validation_error, adjusted_qty = (
                 self.validator.validate_before_execution(intent)
             )
             if not can_execute and validation_error:
@@ -222,6 +222,16 @@ class UnifiedOrderPlacementService:
                 )
                 return self._create_failure_result(
                     intent, start_time, "pre_validation_failed", validation_error
+                )
+
+            # Use adjusted quantity if provided (handles floating-point discrepancies)
+            if adjusted_qty is not None:
+                intent = replace(intent, quantity=adjusted_qty)
+                logger.info(
+                    "Adjusted quantity from pre-execution validation",
+                    **log_extra,
+                    original_qty=str(intent.quantity),
+                    adjusted_qty=str(adjusted_qty),
                 )
 
         # Step 3: Get quote

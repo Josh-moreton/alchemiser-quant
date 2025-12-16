@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -23,6 +23,19 @@ help:
 	@echo "  sync-data                            Sync all symbols from S3 to local"
 	@echo "  sync-data force=1                   Force re-download all data"
 	@echo "  seed-data                            Seed S3 from Alpaca (requires API keys)"
+	@echo ""
+	@echo "Strategy Ledger Management:"
+	@echo "  strategy-add                         Add strategy to ledger interactively"
+	@echo "  strategy-add-from-config            Add strategies from config (strategy.dev.json)"
+	@echo "  strategy-add-from-config config=... Use custom config file"
+	@echo "  strategy-list                        List all strategies in ledger"
+	@echo "  strategy-sync                        Sync ledger to DynamoDB (dev)"
+	@echo "  strategy-sync stage=prod            Sync ledger to DynamoDB (prod)"
+	@echo "  strategy-list-dynamo                List strategies from DynamoDB (dev)"
+	@echo "  strategy-list-dynamo stage=prod     List strategies from DynamoDB (prod)"
+	@echo "  strategy-check-fractionable         Check fractionability (uses strategy.dev.json)"
+	@echo "  strategy-check-fractionable config=strategy.prod.json"
+	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs                       Fetch logs from most recent workflow (dev)"
@@ -241,6 +254,58 @@ seed-data:
 		exit 1; \
 	fi
 	poetry run python scripts/seed_market_data.py
+
+# ============================================================================
+# STRATEGY LEDGER
+# ============================================================================
+
+# Add a strategy to the ledger interactively
+# Usage: make strategy-add
+strategy-add:
+	@echo "📋 Adding strategy to ledger..."
+	poetry run python scripts/strategy_ledger.py add
+
+# Add all strategies from a config file to the ledger
+# Usage: make strategy-add-from-config               # Uses strategy.dev.json
+#        make strategy-add-from-config config=strategy.prod.json
+strategy-add-from-config:
+	@echo "📋 Adding strategies from config..."
+	@CONFIG=$${config:-strategy.dev.json}; \
+	poetry run python scripts/strategy_ledger.py add-from-config --config $$CONFIG
+
+# List all strategies in the ledger
+# Usage: make strategy-list
+strategy-list:
+	@poetry run python scripts/strategy_ledger.py list
+
+# Sync strategy ledger to DynamoDB
+# Usage: make strategy-sync                  # Sync to dev
+#        make strategy-sync stage=prod       # Sync to prod
+strategy-sync:
+	@echo "🔄 Syncing strategy ledger to DynamoDB..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_ledger.py sync --stage $$STAGE
+
+# List strategies from DynamoDB
+# Usage: make strategy-list-dynamo           # List from dev
+#        make strategy-list-dynamo stage=prod
+strategy-list-dynamo:
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_ledger.py list-dynamo --stage $$STAGE
+
+# Check which assets are not fractionable
+# Usage: make strategy-check-fractionable                    # Uses strategy.dev.json
+#        make strategy-check-fractionable config=strategy.prod.json
+#        make strategy-check-fractionable verbose=1
+#        make strategy-check-fractionable all=1               # Check all .clj files
+strategy-check-fractionable:
+	@echo "🔍 Checking asset fractionability..."
+	@ARGS=""; \
+	if [ -n "$(config)" ]; then ARGS="$$ARGS --config $(config)"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	if [ -n "$(show-all)" ]; then ARGS="$$ARGS --show-all"; fi; \
+	if [ -n "$(all)" ]; then ARGS="$$ARGS --all-strategies"; fi; \
+	poetry run python scripts/check_fractionable_assets.py $$ARGS
 
 # ============================================================================
 # OBSERVABILITY

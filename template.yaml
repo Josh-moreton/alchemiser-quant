@@ -1782,6 +1782,140 @@ Resources:
                 "y": 30,
                 "width": 6,
                 "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "P&L by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "P&L ($)" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} RealizedPnL', 'Sum', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 0,
+                "y": 36,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Win Rate by Strategy (%)",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "%", "min": 0, "max": 100 } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} WinRate', 'Average', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 12,
+                "y": 36,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Open Position Value by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 3600,
+                  "view": "timeSeries",
+                  "stacked": true,
+                  "yAxis": { "left": { "label": "Value ($)" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} OpenPositionValue', 'Average', 3600)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 0,
+                "y": 42,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Open Lots by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 3600,
+                  "view": "timeSeries",
+                  "stacked": true,
+                  "yAxis": { "left": { "label": "Count", "min": 0 } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} OpenLotCount', 'Average', 3600)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 12,
+                "y": 42,
+                "width": 6,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Closed Lots by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": true,
+                  "yAxis": { "left": { "label": "Count", "min": 0 } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} ClosedLotCount', 'Sum', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 18,
+                "y": 42,
+                "width": 6,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Winning vs Losing Trades by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "view": "bar",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "Count" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} WinningTrades', 'Average', 86400)", "label": "", "id": "e1" } ],
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} LosingTrades', 'Average', 86400)", "label": "", "id": "e2" } ]
+                  ]
+                },
+                "x": 0,
+                "y": 48,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Avg Profit per Trade by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "$ per trade" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} AvgProfitPerTrade', 'Average', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 12,
+                "y": 48,
+                "width": 12,
+                "height": 6
               }
             ]
           }
@@ -1791,7 +1925,7 @@ Resources:
           PortfolioLog: !Sub "/aws/lambda/${PortfolioFunction}"
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
-          MetricsLog: !If [ IsProduction, !Sub "/aws/lambda/${MetricsFunction}", "/aws/lambda/metrics-not-deployed" ]
+          MetricsLog: !Sub "/aws/lambda/${MetricsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 

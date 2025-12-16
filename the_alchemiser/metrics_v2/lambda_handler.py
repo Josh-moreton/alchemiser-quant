@@ -89,12 +89,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Get deployment stage
         stage = os.environ.get("STAGE", "production")
 
-        # Create metrics publisher and publish strategy P&L
+        # Create metrics publisher and publish all metrics
         publisher = CloudWatchMetricsPublisher(
             trade_ledger_table_name=trade_ledger_table,
             stage=stage,
         )
         publisher.publish_strategy_pnl_metrics(correlation_id)
+        publisher.publish_all_strategy_metrics(correlation_id)
 
         # Extract and publish capital deployed percentage from event metadata
         metadata = detail.get("metadata", {})

@@ -1059,3 +1059,253 @@ class DynamoDBTradeLedgerRepository:
         except DynamoDBException as e:
             logger.error(f"Failed to discover strategies with closed lots: {e}")
             return []
+
+    # ========================================================================
+    # Strategy Metadata Operations
+    # ========================================================================
+
+    def put_strategy_metadata(
+        self,
+        strategy_name: str,
+        display_name: str,
+        source_url: str,
+        filename: str,
+        assets: list[str],
+        frontrunners: list[str] | None = None,
+        date_updated: str | None = None,
+    ) -> None:
+        """Write strategy metadata to DynamoDB.
+
+        Creates a STRATEGY_METADATA item with the strategy definition.
+        This syncs the strategy ledger YAML to DynamoDB for web UI access.
+
+        The strategy_name is the filename stem (e.g., 'rain' from 'rain.clj')
+        which matches the runtime attribution used throughout the system.
+
+        Args:
+            strategy_name: Unique strategy identifier (filename stem, matches runtime)
+            display_name: Human-readable name from defsymphony declaration
+            source_url: Original Composer symphony URL
+            filename: Local .clj filename
+            assets: List of asset tickers traded by this strategy
+            frontrunners: List of frontrunner tickers (used in indicators only)
+            date_updated: Last update date (YYYY-MM-DD format)
+
+        """
+        now = datetime.now(UTC)
+
+        item: dict[str, Any] = {
+            "PK": f"STRATEGY#{strategy_name}",
+            "SK": "METADATA",
+            "EntityType": "STRATEGY_METADATA",
+            "strategy_name": strategy_name,
+            "display_name": display_name,
+            "source_url": source_url,
+            "filename": filename,
+            "assets": assets,
+            "frontrunners": frontrunners or [],
+            "date_updated": date_updated or now.strftime("%Y-%m-%d"),
+            "synced_at": now.isoformat(),
+            # GSI3 allows listing all strategies
+            "GSI3PK": "STRATEGIES",
+            "GSI3SK": f"METADATA#{strategy_name}",
+        }
+
+        try:
+            self._table.put_item(Item=item)
+            logger.info(
+                "Strategy metadata written to DynamoDB",
+                strategy_name=strategy_name,
+                display_name=display_name,
+                assets_count=len(assets),
+            )
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to write strategy metadata",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            raise
+
+    def get_strategy_metadata(self, strategy_name: str) -> dict[str, Any] | None:
+        """Get strategy metadata by name.
+
+        Args:
+            strategy_name: Strategy name (filename stem)
+
+        Returns:
+            Strategy metadata dict or None if not found
+
+        """
+        try:
+            response = self._table.get_item(
+                Key={"PK": f"STRATEGY#{strategy_name}", "SK": "METADATA"}
+            )
+            item = response.get("Item")
+            return dict(item) if item else None
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to get strategy metadata",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            return None
+
+    def list_strategy_metadata(self) -> list[dict[str, Any]]:
+        """List all strategy metadata records.
+
+        Uses GSI3 to efficiently query all STRATEGY_METADATA items.
+
+        Returns:
+            List of strategy metadata dicts
+
+        """
+        try:
+            response = self._table.query(
+                IndexName="GSI3-StrategyIndex",
+                KeyConditionExpression="GSI3PK = :pk",
+                ExpressionAttributeValues={":pk": "STRATEGIES"},
+            )
+
+            items = response.get("Items", [])
+
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self._table.query(
+                    IndexName="GSI3-StrategyIndex",
+                    KeyConditionExpression="GSI3PK = :pk",
+                    ExpressionAttributeValues={":pk": "STRATEGIES"},
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error(f"Failed to list strategy metadata: {e}")
+            return []
+
+    def delete_strategy_metadata(self, strategy_name: str) -> bool:
+        """Delete strategy metadata by name.
+
+        Args:
+            strategy_name: Strategy name (filename stem)
+
+        Returns:
+            True if deleted, False on error
+
+        """
+        try:
+            self._table.delete_item(
+                Key={"PK": f"STRATEGY#{strategy_name}", "SK": "METADATA"}
+            )
+            logger.info("Strategy metadata deleted", strategy_name=strategy_name)
+            return True
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to delete strategy metadata",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            return False
+
+    def get_strategy_summary(self, strategy_name: str) -> dict[str, Any]:
+        """Get aggregated statistics for a strategy.
+
+        Calculates comprehensive metrics from all lots for the strategy.
+
+        Args:
+            strategy_name: Strategy name (filename stem)
+
+        Returns:
+            Dict with keys:
+                - open_lot_count: Number of open lots
+                - closed_lot_count: Number of closed lots
+                - open_position_value: Market value at entry (open lots only)
+                - total_realized_pnl: Sum of realized P&L from closed lots
+                - winning_trades: Count of closed lots with positive P&L
+                - losing_trades: Count of closed lots with negative or zero P&L
+                - win_rate: Percentage of winning trades (0-100)
+                - avg_profit_per_trade: Average realized P&L per closed lot
+
+        """
+        from decimal import Decimal
+
+        lots = self.query_all_lots_by_strategy(strategy_name)
+
+        open_lot_count = 0
+        closed_lot_count = 0
+        open_position_value = Decimal("0")
+        total_realized_pnl = Decimal("0")
+        winning_trades = 0
+        losing_trades = 0
+
+        for lot in lots:
+            if lot.is_open:
+                open_lot_count += 1
+                # Use entry cost basis as position value (current price would require market data)
+                open_position_value += lot.remaining_qty * lot.entry_price
+            else:
+                closed_lot_count += 1
+                pnl = lot.realized_pnl
+                total_realized_pnl += pnl
+                if pnl > 0:
+                    winning_trades += 1
+                else:
+                    losing_trades += 1
+
+        # Calculate derived metrics
+        total_trades = closed_lot_count
+        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else Decimal("0")
+        avg_profit = (total_realized_pnl / total_trades) if total_trades > 0 else Decimal("0")
+
+        return {
+            "strategy_name": strategy_name,
+            "open_lot_count": open_lot_count,
+            "closed_lot_count": closed_lot_count,
+            "open_position_value": open_position_value,
+            "total_realized_pnl": total_realized_pnl,
+            "winning_trades": winning_trades,
+            "losing_trades": losing_trades,
+            "win_rate": Decimal(str(win_rate)),
+            "avg_profit_per_trade": avg_profit,
+        }
+
+    def get_all_strategy_summaries(self) -> list[dict[str, Any]]:
+        """Get aggregated statistics for all strategies.
+
+        Returns:
+            List of strategy summary dicts
+
+        """
+        # Get all registered strategies from metadata
+        metadata_list = self.list_strategy_metadata()
+        strategy_names = {m.get("strategy_name") for m in metadata_list if m.get("strategy_name")}
+
+        # Also include strategies with lots but no metadata (shouldn't happen, but be safe)
+        strategies_with_lots = set(self.discover_strategies_with_closed_lots())
+
+        # Query for strategies with open lots too
+        try:
+            response = self._table.scan(
+                FilterExpression="begins_with(PK, :pk) AND is_open = :open",
+                ExpressionAttributeValues={
+                    ":pk": "LOT#",
+                    ":open": True,
+                },
+                ProjectionExpression="strategy_name",
+            )
+            for item in response.get("Items", []):
+                name = item.get("strategy_name")
+                if name:
+                    strategies_with_lots.add(name)
+        except DynamoDBException:
+            pass  # Best effort
+
+        all_strategies = strategy_names | strategies_with_lots
+        summaries = []
+
+        for strategy_name in sorted(all_strategies):
+            summary = self.get_strategy_summary(strategy_name)
+            summaries.append(summary)
+
+        return summaries

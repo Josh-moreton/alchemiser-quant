@@ -30,6 +30,9 @@ DEFAULT_SETTLEMENT_WAIT_SECONDS = 5.0
 DEFAULT_SETTLEMENT_TIMEOUT_SECONDS = 30.0
 SETTLEMENT_CHECK_INTERVAL_SECONDS = 1.0
 FRACTIONAL_TOLERANCE = Decimal("0.001")  # Allow tiny fractional discrepancies
+# Pre-execution sell tolerance: allow up to 1% difference between requested and available quantity
+# This handles floating-point precision issues when portfolio calculations and broker positions differ
+PRE_EXECUTION_SELL_TOLERANCE_PCT = Decimal("0.01")
 
 
 @dataclass(frozen=True)
@@ -310,16 +313,22 @@ class PortfolioValidator:
         )
         return Decimal("0")
 
-    def validate_before_execution(self, intent: OrderIntent) -> tuple[bool, Decimal, str | None]:
+    def validate_before_execution(
+        self, intent: OrderIntent
+    ) -> tuple[bool, Decimal, str | None, Decimal | None]:
         """Validate portfolio state before execution and return initial position.
 
         This fetches the current position so we can validate changes after execution.
+        If the requested sell quantity slightly exceeds the available position (within
+        tolerance), returns an adjusted quantity to prevent failures due to floating-point
+        precision issues in portfolio calculations.
 
         Args:
             intent: Order intent to validate
 
         Returns:
-            Tuple of (can_execute, initial_position, error_message)
+            Tuple of (can_execute, initial_position, error_message, adjusted_quantity)
+            - adjusted_quantity is set when sell qty needs to be capped to available position
 
         """
         try:
@@ -332,19 +341,41 @@ class PortfolioValidator:
             else:
                 initial_position = Decimal("0")
 
+            adjusted_quantity: Decimal | None = None
+
             # Validate sell orders have sufficient position
             if intent.is_sell and initial_position < intent.quantity:
-                error_msg = (
-                    f"Insufficient position for {intent.symbol}: "
-                    f"need {intent.quantity}, have {initial_position}"
-                )
-                logger.error(
-                    "Pre-execution validation failed",
-                    symbol=intent.symbol,
-                    error=error_msg,
-                    correlation_id=intent.correlation_id,
-                )
-                return False, initial_position, error_msg
+                # Calculate the discrepancy
+                shortfall = intent.quantity - initial_position
+                tolerance_threshold = intent.quantity * PRE_EXECUTION_SELL_TOLERANCE_PCT
+
+                # If within tolerance (small floating-point discrepancy), adjust quantity
+                if shortfall <= tolerance_threshold and initial_position > Decimal("0"):
+                    adjusted_quantity = initial_position
+                    logger.info(
+                        "Adjusting sell quantity to match available position",
+                        symbol=intent.symbol,
+                        requested_qty=str(intent.quantity),
+                        available_qty=str(initial_position),
+                        shortfall=str(shortfall),
+                        tolerance_threshold=str(tolerance_threshold),
+                        correlation_id=intent.correlation_id,
+                    )
+                else:
+                    # Genuine shortfall - fail validation
+                    error_msg = (
+                        f"Insufficient position for {intent.symbol}: "
+                        f"need {intent.quantity}, have {initial_position}"
+                    )
+                    logger.error(
+                        "Pre-execution validation failed",
+                        symbol=intent.symbol,
+                        error=error_msg,
+                        shortfall=str(shortfall),
+                        tolerance_threshold=str(tolerance_threshold),
+                        correlation_id=intent.correlation_id,
+                    )
+                    return False, initial_position, error_msg, None
 
             # Validate full close matches position
             if intent.is_full_close and initial_position != intent.quantity:
@@ -364,9 +395,10 @@ class PortfolioValidator:
                 side=intent.side.value,
                 order_qty=str(intent.quantity),
                 initial_position=str(initial_position),
+                adjusted_qty=str(adjusted_quantity) if adjusted_quantity else None,
                 correlation_id=intent.correlation_id,
             )
-            return True, initial_position, None
+            return True, initial_position, None, adjusted_quantity
 
         except Exception as e:
             error_msg = f"Failed to fetch position for validation: {e}"
@@ -377,4 +409,4 @@ class PortfolioValidator:
                 correlation_id=intent.correlation_id,
             )
             # Don't block execution on validation errors
-            return True, Decimal("0"), None
+            return True, Decimal("0"), None, None

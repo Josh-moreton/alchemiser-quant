@@ -526,25 +526,97 @@ class SingleTradeHandler:
     def _calculate_shares(self, trade_message: TradeMessage) -> Decimal:
         """Calculate shares to trade from trade amount.
 
+        For full liquidations (target_weight = 0), fetches the actual position
+        from Alpaca to ensure we sell exactly what we hold, avoiding floating-point
+        precision mismatches between calculated and actual positions.
+
         Args:
             trade_message: The trade message
 
         Returns:
             Number of shares to trade
 
+        Raises:
+            MarketDataError: If unable to get price for share calculation
+
         """
+        # CRITICAL: For full liquidations, use actual position from Alpaca
+        # This avoids floating-point precision errors between calculated and actual positions
+        is_full_liquidation = (
+            trade_message.is_full_liquidation or trade_message.target_weight <= Decimal("0")
+        )
+        if is_full_liquidation and trade_message.action == "SELL":
+            try:
+                alpaca_manager = self.container.infrastructure.alpaca_manager()
+                position = alpaca_manager.get_position(trade_message.symbol)
+                if position:
+                    actual_qty = getattr(position, "qty", None)
+                    if actual_qty and Decimal(str(actual_qty)) > 0:
+                        shares = Decimal(str(actual_qty))
+                        # Calculate what we would have used for comparison logging
+                        calculated_shares = None
+                        if trade_message.estimated_price and trade_message.estimated_price > 0:
+                            calculated_shares = (
+                                abs(trade_message.trade_amount) / trade_message.estimated_price
+                            )
+                        self.logger.info(
+                            "Using actual position for full liquidation",
+                            extra={
+                                "symbol": trade_message.symbol,
+                                "actual_position": str(shares),
+                                "calculated_would_be": str(calculated_shares)
+                                if calculated_shares
+                                else "unknown",
+                            },
+                        )
+                        return shares
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to fetch position for full liquidation, "
+                    f"falling back to calculation: {e}",
+                    extra={"symbol": trade_message.symbol},
+                )
+
         # If explicit shares provided, use those
         if trade_message.shares and trade_message.shares > 0:
             return trade_message.shares
 
         # Otherwise calculate from trade_amount and estimated price
-        # This is a simplified calculation - in production, get real-time price
         if trade_message.estimated_price and trade_message.estimated_price > 0:
             shares = abs(trade_message.trade_amount) / trade_message.estimated_price
             return shares.quantize(Decimal("0.000001"))
 
-        # Fallback: Use trade_amount as shares (for notional orders)
-        return abs(trade_message.trade_amount)
+        # No estimated price provided - fetch current market price
+        # This is critical: we must NOT use trade_amount (dollars) as shares
+        try:
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            current_price = alpaca_manager.get_current_price(trade_message.symbol)
+
+            if current_price and current_price > 0:
+                shares = abs(trade_message.trade_amount) / Decimal(str(current_price))
+                self.logger.debug(
+                    f"Calculated shares from current price: {shares:.6f} "
+                    f"(${abs(trade_message.trade_amount):.2f} / ${current_price:.2f})",
+                    extra={
+                        "symbol": trade_message.symbol,
+                        "trade_amount": str(trade_message.trade_amount),
+                        "current_price": str(current_price),
+                        "shares": str(shares),
+                    },
+                )
+                return shares.quantize(Decimal("0.000001"))
+
+            # Price is None or 0 - this is an error condition
+            raise MarketDataError(
+                f"Unable to get valid price for {trade_message.symbol}: price={current_price}"
+            )
+
+        except MarketDataError:
+            raise
+        except Exception as e:
+            raise MarketDataError(
+                f"Failed to fetch price for {trade_message.symbol} to calculate shares: {e}"
+            ) from e
 
     def _emit_trade_executed_event(
         self,
