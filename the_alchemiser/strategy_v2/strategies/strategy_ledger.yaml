@@ -745,3 +745,13 @@ wakanda:
   - VOX
   - VTV
   - XLK
+gold:
+  strategy_name: gold
+  display_name: Golden Tech Rotation 2x
+  source_url: https://app.composer.trade/symphony/VS2T2r90LMPMmO8rG4aL/details
+  filename: gold.clj
+  date_updated: '2025-12-16'
+  assets:
+  - GLL
+  - QQQ
+  - UGL
