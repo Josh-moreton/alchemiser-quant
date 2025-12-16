@@ -243,6 +243,44 @@ seed-data:
 	poetry run python scripts/seed_market_data.py
 
 # ============================================================================
+# STRATEGY LEDGER
+# ============================================================================
+
+# Add a strategy to the ledger interactively
+# Usage: make strategy-add
+strategy-add:
+	@echo "📋 Adding strategy to ledger..."
+	poetry run python scripts/strategy_ledger.py add
+
+# Add all strategies from a config file to the ledger
+# Usage: make strategy-add-from-config               # Uses strategy.dev.json
+#        make strategy-add-from-config config=strategy.prod.json
+strategy-add-from-config:
+	@echo "📋 Adding strategies from config..."
+	@CONFIG=$${config:-strategy.dev.json}; \
+	poetry run python scripts/strategy_ledger.py add-from-config --config $$CONFIG
+
+# List all strategies in the ledger
+# Usage: make strategy-list
+strategy-list:
+	@poetry run python scripts/strategy_ledger.py list
+
+# Sync strategy ledger to DynamoDB
+# Usage: make strategy-sync                  # Sync to dev
+#        make strategy-sync stage=prod       # Sync to prod
+strategy-sync:
+	@echo "🔄 Syncing strategy ledger to DynamoDB..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_ledger.py sync --stage $$STAGE
+
+# List strategies from DynamoDB
+# Usage: make strategy-list-dynamo           # List from dev
+#        make strategy-list-dynamo stage=prod
+strategy-list-dynamo:
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_ledger.py list-dynamo --stage $$STAGE
+
+# ============================================================================
 # OBSERVABILITY
 # ============================================================================
 

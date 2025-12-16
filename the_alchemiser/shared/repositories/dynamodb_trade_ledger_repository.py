@@ -1059,3 +1059,151 @@ class DynamoDBTradeLedgerRepository:
         except DynamoDBException as e:
             logger.error(f"Failed to discover strategies with closed lots: {e}")
             return []
+
+    # ========================================================================
+    # Strategy Metadata Operations
+    # ========================================================================
+
+    def put_strategy_metadata(
+        self,
+        strategy_name: str,
+        display_name: str,
+        source_url: str,
+        filename: str,
+        assets: list[str],
+        frontrunners: list[str] | None = None,
+        date_updated: str | None = None,
+    ) -> None:
+        """Write strategy metadata to DynamoDB.
+
+        Creates a STRATEGY_METADATA item with the strategy definition.
+        This syncs the strategy ledger YAML to DynamoDB for web UI access.
+
+        The strategy_name is the filename stem (e.g., 'rain' from 'rain.clj')
+        which matches the runtime attribution used throughout the system.
+
+        Args:
+            strategy_name: Unique strategy identifier (filename stem, matches runtime)
+            display_name: Human-readable name from defsymphony declaration
+            source_url: Original Composer symphony URL
+            filename: Local .clj filename
+            assets: List of asset tickers traded by this strategy
+            frontrunners: List of frontrunner tickers (used in indicators only)
+            date_updated: Last update date (YYYY-MM-DD format)
+
+        """
+        now = datetime.now(UTC)
+
+        item: dict[str, Any] = {
+            "PK": f"STRATEGY#{strategy_name}",
+            "SK": "METADATA",
+            "EntityType": "STRATEGY_METADATA",
+            "strategy_name": strategy_name,
+            "display_name": display_name,
+            "source_url": source_url,
+            "filename": filename,
+            "assets": assets,
+            "frontrunners": frontrunners or [],
+            "date_updated": date_updated or now.strftime("%Y-%m-%d"),
+            "synced_at": now.isoformat(),
+            # GSI3 allows listing all strategies
+            "GSI3PK": "STRATEGIES",
+            "GSI3SK": f"METADATA#{strategy_name}",
+        }
+
+        try:
+            self._table.put_item(Item=item)
+            logger.info(
+                "Strategy metadata written to DynamoDB",
+                strategy_name=strategy_name,
+                display_name=display_name,
+                assets_count=len(assets),
+            )
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to write strategy metadata",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            raise
+
+    def get_strategy_metadata(self, strategy_name: str) -> dict[str, Any] | None:
+        """Get strategy metadata by name.
+
+        Args:
+            strategy_name: Strategy name (filename stem)
+
+        Returns:
+            Strategy metadata dict or None if not found
+
+        """
+        try:
+            response = self._table.get_item(
+                Key={"PK": f"STRATEGY#{strategy_name}", "SK": "METADATA"}
+            )
+            item = response.get("Item")
+            return dict(item) if item else None
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to get strategy metadata",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            return None
+
+    def list_strategy_metadata(self) -> list[dict[str, Any]]:
+        """List all strategy metadata records.
+
+        Uses GSI3 to efficiently query all STRATEGY_METADATA items.
+
+        Returns:
+            List of strategy metadata dicts
+
+        """
+        try:
+            response = self._table.query(
+                IndexName="GSI3-StrategyIndex",
+                KeyConditionExpression="GSI3PK = :pk",
+                ExpressionAttributeValues={":pk": "STRATEGIES"},
+            )
+
+            items = response.get("Items", [])
+
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self._table.query(
+                    IndexName="GSI3-StrategyIndex",
+                    KeyConditionExpression="GSI3PK = :pk",
+                    ExpressionAttributeValues={":pk": "STRATEGIES"},
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+
+            return [dict(item) for item in items]
+        except DynamoDBException as e:
+            logger.error(f"Failed to list strategy metadata: {e}")
+            return []
+
+    def delete_strategy_metadata(self, strategy_name: str) -> bool:
+        """Delete strategy metadata by name.
+
+        Args:
+            strategy_name: Strategy name (filename stem)
+
+        Returns:
+            True if deleted, False on error
+
+        """
+        try:
+            self._table.delete_item(
+                Key={"PK": f"STRATEGY#{strategy_name}", "SK": "METADATA"}
+            )
+            logger.info("Strategy metadata deleted", strategy_name=strategy_name)
+            return True
+        except DynamoDBException as e:
+            logger.error(
+                "Failed to delete strategy metadata",
+                strategy_name=strategy_name,
+                error=str(e),
+            )
+            return False
