@@ -30,7 +30,6 @@ from the_alchemiser.shared.errors.exceptions import (
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
-    RebalancePlanned,
     SignalGenerated,
     WorkflowFailed,
 )
@@ -50,16 +49,6 @@ from ..core.portfolio_service import PortfolioServiceV2
 
 # Module name constant for consistent logging and error reporting
 MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
-
-
-def _is_per_trade_execution_enabled() -> bool:
-    """Check if per-trade execution is enabled via feature flag.
-
-    Returns:
-        True if ENABLE_PER_TRADE_EXECUTION is set to 'true'.
-
-    """
-    return os.environ.get("ENABLE_PER_TRADE_EXECUTION", "false").lower() == "true"
 
 
 def _get_execution_fifo_queue_url() -> str:
@@ -877,9 +866,9 @@ class PortfolioAnalysisHandler:
     ) -> None:
         """Emit RebalancePlanned event with proper causation chain.
 
-        When per-trade execution is enabled (ENABLE_PER_TRADE_EXECUTION=true),
-        this method decomposes the plan into individual TradeMessages and
-        enqueues them to SQS FIFO instead of publishing RebalancePlanned.
+        Decomposes the plan into individual TradeMessages and enqueues them
+        to SQS FIFO for per-trade execution. Each trade is executed by a
+        separate Execution Lambda invocation.
 
         Args:
             rebalance_plan: Generated rebalance plan
@@ -910,44 +899,22 @@ class PortfolioAnalysisHandler:
             # Determine if actual trades (BUY/SELL) are required, not just HOLDs
             trades_required = any(item.action in ["BUY", "SELL"] for item in rebalance_plan.items)
 
-            # Check if per-trade execution is enabled
-            if _is_per_trade_execution_enabled() and trades_required:
-                # Use per-trade execution: decompose and enqueue to SQS FIFO
+            if trades_required:
+                # Decompose and enqueue trades to SQS FIFO for per-trade execution
                 self._enqueue_trades_for_per_trade_execution(
                     rebalance_plan=rebalance_plan,
                     correlation_id=original_event.correlation_id,
                     causation_id=original_event.event_id,
                 )
-                return
-
-            # Legacy mode: publish RebalancePlanned event to EventBridge
-            event = RebalancePlanned(
-                correlation_id=original_event.correlation_id,
-                causation_id=original_event.event_id,  # Direct causation from SignalGenerated
-                event_id=f"rebalance-planned-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="portfolio_v2.handlers",
-                source_component="PortfolioAnalysisHandler",
-                rebalance_plan=rebalance_plan,
-                allocation_comparison=allocation_comparison,
-                trades_required=trades_required,
-                metadata={
-                    "analysis_timestamp": datetime.now(UTC).isoformat(),
-                    "source": "event_driven_handler",
-                },
-            )
-
-            self.event_bus.publish(event)
-
-            trades_count = len(rebalance_plan.items)
-            self.logger.info(
-                "Emitted RebalancePlanned event",
-                extra={
-                    "correlation_id": original_event.correlation_id,
-                    "trades_count": trades_count,
-                    "trades_required": trades_required,
-                },
-            )
+            else:
+                # No trades required - log and skip execution
+                self.logger.info(
+                    "No trades required - skipping execution",
+                    extra={
+                        "correlation_id": original_event.correlation_id,
+                        "plan_items": len(rebalance_plan.items),
+                    },
+                )
 
         except (ValidationError, TypeError, AttributeError) as e:
             # Event construction errors - log and reraise

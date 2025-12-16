@@ -95,17 +95,15 @@ the_alchemiser/
 └── shared/           # DTOs, events, adapters, utilities
 ```
 
-**Note**: Multi-node mode is controlled by `ENABLE_MULTI_NODE_STRATEGY` env var. When `false` (default), Strategy Worker runs all strategies sequentially (legacy mode).
-
 ### Critical Architecture Rules
 1. **Business modules only import from `shared/`** - no cross-module imports
 2. **Event-driven communication** - Lambdas publish/consume events via EventBridge
-3. **SQS for execution** - Trade execution is buffered via SQS for reliability
+3. **SQS FIFO for execution** - Per-trade execution buffered via SQS FIFO for ordering
 4. **SNS for notifications** - Email notifications via SNS topic subscriptions
 5. **DTOs at boundaries** - never pass raw dicts between modules
 6. **Idempotent handlers** - all event handlers must be safe under replay
 
-### Event Flow (Multi-Node Mode)
+### Event Flow (Signal Generation)
 ```
 [EventBridge Schedule] → Strategy Orchestrator
         ↓ (Async Lambda Invoke)
@@ -114,19 +112,13 @@ the_alchemiser/
     Signal Aggregator (merges when all complete)
         ↓ (SignalGenerated via EventBridge)
     Portfolio Lambda
-        ↓ (RebalancePlanned via EventBridge → SQS)
-    Execution Lambda (SQS-triggered)
-        ↓ (TradeExecuted/WorkflowFailed via EventBridge)
-    Notifications Lambda → SNS → Email
 ```
 
-### Event Flow (Legacy Mode - ENABLE_MULTI_NODE_STRATEGY=false)
+### Event Flow (Trade Execution)
 ```
-[EventBridge Schedule] → Strategy Worker (runs all DSL files sequentially)
-        ↓ (SignalGenerated via EventBridge)
-    Portfolio Lambda
-        ↓ (RebalancePlanned via EventBridge → SQS)
-    Execution Lambda (SQS-triggered)
+Portfolio Lambda
+        ↓ (Individual trade messages to SQS FIFO)
+    Execution Lambda (one trade at a time)
         ↓ (TradeExecuted/WorkflowFailed via EventBridge)
     Notifications Lambda → SNS → Email
 ```

@@ -1,61 +1,28 @@
 #!/usr/bin/env python3
 """Business Unit: execution | Status: current.
 
-New execution module built around DTO consumption principle.
+Execution module for trade execution via Alpaca.
 
 This module provides a clean, minimal execution system that:
-- Consumes RebalancePlan without recalculation
+- Consumes TradeMessage DTOs from SQS FIFO queue
 - Delegates order placement to shared AlpacaManager
 - Focuses solely on order execution
 - Maintains clean module boundaries
-- Communicates exclusively via events in the event-driven architecture
+- Communicates via events in the event-driven architecture
 
-Public API (Event-Driven):
-- register_execution_handlers: Event handler registration for orchestration
+Architecture:
+- Execution Lambda (lambda_handler.py) processes one trade at a time from SQS FIFO
+- Execution handlers live under `execution_v2.handlers` and process trade
+    messages to produce `TradeExecuted` events
 
-Legacy API (Being Phased Out):
-- ExecutionManager: Direct access manager (for migration only)
-- ExecutionResult: Result DTO (for migration only)
+Note:
+- Legacy registration helpers and deprecated handler aliases have been
+    removed from public documentation; register handlers via the
+    application's dependency injection container.
+
 """
 
 from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from the_alchemiser.execution_v2.adapters.transports import EventTransport
-    from the_alchemiser.shared.config.container import ApplicationContainer
-
-
-# Event-driven public API
-def register_execution_handlers(
-    container: ApplicationContainer, event_bus: EventTransport | None = None
-) -> None:
-    """Register execution event handlers with the orchestration system.
-
-    This is the primary integration point for the execution module in
-    the event-driven architecture.
-
-    Args:
-        container: Application container for dependency injection
-        event_bus: Optional event transport to use. Defaults to container's event bus.
-
-    Example:
-        >>> from the_alchemiser.shared.config.container import ApplicationContainer
-        >>> container = ApplicationContainer.create_for_environment("development")
-        >>> register_execution_handlers(container)
-
-    """
-    from .handlers import TradingExecutionHandler
-
-    # Get event bus from container unless an adapter is supplied
-    event_bus = event_bus or container.services.event_bus()
-
-    # Initialize and register handlers
-    execution_handler = TradingExecutionHandler(container)
-
-    # Register handlers for their respective events using event type strings
-    event_bus.subscribe("RebalancePlanned", execution_handler)
 
 
 def __getattr__(name: str) -> object:
@@ -83,7 +50,6 @@ __all__ = [
     "ExecutionManager",
     "ExecutionResult",
     "TradeLedgerService",
-    "register_execution_handlers",
 ]
 
 # Version for compatibility tracking

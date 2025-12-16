@@ -100,24 +100,6 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
-  # Multi-node strategy scaling
-  EnableMultiNodeStrategy:
-    Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
-    Description: Enable multi-node strategy scaling (fan-out to parallel Lambda invocations)
-
-  # Per-trade execution scaling
-  EnablePerTradeExecution:
-    Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
-    Description: Enable per-trade execution scaling (one Lambda invocation per trade via SQS FIFO)
-
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -135,8 +117,6 @@ Conditions:
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
-  EnableMultiNode: !Equals [ !Ref EnableMultiNodeStrategy, "true" ]
-  EnablePerTrade: !Equals [ !Ref EnablePerTradeExecution, "true" ]
 
 Globals:
   Function:
@@ -696,7 +676,6 @@ Resources:
   # CloudWatch Alarm for FIFO DLQ messages (per-trade execution failures)
   FifoDLQMessageAlarm:
     Type: AWS::CloudWatch::Alarm
-    Condition: EnablePerTrade
     Properties:
       AlarmName: !If
         - UseStackNameForResources
@@ -721,7 +700,6 @@ Resources:
   # Detects orphaned runs where trades never completed
   StuckRunsAlarm:
     Type: AWS::CloudWatch::Alarm
-    Condition: EnablePerTrade
     Properties:
       AlarmName: !If
         - UseStackNameForResources
@@ -829,8 +807,6 @@ Resources:
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
-          # Multi-node strategy scaling
-          ENABLE_MULTI_NODE_STRATEGY: !Ref EnableMultiNodeStrategy
           # Data Lambda for market data (bars from S3 Parquet)
           DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
@@ -922,7 +898,6 @@ Resources:
           AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
           AGGREGATION_TIMEOUT_SECONDS: "600"
-          ENABLE_MULTI_NODE_STRATEGY: !Ref EnableMultiNodeStrategy
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -1087,7 +1062,6 @@ Resources:
           # Rebalance plan persistence for auditability
           REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
           # Per-trade execution configuration
-          ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
           EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
     Metadata:
@@ -1190,7 +1164,6 @@ Resources:
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Per-trade execution configuration
-          ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
         ExecutionQueue:
@@ -1300,7 +1273,6 @@ Resources:
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Per-trade execution configuration (for run aggregation)
-          ENABLE_PER_TRADE_EXECUTION: !Ref EnablePerTradeExecution
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
         TradeExecutedEvent:
@@ -1463,9 +1435,8 @@ Resources:
                   - cloudwatch:PutMetricData
                 Resource: "*"
 
-  # Scheduler to trigger Strategy (workflow entry point)
-  # When EnableMultiNodeStrategy=true, triggers Orchestrator (fan-out/fan-in)
-  # When EnableMultiNodeStrategy=false, triggers Strategy directly (legacy mode)
+  # Scheduler to trigger Strategy Orchestrator (workflow entry point)
+  # Orchestrator fans out to Strategy Workers for parallel execution
   StrategySchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -1473,19 +1444,13 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
         - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: !If
-        - EnableMultiNode
-        - "Execute trading strategy (multi-node mode) daily at 9:35 AM New York time"
-        - "Execute trading strategy (legacy mode) daily at 9:35 AM New York time"
+      Description: "Execute trading strategy daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !If
-          - EnableMultiNode
-          - !GetAtt StrategyOrchestratorFunction.Arn
-          - !GetAtt StrategyFunction.Arn
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
         Input: '{"mode": "trade"}'
         RetryPolicy:

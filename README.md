@@ -200,7 +200,7 @@ All events extend `BaseEvent` with correlation tracking and metadata:
 | Event | Publisher | Consumer | Key Fields |
 |-------|-----------|----------|------------|
 | `PartialSignalGenerated` | Strategy Worker | Signal Aggregator | `session_id`, `dsl_file`, `strategy_number`, `total_strategies`, `signals_data` |
-| `SignalGenerated` | Signal Aggregator (or Worker in legacy mode) | Portfolio Lambda | `signals_data`, `consolidated_portfolio`, `signal_count` |
+| `SignalGenerated` | Signal Aggregator | Portfolio Lambda | `signals_data`, `consolidated_portfolio`, `signal_count` |
 | `RebalancePlanned` | Portfolio Lambda | Execution Lambda (via SQS) | `rebalance_plan`, `allocation_comparison`, `trades_required` |
 | `TradeExecuted` | Execution Lambda | Notifications Lambda | `execution_data`, `orders_placed`, `orders_succeeded` |
 | `WorkflowCompleted` | Execution Lambda | Notifications Lambda | `workflow_type`, `success`, `summary` |
@@ -235,11 +235,11 @@ The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
 
 **Purpose**: Execute a single DSL strategy file and generate partial signals.
 
-**Trigger**: Orchestrator (async invoke) or EventBridge Schedule (legacy mode)
-**Outputs**: `PartialSignalGenerated` events (multi-node) or `SignalGenerated` (legacy)
+**Trigger**: Orchestrator (async invoke)
+**Outputs**: `PartialSignalGenerated` events
 
 **Key Components**:
-- `lambda_handler.py`: Lambda entry point (dual-mode: legacy + single-file)
+- `lambda_handler.py`: Lambda entry point (single-file mode)
 - `engines/`: Strategy implementations (Nuclear, TECL, KLM)
 - `dsl/`: Clojure-inspired DSL for strategy definitions
 - `handlers/`: Event handlers for signal generation
@@ -256,12 +256,6 @@ The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
 - `lambda_handler.py`: Lambda entry point
 - `portfolio_merger.py`: Merges partial allocations with validation
 - `settings.py`: Aggregator configuration
-
-#### Multi-Node Mode
-
-Controlled by `ENABLE_MULTI_NODE_STRATEGY` environment variable:
-- `false` (default): Legacy mode - single Lambda runs all strategies sequentially
-- `true`: Multi-node mode - Orchestrator fans out to parallel workers
 
 ### Portfolio v2 (`portfolio_v2/`)
 
