@@ -12,12 +12,14 @@ This module provides a clean, minimal execution system that:
 
 Architecture:
 - Execution Lambda (lambda_handler.py) processes one trade at a time from SQS FIFO
-- PerTradeExecutionHandler executes individual trades
-- TradeExecuted events emitted per trade
+- Execution handlers live under `execution_v2.handlers` and process trade
+    messages to produce `TradeExecuted` events
 
-Legacy API (Being Phased Out):
-- ExecutionManager: Direct access manager (for migration only)
-- ExecutionResult: Result DTO (for migration only)
+Note:
+- Legacy registration helpers and deprecated handler aliases have been
+    removed from public documentation; register handlers via the
+    application's dependency injection container.
+
 """
 
 from __future__ import annotations

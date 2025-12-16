@@ -7,17 +7,19 @@ This module provides a clean, boundary-enforcing strategy system that:
 - Consumes market data via shared Alpaca capabilities
 - Outputs pure strategy signal DTOs (StrategyAllocation)
 - Maintains strict separation from portfolio and execution concerns
-- Communicates exclusively via events in the event-driven architecture
+- Communicates via events in the event-driven architecture
 
 Architecture:
 - Strategy Worker Lambda (lambda_handler.py) processes single DSL files
-- PartialSignalHandler generates PartialSignalGenerated events
-- Aggregator merges partial signals into consolidated portfolio
+- Signal handlers live under `strategy_v2.handlers` and emit
+    `PartialSignalGenerated` events
+- Aggregation of partial signals is handled by the aggregator service
 
-Legacy API (Being Phased Out):
-- SingleStrategyOrchestrator: Direct access orchestrator (for migration only)
-- get_strategy: Registry access for strategy engines (internal use only)
-- StrategyContext: Input context for strategy execution (internal use only)
+Note:
+- Legacy registration helpers and deprecated handler aliases have been
+    removed from public documentation; register handlers via the
+    application's dependency injection container.
+
 """
 
 from __future__ import annotations
