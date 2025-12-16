@@ -256,64 +256,66 @@ class CloudWatchMetricsPublisher:
                 dimensions = [{"Name": "StrategyName", "Value": strategy_name}]
 
                 # Add all metrics for this strategy
-                metric_data.extend([
-                    {
-                        "MetricName": METRIC_NAME_OPEN_POSITION_VALUE,
-                        "Value": float(summary["open_position_value"]),
-                        "Unit": "None",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_OPEN_LOT_COUNT,
-                        "Value": float(summary["open_lot_count"]),
-                        "Unit": "Count",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_CLOSED_LOT_COUNT,
-                        "Value": float(summary["closed_lot_count"]),
-                        "Unit": "Count",
-                        "Dimensions": dimensions,
-                        "Timestamp": timestamp,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_REALIZED_PNL,
-                        "Value": float(summary["total_realized_pnl"]),
-                        "Unit": "None",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_WINNING_TRADES,
-                        "Value": float(summary["winning_trades"]),
-                        "Unit": "Count",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_LOSING_TRADES,
-                        "Value": float(summary["losing_trades"]),
-                        "Unit": "Count",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_WIN_RATE,
-                        "Value": float(summary["win_rate"]),
-                        "Unit": "Percent",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                    {
-                        "MetricName": METRIC_NAME_AVG_PROFIT_PER_TRADE,
-                        "Value": float(summary["avg_profit_per_trade"]),
-                        "Unit": "None",
-                        "Timestamp": timestamp,
-                        "Dimensions": dimensions,
-                    },
-                ])
+                metric_data.extend(
+                    [
+                        {
+                            "MetricName": METRIC_NAME_OPEN_POSITION_VALUE,
+                            "Value": float(summary["open_position_value"]),
+                            "Unit": "None",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_OPEN_LOT_COUNT,
+                            "Value": float(summary["open_lot_count"]),
+                            "Unit": "Count",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_CLOSED_LOT_COUNT,
+                            "Value": float(summary["closed_lot_count"]),
+                            "Unit": "Count",
+                            "Dimensions": dimensions,
+                            "Timestamp": timestamp,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_REALIZED_PNL,
+                            "Value": float(summary["total_realized_pnl"]),
+                            "Unit": "None",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_WINNING_TRADES,
+                            "Value": float(summary["winning_trades"]),
+                            "Unit": "Count",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_LOSING_TRADES,
+                            "Value": float(summary["losing_trades"]),
+                            "Unit": "Count",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_WIN_RATE,
+                            "Value": float(summary["win_rate"]),
+                            "Unit": "Percent",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_AVG_PROFIT_PER_TRADE,
+                            "Value": float(summary["avg_profit_per_trade"]),
+                            "Unit": "None",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                    ]
+                )
 
             # CloudWatch allows max 1000 metrics per put_metric_data call
             batch_size = 1000

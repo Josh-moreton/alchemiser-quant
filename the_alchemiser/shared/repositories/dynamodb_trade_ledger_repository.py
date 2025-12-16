@@ -1195,9 +1195,7 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
-            self._table.delete_item(
-                Key={"PK": f"STRATEGY#{strategy_name}", "SK": "METADATA"}
-            )
+            self._table.delete_item(Key={"PK": f"STRATEGY#{strategy_name}", "SK": "METADATA"})
             logger.info("Strategy metadata deleted", strategy_name=strategy_name)
             return True
         except DynamoDBException as e:

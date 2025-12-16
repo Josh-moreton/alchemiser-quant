@@ -409,6 +409,11 @@ class WalkTheBookStrategy:
 
         """
         try:
+            # Generate unique client_order_id for this step
+            step_client_order_id = (
+                f"{intent.client_order_id}-step-{step}" if intent.client_order_id else None
+            )
+
             result = await asyncio.to_thread(
                 self.alpaca_manager.place_limit_order,
                 symbol=intent.symbol,
@@ -416,7 +421,7 @@ class WalkTheBookStrategy:
                 quantity=float(quantity),
                 limit_price=float(limit_price),
                 time_in_force="day",
-                client_order_id=intent.client_order_id,
+                client_order_id=step_client_order_id,
             )
 
             if result.success and result.order_id:
@@ -551,13 +556,18 @@ class WalkTheBookStrategy:
 
         """
         try:
+            # Generate unique client_order_id for market order step
+            step_client_order_id = (
+                f"{intent.client_order_id}-step-{step}" if intent.client_order_id else None
+            )
+
             executed: ExecutedOrder = await asyncio.to_thread(
                 self.alpaca_manager.place_market_order,
                 symbol=intent.symbol,
                 side=intent.side.to_alpaca(),
                 qty=quantity,
                 is_complete_exit=intent.is_full_close,
-                client_order_id=intent.client_order_id,
+                client_order_id=step_client_order_id,
             )
 
             if executed.status in ["REJECTED", "CANCELED"]:
