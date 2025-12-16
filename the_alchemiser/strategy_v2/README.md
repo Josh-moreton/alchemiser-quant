@@ -45,25 +45,10 @@ strategy_v2/
 
 ### Event-Driven (Preferred)
 
-The strategy module integrates with the event-driven architecture through handler registration:
-
-```python
-from the_alchemiser.strategy_v2 import register_strategy_handlers
-from the_alchemiser.shared.config.container import ApplicationContainer
-
-# Register handlers with the event bus
-container = ApplicationContainer()
-register_strategy_handlers(container)
-
-# Handlers automatically respond to:
-# - StartupEvent: Initial system startup
-# - WorkflowStarted: New trading workflow initiation
-```
-
-Strategies emit `SignalGenerated` events containing `StrategyAllocationDTO` with:
-- Target weights for each symbol
-- Correlation ID for tracking
-- Metadata (strategy name, timestamp, confidence)
+The strategy module integrates with the event-driven architecture via the project's
+event bus and handler entrypoints; handlers respond to workflow events such as
+`StartupEvent` and `WorkflowStarted`. Strategies emit `SignalGenerated` events
+containing `StrategyAllocationDTO` with target weights, correlation IDs, and metadata.
 
 ### Direct Access (Legacy - Being Phased Out)
 

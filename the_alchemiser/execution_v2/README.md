@@ -168,17 +168,9 @@ UnifiedOrderPlacementService.place_order(intent)  [async]
 
 ### Event-Driven (Preferred)
 
-```python
-from the_alchemiser.execution_v2 import register_execution_handlers
-from the_alchemiser.shared.config.container import ApplicationContainer
-
-# Register handlers with the event bus
-container = ApplicationContainer()
-register_execution_handlers(container)
-
-# Handlers automatically respond to:
-# - RebalancePlanned: Execute the rebalance plan
-```
+The execution module integrates with the project's event bus to respond to
+`RebalancePlanned` events and execute rebalance plans. Handlers and services
+are registered via the application container at startup.
 
 ### Direct Access
 
