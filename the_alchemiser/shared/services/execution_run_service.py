@@ -382,7 +382,9 @@ class ExecutionRunService:
             current_phase = attrs.get("current_phase", {"S": "ALL"})["S"]
 
             # Determine if phase is complete
-            sell_phase_complete = sell_completed >= sell_total and sell_total > 0
+            # Note: When sell_total == 0, the SELL phase is immediately complete
+            # (there's nothing to sell), so we should proceed to BUY phase
+            sell_phase_complete = sell_total == 0 or sell_completed >= sell_total
             buy_phase_complete = buy_completed >= buy_total
             run_complete = completed >= total
 
@@ -700,7 +702,9 @@ class ExecutionRunService:
         if current_phase != "SELL":
             return False
 
-        return sell_completed >= sell_total and sell_total > 0
+        # When sell_total == 0, the SELL phase is immediately complete
+        # (there's nothing to sell), so BUY trades should proceed
+        return sell_total == 0 or sell_completed >= sell_total
 
     def get_pending_buy_trades(self, run_id: str) -> list[dict[str, Any]]:
         """Get BUY trades that are waiting to be enqueued.
