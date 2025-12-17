@@ -51,6 +51,7 @@ help:
 	@echo ""
 	@echo "Deployment (via GitHub Actions CI/CD):"
 	@echo "  deploy-dev      Deploy to DEV (creates beta tag, triggers CI/CD)"
+	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
 	@echo ""
@@ -376,6 +377,53 @@ deploy-dev:
 		--prerelease; \
 	echo "✅ Beta pre-release $$TAG created successfully!"; \
 	echo "🚀 Dev deployment will start automatically via GitHub Actions"
+
+# Staging Deployment - creates staging tag, triggers CI/CD
+deploy-staging:
+	@echo "🔬 Deploying to STAGING environment..."
+	@if [ -n "$(v)" ]; then \
+		VERSION_TO_USE="$(v)"; \
+		echo "📋 Using specified version: $$VERSION_TO_USE"; \
+	else \
+		VERSION_TO_USE=$$(poetry version -s); \
+		echo "📋 Using version from pyproject.toml: $$VERSION_TO_USE"; \
+	fi; \
+	STAGING_NUM=$$(git tag -l "v$$VERSION_TO_USE-staging.*" | wc -l | tr -d ' '); \
+	STAGING_NUM=$$((STAGING_NUM + 1)); \
+	TAG="v$$VERSION_TO_USE-staging.$$STAGING_NUM"; \
+	echo "🏷️ Tag: $$TAG (staging release for STAGING environment)"; \
+	echo ""; \
+	if git tag | grep -q "^$$TAG$$"; then \
+		echo "❌ Tag $$TAG already exists!"; \
+		exit 1; \
+	fi; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "❌ You have uncommitted changes!"; \
+		echo "💡 Please commit or stash your changes first"; \
+		exit 1; \
+	fi; \
+	echo "📝 Creating staging tag $$TAG..."; \
+	git tag -a "$$TAG" -m "Staging release $$TAG for staging deployment"; \
+	echo "📤 Pushing tag to origin..."; \
+	git push origin "$$TAG"; \
+	echo "🚀 Creating GitHub pre-release..."; \
+	gh release create "$$TAG" \
+		--title "Staging Release $$TAG" \
+		--notes "Staging release $$TAG for staging environment deployment" \
+		--prerelease; \
+	echo "✅ Staging pre-release $$TAG created successfully!"; \
+	echo "🚀 Staging deployment will start automatically via GitHub Actions"
 
 # Production Deployment - creates release tag, triggers CI/CD
 deploy-prod:

@@ -14,10 +14,10 @@ fi
 echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
 echo "================================================"
 
-# Usage: ./scripts/deploy.sh [dev|prod]
+# Usage: ./scripts/deploy.sh [dev|staging|prod]
 ENVIRONMENT="${1:-prod}"
-if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
-    echo "❌ Invalid environment: $ENVIRONMENT (use 'dev' or 'prod')"
+if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
+    echo "❌ Invalid environment: $ENVIRONMENT (use 'dev', 'staging', or 'prod')"
     exit 1
 fi
 echo "Environment: $ENVIRONMENT"
@@ -120,6 +120,32 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
+    fi
+
+    sam deploy \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --config-env "$ENVIRONMENT" \
+        --parameter-overrides ${PARAMS[@]}
+elif [ "$ENVIRONMENT" = "staging" ]; then
+    # Staging: use same pattern as prod but with staging-specific parameters
+    if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for staging deploy (env)." >&2
+        exit 1
+    fi
+    STAGING_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
+    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
+
+    PARAMS=(
+        "Stage=staging"
+        "StagingAlpacaKey=$ALPACA_KEY"
+        "StagingAlpacaSecret=$ALPACA_SECRET"
+        "StagingAlpacaEndpoint=$STAGING_ALPACA_ENDPOINT_PARAM"
+        "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
+        "StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+    )
+    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
+        PARAMS+=("StagingEmailPassword=$EMAIL_PASSWORD_PARAM")
     fi
 
     sam deploy \

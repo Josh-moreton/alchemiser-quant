@@ -13,9 +13,10 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
+      - staging
       - prod
       - ephemeral
-    Description: Deployment stage (dev, prod, or ephemeral)
+    Description: Deployment stage (dev, staging, prod, or ephemeral)
   
   StackName:
     Type: String
@@ -27,6 +28,7 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
+      - staging
       - prod
       - ephemeral
     Description: Environment type for resource configuration
@@ -76,6 +78,35 @@ Parameters:
     Default: "1.0"
     Description: Equity deployment percentage for production (conservative default)
 
+  # Staging-only parameters (only used when Stage=staging)
+  StagingAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for staging (required when Stage=staging)
+
+  StagingAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for staging (required when Stage=staging)
+
+  StagingAlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint for staging (typically paper trading)
+
+  StagingEmailPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Email SMTP password for staging notifications (optional)
+
+  StagingEquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: Equity deployment percentage for staging
+
   # Production-only parameters (only used when Stage=prod)
   ProdAlpacaKey:
     Type: String
@@ -106,6 +137,8 @@ Mappings:
   StageConfig:
     dev:
       TitleCase: "Dev"
+    staging:
+      TitleCase: "Staging"
     prod:
       TitleCase: "Production"
     ephemeral:
@@ -113,6 +146,7 @@ Mappings:
 
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
+  IsStaging: !Equals [ !Ref Stage, staging ]
   IsProduction: !Equals [ !Ref Stage, prod ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
@@ -125,18 +159,18 @@ Globals:
     Environment:
       Variables:
         # Stage awareness for code-level profiles
-        APP__STAGE: !If [ IsDev, "dev", "prod" ]
+        APP__STAGE: !If [ IsProduction, "prod", !If [ IsStaging, "staging", "dev" ] ]
         # Alpaca Configuration
-        ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-        ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-        ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+        ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+        ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+        ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
         EMAIL__FROM_EMAIL: joshuamoreton1@icloud.com
         EMAIL__TO_EMAIL: notifications@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        EMAIL__PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
+        EMAIL__PASSWORD: !If [ IsProduction, !Ref ProdEmailPassword, !If [ IsStaging, !Ref StagingEmailPassword, !Ref EmailPassword ] ]
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
@@ -146,7 +180,7 @@ Globals:
 
         # Margin/Leverage configuration - controls how much of equity to deploy
         # 1.0 = 100% of equity (no margin), 1.10 = 110% (10% margin usage)
-        ALPACA__EQUITY_DEPLOYMENT_PCT: !If [ IsDev, !Ref EquityDeploymentPct, !Ref ProdEquityDeploymentPct ]
+        ALPACA__EQUITY_DEPLOYMENT_PCT: !If [ IsProduction, !Ref ProdEquityDeploymentPct, !If [ IsStaging, !Ref StagingEquityDeploymentPct, !Ref EquityDeploymentPct ] ]
 
         # Trade ledger DynamoDB table
         TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable

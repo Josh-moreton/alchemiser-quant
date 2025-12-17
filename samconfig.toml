@@ -29,6 +29,19 @@ parameter_overrides = [
 	"Stage=dev",
 ]
 
+[staging.deploy.parameters]
+stack_name = "alchemiser-staging"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+# Staging parameters required by the template; credentials loaded from environment
+parameter_overrides = [
+	"Stage=staging",
+]
+
 [prod.deploy.parameters]
 stack_name = "alchemiser-prod"
 region = "us-east-1"
