@@ -99,7 +99,6 @@ jobs:
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
-          ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
         run: |
           echo "Exporting dev ALPACA_* env vars for deploy.sh"
@@ -109,7 +108,6 @@ jobs:
           if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
-          if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
 
       - name: Prepare environment variables (staging)
@@ -120,7 +118,6 @@ jobs:
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
-          ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
         run: |
           echo "Exporting staging ALPACA_* env vars for deploy.sh"
@@ -130,7 +127,6 @@ jobs:
           if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
-          if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
 
       - name: Prepare environment variables (prod)
@@ -141,7 +137,6 @@ jobs:
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
-          ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
         run: |
           echo "Exporting prod ALPACA_* env vars for deploy.sh"
@@ -151,7 +146,6 @@ jobs:
           if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
-          if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
 
       - name: Deploy
