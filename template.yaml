@@ -1152,9 +1152,10 @@ Resources:
         - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
-      # Concurrency capped at 10 parallel Lambda invocations
+      # Concurrency capped at 5 parallel Lambda invocations
       # This limits API calls to Alpaca and allows parallel SELL/BUY execution
-      ReservedConcurrentExecutions: 10
+      # Note: Set to 5 to leave headroom in account's unreserved concurrency pool
+      ReservedConcurrentExecutions: 5
       # WebSocket connections are cleaned up after each execution via cleanup_all_instances()
       Environment:
         Variables:
