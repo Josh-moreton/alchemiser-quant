@@ -61,6 +61,7 @@ from the_alchemiser.shared.brokers.alpaca_utils import (
 )
 from the_alchemiser.shared.errors import SymbolValidationError, ValidationError
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -529,6 +530,53 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         )
 
         # Use trading service to place the order
+        # If this is a buy and a quantity-based order, and the asset is non-fractionable,
+        # round down to whole shares (always down). Allow result to be zero (treated as no-op).
+        try:
+            if (
+                side_normalized == "buy"
+                and final_qty is not None
+                and not self.is_fractionable(normalized_symbol)
+            ):
+                # Get current price if available for logging/decisions; fall back to 0
+                price = self.get_current_price(normalized_symbol) or Decimal("0")
+                qty_dec = Decimal(str(final_qty))
+                adjusted_qty_dec, used_rounding = fractionability_detector.convert_to_whole_shares(
+                    normalized_symbol, qty_dec, price
+                )
+                # Use Decimal for numeric comparisons to avoid float precision issues
+                adjusted_qty_float = float(adjusted_qty_dec)
+
+                if used_rounding:
+                    logger.info(
+                        "Rounded quantity down for non-fractionable asset",
+                        symbol=normalized_symbol,
+                        original_qty=final_qty,
+                        adjusted_qty=float(adjusted_qty_dec),
+                    )
+
+                # If rounding leads to zero, treat as no-op and return an error-like ExecutedOrder
+                # Note: We only round buy orders here. Sell orders (including liquidations)
+                # must preserve fractional quantities where supported by the broker. Tests
+                # (see tests/test_position_utils.py) verify that sell side preserves
+                # fractional behavior for liquidation paths.
+                if adjusted_qty_dec <= 0:
+                    return AlpacaErrorHandler.create_executed_order_error_result(
+                        "NO_OP",
+                        normalized_symbol,
+                        side_normalized,
+                        float(adjusted_qty_dec),
+                        "Rounded to zero for non-fractionable asset; skipping order",
+                    )
+
+                final_qty = adjusted_qty_float
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning(
+                "Failed to apply fractionability rounding, proceeding with original qty",
+                symbol=normalized_symbol,
+                error=str(e),
+            )
+
         return self._get_trading_service().place_market_order(
             normalized_symbol,
             side_normalized,

@@ -27,6 +27,7 @@ from alpaca.trading.requests import (
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.shared.schemas.broker import (
     OrderExecutionResult,
     WebSocketResult,
@@ -41,6 +42,32 @@ from the_alchemiser.shared.services.circuit_breaker import (
 )
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
+
+# Import Alpaca/requests exceptions with fallbacks for environments where packages differ
+try:
+    from alpaca.common.exceptions import RetryException as _RetryExcImported
+except Exception:  # pragma: no cover - environment-dependent import
+
+    class _RetryExcImported(Exception):  # type: ignore[no-redef]
+        pass
+
+
+RetryException = _RetryExcImported
+
+try:
+    from requests.exceptions import HTTPError as _HTTPErrImp
+    from requests.exceptions import RequestException as _ReqErrImp
+except Exception:  # pragma: no cover - environment-dependent import
+
+    class _HTTPErrImp(Exception):  # type: ignore[no-redef]
+        pass
+
+    class _ReqErrImp(Exception):  # type: ignore[no-redef]
+        pass
+
+
+HTTPError = _HTTPErrImp
+RequestException = _ReqErrImp
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.services.websocket_manager import (
@@ -247,6 +274,35 @@ class AlpacaTradingService:
             self._track_submitted_order(order)
             return self._create_success_order_result(order, order_request)
         except Exception as e:
+            # Broad exception handling is required here because Alpaca SDK raises
+            # a variety of client/server exceptions we must inspect to detect
+            # fractional/partial rejection patterns and attempt defensive retries.
+            # We narrow inner catches where possible; this outer handler documents
+            # why a general `Exception` is used (to inspect arbitrary SDK errors).
+            msg = str(e).lower()
+            symbol = getattr(order_request, "symbol", "unknown")
+
+            # If message indicates a fractional/partial rejection, attempt a single
+            # defensive retry using whole-share rounding. The retry logic is
+            # extracted to keep this method concise and testable.
+            try:
+                if "partial" in msg and (
+                    "fraction" in msg
+                    or "partial order" in msg
+                    or "cannot send partial" in msg
+                    or "sending partial" in msg
+                ):
+                    retry_result = self._attempt_fractional_order_retry(order_request)
+                    if retry_result is not None:
+                        return retry_result
+            except (AttributeError, ValueError, TypeError) as inspect_exc:
+                logger.debug(
+                    "Error inspecting failure for fractional rejection",
+                    symbol=symbol,
+                    error=str(inspect_exc),
+                    error_type=type(inspect_exc).__name__,
+                )
+
             logger.error(
                 "Failed to place order",
                 error=str(e),
@@ -255,6 +311,101 @@ class AlpacaTradingService:
                 correlation_id=correlation_id,
             )
             return self._create_failed_order_result(order_request, e)
+
+    def _attempt_fractional_order_retry(
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrder | None:
+        """Attempt a single retry by rounding quantity to whole shares.
+
+        Returns an ExecutedOrder on success/explicit no-op, or None if no retry attempted.
+        """
+        symbol = getattr(order_request, "symbol", "unknown")
+
+        # Only attempt retry when qty is present (notional-based orders not handled)
+        if not hasattr(order_request, "qty") or getattr(order_request, "qty", None) is None:
+            return None
+
+        try:
+            orig_qty_val = getattr(order_request, "qty", None)
+            if orig_qty_val is None:
+                raise ValueError("No qty available for retry")
+
+            original_qty_dec = Decimal(str(orig_qty_val))
+
+            # Use fractionability_detector to compute whole-share adjusted qty
+            adjusted_qty_dec, used_rounding = fractionability_detector.convert_to_whole_shares(
+                symbol, original_qty_dec, Decimal("0")
+            )
+
+            if not used_rounding:
+                return None
+
+            # If rounding leads to zero -> NO_OP
+            if adjusted_qty_dec <= 0:
+                logger.info(
+                    "Rounded rejected fractional order to zero; skipping",
+                    symbol=symbol,
+                )
+                action = self._extract_action_from_request(order_request).lower()
+                return AlpacaErrorHandler.create_executed_order_error_result(
+                    "NO_OP",
+                    symbol,
+                    action,
+                    float(adjusted_qty_dec),
+                    "Rounded to zero after fractional rejection; skipping order",
+                )
+
+            int_qty = int(adjusted_qty_dec)
+
+            # Create MarketOrderRequest with integer qty and resubmit once
+            new_req = MarketOrderRequest(
+                symbol=symbol,
+                qty=int_qty,
+                notional=None,
+                side=getattr(order_request, "side", None),
+                time_in_force=getattr(order_request, "time_in_force", None),
+                client_order_id=getattr(order_request, "client_order_id", None),
+            )
+
+            logger.info(
+                "Retrying order with rounded whole-share qty after fractional rejection",
+                symbol=symbol,
+                original_qty=float(original_qty_dec),
+                adjusted_qty=int_qty,
+            )
+
+            def _submit_retry() -> Order:
+                res = self._trading_client.submit_order(new_req)
+                if isinstance(res, dict):
+                    raise ValueError(f"Unexpected dict response from submit_order: {res}")
+                return res
+
+            try:
+                order = self._circuit_breaker.call(_submit_retry)
+                self._track_submitted_order(order)
+                return self._create_success_order_result(order, new_req)
+            except (
+                ValueError,
+                RequestException,
+                HTTPError,
+                RetryException,
+                CircuitBreakerError,
+            ) as retry_exc:
+                logger.error(
+                    "Retry after fractional rejection failed",
+                    symbol=symbol,
+                    error=str(retry_exc),
+                    error_type=type(retry_exc).__name__,
+                )
+                return self._create_failed_order_result(order_request, retry_exc)
+
+        except (ValueError, TypeError) as inner_e:
+            logger.error(
+                "Error while attempting fractional-rejection retry",
+                symbol=symbol,
+                error=str(inner_e),
+            )
+            return None
 
     def place_market_order(
         self,
