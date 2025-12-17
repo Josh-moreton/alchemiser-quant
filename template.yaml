@@ -61,12 +61,6 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for dev notifications (optional)
 
-  # Runtime configuration parameters (override via CD for each environment)
-  DslMaxWorkers:
-    Type: String
-    Default: "7"
-    Description: ALCHEMISER_DSL_MAX_WORKERS (string to align with Lambda env var type)
-
   # Margin/Leverage configuration
   EquityDeploymentPct:
     Type: String
@@ -174,9 +168,6 @@ Globals:
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
-
-        # DSL parallelism configuration
-        ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
 
         # Margin/Leverage configuration - controls how much of equity to deploy
         # 1.0 = 100% of equity (no margin), 1.10 = 110% (10% margin usage)
@@ -838,7 +829,6 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
           # Data Lambda for market data (bars from S3 Parquet)
           DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:

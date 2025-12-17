@@ -90,7 +90,6 @@ This pattern keeps the workflow DRY while allowing CloudFormation to distinguish
 6. Add the following **Variables** (same names as dev/prod, different values):
    - `ALPACA_ENDPOINT` - Typically `https://paper-api.alpaca.markets/v2`
    - `LOGGING__LEVEL` - e.g., `INFO`
-   - `ALCHEMISER_DSL_MAX_WORKERS` - e.g., `7`
    - `EQUITY_DEPLOYMENT_PCT` - e.g., `1.0` (100% of equity)
 
 **Important:** Use the **same environment variable names** as dev/prod. GitHub Environments provide different values automatically based on which environment is deploying.
