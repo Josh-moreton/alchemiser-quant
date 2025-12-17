@@ -9,9 +9,7 @@ for integration with the multi-strategy orchestrator.
 
 from __future__ import annotations
 
-import os
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -27,8 +25,6 @@ from the_alchemiser.strategy_v2.errors import ConfigurationError, StrategyExecut
 
 # Module-level constants for maintainability
 DEFAULT_STRATEGY_FILE = "KLM.clj"
-DEFAULT_MAX_WORKERS = 4
-DEFAULT_DSL_TIMEOUT_SECONDS = 300  # 5 minutes
 # Accounts for '... [N decisions]' truncation suffix when reasoning exceeds max length
 REASONING_TRUNCATION_SUFFIX_LENGTH = 20
 
@@ -91,37 +87,17 @@ class DslStrategyEngine:
     def generate_signals(
         self,
         timestamp: datetime,
-        *,
-        max_workers: int | None = None,
     ) -> list[StrategySignal]:
-        """Generate strategy signals using DSL engine with thread-based parallelism."""
+        """Generate strategy signals using DSL engine."""
         try:
             correlation_id = str(uuid.uuid4())
             dsl_files, normalized_file_weights = self._resolve_dsl_files_and_weights()
-            effective_max_workers = self._get_max_workers(max_workers, len(dsl_files))
 
             self.logger.info(f"Generating DSL signals from {len(dsl_files)} files")
-            self.logger.debug(
-                f"DSL evaluation details: parallelism=threads, max_workers={effective_max_workers}",
-                extra={
-                    "correlation_id": correlation_id,
-                    "timestamp": timestamp.isoformat(),
-                    "parallelism": "threads",
-                    "max_workers": effective_max_workers,
-                },
-            )
 
-            if len(dsl_files) <= 1:
-                file_results = self._evaluate_files_sequential(
-                    dsl_files, correlation_id, normalized_file_weights
-                )
-            else:
-                file_results = self._evaluate_files_parallel(
-                    dsl_files,
-                    correlation_id,
-                    normalized_file_weights,
-                    effective_max_workers,
-                )
+            file_results = self._evaluate_files_sequential(
+                dsl_files, correlation_id, normalized_file_weights
+            )
 
             consolidated, decision_path = self._accumulate_results(dsl_files, file_results)
             if not consolidated:
@@ -154,31 +130,6 @@ class DslStrategyEngine:
                 },
             )
             return self._create_fallback_signals(timestamp)
-
-    def _get_max_workers(
-        self,
-        max_workers: int | None,
-        num_files: int,
-    ) -> int:
-        """Get worker count, applying environment overrides.
-
-        Args:
-            max_workers: Requested max workers
-            num_files: Number of DSL files to process
-
-        Returns:
-            Effective max workers count
-
-        """
-        env_max_workers = os.getenv("ALCHEMISER_DSL_MAX_WORKERS")
-        if env_max_workers and env_max_workers.isdigit():
-            max_workers = int(env_max_workers)
-
-        return (
-            max_workers
-            if max_workers is not None
-            else min(num_files, os.cpu_count() or DEFAULT_MAX_WORKERS)
-        )
 
     def _accumulate_results(
         self,
@@ -482,7 +433,7 @@ class DslStrategyEngine:
         correlation_id: str,
         normalized_file_weights: dict[str, Decimal],
     ) -> list[tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]]:
-        """Evaluate DSL files sequentially (original behavior).
+        """Evaluate DSL files sequentially.
 
         Args:
             dsl_files: List of DSL files to evaluate
@@ -511,85 +462,6 @@ class DslStrategyEngine:
                 )
                 results.append((None, "", Decimal("0"), Decimal("0"), None))
         return results
-
-    def _evaluate_files_parallel(
-        self,
-        dsl_files: list[str],
-        correlation_id: str,
-        normalized_file_weights: dict[str, Decimal],
-        max_workers: int,
-    ) -> list[tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]]:
-        """Evaluate DSL files in parallel using threads while preserving deterministic order.
-
-        Args:
-            dsl_files: List of DSL files to evaluate
-            correlation_id: Correlation ID for tracing
-            normalized_file_weights: Precomputed normalized file weights
-            max_workers: Maximum number of worker threads
-
-        Returns:
-            List of evaluation results for each file (preserves input order)
-
-        """
-        from concurrent.futures import TimeoutError as FuturesTimeoutError
-
-        # Get timeout from environment or use default
-        timeout_seconds = int(os.getenv("ALCHEMISER_DSL_TIMEOUT", str(DEFAULT_DSL_TIMEOUT_SECONDS)))
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            try:
-                # Use executor.map to preserve deterministic ordering
-                return list(
-                    executor.map(
-                        self._evaluate_file_wrapper,
-                        dsl_files,
-                        [correlation_id] * len(dsl_files),
-                        [normalized_file_weights] * len(dsl_files),
-                        timeout=timeout_seconds,
-                    )
-                )
-            except FuturesTimeoutError:
-                self.logger.error(
-                    f"DSL evaluation timeout after {timeout_seconds}s",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "file_count": len(dsl_files),
-                        "timeout_seconds": timeout_seconds,
-                    },
-                )
-                # Return None results for all files as fallback
-                return [(None, "", Decimal("0"), Decimal("0"), None) for _ in dsl_files]
-
-    def _evaluate_file_wrapper(
-        self,
-        filename: str,
-        correlation_id: str,
-        normalized_file_weights: dict[str, Decimal],
-    ) -> tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]:
-        """Wrap _evaluate_file to handle exceptions for parallel execution.
-
-        Args:
-            filename: DSL file to evaluate
-            correlation_id: Correlation ID for tracing
-            normalized_file_weights: Precomputed normalized file weights
-
-        Returns:
-            Tuple of (per_file_scaled_weights, trace_id, file_weight, file_sum, decision_path)
-            Returns (None, "", Decimal("0"), Decimal("0"), None) if evaluation fails
-
-        """
-        try:
-            return self._evaluate_file(filename, correlation_id, normalized_file_weights)
-        except (StrategyExecutionError, ValueError, RuntimeError) as e:
-            self.logger.error(
-                f"DSL evaluation failed for {filename}: {e}",
-                extra={
-                    "correlation_id": correlation_id,
-                    "filename": filename,
-                    "error_type": type(e).__name__,
-                },
-            )
-            return (None, "", Decimal("0"), Decimal("0"), None)
 
     def _build_decision_reasoning(
         self,

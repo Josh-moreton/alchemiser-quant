@@ -1039,13 +1039,67 @@ class PortfolioAnalysisHandler:
             enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
         )
 
-        # Enqueue only SELL trades to Standard SQS queue (parallel execution)
-        # BUY trades will be enqueued after SELL phase completes
+        # Enqueue trades to Standard SQS queue (parallel execution)
         # Standard queue removes MessageGroupId requirement - enables parallel Lambda invocations
         sqs_client = boto3.client("sqs")
         queue_url = _get_execution_fifo_queue_url()
         enqueued_count = 0
 
+        # Handle edge case: 0 SELLs means we skip the SELL phase entirely
+        # and go directly to BUY phase to avoid workflow getting stuck
+        if len(sell_trades) == 0 and len(buy_trades) > 0:
+            self.logger.info(
+                "No SELL trades - transitioning directly to BUY phase",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "buy_count": len(buy_trades),
+                },
+            )
+            # Transition run state to BUY phase
+            run_service.transition_to_buy_phase(run_id)
+
+            try:
+                for msg in buy_trades:
+                    sqs_client.send_message(
+                        QueueUrl=queue_url,
+                        MessageBody=msg.to_sqs_message_body(),
+                        MessageAttributes={
+                            "RunId": {"DataType": "String", "StringValue": run_id},
+                            "TradeId": {"DataType": "String", "StringValue": msg.trade_id},
+                            "Phase": {"DataType": "String", "StringValue": msg.phase},
+                        },
+                    )
+                    enqueued_count += 1
+
+                # Mark BUY trades as PENDING (they're now enqueued)
+                run_service.mark_buy_trades_pending(run_id, [t.trade_id for t in buy_trades])
+
+                self.logger.info(
+                    "Enqueued BUY trades directly (0 SELLs scenario)",
+                    extra={
+                        "run_id": run_id,
+                        "correlation_id": correlation_id,
+                        "buy_enqueued": len(buy_trades),
+                    },
+                )
+                return
+
+            except Exception as enqueue_error:
+                self.logger.error(
+                    f"SQS enqueue failed for BUY trades: {enqueue_error}",
+                    extra={
+                        "run_id": run_id,
+                        "correlation_id": correlation_id,
+                        "enqueued_count": enqueued_count,
+                        "total_buys": len(buy_trades),
+                    },
+                )
+                run_service.update_run_status(run_id, "FAILED")
+                raise
+
+        # Normal two-phase execution: enqueue SELL trades first
+        # BUY trades will be enqueued after SELL phase completes
         try:
             for msg in sell_trades:
                 sqs_client.send_message(

@@ -21,7 +21,7 @@ from __future__ import annotations
 import contextlib
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import boto3
 
@@ -126,11 +126,9 @@ class ExecutionRunService:
 
         # For two-phase execution, only track sells as "active" initially
         if enqueue_sells_only:
-            active_trades = sell_trades
             current_phase = "SELL"
             status = "SELL_PHASE"
         else:
-            active_trades = trade_messages
             current_phase = "ALL"  # Legacy single-phase mode
             status = "PENDING"
 
@@ -357,7 +355,9 @@ class ExecutionRunService:
                 phase_counter = None
 
             if phase_counter:
-                update_expression = f"ADD completed_trades :one, {counter_field} :one, {phase_counter} :one"
+                update_expression = (
+                    f"ADD completed_trades :one, {counter_field} :one, {phase_counter} :one"
+                )
             else:
                 update_expression = f"ADD completed_trades :one, {counter_field} :one"
 
@@ -382,7 +382,9 @@ class ExecutionRunService:
             current_phase = attrs.get("current_phase", {"S": "ALL"})["S"]
 
             # Determine if phase is complete
-            sell_phase_complete = sell_completed >= sell_total and sell_total > 0
+            # Note: When sell_total == 0, the SELL phase is immediately complete
+            # (there's nothing to sell), so we should proceed to BUY phase
+            sell_phase_complete = sell_total == 0 or sell_completed >= sell_total
             buy_phase_complete = buy_completed >= buy_total
             run_complete = completed >= total
 
@@ -700,7 +702,9 @@ class ExecutionRunService:
         if current_phase != "SELL":
             return False
 
-        return sell_completed >= sell_total and sell_total > 0
+        # When sell_total == 0, the SELL phase is immediately complete
+        # (there's nothing to sell), so BUY trades should proceed
+        return sell_total == 0 or sell_completed >= sell_total
 
     def get_pending_buy_trades(self, run_id: str) -> list[dict[str, Any]]:
         """Get BUY trades that are waiting to be enqueued.
@@ -728,9 +732,17 @@ class ExecutionRunService:
             },
         )
 
-        trades = []
+        class _PendingBuyTrade(TypedDict):
+            trade_id: str
+            symbol: str
+            action: str
+            phase: str
+            sequence_number: int
+            message_body: str
+
+        trades: list[_PendingBuyTrade] = []
         for item in response.get("Items", []):
-            trade = {
+            trade: _PendingBuyTrade = {
                 "trade_id": item["trade_id"]["S"],
                 "symbol": item["symbol"]["S"],
                 "action": item["action"]["S"],
@@ -741,14 +753,14 @@ class ExecutionRunService:
             trades.append(trade)
 
         # Sort by sequence number
-        trades.sort(key=lambda t: t.get("sequence_number", 0))
+        trades.sort(key=lambda t: t["sequence_number"])
 
         logger.debug(
             "Retrieved pending BUY trades",
             extra={"run_id": run_id, "count": len(trades)},
         )
 
-        return trades
+        return cast("list[dict[str, Any]]", trades)
 
     def transition_to_buy_phase(self, run_id: str) -> bool:
         """Transition run from SELL phase to BUY phase (idempotent).

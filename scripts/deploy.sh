@@ -115,7 +115,6 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaKey=$ALPACA_KEY"
         "AlpacaSecret=$ALPACA_SECRET"
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
-        "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
@@ -141,7 +140,6 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         "StagingAlpacaKey=$ALPACA_KEY"
         "StagingAlpacaSecret=$ALPACA_SECRET"
         "StagingAlpacaEndpoint=$STAGING_ALPACA_ENDPOINT_PARAM"
-        "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
@@ -167,7 +165,6 @@ else
         "ProdAlpacaKey=$ALPACA_KEY"
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
-        "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then

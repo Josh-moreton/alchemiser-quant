@@ -133,27 +133,26 @@ def find_most_recent_workflow(
 
         try:
             # Search for any logs with a correlation_id field
-            # CloudWatch filter patterns don't support wildcards, so we just filter
-            # for existence of the correlation_id field
-            response = logs_client.filter_log_events(
-                logGroupName=orchestrator_log_group,
-                startTime=start_ms,
-                endTime=end_ms,
-                filterPattern='{ $.correlation_id = * }',
-                limit=500,  # Higher limit to ensure we capture recent events
-            )
+            # Try nested path first (structlog format: extra.correlation_id)
+            # then fallback to root level and raw string match
+            filter_patterns = [
+                '{ $.extra.correlation_id = * }',
+                '{ $.correlation_id = * }',
+                '"workflow-"',  # Fallback: raw string match
+            ]
 
-            events = response.get("events", [])
-            if not events:
-                # Try alternative: look for "workflow" in the message as fallback
+            events = []
+            for filter_pattern in filter_patterns:
                 response = logs_client.filter_log_events(
                     logGroupName=orchestrator_log_group,
                     startTime=start_ms,
                     endTime=end_ms,
-                    filterPattern='"workflow-"',
-                    limit=500,
+                    filterPattern=filter_pattern,
+                    limit=500,  # Higher limit to ensure we capture recent events
                 )
                 events = response.get("events", [])
+                if events:
+                    break  # Found events, no need to try more patterns
 
             if not events:
                 # No events in this window, try a larger window
@@ -164,7 +163,9 @@ def find_most_recent_workflow(
             for event in events:
                 try:
                     message = json.loads(event["message"])
-                    cid = message.get("correlation_id", "")
+                    # Check nested extra field first (structlog format), then root level
+                    extra = message.get("extra", {})
+                    cid = extra.get("correlation_id", "") or message.get("correlation_id", "")
                     if cid and cid.startswith("workflow-"):
                         ts = event["timestamp"]
                         if cid not in correlation_ids or ts > correlation_ids[cid]:
@@ -223,25 +224,33 @@ def detect_workflow_time_range(
 
     try:
         # Search for the first log entry with this correlation_id
-        response = logs_client.filter_log_events(
-            logGroupName=orchestrator_log_group,
-            startTime=start_ms,
-            endTime=end_ms,
-            filterPattern=f'{{ $.correlation_id = "{correlation_id}" }}',
-            limit=1,
-        )
+        # Try nested path first (structlog format: extra.correlation_id)
+        filter_patterns = [
+            f'{{ $.extra.correlation_id = "{correlation_id}" }}',
+            f'{{ $.correlation_id = "{correlation_id}" }}',
+            f'"{correlation_id}"',  # Fallback: raw string match
+        ]
 
-        events = response.get("events", [])
-        if events:
-            # Found the workflow start
-            workflow_start_ms = events[0]["timestamp"]
-            workflow_start = datetime.fromtimestamp(workflow_start_ms / 1000, tz=UTC)
-
-            # Add buffer: 1 minute before, 30 minutes after (workflow should complete)
-            return (
-                workflow_start - timedelta(minutes=1),
-                workflow_start + timedelta(minutes=30),
+        for filter_pattern in filter_patterns:
+            response = logs_client.filter_log_events(
+                logGroupName=orchestrator_log_group,
+                startTime=start_ms,
+                endTime=end_ms,
+                filterPattern=filter_pattern,
+                limit=1,
             )
+
+            events = response.get("events", [])
+            if events:
+                # Found the workflow start
+                workflow_start_ms = events[0]["timestamp"]
+                workflow_start = datetime.fromtimestamp(workflow_start_ms / 1000, tz=UTC)
+
+                # Add buffer: 1 minute before, 30 minutes after (workflow should complete)
+                return (
+                    workflow_start - timedelta(minutes=1),
+                    workflow_start + timedelta(minutes=30),
+                )
 
     except ClientError as e:
         print(
@@ -305,19 +314,23 @@ def fetch_logs_by_correlation_id(
 
     for log_group in log_groups:
         lambda_name = log_group.split("/")[-1]
-        print(f"   Querying {colour(lambda_name, 'blue')}...")
+        print(f"   Querying {colour(lambda_name, 'blue')}...", end="", flush=True)
 
         try:
-            # Use filter_log_events to search for correlation_id in JSON logs
+            # Use simple string filter to catch ALL logs containing the correlation_id
+            # This is more permissive than JSON path filters and catches logs regardless
+            # of where the correlation_id appears (extra.correlation_id, correlation_id, or raw text)
             paginator = logs_client.get_paginator("filter_log_events")
 
+            event_count = 0
             for page in paginator.paginate(
                 logGroupName=log_group,
                 startTime=start_ms,
                 endTime=end_ms,
-                filterPattern=f'{{ $.correlation_id = "{correlation_id}" }}',
+                filterPattern=f'"{correlation_id}"',  # Simple string match - catches everything
             ):
                 for event in page.get("events", []):
+                    event_count += 1
                     try:
                         # Parse JSON log message
                         message = json.loads(event["message"])
@@ -327,7 +340,7 @@ def fetch_logs_by_correlation_id(
                         message["_is_json"] = True
                         all_events.append(message)
                     except json.JSONDecodeError:
-                        # Include non-JSON logs only if requested
+                        # Include non-JSON logs (boto3 debug, Lambda START/END, etc.)
                         if include_raw:
                             all_events.append(
                                 {
@@ -339,10 +352,12 @@ def fetch_logs_by_correlation_id(
                                 }
                             )
 
+            print(f" {colour(str(event_count), 'green')} events")
+
         except logs_client.exceptions.ResourceNotFoundException:
-            print(f"      {colour('⚠️  Log group not found', 'yellow')}")
+            print(f" {colour('⚠️  Log group not found', 'yellow')}")
         except ClientError as e:
-            print(f"      {colour(f'❌ Error: {e}', 'red')}")
+            print(f" {colour(f'❌ Error: {e}', 'red')}")
 
     # Sort by timestamp
     all_events.sort(key=lambda x: x.get("_timestamp_ms", 0))
