@@ -278,12 +278,20 @@ class SingleTradeHandler:
                 )
 
                 # Mark trade completed in DynamoDB (skipped due to market closed)
-                self.run_service.mark_trade_completed(
+                completion_result = self.run_service.mark_trade_completed(
                     run_id=run_id,
                     trade_id=trade_id,
                     success=True,  # Not a failure, just skipped
                     order_id=None,
                     error_message="Market closed - order placement skipped",
+                    phase=trade_message.phase,  # For phase-specific tracking
+                )
+
+                # Check if this completes the SELL phase and trigger BUY phase if needed
+                self._check_and_trigger_buy_phase(
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                    completion_result=completion_result,
                 )
 
                 # Emit TradeExecuted event for this skipped trade
@@ -342,13 +350,21 @@ class SingleTradeHandler:
                 "filled_at": order_result.filled_at.isoformat() if order_result.filled_at else None,
             }
 
-            self.run_service.mark_trade_completed(
+            completion_result = self.run_service.mark_trade_completed(
                 run_id=run_id,
                 trade_id=trade_id,
                 success=order_result.success,
                 order_id=order_result.order_id,
                 error_message=order_result.error_message,
                 execution_data=execution_data,
+                phase=trade_message.phase,  # For phase-specific tracking
+            )
+
+            # Check if this completes the SELL phase and trigger BUY phase if needed
+            self._check_and_trigger_buy_phase(
+                run_id=run_id,
+                correlation_id=correlation_id,
+                completion_result=completion_result,
             )
 
             # Mark idempotency key as processed
@@ -389,24 +405,38 @@ class SingleTradeHandler:
             }
 
         except (ExecutionManagerError, TradingClientError, MarketDataError) as e:
-            # Domain-specific execution errors
+            # Domain-specific execution errors - log descriptively and continue
             self.logger.error(
-                f"Trade execution failed for {trade_message.symbol}: {e}",
+                f"❌ Trade execution failed for {trade_message.symbol} ({trade_message.phase} phase): {e}",
                 extra={
                     "run_id": run_id,
                     "trade_id": trade_id,
+                    "symbol": trade_message.symbol,
+                    "action": trade_message.action,
+                    "phase": trade_message.phase,
                     "error_type": type(e).__name__,
+                    "error_message": str(e),
                     "correlation_id": correlation_id,
+                    "trade_amount": str(trade_message.trade_amount),
+                    "failure_context": "Execution will continue with remaining trades",
                 },
             )
 
-            # Mark trade completed (as failure) in DynamoDB
-            self.run_service.mark_trade_completed(
+            # Mark trade completed (as failure) in DynamoDB - still track phase completion
+            completion_result = self.run_service.mark_trade_completed(
                 run_id=run_id,
                 trade_id=trade_id,
                 success=False,
                 order_id=None,
                 error_message=str(e),
+                phase=trade_message.phase,  # For phase-specific tracking
+            )
+
+            # Check if this completes the SELL phase (even with failures)
+            self._check_and_trigger_buy_phase(
+                run_id=run_id,
+                correlation_id=correlation_id,
+                completion_result=completion_result,
             )
 
             # Emit TradeExecuted event for this failed trade
@@ -427,26 +457,40 @@ class SingleTradeHandler:
             }
 
         except Exception as e:
-            # Unexpected errors
+            # Unexpected errors - log descriptively with full context
             self.logger.error(
-                f"Unexpected error executing trade {trade_message.symbol}: {e}",
+                f"❌ Unexpected error executing trade {trade_message.symbol} ({trade_message.phase} phase): {e}",
                 exc_info=True,
                 extra={
                     "run_id": run_id,
                     "trade_id": trade_id,
+                    "symbol": trade_message.symbol,
+                    "action": trade_message.action,
+                    "phase": trade_message.phase,
                     "error_type": type(e).__name__,
+                    "error_message": str(e),
                     "correlation_id": correlation_id,
+                    "trade_amount": str(trade_message.trade_amount),
+                    "failure_context": "Unexpected error - execution will continue with remaining trades",
                 },
             )
 
             # Mark trade completed (as failure) in DynamoDB
             try:
-                self.run_service.mark_trade_completed(
+                completion_result = self.run_service.mark_trade_completed(
                     run_id=run_id,
                     trade_id=trade_id,
                     success=False,
                     order_id=None,
                     error_message=f"Unexpected error: {e}",
+                    phase=trade_message.phase,  # For phase-specific tracking
+                )
+
+                # Check if this completes the SELL phase (even with failures)
+                self._check_and_trigger_buy_phase(
+                    run_id=run_id,
+                    correlation_id=correlation_id,
+                    completion_result=completion_result,
                 )
             except Exception as db_error:
                 self.logger.error(
@@ -487,6 +531,129 @@ class SingleTradeHandler:
             alpaca_manager=alpaca_manager,
             execution_config=ExecutionConfig(),
         )
+
+    def _check_and_trigger_buy_phase(
+        self,
+        run_id: str,
+        correlation_id: str,
+        completion_result: dict[str, Any],
+    ) -> None:
+        """Check if SELL phase is complete and trigger BUY phase if needed.
+
+        For two-phase execution, when all SELL trades complete (success or failure),
+        this method enqueues the waiting BUY trades to start the BUY phase.
+
+        Args:
+            run_id: Run identifier.
+            correlation_id: Workflow correlation ID.
+            completion_result: Result from mark_trade_completed with phase completion info.
+
+        """
+        # Check if this is two-phase execution and SELL phase just completed
+        current_phase = completion_result.get("current_phase", "ALL")
+        sell_phase_complete = completion_result.get("sell_phase_complete", False)
+        buy_total = completion_result.get("buy_total", 0)
+
+        # Only trigger BUY phase if:
+        # 1. We're in SELL phase (two-phase execution)
+        # 2. All SELLs have completed
+        # 3. There are BUY trades waiting
+        if current_phase != "SELL" or not sell_phase_complete or buy_total == 0:
+            return
+
+        self.logger.info(
+            "🔄 SELL phase complete - triggering BUY phase",
+            extra={
+                "run_id": run_id,
+                "correlation_id": correlation_id,
+                "sell_completed": completion_result.get("sell_completed", 0),
+                "sell_total": completion_result.get("sell_total", 0),
+                "buy_total": buy_total,
+            },
+        )
+
+        try:
+            # Transition run to BUY phase (idempotent - only one Lambda will succeed)
+            transitioned = self.run_service.transition_to_buy_phase(run_id)
+
+            if not transitioned:
+                # Another Lambda already triggered the BUY phase
+                self.logger.debug(
+                    "BUY phase already triggered by another invocation",
+                    extra={"run_id": run_id},
+                )
+                return
+
+            # Get pending BUY trades from DynamoDB
+            buy_trades = self.run_service.get_pending_buy_trades(run_id)
+
+            if not buy_trades:
+                self.logger.warning(
+                    "No BUY trades found to enqueue",
+                    extra={"run_id": run_id, "correlation_id": correlation_id},
+                )
+                return
+
+            # Enqueue BUY trades to SQS
+            import boto3
+
+            sqs_client = boto3.client("sqs")
+            queue_url = os.environ.get("EXECUTION_FIFO_QUEUE_URL", "")
+
+            if not queue_url:
+                self.logger.error(
+                    "EXECUTION_FIFO_QUEUE_URL not configured - cannot enqueue BUY trades",
+                    extra={"run_id": run_id},
+                )
+                return
+
+            enqueued_trade_ids = []
+            for trade in buy_trades:
+                try:
+                    sqs_client.send_message(
+                        QueueUrl=queue_url,
+                        MessageBody=trade["message_body"],
+                        MessageAttributes={
+                            "RunId": {"DataType": "String", "StringValue": run_id},
+                            "TradeId": {"DataType": "String", "StringValue": trade["trade_id"]},
+                            "Phase": {"DataType": "String", "StringValue": "BUY"},
+                        },
+                    )
+                    enqueued_trade_ids.append(trade["trade_id"])
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to enqueue BUY trade {trade['trade_id']}: {e}",
+                        extra={
+                            "run_id": run_id,
+                            "trade_id": trade["trade_id"],
+                            "error": str(e),
+                        },
+                    )
+
+            # Mark enqueued trades as PENDING
+            if enqueued_trade_ids:
+                self.run_service.mark_buy_trades_pending(run_id, enqueued_trade_ids)
+
+            self.logger.info(
+                "✅ Enqueued BUY trades for parallel execution",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "buy_enqueued": len(enqueued_trade_ids),
+                    "buy_total": buy_total,
+                },
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"Failed to trigger BUY phase: {e}",
+                exc_info=True,
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
 
     def _check_market_status(self, correlation_id: str) -> bool:
         """Check if market is currently open for trading.

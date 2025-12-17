@@ -531,17 +531,16 @@ Resources:
         - !Sub "alchemiser-${Stage}-execution-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
-  # SQS FIFO Queue for per-trade execution (used when EnablePerTradeExecution=true)
-  # FIFO guarantees ordering: sells processed before buys via sequence numbers in MessageGroupId
+  # SQS Standard Queue for parallel per-trade execution
+  # Standard queue enables parallel Lambda invocations (up to ReservedConcurrentExecutions)
+  # SELL→BUY ordering is controlled via two-phase enqueue in Portfolio Lambda
   ExecutionFifoQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-execution-fifo.fifo"
-        - !Sub "alchemiser-${Stage}-execution-fifo.fifo"
-      FifoQueue: true
-      ContentBasedDeduplication: false  # Use explicit MessageDeduplicationId (trade_id)
+        - !Sub "${StackName}-execution-parallel"
+        - !Sub "alchemiser-${Stage}-execution-parallel"
       VisibilityTimeout: 900  # 15 mins for execution
       MessageRetentionPeriod: 345600  # 4 days
       RedrivePolicy:
@@ -553,9 +552,8 @@ Resources:
     Properties:
       QueueName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-execution-fifo-dlq.fifo"
-        - !Sub "alchemiser-${Stage}-execution-fifo-dlq.fifo"
-      FifoQueue: true
+        - !Sub "${StackName}-execution-parallel-dlq"
+        - !Sub "alchemiser-${Stage}-execution-parallel-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
@@ -673,15 +671,15 @@ Resources:
         - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
-  # CloudWatch Alarm for FIFO DLQ messages (per-trade execution failures)
+  # CloudWatch Alarm for parallel execution DLQ messages (per-trade execution failures)
   FifoDLQMessageAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-fifo-dlq-messages"
-        - !Sub "alchemiser-${Stage}-fifo-dlq-messages"
-      AlarmDescription: "Alert when per-trade execution messages hit FIFO DLQ after 3 retries"
+        - !Sub "${StackName}-parallel-dlq-messages"
+        - !Sub "alchemiser-${Stage}-parallel-dlq-messages"
+      AlarmDescription: "Alert when per-trade execution messages hit parallel DLQ after 3 retries"
       MetricName: ApproximateNumberOfMessagesVisible
       Namespace: AWS/SQS
       Statistic: Sum
@@ -1154,7 +1152,9 @@ Resources:
         - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
-      # Note: Concurrency is limited by SQS BatchSize: 1 which processes one message at a time
+      # Concurrency capped at 10 parallel Lambda invocations
+      # This limits API calls to Alpaca and allows parallel SELL/BUY execution
+      ReservedConcurrentExecutions: 10
       # WebSocket connections are cleaned up after each execution via cleanup_all_instances()
       Environment:
         Variables:
@@ -1165,6 +1165,8 @@ Resources:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Per-trade execution configuration
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
+          # Queue URL for triggering BUY phase after SELL phase completes
+          EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
       Events:
         ExecutionQueue:
           Type: SQS
@@ -1224,6 +1226,7 @@ Resources:
                   - sqs:ReceiveMessage
                   - sqs:DeleteMessage
                   - sqs:GetQueueAttributes
+                  - sqs:SendMessage  # For triggering BUY phase after SELL phase completes
                 Resource:
                   - !GetAtt ExecutionQueue.Arn
                   - !GetAtt ExecutionFifoQueue.Arn
@@ -1932,7 +1935,7 @@ Outputs:
         - !Sub "alchemiser-${Stage}-RebalancePlanTable"
 
   ExecutionFifoQueueUrl:
-    Description: "SQS FIFO queue for per-trade execution"
+    Description: "SQS Standard queue for parallel per-trade execution"
     Value: !Ref ExecutionFifoQueue
     Export:
       Name: !If

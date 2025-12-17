@@ -1023,7 +1023,12 @@ class PortfolioAnalysisHandler:
         # Sort by sequence number (sells first, then buys)
         trade_messages.sort(key=lambda m: m.sequence_number)
 
-        # Create run state entry in DynamoDB
+        # Separate trades by phase for two-phase execution
+        sell_trades = [m for m in trade_messages if m.phase == "SELL"]
+        buy_trades = [m for m in trade_messages if m.phase == "BUY"]
+
+        # Create run state entry in DynamoDB with two-phase tracking
+        # BUY trades are stored but not enqueued yet (status=WAITING)
         run_service = ExecutionRunService(table_name=_get_execution_runs_table_name())
         run_service.create_run(
             run_id=run_id,
@@ -1031,34 +1036,43 @@ class PortfolioAnalysisHandler:
             correlation_id=correlation_id,
             trade_messages=trade_messages,
             run_timestamp=run_timestamp,
+            enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
         )
 
-        # Enqueue each trade message to SQS FIFO with error handling
-        # If any enqueue fails, mark run as FAILED to prevent orphaned runs
+        # Enqueue only SELL trades to Standard SQS queue (parallel execution)
+        # BUY trades will be enqueued after SELL phase completes
+        # Standard queue removes MessageGroupId requirement - enables parallel Lambda invocations
         sqs_client = boto3.client("sqs")
         queue_url = _get_execution_fifo_queue_url()
         enqueued_count = 0
 
         try:
-            for msg in trade_messages:
+            for msg in sell_trades:
                 sqs_client.send_message(
                     QueueUrl=queue_url,
                     MessageBody=msg.to_sqs_message_body(),
-                    MessageGroupId=run_id,  # All trades in same run grouped together
-                    MessageDeduplicationId=msg.trade_id,  # Unique per trade
+                    # Standard queue uses MessageDeduplicationId for client-side dedup
+                    # No MessageGroupId needed - enables parallel processing
+                    MessageAttributes={
+                        "RunId": {"DataType": "String", "StringValue": run_id},
+                        "TradeId": {"DataType": "String", "StringValue": msg.trade_id},
+                        "Phase": {"DataType": "String", "StringValue": msg.phase},
+                    },
                 )
                 enqueued_count += 1
 
         except Exception as enqueue_error:
             # SQS enqueue failed - mark run as FAILED to prevent inconsistent state
             self.logger.error(
-                f"SQS enqueue failed after {enqueued_count}/{len(trade_messages)} messages: {enqueue_error}",
+                f"SQS enqueue failed after {enqueued_count}/{len(sell_trades)} SELL messages: {enqueue_error}",
                 extra={
                     "run_id": run_id,
                     "correlation_id": correlation_id,
                     "enqueued_count": enqueued_count,
-                    "total_trades": len(trade_messages),
+                    "total_sells": len(sell_trades),
+                    "total_buys": len(buy_trades),
                     "error_type": type(enqueue_error).__name__,
+                    "error_details": str(enqueue_error),
                 },
             )
             # Mark run as FAILED so it doesn't wait forever for missing trades
@@ -1077,13 +1091,14 @@ class PortfolioAnalysisHandler:
             raise
 
         self.logger.info(
-            "Enqueued trades for per-trade execution",
+            "Enqueued SELL trades for parallel execution (BUYs waiting for SELL completion)",
             extra={
                 "run_id": run_id,
                 "correlation_id": correlation_id,
-                "trade_count": len(trade_messages),
-                "sell_count": sum(1 for m in trade_messages if m.phase == "SELL"),
-                "buy_count": sum(1 for m in trade_messages if m.phase == "BUY"),
+                "total_trades": len(trade_messages),
+                "sell_enqueued": len(sell_trades),
+                "buy_waiting": len(buy_trades),
+                "execution_mode": "two_phase_parallel",
             },
         )
 

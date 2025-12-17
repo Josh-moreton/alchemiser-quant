@@ -46,7 +46,9 @@ class ExecutionRunService:
         - run_id, plan_id, correlation_id
         - total_trades, completed_trades (atomic counter)
         - succeeded_trades, failed_trades
-        - status: PENDING | RUNNING | COMPLETED | FAILED
+        - sell_total, sell_completed, buy_total, buy_completed (phase tracking)
+        - current_phase: SELL | BUY | COMPLETED (two-phase execution)
+        - status: PENDING | RUNNING | SELL_PHASE | BUY_PHASE | COMPLETED | FAILED
         - created_at, TTL
 
     Trade result items (one per trade):
@@ -54,6 +56,12 @@ class ExecutionRunService:
         - status: PENDING | RUNNING | COMPLETED | FAILED
         - order_id, error_message
         - started_at, completed_at
+
+    Phase Execution Flow:
+        1. Portfolio Lambda enqueues only SELL trades, sets current_phase=SELL
+        2. When all SELLs complete, Notifications Lambda triggers BUY phase
+        3. Portfolio Lambda (or aggregator) enqueues BUY trades, sets current_phase=BUY
+        4. When all BUYs complete, run is marked COMPLETED
     """
 
     def __init__(
@@ -83,11 +91,19 @@ class ExecutionRunService:
         correlation_id: str,
         trade_messages: list[TradeMessage],
         run_timestamp: datetime,
+        *,
+        enqueue_sells_only: bool = False,
     ) -> dict[str, Any]:
-        """Create a new execution run.
+        """Create a new execution run with optional two-phase execution.
 
         Called by Portfolio Lambda when decomposing a RebalancePlan into
         individual TradeMessages.
+
+        For two-phase execution (enqueue_sells_only=True):
+        - Only SELL trades are enqueued immediately
+        - BUY trades are stored in DynamoDB for later enqueue
+        - current_phase is set to "SELL"
+        - When SELLs complete, trigger_buy_phase() enqueues the BUYs
 
         Args:
             run_id: Unique run identifier (UUID).
@@ -95,6 +111,7 @@ class ExecutionRunService:
             correlation_id: Workflow correlation ID for tracing.
             trade_messages: List of TradeMessage objects for this run.
             run_timestamp: When the run started.
+            enqueue_sells_only: If True, only SELL trades are enqueued now.
 
         Returns:
             Run metadata dict.
@@ -103,7 +120,21 @@ class ExecutionRunService:
         now = datetime.now(UTC)
         ttl = int((now + timedelta(hours=24)).timestamp())
 
-        # Create run metadata item
+        # Separate trades by phase for tracking
+        sell_trades = [m for m in trade_messages if m.phase == "SELL"]
+        buy_trades = [m for m in trade_messages if m.phase == "BUY"]
+
+        # For two-phase execution, only track sells as "active" initially
+        if enqueue_sells_only:
+            active_trades = sell_trades
+            current_phase = "SELL"
+            status = "SELL_PHASE"
+        else:
+            active_trades = trade_messages
+            current_phase = "ALL"  # Legacy single-phase mode
+            status = "PENDING"
+
+        # Create run metadata item with phase tracking
         item = cast(
             "dict[str, dict[str, Any]]",
             {
@@ -116,7 +147,13 @@ class ExecutionRunService:
                 "completed_trades": {"N": "0"},
                 "succeeded_trades": {"N": "0"},
                 "failed_trades": {"N": "0"},
-                "status": {"S": "PENDING"},
+                # Phase tracking for two-phase execution
+                "sell_total": {"N": str(len(sell_trades))},
+                "sell_completed": {"N": "0"},
+                "buy_total": {"N": str(len(buy_trades))},
+                "buy_completed": {"N": "0"},
+                "current_phase": {"S": current_phase},
+                "status": {"S": status},
                 "run_timestamp": {"S": run_timestamp.isoformat()},
                 "created_at": {"S": now.isoformat()},
                 "TTL": {"N": str(ttl)},
@@ -129,6 +166,11 @@ class ExecutionRunService:
 
         # Create pending trade items for each trade
         for msg in trade_messages:
+            # For two-phase execution, mark BUY trades as WAITING (not yet enqueued)
+            initial_status = "PENDING"
+            if enqueue_sells_only and msg.phase == "BUY":
+                initial_status = "WAITING"  # Will be enqueued when SELLs complete
+
             trade_item = cast(
                 "dict[str, dict[str, Any]]",
                 {
@@ -140,8 +182,10 @@ class ExecutionRunService:
                     "phase": {"S": msg.phase},
                     "sequence_number": {"N": str(msg.sequence_number)},
                     "trade_amount": {"N": str(msg.trade_amount)},
-                    "status": {"S": "PENDING"},
+                    "status": {"S": initial_status},
                     "TTL": {"N": str(ttl)},
+                    # Store full message body for deferred BUY enqueue
+                    "message_body": {"S": msg.to_sqs_message_body()},
                 },
             )
             self._client.put_item(TableName=self._table_name, Item=trade_item)
@@ -153,6 +197,10 @@ class ExecutionRunService:
                 "plan_id": plan_id,
                 "correlation_id": correlation_id,
                 "total_trades": len(trade_messages),
+                "sell_count": len(sell_trades),
+                "buy_count": len(buy_trades),
+                "current_phase": current_phase,
+                "enqueue_sells_only": enqueue_sells_only,
             },
         )
 
@@ -162,7 +210,12 @@ class ExecutionRunService:
             "correlation_id": correlation_id,
             "total_trades": len(trade_messages),
             "completed_trades": 0,
-            "status": "PENDING",
+            "sell_total": len(sell_trades),
+            "sell_completed": 0,
+            "buy_total": len(buy_trades),
+            "buy_completed": 0,
+            "current_phase": current_phase,
+            "status": status,
             "created_at": now.isoformat(),
         }
 
@@ -228,11 +281,13 @@ class ExecutionRunService:
         order_id: str | None = None,
         error_message: str | None = None,
         execution_data: dict[str, Any] | None = None,
-    ) -> int:
-        """Mark a trade as completed and increment completion counter.
+        phase: str | None = None,
+    ) -> dict[str, Any]:
+        """Mark a trade as completed and increment completion counters.
 
         Called by Execution Lambda after trade execution completes.
         Uses conditional put to ensure idempotency.
+        Updates both overall and phase-specific counters for two-phase execution.
 
         Args:
             run_id: Run identifier.
@@ -241,9 +296,10 @@ class ExecutionRunService:
             order_id: Broker order ID if available.
             error_message: Error message if failed.
             execution_data: Additional execution data.
+            phase: Trade phase (SELL or BUY) for phase-specific counter updates.
 
         Returns:
-            Updated completed_trades count.
+            Dict with completion info including phase_complete flag.
 
         """
         import json
@@ -289,20 +345,46 @@ class ExecutionRunService:
                 },
             )
 
-            # Increment counters atomically
+            # Increment counters atomically - both overall and phase-specific
             counter_field = "succeeded_trades" if success else "failed_trades"
+
+            # Build update expression for phase-specific counters
+            if phase == "SELL":
+                phase_counter = "sell_completed"
+            elif phase == "BUY":
+                phase_counter = "buy_completed"
+            else:
+                phase_counter = None
+
+            if phase_counter:
+                update_expression = f"ADD completed_trades :one, {counter_field} :one, {phase_counter} :one"
+            else:
+                update_expression = f"ADD completed_trades :one, {counter_field} :one"
+
             response = self._client.update_item(
                 TableName=self._table_name,
                 Key={
                     "PK": {"S": f"RUN#{run_id}"},
                     "SK": {"S": "METADATA"},
                 },
-                UpdateExpression=f"ADD completed_trades :one, {counter_field} :one",
+                UpdateExpression=update_expression,
                 ExpressionAttributeValues={":one": {"N": "1"}},
-                ReturnValues="UPDATED_NEW",
+                ReturnValues="ALL_NEW",
             )
 
-            completed = int(response["Attributes"]["completed_trades"]["N"])
+            attrs = response.get("Attributes", {})
+            completed = int(attrs.get("completed_trades", {"N": "0"})["N"])
+            total = int(attrs.get("total_trades", {"N": "0"})["N"])
+            sell_completed = int(attrs.get("sell_completed", {"N": "0"})["N"])
+            sell_total = int(attrs.get("sell_total", {"N": "0"})["N"])
+            buy_completed = int(attrs.get("buy_completed", {"N": "0"})["N"])
+            buy_total = int(attrs.get("buy_total", {"N": "0"})["N"])
+            current_phase = attrs.get("current_phase", {"S": "ALL"})["S"]
+
+            # Determine if phase is complete
+            sell_phase_complete = sell_completed >= sell_total and sell_total > 0
+            buy_phase_complete = buy_completed >= buy_total
+            run_complete = completed >= total
 
             logger.info(
                 "Marked trade as completed",
@@ -310,23 +392,54 @@ class ExecutionRunService:
                     "run_id": run_id,
                     "trade_id": trade_id,
                     "success": success,
+                    "phase": phase,
                     "completed_trades": completed,
+                    "sell_completed": sell_completed,
+                    "sell_total": sell_total,
+                    "buy_completed": buy_completed,
+                    "buy_total": buy_total,
+                    "sell_phase_complete": sell_phase_complete,
+                    "current_phase": current_phase,
                 },
             )
 
-            return completed
+            return {
+                "completed_trades": completed,
+                "total_trades": total,
+                "sell_completed": sell_completed,
+                "sell_total": sell_total,
+                "buy_completed": buy_completed,
+                "buy_total": buy_total,
+                "current_phase": current_phase,
+                "sell_phase_complete": sell_phase_complete,
+                "buy_phase_complete": buy_phase_complete,
+                "run_complete": run_complete,
+            }
 
         except self._client.exceptions.ConditionalCheckFailedException:
-            # Trade already marked as completed - get current count
+            # Trade already marked as completed - get current state
             logger.warning(
                 "Trade already completed (duplicate)",
                 extra={"run_id": run_id, "trade_id": trade_id},
             )
             run = self.get_run(run_id)
-            return run.get("completed_trades", 0) if run else 0
+            if run:
+                return {
+                    "completed_trades": run.get("completed_trades", 0),
+                    "total_trades": run.get("total_trades", 0),
+                    "sell_completed": run.get("sell_completed", 0),
+                    "sell_total": run.get("sell_total", 0),
+                    "buy_completed": run.get("buy_completed", 0),
+                    "buy_total": run.get("buy_total", 0),
+                    "current_phase": run.get("current_phase", "ALL"),
+                    "sell_phase_complete": run.get("sell_completed", 0) >= run.get("sell_total", 0),
+                    "buy_phase_complete": run.get("buy_completed", 0) >= run.get("buy_total", 0),
+                    "run_complete": run.get("completed_trades", 0) >= run.get("total_trades", 0),
+                }
+            return {"completed_trades": 0, "total_trades": 0, "run_complete": False}
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
-        """Get run metadata.
+        """Get run metadata including phase tracking.
 
         Args:
             run_id: Run identifier.
@@ -355,6 +468,12 @@ class ExecutionRunService:
             "completed_trades": int(item["completed_trades"]["N"]),
             "succeeded_trades": int(item.get("succeeded_trades", {"N": "0"})["N"]),
             "failed_trades": int(item.get("failed_trades", {"N": "0"})["N"]),
+            # Phase tracking fields
+            "sell_total": int(item.get("sell_total", {"N": "0"})["N"]),
+            "sell_completed": int(item.get("sell_completed", {"N": "0"})["N"]),
+            "buy_total": int(item.get("buy_total", {"N": "0"})["N"]),
+            "buy_completed": int(item.get("buy_completed", {"N": "0"})["N"]),
+            "current_phase": item.get("current_phase", {"S": "ALL"})["S"],
             "status": item["status"]["S"],
             "run_timestamp": item.get("run_timestamp", {}).get("S"),
             "created_at": item["created_at"]["S"],
@@ -540,7 +659,7 @@ class ExecutionRunService:
 
         Args:
             run_id: Run identifier.
-            status: New status (PENDING, RUNNING, COMPLETED, FAILED).
+            status: New status (PENDING, RUNNING, SELL_PHASE, BUY_PHASE, COMPLETED, FAILED).
 
         """
         self._client.update_item(
@@ -558,6 +677,166 @@ class ExecutionRunService:
             "Updated run status",
             extra={"run_id": run_id, "status": status},
         )
+
+    def is_sell_phase_complete(self, run_id: str) -> bool:
+        """Check if SELL phase is complete for two-phase execution.
+
+        Args:
+            run_id: Run identifier.
+
+        Returns:
+            True if all SELL trades have completed.
+
+        """
+        run = self.get_run(run_id)
+        if not run:
+            return False
+
+        sell_completed: int = run.get("sell_completed", 0)
+        sell_total: int = run.get("sell_total", 0)
+        current_phase: str = run.get("current_phase", "ALL")
+
+        # Only relevant for two-phase execution (SELL phase)
+        if current_phase != "SELL":
+            return False
+
+        return sell_completed >= sell_total and sell_total > 0
+
+    def get_pending_buy_trades(self, run_id: str) -> list[dict[str, Any]]:
+        """Get BUY trades that are waiting to be enqueued.
+
+        For two-phase execution, BUY trades are stored with status=WAITING
+        until the SELL phase completes.
+
+        Args:
+            run_id: Run identifier.
+
+        Returns:
+            List of trade dicts with message_body for SQS enqueue.
+
+        """
+        response = self._client.query(
+            TableName=self._table_name,
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            FilterExpression="phase = :buy AND #status = :waiting",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":pk": {"S": f"RUN#{run_id}"},
+                ":sk_prefix": {"S": "TRADE#"},
+                ":buy": {"S": "BUY"},
+                ":waiting": {"S": "WAITING"},
+            },
+        )
+
+        trades = []
+        for item in response.get("Items", []):
+            trade = {
+                "trade_id": item["trade_id"]["S"],
+                "symbol": item["symbol"]["S"],
+                "action": item["action"]["S"],
+                "phase": item["phase"]["S"],
+                "sequence_number": int(item["sequence_number"]["N"]),
+                "message_body": item.get("message_body", {"S": ""})["S"],
+            }
+            trades.append(trade)
+
+        # Sort by sequence number
+        trades.sort(key=lambda t: t.get("sequence_number", 0))
+
+        logger.debug(
+            "Retrieved pending BUY trades",
+            extra={"run_id": run_id, "count": len(trades)},
+        )
+
+        return trades
+
+    def transition_to_buy_phase(self, run_id: str) -> bool:
+        """Transition run from SELL phase to BUY phase (idempotent).
+
+        Called when SELL phase completes to start BUY phase.
+        Uses conditional update to ensure only one caller triggers the transition.
+
+        Args:
+            run_id: Run identifier.
+
+        Returns:
+            True if this call triggered the transition, False if already transitioned.
+
+        """
+        now = datetime.now(UTC)
+
+        try:
+            self._client.update_item(
+                TableName=self._table_name,
+                Key={
+                    "PK": {"S": f"RUN#{run_id}"},
+                    "SK": {"S": "METADATA"},
+                },
+                UpdateExpression="SET #status = :buy_phase, current_phase = :buy, buy_phase_started_at = :now",
+                ConditionExpression="current_phase = :sell AND #status = :sell_phase",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":buy_phase": {"S": "BUY_PHASE"},
+                    ":buy": {"S": "BUY"},
+                    ":sell": {"S": "SELL"},
+                    ":sell_phase": {"S": "SELL_PHASE"},
+                    ":now": {"S": now.isoformat()},
+                },
+            )
+            logger.info(
+                "Transitioned run to BUY phase",
+                extra={"run_id": run_id},
+            )
+            return True
+
+        except self._client.exceptions.ConditionalCheckFailedException:
+            # Already transitioned by another invocation
+            logger.debug(
+                "Run already transitioned to BUY phase",
+                extra={"run_id": run_id},
+            )
+            return False
+
+    def mark_buy_trades_pending(self, run_id: str, trade_ids: list[str]) -> int:
+        """Mark BUY trades as PENDING after enqueue.
+
+        Updates trade status from WAITING to PENDING after SQS enqueue.
+
+        Args:
+            run_id: Run identifier.
+            trade_ids: List of trade IDs that were enqueued.
+
+        Returns:
+            Number of trades updated.
+
+        """
+        updated = 0
+        for trade_id in trade_ids:
+            try:
+                self._client.update_item(
+                    TableName=self._table_name,
+                    Key={
+                        "PK": {"S": f"RUN#{run_id}"},
+                        "SK": {"S": f"TRADE#{trade_id}"},
+                    },
+                    UpdateExpression="SET #status = :pending",
+                    ConditionExpression="#status = :waiting",
+                    ExpressionAttributeNames={"#status": "status"},
+                    ExpressionAttributeValues={
+                        ":pending": {"S": "PENDING"},
+                        ":waiting": {"S": "WAITING"},
+                    },
+                )
+                updated += 1
+            except self._client.exceptions.ConditionalCheckFailedException:
+                # Already updated, skip
+                pass
+
+        logger.info(
+            "Marked BUY trades as PENDING",
+            extra={"run_id": run_id, "updated": updated, "total": len(trade_ids)},
+        )
+        return updated
 
     def find_stuck_runs(self, max_age_minutes: int = 30) -> list[dict[str, Any]]:
         """Find runs that have been in RUNNING status for too long.
