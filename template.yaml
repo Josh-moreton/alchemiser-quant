@@ -13,9 +13,10 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
+      - staging
       - prod
       - ephemeral
-    Description: Deployment stage (dev, prod, or ephemeral)
+    Description: Deployment stage (dev, staging, prod, or ephemeral)
   
   StackName:
     Type: String
@@ -27,6 +28,7 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
+      - staging
       - prod
       - ephemeral
     Description: Environment type for resource configuration
@@ -76,6 +78,35 @@ Parameters:
     Default: "1.0"
     Description: Equity deployment percentage for production (conservative default)
 
+  # Staging-only parameters (only used when Stage=staging)
+  StagingAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for staging (required when Stage=staging)
+
+  StagingAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for staging (required when Stage=staging)
+
+  StagingAlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint for staging (typically paper trading)
+
+  StagingEmailPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Email SMTP password for staging notifications (optional)
+
+  StagingEquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: Equity deployment percentage for staging
+
   # Production-only parameters (only used when Stage=prod)
   ProdAlpacaKey:
     Type: String
@@ -100,21 +131,14 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
-  # Multi-node strategy scaling
-  EnableMultiNodeStrategy:
-    Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
-    Description: Enable multi-node strategy scaling (fan-out to parallel Lambda invocations)
-
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
   StageConfig:
     dev:
       TitleCase: "Dev"
+    staging:
+      TitleCase: "Staging"
     prod:
       TitleCase: "Production"
     ephemeral:
@@ -122,11 +146,11 @@ Mappings:
 
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
+  IsStaging: !Equals [ !Ref Stage, staging ]
   IsProduction: !Equals [ !Ref Stage, prod ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
-  EnableMultiNode: !Equals [ !Ref EnableMultiNodeStrategy, "true" ]
 
 Globals:
   Function:
@@ -135,18 +159,18 @@ Globals:
     Environment:
       Variables:
         # Stage awareness for code-level profiles
-        APP__STAGE: !If [ IsDev, "dev", "prod" ]
+        APP__STAGE: !If [ IsProduction, "prod", !If [ IsStaging, "staging", "dev" ] ]
         # Alpaca Configuration
-        ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-        ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-        ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+        ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+        ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+        ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
         EMAIL__FROM_EMAIL: joshuamoreton1@icloud.com
         EMAIL__TO_EMAIL: notifications@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        EMAIL__PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
+        EMAIL__PASSWORD: !If [ IsProduction, !Ref ProdEmailPassword, !If [ IsStaging, !Ref StagingEmailPassword, !Ref EmailPassword ] ]
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
@@ -156,7 +180,7 @@ Globals:
 
         # Margin/Leverage configuration - controls how much of equity to deploy
         # 1.0 = 100% of equity (no margin), 1.10 = 110% (10% margin usage)
-        ALPACA__EQUITY_DEPLOYMENT_PCT: !If [ IsDev, !Ref EquityDeploymentPct, !Ref ProdEquityDeploymentPct ]
+        ALPACA__EQUITY_DEPLOYMENT_PCT: !If [ IsProduction, !Ref ProdEquityDeploymentPct, !If [ IsStaging, !Ref StagingEquityDeploymentPct, !Ref EquityDeploymentPct ] ]
 
         # Trade ledger DynamoDB table
         TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
@@ -322,6 +346,98 @@ Resources:
         - Key: Service
           Value: aggregation-sessions
 
+  # ========== EXECUTION RUNS TABLE (PER-TRADE SCALING) ==========
+  # DynamoDB Table for tracking per-trade execution run state
+  # Follows same pattern as AggregationSessionsTable for Strategy multi-node
+  ExecutionRunsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-runs"
+        - !Sub "alchemiser-${Stage}-execution-runs"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: execution-runs
+
+  # ========== REBALANCE PLAN TABLE (AUDITABILITY) ==========
+  # DynamoDB Table for persisting RebalancePlan documents with 90-day TTL
+  # Enables "why didn't we trade X?" queries beyond EventBridge's 24-hour retention
+  RebalancePlanTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-plans"
+        - !Sub "alchemiser-${Stage}-rebalance-plans"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      GlobalSecondaryIndexes:
+        # GSI1: Query by correlation_id for tracing workflow decisions
+        - IndexName: GSI1-CorrelationIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: rebalance-plans
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -449,6 +565,31 @@ Resources:
         - !Sub "alchemiser-${Stage}-execution-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
+  # SQS Standard Queue for parallel per-trade execution
+  # Standard queue enables parallel Lambda invocations (up to ReservedConcurrentExecutions)
+  # SELL→BUY ordering is controlled via two-phase enqueue in Portfolio Lambda
+  ExecutionFifoQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-parallel"
+        - !Sub "alchemiser-${Stage}-execution-parallel"
+      VisibilityTimeout: 900  # 15 mins for execution
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ExecutionFifoDLQ.Arn
+        maxReceiveCount: 3
+
+  ExecutionFifoDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-parallel-dlq"
+        - !Sub "alchemiser-${Stage}-execution-parallel-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
   DLQAlertTopic:
     Type: AWS::SNS::Topic
@@ -564,6 +705,53 @@ Resources:
         - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
+  # CloudWatch Alarm for parallel execution DLQ messages (per-trade execution failures)
+  FifoDLQMessageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-parallel-dlq-messages"
+        - !Sub "alchemiser-${Stage}-parallel-dlq-messages"
+      AlarmDescription: "Alert when per-trade execution messages hit parallel DLQ after 3 retries"
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ExecutionFifoDLQ.QueueName
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # CloudWatch Alarm for stuck execution runs (RUNNING > 30 mins)
+  # Detects orphaned runs where trades never completed
+  StuckRunsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-stuck-execution-runs"
+        - !Sub "alchemiser-${Stage}-stuck-execution-runs"
+      AlarmDescription: "Alert when execution runs are stuck in RUNNING state for >30 minutes"
+      MetricName: StuckRuns
+      Namespace: Alchemiser/Execution
+      Statistic: Maximum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref ExecutionRunsTable
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
   # Policy to allow EventBridge to send messages to SQS
   ExecutionQueuePolicy:
     Type: AWS::SQS::QueuePolicy
@@ -651,8 +839,6 @@ Resources:
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
-          # Multi-node strategy scaling
-          ENABLE_MULTI_NODE_STRATEGY: !Ref EnableMultiNodeStrategy
           # Data Lambda for market data (bars from S3 Parquet)
           DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
@@ -744,7 +930,6 @@ Resources:
           AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
           AGGREGATION_TIMEOUT_SECONDS: "600"
-          ENABLE_MULTI_NODE_STRATEGY: !Ref EnableMultiNodeStrategy
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -906,6 +1091,11 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Rebalance plan persistence for auditability
+          REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
+          # Per-trade execution configuration
+          EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -952,6 +1142,31 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
+              # Per-trade execution: SQS FIFO queue access
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt ExecutionFifoQueue.Arn
+              # Per-trade execution: Execution runs table access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
+              # Rebalance plan persistence for auditability
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt RebalancePlanTable.Arn
+                  - !Sub "${RebalancePlanTable.Arn}/index/*"
 
   # Execution Lambda - Trade execution microservice (triggered via SQS)
   ExecutionFunction:
@@ -971,7 +1186,10 @@ Resources:
         - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
-      # Note: Concurrency is limited by SQS BatchSize: 1 which processes one message at a time
+      # Concurrency limited to 10 for Alpaca trading API rate limits (200 calls/min)
+      # WebSocket handles order status updates, so each trade only makes ~1-2 REST calls
+      # 10 concurrent = ~2-4 calls/sec (well under 3.33/sec limit)
+      ReservedConcurrentExecutions: 10
       # WebSocket connections are cleaned up after each execution via cleanup_all_instances()
       Environment:
         Variables:
@@ -980,11 +1198,23 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Per-trade execution configuration
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
+          # Queue URL for triggering BUY phase after SELL phase completes
+          EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
       Events:
         ExecutionQueue:
           Type: SQS
           Properties:
             Queue: !GetAtt ExecutionQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+        # Per-trade execution: FIFO queue trigger
+        ExecutionFifoQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ExecutionFifoQueue.Arn
             BatchSize: 1
             FunctionResponseTypes:
               - ReportBatchItemFailures
@@ -1031,8 +1261,10 @@ Resources:
                   - sqs:ReceiveMessage
                   - sqs:DeleteMessage
                   - sqs:GetQueueAttributes
+                  - sqs:SendMessage  # For triggering BUY phase after SELL phase completes
                 Resource:
                   - !GetAtt ExecutionQueue.Arn
+                  - !GetAtt ExecutionFifoQueue.Arn
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -1043,6 +1275,15 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
+              # Per-trade execution: Execution runs table access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # ========== NOTIFICATIONS LAMBDA ==========
   # Consumes TradeExecuted and WorkflowFailed events and sends email notifications
@@ -1069,6 +1310,8 @@ Resources:
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Per-trade execution configuration (for run aggregation)
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
@@ -1146,12 +1389,19 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - !Sub "${PerformanceReportsBucket.Arn}/*"
+              # Per-trade execution: Execution runs table access (for run aggregation)
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
   # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization
   MetricsFunction:
     Type: AWS::Serverless::Function
-    Condition: IsProduction
     Properties:
       FunctionName: !Sub "alchemiser-${Stage}-metrics"
       Runtime: python3.12
@@ -1197,7 +1447,6 @@ Resources:
 
   MetricsExecutionRole:
     Type: AWS::IAM::Role
-    Condition: IsProduction
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -1224,9 +1473,8 @@ Resources:
                   - cloudwatch:PutMetricData
                 Resource: "*"
 
-  # Scheduler to trigger Strategy (workflow entry point)
-  # When EnableMultiNodeStrategy=true, triggers Orchestrator (fan-out/fan-in)
-  # When EnableMultiNodeStrategy=false, triggers Strategy directly (legacy mode)
+  # Scheduler to trigger Strategy Orchestrator (workflow entry point)
+  # Orchestrator fans out to Strategy Workers for parallel execution
   StrategySchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -1234,19 +1482,13 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
         - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: !If
-        - EnableMultiNode
-        - "Execute trading strategy (multi-node mode) daily at 9:35 AM New York time"
-        - "Execute trading strategy (legacy mode) daily at 9:35 AM New York time"
+      Description: "Execute trading strategy daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !If
-          - EnableMultiNode
-          - !GetAtt StrategyOrchestratorFunction.Arn
-          - !GetAtt StrategyFunction.Arn
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
         Input: '{"mode": "trade"}'
         RetryPolicy:
@@ -1408,7 +1650,7 @@ Resources:
                 "properties": {
                   "title": "Latest Errors & Warnings (All Lambdas)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['error', 'warn', 'warning']\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${MetricsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level in ['error', 'warn', 'warning']\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 0,
@@ -1420,7 +1662,7 @@ Resources:
                 "properties": {
                   "title": "Errors by Correlation ID (Trace Workflow Runs)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'error'\n| sort @timestamp desc\n| limit 100"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${MetricsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, module, correlation_id, message\n| filter level = 'error'\n| sort @timestamp desc\n| limit 100"
                 },
                 "x": 0,
                 "y": 8,
@@ -1432,7 +1674,7 @@ Resources:
                 "properties": {
                   "title": "Recent Workflow Runs (by correlation_id)",
                   "region": "${AWS::Region}",
-                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event like /SignalGenerated|PartialSignalGenerated|RebalancePlanned|TradeExecuted|WorkflowCompleted|WorkflowFailed/\n| sort @timestamp desc\n| limit 50"
+                  "query": "SOURCE '${StrategyLog}'\n| SOURCE '${OrchestratorLog}'\n| SOURCE '${AggregatorLog}'\n| SOURCE '${PortfolioLog}'\n| SOURCE '${ExecutionLog}'\n| SOURCE '${NotificationsLog}'\n| SOURCE '${MetricsLog}'\n| SOURCE '${DataLog}'\n| fields @timestamp, @log, level, event, correlation_id, module\n| filter event like /SignalGenerated|PartialSignalGenerated|RebalancePlanned|TradeExecuted|WorkflowCompleted|WorkflowFailed/\n| sort @timestamp desc\n| limit 50"
                 },
                 "x": 0,
                 "y": 16,
@@ -1543,6 +1785,140 @@ Resources:
                 "y": 30,
                 "width": 6,
                 "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "P&L by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "P&L ($)" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} RealizedPnL', 'Sum', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 0,
+                "y": 36,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Win Rate by Strategy (%)",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "%", "min": 0, "max": 100 } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} WinRate', 'Average', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 12,
+                "y": 36,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Open Position Value by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 3600,
+                  "view": "timeSeries",
+                  "stacked": true,
+                  "yAxis": { "left": { "label": "Value ($)" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} OpenPositionValue', 'Average', 3600)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 0,
+                "y": 42,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Open Lots by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 3600,
+                  "view": "timeSeries",
+                  "stacked": true,
+                  "yAxis": { "left": { "label": "Count", "min": 0 } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} OpenLotCount', 'Average', 3600)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 12,
+                "y": 42,
+                "width": 6,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Closed Lots by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Sum",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": true,
+                  "yAxis": { "left": { "label": "Count", "min": 0 } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} ClosedLotCount', 'Sum', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 18,
+                "y": 42,
+                "width": 6,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Winning vs Losing Trades by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "view": "bar",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "Count" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} WinningTrades', 'Average', 86400)", "label": "", "id": "e1" } ],
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} LosingTrades', 'Average', 86400)", "label": "", "id": "e2" } ]
+                  ]
+                },
+                "x": 0,
+                "y": 48,
+                "width": 12,
+                "height": 6
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Avg Profit per Trade by Strategy",
+                  "region": "${AWS::Region}",
+                  "stat": "Average",
+                  "period": 86400,
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "yAxis": { "left": { "label": "$ per trade" } },
+                  "metrics": [
+                    [ { "expression": "SEARCH('{Alchemiser/${StageTitle},StrategyName} AvgProfitPerTrade', 'Average', 86400)", "label": "", "id": "e1" } ]
+                  ]
+                },
+                "x": 12,
+                "y": 48,
+                "width": 12,
+                "height": 6
               }
             ]
           }
@@ -1552,6 +1928,7 @@ Resources:
           PortfolioLog: !Sub "/aws/lambda/${PortfolioFunction}"
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
+          MetricsLog: !Sub "/aws/lambda/${MetricsFunction}"
           DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
@@ -1573,6 +1950,33 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-AggregationSessionsTable"
         - !Sub "alchemiser-${Stage}-AggregationSessionsTable"
+
+  ExecutionRunsTableName:
+    Description: "DynamoDB table for per-trade execution run tracking"
+    Value: !Ref ExecutionRunsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-ExecutionRunsTable"
+        - !Sub "alchemiser-${Stage}-ExecutionRunsTable"
+
+  RebalancePlanTableName:
+    Description: "DynamoDB table for rebalance plan auditability (90-day TTL)"
+    Value: !Ref RebalancePlanTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-RebalancePlanTable"
+        - !Sub "alchemiser-${Stage}-RebalancePlanTable"
+
+  ExecutionFifoQueueUrl:
+    Description: "SQS Standard queue for parallel per-trade execution"
+    Value: !Ref ExecutionFifoQueue
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-ExecutionFifoQueue"
+        - !Sub "alchemiser-${Stage}-ExecutionFifoQueue"
 
   PerformanceReportsBucketName:
     Description: "S3 bucket for strategy performance CSV reports"

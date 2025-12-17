@@ -41,6 +41,7 @@ Idempotency:
 from __future__ import annotations
 
 import time
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.errors.exceptions import PortfolioError
@@ -82,7 +83,11 @@ class PortfolioServiceV2:
         self._planner = RebalancePlanCalculator()
 
     def create_rebalance_plan(
-        self, strategy: StrategyAllocation, correlation_id: str, causation_id: str | None = None
+        self,
+        strategy: StrategyAllocation,
+        correlation_id: str,
+        causation_id: str | None = None,
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> RebalancePlan:
         """Create rebalance plan DTO from strategy allocation.
 
@@ -93,6 +98,8 @@ class PortfolioServiceV2:
             strategy: Strategy allocation with target weights and constraints
             correlation_id: Correlation ID for tracking this operation
             causation_id: Causation ID for event traceability (defaults to correlation_id)
+            strategy_contributions: Per-strategy allocation breakdown for attribution
+                Format: {strategy_id: {symbol: weight}}
 
         Returns:
             RebalancePlan with trade items ready for execution
@@ -157,7 +164,9 @@ class PortfolioServiceV2:
             )
 
             plan_start = time.perf_counter()
-            plan = self._planner.build_plan(strategy, snapshot, correlation_id, causation_id)
+            plan = self._planner.build_plan(
+                strategy, snapshot, correlation_id, causation_id, strategy_contributions
+            )
             plan_duration = time.perf_counter() - plan_start
 
             # Step 3: Log successful completion with performance metrics

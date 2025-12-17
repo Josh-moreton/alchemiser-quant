@@ -72,6 +72,7 @@ class PortfolioMerger:
 
         """
         merged_allocations: dict[str, Decimal] = {}
+        merged_contributions: dict[str, dict[str, Decimal]] = {}
         source_strategies: list[str] = []
         total_signal_count = 0
 
@@ -84,10 +85,16 @@ class PortfolioMerger:
             portfolio_data = partial["consolidated_portfolio"]
 
             # Handle both raw dict and nested format
+            # Note: The fallback for target_allocations (using portfolio_data directly)
+            # is for backward compatibility with raw dict format. strategy_contributions
+            # defaults to empty dict as it's a new field that may not be present.
             if isinstance(portfolio_data, dict):
                 target_allocations = portfolio_data.get("target_allocations", portfolio_data)
+                # Also get strategy_contributions if present (defaults to empty for backward compat)
+                strategy_contributions = portfolio_data.get("strategy_contributions", {})
             else:
                 target_allocations = portfolio_data
+                strategy_contributions = {}
 
             for symbol, weight in target_allocations.items():
                 if symbol in (
@@ -96,6 +103,7 @@ class PortfolioMerger:
                     "strategy_count",
                     "source_strategies",
                     "schema_version",
+                    "strategy_contributions",
                 ):
                     continue  # Skip metadata fields
 
@@ -107,6 +115,23 @@ class PortfolioMerger:
                     merged_allocations[symbol] += weight
                 else:
                     merged_allocations[symbol] = weight
+
+            # Merge strategy contributions
+            for strategy_id, allocations in strategy_contributions.items():
+                if strategy_id not in merged_contributions:
+                    merged_contributions[strategy_id] = {}
+
+                for symbol, weight in allocations.items():
+                    # Normalize symbol to uppercase (matches ConsolidatedPortfolio validation)
+                    symbol = symbol.strip().upper()
+
+                    if not isinstance(weight, Decimal):
+                        weight = Decimal(str(weight))
+
+                    if symbol in merged_contributions[strategy_id]:
+                        merged_contributions[strategy_id][symbol] += weight
+                    else:
+                        merged_contributions[strategy_id][symbol] = weight
 
         # Validate total allocation
         total = sum(merged_allocations.values())
@@ -138,6 +163,7 @@ class PortfolioMerger:
 
         return ConsolidatedPortfolio(
             target_allocations=merged_allocations,
+            strategy_contributions=merged_contributions,
             correlation_id=correlation_id,
             timestamp=datetime.now(UTC),
             strategy_count=len(partial_signals),

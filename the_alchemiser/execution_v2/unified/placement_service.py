@@ -160,7 +160,9 @@ class UnifiedOrderPlacementService:
         # Generate client_order_id if not provided
         client_order_id = intent.client_order_id
         if not client_order_id:
-            client_order_id = generate_client_order_id(intent.symbol)
+            # Use strategy_id from intent if available, otherwise use "alch" as default
+            strategy_id = intent.strategy_id if intent.strategy_id else "alch"
+            client_order_id = generate_client_order_id(intent.symbol, strategy_id)
             # Update intent with generated client_order_id
             intent = replace(intent, client_order_id=client_order_id)
 
@@ -209,7 +211,7 @@ class UnifiedOrderPlacementService:
         # Step 2: Pre-execution portfolio validation (get initial position)
         initial_position = Decimal("0")
         if self.enable_validation:
-            can_execute, initial_position, validation_error = (
+            can_execute, initial_position, validation_error, adjusted_qty = (
                 self.validator.validate_before_execution(intent)
             )
             if not can_execute and validation_error:
@@ -220,6 +222,16 @@ class UnifiedOrderPlacementService:
                 )
                 return self._create_failure_result(
                     intent, start_time, "pre_validation_failed", validation_error
+                )
+
+            # Use adjusted quantity if provided (handles floating-point discrepancies)
+            if adjusted_qty is not None:
+                intent = replace(intent, quantity=adjusted_qty)
+                logger.info(
+                    "Adjusted quantity from pre-execution validation",
+                    **log_extra,
+                    original_qty=str(intent.quantity),
+                    adjusted_qty=str(adjusted_qty),
                 )
 
         # Step 3: Get quote

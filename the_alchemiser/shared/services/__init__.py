@@ -22,13 +22,15 @@ from the relevant subpackage, for example:
 
 from __future__ import annotations
 
-from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
-from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
-from the_alchemiser.shared.services.market_clock_service import MarketClockService
+# IMPORTANT: No eager imports at package level to avoid import-time side effects.
+# This prevents coordinator_v2 (and other lightweight Lambdas) from requiring
+# heavy dependencies like alpaca-py when they only need specific services.
+#
+# Import directly from the appropriate service submodule:
+#   from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
+#   from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
+#   from the_alchemiser.shared.services.market_clock_service import MarketClockService
+#
+# This follows the coding guidelines: no hidden I/O or heavy imports in module init.
 
-# Note: Many services exist in this package but are not exported via __all__.
-# This selective export policy maintains backward compatibility while encouraging
-# direct imports from submodules to avoid import-time side effects.
-# Import directly from the appropriate service submodule (e.g., alpaca_trading_service).
-
-__all__: list[str] = ["AlpacaTradingService", "BuyingPowerService", "MarketClockService"]
+__all__: list[str] = []

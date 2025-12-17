@@ -6,6 +6,7 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-staging.[0-9]+'
   # Allow manual deploys for either environment
   workflow_dispatch:
     inputs:
@@ -14,7 +15,7 @@ on:
         required: true
         default: dev
         type: choice
-        options: [dev, prod]
+        options: [dev, staging, prod]
 
 permissions:
   id-token: write
@@ -26,7 +27,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ contains(github.ref_name, 'beta') && 'dev' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'prod') }}
+    environment: ${{ contains(github.ref_name, 'beta') && 'dev' || contains(github.ref_name, 'staging') && 'staging' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'prod') }}
     # Ensure only one deploy per environment runs at a time
     concurrency:
       group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref || inputs.environment }}
@@ -44,6 +45,9 @@ jobs:
             if [[ "${{ github.ref_name }}" == *"beta"* ]]; then
               echo "env=dev" >> $GITHUB_OUTPUT
               echo "Deploying beta tag ${{ github.ref_name }} to dev"
+            elif [[ "${{ github.ref_name }}" == *"staging"* ]]; then
+              echo "env=staging" >> $GITHUB_OUTPUT
+              echo "Deploying staging tag ${{ github.ref_name }} to staging"
             else
               echo "env=prod" >> $GITHUB_OUTPUT
               echo "Deploying release tag ${{ github.ref_name }} to prod"
@@ -97,8 +101,6 @@ jobs:
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          ENABLE_MULTI_NODE_STRATEGY: ${{ vars.ENABLE_MULTI_NODE_STRATEGY }}
-          # Strategy config now packaged with code; no JSON vars required
         run: |
           echo "Exporting dev ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -109,8 +111,27 @@ jobs:
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          if [ -n "$ENABLE_MULTI_NODE_STRATEGY" ]; then echo "ENABLE_MULTI_NODE_STRATEGY=$ENABLE_MULTI_NODE_STRATEGY" >> $GITHUB_ENV; fi
-          # No strategy DSL JSON to export; handled by packaged config files
+
+      - name: Prepare environment variables (staging)
+        if: steps.target.outputs.env == 'staging'
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
+          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
+          LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
+          ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
+          EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
+        run: |
+          echo "Exporting staging ALPACA_* env vars for deploy.sh"
+          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
+          # Non-secret runtime config
+          if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
+          if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
+          if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
 
       - name: Prepare environment variables (prod)
         if: steps.target.outputs.env == 'prod'
@@ -122,8 +143,6 @@ jobs:
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           EQUITY_DEPLOYMENT_PCT: ${{ vars.EQUITY_DEPLOYMENT_PCT }}
-          ENABLE_MULTI_NODE_STRATEGY: ${{ vars.ENABLE_MULTI_NODE_STRATEGY }}
-          # Strategy config now packaged with code; no JSON vars required
         run: |
           echo "Exporting prod ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -134,8 +153,6 @@ jobs:
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
           if [ -n "$EQUITY_DEPLOYMENT_PCT" ]; then echo "EQUITY_DEPLOYMENT_PCT=$EQUITY_DEPLOYMENT_PCT" >> $GITHUB_ENV; fi
-          if [ -n "$ENABLE_MULTI_NODE_STRATEGY" ]; then echo "ENABLE_MULTI_NODE_STRATEGY=$ENABLE_MULTI_NODE_STRATEGY" >> $GITHUB_ENV; fi
-          # No strategy DSL JSON to export; handled by packaged config files
 
       - name: Deploy
         run: |

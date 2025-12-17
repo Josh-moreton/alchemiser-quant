@@ -120,8 +120,13 @@ class SingleFileSignalHandler:
 
             # Build consolidated portfolio (partial - allocations < 1.0)
             # Use is_partial=True to skip sum-to-1.0 validation for multi-node mode
+            # Track strategy contributions for P&L attribution
+            strategy_id = Path(self.dsl_file).stem
+            strategy_contributions = {strategy_id: scaled_allocations.copy()}
+
             consolidated_portfolio = ConsolidatedPortfolio(
                 target_allocations=scaled_allocations,
+                strategy_contributions=strategy_contributions,
                 correlation_id=correlation_id,
                 timestamp=datetime.now(UTC),
                 strategy_count=1,

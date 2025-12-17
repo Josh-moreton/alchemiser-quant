@@ -291,7 +291,7 @@ def validate_spread_reasonable(
 def detect_suspicious_quote_prices(
     bid_price: float | Decimal,
     ask_price: float | Decimal,
-    min_price: float = 0.01,
+    min_price: float = 0.50,
     max_spread_percent: float = 10.0,
 ) -> tuple[bool, list[str]]:
     """Detect if quote prices look suspicious and should trigger REST validation.

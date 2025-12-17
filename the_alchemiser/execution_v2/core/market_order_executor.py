@@ -168,7 +168,7 @@ class MarketOrderExecutor:
             symbol=symbol,
             action=side_upper,  # type: ignore[arg-type]
             trade_amount=Decimal("0"),  # No trade executed
-            shares=quantity,
+            shares=Decimal("0"),  # No shares executed since validation failed
             price=None,
             order_id=None,
             success=False,

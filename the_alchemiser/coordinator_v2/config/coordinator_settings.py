@@ -34,12 +34,6 @@ class CoordinatorSettings(BaseModel):
         description="DynamoDB table name for aggregation session state",
     )
 
-    # Feature flag for multi-node mode
-    enable_multi_node: bool = Field(
-        default=False,
-        description="Enable multi-node strategy execution (fan-out)",
-    )
-
     @classmethod
     def from_environment(cls) -> CoordinatorSettings:
         """Create settings from environment variables.
@@ -48,7 +42,6 @@ class CoordinatorSettings(BaseModel):
             AGGREGATION_TIMEOUT_SECONDS: Max wait time for aggregation
             STRATEGY_FUNCTION_NAME: Strategy Lambda function name/ARN
             AGGREGATION_TABLE_NAME: DynamoDB table for session state
-            ENABLE_MULTI_NODE_STRATEGY: Enable multi-node mode (true/false)
 
         Returns:
             CoordinatorSettings with values from environment.
@@ -58,6 +51,4 @@ class CoordinatorSettings(BaseModel):
             aggregation_timeout_seconds=int(os.environ.get("AGGREGATION_TIMEOUT_SECONDS", "600")),
             strategy_lambda_function_name=os.environ.get("STRATEGY_FUNCTION_NAME", ""),
             aggregation_table_name=os.environ.get("AGGREGATION_TABLE_NAME", ""),
-            enable_multi_node=os.environ.get("ENABLE_MULTI_NODE_STRATEGY", "false").lower()
-            == "true",
         )

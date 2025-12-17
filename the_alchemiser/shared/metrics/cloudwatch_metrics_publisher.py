@@ -24,6 +24,13 @@ logger = get_logger(__name__)
 # CloudWatch metric names
 METRIC_NAME_REALIZED_PNL = "RealizedPnL"
 METRIC_NAME_CAPITAL_DEPLOYED = "CapitalDeployedPct"
+METRIC_NAME_OPEN_POSITION_VALUE = "OpenPositionValue"
+METRIC_NAME_OPEN_LOT_COUNT = "OpenLotCount"
+METRIC_NAME_CLOSED_LOT_COUNT = "ClosedLotCount"
+METRIC_NAME_WIN_RATE = "WinRate"
+METRIC_NAME_AVG_PROFIT_PER_TRADE = "AvgProfitPerTrade"
+METRIC_NAME_WINNING_TRADES = "WinningTrades"
+METRIC_NAME_LOSING_TRADES = "LosingTrades"
 
 # AWS exception types
 AWSException = (ClientError, BotoCoreError)
@@ -214,6 +221,132 @@ class CloudWatchMetricsPublisher:
         except Exception as e:
             logger.error(
                 f"Unexpected error publishing capital deployed metric: {e}",
+                exc_info=True,
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+
+    def publish_all_strategy_metrics(self, correlation_id: str) -> None:
+        """Publish per-strategy performance metrics to CloudWatch.
+
+        Fetches strategy summaries from DynamoDB and publishes metrics with
+        StrategyName dimension for each strategy.
+
+        Args:
+            correlation_id: Correlation ID for tracing
+
+        """
+        try:
+            summaries = self._repository.get_all_strategy_summaries()
+
+            if not summaries:
+                logger.info(
+                    "No strategy summaries found, skipping per-strategy metrics",
+                    extra={"correlation_id": correlation_id},
+                )
+                return
+
+            timestamp = datetime.now(UTC)
+            metric_data: list[dict[str, Any]] = []
+
+            for summary in summaries:
+                strategy_name = summary["strategy_name"]
+                dimensions = [{"Name": "StrategyName", "Value": strategy_name}]
+
+                # Add all metrics for this strategy
+                metric_data.extend(
+                    [
+                        {
+                            "MetricName": METRIC_NAME_OPEN_POSITION_VALUE,
+                            "Value": float(summary["open_position_value"]),
+                            "Unit": "None",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_OPEN_LOT_COUNT,
+                            "Value": float(summary["open_lot_count"]),
+                            "Unit": "Count",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_CLOSED_LOT_COUNT,
+                            "Value": float(summary["closed_lot_count"]),
+                            "Unit": "Count",
+                            "Dimensions": dimensions,
+                            "Timestamp": timestamp,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_REALIZED_PNL,
+                            "Value": float(summary["total_realized_pnl"]),
+                            "Unit": "None",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_WINNING_TRADES,
+                            "Value": float(summary["winning_trades"]),
+                            "Unit": "Count",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_LOSING_TRADES,
+                            "Value": float(summary["losing_trades"]),
+                            "Unit": "Count",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_WIN_RATE,
+                            "Value": float(summary["win_rate"]),
+                            "Unit": "Percent",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                        {
+                            "MetricName": METRIC_NAME_AVG_PROFIT_PER_TRADE,
+                            "Value": float(summary["avg_profit_per_trade"]),
+                            "Unit": "None",
+                            "Timestamp": timestamp,
+                            "Dimensions": dimensions,
+                        },
+                    ]
+                )
+
+            # CloudWatch allows max 1000 metrics per put_metric_data call
+            batch_size = 1000
+            for i in range(0, len(metric_data), batch_size):
+                batch = metric_data[i : i + batch_size]
+                self._cloudwatch.put_metric_data(
+                    Namespace=self.namespace,
+                    MetricData=batch,
+                )
+
+            logger.info(
+                f"Published per-strategy metrics for {len(summaries)} strategies",
+                extra={
+                    "correlation_id": correlation_id,
+                    "strategy_count": len(summaries),
+                    "metric_count": len(metric_data),
+                    "namespace": self.namespace,
+                },
+            )
+
+        except AWSException as e:
+            logger.error(
+                f"Failed to publish per-strategy metrics: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error publishing per-strategy metrics: {e}",
                 exc_info=True,
                 extra={
                     "correlation_id": correlation_id,

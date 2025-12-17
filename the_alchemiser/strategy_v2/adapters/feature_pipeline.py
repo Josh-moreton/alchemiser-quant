@@ -261,51 +261,109 @@ class FeaturePipeline:
             lookback_window: Window for rolling calculations
 
         Returns:
-            Dictionary of computed features
+            Dictionary of computed features. Includes 'extraction_error' key
+            if any errors occurred during extraction.
 
         Note:
-            Returns 0.0 for features that cannot be computed.
+            Returns partial features on expected errors (ValueError, IndexError, etc.)
+            Unexpected errors are re-raised to surface bugs.
 
         """
         if not bars:
             return {}
 
         features: dict[str, float] = {}
+        extraction_errors: list[str] = []
 
         try:
-            # Extract prices
+            # Extract prices - this is fundamental, so let errors propagate
             closes = [float(bar.close_price) for bar in bars]
             volumes = [bar.volume for bar in bars]
 
             # Current price
             features["current_price"] = closes[-1] if closes else 0.0
 
-            # Returns and volatility
-            returns = self.compute_returns(bars)
-            features["volatility"] = self.compute_volatility(returns, window=lookback_window)
-
-            # Moving averages
-            features["ma_ratio"] = self._compute_ma_ratio(closes, lookback_window)
-
-            # High-low range (normalized by close)
-            features["price_position"] = self._compute_price_position(
-                bars, closes[-1], lookback_window
+        except (ValueError, TypeError) as e:
+            # Expected errors from bad data - use defaults
+            logger.warning(
+                "Failed to extract basic price data",
+                extra={"error": str(e), "error_type": type(e).__name__},
             )
-
-            # Volume features
-            features["volume_ratio"] = self._compute_volume_ratio(
-                [float(v) for v in volumes], lookback_window
-            )
-
-        except Exception as e:
-            logger.warning(f"Error extracting price features: {e}")
-            # Return default features on error
-            features = {
+            return {
                 "current_price": 0.0,
                 "volatility": 0.0,
                 "ma_ratio": 1.0,
                 "price_position": 0.5,
                 "volume_ratio": 1.0,
+                "extraction_error": True,
             }
+
+        # Compute each feature independently to maximize data availability
+        # Returns and volatility
+        try:
+            returns = self.compute_returns(bars)
+            volatility = self.compute_volatility(returns, window=lookback_window)
+            # REM-004: Volatility floor - values below threshold are unreliable
+            if volatility < 0.001:
+                logger.warning(
+                    "Volatility below minimum threshold",
+                    extra={"volatility": volatility, "threshold": 0.001},
+                )
+                features["volatility"] = 0.0  # Explicit zero indicates unreliable
+                features["volatility_below_threshold"] = True
+            else:
+                features["volatility"] = volatility
+        except (ValueError, ZeroDivisionError, IndexError) as e:
+            logger.warning(
+                "Failed to compute volatility",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+            features["volatility"] = 0.0
+            extraction_errors.append("volatility")
+
+        # Moving averages
+        try:
+            features["ma_ratio"] = self._compute_ma_ratio(closes, lookback_window)
+        except (ValueError, ZeroDivisionError, IndexError) as e:
+            logger.warning(
+                "Failed to compute MA ratio",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+            features["ma_ratio"] = 1.0
+            extraction_errors.append("ma_ratio")
+
+        # High-low range (normalized by close)
+        try:
+            features["price_position"] = self._compute_price_position(
+                bars, closes[-1], lookback_window
+            )
+        except (ValueError, ZeroDivisionError, IndexError) as e:
+            logger.warning(
+                "Failed to compute price position",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+            features["price_position"] = 0.5
+            extraction_errors.append("price_position")
+
+        # Volume features
+        try:
+            features["volume_ratio"] = self._compute_volume_ratio(
+                [float(v) for v in volumes], lookback_window
+            )
+        except (ValueError, ZeroDivisionError, IndexError) as e:
+            logger.warning(
+                "Failed to compute volume ratio",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
+            features["volume_ratio"] = 1.0
+            extraction_errors.append("volume_ratio")
+
+        # Track if any extraction errors occurred
+        if extraction_errors:
+            features["extraction_error"] = True
+            logger.warning(
+                "Feature extraction completed with errors",
+                extra={"failed_features": extraction_errors},
+            )
 
         return features

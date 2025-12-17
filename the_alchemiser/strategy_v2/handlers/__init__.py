@@ -9,10 +9,8 @@ in the event-driven architecture.
 
 from __future__ import annotations
 
-from .signal_generation_handler import SignalGenerationHandler
 from .single_file_signal_handler import SingleFileSignalHandler
 
 __all__ = [
-    "SignalGenerationHandler",
     "SingleFileSignalHandler",
 ]

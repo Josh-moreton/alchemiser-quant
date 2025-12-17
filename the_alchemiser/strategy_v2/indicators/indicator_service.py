@@ -62,25 +62,29 @@ class IndicatorService:
             has_market_data_service=market_data_service is not None,
         )
 
-    def _latest_value(self, series: pd.Series, fallback: float) -> float:
-        """Safely get the latest value from a pandas series with fallback.
+    def _latest_value(
+        self, series: pd.Series, fallback: float | None = None
+    ) -> tuple[float | None, bool]:
+        """Safely get the latest value from a pandas series with fallback tracking.
 
         Args:
             series: Pandas series containing computed indicator values
-            fallback: Fallback value to return if series is empty or contains NaN
+            fallback: Fallback value to return if series is empty or contains NaN.
+                      If None, returns None when data is unavailable.
 
         Returns:
-            Latest non-NaN value from series, or fallback if unavailable
+            Tuple of (value, fallback_used) where:
+            - value: Latest non-NaN value from series, or fallback if unavailable
+            - fallback_used: True if fallback was used instead of real data
 
         Note:
-            Uses fallback for missing data to avoid raising errors in partial data scenarios.
-            Caller is responsible for validating if fallback values are acceptable for
-            their use case.
+            REM-005: Now tracks when fallback is used so callers can distinguish
+            real data from synthetic values.
 
         """
         if len(series) > 0 and not pd.isna(series.iloc[-1]):
-            return float(series.iloc[-1])
-        return fallback
+            return float(series.iloc[-1]), False
+        return fallback, True
 
     def _compute_rsi(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
@@ -93,23 +97,41 @@ class IndicatorService:
             parameters: Indicator parameters, including 'window' (default: 14)
 
         Returns:
-            TechnicalIndicator with RSI value in appropriate field based on window
+            TechnicalIndicator with RSI value in appropriate field based on window.
+            RSI value will be None if insufficient data (not neutral 50.0).
 
-        Raises:
-            None. Returns neutral fallback (50.0) if computation fails or insufficient data.
+        Note:
+            REM-005: Changed from returning 50.0 fallback to None when data is
+            insufficient. Strategies must handle None RSI explicitly.
+            REM-007: Changed from $100.0 price fallback to None.
 
         """
         window = int(parameters.get("window", 14))
         rsi_series = self.technical_indicators.rsi(prices, window=window)
-        rsi_value = self._latest_value(rsi_series, 50.0)  # Neutral fallback
+        rsi_value, fallback_used = self._latest_value(
+            rsi_series, None
+        )  # REM-005: None instead of 50.0
 
-        logger.debug(
-            "RSI computed",
-            module=MODULE_NAME,
-            symbol=symbol,
-            window=window,
-            rsi_value=rsi_value,
-        )
+        if fallback_used:
+            logger.warning(
+                "RSI using fallback value due to insufficient data",
+                module=MODULE_NAME,
+                symbol=symbol,
+                window=window,
+                prices_available=len(prices),
+                fallback_used=True,
+            )
+        else:
+            logger.debug(
+                "RSI computed",
+                module=MODULE_NAME,
+                symbol=symbol,
+                window=window,
+                rsi_value=rsi_value,
+            )
+
+        # REM-007: Return None for price if no data, not $100.0
+        current_price = Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
 
         return TechnicalIndicator(
             symbol=symbol,
@@ -118,9 +140,13 @@ class IndicatorService:
             rsi_10=rsi_value if window == 10 else None,
             rsi_20=rsi_value if window == 20 else None,
             rsi_21=rsi_value if window == 21 else None,
-            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")),
-            data_source="real_market_data",
-            metadata={"value": rsi_value, "window": window},
+            current_price=current_price,
+            data_source="real_market_data" if not fallback_used else "fallback",
+            metadata={
+                "value": rsi_value if rsi_value is not None else 0.0,
+                "window": window,
+                "fallback_used": fallback_used,
+            },
         )
 
     def _compute_current_price(

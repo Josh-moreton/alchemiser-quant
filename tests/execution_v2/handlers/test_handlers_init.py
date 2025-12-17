@@ -15,22 +15,21 @@ def test_handlers_module_exports() -> None:
 
     # Verify __all__ attribute exists and contains expected exports
     assert hasattr(handlers, "__all__")
-    assert "TradingExecutionHandler" in handlers.__all__
+    assert "SingleTradeHandler" in handlers.__all__
 
     # Verify the handler class is accessible
-    assert hasattr(handlers, "TradingExecutionHandler")
+    assert hasattr(handlers, "SingleTradeHandler")
 
 
-def test_trading_execution_handler_import() -> None:
-    """Test that TradingExecutionHandler can be imported directly."""
-    from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
+def test_single_trade_handler_import() -> None:
+    """Test that SingleTradeHandler can be imported directly."""
+    from the_alchemiser.execution_v2.handlers import SingleTradeHandler
 
     # Verify it's a class
-    assert isinstance(TradingExecutionHandler, type)
+    assert isinstance(SingleTradeHandler, type)
 
     # Verify the class has expected methods
-    assert hasattr(TradingExecutionHandler, "handle_event")
-    assert hasattr(TradingExecutionHandler, "can_handle")
+    assert hasattr(SingleTradeHandler, "handle_sqs_record")
 
 
 def test_handlers_module_structure() -> None:

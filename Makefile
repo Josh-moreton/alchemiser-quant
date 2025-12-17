@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -12,6 +12,37 @@ help:
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
 	@echo ""
+	@echo "Backtesting:"
+	@echo "  backtest                             Run portfolio backtest (last 2 months, strategy.dev.json)"
+	@echo "  backtest start=<date> end=<date>    Run with custom date range"
+	@echo "  backtest ... config=<file>          Use custom config file"
+	@echo "  backtest ... report=1               Generate HTML report"
+	@echo "  backtest ... no-auto-fetch=1        Disable S3 auto-fetch (local only)"
+	@echo ""
+	@echo "Data Management:"
+	@echo "  sync-data                            Sync all symbols from S3 to local"
+	@echo "  sync-data force=1                   Force re-download all data"
+	@echo "  seed-data                            Seed S3 from Alpaca (requires API keys)"
+	@echo ""
+	@echo "Strategy Ledger Management:"
+	@echo "  strategy-add                         Add strategy to ledger interactively"
+	@echo "  strategy-add-from-config            Add strategies from config (strategy.dev.json)"
+	@echo "  strategy-add-from-config config=... Use custom config file"
+	@echo "  strategy-list                        List all strategies in ledger"
+	@echo "  strategy-sync                        Sync ledger to DynamoDB (dev)"
+	@echo "  strategy-sync stage=prod            Sync ledger to DynamoDB (prod)"
+	@echo "  strategy-list-dynamo                List strategies from DynamoDB (dev)"
+	@echo "  strategy-list-dynamo stage=prod     List strategies from DynamoDB (prod)"
+	@echo "  strategy-check-fractionable         Check fractionability (uses strategy.dev.json)"
+	@echo "  strategy-check-fractionable config=strategy.prod.json"
+	@echo "  strategy-check-fractionable all=1   Check all strategy files"
+	@echo ""
+	@echo "Observability:"
+	@echo "  logs                       Fetch logs from most recent workflow (dev)"
+	@echo "  logs stage=prod            Fetch logs from most recent workflow (prod)"
+	@echo "  logs id=<correlation-id>   Fetch logs for specific workflow"
+	@echo "  logs id=<id> all=1         Fetch all logs for a workflow"
+	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  type-check      Run MyPy type checking"
@@ -20,6 +51,7 @@ help:
 	@echo ""
 	@echo "Deployment (via GitHub Actions CI/CD):"
 	@echo "  deploy-dev      Deploy to DEV (creates beta tag, triggers CI/CD)"
+	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
 	@echo ""
@@ -102,11 +134,17 @@ bump-patch:
 	poetry version patch; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	CHANGED=0; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
+		CHANGED=1; \
+	fi; \
+	if [ $$CHANGED -eq 1 ]; then \
+		echo "📤 Pushing commit to origin (current branch)..."; \
+		git push origin HEAD; \
 	fi
 
 bump-minor:
@@ -127,11 +165,17 @@ bump-minor:
 	poetry version minor; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	CHANGED=0; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
+		CHANGED=1; \
+	fi; \
+	if [ $$CHANGED -eq 1 ]; then \
+		echo "📤 Pushing commit to origin (current branch)..."; \
+		git push origin HEAD; \
 	fi
 
 bump-major:
@@ -152,12 +196,136 @@ bump-major:
 	poetry version major; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	CHANGED=0; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
+		CHANGED=1; \
+	fi; \
+	if [ $$CHANGED -eq 1 ]; then \
+		echo "📤 Pushing commit to origin (current branch)..."; \
+		git push origin HEAD; \
 	fi
+
+# ============================================================================
+# BACKTESTING
+# ============================================================================
+
+# Run portfolio backtests
+# Usage:
+#   make backtest                                    # Last 2 months, strategy.dev.json
+#   make backtest start=2024-01-01 end=2024-12-01   # Custom date range
+#   make backtest config=the_alchemiser/config/strategy.prod.json
+#   make backtest capital=50000 report=1
+#   make backtest fetch=1
+
+backtest:
+	@ARGS=""; \
+	if [ -n "$(config)" ]; then ARGS="$$ARGS --config $(config)"; fi; \
+	if [ -n "$(start)" ]; then ARGS="$$ARGS --start $(start)"; fi; \
+	if [ -n "$(end)" ]; then ARGS="$$ARGS --end $(end)"; fi; \
+	if [ -n "$(capital)" ]; then ARGS="$$ARGS --capital $(capital)"; fi; \
+	if [ -n "$(report)" ]; then ARGS="$$ARGS --report"; fi; \
+	if [ -n "$(pdf)" ]; then ARGS="$$ARGS --pdf"; fi; \
+	if [ -n "$(fetch)" ]; then ARGS="$$ARGS --fetch-data"; fi; \
+	if [ -n "$$(echo '$(no-auto-fetch)' | tr -d ' ')" ]; then ARGS="$$ARGS --no-auto-fetch"; fi; \
+	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
+	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	poetry run python scripts/run_backtest.py $$ARGS
+
+# Sync data from S3 to local storage
+# Usage: make sync-data
+#        make sync-data force=1  (re-download all)
+sync-data:
+	@echo "📥 Syncing market data from S3 to local..."
+	@ARGS=""; \
+	if [ -n "$(force)" ]; then ARGS="--force"; fi; \
+	poetry run python -c "from the_alchemiser.backtest_v2.adapters.data_fetcher import BacktestDataFetcher; from pathlib import Path; f = BacktestDataFetcher(Path('data/historical')); r = f.sync_all_from_s3(force_full=$(if $(force),True,False)); print(f'Synced {sum(r.values())}/{len(r)} symbols')"
+
+# Seed S3 from Alpaca (requires API credentials)
+# Usage: make seed-data
+seed-data:
+	@echo "🌱 Seeding S3 from Alpaca..."
+	@if [ -z "$${ALPACA__KEY:-$$ALPACA_KEY}" ] || [ -z "$${ALPACA__SECRET:-$$ALPACA_SECRET}" ]; then \
+		echo "❌ Alpaca credentials not set!"; \
+		echo "Set ALPACA__KEY and ALPACA__SECRET in your .env or environment"; \
+		exit 1; \
+	fi
+	poetry run python scripts/seed_market_data.py
+
+# ============================================================================
+# STRATEGY LEDGER
+# ============================================================================
+
+# Add a strategy to the ledger interactively
+# Usage: make strategy-add
+strategy-add:
+	@echo "📋 Adding strategy to ledger..."
+	poetry run python scripts/strategy_ledger.py add
+
+# Add all strategies from a config file to the ledger
+# Usage: make strategy-add-from-config               # Uses strategy.dev.json
+#        make strategy-add-from-config config=strategy.prod.json
+strategy-add-from-config:
+	@echo "📋 Adding strategies from config..."
+	@CONFIG=$${config:-strategy.dev.json}; \
+	poetry run python scripts/strategy_ledger.py add-from-config --config $$CONFIG
+
+# List all strategies in the ledger
+# Usage: make strategy-list
+strategy-list:
+	@poetry run python scripts/strategy_ledger.py list
+
+# Sync strategy ledger to DynamoDB
+# Usage: make strategy-sync                  # Sync to dev
+#        make strategy-sync stage=prod       # Sync to prod
+strategy-sync:
+	@echo "🔄 Syncing strategy ledger to DynamoDB..."
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_ledger.py sync --stage $$STAGE
+
+# List strategies from DynamoDB
+# Usage: make strategy-list-dynamo           # List from dev
+#        make strategy-list-dynamo stage=prod
+strategy-list-dynamo:
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_ledger.py list-dynamo --stage $$STAGE
+
+# Check which assets are not fractionable
+# Usage: make strategy-check-fractionable                    # Uses strategy.dev.json
+#        make strategy-check-fractionable config=strategy.prod.json
+#        make strategy-check-fractionable verbose=1
+#        make strategy-check-fractionable all=1               # Check all .clj files
+strategy-check-fractionable:
+	@echo "🔍 Checking asset fractionability..."
+	@ARGS=""; \
+	if [ -n "$(config)" ]; then ARGS="$$ARGS --config $(config)"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	if [ -n "$(show-all)" ]; then ARGS="$$ARGS --show-all"; fi; \
+	if [ -n "$(all)" ]; then ARGS="$$ARGS --all-strategies"; fi; \
+	poetry run python scripts/check_fractionable_assets.py $$ARGS
+
+# ============================================================================
+# OBSERVABILITY
+# ============================================================================
+
+# Fetch workflow logs by correlation_id (or auto-detect most recent)
+# Usage: make logs                        # Most recent workflow in dev
+#        make logs stage=prod             # Most recent workflow in prod
+#        make logs id=workflow-abc123     # Specific workflow
+#        make logs id=<id> all=1          # All logs, not just errors
+#        make logs id=<id> verbose=1      # Include raw/debug logs
+logs:
+	@ARGS=""; \
+	if [ -n "$(id)" ]; then ARGS="$$ARGS --correlation-id $(id)"; fi; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
+	if [ -n "$(all)" ]; then ARGS="$$ARGS --all"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
+	poetry run python scripts/fetch_workflow_logs.py $$ARGS
 
 # ============================================================================
 # DEPLOYMENT (via GitHub Actions CI/CD)
@@ -209,6 +377,53 @@ deploy-dev:
 		--prerelease; \
 	echo "✅ Beta pre-release $$TAG created successfully!"; \
 	echo "🚀 Dev deployment will start automatically via GitHub Actions"
+
+# Staging Deployment - creates staging tag, triggers CI/CD
+deploy-staging:
+	@echo "🔬 Deploying to STAGING environment..."
+	@if [ -n "$(v)" ]; then \
+		VERSION_TO_USE="$(v)"; \
+		echo "📋 Using specified version: $$VERSION_TO_USE"; \
+	else \
+		VERSION_TO_USE=$$(poetry version -s); \
+		echo "📋 Using version from pyproject.toml: $$VERSION_TO_USE"; \
+	fi; \
+	STAGING_NUM=$$(git tag -l "v$$VERSION_TO_USE-staging.*" | wc -l | tr -d ' '); \
+	STAGING_NUM=$$((STAGING_NUM + 1)); \
+	TAG="v$$VERSION_TO_USE-staging.$$STAGING_NUM"; \
+	echo "🏷️ Tag: $$TAG (staging release for STAGING environment)"; \
+	echo ""; \
+	if git tag | grep -q "^$$TAG$$"; then \
+		echo "❌ Tag $$TAG already exists!"; \
+		exit 1; \
+	fi; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "❌ You have uncommitted changes!"; \
+		echo "💡 Please commit or stash your changes first"; \
+		exit 1; \
+	fi; \
+	echo "📝 Creating staging tag $$TAG..."; \
+	git tag -a "$$TAG" -m "Staging release $$TAG for staging deployment"; \
+	echo "📤 Pushing tag to origin..."; \
+	git push origin "$$TAG"; \
+	echo "🚀 Creating GitHub pre-release..."; \
+	gh release create "$$TAG" \
+		--title "Staging Release $$TAG" \
+		--notes "Staging release $$TAG for staging environment deployment" \
+		--prerelease; \
+	echo "✅ Staging pre-release $$TAG created successfully!"; \
+	echo "🚀 Staging deployment will start automatically via GitHub Actions"
 
 # Production Deployment - creates release tag, triggers CI/CD
 deploy-prod:

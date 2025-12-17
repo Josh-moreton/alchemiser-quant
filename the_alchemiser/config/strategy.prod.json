@@ -1,14 +1,14 @@
 {
-  "files": [        
-    "2026/beam.clj",
-    "2026/ftlt-2x.clj",
-    "2026/beefier.clj",
-    "2026/wakanda.clj"
+  "files": [
+    "beam_chain.clj",
+    "ftlt_2x.clj",
+    "beefier_3x.clj",
+    "wakanda.clj"
   ],
   "allocations": {
-    "2026/beam.clj": 0.25,
-    "2026/ftlt-2x.clj": 0.25,
-    "2026/beefier.clj": 0.25,
-    "2026/wakanda.clj": 0.25
+    "beam_chain.clj": 0.25,
+    "ftlt_2x.clj": 0.25,
+    "beefier_3x.clj": 0.25,
+    "wakanda.clj": 0.25
   }
 }

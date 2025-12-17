@@ -3,14 +3,14 @@
 
 Event handlers for trade execution.
 
-Provides event-driven handlers for processing execution-related events
-in the event-driven architecture.
+Provides the SingleTradeHandler for processing individual TradeMessage
+events from the SQS FIFO queue in the per-trade execution architecture.
 """
 
 from __future__ import annotations
 
-from .trading_execution_handler import TradingExecutionHandler
+from .single_trade_handler import SingleTradeHandler
 
 __all__ = [
-    "TradingExecutionHandler",
+    "SingleTradeHandler",
 ]

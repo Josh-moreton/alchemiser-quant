@@ -72,36 +72,37 @@ The system is deployed as **AWS Lambda functions** connected via AWS services. T
 | Lambda | Handler | Trigger | Publishes To |
 |--------|---------|---------|---------------|
 | Strategy Orchestrator | `coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | Invokes Strategy Workers (async) |
-| Strategy Worker | `strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | EventBridge (`PartialSignalGenerated` or `SignalGenerated`) |
+| Strategy Worker | `strategy_v2.lambda_handler` | Orchestrator (async invocation) | EventBridge (`PartialSignalGenerated`) |
 | Signal Aggregator | `aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | EventBridge (`SignalGenerated`) |
-| Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | EventBridge (`RebalancePlanned`) |
-| Execution | `execution_v2.lambda_handler` | SQS Queue (buffered from EventBridge) | EventBridge (`TradeExecuted`) |
+| Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | SQS FIFO Queue (per-trade messages) |
+| Execution | `execution_v2.lambda_handler` | SQS FIFO Queue (per-trade messages) | EventBridge (`TradeExecuted`) |
 | Notifications | `notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS Topic → Email |
 
-### Multi-Node Mode
-Controlled by `ENABLE_MULTI_NODE_STRATEGY` environment variable:
-- `false` (default): Legacy mode - Strategy Worker runs all DSL files sequentially
-- `true`: Multi-node mode - Orchestrator fans out to parallel workers, Aggregator merges results
+### Architecture Overview
+The system uses a multi-node parallel strategy execution architecture:
+- **Orchestrator** dispatches strategy files to parallel workers
+- **Workers** process one DSL file each, emit partial signals
+- **Aggregator** merges partial signals when all workers complete
+- **Portfolio** decomposes rebalance plans into individual trade messages
+- **Execution** processes one trade at a time from SQS FIFO queue
 
 ### Event routing
 - **EventBridge** routes events between Lambdas based on `source` and `detail-type`
-- **SQS** buffers `RebalancePlanned` events for reliable execution (with DLQ after 3 retries)
+- **SQS FIFO** ensures ordered, exactly-once per-trade execution
 - **SNS** delivers email notifications via topic subscriptions
 - **DynamoDB** tracks aggregation sessions for multi-node coordination
 
 ## Event-driven workflow
 
-### Multi-Node Mode (ENABLE_MULTI_NODE_STRATEGY=true)
+### Signal Generation Flow
 - **Strategy Orchestrator** runs on schedule, creates aggregation session, invokes Strategy Workers async (one per DSL file)
 - **Strategy Workers** run in parallel, each processing one DSL file, emit `PartialSignalGenerated` to EventBridge
 - **Signal Aggregator** triggered by EventBridge on `PartialSignalGenerated`, stores partial signals, merges when all complete, publishes `SignalGenerated`
-- **Portfolio Lambda** triggered by EventBridge rule on `SignalGenerated`, creates `RebalancePlan`, publishes `RebalancePlanned`
-- **Execution Lambda** triggered by SQS (EventBridge routes `RebalancePlanned` → SQS), executes trades, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`
-- **Notifications Lambda** triggered by EventBridge on `TradeExecuted` or `WorkflowFailed`, sends email via SNS
 
-### Legacy Mode (ENABLE_MULTI_NODE_STRATEGY=false)
-- **Strategy Worker** runs on schedule, processes all DSL files sequentially, emits `SignalGenerated` to EventBridge
-- Remainder of workflow is identical
+### Trade Execution Flow
+- **Portfolio Lambda** triggered by EventBridge rule on `SignalGenerated`, creates `RebalancePlan`, publishes individual trade messages to SQS FIFO
+- **Execution Lambda** triggered by SQS FIFO (one trade at a time), executes trade, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`
+- **Notifications Lambda** triggered by EventBridge on `TradeExecuted` or `WorkflowFailed`, sends email via SNS
 
 ### Publishing events
 ```python

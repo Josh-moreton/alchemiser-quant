@@ -114,9 +114,22 @@ class DslEvaluator:
 
             # Convert result to StrategyAllocation
             if isinstance(result, PortfolioFragment):
+                # Validate fragment has weights before conversion
+                if not result.weights:
+                    raise DslEvaluationError(
+                        "DSL evaluation produced empty PortfolioFragment. "
+                        "Strategies must always return a non-empty allocation. "
+                        "Check that all conditional branches produce valid weights."
+                    )
                 # Convert fragment to allocation
                 allocation = self._fragment_to_allocation(result, correlation_id)
             elif isinstance(result, dict):
+                # Validate dict has weights
+                if not result:
+                    raise DslEvaluationError(
+                        "DSL evaluation produced empty weights dictionary. "
+                        "Strategies must always return a non-empty allocation."
+                    )
                 # Direct weights dictionary
                 allocation = StrategyAllocation(
                     target_weights={k: decimal.Decimal(str(v)) for k, v in result.items()},
@@ -135,6 +148,13 @@ class DslEvaluator:
                 raise DslEvaluationError(
                     f"Evaluation produced invalid type for allocation: {type(result).__name__}. "
                     f"Expected PortfolioFragment, dict, or str."
+                )
+
+            # Final validation: allocation must have at least one weight
+            if not allocation.target_weights:
+                raise DslEvaluationError(
+                    "DSL evaluation produced allocation with no target weights. "
+                    "Strategies must always return a non-empty allocation."
                 )
 
             # Add final trace entry
@@ -207,6 +227,12 @@ class DslEvaluator:
             )
             if key is None:
                 key = "unknown"
+
+            # Strip leading colon from Clojure-style keyword keys.
+            # Keywords like :window are stored with the colon prefix,
+            # but operators expect plain string keys like "window".
+            if key.startswith(":"):
+                key = key[1:]
 
             val = self._evaluate_node(val_node, correlation_id, trace)
             # Convert the value to an appropriate type

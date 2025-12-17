@@ -10,6 +10,7 @@ analysis logic without orchestration concerns.
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -29,7 +30,6 @@ from the_alchemiser.shared.errors.exceptions import (
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
-    RebalancePlanned,
     SignalGenerated,
     WorkflowFailed,
 )
@@ -43,11 +43,54 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlanItem,
 )
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
+from the_alchemiser.shared.schemas.trade_message import TradeMessage
 
 from ..core.portfolio_service import PortfolioServiceV2
 
 # Module name constant for consistent logging and error reporting
 MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
+
+
+def _get_execution_fifo_queue_url() -> str:
+    """Get the SQS FIFO queue URL for per-trade execution.
+
+    Returns:
+        Queue URL from environment variable.
+
+    Raises:
+        ValueError: If EXECUTION_FIFO_QUEUE_URL is not set.
+
+    """
+    url = os.environ.get("EXECUTION_FIFO_QUEUE_URL", "")
+    if not url:
+        raise ValueError("EXECUTION_FIFO_QUEUE_URL environment variable is not set")
+    return url
+
+
+def _get_execution_runs_table_name() -> str:
+    """Get the DynamoDB table name for execution runs.
+
+    Returns:
+        Table name from environment variable.
+
+    Raises:
+        ValueError: If EXECUTION_RUNS_TABLE_NAME is not set.
+
+    """
+    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
+    if not table_name:
+        raise ValueError("EXECUTION_RUNS_TABLE_NAME environment variable is not set")
+    return table_name
+
+
+def _get_rebalance_plan_table_name() -> str | None:
+    """Get the DynamoDB table name for rebalance plan persistence.
+
+    Returns:
+        Table name from environment variable, or None if not set.
+
+    """
+    return os.environ.get("REBALANCE_PLAN__TABLE_NAME", "") or None
 
 
 def _to_decimal_safe(value: object) -> Decimal:
@@ -300,11 +343,16 @@ class PortfolioAnalysisHandler:
             account_info = account_data.get("account_info", {})
             if not isinstance(account_info, dict):
                 account_info = _normalize_account_info(account_info)
+
+            # Extract strategy contributions for order attribution
+            strategy_contributions = getattr(consolidated_portfolio, "strategy_contributions", None)
+
             rebalance_plan = self._create_rebalance_plan_from_allocation(
                 allocation_comparison,
                 account_info,
                 event.correlation_id,
                 strategy_names,
+                strategy_contributions=strategy_contributions,
             )
 
             # If no rebalance plan could be created, treat as failure and stop
@@ -315,6 +363,9 @@ class PortfolioAnalysisHandler:
                     operation="_handle_signal_generated",
                     correlation_id=event.correlation_id,
                 )
+
+            # Persist rebalance plan for auditability (90-day TTL)
+            self._persist_rebalance_plan(rebalance_plan)
 
             # Emit RebalancePlanned event with proper causation
             self._emit_rebalance_planned_event(
@@ -604,6 +655,7 @@ class PortfolioAnalysisHandler:
         account_info: dict[str, Any],
         correlation_id: str,
         strategy_names: list[str] | None = None,
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> RebalancePlan:
         """Create rebalance plan from allocation comparison.
 
@@ -612,6 +664,7 @@ class PortfolioAnalysisHandler:
             account_info: Account information with Decimal values
             correlation_id: Correlation ID from the triggering event
             strategy_names: List of strategy names that generated the signals
+            strategy_contributions: Per-strategy allocation breakdown for attribution
 
         Returns:
             RebalancePlan with trade items
@@ -646,12 +699,15 @@ class PortfolioAnalysisHandler:
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # In handler context, caused by signal generation workflow
+                strategy_contributions=strategy_contributions,
             )
 
             # Add strategy attribution to metadata using model_copy
             strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
             strategy_attribution = self._build_strategy_attribution(
-                rebalance_plan, strategy_names or ["DSL"]
+                rebalance_plan,
+                strategy_names or ["DSL"],
+                strategy_contributions=strategy_contributions,
             )
 
             if rebalance_plan.metadata is None:
@@ -722,34 +778,85 @@ class PortfolioAnalysisHandler:
         return f"{strategy_names[0]} (+{len(strategy_names) - 1} others)"
 
     def _build_strategy_attribution(
-        self, rebalance_plan: RebalancePlan, strategy_names: list[str]
+        self,
+        rebalance_plan: RebalancePlan,
+        strategy_names: list[str],
+        strategy_contributions: dict[str, dict[str, Decimal]] | None = None,
     ) -> dict[str, dict[str, float]]:
         """Build per-symbol strategy attribution metadata.
+
+        Uses actual strategy contribution weights when available from the
+        ConsolidatedPortfolio. Falls back to equal distribution only when
+        strategy_contributions is not provided.
 
         Args:
             rebalance_plan: The rebalance plan with items
             strategy_names: List of strategy names
+            strategy_contributions: Per-strategy allocation breakdown from ConsolidatedPortfolio
+                Format: {strategy_id: {symbol: Decimal weight}}
 
         Returns:
-            Dictionary mapping symbol to strategy weights
+            Dictionary mapping symbol to strategy weights (as floats for JSON serialization)
 
         """
-        strategy_attribution = {}
+        strategy_attribution: dict[str, dict[str, float]] = {}
 
-        # For each symbol in the plan, assign full attribution to strategies
         for item in rebalance_plan.items:
-            symbol = item.symbol
+            symbol = item.symbol.upper()
 
-            # For single strategy, assign 100% weight
+            # Try to use actual contribution weights if available
+            if strategy_contributions:
+                symbol_weights = self._extract_symbol_weights(symbol, strategy_contributions)
+                if symbol_weights:
+                    strategy_attribution[symbol] = symbol_weights
+                    continue
+
+            # Fallback: single strategy gets 100%, multiple get equal distribution
             if len(strategy_names) == 1:
                 strategy_attribution[symbol] = {strategy_names[0]: 1.0}
             else:
-                # For multiple strategies, distribute equally
-                # In the future, this could be weighted based on signal strength
                 weight_per_strategy = 1.0 / len(strategy_names)
                 strategy_attribution[symbol] = dict.fromkeys(strategy_names, weight_per_strategy)
 
         return strategy_attribution
+
+    def _extract_symbol_weights(
+        self,
+        symbol: str,
+        strategy_contributions: dict[str, dict[str, Decimal]],
+    ) -> dict[str, float] | None:
+        """Extract per-strategy weights for a symbol from strategy_contributions.
+
+        Args:
+            symbol: The trading symbol (uppercase)
+            strategy_contributions: {strategy_id: {symbol: Decimal weight}}
+
+        Returns:
+            Dict of {strategy_name: float weight} normalized to sum to 1.0,
+            or None if no strategies contribute to this symbol.
+
+        """
+        symbol_weights: dict[str, Decimal] = {}
+
+        for strategy_id, allocations in strategy_contributions.items():
+            # Normalize keys for comparison
+            normalized_allocations = {k.upper(): v for k, v in allocations.items()}
+            if symbol in normalized_allocations:
+                weight = normalized_allocations[symbol]
+                if weight > Decimal("0"):
+                    symbol_weights[strategy_id] = weight
+
+        if not symbol_weights:
+            return None
+
+        # Normalize weights to sum to 1.0
+        total_weight = sum(symbol_weights.values())
+        if total_weight <= Decimal("0"):
+            return None
+
+        return {
+            strategy: float(weight / total_weight) for strategy, weight in symbol_weights.items()
+        }
 
     def _emit_rebalance_planned_event(
         self,
@@ -758,6 +865,10 @@ class PortfolioAnalysisHandler:
         original_event: SignalGenerated,
     ) -> None:
         """Emit RebalancePlanned event with proper causation chain.
+
+        Decomposes the plan into individual TradeMessages and enqueues them
+        to SQS FIFO for per-trade execution. Each trade is executed by a
+        separate Execution Lambda invocation.
 
         Args:
             rebalance_plan: Generated rebalance plan
@@ -788,33 +899,22 @@ class PortfolioAnalysisHandler:
             # Determine if actual trades (BUY/SELL) are required, not just HOLDs
             trades_required = any(item.action in ["BUY", "SELL"] for item in rebalance_plan.items)
 
-            event = RebalancePlanned(
-                correlation_id=original_event.correlation_id,
-                causation_id=original_event.event_id,  # Direct causation from SignalGenerated
-                event_id=f"rebalance-planned-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="portfolio_v2.handlers",
-                source_component="PortfolioAnalysisHandler",
-                rebalance_plan=rebalance_plan,
-                allocation_comparison=allocation_comparison,
-                trades_required=trades_required,
-                metadata={
-                    "analysis_timestamp": datetime.now(UTC).isoformat(),
-                    "source": "event_driven_handler",
-                },
-            )
-
-            self.event_bus.publish(event)
-
-            trades_count = len(rebalance_plan.items)
-            self.logger.info(
-                "Emitted RebalancePlanned event",
-                extra={
-                    "correlation_id": original_event.correlation_id,
-                    "trades_count": trades_count,
-                    "trades_required": trades_required,
-                },
-            )
+            if trades_required:
+                # Decompose and enqueue trades to SQS FIFO for per-trade execution
+                self._enqueue_trades_for_per_trade_execution(
+                    rebalance_plan=rebalance_plan,
+                    correlation_id=original_event.correlation_id,
+                    causation_id=original_event.event_id,
+                )
+            else:
+                # No trades required - log and skip execution
+                self.logger.info(
+                    "No trades required - skipping execution",
+                    extra={
+                        "correlation_id": original_event.correlation_id,
+                        "plan_items": len(rebalance_plan.items),
+                    },
+                )
 
         except (ValidationError, TypeError, AttributeError) as e:
             # Event construction errors - log and reraise
@@ -837,6 +937,170 @@ class PortfolioAnalysisHandler:
                 },
             )
             raise
+
+    def _enqueue_trades_for_per_trade_execution(
+        self,
+        rebalance_plan: RebalancePlan,
+        correlation_id: str,
+        causation_id: str,
+    ) -> None:
+        """Decompose rebalance plan into individual trades and enqueue to SQS FIFO.
+
+        This method:
+        1. Creates TradeMessage for each BUY/SELL item (skips HOLD)
+        2. Creates run state entry in DynamoDB
+        3. Enqueues each trade message to SQS FIFO with ordering
+
+        Args:
+            rebalance_plan: The rebalance plan to decompose.
+            correlation_id: Workflow correlation ID.
+            causation_id: Event that caused this operation.
+
+        """
+        import boto3
+
+        from the_alchemiser.shared.services.execution_run_service import (
+            ExecutionRunService,
+        )
+
+        run_id = str(uuid.uuid4())
+        run_timestamp = datetime.now(UTC)
+
+        # Build TradeMessages for each BUY/SELL item
+        trade_messages: list[TradeMessage] = []
+        for item in rebalance_plan.items:
+            if item.action == "HOLD":
+                continue  # Skip HOLD items - no execution needed
+
+            # Compute sequence number (sells 1000-1999, buys 2000-2999)
+            sequence_number = TradeMessage.compute_sequence_number(item.action, item.priority)
+
+            # Determine if this is a complete exit (selling entire position)
+            # is_complete_exit and is_full_liquidation are equivalent for SELL actions
+            is_complete_exit = (
+                item.action == "SELL"
+                and item.target_weight == Decimal("0")
+                and item.current_weight > Decimal("0")
+            )
+            # is_full_liquidation: target_weight=0 regardless of action (for Executor logic)
+            is_full_liquidation = item.target_weight == Decimal("0")
+
+            trade_message = TradeMessage(
+                run_id=run_id,
+                trade_id=str(uuid.uuid4()),
+                plan_id=rebalance_plan.plan_id,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                strategy_id=rebalance_plan.strategy_id,
+                symbol=item.symbol,
+                action=item.action,
+                trade_amount=item.trade_amount,
+                current_weight=item.current_weight,
+                target_weight=item.target_weight,
+                target_value=item.target_value,
+                current_value=item.current_value,
+                priority=item.priority,
+                phase=item.action,  # Phase matches action for simplicity
+                sequence_number=sequence_number,
+                is_complete_exit=is_complete_exit,
+                is_full_liquidation=is_full_liquidation,
+                total_portfolio_value=rebalance_plan.total_portfolio_value,
+                total_run_trades=sum(
+                    1 for i in rebalance_plan.items if i.action in ["BUY", "SELL"]
+                ),
+                run_timestamp=run_timestamp,
+                metadata=rebalance_plan.metadata,
+            )
+            trade_messages.append(trade_message)
+
+        if not trade_messages:
+            self.logger.info(
+                "No trades to enqueue (all HOLD)",
+                extra={"correlation_id": correlation_id},
+            )
+            return
+
+        # Sort by sequence number (sells first, then buys)
+        trade_messages.sort(key=lambda m: m.sequence_number)
+
+        # Separate trades by phase for two-phase execution
+        sell_trades = [m for m in trade_messages if m.phase == "SELL"]
+        buy_trades = [m for m in trade_messages if m.phase == "BUY"]
+
+        # Create run state entry in DynamoDB with two-phase tracking
+        # BUY trades are stored but not enqueued yet (status=WAITING)
+        run_service = ExecutionRunService(table_name=_get_execution_runs_table_name())
+        run_service.create_run(
+            run_id=run_id,
+            plan_id=rebalance_plan.plan_id,
+            correlation_id=correlation_id,
+            trade_messages=trade_messages,
+            run_timestamp=run_timestamp,
+            enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
+        )
+
+        # Enqueue only SELL trades to Standard SQS queue (parallel execution)
+        # BUY trades will be enqueued after SELL phase completes
+        # Standard queue removes MessageGroupId requirement - enables parallel Lambda invocations
+        sqs_client = boto3.client("sqs")
+        queue_url = _get_execution_fifo_queue_url()
+        enqueued_count = 0
+
+        try:
+            for msg in sell_trades:
+                sqs_client.send_message(
+                    QueueUrl=queue_url,
+                    MessageBody=msg.to_sqs_message_body(),
+                    # Standard queue uses MessageDeduplicationId for client-side dedup
+                    # No MessageGroupId needed - enables parallel processing
+                    MessageAttributes={
+                        "RunId": {"DataType": "String", "StringValue": run_id},
+                        "TradeId": {"DataType": "String", "StringValue": msg.trade_id},
+                        "Phase": {"DataType": "String", "StringValue": msg.phase},
+                    },
+                )
+                enqueued_count += 1
+
+        except Exception as enqueue_error:
+            # SQS enqueue failed - mark run as FAILED to prevent inconsistent state
+            self.logger.error(
+                f"SQS enqueue failed after {enqueued_count}/{len(sell_trades)} SELL messages: {enqueue_error}",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "enqueued_count": enqueued_count,
+                    "total_sells": len(sell_trades),
+                    "total_buys": len(buy_trades),
+                    "error_type": type(enqueue_error).__name__,
+                    "error_details": str(enqueue_error),
+                },
+            )
+            # Mark run as FAILED so it doesn't wait forever for missing trades
+            try:
+                run_service.update_run_status(run_id, "FAILED")
+                self.logger.info(
+                    f"Marked run {run_id} as FAILED due to SQS enqueue error",
+                    extra={"run_id": run_id, "correlation_id": correlation_id},
+                )
+            except Exception as status_error:
+                self.logger.error(
+                    f"Failed to mark run as FAILED: {status_error}",
+                    extra={"run_id": run_id, "correlation_id": correlation_id},
+                )
+            # Re-raise to surface the error
+            raise
+
+        self.logger.info(
+            "Enqueued SELL trades for parallel execution (BUYs waiting for SELL completion)",
+            extra={
+                "run_id": run_id,
+                "correlation_id": correlation_id,
+                "total_trades": len(trade_messages),
+                "sell_enqueued": len(sell_trades),
+                "buy_waiting": len(buy_trades),
+                "execution_mode": "two_phase_parallel",
+            },
+        )
 
     def _extract_trade_values(self, item: RebalancePlanItem) -> tuple[str, str, float]:
         """Extract action, symbol, and trade amount from a rebalance item.
@@ -944,6 +1208,60 @@ class PortfolioAnalysisHandler:
 
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning(f"Failed to log final rebalance plan summary: {exc}")
+
+    def _persist_rebalance_plan(self, rebalance_plan: RebalancePlan) -> None:
+        """Persist rebalance plan to DynamoDB for auditability.
+
+        Plans are stored with 90-day TTL for answering "why didn't we trade X?"
+        beyond EventBridge's 24-hour retention.
+
+        Args:
+            rebalance_plan: The rebalance plan to persist
+
+        Note:
+            Persistence failure is logged but does not block the workflow.
+            Auditability is important but not critical for execution.
+
+        """
+        table_name = _get_rebalance_plan_table_name()
+        if not table_name:
+            self.logger.debug("Rebalance plan persistence disabled (no table configured)")
+            return
+
+        try:
+            from the_alchemiser.shared.config.config import load_settings
+            from the_alchemiser.shared.repositories.dynamodb_rebalance_plan_repository import (
+                DynamoDBRebalancePlanRepository,
+            )
+
+            settings = load_settings()
+            ttl_days = settings.rebalance_plan.ttl_days
+
+            repository = DynamoDBRebalancePlanRepository(
+                table_name=table_name,
+                ttl_days=ttl_days,
+            )
+            repository.save_plan(rebalance_plan)
+
+            self.logger.info(
+                "Persisted rebalance plan for auditability",
+                extra={
+                    "plan_id": rebalance_plan.plan_id,
+                    "correlation_id": rebalance_plan.correlation_id,
+                    "item_count": len(rebalance_plan.items),
+                    "ttl_days": ttl_days,
+                },
+            )
+
+        except Exception as exc:
+            # Log but don't block workflow - auditability is not critical path
+            self.logger.warning(
+                f"Failed to persist rebalance plan: {exc}",
+                extra={
+                    "plan_id": rebalance_plan.plan_id,
+                    "correlation_id": rebalance_plan.correlation_id,
+                },
+            )
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.

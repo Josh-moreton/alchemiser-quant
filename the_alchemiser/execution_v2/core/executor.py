@@ -289,6 +289,7 @@ class Executor:
         *,
         is_complete_exit: bool = False,
         planned_trade_amount: Decimal | None = None,
+        strategy_id: str | None = None,
     ) -> OrderResult:
         """Execute an order using the unified placement service.
 
@@ -299,6 +300,7 @@ class Executor:
             correlation_id: Correlation ID for tracking
             is_complete_exit: If True and side is 'sell', this is a full position close
             planned_trade_amount: Original planned dollar amount from rebalance plan (for audit)
+            strategy_id: Strategy identifier for order attribution
 
         Returns:
             OrderResult with order details.
@@ -330,6 +332,7 @@ class Executor:
                 quantity=quantity,
                 urgency=urgency,
                 correlation_id=correlation_id,
+                strategy_id=strategy_id,
             )
 
             # Execute via unified service
@@ -392,6 +395,11 @@ class Executor:
             # Calculate executed trade amount (may be 0 on failure)
             executed_trade_amount = abs(execution_result.total_filled * fill_price)
 
+            # Extract client_order_id from updated intent for strategy attribution
+            client_order_id = (
+                execution_result.intent.client_order_id if execution_result.intent else None
+            )
+
             return OrderResult(
                 symbol=symbol,
                 action=action,  # type: ignore[arg-type]
@@ -406,6 +414,7 @@ class Executor:
                 timestamp=datetime.now(UTC),
                 order_type=order_type,  # type: ignore[arg-type]
                 filled_at=datetime.now(UTC) if execution_result.success else None,
+                client_order_id=client_order_id,
             )
 
         # Fallback to market order if unified service not available
@@ -893,9 +902,13 @@ class Executor:
 
         """
         MIN_PRICE_THRESHOLD = Decimal("0.001")  # $0.001 minimum price threshold
+        # Minimum reasonable price - if calculated price is below this, it's likely bad data
+        # Most tradeable securities are > $1, so $0.50 is a very conservative threshold
+        MIN_REASONABLE_PRICE = Decimal("0.50")
+
+        action = item.action.upper()
 
         # For liquidation (0% target), use actual position quantity
-        action = item.action.upper()
         if action == "SELL" and item.target_weight == Decimal("0.0"):
             raw_shares = self._position_utils.get_position_quantity(item.symbol)
             shares = self._position_utils.adjust_quantity_for_fractionability(
@@ -914,7 +927,7 @@ class Executor:
         # Estimate shares from trade amount using best available price
         price = self._position_utils.get_price_for_estimation(item.symbol)
         if price is None or price <= MIN_PRICE_THRESHOLD:
-            # Safety fallback to 1 share if price discovery fails
+            # Safety fallback to 1 share if price discovery fails completely
             logger.warning(
                 "⚠️ Price below minimum threshold for symbol; defaulting to 1 share",
                 extra={
@@ -926,9 +939,63 @@ class Executor:
             )
             return Decimal("1")
 
+        # SAFETY CHECK: Validate price is reasonable
+        # If price is suspiciously low, it's likely stale/bad data
+        if price < MIN_REASONABLE_PRICE:
+            logger.error(
+                "🚨 Suspiciously low price detected - likely bad market data",
+                extra={
+                    "symbol": item.symbol,
+                    "price": str(price),
+                    "min_reasonable": str(MIN_REASONABLE_PRICE),
+                    "trade_amount": str(item.trade_amount),
+                    "action": item.action,
+                },
+            )
+            # For sells, use position quantity as a safe fallback
+            if action == "SELL":
+                current_position = self._position_utils.get_position_quantity(item.symbol)
+                if current_position > 0:
+                    logger.warning(
+                        "⚠️ Falling back to current position quantity for SELL",
+                        extra={
+                            "symbol": item.symbol,
+                            "position_qty": str(current_position),
+                        },
+                    )
+                    return self._position_utils.adjust_quantity_for_fractionability(
+                        item.symbol, current_position
+                    )
+            # For buys with bad price, default to 1 share
+            return Decimal("1")
+
         # Normal case: calculate shares from trade amount
         raw_shares = abs(item.trade_amount) / price
         shares = self._position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
+
+        # CRITICAL SAFETY CHECK: For SELL orders, cap shares at current position
+        # This prevents catastrophic bugs where bad price data causes us to try
+        # selling more shares than we own
+        if action == "SELL":
+            current_position = self._position_utils.get_position_quantity(item.symbol)
+            if shares > current_position:
+                logger.error(
+                    "🚨 Calculated shares exceed current position - capping to position size",
+                    extra={
+                        "symbol": item.symbol,
+                        "calculated_shares": str(shares),
+                        "current_position": str(current_position),
+                        "trade_amount": str(item.trade_amount),
+                        "price_used": str(price),
+                        "implied_price_for_position": str(abs(item.trade_amount) / current_position)
+                        if current_position > 0
+                        else "N/A",
+                    },
+                )
+                # Use position quantity instead - this is the maximum we can sell
+                shares = self._position_utils.adjust_quantity_for_fractionability(
+                    item.symbol, current_position
+                )
 
         amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
         logger.info(
@@ -938,6 +1005,7 @@ class Executor:
                 "symbol": item.symbol,
                 "trade_amount": str(amount_fmt),
                 "estimated_shares": str(shares),
+                "price_used": str(price),
             },
         )
         return shares
@@ -1061,6 +1129,7 @@ class Executor:
                 correlation_id=correlation_id,
                 is_complete_exit=is_full_liquidation,  # Flag for quantity adjustment in market fallback
                 planned_trade_amount=abs(item.trade_amount),  # Preserve original amount for audit
+                strategy_id=item.strategy_id,  # For order attribution
             )
 
             # Log result

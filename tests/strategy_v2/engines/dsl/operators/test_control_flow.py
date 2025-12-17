@@ -119,15 +119,19 @@ class TestControlFlowOperators:
 
         assert result == "else-result"
 
-    def test_if_condition_no_else_returns_none(self, context):
-        """Test if returns None when no else clause and condition is False."""
+    def test_if_condition_no_else_raises_error(self, context):
+        """Test if raises error when no else clause and condition is False.
+
+        DSL strategies must always produce an allocation. An if without else
+        that evaluates to false is an evaluation failure, not a valid result.
+        """
         condition = ASTNode.atom("false")
         then_expr = ASTNode.atom("then-result")
 
         args = [condition, then_expr]
-        result = if_condition(args, context)
 
-        assert result is None
+        with pytest.raises(DslEvaluationError, match="no else branch provided"):
+            if_condition(args, context)
 
     def test_if_condition_publishes_event(self, context, mock_event_publisher):
         """Test if publishes decision evaluated event."""

@@ -86,6 +86,7 @@ from .technical_indicator import (
 )
 from .trace import Trace, TraceEntry
 from .trade_ledger import TradeLedger, TradeLedgerEntry
+from .trade_message import TradeMessage
 from .trade_result_factory import create_failure_result, create_success_result
 from .trade_run_result import (
     ExecutionStatus,
@@ -157,6 +158,7 @@ __all__ = [
     "TradeEligibilityResult",
     "TradeLedger",
     "TradeLedgerEntry",
+    "TradeMessage",
     "TradeRunResult",
     "TradingMode",
     "WebSocketResult",
