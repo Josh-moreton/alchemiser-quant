@@ -1275,6 +1275,85 @@ Resources:
                 Resource:
                   - !GetAtt ExecutionRunsTable.Arn
 
+  # ========== TRADE AGGREGATOR LAMBDA ==========
+  # Aggregates TradeExecuted events and emits single AllTradesCompleted event
+  # This eliminates race conditions in notifications by ensuring only one notification per run
+  TradeAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-trade-aggregator"
+        - !Sub "alchemiser-${Stage}-trade-aggregator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: ./
+      Handler: the_alchemiser.trade_aggregator.lambda_handler.lambda_handler
+      Role: !GetAtt TradeAggregatorExecutionRole.Arn
+      Layers:
+        - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, alpaca-py for capital metrics)
+      Timeout: 60  # Aggregation should be fast
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
+      Events:
+        TradeExecutedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.execution"
+              detail-type:
+                - "TradeExecuted"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  TradeAggregatorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: TradeAggregatorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
+
   # ========== NOTIFICATIONS LAMBDA ==========
   # Consumes TradeExecuted and WorkflowFailed events and sends email notifications
   NotificationsFunction:
@@ -1300,18 +1379,17 @@ Resources:
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          # Per-trade execution configuration (for run aggregation)
-          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
       Events:
-        TradeExecutedEvent:
+        # AllTradesCompleted from TradeAggregator (one event per run, no racing)
+        AllTradesCompletedEvent:
           Type: EventBridgeRule
           Properties:
             EventBusName: !Ref AlchemiserEventBus
             Pattern:
               source:
-                - "alchemiser.execution"
+                - "alchemiser.trade_aggregator"
               detail-type:
-                - "TradeExecuted"
+                - "AllTradesCompleted"
         # Route WorkflowFailed from ANY alchemiser source to notifications
         # Each Lambda (strategy, portfolio, execution) publishes WorkflowFailed with its own source
         WorkflowFailedEvent:
@@ -1379,14 +1457,6 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - !Sub "${PerformanceReportsBucket.Arn}/*"
-              # Per-trade execution: Execution runs table access (for run aggregation)
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:UpdateItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt ExecutionRunsTable.Arn
 
   # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
   # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization

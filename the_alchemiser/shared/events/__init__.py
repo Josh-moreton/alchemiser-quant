@@ -19,6 +19,7 @@ from .bus import EventBus
 from .handlers import EventHandler
 from .schemas import (
     AllocationComparisonCompleted,
+    AllTradesCompleted,
     BulkSettlementCompleted,
     ErrorNotificationRequested,
     ExecutionPhaseCompleted,
@@ -38,6 +39,7 @@ from .schemas import (
 )
 
 __all__ = [
+    "AllTradesCompleted",
     "AllocationComparisonCompleted",
     "BaseEvent",
     "BulkSettlementCompleted",

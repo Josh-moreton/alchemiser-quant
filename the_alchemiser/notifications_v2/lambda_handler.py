@@ -2,17 +2,15 @@
 
 Lambda handler for event-driven notifications microservice.
 
-Consumes TradeExecuted and WorkflowFailed events from EventBridge and sends
-email notifications using the NotificationService.
+Consumes AllTradesCompleted (from TradeAggregator) and WorkflowFailed events
+from EventBridge and sends email notifications using the NotificationService.
 
-Supports per-trade execution mode where multiple TradeExecuted events per run
-are aggregated when all trades complete before sending a single notification.
+This is a stateless handler - all aggregation logic lives in TradeAggregator.
+Each event triggers exactly one notification, eliminating race conditions.
 """
 
 from __future__ import annotations
 
-import os
-import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -29,9 +27,6 @@ from the_alchemiser.shared.events.schemas import (
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-from the_alchemiser.shared.services.execution_run_service import (
-    ExecutionRunService,
-)
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -40,14 +35,14 @@ logger = get_logger(__name__)
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle TradeExecuted and WorkflowFailed events and send notifications.
+    """Handle AllTradesCompleted and WorkflowFailed events and send notifications.
 
-    This Lambda is triggered by EventBridge when TradeExecuted or WorkflowFailed
-    events are published. It builds appropriate notification events and processes
-    them through the NotificationService to send emails.
+    This Lambda is triggered by EventBridge:
+    - AllTradesCompleted: From TradeAggregator when all trades in a run finish
+    - WorkflowFailed: From any alchemiser module on failure
 
     Args:
-        event: EventBridge event containing TradeExecuted or WorkflowFailed details
+        event: EventBridge event
         context: Lambda context
 
     Returns:
@@ -57,9 +52,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     correlation_id = str(uuid4())
 
     try:
-        # Extract EventBridge envelope metadata before unwrapping
-        # Note: unwrap_eventbridge_event returns the 'detail' payload directly,
-        # so we need to extract metadata from the original event
+        # Extract EventBridge envelope metadata
         detail_type = event.get("detail-type", "")
         source = event.get("source", "")
 
@@ -79,10 +72,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         )
 
         # Route to appropriate handler based on event type
-        if detail_type == "TradeExecuted":
-            return _handle_trade_executed(detail, correlation_id)
+        if detail_type == "AllTradesCompleted":
+            return _handle_all_trades_completed(detail, correlation_id)
         if detail_type == "WorkflowFailed":
             return _handle_workflow_failed(detail, correlation_id, source)
+
         logger.debug(
             f"Ignoring unsupported event type: {detail_type}",
             extra={"correlation_id": correlation_id},
@@ -108,280 +102,56 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         }
 
 
-def _handle_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
-    """Handle TradeExecuted events by sending trading notifications.
+def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle AllTradesCompleted event from TradeAggregator.
 
-    Checks if run is complete, aggregates results, and sends a single notification
-    when all trades in the run have completed.
+    This is the primary handler - receives pre-aggregated trade data
+    and sends a single notification. No racing or locking needed.
 
     Args:
-        detail: The detail payload from TradeExecuted event
+        detail: The detail payload from AllTradesCompleted event
         correlation_id: Correlation ID for tracing
 
     Returns:
         Response with status code and message
 
     """
-    # Get run_id from metadata
-    metadata = detail.get("metadata", {})
-    run_id = metadata.get("run_id")
-
-    if run_id:
-        return _handle_per_trade_executed(detail, correlation_id, run_id)
-
-    # Fallback for events without run_id (e.g., manual testing)
-    logger.warning(
-        "TradeExecuted event without run_id - processing immediately",
-        extra={"correlation_id": correlation_id},
-    )
-    return _handle_single_trade_executed(detail, correlation_id)
-
-
-def _handle_per_trade_executed(
-    detail: dict[str, Any], correlation_id: str, run_id: str
-) -> dict[str, Any]:
-    """Handle TradeExecuted events from per-trade execution mode.
-
-    Checks if all trades in the run are complete. If so, aggregates results
-    and sends a single notification. If not, returns without sending notification.
-
-    Args:
-        detail: The detail payload from TradeExecuted event
-        correlation_id: Correlation ID for tracing
-        run_id: Execution run identifier
-
-    Returns:
-        Response with status code and message
-
-    """
-    trade_id = detail.get("metadata", {}).get("trade_id", "unknown")
+    run_id = detail.get("run_id", "unknown")
+    total_trades = detail.get("total_trades", 0)
+    succeeded_trades = detail.get("succeeded_trades", 0)
+    failed_trades = detail.get("failed_trades", 0)
 
     logger.info(
-        f"Per-trade execution: Checking run completion for trade {trade_id}",
+        f"🏁 Processing AllTradesCompleted for run {run_id}",
         extra={
             "correlation_id": correlation_id,
             "run_id": run_id,
-            "trade_id": trade_id,
+            "total_trades": total_trades,
+            "succeeded_trades": succeeded_trades,
+            "failed_trades": failed_trades,
         },
     )
 
-    # Initialize ExecutionRunService - fail fast if not configured
-    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME")
-    if not table_name:
-        logger.error(
-            "EXECUTION_RUNS_TABLE_NAME not configured - cannot process per-trade events",
-            extra={"correlation_id": correlation_id, "run_id": run_id},
-        )
-        return {
-            "statusCode": 500,
-            "body": "EXECUTION_RUNS_TABLE_NAME environment variable not configured",
-        }
-    run_service = ExecutionRunService(table_name=table_name)
-
-    # Check if run is complete
-    if not run_service.is_run_complete(run_id):
-        # Not all trades complete yet - wait for more events
-        logger.info(
-            f"Run {run_id} not yet complete - waiting for more trades",
-            extra={
-                "correlation_id": correlation_id,
-                "run_id": run_id,
-                "trade_id": trade_id,
-            },
-        )
-        return {
-            "statusCode": 200,
-            "body": f"Trade {trade_id} recorded, run not yet complete",
-        }
-
-    # Run is complete - try to acquire notification lock
-    # Uses two-phase locking: RUNNING -> NOTIFYING -> COMPLETED
-    # This ensures that if notification sending fails, another invocation can retry
-    acquired_lock = run_service.claim_notification_lock(run_id, timeout_seconds=60)
-
-    if not acquired_lock:
-        # Another invocation already claimed the lock or run is completed
-        logger.info(
-            f"Run {run_id} already finalized by another invocation",
-            extra={
-                "correlation_id": correlation_id,
-                "run_id": run_id,
-            },
-        )
-        return {
-            "statusCode": 200,
-            "body": f"Run {run_id} already finalized",
-        }
-
-    # This invocation wins the lock - aggregate and send notification
-    logger.info(
-        f"🏁 Run {run_id} complete - aggregating results and sending notification",
-        extra={
-            "correlation_id": correlation_id,
-            "run_id": run_id,
-        },
-    )
-
-    try:
-        # Get run metadata and all trade results
-        run_metadata = run_service.get_run(run_id)
-        trade_results = run_service.get_all_trade_results(run_id)
-
-        # Build aggregated TradeExecuted-like detail for notification
-        aggregated_detail = _aggregate_trade_results(run_metadata, trade_results, correlation_id)
-
-        # Process the aggregated notification
-        result = _handle_single_trade_executed(aggregated_detail, correlation_id)
-
-        # Only mark as completed AFTER notification is successfully sent
-        run_service.mark_notification_sent(run_id)
-
-        logger.info(
-            f"✅ Run {run_id} notification sent and marked complete",
-            extra={
-                "correlation_id": correlation_id,
-                "run_id": run_id,
-            },
-        )
-
-        return result
-
-    except Exception as e:
-        # Notification failed - log error but leave in NOTIFYING state
-        # so another invocation can retry after the lock expires
-        logger.error(
-            f"❌ Failed to send notification for run {run_id}, lock will expire for retry",
-            extra={
-                "correlation_id": correlation_id,
-                "run_id": run_id,
-                "error": str(e),
-            },
-        )
-        raise
-
-
-def _aggregate_trade_results(
-    run_metadata: dict[str, Any] | None,
-    trade_results: list[dict[str, Any]],
-    correlation_id: str,
-) -> dict[str, Any]:
-    """Aggregate individual trade results into a single notification payload.
-
-    Args:
-        run_metadata: Run metadata from DynamoDB
-        trade_results: List of individual trade results
-        correlation_id: Correlation ID for tracing
-
-    Returns:
-        Aggregated detail dict in TradeExecuted format
-
-    """
-    if not run_metadata:
-        run_metadata = {}
-
-    total_trades = run_metadata.get("total_trades", len(trade_results))
-    succeeded_trades = run_metadata.get("succeeded_trades", 0)
-    failed_trades = run_metadata.get("failed_trades", 0)
-
-    # Calculate total trade value
-    total_trade_value = Decimal("0")
-    orders_executed = []
-    failed_symbols = []
-
-    for trade in trade_results:
-        trade_amount = trade.get("trade_amount", Decimal("0"))
-        if isinstance(trade_amount, str):
-            trade_amount = Decimal(trade_amount)
-        total_trade_value += abs(trade_amount)
-
-        # Build order summary for notification
-        order_summary = {
-            "symbol": trade.get("symbol"),
-            "action": trade.get("action"),
-            "status": trade.get("status"),
-            "order_id": trade.get("order_id"),
-            "trade_amount": str(trade_amount),
-        }
-        orders_executed.append(order_summary)
-
-        # Track failed symbols
-        if trade.get("status") == "FAILED":
-            failed_symbols.append(trade.get("symbol", "unknown"))
-
-    # Capture capital deployed percentage after all trades complete
-    # Add small delay to allow trades to settle in Alpaca's system
-    logger.info(
-        "Waiting 2 seconds for trade settlement before capturing capital deployed metric",
-        extra={"correlation_id": correlation_id, "run_id": run_metadata.get("run_id")},
-    )
-    time.sleep(2)
-    capital_deployed_pct = _capture_capital_deployed_pct(correlation_id)
-
-    # Build aggregated payload
-    metadata: dict[str, object] = {
-        "execution_mode": "per_trade_aggregated",
-        "run_id": run_metadata.get("run_id"),
-        "plan_id": run_metadata.get("plan_id"),
-        "total_trade_value": str(total_trade_value),
-    }
-
-    # Add capital deployed percentage if available
-    if capital_deployed_pct is not None:
-        metadata["capital_deployed_pct"] = str(capital_deployed_pct)
-
-    return {
-        "correlation_id": correlation_id,
-        "event_id": f"aggregated-trade-executed-{run_metadata.get('run_id', 'unknown')}",
-        "orders_placed": total_trades,
-        "orders_succeeded": succeeded_trades,
-        "success": failed_trades == 0,
-        "metadata": metadata,
-        "execution_data": {
-            "orders_executed": orders_executed,
-            "execution_summary": {
-                "total_trades": total_trades,
-                "succeeded": succeeded_trades,
-                "failed": failed_trades,
-                "total_value": str(total_trade_value),
-            },
-        },
-        "failure_reason": f"Failed symbols: {', '.join(failed_symbols)}"
-        if failed_symbols
-        else None,
-        "failed_symbols": failed_symbols,
-    }
-
-
-def _handle_single_trade_executed(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
-    """Handle TradeExecuted events as a single notification.
-
-    Used for aggregated trade results or events without run_id (e.g., manual testing).
-
-    Args:
-        detail: The detail payload from TradeExecuted event
-        correlation_id: Correlation ID for tracing
-
-    Returns:
-        Response with status code and message
-
-    """
-    # Create minimal ApplicationContainer for notifications (no pandas/business modules)
+    # Create minimal ApplicationContainer for notifications
     container = ApplicationContainer.create_for_notifications("production")
 
     # Generate strategy performance report and get presigned URL
     report_url = _generate_strategy_report(correlation_id)
 
-    # Build TradingNotificationRequested from TradeExecuted event
-    notification_event = _build_trading_notification(detail, correlation_id, container, report_url)
+    # Build TradingNotificationRequested from AllTradesCompleted event
+    notification_event = _build_trading_notification_from_aggregated(
+        detail, correlation_id, container, report_url
+    )
 
     # Create NotificationService and process the event
     notification_service = NotificationService(container)
     notification_service.handle_event(notification_event)
 
     logger.info(
-        "Trading notification processed successfully",
+        "✅ Trading notification sent successfully",
         extra={
             "correlation_id": correlation_id,
+            "run_id": run_id,
             "trading_success": notification_event.trading_success,
             "orders_placed": notification_event.orders_placed,
             "report_url_included": report_url is not None,
@@ -390,8 +160,94 @@ def _handle_single_trade_executed(detail: dict[str, Any], correlation_id: str) -
 
     return {
         "statusCode": 200,
-        "body": f"Notification sent for correlation_id: {correlation_id}",
+        "body": f"Notification sent for run {run_id}",
     }
+
+
+def _build_trading_notification_from_aggregated(
+    all_trades_detail: dict[str, Any],
+    correlation_id: str,
+    container: ApplicationContainer,
+    report_url: str | None = None,
+) -> TradingNotificationRequested:
+    """Build TradingNotificationRequested from AllTradesCompleted event.
+
+    Args:
+        all_trades_detail: The detail payload from AllTradesCompleted event
+        correlation_id: Correlation ID for tracing
+        container: Application container for config access
+        report_url: Optional presigned URL for strategy performance CSV report
+
+    Returns:
+        TradingNotificationRequested event ready for processing
+
+    """
+    # Determine trading mode from container config
+    mode_str = "LIVE" if not container.config.paper_trading() else "PAPER"
+
+    # Extract fields from AllTradesCompleted event
+    total_trades = all_trades_detail.get("total_trades", 0)
+    succeeded_trades = all_trades_detail.get("succeeded_trades", 0)
+    failed_trades = all_trades_detail.get("failed_trades", 0)
+
+    # Trading is successful if there are trades and none failed
+    trading_success = total_trades > 0 and failed_trades == 0
+
+    # Get pre-aggregated execution data
+    aggregated_data = all_trades_detail.get("aggregated_execution_data", {})
+
+    # Build execution data for email template
+    execution_data: dict[str, Any] = {
+        "orders_executed": aggregated_data.get("orders_executed", []),
+        "execution_summary": aggregated_data.get("execution_summary", {}),
+    }
+
+    # Add report URL to execution_data if available
+    if report_url:
+        execution_data["strategy_performance_report_url"] = report_url
+
+    # Extract capital deployed percentage (already captured by TradeAggregator)
+    capital_deployed_pct = _extract_capital_deployed_pct(all_trades_detail)
+
+    # Get failed symbols for error reporting
+    failed_symbols = all_trades_detail.get("failed_symbols", [])
+    error_message = f"Failed symbols: {', '.join(failed_symbols)}" if failed_symbols else None
+
+    return TradingNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=all_trades_detail.get("event_id", correlation_id),
+        event_id=f"trading-notification-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        trading_success=trading_success,
+        trading_mode=mode_str,
+        orders_placed=total_trades,
+        orders_succeeded=succeeded_trades,
+        capital_deployed_pct=capital_deployed_pct,
+        execution_data=execution_data,
+        error_message=error_message,
+        error_code=None,
+    )
+
+
+def _extract_capital_deployed_pct(event_detail: dict[str, Any]) -> Decimal | None:
+    """Extract capital deployed percentage from event.
+
+    Args:
+        event_detail: The detail payload from event
+
+    Returns:
+        Capital deployed percentage as Decimal, or None if not available
+
+    """
+    capital_pct = event_detail.get("capital_deployed_pct")
+    if capital_pct is not None:
+        try:
+            return Decimal(str(capital_pct))
+        except (TypeError, ValueError):
+            pass
+    return None
 
 
 def _handle_workflow_failed(
@@ -408,12 +264,15 @@ def _handle_workflow_failed(
         Response with status code and message
 
     """
-    # Create ApplicationContainer for dependencies
     logger.info(
-        "Creating minimal ApplicationContainer for notifications (no pandas/business modules)"
+        "Processing WorkflowFailed event",
+        extra={"correlation_id": correlation_id, "source": source},
     )
+
+    # Create minimal ApplicationContainer for notifications
     container = ApplicationContainer.create_for_notifications("production")
-    logger.info("Processing WorkflowFailed event")
+
+    # Build error notification event
     notification_event = _build_error_notification(detail, correlation_id, source)
 
     # Create NotificationService and process the event
@@ -547,156 +406,3 @@ def _generate_strategy_report(correlation_id: str) -> str | None:
             },
         )
         return None
-
-
-def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
-    """Capture capital deployed percentage from Alpaca account.
-
-    Called once per run after all trades complete (not per trade).
-    Polls the Alpaca account to calculate what percentage of total equity
-    is currently deployed in positions. This uses equity (not buying power)
-    to give an accurate representation of capital usage regardless of
-    leverage settings.
-
-    Formula: capital_deployed_pct = (long_market_value / equity) * 100
-
-    Args:
-        correlation_id: Correlation ID for tracing
-
-    Returns:
-        Capital deployed as a percentage (0-100), or None if calculation fails
-
-    """
-    try:
-        # Create minimal container for Alpaca access
-        container = ApplicationContainer.create_for_notifications("production")
-        alpaca_manager = container.infrastructure.alpaca_manager()
-        account = alpaca_manager.get_account_object()
-
-        if not account:
-            logger.warning(
-                "Failed to fetch account for capital deployed calculation",
-                extra={"correlation_id": correlation_id},
-            )
-            return None
-
-        equity = Decimal(str(account.equity))
-        long_market_value = (
-            Decimal(str(account.long_market_value)) if account.long_market_value else Decimal("0")
-        )
-
-        if equity <= 0:
-            logger.warning(
-                "Account equity is zero or negative, cannot calculate capital deployed",
-                extra={"correlation_id": correlation_id, "equity": str(equity)},
-            )
-            return None
-
-        capital_deployed_pct = (long_market_value / equity) * Decimal("100")
-
-        logger.info(
-            f"📊 Capital deployed: {capital_deployed_pct:.2f}% "
-            f"(positions: ${long_market_value:,.2f} / equity: ${equity:,.2f})",
-            extra={
-                "correlation_id": correlation_id,
-                "capital_deployed_pct": str(capital_deployed_pct),
-                "long_market_value": str(long_market_value),
-                "equity": str(equity),
-            },
-        )
-
-        return capital_deployed_pct.quantize(Decimal("0.01"))
-
-    except Exception as e:
-        logger.warning(
-            f"Failed to calculate capital deployed percentage: {e}",
-            extra={
-                "correlation_id": correlation_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        return None
-
-
-def _build_trading_notification(
-    trade_executed_detail: dict[str, Any],
-    correlation_id: str,
-    container: ApplicationContainer,
-    report_url: str | None = None,
-) -> TradingNotificationRequested:
-    """Build TradingNotificationRequested from TradeExecuted event detail.
-
-    Args:
-        trade_executed_detail: The detail payload from TradeExecuted event
-        correlation_id: Correlation ID for tracing
-        container: Application container for config access
-        report_url: Optional presigned URL for strategy performance CSV report
-
-    Returns:
-        TradingNotificationRequested event ready for processing
-
-    """
-    # Determine trading mode from container config
-    mode_str = "LIVE" if not container.config.paper_trading() else "PAPER"
-
-    # Extract fields from TradeExecuted event
-    orders_placed = trade_executed_detail.get("orders_placed", 0)
-    orders_succeeded = trade_executed_detail.get("orders_succeeded", 0)
-    trading_success = orders_succeeded > 0 and orders_succeeded == orders_placed
-
-    # Build execution data for email template
-    execution_data: dict[str, Any] = {
-        "orders_executed": trade_executed_detail.get("orders_executed", []),
-        "execution_summary": trade_executed_detail.get("execution_summary", {}),
-    }
-
-    # Add report URL to execution_data if available
-    if report_url:
-        execution_data["strategy_performance_report_url"] = report_url
-
-    # Extract capital deployed percentage from event metadata
-    capital_deployed_pct = _extract_capital_deployed_pct(trade_executed_detail)
-
-    # Extract error details if present
-    error_message = trade_executed_detail.get("error_message")
-    error_code = trade_executed_detail.get("error_code")
-
-    return TradingNotificationRequested(
-        correlation_id=correlation_id,
-        causation_id=trade_executed_detail.get("event_id", correlation_id),
-        event_id=f"trading-notification-{uuid4()}",
-        timestamp=datetime.now(UTC),
-        source_module="notifications_v2.lambda_handler",
-        source_component="NotificationsLambda",
-        trading_success=trading_success,
-        trading_mode=mode_str,
-        orders_placed=orders_placed,
-        orders_succeeded=orders_succeeded,
-        capital_deployed_pct=capital_deployed_pct,
-        execution_data=execution_data,
-        error_message=error_message,
-        error_code=error_code,
-    )
-
-
-def _extract_capital_deployed_pct(trade_executed_detail: dict[str, Any]) -> Decimal | None:
-    """Extract capital deployed percentage from TradeExecuted event.
-
-    Args:
-        trade_executed_detail: The detail payload from TradeExecuted event
-
-    Returns:
-        Capital deployed percentage as Decimal, or None if not available
-
-    """
-    # Try metadata first (where execution handler stores it)
-    metadata = trade_executed_detail.get("metadata", {})
-    if isinstance(metadata, dict):
-        capital_pct = metadata.get("capital_deployed_pct")
-        if capital_pct is not None:
-            try:
-                return Decimal(str(capital_pct))
-            except (TypeError, ValueError):
-                pass
-
-    return None

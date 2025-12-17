@@ -4,6 +4,9 @@ Unit tests for notifications Lambda handler.
 
 Tests the event unwrapping and routing logic to ensure EventBridge events
 are correctly parsed and dispatched to the appropriate handlers.
+
+NOTE: The handler now receives AllTradesCompleted events from TradeAggregator
+instead of TradeExecuted events from Execution. This eliminates race conditions.
 """
 
 from __future__ import annotations
@@ -19,25 +22,32 @@ class TestLambdaHandlerEventParsing:
     """Tests for EventBridge event parsing in lambda_handler."""
 
     @pytest.fixture
-    def trade_executed_event(self) -> dict[str, Any]:
-        """Create a sample TradeExecuted EventBridge event."""
+    def all_trades_completed_event(self) -> dict[str, Any]:
+        """Create a sample AllTradesCompleted EventBridge event from TradeAggregator."""
         return {
             "version": "0",
             "id": str(uuid4()),
-            "detail-type": "TradeExecuted",
-            "source": "alchemiser.execution",
+            "detail-type": "AllTradesCompleted",
+            "source": "alchemiser.trade_aggregator",
             "time": "2025-01-01T00:00:00Z",
             "region": "us-east-1",
             "detail": {
                 "correlation_id": "test-correlation-id",
                 "event_id": "test-event-id",
-                "orders_placed": 3,
-                "orders_succeeded": 3,
-                "orders_executed": [
-                    {"symbol": "AAPL", "qty": 10, "filled_value": 1500.00}
-                ],
-                "execution_summary": {
-                    "total_trade_value": 1500.00,
+                "run_id": "test-run-id",
+                "plan_id": "test-plan-id",
+                "total_trades": 3,
+                "succeeded_trades": 3,
+                "failed_trades": 0,
+                "capital_deployed_pct": "0.75",
+                "failed_symbols": [],
+                "aggregated_execution_data": {
+                    "orders_executed": [
+                        {"symbol": "AAPL", "qty": 10, "filled_value": 1500.00}
+                    ],
+                    "execution_summary": {
+                        "total_trade_value": 1500.00,
+                    },
                 },
             },
         }
@@ -79,22 +89,25 @@ class TestLambdaHandlerEventParsing:
             },
         }
 
-    @patch("the_alchemiser.notifications_v2.lambda_handler._handle_trade_executed")
-    def test_routes_trade_executed_event(
-        self, mock_handler: MagicMock, trade_executed_event: dict[str, Any]
+    @patch(
+        "the_alchemiser.notifications_v2.lambda_handler._handle_all_trades_completed"
+    )
+    def test_routes_all_trades_completed_event(
+        self, mock_handler: MagicMock, all_trades_completed_event: dict[str, Any]
     ) -> None:
-        """Test that TradeExecuted events are routed to the correct handler."""
+        """Test that AllTradesCompleted events are routed to the correct handler."""
         from the_alchemiser.notifications_v2.lambda_handler import lambda_handler
 
         mock_handler.return_value = {"statusCode": 200, "body": "OK"}
 
-        result = lambda_handler(trade_executed_event, None)
+        result = lambda_handler(all_trades_completed_event, None)
 
         mock_handler.assert_called_once()
         # Verify the detail was correctly extracted
         call_args = mock_handler.call_args
         detail = call_args[0][0]
         assert detail["correlation_id"] == "test-correlation-id"
+        assert detail["run_id"] == "test-run-id"
         assert result["statusCode"] == 200
 
     @patch("the_alchemiser.notifications_v2.lambda_handler._handle_workflow_failed")
@@ -130,7 +143,7 @@ class TestLambdaHandlerEventParsing:
         assert "SomeOtherEvent" in result["body"]
 
     def test_extracts_detail_type_from_envelope(
-        self, trade_executed_event: dict[str, Any]
+        self, all_trades_completed_event: dict[str, Any]
     ) -> None:
         """Test that detail-type is extracted from the EventBridge envelope.
 
@@ -140,13 +153,13 @@ class TestLambdaHandlerEventParsing:
         from the_alchemiser.notifications_v2.lambda_handler import lambda_handler
 
         with patch(
-            "the_alchemiser.notifications_v2.lambda_handler._handle_trade_executed"
+            "the_alchemiser.notifications_v2.lambda_handler._handle_all_trades_completed"
         ) as mock_handler:
             mock_handler.return_value = {"statusCode": 200, "body": "OK"}
 
             # The handler should correctly extract detail-type from the envelope
-            # and route to _handle_trade_executed
-            lambda_handler(trade_executed_event, None)
+            # and route to _handle_all_trades_completed
+            lambda_handler(all_trades_completed_event, None)
 
             # If this is called, detail-type was correctly extracted
             assert mock_handler.called, (
@@ -175,27 +188,38 @@ class TestLambdaHandlerEventParsing:
 class TestLambdaHandlerErrorHandling:
     """Tests for error handling in lambda_handler."""
 
-    def test_handles_exception_gracefully(self) -> None:
-        """Test that exceptions don't propagate and return 500."""
-        from the_alchemiser.notifications_v2.lambda_handler import lambda_handler
-
-        # Malformed event that will cause an error
-        malformed_event = {
+    @pytest.fixture
+    def all_trades_completed_event(self) -> dict[str, Any]:
+        """Create a sample AllTradesCompleted EventBridge event."""
+        return {
             "version": "0",
             "id": str(uuid4()),
-            "detail-type": "TradeExecuted",
-            "source": "alchemiser.execution",
+            "detail-type": "AllTradesCompleted",
+            "source": "alchemiser.trade_aggregator",
+            "time": "2025-01-01T00:00:00Z",
+            "region": "us-east-1",
             "detail": {
-                # Missing required fields for TradingNotificationRequested
+                "correlation_id": "test-correlation-id",
+                "event_id": "test-event-id",
+                "run_id": "test-run-id",
+                "total_trades": 3,
+                "succeeded_trades": 3,
+                "failed_trades": 0,
             },
         }
 
+    def test_handles_exception_gracefully(
+        self, all_trades_completed_event: dict[str, Any]
+    ) -> None:
+        """Test that exceptions don't propagate and return 500."""
+        from the_alchemiser.notifications_v2.lambda_handler import lambda_handler
+
         with patch(
-            "the_alchemiser.notifications_v2.lambda_handler._handle_trade_executed"
+            "the_alchemiser.notifications_v2.lambda_handler._handle_all_trades_completed"
         ) as mock_handler:
             mock_handler.side_effect = Exception("Test error")
 
-            result = lambda_handler(malformed_event, None)
+            result = lambda_handler(all_trades_completed_event, None)
 
             # Should return 500 but not raise
             assert result["statusCode"] == 500

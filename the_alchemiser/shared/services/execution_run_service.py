@@ -618,9 +618,14 @@ class ExecutionRunService:
     def claim_notification_lock(self, run_id: str, timeout_seconds: int = 60) -> bool:
         """Claim exclusive right to send notification for this run.
 
-        Uses two-phase locking: RUNNING -> NOTIFYING -> COMPLETED.
+        Uses two-phase locking: (active status) -> NOTIFYING -> COMPLETED.
         This ensures that if notification sending fails, another invocation
         can retry after the lock expires.
+
+        Active statuses that can transition to NOTIFYING:
+        - RUNNING: Standard single-phase execution
+        - SELL_PHASE: Two-phase execution, still in sells
+        - BUY_PHASE: Two-phase execution, all sells done
 
         Args:
             run_id: Run identifier.
@@ -634,6 +639,9 @@ class ExecutionRunService:
         lock_expires_at = now + timedelta(seconds=timeout_seconds)
 
         try:
+            # Allow any active status to transition to NOTIFYING
+            # RUNNING = single-phase, SELL_PHASE/BUY_PHASE = two-phase execution
+            # Also allow retaking an expired NOTIFYING lock
             self._client.update_item(
                 TableName=self._table_name,
                 Key={
@@ -645,11 +653,16 @@ class ExecutionRunService:
                     "notification_lock_at = :lock_at, "
                     "notification_lock_expires = :lock_expires"
                 ),
-                ConditionExpression="#status = :running OR (#status = :notifying AND notification_lock_expires < :now)",
+                ConditionExpression=(
+                    "#status IN (:running, :sell_phase, :buy_phase) "
+                    "OR (#status = :notifying AND notification_lock_expires < :now)"
+                ),
                 ExpressionAttributeNames={"#status": "status"},
                 ExpressionAttributeValues={
                     ":notifying": {"S": "NOTIFYING"},
                     ":running": {"S": "RUNNING"},
+                    ":sell_phase": {"S": "SELL_PHASE"},
+                    ":buy_phase": {"S": "BUY_PHASE"},
                     ":lock_at": {"S": now.isoformat()},
                     ":lock_expires": {"S": lock_expires_at.isoformat()},
                     ":now": {"S": now.isoformat()},
