@@ -1152,8 +1152,10 @@ Resources:
         - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
-      # Parallel execution controlled by Standard SQS queue (not FIFO)
-      # TODO: Add ReservedConcurrentExecutions: 10 after account limit increase approved
+      # Concurrency limited to 10 for Alpaca trading API rate limits (200 calls/min)
+      # WebSocket handles order status updates, so each trade only makes ~1-2 REST calls
+      # 10 concurrent = ~2-4 calls/sec (well under 3.33/sec limit)
+      ReservedConcurrentExecutions: 10
       # WebSocket connections are cleaned up after each execution via cleanup_all_instances()
       Environment:
         Variables:
