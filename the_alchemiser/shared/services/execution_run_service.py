@@ -48,7 +48,8 @@ class ExecutionRunService:
         - succeeded_trades, failed_trades
         - sell_total, sell_completed, buy_total, buy_completed (phase tracking)
         - current_phase: SELL | BUY | COMPLETED (two-phase execution)
-        - status: PENDING | RUNNING | SELL_PHASE | BUY_PHASE | COMPLETED | FAILED
+        - status: PENDING | RUNNING | SELL_PHASE | BUY_PHASE | NOTIFYING | COMPLETED | FAILED
+        - notification_lock_at, notification_lock_expires (two-phase notification locking)
         - created_at, TTL
 
     Trade result items (one per trade):
@@ -614,8 +615,91 @@ class ExecutionRunService:
         total: int = run["total_trades"]
         return completed >= total
 
+    def claim_notification_lock(self, run_id: str, timeout_seconds: int = 60) -> bool:
+        """Claim exclusive right to send notification for this run.
+
+        Uses two-phase locking: RUNNING -> NOTIFYING -> COMPLETED.
+        This ensures that if notification sending fails, another invocation
+        can retry after the lock expires.
+
+        Args:
+            run_id: Run identifier.
+            timeout_seconds: How long the lock is valid (default 60s).
+
+        Returns:
+            True if this call acquired the lock, False if already locked/completed.
+
+        """
+        now = datetime.now(UTC)
+        lock_expires_at = now + timedelta(seconds=timeout_seconds)
+
+        try:
+            self._client.update_item(
+                TableName=self._table_name,
+                Key={
+                    "PK": {"S": f"RUN#{run_id}"},
+                    "SK": {"S": "METADATA"},
+                },
+                UpdateExpression=(
+                    "SET #status = :notifying, "
+                    "notification_lock_at = :lock_at, "
+                    "notification_lock_expires = :lock_expires"
+                ),
+                ConditionExpression="#status = :running OR (#status = :notifying AND notification_lock_expires < :now)",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":notifying": {"S": "NOTIFYING"},
+                    ":running": {"S": "RUNNING"},
+                    ":lock_at": {"S": now.isoformat()},
+                    ":lock_expires": {"S": lock_expires_at.isoformat()},
+                    ":now": {"S": now.isoformat()},
+                },
+            )
+            logger.info(
+                "Acquired notification lock",
+                extra={"run_id": run_id, "lock_expires": lock_expires_at.isoformat()},
+            )
+            return True
+
+        except self._client.exceptions.ConditionalCheckFailedException:
+            # Already locked by another invocation or completed
+            logger.debug(
+                "Failed to acquire notification lock (already locked or completed)",
+                extra={"run_id": run_id},
+            )
+            return False
+
+    def mark_notification_sent(self, run_id: str) -> None:
+        """Mark notification as successfully sent, completing the run.
+
+        Called after notification is confirmed sent. Transitions NOTIFYING -> COMPLETED.
+
+        Args:
+            run_id: Run identifier.
+
+        """
+        now = datetime.now(UTC)
+
+        self._client.update_item(
+            TableName=self._table_name,
+            Key={
+                "PK": {"S": f"RUN#{run_id}"},
+                "SK": {"S": "METADATA"},
+            },
+            UpdateExpression="SET #status = :completed, completed_at = :completed_at, notification_sent_at = :sent_at",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":completed": {"S": "COMPLETED"},
+                ":completed_at": {"S": now.isoformat()},
+                ":sent_at": {"S": now.isoformat()},
+            },
+        )
+        logger.info("Marked run as completed with notification sent", extra={"run_id": run_id})
+
     def mark_run_completed(self, run_id: str) -> bool:
         """Mark a run as completed (idempotent).
+
+        DEPRECATED: Use claim_notification_lock() + mark_notification_sent() instead.
 
         Called by Notifications Lambda after detecting all trades are done.
         Uses conditional update to ensure only one caller finalizes the run.

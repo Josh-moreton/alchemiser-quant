@@ -194,12 +194,13 @@ def _handle_per_trade_executed(
             "body": f"Trade {trade_id} recorded, run not yet complete",
         }
 
-    # Run is complete - try to finalize and send notification
-    # Use conditional update to ensure only one invocation sends notification
-    finalized = run_service.mark_run_completed(run_id)
+    # Run is complete - try to acquire notification lock
+    # Uses two-phase locking: RUNNING -> NOTIFYING -> COMPLETED
+    # This ensures that if notification sending fails, another invocation can retry
+    acquired_lock = run_service.claim_notification_lock(run_id, timeout_seconds=60)
 
-    if not finalized:
-        # Another invocation already finalized - skip notification
+    if not acquired_lock:
+        # Another invocation already claimed the lock or run is completed
         logger.info(
             f"Run {run_id} already finalized by another invocation",
             extra={
@@ -212,7 +213,7 @@ def _handle_per_trade_executed(
             "body": f"Run {run_id} already finalized",
         }
 
-    # This invocation wins - aggregate and send notification
+    # This invocation wins the lock - aggregate and send notification
     logger.info(
         f"🏁 Run {run_id} complete - aggregating results and sending notification",
         extra={
@@ -221,15 +222,42 @@ def _handle_per_trade_executed(
         },
     )
 
-    # Get run metadata and all trade results
-    run_metadata = run_service.get_run(run_id)
-    trade_results = run_service.get_all_trade_results(run_id)
+    try:
+        # Get run metadata and all trade results
+        run_metadata = run_service.get_run(run_id)
+        trade_results = run_service.get_all_trade_results(run_id)
 
-    # Build aggregated TradeExecuted-like detail for notification
-    aggregated_detail = _aggregate_trade_results(run_metadata, trade_results, correlation_id)
+        # Build aggregated TradeExecuted-like detail for notification
+        aggregated_detail = _aggregate_trade_results(run_metadata, trade_results, correlation_id)
 
-    # Process the aggregated notification
-    return _handle_single_trade_executed(aggregated_detail, correlation_id)
+        # Process the aggregated notification
+        result = _handle_single_trade_executed(aggregated_detail, correlation_id)
+
+        # Only mark as completed AFTER notification is successfully sent
+        run_service.mark_notification_sent(run_id)
+
+        logger.info(
+            f"✅ Run {run_id} notification sent and marked complete",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+            },
+        )
+
+        return result
+
+    except Exception as e:
+        # Notification failed - log error but leave in NOTIFYING state
+        # so another invocation can retry after the lock expires
+        logger.error(
+            f"❌ Failed to send notification for run {run_id}, lock will expire for retry",
+            extra={
+                "correlation_id": correlation_id,
+                "run_id": run_id,
+                "error": str(e),
+            },
+        )
+        raise
 
 
 def _aggregate_trade_results(
