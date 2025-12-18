@@ -780,6 +780,48 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt SignalGeneratedRule.Arn
 
+  # ========== EVENTBRIDGE PERMISSIONS FOR LAMBDAS ==========
+  # SAM's Events: property creates the EventBridge rule but NOT the Lambda permission.
+  # These permissions grant EventBridge service permission to invoke the Lambdas.
+  # Without these, EventBridge silently drops events after matching the rule.
+
+  # Permission for TradeAggregator to be invoked by EventBridge on TradeExecuted events
+  TradeAggregatorEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TradeAggregatorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
+
+  # Permission for Notifications Lambda to be invoked by EventBridge
+  # Allows both AllTradesCompleted (from TradeAggregator) and WorkflowFailed (from any Lambda)
+  NotificationsEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref NotificationsFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
+
+  # Permission for StrategyAggregator Lambda to be invoked by EventBridge on PartialSignalGenerated events
+  StrategyAggregatorEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StrategyAggregatorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
+
+  # Permission for Metrics Lambda to be invoked by EventBridge on TradeExecuted events
+  MetricsEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MetricsFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
+
   # Note: RebalancePlannedRule removed - Portfolio handler sends TradeMessage
   # objects directly to SQS. The RebalancePlanned event published to EventBridge
   # is for observability only (CloudWatch Logs Insights queries).
