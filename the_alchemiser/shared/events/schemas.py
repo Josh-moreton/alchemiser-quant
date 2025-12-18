@@ -363,6 +363,72 @@ class WorkflowCompleted(BaseEvent):
     summary: dict[str, Any] = Field(default_factory=dict, description="Workflow execution summary")
 
 
+class AllTradesCompleted(BaseEvent):
+    """Event emitted when all trades in an execution run have completed.
+
+    This event is emitted by TradeAggregator Lambda after receiving TradeExecuted
+    events and detecting that all trades in a run have finished (success or failure).
+    This eliminates the race condition in notifications by ensuring only one
+    notification is triggered per run.
+
+    The event contains pre-aggregated execution data so notifications don't need
+    to query DynamoDB.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="AllTradesCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Run identification
+    run_id: str = Field(..., description="Unique execution run identifier")
+    plan_id: str = Field(..., description="Source RebalancePlan identifier")
+
+    # Aggregated trade statistics
+    total_trades: int = Field(..., description="Total number of trades in the run")
+    succeeded_trades: int = Field(..., description="Number of trades that succeeded")
+    failed_trades: int = Field(..., description="Number of trades that failed")
+
+    # Pre-aggregated execution data for notifications
+    aggregated_execution_data: dict[str, Any] = Field(
+        ..., description="Pre-aggregated trade results for notifications"
+    )
+
+    # Capital metrics (captured after all trades complete)
+    capital_deployed_pct: Decimal | None = Field(
+        default=None,
+        description="Percentage of account equity deployed in positions (0-100)",
+    )
+
+    # Failed symbols for error reporting
+    failed_symbols: list[str] = Field(
+        default_factory=list, description="List of symbols that failed execution"
+    )
+
+    @field_validator("capital_deployed_pct", mode="before")
+    @classmethod
+    def convert_capital_deployed_pct_to_decimal(cls, v: object) -> Decimal | None:
+        """Convert capital_deployed_pct to Decimal if it's a float or int."""
+        if v is None:
+            return None
+        if isinstance(v, Decimal):
+            return v
+        if isinstance(v, int | float):
+            return Decimal(str(v))
+        if isinstance(v, str):
+            return Decimal(v)
+        type_name = type(v).__name__
+        raise TypeConversionError(
+            f"Cannot convert {type_name} to Decimal",
+            source_type=type_name,
+            target_type="Decimal",
+            value=str(v),
+        )
+
+
 class WorkflowFailed(BaseEvent):
     """Event emitted when a trading workflow fails.
 
@@ -489,3 +555,65 @@ class SystemNotificationRequested(BaseEvent):
     html_content: str = Field(..., description="HTML email content")
     text_content: str | None = Field(default=None, description="Optional plain text content")
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+
+# Market Data Events (for shared data infrastructure)
+
+
+class MarketDataFetchRequested(BaseEvent):
+    """Event emitted when a strategy lambda detects missing market data.
+
+    Published to the shared data event bus to request the Data Lambda to fetch
+    the missing data. Multiple stages may publish this event simultaneously for
+    the same symbol; the Data Lambda deduplicates using DynamoDB conditional writes.
+
+    The requesting stage does NOT wait for the fetch to complete - it should
+    handle the missing data gracefully (e.g., skip the symbol or use fallback).
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="MarketDataFetchRequested", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Request fields
+    symbol: str = Field(..., description="Ticker symbol that needs data")
+    requesting_stage: str = Field(
+        ..., description="Stage that detected missing data (dev/staging/prod)"
+    )
+    requesting_component: str = Field(..., description="Component that detected missing data")
+    lookback_days: int = Field(
+        default=400, description="Days of historical data to fetch if seeding"
+    )
+    reason: str = Field(
+        default="missing_data",
+        description="Reason for fetch request (missing_data, stale_data, etc.)",
+    )
+
+
+class MarketDataFetchCompleted(BaseEvent):
+    """Event emitted when the Data Lambda completes a fetch request.
+
+    Published after successfully fetching and storing market data.
+    Consuming stages can subscribe to this for cache invalidation or retries.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="MarketDataFetchCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Completion fields
+    symbol: str = Field(..., description="Ticker symbol that was fetched")
+    success: bool = Field(..., description="Whether the fetch was successful")
+    bars_fetched: int = Field(default=0, description="Number of bars fetched and stored")
+    error_message: str | None = Field(default=None, description="Error message if fetch failed")
+    was_deduplicated: bool = Field(
+        default=False, description="True if request was skipped due to recent fetch"
+    )

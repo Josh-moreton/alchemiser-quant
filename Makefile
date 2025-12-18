@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -54,6 +54,10 @@ help:
 	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
+	@echo ""
+	@echo "Shared Data Infrastructure:"
+	@echo "  deploy-data     Deploy shared datalake via GitHub Actions"
+	@echo "                  (triggers workflow_dispatch manually)"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -463,3 +467,22 @@ deploy-prod:
 	git push origin "$$TAG"; \
 	echo "✅ Production tag $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
+
+# Shared Data Infrastructure - triggers GitHub Actions workflow
+deploy-data:
+	@echo "📦 Deploying shared data infrastructure via GitHub Actions..."
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🚀 Triggering deploy-shared-data workflow..."; \
+	gh workflow run deploy-shared-data.yml --field confirm=deploy; \
+	echo ""; \
+	echo "✅ Workflow triggered! Check status at:"; \
+	echo "   https://github.com/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/workflows/deploy-shared-data.yml"

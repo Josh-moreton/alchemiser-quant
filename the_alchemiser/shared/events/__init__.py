@@ -19,9 +19,12 @@ from .bus import EventBus
 from .handlers import EventHandler
 from .schemas import (
     AllocationComparisonCompleted,
+    AllTradesCompleted,
     BulkSettlementCompleted,
     ErrorNotificationRequested,
     ExecutionPhaseCompleted,
+    MarketDataFetchCompleted,
+    MarketDataFetchRequested,
     OrderSettlementCompleted,
     PartialSignalGenerated,
     PortfolioStateChanged,
@@ -38,6 +41,7 @@ from .schemas import (
 )
 
 __all__ = [
+    "AllTradesCompleted",
     "AllocationComparisonCompleted",
     "BaseEvent",
     "BulkSettlementCompleted",
@@ -45,6 +49,8 @@ __all__ = [
     "EventBus",
     "EventHandler",
     "ExecutionPhaseCompleted",
+    "MarketDataFetchCompleted",
+    "MarketDataFetchRequested",
     "OrderSettlementCompleted",
     "PartialSignalGenerated",
     "PortfolioStateChanged",
