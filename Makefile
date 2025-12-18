@@ -56,8 +56,8 @@ help:
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
 	@echo ""
 	@echo "Shared Data Infrastructure:"
-	@echo "  deploy-data     Deploy shared datalake (S3 bucket, Data Lambda)"
-	@echo "                  Single deployment - no per-stage buckets"
+	@echo "  deploy-data     Deploy shared datalake via GitHub Actions"
+	@echo "                  (triggers workflow_dispatch manually)"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -468,33 +468,21 @@ deploy-prod:
 	echo "✅ Production tag $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
 
-# Shared Data Infrastructure - deploy standalone data layer
+# Shared Data Infrastructure - triggers GitHub Actions workflow
 deploy-data:
-	@echo "📦 Deploying shared data infrastructure..."
-	@if ! command -v sam >/dev/null 2>&1; then \
-		echo "❌ AWS SAM CLI is not installed!"; \
-		echo "💡 Install with: pip install aws-sam-cli"; \
+	@echo "📦 Deploying shared data infrastructure via GitHub Actions..."
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
 		exit 1; \
 	fi; \
-	echo "🔍 Validating data-template.yaml..."; \
-	sam validate --template-file data-template.yaml --region ap-southeast-2; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🚀 Triggering deploy-shared-data workflow..."; \
+	gh workflow run deploy-shared-data.yml --field confirm=deploy; \
 	echo ""; \
-	echo "📦 Building data infrastructure..."; \
-	sam build --template-file data-template.yaml --use-container; \
-	echo ""; \
-	echo "🚀 Deploying shared data stack..."; \
-	sam deploy \
-		--template-file data-template.yaml \
-		--stack-name alchemiser-shared-data \
-		--region ap-southeast-2 \
-		--capabilities CAPABILITY_IAM \
-		--parameter-overrides \
-			Environment=shared \
-		--no-confirm-changeset \
-		--no-fail-on-empty-changeset; \
-	echo ""; \
-	echo "✅ Shared data infrastructure deployed successfully!"; \
-	echo "📋 Stack: alchemiser-shared-data"; \
-	echo "🪣 Bucket: alchemiser-shared-market-data"; \
-	echo ""; \
-	echo "💡 Update stage stacks to use SharedMarketDataBucket parameter"
+	echo "✅ Workflow triggered! Check status at:"; \
+	echo "   https://github.com/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/workflows/deploy-shared-data.yml"
