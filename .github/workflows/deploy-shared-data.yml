@@ -1,0 +1,65 @@
+name: Deploy Shared Data Infrastructure
+
+on:
+  # Manual trigger only - this is a one-time setup
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm deployment of shared data infrastructure'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_PAGER: ""
+
+jobs:
+  deploy-shared-data:
+    runs-on: ubuntu-latest
+    # Only run if confirmation is correct
+    if: github.event.inputs.confirm == 'deploy'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Build shared data stack
+        run: sam build --template-file data-template.yaml
+
+      - name: Deploy shared data stack
+        run: |
+          sam deploy \
+            --template-file data-template.yaml \
+            --stack-name alchemiser-shared-data \
+            --region ${{ secrets.AWS_REGION }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              AlpacaKey=${{ secrets.ALPACA_KEY }} \
+              AlpacaSecret=${{ secrets.ALPACA_SECRET }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
+
+      - name: Output stack info
+        run: |
+          echo "📋 Stack outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name alchemiser-shared-data \
+            --query 'Stacks[0].Outputs' \
+            --output table
