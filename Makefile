@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -54,6 +54,10 @@ help:
 	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
+	@echo ""
+	@echo "Shared Data Infrastructure:"
+	@echo "  deploy-data     Deploy shared datalake (S3 bucket, Data Lambda)"
+	@echo "                  Single deployment - no per-stage buckets"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -463,3 +467,34 @@ deploy-prod:
 	git push origin "$$TAG"; \
 	echo "✅ Production tag $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
+
+# Shared Data Infrastructure - deploy standalone data layer
+deploy-data:
+	@echo "📦 Deploying shared data infrastructure..."
+	@if ! command -v sam >/dev/null 2>&1; then \
+		echo "❌ AWS SAM CLI is not installed!"; \
+		echo "💡 Install with: pip install aws-sam-cli"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Validating data-template.yaml..."; \
+	sam validate --template-file data-template.yaml --region ap-southeast-2; \
+	echo ""; \
+	echo "📦 Building data infrastructure..."; \
+	sam build --template-file data-template.yaml --use-container; \
+	echo ""; \
+	echo "🚀 Deploying shared data stack..."; \
+	sam deploy \
+		--template-file data-template.yaml \
+		--stack-name alchemiser-shared-data \
+		--region ap-southeast-2 \
+		--capabilities CAPABILITY_IAM \
+		--parameter-overrides \
+			Environment=shared \
+		--no-confirm-changeset \
+		--no-fail-on-empty-changeset; \
+	echo ""; \
+	echo "✅ Shared data infrastructure deployed successfully!"; \
+	echo "📋 Stack: alchemiser-shared-data"; \
+	echo "🪣 Bucket: alchemiser-shared-market-data"; \
+	echo ""; \
+	echo "💡 Update stage stacks to use SharedMarketDataBucket parameter"
