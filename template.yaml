@@ -751,18 +751,8 @@ Resources:
         - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
-  # Policy to allow EventBridge to send messages to SQS
-  ExecutionQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref ExecutionQueue
-      PolicyDocument:
-        Statement:
-          # Note: RebalancePlanned events are NOT routed to SQS via EventBridge.
-          # The Portfolio handler sends TradeMessage objects directly to SQS.
-          # This empty policy is kept for future extensibility.
-          []
+  # Note: ExecutionQueuePolicy removed - EventBridge no longer routes to SQS.
+  # Portfolio handler sends TradeMessage objects directly to SQS via SDK.
 
   # EventBridge Rules for event routing
   SignalGeneratedRule:
