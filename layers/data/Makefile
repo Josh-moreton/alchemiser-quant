@@ -13,7 +13,10 @@ ALPACA_PY_VERSION := 0.43.0
 # Use python3 -m pip for portability across environments
 PIP := python3 -m pip
 
-.PHONY: build-DataLayer
+.PHONY: build-DataLayer build-SharedDataLayer
+
+# Alias for shared data stack (data-template.yaml)
+build-SharedDataLayer: build-DataLayer
 
 build-DataLayer:
 	@echo "📦 Building Data Layer..."
