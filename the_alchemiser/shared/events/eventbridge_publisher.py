@@ -36,6 +36,7 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "PartialSignalGenerated": ("strategy", "PartialSignalGenerated"),
     "RebalancePlanned": ("portfolio", "RebalancePlanned"),
     "TradeExecuted": ("execution", "TradeExecuted"),
+    "AllTradesCompleted": ("trade", "AllTradesCompleted"),  # From TradeAggregator
     "WorkflowCompleted": ("execution", "WorkflowCompleted"),  # Terminal success event
     "WorkflowFailed": ("dynamic", "WorkflowFailed"),  # Source from source_module
     "TradingNotificationRequested": ("notifications", "TradingNotificationRequested"),
@@ -49,6 +50,7 @@ SOURCE_MODULE_TO_SOURCE: dict[str, str] = {
     "portfolio": "portfolio",
     "execution": "execution",
     "notifications": "notifications",
+    "trade": "trade",  # Trade aggregator
 }
 
 
