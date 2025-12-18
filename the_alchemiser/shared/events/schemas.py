@@ -555,3 +555,65 @@ class SystemNotificationRequested(BaseEvent):
     html_content: str = Field(..., description="HTML email content")
     text_content: str | None = Field(default=None, description="Optional plain text content")
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+
+# Market Data Events (for shared data infrastructure)
+
+
+class MarketDataFetchRequested(BaseEvent):
+    """Event emitted when a strategy lambda detects missing market data.
+
+    Published to the shared data event bus to request the Data Lambda to fetch
+    the missing data. Multiple stages may publish this event simultaneously for
+    the same symbol; the Data Lambda deduplicates using DynamoDB conditional writes.
+
+    The requesting stage does NOT wait for the fetch to complete - it should
+    handle the missing data gracefully (e.g., skip the symbol or use fallback).
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="MarketDataFetchRequested", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Request fields
+    symbol: str = Field(..., description="Ticker symbol that needs data")
+    requesting_stage: str = Field(
+        ..., description="Stage that detected missing data (dev/staging/prod)"
+    )
+    requesting_component: str = Field(..., description="Component that detected missing data")
+    lookback_days: int = Field(
+        default=400, description="Days of historical data to fetch if seeding"
+    )
+    reason: str = Field(
+        default="missing_data",
+        description="Reason for fetch request (missing_data, stale_data, etc.)",
+    )
+
+
+class MarketDataFetchCompleted(BaseEvent):
+    """Event emitted when the Data Lambda completes a fetch request.
+
+    Published after successfully fetching and storing market data.
+    Consuming stages can subscribe to this for cache invalidation or retries.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="MarketDataFetchCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Completion fields
+    symbol: str = Field(..., description="Ticker symbol that was fetched")
+    success: bool = Field(..., description="Whether the fetch was successful")
+    bars_fetched: int = Field(default=0, description="Number of bars fetched and stored")
+    error_message: str | None = Field(default=None, description="Error message if fetch failed")
+    was_deduplicated: bool = Field(
+        default=False, description="True if request was skipped due to recent fetch"
+    )

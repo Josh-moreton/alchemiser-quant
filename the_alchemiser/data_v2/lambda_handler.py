@@ -7,22 +7,29 @@ Alpaca and stores it in S3 Parquet format.
 
 Triggered by:
 - EventBridge Schedule (daily at 4:00 AM UTC, Tue-Sat to catch Mon-Fri data)
+- MarketDataFetchRequested events (on-demand from strategy lambdas)
 - Manual invocation for testing or initial seeding
 """
 
 from __future__ import annotations
 
+import contextlib
+import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.shared.events import WorkflowFailed
+from the_alchemiser.shared.events import (
+    MarketDataFetchCompleted,
+    WorkflowFailed,
+)
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
 from .data_refresh_service import DataRefreshService
+from .fetch_request_service import FetchRequestService
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -33,15 +40,240 @@ logger = get_logger(__name__)
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle data Lambda invocations for market data refresh.
 
-    Fetches fresh market data from Alpaca and stores it in S3 Parquet format.
+    Handles three types of invocations:
+    1. Scheduled refresh (EventBridge Schedule) - refreshes all configured symbols
+    2. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
+    3. Manual invocation - specific symbols or full seed
 
     Args:
-        event: Lambda event
-            - correlation_id: Optional workflow correlation ID
-            - symbols: Optional list of specific symbols to refresh
-            - full_seed: Whether to perform full historical seed (default: False)
-
+        event: Lambda event (varies by trigger type)
         context: Lambda context
+
+    Returns:
+        Response with refresh statistics
+
+    """
+    # Check if this is a MarketDataFetchRequested event
+    if _is_fetch_request_event(event):
+        return _handle_fetch_request(event)
+
+    # Otherwise, handle as scheduled refresh or manual invocation
+    return _handle_scheduled_refresh(event)
+
+
+def _is_fetch_request_event(event: dict[str, Any]) -> bool:
+    """Check if event is a MarketDataFetchRequested EventBridge event."""
+    detail_type = event.get("detail-type")
+    source = event.get("source", "")
+
+    return detail_type == "MarketDataFetchRequested" and source.startswith("alchemiser.")
+
+
+def _handle_fetch_request(event: dict[str, Any]) -> dict[str, Any]:
+    """Handle MarketDataFetchRequested event with deduplication.
+
+    Uses DynamoDB conditional writes to ensure only one fetch proceeds
+    when multiple stages detect missing data simultaneously.
+
+    Args:
+        event: EventBridge event with MarketDataFetchRequested detail
+
+    Returns:
+        Response indicating whether fetch was performed or deduplicated
+
+    """
+    detail = event.get("detail", {})
+    correlation_id = detail.get("correlation_id") or f"fetch-request-{uuid.uuid4()}"
+    symbol = detail.get("symbol", "")
+    requesting_stage = detail.get("requesting_stage", "unknown")
+    requesting_component = detail.get("requesting_component", "unknown")
+    lookback_days = detail.get("lookback_days", 400)
+
+    logger.info(
+        "MarketDataFetchRequested event received",
+        extra={
+            "correlation_id": correlation_id,
+            "symbol": symbol,
+            "requesting_stage": requesting_stage,
+            "requesting_component": requesting_component,
+        },
+    )
+
+    if not symbol:
+        logger.error(
+            "MarketDataFetchRequested missing symbol",
+            extra={"correlation_id": correlation_id},
+        )
+        return {
+            "statusCode": 400,
+            "body": {"status": "error", "error": "Missing symbol in request"},
+        }
+
+    # Check if FETCH_REQUESTS_TABLE is configured (shared data infrastructure)
+    fetch_table = os.environ.get("FETCH_REQUESTS_TABLE")
+
+    if fetch_table:
+        # Use deduplication service
+        fetch_service = FetchRequestService()
+        result = fetch_service.try_acquire_fetch_lock(
+            symbol=symbol,
+            requesting_stage=requesting_stage,
+            requesting_component=requesting_component,
+            correlation_id=correlation_id,
+        )
+
+        if not result.can_proceed:
+            # Another recent request exists - skip this fetch
+            logger.info(
+                "Fetch request deduplicated",
+                extra={
+                    "correlation_id": correlation_id,
+                    "symbol": symbol,
+                    "existing_request_time": result.existing_request_time,
+                    "cooldown_remaining_seconds": result.cooldown_remaining_seconds,
+                },
+            )
+
+            # Publish completion event indicating deduplication
+            _publish_fetch_completed(
+                symbol=symbol,
+                success=True,
+                bars_fetched=0,
+                was_deduplicated=True,
+                correlation_id=correlation_id,
+            )
+
+            return {
+                "statusCode": 200,
+                "body": {
+                    "status": "deduplicated",
+                    "symbol": symbol,
+                    "existing_request_time": result.existing_request_time,
+                    "cooldown_remaining_seconds": result.cooldown_remaining_seconds,
+                },
+            }
+
+    # Proceed with fetch
+    try:
+        service = DataRefreshService()
+
+        # Check if symbol has any data - if not, seed initial data
+        metadata = service.market_data_store.get_metadata(symbol)
+
+        if metadata is None:
+            # New symbol - seed initial data
+            logger.info(
+                "Seeding initial data for new symbol",
+                extra={
+                    "correlation_id": correlation_id,
+                    "symbol": symbol,
+                    "lookback_days": lookback_days,
+                },
+            )
+            results = service.seed_initial_data([symbol], lookback_days=lookback_days)
+            success = results.get(symbol, False)
+            bars_fetched = lookback_days if success else 0  # Approximate
+        else:
+            # Existing symbol - refresh with latest bars
+            success = service.refresh_symbol(symbol)
+            bars_fetched = 1 if success else 0  # Approximate - could be more
+
+        # Publish completion event
+        _publish_fetch_completed(
+            symbol=symbol,
+            success=success,
+            bars_fetched=bars_fetched,
+            was_deduplicated=False,
+            correlation_id=correlation_id,
+            error_message=None if success else "Fetch failed",
+        )
+
+        if success:
+            logger.info(
+                "Fetch request completed successfully",
+                extra={"correlation_id": correlation_id, "symbol": symbol},
+            )
+            return {
+                "statusCode": 200,
+                "body": {"status": "success", "symbol": symbol, "bars_fetched": bars_fetched},
+            }
+        # Release lock on failure so retries can proceed
+        if fetch_table:
+            fetch_service.release_fetch_lock(symbol, correlation_id)
+
+        logger.error(
+            "Fetch request failed",
+            extra={"correlation_id": correlation_id, "symbol": symbol},
+        )
+        return {
+            "statusCode": 500,
+            "body": {"status": "failed", "symbol": symbol},
+        }
+
+    except Exception as e:
+        # Release lock on exception so retries can proceed
+        if fetch_table:
+            with contextlib.suppress(Exception):
+                fetch_service.release_fetch_lock(symbol, correlation_id)
+
+        logger.error(
+            "Fetch request exception",
+            extra={"correlation_id": correlation_id, "symbol": symbol, "error": str(e)},
+            exc_info=True,
+        )
+
+        _publish_fetch_completed(
+            symbol=symbol,
+            success=False,
+            bars_fetched=0,
+            was_deduplicated=False,
+            correlation_id=correlation_id,
+            error_message=str(e),
+        )
+
+        return {
+            "statusCode": 500,
+            "body": {"status": "error", "symbol": symbol, "error": str(e)},
+        }
+
+
+def _publish_fetch_completed(
+    symbol: str,
+    *,
+    success: bool,
+    bars_fetched: int,
+    was_deduplicated: bool,
+    correlation_id: str,
+    error_message: str | None = None,
+) -> None:
+    """Publish MarketDataFetchCompleted event to EventBridge."""
+    try:
+        event = MarketDataFetchCompleted(
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            event_id=f"fetch-completed-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="data_v2",
+            source_component="lambda_handler",
+            symbol=symbol,
+            success=success,
+            bars_fetched=bars_fetched,
+            was_deduplicated=was_deduplicated,
+            error_message=error_message,
+        )
+        publish_to_eventbridge(event)
+    except Exception as e:
+        logger.warning(
+            "Failed to publish MarketDataFetchCompleted event",
+            extra={"error": str(e), "symbol": symbol},
+        )
+
+
+def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
+    """Handle scheduled refresh or manual invocation.
+
+    Args:
+        event: Lambda event (schedule trigger or manual)
 
     Returns:
         Response with refresh statistics
