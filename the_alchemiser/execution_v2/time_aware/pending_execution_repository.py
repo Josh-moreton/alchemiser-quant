@@ -17,7 +17,7 @@ import json
 import os
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.exceptions import ClientError
