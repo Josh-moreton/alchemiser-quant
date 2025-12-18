@@ -759,14 +759,10 @@ Resources:
         - !Ref ExecutionQueue
       PolicyDocument:
         Statement:
-          - Effect: Allow
-            Principal:
-              Service: events.amazonaws.com
-            Action: sqs:SendMessage
-            Resource: !GetAtt ExecutionQueue.Arn
-            Condition:
-              ArnEquals:
-                aws:SourceArn: !GetAtt RebalancePlannedRule.Arn
+          # Note: RebalancePlanned events are NOT routed to SQS via EventBridge.
+          # The Portfolio handler sends TradeMessage objects directly to SQS.
+          # This empty policy is kept for future extensibility.
+          []
 
   # EventBridge Rules for event routing
   SignalGeneratedRule:
@@ -794,22 +790,9 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt SignalGeneratedRule.Arn
 
-  RebalancePlannedRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-rebalance-planned"
-        - !Sub "alchemiser-${Stage}-rebalance-planned"
-      EventBusName: !Ref AlchemiserEventBus
-      EventPattern:
-        source:
-          - alchemiser.portfolio
-        detail-type:
-          - RebalancePlanned
-      Targets:
-        - Id: ExecutionQueueTarget
-          Arn: !GetAtt ExecutionQueue.Arn
+  # Note: RebalancePlannedRule removed - Portfolio handler sends TradeMessage
+  # objects directly to SQS. The RebalancePlanned event published to EventBridge
+  # is for observability only (CloudWatch Logs Insights queries).
 
   # Strategy Worker Lambda - Executes strategy DSL files (invoked by orchestrator or directly)
   StrategyFunction:
