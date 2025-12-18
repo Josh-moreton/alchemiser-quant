@@ -19,6 +19,8 @@ env:
 jobs:
   deploy-shared-data:
     runs-on: ubuntu-latest
+    # Use dev environment for secrets (shared infra uses same Alpaca creds)
+    environment: dev
     # Only run if confirmation is correct
     if: github.event.inputs.confirm == 'deploy'
     
@@ -44,15 +46,25 @@ jobs:
         run: sam build --template-file data-template.yaml
 
       - name: Deploy shared data stack
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
         run: |
+          # Build parameter overrides, only including non-empty values
+          PARAMS=""
+          if [ -n "$ALPACA_KEY" ]; then
+            PARAMS="$PARAMS AlpacaKey=$ALPACA_KEY"
+          fi
+          if [ -n "$ALPACA_SECRET" ]; then
+            PARAMS="$PARAMS AlpacaSecret=$ALPACA_SECRET"
+          fi
+          
           sam deploy \
             --template-file data-template.yaml \
             --stack-name alchemiser-shared-data \
             --region ${{ secrets.AWS_REGION }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-            --parameter-overrides \
-              AlpacaKey=${{ secrets.ALPACA_KEY }} \
-              AlpacaSecret=${{ secrets.ALPACA_SECRET }} \
+            ${PARAMS:+--parameter-overrides $PARAMS} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
 
