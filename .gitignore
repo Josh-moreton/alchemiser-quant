@@ -43,6 +43,9 @@ logs/
 .env*
 .env.old
 
+# Portfolio history scripts and outputs (contains sensitive keys)
+scripts/fetch_portfolio_history.py
+portfolio_history.json
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
