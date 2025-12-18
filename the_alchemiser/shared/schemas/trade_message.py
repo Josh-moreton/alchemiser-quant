@@ -102,6 +102,33 @@ class TradeMessage(BaseModel):
         default=None, ge=0, description="Target position quantity (optional)"
     )
 
+    # ========== Time-Aware Execution Configuration ==========
+    execution_policy_id: str = Field(
+        default="default",
+        description="Execution policy ID for time-aware execution (default, conservative, aggressive, liquidation)",
+    )
+    auction_eligible: bool = Field(
+        default=True,
+        description="Whether this trade can participate in closing auction (CLS/MOC orders)",
+    )
+    portfolio_id: str | None = Field(
+        default=None,
+        description="Portfolio identifier for execution grouping",
+    )
+
+    # ========== Execution quantity (shares) ==========
+    quantity: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description="Number of shares to execute (computed from trade_amount if not provided)",
+    )
+
+    # ========== Derived side property ==========
+    @property
+    def side(self) -> str:
+        """Get order side (buy/sell) from action."""
+        return self.action.lower()
+
     # ========== Run context ==========
     total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value for run")
     total_run_trades: int = Field(..., ge=1, description="Total number of trades in this run")

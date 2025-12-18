@@ -1,6 +1,22 @@
-"""Business Unit: execution | Status: current.
+"""Business Unit: execution | Status: DEPRECATED.
 
 Walk-the-book order placement strategy with explicit price progression.
+
+.. deprecated::
+    This module is deprecated in favor of the time-aware execution framework.
+    Use :mod:`the_alchemiser.execution_v2.time_aware` instead.
+
+    The walk-the-book strategy prioritised execution certainty over price
+    improvement, leading to higher slippage costs. The new time-aware
+    framework uses institutional-style, time-phased execution that:
+
+    - Avoids aggressive trading during market open
+    - Uses passive pegs during midday
+    - Increases urgency only as deadline approaches
+    - Supports MOC/LOC via Alpaca's CLS time-in-force
+
+    Migration: TradeMessage now flows to TimeAwareExecutionService instead
+    of UnifiedOrderPlacementService.
 
 Implements a clear, testable strategy for placing limit orders that progressively
 move toward market price before finally using a market order.
@@ -14,6 +30,7 @@ Key features:
 from __future__ import annotations
 
 import asyncio
+import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -30,6 +47,13 @@ if TYPE_CHECKING:
     from .quote_service import QuoteResult
 
 logger = get_logger(__name__)
+
+# Deprecation warning
+warnings.warn(
+    "walk_the_book module is deprecated. Use time_aware execution framework instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # Price progression configuration
 PRICE_STEPS = [0.75, 0.85, 0.95]  # Percentages toward aggressive side

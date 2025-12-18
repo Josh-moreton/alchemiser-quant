@@ -374,6 +374,72 @@ Resources:
         - Key: Service
           Value: execution-runs
 
+  # ========== PENDING EXECUTIONS TABLE (TIME-AWARE EXECUTION) ==========
+  # DynamoDB Table for tracking time-aware execution state across tick invocations
+  # Enables institutional-style time-phased execution that spans the trading day
+  PendingExecutionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-pending-executions"
+        - !Sub "alchemiser-${Stage}-pending-executions"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      GlobalSecondaryIndexes:
+        # GSI1: Query by execution state (active/completed/failed)
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI2: Query by symbol (for position-level views)
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: pending-executions
+
   # ========== REBALANCE PLAN TABLE (AUDITABILITY) ==========
   # DynamoDB Table for persisting RebalancePlan documents with 90-day TTL
   # Enables "why didn't we trade X?" queries beyond EventBridge's 24-hour retention
@@ -1192,6 +1258,8 @@ Resources:
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
           # Queue URL for triggering BUY phase after SELL phase completes
           EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
+          # Time-aware execution configuration
+          PENDING_EXECUTIONS_TABLE: !Ref PendingExecutionsTable
       Events:
         ExecutionQueue:
           Type: SQS
@@ -1274,6 +1342,17 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt ExecutionRunsTable.Arn
+              # Time-aware execution: Pending executions table access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:DeleteItem
+                Resource:
+                  - !GetAtt PendingExecutionsTable.Arn
+                  - !Sub "${PendingExecutionsTable.Arn}/index/*"
 
   # ========== TRADE AGGREGATOR LAMBDA ==========
   # Aggregates TradeExecuted events and emits single AllTradesCompleted event
@@ -1684,6 +1763,47 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt DataFunction.Arn
 
+  # ========== TIME-AWARE EXECUTION TICK SCHEDULER ==========
+  # Triggers execution Lambda every 10 minutes during market hours
+  # to process pending time-aware executions (phase detection, urgency scoring, order management)
+  ExecutionTickSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-tick"
+        - !Sub "alchemiser-${Stage}-execution-tick"
+      Description: "Time-aware execution tick: process pending executions every 10 minutes during market hours"
+      # Runs every 10 minutes from 10:00 AM to 4:00 PM ET, Monday-Friday
+      # Starts at 10:00 to skip open avoidance phase initial chaos
+      ScheduleExpression: "cron(0/10 10-16 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt ExecutionFunction.Arn
+        RoleArn: !GetAtt ExecutionTickSchedulerRole.Arn
+        Input: '{"tick_type": "time_aware_execution"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 1
+
+  ExecutionTickSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeExecution
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt ExecutionFunction.Arn
+
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -2019,6 +2139,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-ExecutionRunsTable"
         - !Sub "alchemiser-${Stage}-ExecutionRunsTable"
+
+  PendingExecutionsTableName:
+    Description: "DynamoDB table for time-aware execution state tracking"
+    Value: !Ref PendingExecutionsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-PendingExecutionsTable"
+        - !Sub "alchemiser-${Stage}-PendingExecutionsTable"
 
   RebalancePlanTableName:
     Description: "DynamoDB table for rebalance plan auditability (90-day TTL)"
