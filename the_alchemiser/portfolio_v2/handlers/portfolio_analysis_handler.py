@@ -30,6 +30,7 @@ from the_alchemiser.shared.errors.exceptions import (
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
+    RebalancePlanned,
     SignalGenerated,
     WorkflowFailed,
 )
@@ -906,7 +907,32 @@ class PortfolioAnalysisHandler:
                     correlation_id=original_event.correlation_id,
                     causation_id=original_event.event_id,
                 )
-            else:
+
+            # Emit RebalancePlanned event to internal event bus (for lambda_handler capture)
+            # This is emitted regardless of whether trades were enqueued
+            rebalance_planned_event = RebalancePlanned(
+                event_id=f"rebalance-planned-{uuid.uuid4()}",
+                correlation_id=original_event.correlation_id,
+                causation_id=original_event.event_id,
+                timestamp=datetime.now(UTC),
+                source_module="portfolio_v2",
+                source_component="portfolio_analysis_handler",
+                rebalance_plan=rebalance_plan,
+                allocation_comparison=allocation_comparison,
+                trades_required=trades_required,
+                metadata=rebalance_plan.metadata or {},
+            )
+            self.event_bus.publish(rebalance_planned_event)
+            self.logger.debug(
+                "Emitted RebalancePlanned event to internal event bus",
+                extra={
+                    "event_id": rebalance_planned_event.event_id,
+                    "correlation_id": original_event.correlation_id,
+                    "trades_required": trades_required,
+                },
+            )
+
+            if not trades_required:
                 # No trades required - log and skip execution
                 self.logger.info(
                     "No trades required - skipping execution",
