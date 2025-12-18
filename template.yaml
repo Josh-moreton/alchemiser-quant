@@ -125,6 +125,12 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
+  # Shared Data Infrastructure
+  SharedMarketDataBucket:
+    Type: String
+    Default: alchemiser-shared-market-data
+    Description: Name of the shared market data S3 bucket (deployed via data-template.yaml)
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -629,30 +635,32 @@ Resources:
           Value: performance-reports
 
   # ========== MARKET DATA S3 BUCKET ==========
-  # S3 bucket for historical market data (Parquet files) with versioning
-  MarketDataBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !If
-        - HasStackName
-        - !Sub "${StackName}-historical-market-data"
-        - !Sub "alchemiser-${Stage}-market-data"
-      VersioningConfiguration:
-        Status: Enabled
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: market-data
+  # DEPRECATED: Per-stage bucket replaced by shared bucket (alchemiser-shared-market-data)
+  # Deployed via data-template.yaml - use SharedMarketDataBucket parameter instead
+  # 
+  # MarketDataBucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     BucketName: !If
+  #       - HasStackName
+  #       - !Sub "${StackName}-historical-market-data"
+  #       - !Sub "alchemiser-${Stage}-market-data"
+  #     VersioningConfiguration:
+  #       Status: Enabled
+  #     PublicAccessBlockConfiguration:
+  #       BlockPublicAcls: true
+  #       BlockPublicPolicy: true
+  #       IgnorePublicAcls: true
+  #       RestrictPublicBuckets: true
+  #     BucketEncryption:
+  #       ServerSideEncryptionConfiguration:
+  #         - ServerSideEncryptionByDefault:
+  #             SSEAlgorithm: AES256
+  #     Tags:
+  #       - Key: Environment
+  #         Value: !Ref Stage
+  #       - Key: Service
+  #         Value: market-data
 
   # ========== TRADING NOTIFICATIONS SNS ==========
   # SNS Topic for trading notifications (trade results, workflow failures)
@@ -824,7 +832,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
           ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
@@ -883,14 +891,14 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !GetAtt DataFunction.Arn
-              # S3 permissions for market data bucket (freshness validation)
+              # S3 permissions for shared market data bucket (read-only)
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - !GetAtt MarketDataBucket.Arn
-                  - !Sub "${MarketDataBucket.Arn}/*"
+                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}"
+                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}/*"
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running
@@ -1596,7 +1604,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
           ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
@@ -1638,14 +1646,15 @@ Resources:
                   - events:PutEvents
                 Resource:
                   - !GetAtt AlchemiserEventBus.Arn
+              # S3 permissions for shared market data bucket (read/write)
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:ListBucket
                 Resource:
-                  - !GetAtt MarketDataBucket.Arn
-                  - !Sub "${MarketDataBucket.Arn}/*"
+                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}"
+                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}/*"
 
   # Scheduler to trigger Data (nightly after market close + data lag)
   DataSchedule:
@@ -2048,8 +2057,8 @@ Outputs:
         - !Sub "alchemiser-${Stage}-PerformanceReportsBucket"
 
   MarketDataBucketName:
-    Description: "S3 bucket for historical market data (Parquet files)"
-    Value: !Ref MarketDataBucket
+    Description: "Shared S3 bucket for historical market data (Parquet files)"
+    Value: !Ref SharedMarketDataBucket
     Export:
       Name: !If
         - UseStackNameForResources

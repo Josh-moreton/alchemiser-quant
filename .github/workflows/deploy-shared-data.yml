@@ -73,5 +73,6 @@ jobs:
           echo "📋 Stack outputs:"
           aws cloudformation describe-stacks \
             --stack-name alchemiser-shared-data \
+            --region us-east-1 \
             --query 'Stacks[0].Outputs' \
             --output table
