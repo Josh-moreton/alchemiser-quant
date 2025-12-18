@@ -54,6 +54,7 @@ LAMBDA_FUNCTIONS = [
     "signal-aggregator",
     "portfolio",
     "execution",
+    "trade-aggregator",
     "notifications",
     "metrics",
     "data",
