@@ -47,6 +47,7 @@ class ExecutionRunService:
         - total_trades, completed_trades (atomic counter)
         - succeeded_trades, failed_trades
         - sell_total, sell_completed, buy_total, buy_completed (phase tracking)
+        - sell_failed_amount, sell_succeeded_amount (dollar tracking for BUY phase guard)
         - current_phase: SELL | BUY | COMPLETED (two-phase execution)
         - status: PENDING | RUNNING | SELL_PHASE | BUY_PHASE | NOTIFYING | COMPLETED | FAILED
         - notification_lock_at, notification_lock_expires (two-phase notification locking)
@@ -60,9 +61,10 @@ class ExecutionRunService:
 
     Phase Execution Flow:
         1. Portfolio Lambda enqueues only SELL trades, sets current_phase=SELL
-        2. When all SELLs complete, Notifications Lambda triggers BUY phase
-        3. Portfolio Lambda (or aggregator) enqueues BUY trades, sets current_phase=BUY
-        4. When all BUYs complete, run is marked COMPLETED
+        2. When all SELLs complete, BUY phase guard checks sell_failed_amount
+        3. If sell_failed_amount > threshold, BUY phase is BLOCKED (run marked FAILED)
+        4. If within threshold, BUY trades are enqueued and current_phase=BUY
+        5. When all BUYs complete, run is marked COMPLETED
     """
 
     def __init__(
@@ -151,6 +153,9 @@ class ExecutionRunService:
                 "sell_completed": {"N": "0"},
                 "buy_total": {"N": str(len(buy_trades))},
                 "buy_completed": {"N": "0"},
+                # Dollar amount tracking for BUY phase guard
+                "sell_failed_amount": {"N": "0"},
+                "sell_succeeded_amount": {"N": "0"},
                 "current_phase": {"S": current_phase},
                 "status": {"S": status},
                 "run_timestamp": {"S": run_timestamp.isoformat()},
@@ -211,6 +216,8 @@ class ExecutionRunService:
             "completed_trades": 0,
             "sell_total": len(sell_trades),
             "sell_completed": 0,
+            "sell_failed_amount": Decimal("0"),
+            "sell_succeeded_amount": Decimal("0"),
             "buy_total": len(buy_trades),
             "buy_completed": 0,
             "current_phase": current_phase,
@@ -281,12 +288,16 @@ class ExecutionRunService:
         error_message: str | None = None,
         execution_data: dict[str, Any] | None = None,
         phase: str | None = None,
+        trade_amount: Decimal | None = None,
     ) -> dict[str, Any]:
         """Mark a trade as completed and increment completion counters.
 
         Called by Execution Lambda after trade execution completes.
         Uses conditional put to ensure idempotency.
         Updates both overall and phase-specific counters for two-phase execution.
+
+        For SELL phase trades, also tracks dollar amounts (sell_failed_amount,
+        sell_succeeded_amount) for the BUY phase guard that prevents over-deployment.
 
         Args:
             run_id: Run identifier.
@@ -296,9 +307,11 @@ class ExecutionRunService:
             error_message: Error message if failed.
             execution_data: Additional execution data.
             phase: Trade phase (SELL or BUY) for phase-specific counter updates.
+            trade_amount: Dollar amount of the trade (for SELL phase guard tracking).
 
         Returns:
-            Dict with completion info including phase_complete flag.
+            Dict with completion info including phase_complete flag and
+            sell_failed_amount for BUY phase guard evaluation.
 
         """
         import json
@@ -362,6 +375,16 @@ class ExecutionRunService:
             else:
                 update_expression = f"ADD completed_trades :one, {counter_field} :one"
 
+            # For SELL phase, also track dollar amounts for BUY phase guard
+            expr_attr_values: dict[str, dict[str, str]] = {":one": {"N": "1"}}
+            if phase == "SELL" and trade_amount is not None:
+                amount_str = str(abs(trade_amount))
+                if success:
+                    update_expression += ", sell_succeeded_amount :amount"
+                else:
+                    update_expression += ", sell_failed_amount :amount"
+                expr_attr_values[":amount"] = {"N": amount_str}
+
             response = self._client.update_item(
                 TableName=self._table_name,
                 Key={
@@ -369,7 +392,7 @@ class ExecutionRunService:
                     "SK": {"S": "METADATA"},
                 },
                 UpdateExpression=update_expression,
-                ExpressionAttributeValues={":one": {"N": "1"}},
+                ExpressionAttributeValues=expr_attr_values,
                 ReturnValues="ALL_NEW",
             )
 
@@ -381,6 +404,9 @@ class ExecutionRunService:
             buy_completed = int(attrs.get("buy_completed", {"N": "0"})["N"])
             buy_total = int(attrs.get("buy_total", {"N": "0"})["N"])
             current_phase = attrs.get("current_phase", {"S": "ALL"})["S"]
+            # Dollar amounts for BUY phase guard
+            sell_failed_amount = Decimal(attrs.get("sell_failed_amount", {"N": "0"})["N"])
+            sell_succeeded_amount = Decimal(attrs.get("sell_succeeded_amount", {"N": "0"})["N"])
 
             # Determine if phase is complete
             # Note: When sell_total == 0, the SELL phase is immediately complete
@@ -403,6 +429,8 @@ class ExecutionRunService:
                     "buy_total": buy_total,
                     "sell_phase_complete": sell_phase_complete,
                     "current_phase": current_phase,
+                    "sell_failed_amount": str(sell_failed_amount),
+                    "sell_succeeded_amount": str(sell_succeeded_amount),
                 },
             )
 
@@ -417,6 +445,8 @@ class ExecutionRunService:
                 "sell_phase_complete": sell_phase_complete,
                 "buy_phase_complete": buy_phase_complete,
                 "run_complete": run_complete,
+                "sell_failed_amount": sell_failed_amount,
+                "sell_succeeded_amount": sell_succeeded_amount,
             }
 
         except self._client.exceptions.ConditionalCheckFailedException:
@@ -438,8 +468,16 @@ class ExecutionRunService:
                     "sell_phase_complete": run.get("sell_completed", 0) >= run.get("sell_total", 0),
                     "buy_phase_complete": run.get("buy_completed", 0) >= run.get("buy_total", 0),
                     "run_complete": run.get("completed_trades", 0) >= run.get("total_trades", 0),
+                    "sell_failed_amount": run.get("sell_failed_amount", Decimal("0")),
+                    "sell_succeeded_amount": run.get("sell_succeeded_amount", Decimal("0")),
                 }
-            return {"completed_trades": 0, "total_trades": 0, "run_complete": False}
+            return {
+                "completed_trades": 0,
+                "total_trades": 0,
+                "run_complete": False,
+                "sell_failed_amount": Decimal("0"),
+                "sell_succeeded_amount": Decimal("0"),
+            }
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         """Get run metadata including phase tracking.
@@ -476,6 +514,9 @@ class ExecutionRunService:
             "sell_completed": int(item.get("sell_completed", {"N": "0"})["N"]),
             "buy_total": int(item.get("buy_total", {"N": "0"})["N"]),
             "buy_completed": int(item.get("buy_completed", {"N": "0"})["N"]),
+            # Dollar amount tracking for BUY phase guard
+            "sell_failed_amount": Decimal(item.get("sell_failed_amount", {"N": "0"})["N"]),
+            "sell_succeeded_amount": Decimal(item.get("sell_succeeded_amount", {"N": "0"})["N"]),
             "current_phase": item.get("current_phase", {"S": "ALL"})["S"],
             "status": item["status"]["S"],
             "run_timestamp": item.get("run_timestamp", {}).get("S"),

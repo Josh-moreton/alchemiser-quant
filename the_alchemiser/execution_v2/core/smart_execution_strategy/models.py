@@ -88,6 +88,16 @@ class ExecutionConfig:
         default_factory=lambda: frozenset({"BTAL", "UVXY", "TECL", "KMLM"})
     )
 
+    # BUY Phase Guard: Block BUY phase if failed SELL trades exceed this dollar threshold
+    # This prevents over-deployment when significant SELL trades fail
+    # Set to 0 to block on ANY SELL failure (most conservative)
+    sell_failure_threshold_usd: Decimal = Decimal("500.00")  # Block BUYs if >$500 of SELLs fail
+
+    # SELL Retry Configuration: Retry failed SELL trades before giving up
+    # This handles transient broker errors, timeouts, etc.
+    max_sell_retries: int = 2  # Retry failed SELLs up to 2 times
+    sell_retry_delay_seconds: int = 5  # Wait 5 seconds between retries
+
 
 @dataclass(frozen=True)
 class SmartOrderRequest:

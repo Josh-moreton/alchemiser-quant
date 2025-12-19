@@ -197,7 +197,7 @@ class PortfolioMerger:
             return {
                 strategy_name: {"aggregated": True}
                 for partial in partial_signals
-                for strategy_name in partial.get("signals_data", {}).keys()
+                for strategy_name in partial.get("signals_data", {})
             }
 
         # Full format - includes all strategy details

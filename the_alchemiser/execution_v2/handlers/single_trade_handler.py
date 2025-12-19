@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import time
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -45,6 +46,7 @@ from the_alchemiser.shared.errors import (
 from the_alchemiser.shared.events import (
     EventBus,
     TradeExecuted,
+    WorkflowFailed,
 )
 from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
 from the_alchemiser.shared.logging import get_logger
@@ -303,6 +305,7 @@ class SingleTradeHandler:
                     order_id=None,
                     error_message="Market closed - order placement skipped",
                     phase=trade_message.phase,  # For phase-specific tracking
+                    trade_amount=abs(trade_message.trade_amount),  # For SELL phase guard
                 )
 
                 # Check if this completes the SELL phase and trigger BUY phase if needed
@@ -331,6 +334,7 @@ class SingleTradeHandler:
 
             # Create Executor and execute the trade
             executor = self._create_executor()
+            config = ExecutionConfig()
 
             try:
                 # Execute via Executor.execute_order
@@ -342,17 +346,77 @@ class SingleTradeHandler:
                     trade_message.is_full_liquidation or trade_message.target_weight <= Decimal("0")
                 )
 
-                order_result = asyncio.run(
-                    executor.execute_order(
-                        symbol=trade_message.symbol,
-                        side=side,
-                        quantity=shares,
-                        correlation_id=correlation_id,
-                        is_complete_exit=is_full_liquidation,
-                        planned_trade_amount=abs(trade_message.trade_amount),
-                        strategy_id=trade_message.strategy_id,
-                    )
-                )
+                # SELL trades get retry logic to handle transient broker errors
+                # This is critical for the BUY phase guard - we want to give SELLs
+                # multiple chances before declaring them failed
+                max_attempts = config.max_sell_retries + 1 if trade_message.phase == "SELL" else 1
+                retry_delay = config.sell_retry_delay_seconds
+                last_error: Exception | None = None
+                order_result = None
+
+                for attempt in range(1, max_attempts + 1):
+                    try:
+                        order_result = asyncio.run(
+                            executor.execute_order(
+                                symbol=trade_message.symbol,
+                                side=side,
+                                quantity=shares,
+                                correlation_id=correlation_id,
+                                is_complete_exit=is_full_liquidation,
+                                planned_trade_amount=abs(trade_message.trade_amount),
+                                strategy_id=trade_message.strategy_id,
+                            )
+                        )
+                        # If order succeeded or got a response, break out of retry loop
+                        if order_result.success:
+                            break
+                        # Non-success result from broker (e.g., rejected order)
+                        # For SELLs, retry even broker rejections (may be transient)
+                        if attempt < max_attempts:
+                            self.logger.warning(
+                                f"⚠️ SELL trade attempt {attempt}/{max_attempts} failed for "
+                                f"{trade_message.symbol}: {order_result.error_message} - retrying",
+                                extra={
+                                    "run_id": run_id,
+                                    "trade_id": trade_id,
+                                    "symbol": trade_message.symbol,
+                                    "attempt": attempt,
+                                    "max_attempts": max_attempts,
+                                    "error_message": order_result.error_message,
+                                },
+                            )
+                            time.sleep(retry_delay)
+                        else:
+                            # Last attempt, don't retry
+                            break
+
+                    except (ExecutionManagerError, TradingClientError, MarketDataError) as e:
+                        last_error = e
+                        if attempt < max_attempts:
+                            self.logger.warning(
+                                f"⚠️ SELL trade attempt {attempt}/{max_attempts} raised error for "
+                                f"{trade_message.symbol}: {e} - retrying",
+                                extra={
+                                    "run_id": run_id,
+                                    "trade_id": trade_id,
+                                    "symbol": trade_message.symbol,
+                                    "attempt": attempt,
+                                    "max_attempts": max_attempts,
+                                    "error_type": type(e).__name__,
+                                },
+                            )
+                            time.sleep(retry_delay)
+                        else:
+                            # Last attempt failed - will be handled by outer exception handler
+                            raise
+
+                # If we got here without order_result and have an error, raise it
+                if order_result is None and last_error:
+                    raise last_error
+
+                # At this point order_result must be set — raise a domain error if not
+                if order_result is None:
+                    raise ExecutionManagerError("order_result must be set after execution loop")
 
             finally:
                 # Cleanup executor resources
@@ -376,6 +440,7 @@ class SingleTradeHandler:
                 error_message=order_result.error_message,
                 execution_data=execution_data,
                 phase=trade_message.phase,  # For phase-specific tracking
+                trade_amount=abs(trade_message.trade_amount),  # For SELL phase guard
             )
 
             # Check if this completes the SELL phase and trigger BUY phase if needed
@@ -448,6 +513,7 @@ class SingleTradeHandler:
                 order_id=None,
                 error_message=str(e),
                 phase=trade_message.phase,  # For phase-specific tracking
+                trade_amount=abs(trade_message.trade_amount),  # For SELL phase guard
             )
 
             # Check if this completes the SELL phase (even with failures)
@@ -502,6 +568,7 @@ class SingleTradeHandler:
                     order_id=None,
                     error_message=f"Unexpected error: {e}",
                     phase=trade_message.phase,  # For phase-specific tracking
+                    trade_amount=abs(trade_message.trade_amount),  # For SELL phase guard
                 )
 
                 # Check if this completes the SELL phase (even with failures)
@@ -559,7 +626,12 @@ class SingleTradeHandler:
         """Check if SELL phase is complete and trigger BUY phase if needed.
 
         For two-phase execution, when all SELL trades complete (success or failure),
-        this method enqueues the waiting BUY trades to start the BUY phase.
+        this method evaluates the BUY phase guard before enqueuing BUY trades.
+
+        BUY Phase Guard: If sell_failed_amount exceeds the configured threshold
+        (sell_failure_threshold_usd), the BUY phase is BLOCKED to prevent
+        over-deployment and potential margin calls. The run is marked FAILED
+        and a WorkflowFailed event is emitted.
 
         Args:
             run_id: Run identifier.
@@ -579,6 +651,61 @@ class SingleTradeHandler:
         if current_phase != "SELL" or not sell_phase_complete or buy_total == 0:
             return
 
+        # ========================================
+        # BUY PHASE GUARD: Check SELL failure threshold
+        # ========================================
+        sell_failed_amount = completion_result.get("sell_failed_amount", Decimal("0"))
+        sell_succeeded_amount = completion_result.get("sell_succeeded_amount", Decimal("0"))
+
+        # Get the failure threshold from ExecutionConfig
+        config = ExecutionConfig()
+        failure_threshold = config.sell_failure_threshold_usd
+
+        if sell_failed_amount > failure_threshold:
+            # CRITICAL: Block BUY phase to prevent over-deployment
+            self.logger.critical(
+                "🚫 BUY PHASE BLOCKED - SELL failures exceed threshold! "
+                f"Failed: ${sell_failed_amount:.2f} > Threshold: ${failure_threshold:.2f}",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "sell_failed_amount": str(sell_failed_amount),
+                    "sell_succeeded_amount": str(sell_succeeded_amount),
+                    "failure_threshold": str(failure_threshold),
+                    "buy_trades_blocked": buy_total,
+                    "guard_action": "BUY_PHASE_BLOCKED",
+                },
+            )
+
+            # Mark run as FAILED (not transitioning to BUY phase)
+            self.run_service.update_run_status(run_id, "FAILED")
+
+            # Emit WorkflowFailed event for notifications
+            self._emit_buy_phase_blocked_event(
+                run_id=run_id,
+                correlation_id=correlation_id,
+                sell_failed_amount=sell_failed_amount,
+                sell_succeeded_amount=sell_succeeded_amount,
+                failure_threshold=failure_threshold,
+                buy_trades_blocked=buy_total,
+            )
+
+            return
+
+        # SELL failures within threshold - proceed with BUY phase
+        if sell_failed_amount > Decimal("0"):
+            self.logger.warning(
+                f"⚠️ SELL phase had failures (${sell_failed_amount:.2f}) but within threshold "
+                f"(${failure_threshold:.2f}) - proceeding with BUY phase",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "sell_failed_amount": str(sell_failed_amount),
+                    "sell_succeeded_amount": str(sell_succeeded_amount),
+                    "failure_threshold": str(failure_threshold),
+                },
+            )
+
         self.logger.info(
             "🔄 SELL phase complete - triggering BUY phase",
             extra={
@@ -586,6 +713,8 @@ class SingleTradeHandler:
                 "correlation_id": correlation_id,
                 "sell_completed": completion_result.get("sell_completed", 0),
                 "sell_total": completion_result.get("sell_total", 0),
+                "sell_failed_amount": str(sell_failed_amount),
+                "sell_succeeded_amount": str(sell_succeeded_amount),
                 "buy_total": buy_total,
             },
         )
@@ -884,6 +1013,79 @@ class SingleTradeHandler:
                 extra={
                     "run_id": trade_message.run_id,
                     "trade_id": trade_message.trade_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+
+    def _emit_buy_phase_blocked_event(
+        self,
+        run_id: str,
+        correlation_id: str,
+        sell_failed_amount: Decimal,
+        sell_succeeded_amount: Decimal,
+        failure_threshold: Decimal,
+        buy_trades_blocked: int,
+    ) -> None:
+        """Emit WorkflowFailed event when BUY phase is blocked due to SELL failures.
+
+        This event triggers notifications to alert operators that the trading
+        workflow was halted to prevent over-deployment.
+
+        Args:
+            run_id: Execution run identifier.
+            correlation_id: Workflow correlation ID.
+            sell_failed_amount: Dollar amount of failed SELL trades.
+            sell_succeeded_amount: Dollar amount of successful SELL trades.
+            failure_threshold: Configured failure threshold.
+            buy_trades_blocked: Number of BUY trades that were blocked.
+
+        """
+        try:
+            event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=run_id,
+                event_id=f"buy-phase-blocked-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module=EXECUTION_HANDLERS_MODULE,
+                source_component="SingleTradeHandler",
+                workflow_type="TradingExecution",
+                failure_reason=(
+                    f"BUY phase blocked: SELL failures (${sell_failed_amount:.2f}) "
+                    f"exceeded threshold (${failure_threshold:.2f})"
+                ),
+                failure_step="SELL_PHASE_GUARD",
+                error_details={
+                    "run_id": run_id,
+                    "sell_failed_amount": str(sell_failed_amount),
+                    "sell_succeeded_amount": str(sell_succeeded_amount),
+                    "failure_threshold": str(failure_threshold),
+                    "buy_trades_blocked": buy_trades_blocked,
+                    "guard_action": "BUY_PHASE_BLOCKED",
+                    "risk_prevented": "Over-deployment and potential margin call",
+                },
+            )
+
+            self.event_bus.publish(event)
+
+            # Publish to EventBridge for Notifications Lambda to receive
+            publish_to_eventbridge(event)
+
+            self.logger.info(
+                "📡 Emitted WorkflowFailed event for blocked BUY phase",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "sell_failed_amount": str(sell_failed_amount),
+                },
+            )
+
+        except Exception as e:
+            # Log but don't fail - the run status was already updated
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event: {e}",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
                 },
             )
