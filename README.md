@@ -2,7 +2,7 @@
 
 A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 
-> 🎯 **New to the platform?** Read the [**Trading Platform Architecture Guide**](docs/TRADING_PLATFORM_GUIDE.md) for a comprehensive walkthrough written for traders. It explains how strategies are evaluated, executed in parallel, merged with weighted voting, and deployed to the market—with real code examples and focused Mermaid diagrams.
+> 🎯 **New to the platform?** Read the [**Trading Platform Architecture Guide**](docs/TRADING_PLATFORM_GUIDE_REVISED.md) for a comprehensive walkthrough written for traders. It explains how strategies are evaluated, executed in parallel, merged with weighted voting, and deployed to the market—with real code examples and focused Mermaid diagrams.
 
 ## System Architecture
 
