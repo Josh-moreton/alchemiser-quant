@@ -465,6 +465,25 @@ Multi-timeframe ensemble combining trend following with mean reversion signals.
 7. **Correlation Tracking**: End-to-end traceability via correlation IDs
 8. **SNS Notifications**: Email delivery without SMTP credentials
 
+## Security
+
+This repository implements comprehensive security measures to protect sensitive credentials (Alpaca trading API keys, AWS credentials, email passwords):
+
+### Workflow Security ✅
+
+- **No `pull_request_target` triggers** - Prevents fork PRs from accessing secrets
+- **Automated validation** - CI checks block dangerous workflow modifications
+- **Safe triggers only** - Uses `push`, `workflow_dispatch`, `schedule`, and tags
+- **Validation command**: `make validate-workflows`
+
+### Documentation
+
+- 📚 [Workflow Security Guide](docs/WORKFLOW_SECURITY.md) - Comprehensive security documentation
+- ✅ [Public Repo Security Checklist](docs/PUBLIC_REPO_SECURITY_CHECKLIST.md) - Pre-release checklist
+- 🔒 [Validation Script](scripts/validate_workflow_security.py) - Automated security checks
+
+**Status**: ✅ Repository is safe for public visibility with proper branch protection configured.
+
 ---
 
 **Version**: 2.0.0
