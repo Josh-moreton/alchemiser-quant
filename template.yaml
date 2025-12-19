@@ -852,8 +852,6 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          # Data Lambda for market data (bars from S3 Parquet)
-          DATA_FUNCTION_NAME: !Ref DataFunction
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -900,12 +898,6 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
-              # Permission to invoke Data Lambda for market data
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource:
-                  - !GetAtt DataFunction.Arn
               # S3 permissions for shared market data bucket (read-only)
               - Effect: Allow
                 Action:
@@ -1569,14 +1561,10 @@ Resources:
       ScheduleExpression: "cron(5 15 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow: !If
-        - IsDev
+        - IsProduction
+        - Mode: "OFF"
         - Mode: FLEXIBLE
           MaximumWindowInMinutes: 15
-        - !If
-          - IsStaging
-          - Mode: FLEXIBLE
-            MaximumWindowInMinutes: 15
-          - Mode: OFF
       Target:
         Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
@@ -1603,121 +1591,11 @@ Resources:
                   - !GetAtt StrategyFunction.Arn
                   - !GetAtt StrategyOrchestratorFunction.Arn
 
-  # ========== DATA LAMBDA ==========
-  # Fetches historical market data from Alpaca and stores in S3 as Parquet
-  # Runs nightly after market close to refresh data for all strategy symbols
-  DataFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-data"
-        - !Sub "alchemiser-${Stage}-data"
-      Runtime: python3.12
-      Architectures:
-        - x86_64
-      CodeUri: ./
-      Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
-      Role: !GetAtt DataExecutionRole.Arn
-      Layers:
-        - !Ref DataLayer  # awswrangler + alpaca-py (built via Makefile)
-      Timeout: 900  # 15 minutes max for full data
-      MemorySize: 1024
-      Environment:
-        Variables:
-          EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
-          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
-    Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
-
-  DataExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: DataPolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - events:PutEvents
-                Resource:
-                  - !GetAtt AlchemiserEventBus.Arn
-              # S3 permissions for shared market data bucket (read/write)
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:ListBucket
-                Resource:
-                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}"
-                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}/*"
-
-  # Scheduler to trigger Data (nightly after market close + data lag)
-  DataSchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-data-schedule"
-        - !Sub "alchemiser-${Stage}-data-schedule"
-      Description: "Refresh market data daily at 4 AM UTC / 11 PM ET (Mon-Fri)"
-      ScheduleExpression: "cron(0 4 ? * TUE-SAT *)"  # Runs Tue-Sat to catch Mon-Fri data
-      ScheduleExpressionTimezone: "UTC"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt DataFunction.Arn
-        RoleArn: !GetAtt DataSchedulerRole.Arn
-        Input: '{}'
-        RetryPolicy:
-          MaximumRetryAttempts: 2
-
-  DataSchedulerRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: scheduler.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: InvokeData
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: lambda:InvokeFunction
-                Resource: !GetAtt DataFunction.Arn
-
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
+  # Note: Data Lambda moved to shared infrastructure (data-template.yaml)
+  # The shared Data Lambda serves all stages from alchemiser-shared-data
 
   # ============================================================================
   # OBSERVABILITY: CloudWatch Logs Insights & Dashboard
@@ -2020,7 +1898,7 @@ Resources:
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
           MetricsLog: !Sub "/aws/lambda/${MetricsFunction}"
-          DataLog: !Sub "/aws/lambda/${DataFunction}"
+          DataLog: "/aws/lambda/alchemiser-shared-data"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
 Outputs:
