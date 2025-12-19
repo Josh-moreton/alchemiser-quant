@@ -54,8 +54,13 @@ class SingleFileSignalHandler:
 
         # Resolve strategies directory
         strategies_path = Path(__file__).parent.parent / "strategies"
+
+        # Get market data adapter from container (with live bar injection if configured)
+        market_data_adapter = container.strategy_market_data_adapter()
+
         self.dsl_engine = DslEngine(
             strategy_config_path=str(strategies_path),
+            market_data_adapter=market_data_adapter,
         )
 
         self.logger.info(

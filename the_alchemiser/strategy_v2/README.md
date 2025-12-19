@@ -148,14 +148,7 @@ recent price data when trading at end-of-day (3:30 PM ET).
 2. **Today's bar** is fetched from Alpaca Snapshot API with current OHLCV
 3. **Combined series** is passed to indicators (e.g., 199 historical + 1 live = 200 bars)
 
-### Configuration
-
-Enable via environment variable:
-```bash
-STRATEGY_APPEND_LIVE_BAR=true
-```
-
-This is set automatically in `template.yaml` for the Strategy Lambda.
+Live bar injection is enabled by default in `CachedMarketDataAdapter`.
 
 ### Data Flow
 
@@ -178,7 +171,6 @@ S3 Parquet (historical)  +  Alpaca Snapshot API (today)
 - **Fresh signals**: 200-day SMA uses today's current price, not yesterday's close
 - **Volume data**: Today's cumulative volume available for volume-based indicators
 - **Efficient**: Live bar cached per-symbol for duration of Lambda run
-- **Backward compatible**: Disable with `STRATEGY_APPEND_LIVE_BAR=false`
 
 ## Logging
 

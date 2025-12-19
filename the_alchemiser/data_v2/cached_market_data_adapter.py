@@ -21,7 +21,7 @@ Live Bar Injection:
     Live bars are cached per-symbol for the duration of the Lambda run to
     minimize API calls when multiple indicators request the same symbol.
 
-    Enable via environment variable: STRATEGY_APPEND_LIVE_BAR=true
+    Live bar injection is enabled by default (append_live_bar=True).
 
 Architecture:
     S3 Cache (Parquet) + Alpaca Snapshot (live) -> CachedMarketDataAdapter
@@ -110,7 +110,7 @@ class CachedMarketDataAdapter(MarketDataPort):
         *,
         fallback_adapter: MarketDataPort | None = None,
         enable_live_fallback: bool = False,
-        append_live_bar: bool = False,
+        append_live_bar: bool = True,
         live_bar_provider: LiveBarProvider | None = None,
     ) -> None:
         """Initialize cached market data adapter.
@@ -122,8 +122,8 @@ class CachedMarketDataAdapter(MarketDataPort):
             enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
                                  Only used if fallback_adapter is None.
             append_live_bar: Whether to append today's live bar to historical data.
-                            When True, fetches current price from Alpaca Snapshot API
-                            and appends as the most recent bar for indicator computation.
+                            Defaults to True. Fetches current price from Alpaca Snapshot
+                            API and appends as the most recent bar for indicator computation.
             live_bar_provider: Optional LiveBarProvider instance. If None and
                               append_live_bar is True, creates a default provider.
 

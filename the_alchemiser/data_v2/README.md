@@ -40,12 +40,14 @@ Fetches historical bars from Alpaca API and stores in S3. Runs on schedule (over
 
 ## Live Bar Injection
 
-When `STRATEGY_APPEND_LIVE_BAR=true`, the CachedMarketDataAdapter:
+The CachedMarketDataAdapter automatically:
 
 1. **Reads historical bars** from S3 Parquet cache (nightly-refreshed)
 2. **Fetches today's bar** from Alpaca Snapshot API via LiveBarProvider
 3. **Appends today's bar** to the historical series
 4. **Returns combined series** for indicator computation
+
+Live bar injection is enabled by default (`append_live_bar=True`).
 
 ### Data Flow
 
@@ -98,22 +100,17 @@ Live bars are cached per-symbol for the Lambda invocation:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STRATEGY_APPEND_LIVE_BAR` | `false` | Enable live bar injection |
 | `MARKET_DATA_BUCKET` | (required) | S3 bucket for Parquet cache |
 | `ALPACA__KEY` | (required) | Alpaca API key |
 | `ALPACA__SECRET` | (required) | Alpaca secret key |
 
-### Enable Live Bar Injection
+### Programmatic Configuration
 
-Set in `template.yaml` for Strategy Lambda:
-```yaml
-Environment:
-  Variables:
-    STRATEGY_APPEND_LIVE_BAR: "true"
-```
-
-Or programmatically:
 ```python
+# Live bar injection is enabled by default
+adapter = CachedMarketDataAdapter()
+
+# Or explicitly with custom provider
 adapter = CachedMarketDataAdapter(
     append_live_bar=True,
     live_bar_provider=LiveBarProvider(),
