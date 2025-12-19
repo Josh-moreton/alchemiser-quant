@@ -1568,8 +1568,15 @@ Resources:
       Description: "Execute trading strategy daily at ~3:05 PM New York time (within 3:00-3:15 PM window)"
       ScheduleExpression: "cron(5 15 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow:
-        Mode: "OFF"
+      FlexibleTimeWindow: !If
+        - IsDev
+        - Mode: FLEXIBLE
+          MaximumWindowInMinutes: 15
+        - !If
+          - IsStaging
+          - Mode: FLEXIBLE
+            MaximumWindowInMinutes: 15
+          - Mode: OFF
       Target:
         Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
