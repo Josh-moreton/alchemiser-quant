@@ -1,0 +1,45 @@
+name: Workflow Security Check
+
+# This workflow validates that no workflow uses unsafe triggers
+# Safe to run on pull_request because it accesses NO secrets
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/validate_workflow_security.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/validate_workflow_security.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install PyYAML
+
+      - name: Validate workflow security
+        run: python scripts/validate_workflow_security.py
+
+      - name: Security check passed
+        if: success()
+        run: |
+          echo "✅ All workflows are secure for public repository"
+          echo ""
+          echo "This validation ensures:"
+          echo "  - No pull_request_target triggers (prevents fork PRs from accessing secrets)"
+          echo "  - No pull_request workflows accessing secrets (prevents secret leakage)"
+          echo ""
+          echo "Repository is safe to make public! 🎉"

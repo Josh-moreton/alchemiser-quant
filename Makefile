@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check validate-workflows deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -47,6 +47,7 @@ help:
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
+	@echo "  validate-workflows  Validate GitHub Actions workflow security"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment (via GitHub Actions CI/CD):"
@@ -106,6 +107,10 @@ import-check:
 	else \
 		poetry run python -m importlinter --config pyproject.toml; \
 	fi
+
+validate-workflows:
+	@echo "🔒 Validating GitHub Actions workflow security..."
+	python scripts/validate_workflow_security.py
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
