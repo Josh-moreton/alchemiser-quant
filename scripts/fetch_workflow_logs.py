@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Business Unit: scripts | Status: current.
 
-Fetch CloudWatch logs for a complete workflow run by correlation_id or session_id.
+Fetch CloudWatch logs and workflow data for a complete workflow run.
 
 This script queries all Lambda log groups for a given workflow run, filters for
-errors/warnings/failures, and presents a chronological timeline of events.
+errors/warnings/failures, presents a chronological timeline of events, and also
+fetches the aggregated signal and rebalance plan from DynamoDB for analysis.
 
 Usage:
     # Auto-detect most recent workflow run
@@ -21,6 +22,9 @@ Usage:
 
     # Include raw/debug logs
     python scripts/fetch_workflow_logs.py --correlation-id workflow-abc123 --all --verbose
+
+    # Skip fetching workflow data from DynamoDB (logs only)
+    python scripts/fetch_workflow_logs.py --no-data
 
     # Use session-id alias
     python scripts/fetch_workflow_logs.py --session-id workflow-abc123
@@ -39,6 +43,7 @@ import json
 import re
 import sys
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import boto3
@@ -512,6 +517,252 @@ def print_summary(events: list[dict[str, Any]]) -> None:
         print(f"      {colour(name_padded, 'cyan')}: {count}")
 
 
+# ============================================================================
+# DynamoDB Workflow Data Functions
+# ============================================================================
+
+
+def format_money(value: str | Decimal | float) -> str:
+    """Format a decimal value as money for display."""
+    try:
+        d = Decimal(str(value))
+        return f"${float(d):,.2f}"
+    except Exception:
+        return str(value)
+
+
+def format_percentage(value: str | Decimal | float) -> str:
+    """Format a decimal as percentage for display."""
+    try:
+        d = Decimal(str(value))
+        return f"{float(d) * 100:.2f}%"
+    except Exception:
+        return str(value)
+
+
+def get_rebalance_plan(
+    dynamodb: Any,
+    correlation_id: str,
+    stage: str = "dev",
+) -> dict | None:
+    """Query rebalance plan from DynamoDB.
+
+    Args:
+        dynamodb: boto3 DynamoDB client
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
+
+    Returns:
+        Rebalance plan data or None if not found
+
+    """
+    table_name = f"alchemiser-{stage}-rebalance-plans"
+
+    try:
+        response = dynamodb.query(
+            TableName=table_name,
+            IndexName="GSI1-CorrelationIndex",
+            KeyConditionExpression="GSI1PK = :pk",
+            ExpressionAttributeValues={":pk": {"S": f"CORR#{correlation_id}"}},
+            Limit=1,
+            ScanIndexForward=False,
+        )
+
+        if not response.get("Items"):
+            return None
+
+        item = response["Items"][0]
+        plan_data_str = item.get("plan_data", {}).get("S", "{}")
+        return json.loads(plan_data_str)
+
+    except ClientError:
+        return None
+
+
+def get_aggregated_signal(
+    dynamodb: Any,
+    correlation_id: str,
+    stage: str = "dev",
+) -> dict | None:
+    """Query aggregated signal from DynamoDB.
+
+    Args:
+        dynamodb: boto3 DynamoDB client
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
+
+    Returns:
+        Aggregated signal data or None if not found
+
+    """
+    table_name = f"alchemiser-{stage}-aggregation-sessions"
+
+    try:
+        response = dynamodb.query(
+            TableName=table_name,
+            KeyConditionExpression="PK = :pk",
+            ExpressionAttributeValues={":pk": {"S": f"SESSION#{correlation_id}"}},
+            Limit=1,
+        )
+
+        if not response.get("Items"):
+            return None
+
+        item = response["Items"][0]
+        merged_signal_str = item.get("merged_signal", {}).get("S")
+        if merged_signal_str:
+            return json.loads(merged_signal_str)
+
+        return item
+
+    except ClientError:
+        return None
+
+
+def print_signal_analysis(signal: dict) -> None:
+    """Print aggregated signal analysis.
+
+    Args:
+        signal: The aggregated signal data
+
+    """
+    print(f"\n{colour('📈 AGGREGATED SIGNAL', 'bold')}")
+    print("=" * 80)
+
+    allocations = signal.get("allocations") or signal.get("target_allocations") or {}
+
+    if not allocations:
+        print("   No allocations found in signal")
+        return
+
+    print(f"   Total symbols: {len(allocations)}")
+
+    total_weight = sum(Decimal(str(v)) for v in allocations.values())
+    print(f"   Total weight: {format_percentage(total_weight)}")
+
+    if total_weight > Decimal("1.0"):
+        print(f"   {colour('⚠️  WARNING: Signal weights sum to > 100%!', 'yellow')}")
+
+    print(f"\n   {colour('Top Allocations:', 'bold')}")
+    sorted_allocs = sorted(allocations.items(), key=lambda x: Decimal(str(x[1])), reverse=True)
+    for symbol, weight in sorted_allocs[:10]:
+        print(f"      {symbol:<10} {format_percentage(weight):>10}")
+
+    if len(sorted_allocs) > 10:
+        print(f"      ... and {len(sorted_allocs) - 10} more")
+
+
+def print_rebalance_plan_analysis(plan: dict) -> None:
+    """Print rebalance plan analysis with deployment ratio check.
+
+    Args:
+        plan: The rebalance plan data
+
+    """
+    print(f"\n{colour('📋 REBALANCE PLAN', 'bold')}")
+    print("=" * 80)
+
+    metadata = plan.get("metadata", {})
+    portfolio_value = metadata.get("portfolio_value", plan.get("total_portfolio_value", "N/A"))
+    cash_balance = metadata.get("cash_balance", "N/A")
+
+    print(f"   Portfolio Value: {format_money(portfolio_value)}")
+    print(f"   Cash Balance: {format_money(cash_balance)}")
+    print(f"   Plan ID: {plan.get('plan_id', 'N/A')}")
+
+    items = plan.get("items", [])
+    buys = [i for i in items if i.get("action") == "BUY"]
+    sells = [i for i in items if i.get("action") == "SELL"]
+    holds = [i for i in items if i.get("action") == "HOLD"]
+
+    total_buy = sum(Decimal(str(i.get("trade_amount", 0))) for i in buys)
+    total_sell = sum(abs(Decimal(str(i.get("trade_amount", 0)))) for i in sells)
+    total_target_value = sum(Decimal(str(i.get("target_value", 0))) for i in items)
+
+    print(f"\n   {colour('Trade Summary:', 'bold')}")
+    print(f"      BUY orders:  {len(buys):3d} totaling {format_money(total_buy)}")
+    print(f"      SELL orders: {len(sells):3d} totaling {format_money(total_sell)}")
+    print(f"      HOLD:        {len(holds):3d}")
+    print(f"      Net capital needed: {format_money(total_buy - total_sell)}")
+
+    print(f"\n   {colour('Deployment Analysis:', 'bold')}")
+    print(f"      Sum of ALL target values: {format_money(total_target_value)}")
+    print(f"      Portfolio value: {format_money(portfolio_value)}")
+
+    try:
+        pv = Decimal(str(portfolio_value))
+        if pv > 0:
+            deployment_pct = (total_target_value / pv) * 100
+            deployment_str = f"{float(deployment_pct):.1f}%"
+            if deployment_pct > 100:
+                print(f"      {colour(f'==> DEPLOYMENT RATIO: {deployment_str}', 'yellow')}")
+                print(f"      {colour('⚠️  Attempting to deploy MORE than 100% of equity!', 'yellow')}")
+            else:
+                print(f"      ==> DEPLOYMENT RATIO: {colour(deployment_str, 'green')}")
+    except (InvalidOperation, ValueError, TypeError):
+        pass  # Portfolio value may be missing or invalid
+
+    # Check for negative cash (already in margin)
+    try:
+        cash = Decimal(str(cash_balance))
+        if cash < 0:
+            print(f"\n      {colour('⚠️  NEGATIVE CASH BALANCE - Account already using margin!', 'red')}")
+    except (InvalidOperation, ValueError, TypeError):
+        pass  # Cash balance may be missing or invalid
+
+    # Print largest trades
+    if sells:
+        print(f"\n   {colour('Largest SELL Orders:', 'bold')}")
+        sells_sorted = sorted(
+            sells, key=lambda x: abs(Decimal(str(x.get("trade_amount", 0)))), reverse=True
+        )
+        for item in sells_sorted[:5]:
+            symbol = item.get("symbol", "?")
+            trade_amt = format_money(item.get("trade_amount", 0))
+            print(f"      {symbol:<8} {trade_amt:>12}")
+
+    if buys:
+        print(f"\n   {colour('Largest BUY Orders:', 'bold')}")
+        buys_sorted = sorted(
+            buys, key=lambda x: Decimal(str(x.get("trade_amount", 0))), reverse=True
+        )
+        for item in buys_sorted[:5]:
+            symbol = item.get("symbol", "?")
+            trade_amt = format_money(item.get("trade_amount", 0))
+            print(f"      {symbol:<8} {trade_amt:>12}")
+
+
+def print_workflow_data(correlation_id: str, stage: str) -> None:
+    """Fetch and print workflow data from DynamoDB.
+
+    Args:
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
+
+    """
+    print(f"\n{colour('📦 Fetching workflow data from DynamoDB...', 'cyan')}")
+
+    dynamodb = boto3.client("dynamodb", region_name=REGION)
+
+    # Get aggregated signal
+    signal = get_aggregated_signal(dynamodb, correlation_id, stage)
+    if signal:
+        print_signal_analysis(signal)
+    else:
+        print(f"   {colour('⚠️  No aggregated signal found in DynamoDB', 'yellow')}")
+
+    # Get rebalance plan
+    plan = get_rebalance_plan(dynamodb, correlation_id, stage)
+    if plan:
+        print_rebalance_plan_analysis(plan)
+    else:
+        print(f"   {colour('⚠️  No rebalance plan found in DynamoDB', 'yellow')}")
+
+    if not signal and not plan:
+        print("   (Workflow data may have expired or workflow did not reach those stages)")
+
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -587,6 +838,12 @@ Examples:
         "--no-color",
         action="store_true",
         help="Disable coloured output",
+    )
+
+    parser.add_argument(
+        "--no-data",
+        action="store_true",
+        help="Skip fetching workflow data (signal/rebalance plan) from DynamoDB",
     )
 
     args = parser.parse_args()
@@ -680,6 +937,10 @@ Examples:
             print("=" * 100)
         else:
             print(f"\n{colour('✅', 'green')} No errors or warnings found!")
+
+        # Print workflow data from DynamoDB (signal and rebalance plan)
+        if not args.no_data:
+            print_workflow_data(correlation_id, args.stage)
 
     return 0
 
