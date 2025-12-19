@@ -2,9 +2,16 @@
 
 Lambda handler for execution microservice.
 
-Triggered by SQS FIFO queue with TradeMessage events. Processes one trade
-per Lambda invocation using the SingleTradeHandler. DynamoDB tracks run state
-and Notifications Lambda aggregates results when all trades complete.
+Triggered by SQS Standard queue (parallel execution) with TradeMessage events.
+Multiple Lambda invocations process trades concurrently (up to 10 via
+ReservedConcurrentExecutions). DynamoDB tracks run state and phase completion.
+
+Two-phase ordering (sells before buys) is achieved via enqueue timing:
+- Portfolio Lambda enqueues only SELL trades initially
+- When all SELLs complete, the last Execution Lambda enqueues BUY trades
+- BUYs then execute in parallel
+
+Note: Despite env var name (EXECUTION_FIFO_QUEUE_URL), we use a Standard queue.
 """
 
 from __future__ import annotations
@@ -25,10 +32,11 @@ logger = get_logger(__name__)
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle SQS FIFO event for per-trade execution.
+    """Handle SQS Standard queue event for per-trade parallel execution.
 
-    Each SQS record contains a TradeMessage for a single trade.
-    Uses SingleTradeHandler for execution.
+    Multiple Lambda invocations process trades concurrently (up to 10 via
+    ReservedConcurrentExecutions). Two-phase ordering is achieved via enqueue
+    timing, not FIFO guarantees.
 
     Args:
         event: SQS event containing TradeMessage records

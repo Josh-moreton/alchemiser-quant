@@ -98,10 +98,11 @@ the_alchemiser/
 ### Critical Architecture Rules
 1. **Business modules only import from `shared/`** - no cross-module imports
 2. **Event-driven communication** - Lambdas publish/consume events via EventBridge
-3. **SQS FIFO for execution** - Per-trade execution buffered via SQS FIFO for ordering
-4. **SNS for notifications** - Email notifications via SNS topic subscriptions
-5. **DTOs at boundaries** - never pass raw dicts between modules
-6. **Idempotent handlers** - all event handlers must be safe under replay
+3. **SQS Standard queue for execution** - Per-trade parallel execution (up to 10 concurrent Lambdas)
+4. **Two-phase ordering via enqueue timing** - SELLs enqueued first, BUYs stored until SELLs complete
+5. **SNS for notifications** - Email notifications via SNS topic subscriptions
+6. **DTOs at boundaries** - never pass raw dicts between modules
+7. **Idempotent handlers** - all event handlers must be safe under replay
 
 ### Event Flow (Signal Generation)
 ```
@@ -117,8 +118,10 @@ the_alchemiser/
 ### Event Flow (Trade Execution)
 ```
 Portfolio Lambda
-        ↓ (Individual trade messages to SQS FIFO)
-    Execution Lambda (one trade at a time)
+        ↓ (SELL trades to SQS Standard queue, BUYs stored in DynamoDB)
+    Execution Lambdas (parallel - up to 10 concurrent)
+        ↓ (Last SELL triggers BUY phase, enqueues BUY trades)
+    Execution Lambdas (parallel - up to 10 concurrent)
         ↓ (TradeExecuted/WorkflowFailed via EventBridge)
     Notifications Lambda → SNS → Email
 ```

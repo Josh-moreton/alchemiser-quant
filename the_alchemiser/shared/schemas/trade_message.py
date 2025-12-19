@@ -1,15 +1,25 @@
 """Business Unit: shared | Status: current.
 
-Trade message schema for per-trade execution.
+Trade message schema for per-trade parallel execution.
 
-This module defines the TradeMessage DTO used for SQS FIFO queue messages
+This module defines the TradeMessage DTO used for SQS Standard queue messages
 in the per-trade execution architecture. Each message represents a single
 trade to be executed by an Execution Lambda invocation.
+
+Architecture (Two-Phase Parallel Execution):
+- Portfolio Lambda enqueues SELL trades first (BUY trades stored in DynamoDB)
+- Multiple Execution Lambdas (up to 10 concurrent) process SELLs in parallel
+- When all SELLs complete, the last Lambda enqueues BUY trades
+- BUY trades execute in parallel via fresh Lambda invocations
+
+Note: Despite env var name (EXECUTION_FIFO_QUEUE_URL), we use a Standard queue.
+The sequence_number field is preserved for debugging/ordering visibility but
+does not provide FIFO guarantees - ordering is controlled by enqueue timing.
 
 The message includes:
 - Run/trade identifiers for tracking and aggregation
 - Trade details (symbol, action, amounts)
-- Ordering fields (phase, sequence_number) for FIFO guarantees
+- Phase field (SELL or BUY) for two-phase execution
 - Context fields for validation and correlation
 """
 
@@ -26,17 +36,20 @@ from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class TradeMessage(BaseModel):
-    """SQS FIFO message payload for per-trade execution.
+    """SQS Standard queue message payload for per-trade parallel execution.
 
     Each TradeMessage represents a single trade extracted from a RebalancePlan.
     Portfolio Lambda decomposes plans into individual TradeMessages and enqueues
-    them to the SQS FIFO queue. Each message triggers one Execution Lambda invocation.
+    them to the SQS Standard queue. Multiple Lambdas process trades in parallel.
 
-    The sequence_number field ensures FIFO ordering:
-    - SELL phase: 1000-1999 (1000 + priority)
-    - BUY phase: 2000-2999 (2000 + priority)
+    Two-Phase Ordering (via enqueue timing, NOT FIFO):
+    - Portfolio Lambda enqueues only SELL trades initially
+    - BUY trades are stored in DynamoDB until all SELLs complete
+    - When last SELL completes, Execution Lambda enqueues BUY trades
+    - This guarantees all sells complete before buys start
 
-    This guarantees all sells complete before buys start.
+    The sequence_number field is preserved for debugging/visibility but does
+    not provide ordering guarantees with a Standard queue.
     """
 
     model_config = ConfigDict(

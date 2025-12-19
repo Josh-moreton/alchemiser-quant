@@ -3,7 +3,7 @@
 Bootstrap entrypoint for running execution_v2 standalone.
 
 Note: Execution module is now invoked exclusively via Lambda handler from
-SQS FIFO queue. This module provides local testing support.
+SQS Standard queue (parallel execution). This module provides local testing support.
 """
 
 from __future__ import annotations

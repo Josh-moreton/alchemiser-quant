@@ -74,8 +74,8 @@ The system is deployed as **AWS Lambda functions** connected via AWS services. T
 | Strategy Orchestrator | `coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | Invokes Strategy Workers (async) |
 | Strategy Worker | `strategy_v2.lambda_handler` | Orchestrator (async invocation) | EventBridge (`PartialSignalGenerated`) |
 | Signal Aggregator | `aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | EventBridge (`SignalGenerated`) |
-| Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | SQS FIFO Queue (per-trade messages) |
-| Execution | `execution_v2.lambda_handler` | SQS FIFO Queue (per-trade messages) | EventBridge (`TradeExecuted`) |
+| Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | SQS Standard Queue (SELL trades only; BUYs stored in DynamoDB) |
+| Execution | `execution_v2.lambda_handler` | SQS Standard Queue (parallel) | EventBridge (`TradeExecuted`) |
 | Notifications | `notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS Topic → Email |
 
 ### Architecture Overview
@@ -84,13 +84,14 @@ The system uses a multi-node parallel strategy execution architecture:
 - **Workers** process one DSL file each, emit partial signals
 - **Aggregator** merges partial signals when all workers complete
 - **Portfolio** decomposes rebalance plans into individual trade messages
-- **Execution** processes one trade at a time from SQS FIFO queue
+- **Execution** runs trades in parallel (up to 10 concurrent Lambdas) via SQS Standard queue
 
 ### Event routing
 - **EventBridge** routes events between Lambdas based on `source` and `detail-type`
-- **SQS FIFO** ensures ordered, exactly-once per-trade execution
+- **SQS Standard queue** enables parallel per-trade execution (up to 10 concurrent Lambdas)
+- **Two-phase ordering** via enqueue timing: SELLs enqueued first, BUYs stored in DynamoDB until SELLs complete
 - **SNS** delivers email notifications via topic subscriptions
-- **DynamoDB** tracks aggregation sessions for multi-node coordination
+- **DynamoDB** tracks aggregation sessions and execution run state for phase coordination
 
 ## Event-driven workflow
 
@@ -100,8 +101,8 @@ The system uses a multi-node parallel strategy execution architecture:
 - **Signal Aggregator** triggered by EventBridge on `PartialSignalGenerated`, stores partial signals, merges when all complete, publishes `SignalGenerated`
 
 ### Trade Execution Flow
-- **Portfolio Lambda** triggered by EventBridge rule on `SignalGenerated`, creates `RebalancePlan`, publishes individual trade messages to SQS FIFO
-- **Execution Lambda** triggered by SQS FIFO (one trade at a time), executes trade, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`
+- **Portfolio Lambda** triggered by EventBridge rule on `SignalGenerated`, creates `RebalancePlan`, enqueues SELL trades to SQS Standard queue (BUY trades stored in DynamoDB)
+- **Execution Lambda** triggered by SQS (multiple concurrent invocations), executes trades in parallel, last SELL triggers BUY phase enqueue, publishes `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed`
 - **Notifications Lambda** triggered by EventBridge on `TradeExecuted` or `WorkflowFailed`, sends email via SNS
 
 ### Publishing events

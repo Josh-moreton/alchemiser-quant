@@ -53,7 +53,11 @@ MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
 
 
 def _get_execution_fifo_queue_url() -> str:
-    """Get the SQS FIFO queue URL for per-trade execution.
+    """Get the SQS Standard queue URL for per-trade parallel execution.
+
+    Note: The env var is named EXECUTION_FIFO_QUEUE_URL for historical reasons,
+    but the actual queue is a Standard queue (not FIFO). This enables parallel
+    Lambda invocations for concurrent trade execution.
 
     Returns:
         Queue URL from environment variable.
@@ -868,8 +872,13 @@ class PortfolioAnalysisHandler:
         """Emit RebalancePlanned event with proper causation chain.
 
         Decomposes the plan into individual TradeMessages and enqueues them
-        to SQS FIFO for per-trade execution. Each trade is executed by a
-        separate Execution Lambda invocation.
+        to SQS Standard queue for parallel per-trade execution. Multiple
+        Lambda invocations process trades concurrently.
+
+        Two-Phase Ordering (via enqueue timing, NOT FIFO):
+        - Only SELL trades are enqueued initially
+        - BUY trades are stored in DynamoDB until all SELLs complete
+        - When last SELL completes, Execution Lambda enqueues BUY trades
 
         Args:
             rebalance_plan: Generated rebalance plan
@@ -901,7 +910,7 @@ class PortfolioAnalysisHandler:
             trades_required = any(item.action in ["BUY", "SELL"] for item in rebalance_plan.items)
 
             if trades_required:
-                # Decompose and enqueue trades to SQS FIFO for per-trade execution
+                # Decompose and enqueue trades to SQS for parallel per-trade execution
                 self._enqueue_trades_for_per_trade_execution(
                     rebalance_plan=rebalance_plan,
                     correlation_id=original_event.correlation_id,
@@ -970,12 +979,17 @@ class PortfolioAnalysisHandler:
         correlation_id: str,
         causation_id: str,
     ) -> None:
-        """Decompose rebalance plan into individual trades and enqueue to SQS FIFO.
+        """Decompose rebalance plan and enqueue to SQS Standard queue for parallel execution.
 
-        This method:
+        Two-Phase Parallel Execution Architecture:
         1. Creates TradeMessage for each BUY/SELL item (skips HOLD)
-        2. Creates run state entry in DynamoDB
-        3. Enqueues each trade message to SQS FIFO with ordering
+        2. Creates run state entry in DynamoDB (BUY trades stored with status=WAITING)
+        3. Enqueues only SELL trades to SQS Standard queue
+        4. Multiple Lambda invocations process SELLs in parallel (up to 10)
+        5. When last SELL completes, Execution Lambda enqueues BUY trades
+        6. Multiple Lambda invocations process BUYs in parallel
+
+        This uses enqueue timing (not FIFO) to ensure all sells complete before buys.
 
         Args:
             rebalance_plan: The rebalance plan to decompose.

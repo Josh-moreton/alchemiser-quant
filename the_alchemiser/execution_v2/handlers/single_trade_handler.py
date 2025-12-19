@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """Business Unit: execution | Status: current.
 
-Single trade handler for per-trade execution via SQS FIFO.
+Single trade handler for per-trade parallel execution via SQS Standard queue.
 
-Processes TradeMessage events from SQS FIFO queue to execute individual trades.
-Each Lambda invocation handles one trade, enabling AWS-native concurrency while
-the FIFO queue guarantees sell-before-buy ordering within a run.
+Processes TradeMessage events to execute individual trades. Multiple Lambda
+invocations process trades concurrently (up to 10 via ReservedConcurrentExecutions),
+enabling parallel execution within each phase.
+
+Two-phase ordering (sells before buys) is achieved via enqueue timing:
+1. Portfolio Lambda enqueues only SELL trades initially (BUYs stored in DynamoDB)
+2. Execution Lambdas process SELLs in parallel
+3. When all SELLs complete, the last Lambda enqueues BUY trades
+4. BUY trades execute in parallel via fresh Lambda invocations
+
+Note: Despite env var name (EXECUTION_FIFO_QUEUE_URL), we use a Standard queue.
+The sequence_number field is preserved for debugging/ordering visibility but does
+not provide FIFO guarantees - ordering is controlled by enqueue timing.
 
 This handler is part of the per-trade execution architecture:
 - Portfolio Lambda decomposes RebalancePlan into individual TradeMessages
-- TradeMessages are enqueued to SQS FIFO with sequence numbers (SELL: 1000+, BUY: 2000+)
-- This handler processes one trade per invocation
-- DynamoDB tracks run state (total_trades, completed_trades)
+- DynamoDB tracks run state (total_trades, completed_trades, phase)
+- When sell_completed == sell_total, this handler triggers BUY phase enqueue
 - Notifications Lambda aggregates results when all trades complete
 """
 
@@ -50,19 +59,28 @@ if TYPE_CHECKING:
 
 
 class SingleTradeHandler:
-    """Event handler for single trade execution from SQS FIFO queue.
+    """Event handler for single trade execution from SQS Standard queue.
 
-    Processes individual TradeMessage events to execute trades one at a time.
+    Processes individual TradeMessage events. Multiple Lambdas can process
+    trades in parallel (up to 10 concurrent via ReservedConcurrentExecutions).
     Each invocation is stateless and idempotent - duplicate messages are detected
     via DynamoDB trade state tracking.
 
-    Workflow:
+    Two-Phase Parallel Execution:
+    1. Portfolio Lambda enqueues SELL trades only (BUYs stored in DynamoDB)
+    2. Multiple Lambdas process SELLs in parallel
+    3. Each Lambda marks its trade complete in DynamoDB
+    4. When all SELLs complete, the last Lambda enqueues BUY trades
+    5. BUYs execute in parallel via fresh Lambda invocations
+
+    Workflow per invocation:
     1. Parse TradeMessage from SQS record
     2. Check for duplicate execution (idempotency via DynamoDB)
     3. Mark trade as started in DynamoDB
     4. Execute the trade using Executor
     5. Mark trade as completed/failed in DynamoDB with result
     6. Emit TradeExecuted event for this individual trade
+    7. If this was the last SELL, enqueue BUY trades to trigger phase 2
 
     The Notifications Lambda monitors DynamoDB and aggregates results when
     all trades in a run are complete.
