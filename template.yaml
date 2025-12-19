@@ -852,6 +852,9 @@ Resources:
           ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
           ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Enable live bar injection - appends today's current price to historical data
+          # This allows indicators (e.g., 200-day SMA) to use the most recent price
+          STRATEGY_APPEND_LIVE_BAR: "true"
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -1557,8 +1560,8 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
         - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: "Execute trading strategy daily at ~3:05 PM New York time (within 3:00-3:15 PM window)"
-      ScheduleExpression: "cron(5 15 ? * MON-FRI *)"
+      Description: "Execute trading strategy daily at ~3:30 PM New York time (within 3:30-3:45 PM window)"
+      ScheduleExpression: "cron(30 15 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow: !If
         - IsProduction

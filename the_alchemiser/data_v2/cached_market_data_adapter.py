@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from the_alchemiser.data_v2.live_bar_provider import LiveBarProvider
 from the_alchemiser.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
@@ -88,6 +89,8 @@ class CachedMarketDataAdapter(MarketDataPort):
         *,
         fallback_adapter: MarketDataPort | None = None,
         enable_live_fallback: bool = False,
+        append_live_bar: bool = False,
+        live_bar_provider: LiveBarProvider | None = None,
     ) -> None:
         """Initialize cached market data adapter.
 
@@ -97,17 +100,29 @@ class CachedMarketDataAdapter(MarketDataPort):
                              Takes precedence over enable_live_fallback.
             enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
                                  Only used if fallback_adapter is None.
+            append_live_bar: Whether to append today's live bar to historical data.
+                            When True, fetches current price from Alpaca Snapshot API
+                            and appends as the most recent bar for indicator computation.
+            live_bar_provider: Optional LiveBarProvider instance. If None and
+                              append_live_bar is True, creates a default provider.
 
         """
         self.market_data_store = market_data_store or MarketDataStore()
         self._fallback_adapter = fallback_adapter
         self._alpaca_manager: AlpacaManager | None = None
         self._enable_live_fallback = enable_live_fallback
+        self._append_live_bar = append_live_bar
+        self._live_bar_provider = live_bar_provider
+
+        # Lazy-init live bar provider if needed
+        if append_live_bar and live_bar_provider is None:
+            self._live_bar_provider = LiveBarProvider()
 
         logger.info(
             "CachedMarketDataAdapter initialized",
             has_fallback_adapter=fallback_adapter is not None,
             live_fallback_enabled=enable_live_fallback,
+            append_live_bar=append_live_bar,
         )
 
     def _get_alpaca_manager(self) -> AlpacaManager:
@@ -256,13 +271,19 @@ class CachedMarketDataAdapter(MarketDataPort):
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Fetch historical bars from S3 cache, with fallback on miss.
 
+        When append_live_bar is enabled, fetches today's bar from Alpaca Snapshot
+        API and appends it to the historical series. This provides strategies with
+        the most recent price data for indicator computation (e.g., using today's
+        price as the 200th data point in a 200-day SMA).
+
         Args:
             symbol: Trading symbol
             period: Lookback period (e.g., "1Y", "6M", "90D")
             timeframe: Bar interval (must be "1Day" for cached data)
 
         Returns:
-            List of BarModel objects, oldest first
+            List of BarModel objects, oldest first. If append_live_bar is enabled,
+            includes today's bar as the most recent entry.
 
         Raises:
             ValueError: If timeframe is not "1Day"
@@ -340,6 +361,68 @@ class CachedMarketDataAdapter(MarketDataPort):
             "Retrieved bars from cache",
             symbol=symbol_str,
             bars_count=len(bars),
+        )
+
+        # Append today's live bar if enabled
+        if self._append_live_bar and self._live_bar_provider is not None:
+            bars = self._append_todays_bar(bars, symbol_str)
+
+        return bars
+
+    def _append_todays_bar(self, bars: list[BarModel], symbol_str: str) -> list[BarModel]:
+        """Append today's live bar to historical bars if not already present.
+
+        Fetches today's OHLCV from Alpaca Snapshot API and appends to the bar
+        series. Checks if the last cached bar is from today to avoid duplicates.
+
+        Args:
+            bars: Historical bars from S3 cache
+            symbol_str: Symbol string for logging
+
+        Returns:
+            Bars with today's bar appended (if fetched successfully)
+
+        """
+        # Guard: this method should only be called when provider is available
+        if self._live_bar_provider is None:
+            logger.warning(
+                "Live bar provider not configured, skipping live bar append",
+                symbol=symbol_str,
+            )
+            return bars
+
+        live_bar = self._live_bar_provider.get_todays_bar(symbol_str)
+
+        if live_bar is None:
+            logger.warning(
+                "Could not fetch live bar, using cached data only",
+                symbol=symbol_str,
+            )
+            return bars
+
+        # Check if last cached bar is already from today (avoid duplicates)
+        today = datetime.now(UTC).date()
+        if bars:
+            last_bar_date = bars[-1].timestamp.date()
+            if last_bar_date == today:
+                logger.debug(
+                    "Last cached bar is from today, replacing with live bar",
+                    symbol=symbol_str,
+                    cached_close=float(bars[-1].close),
+                    live_close=float(live_bar.close),
+                )
+                # Replace the last bar with fresh live data
+                bars[-1] = live_bar
+                return bars
+
+        # Append today's bar
+        bars.append(live_bar)
+        logger.info(
+            "Appended live bar to historical data",
+            symbol=symbol_str,
+            total_bars=len(bars),
+            live_close=float(live_bar.close),
+            live_volume=live_bar.volume,
         )
 
         return bars
