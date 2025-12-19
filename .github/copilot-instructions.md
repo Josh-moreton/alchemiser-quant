@@ -71,7 +71,7 @@ The system is deployed as **AWS Lambda functions** connected via AWS services. T
 ### Lambda Functions
 | Lambda | Handler | Trigger | Publishes To |
 |--------|---------|---------|---------------|
-| Strategy Orchestrator | `coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | Invokes Strategy Workers (async) |
+| Strategy Orchestrator | `coordinator_v2.lambda_handler` | EventBridge Schedule (3:30 PM ET) | Invokes Strategy Workers (async) |
 | Strategy Worker | `strategy_v2.lambda_handler` | Orchestrator (async invocation) | EventBridge (`PartialSignalGenerated`) |
 | Signal Aggregator | `aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | EventBridge (`SignalGenerated`) |
 | Portfolio | `portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | SQS Standard Queue (SELL trades only; BUYs stored in DynamoDB) |

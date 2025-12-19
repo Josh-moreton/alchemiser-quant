@@ -240,7 +240,7 @@ Each microservice has its own Lambda handler:
 
 | Lambda | Handler Path | Trigger | Publishes |
 |--------|--------------|---------|-----------|
-| Strategy Orchestrator | `the_alchemiser.coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET) | Invokes Strategy Workers |
+| Strategy Orchestrator | `the_alchemiser.coordinator_v2.lambda_handler` | EventBridge Schedule (3:30 PM ET) | Invokes Strategy Workers |
 | Strategy Worker | `the_alchemiser.strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | `PartialSignalGenerated` or `SignalGenerated` |
 | Signal Aggregator | `the_alchemiser.aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | `SignalGenerated` |
 | Portfolio | `the_alchemiser.portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | `RebalancePlanned` |

@@ -193,7 +193,7 @@ Staging should mirror production as closely as possible:
 1. **Use paper trading** (default: `https://paper-api.alpaca.markets/v2`)
 2. **Same strategies** as production (but isolated allocation)
 3. **Same equity deployment percentage** as production
-4. **Run on production schedule** (9:35 AM ET daily)
+4. **Run on production schedule** (3:30 PM ET daily)
 5. **Test for multiple weeks** before promoting to prod
 
 ### Key Differences from Dev:

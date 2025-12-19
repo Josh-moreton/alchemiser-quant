@@ -363,7 +363,7 @@ def main() -> int:
     parser.add_argument(
         "--time",
         type=str,
-        help="Target time in UTC (HH:MM, e.g., 14:35 for 2:35 PM UK / 9:35 AM ET)",
+        help="Target time in UTC (HH:MM, e.g., 19:30 for 7:30 PM UK / 3:30 PM ET)",
     )
     parser.add_argument(
         "--window",
@@ -397,7 +397,7 @@ def main() -> int:
         start_date = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
         end_date = start_date + timedelta(days=1)
 
-    # Parse target time if specified (9:35 AM ET = 14:35 UTC = 2:35 PM UK)
+    # Parse target time if specified (3:30 PM ET = 19:30 UTC = 7:30 PM UK)
     target_time = None
     if args.time:
         try:
@@ -406,13 +406,13 @@ def main() -> int:
                 hour=hour, minute=minute
             )
         except ValueError:
-            print(f"❌ Invalid time format: {args.time}. Use HH:MM (e.g., 14:35)")
+            print(f"❌ Invalid time format: {args.time}. Use HH:MM (e.g., 19:30)")
             return 1
 
     print(f"🔍 Comparing signals from {start_date.date()} to {end_date.date()}")
     if target_time:
         print(f"   Time window: ±{args.window} min around {target_time.strftime('%H:%M UTC')}")
-        print(f"                (9:35 AM ET / 2:35 PM UK = 14:35 UTC)")
+        print(f"                (3:30 PM ET / 7:30 PM UK = 19:30 UTC)")
     print(f"   Dev table:  {DEV_TABLE}")
     print(f"   Prod table: {PROD_TABLE}")
 

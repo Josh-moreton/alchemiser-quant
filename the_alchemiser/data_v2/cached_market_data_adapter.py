@@ -1,18 +1,39 @@
 """Business Unit: data | Status: current.
 
-Cached market data adapter for S3-backed market data with optional fallback.
+Cached market data adapter for S3-backed market data with live bar injection.
 
 This adapter implements the MarketDataPort interface using S3 Parquet storage
 as the primary data source. When cache misses occur, it can optionally delegate
 to a configurable fallback adapter (e.g., direct Alpaca API calls).
 
+Live Bar Injection:
+    When `append_live_bar=True`, the adapter fetches today's current bar from
+    Alpaca Snapshot API and appends it to the historical data series. This
+    enables indicators to use the most recent price action (e.g., a 200-day SMA
+    uses 199 historical days + today's current price as the 200th data point).
+
+    The live bar includes today's OHLCV data:
+    - Open: Today's opening price
+    - High/Low: Today's high/low (so far)
+    - Close: Current/latest price
+    - Volume: Today's cumulative volume
+
+    Live bars are cached per-symbol for the duration of the Lambda run to
+    minimize API calls when multiple indicators request the same symbol.
+
+    Enable via environment variable: STRATEGY_APPEND_LIVE_BAR=true
+
 Architecture:
-    S3 Cache (Parquet) -> [cache miss?] -> Fallback Adapter (optional)
-           ↓                                    ↓
+    S3 Cache (Parquet) + Alpaca Snapshot (live) -> CachedMarketDataAdapter
+           ↓                     ↓
+     Historical bars       Today's bar
+           ↓                     ↓
+              Combined series (N+1 bars)
+                      ↓
     IndicatorService <- DSL Strategy Engine <- Strategy Lambda
 
     Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda reads from S3 cache directly.
+    Strategy Lambda reads from S3 cache and optionally appends live bar.
 """
 
 from __future__ import annotations

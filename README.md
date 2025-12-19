@@ -1,4 +1,4 @@
-# The Alchemiser
+so presumably its strategy-worker running the new code then? I just triggered a workflow that completed successfully, # The Alchemiser
 
 A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 
@@ -11,7 +11,7 @@ The Alchemiser is deployed as **AWS Lambda microservices** communicating via Eve
 ```mermaid
 flowchart LR
     subgraph Trigger["⏰ Trigger"]
-        SCHED[EventBridge Schedule<br/>9:35 AM ET M-F]
+        SCHED[EventBridge Schedule<br/>3:30 PM ET M-F]
     end
 
     subgraph Strategy["🎯 Strategy Layer"]
@@ -96,7 +96,7 @@ flowchart LR
 
 | Lambda | Function Name | Handler | Trigger | Publishes To |
 |--------|---------------|---------|---------|---------------|
-| **Strategy Orchestrator** | `alchemiser-{stage}-strategy-orchestrator` | `coordinator_v2.lambda_handler` | EventBridge Schedule (9:35 AM ET M-F) | Invokes Strategy Workers |
+| **Strategy Orchestrator** | `alchemiser-{stage}-strategy-orchestrator` | `coordinator_v2.lambda_handler` | EventBridge Schedule (3:30 PM ET M-F) | Invokes Strategy Workers |
 | **Strategy Worker** | `alchemiser-{stage}-strategy-worker` | `strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | EventBridge: `PartialSignalGenerated` or `SignalGenerated` |
 | **Signal Aggregator** | `alchemiser-{stage}-signal-aggregator` | `aggregator_v2.lambda_handler` | EventBridge: `PartialSignalGenerated` | EventBridge: `SignalGenerated` |
 | **Portfolio** | `alchemiser-{stage}-portfolio` | `portfolio_v2.lambda_handler` | EventBridge: `SignalGenerated` | EventBridge: `RebalancePlanned` |
@@ -136,7 +136,7 @@ sequenceDiagram
     participant SNS as SNS Topic
     participant A as Alpaca API
 
-    Note over Sched,A: Daily Trading Workflow (9:35 AM ET) - Multi-Node Mode
+    Note over Sched,A: Daily Trading Workflow (3:30 PM ET) - Multi-Node Mode
 
     Sched->>SO: Trigger (cron)
     SO->>SO: Create aggregation session
@@ -225,7 +225,7 @@ The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
 
 **Purpose**: Entry point that dispatches parallel strategy execution.
 
-**Trigger**: EventBridge Schedule (9:35 AM ET, M-F)
+**Trigger**: EventBridge Schedule (3:30 PM ET, M-F)
 **Outputs**: Invokes Strategy Workers asynchronously
 
 **Key Components**:

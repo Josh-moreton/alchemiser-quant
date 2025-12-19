@@ -21,7 +21,7 @@ This document provides a detailed, code-accurate design for migrating the Alchem
 ### 1.1 High-Level Workflow
 
 ```
-EventBridge Schedule (9:35 AM ET)
+EventBridge Schedule (3:30 PM ET)
     ↓
 Strategy Lambda
     → Generates signals

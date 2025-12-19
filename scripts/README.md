@@ -14,8 +14,8 @@ Compare strategy signals between dev and production environments to verify parit
 # Compare today's signals (all signals from the day)
 poetry run python scripts/compare_strategy_signals.py
 
-# Compare today's signals at scheduled time (14:35 UTC = 9:35 AM ET = 2:35 PM UK)
-poetry run python scripts/compare_strategy_signals.py --date today --time 14:35 --window 5
+# Compare today's signals at scheduled time (19:30 UTC = 3:30 PM ET = 7:30 PM UK)
+poetry run python scripts/compare_strategy_signals.py --date today --time 19:30 --window 5
 
 # Compare specific date at scheduled time
 poetry run python scripts/compare_strategy_signals.py --date 2025-12-09 --time 14:35 --window 10

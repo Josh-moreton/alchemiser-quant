@@ -135,6 +135,50 @@ All errors include:
 - **Deterministic**: Same inputs → same signals
 - **Correlation ID** propagation for end-to-end observability
 - **Batched API calls**: Minimize Alpaca API requests
+- **Live bar caching**: Today's bar fetched once per symbol, cached for Lambda duration
+
+## Market Data: Live Bar Injection
+
+The strategy module supports **live bar injection** to ensure indicators use the most
+recent price data when trading at end-of-day (3:30 PM ET).
+
+### How It Works
+
+1. **Historical bars** (through yesterday) are read from S3 Parquet cache (nightly refresh)
+2. **Today's bar** is fetched from Alpaca Snapshot API with current OHLCV
+3. **Combined series** is passed to indicators (e.g., 199 historical + 1 live = 200 bars)
+
+### Configuration
+
+Enable via environment variable:
+```bash
+STRATEGY_APPEND_LIVE_BAR=true
+```
+
+This is set automatically in `template.yaml` for the Strategy Lambda.
+
+### Data Flow
+
+```
+S3 Parquet (historical)  +  Alpaca Snapshot API (today)
+         ↓                           ↓
+   249 bars (past)            1 bar (today's live OHLCV)
+                 ↘           ↙
+           CachedMarketDataAdapter
+                     ↓
+             250 bars total
+                     ↓
+            IndicatorService
+                     ↓
+              DSL Strategy
+```
+
+### Benefits
+
+- **Fresh signals**: 200-day SMA uses today's current price, not yesterday's close
+- **Volume data**: Today's cumulative volume available for volume-based indicators
+- **Efficient**: Live bar cached per-symbol for duration of Lambda run
+- **Backward compatible**: Disable with `STRATEGY_APPEND_LIVE_BAR=false`
 
 ## Logging
 
