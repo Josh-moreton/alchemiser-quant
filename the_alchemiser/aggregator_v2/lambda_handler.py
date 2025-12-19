@@ -145,13 +145,29 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             correlation_id=correlation_id,
         )
 
-        # Merge signals data
+        # Merge signals data (lightweight - just strategy names for Portfolio Lambda)
         merged_signals_data = portfolio_merger.merge_signals_data(
-            partial_signals=all_partial_signals
+            partial_signals=all_partial_signals,
+            lightweight=True,  # Reduce payload size for EventBridge
         )
 
         # Calculate total signal count
         total_signal_count = sum(p.get("signal_count", 0) for p in all_partial_signals)
+
+        # Create lightweight portfolio for EventBridge (strip strategy_contributions)
+        # Portfolio Lambda only needs target_allocations and metadata
+        lightweight_portfolio = {
+            "target_allocations": {
+                k: str(v) for k, v in merged_portfolio.target_allocations.items()
+            },
+            "correlation_id": merged_portfolio.correlation_id,
+            "timestamp": merged_portfolio.timestamp.isoformat(),
+            "strategy_count": merged_portfolio.strategy_count,
+            "source_strategies": merged_portfolio.source_strategies,
+            "schema_version": merged_portfolio.schema_version,
+            "is_partial": merged_portfolio.is_partial,
+            # Omit strategy_contributions to reduce payload size
+        }
 
         # Build consolidated SignalGenerated event
         signal_event = SignalGenerated(
@@ -162,7 +178,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             source_module="aggregator_v2",
             source_component="SignalAggregator",
             signals_data=merged_signals_data,
-            consolidated_portfolio=merged_portfolio.model_dump(mode="json"),
+            consolidated_portfolio=lightweight_portfolio,
             signal_count=total_signal_count,
             metadata={
                 "aggregation_session_id": session_id,

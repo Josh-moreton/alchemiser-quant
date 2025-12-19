@@ -173,6 +173,8 @@ class PortfolioMerger:
     def merge_signals_data(
         self,
         partial_signals: list[dict[str, Any]],
+        *,
+        lightweight: bool = False,
     ) -> dict[str, Any]:
         """Merge signals_data from multiple partial signals.
 
@@ -182,11 +184,23 @@ class PortfolioMerger:
         Args:
             partial_signals: List of partial signal dicts with
                 'signals_data' and 'dsl_file' keys.
+            lightweight: If True, only include strategy names and minimal
+                metadata to reduce payload size for EventBridge (256KB limit).
 
         Returns:
             Merged signals_data dict.
 
         """
+        if lightweight:
+            # Lightweight format for EventBridge - just strategy names
+            # Portfolio Lambda only needs keys for strategy name extraction
+            return {
+                strategy_name: {"aggregated": True}
+                for partial in partial_signals
+                for strategy_name in partial.get("signals_data", {}).keys()
+            }
+
+        # Full format - includes all strategy details
         merged: dict[str, Any] = {
             "strategies": {},
             "aggregated": True,
