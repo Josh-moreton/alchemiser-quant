@@ -125,7 +125,7 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
         account_info: Account information as dict or SDK object
 
     Returns:
-        Dictionary with cash, buying_power, and portfolio_value as Decimal
+        Dictionary with cash, buying_power, and equity as Decimal
 
     Note:
         Negative cash is allowed for margin accounts - margin safety checks
@@ -136,14 +136,16 @@ def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, 
         result = {
             "cash": _to_decimal_safe(account_info.get("cash", 0)),
             "buying_power": _to_decimal_safe(account_info.get("buying_power", 0)),
-            "portfolio_value": _to_decimal_safe(account_info.get("portfolio_value", 0)),
+            # Use equity instead of deprecated portfolio_value
+            "equity": _to_decimal_safe(account_info.get("equity", 0)),
         }
     else:
         # Assume it's an SDK object with attributes
         result = {
             "cash": _to_decimal_safe(getattr(account_info, "cash", 0)),
             "buying_power": _to_decimal_safe(getattr(account_info, "buying_power", 0)),
-            "portfolio_value": _to_decimal_safe(getattr(account_info, "portfolio_value", 0)),
+            # Use equity instead of deprecated portfolio_value
+            "equity": _to_decimal_safe(getattr(account_info, "equity", 0)),
         }
 
     return result
@@ -616,14 +618,15 @@ class PortfolioAnalysisHandler:
             Dictionary with target_values, current_values, and deltas as Decimal
 
         """
-        portfolio_value = account_dict.get("portfolio_value", Decimal("0"))
+        # Use equity instead of deprecated portfolio_value
+        equity = account_dict.get("equity", Decimal("0"))
 
         # Calculate current allocations as percentages using Decimal
         current_allocations = {}
-        if portfolio_value > Decimal("0"):
+        if equity > Decimal("0"):
             for symbol, market_value in positions_dict.items():
                 # Calculate percentage allocation with Decimal precision
-                current_allocations[symbol] = (market_value / portfolio_value) * Decimal("100")
+                current_allocations[symbol] = (market_value / equity) * Decimal("100")
 
         # Get target allocations from consolidated portfolio
         target_allocations = consolidated_portfolio.target_allocations
@@ -684,9 +687,10 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Use provided correlation_id instead of generating new one
-            portfolio_value = account_info.get("portfolio_value", Decimal("0"))
-            if not isinstance(portfolio_value, Decimal):
-                portfolio_value = Decimal(str(portfolio_value))
+            # Use equity instead of deprecated portfolio_value
+            equity = account_info.get("equity", Decimal("0"))
+            if not isinstance(equity, Decimal):
+                equity = Decimal(str(equity))
 
             # target_values are already percentages, use them directly as weights
             target_weights = {}
@@ -695,7 +699,7 @@ class PortfolioAnalysisHandler:
 
             strategy_allocation = StrategyAllocation(
                 target_weights=target_weights,
-                portfolio_value=portfolio_value,
+                portfolio_value=equity,  # Use equity as portfolio value
                 correlation_id=correlation_id,
             )
 

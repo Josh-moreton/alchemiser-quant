@@ -41,7 +41,7 @@ def build_allocation_comparison(
 
     Args:
         consolidated_portfolio: Target allocation percentages by symbol (Decimal precision)
-        account_dict: Account information including portfolio_value or equity
+        account_dict: Account information including equity (preferred) or portfolio_value
         positions_dict: Current positions with market values by symbol
         correlation_id: Optional correlation ID for request tracing
 
@@ -52,7 +52,7 @@ def build_allocation_comparison(
         - deltas: Dict of symbol to dollar differences (Decimal)
 
     Raises:
-        ConfigurationError: If portfolio value cannot be determined from account info
+        ConfigurationError: If equity cannot be determined from account info
 
     """
     logger.info(
@@ -63,32 +63,32 @@ def build_allocation_comparison(
             "num_current_positions": len(positions_dict),
         },
     )
-    # Get portfolio value from account info
-    portfolio_value = account_dict.get("portfolio_value")
-    # Treat missing or zero portfolio_value as unavailable and fall back to equity
-    if portfolio_value in (None, 0, 0.0, "0", "0.0"):
-        portfolio_value = account_dict.get("equity")
+    # Get equity from account info (use equity, not deprecated portfolio_value)
+    equity = account_dict.get("equity")
+    # Fall back to portfolio_value for backward compatibility with older data
+    if equity in (None, 0, 0.0, "0", "0.0"):
+        equity = account_dict.get("portfolio_value")
 
-    if portfolio_value is None:
+    if equity is None:
         logger.error(
-            "Portfolio value not available in account info",
+            "Equity not available in account info",
             extra={
                 "correlation_id": correlation_id,
                 "account_keys": list(account_dict.keys()),
             },
         )
         raise ConfigurationError(
-            "Portfolio value not available in account info. "
-            "Cannot calculate target allocation values without portfolio value."
+            "Equity not available in account info. "
+            "Cannot calculate target allocation values without equity."
         )
 
-    # Convert portfolio_value to Money for precise calculations
-    portfolio_value_money = Money.from_decimal(Decimal(str(portfolio_value)), "USD")
+    # Convert equity to Money for precise calculations
+    equity_money = Money.from_decimal(Decimal(str(equity)), "USD")
     logger.debug(
-        "Portfolio value determined",
+        "Equity determined",
         extra={
             "correlation_id": correlation_id,
-            "portfolio_value": str(portfolio_value_money.to_decimal()),
+            "equity": str(equity_money.to_decimal()),
         },
     )
 
@@ -98,14 +98,14 @@ def build_allocation_comparison(
     # base capital (cash + sell proceeds) instead.
     settings = load_settings()
     deployment_multiplier = Decimal(str(settings.alpaca.effective_deployment_pct))
-    effective_portfolio_value = portfolio_value_money.multiply(deployment_multiplier)
+    effective_equity = equity_money.multiply(deployment_multiplier)
 
-    # Calculate target values in dollars using effective portfolio value
+    # Calculate target values in dollars using effective equity
     target_values = {}
     for symbol, weight in consolidated_portfolio.items():
         # Convert weight to Decimal if needed (Money.multiply requires Decimal)
         weight_decimal = weight if isinstance(weight, Decimal) else Decimal(str(weight))
-        target_money = effective_portfolio_value.multiply(weight_decimal)
+        target_money = effective_equity.multiply(weight_decimal)
         target_values[symbol] = target_money.to_decimal()
 
     # Convert current position values to Money then extract Decimal

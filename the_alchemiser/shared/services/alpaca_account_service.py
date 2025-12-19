@@ -226,10 +226,14 @@ class AlpacaAccountService:
             raise TradingClientError("Invalid buying power value") from e
 
     def get_portfolio_value(self) -> Decimal | None:
-        """Get current portfolio value.
+        """Get current portfolio value (equity).
+
+        Note: Uses 'equity' field instead of deprecated 'portfolio_value'.
+        Both represent total value of cash + holdings, but 'equity' is the
+        canonical field per Alpaca API documentation.
 
         Returns:
-            Portfolio value as Decimal or None if unavailable
+            Portfolio equity as Decimal or None if unavailable
 
         Raises:
             TradingClientError: If account retrieval fails
@@ -237,12 +241,9 @@ class AlpacaAccountService:
         """
         try:
             account = self._get_account_object()
-            if (
-                account
-                and hasattr(account, "portfolio_value")
-                and account.portfolio_value is not None
-            ):
-                return Decimal(str(account.portfolio_value))
+            # Use equity instead of deprecated portfolio_value
+            if account and hasattr(account, "equity") and account.equity is not None:
+                return Decimal(str(account.equity))
             return None
         except TradingClientError:
             # Already logged in _get_account_object
