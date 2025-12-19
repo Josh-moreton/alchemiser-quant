@@ -1,4 +1,4 @@
-so presumably its strategy-worker running the new code then? I just triggered a workflow that completed successfully, # The Alchemiser
+# The Alchemiser
 
 A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 
