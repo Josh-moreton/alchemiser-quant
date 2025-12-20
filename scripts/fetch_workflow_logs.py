@@ -62,7 +62,6 @@ LAMBDA_FUNCTIONS = [
     "trade-aggregator",
     "notifications",
     "metrics",
-    "data",
 ]
 
 # Log levels to include when filtering for issues
@@ -70,13 +69,13 @@ ERROR_LEVELS = {"error", "warning", "critical", "fatal"}
 
 # Patterns that indicate errors even if level isn't set
 ERROR_PATTERNS = [
-    r"traceback",
-    r"exception",
-    r"error",
-    r"failed",
-    r"failure",
-    r"timeout",
-    r"timed out",
+    r"\btraceback\b",
+    r"\bexception\b",
+    r"\berror\b",
+    r"\bfailed\b",
+    r"\bfailure\b",
+    r"\btimeout\b",
+    r"\btimed out\b",
 ]
 
 # ANSI colour codes for terminal output
@@ -383,10 +382,16 @@ def is_error_event(event: dict[str, Any]) -> bool:
     """
     # Check log level
     level = event.get("level", "").lower()
-    if level in ERROR_LEVELS:
-        return True
-
-    # Check for error patterns in the message
+    
+    # If we have an explicit level, trust it
+    if level:
+        if level in ERROR_LEVELS:
+            return True
+        # If it's debug/info, it's not an error unless it has an explicit error field
+        if level in {"debug", "info"}:
+            return bool(event.get("error") or event.get("exception") or event.get("error_id"))
+        
+    # Check for error patterns in the message (primarily for raw logs or fallback)
     message_text = event.get("event", "") + " " + event.get("_raw_message", "")
     message_lower = message_text.lower()
 
@@ -394,7 +399,7 @@ def is_error_event(event: dict[str, Any]) -> bool:
         if re.search(pattern, message_lower):
             return True
 
-    # Check if there's an error field
+    # Check if there's an error field (safety net)
     if event.get("error") or event.get("exception") or event.get("error_id"):
         return True
 
@@ -652,15 +657,61 @@ def print_signal_analysis(signal: dict) -> None:
         print(f"      ... and {len(sorted_allocs) - 10} more")
 
 
-def print_rebalance_plan_analysis(plan: dict) -> None:
-    """Print rebalance plan analysis with deployment ratio check.
+def extract_executed_trades(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Extract executed trade results from TradeExecuted events in logs.
+
+    Args:
+        events: List of log events
+
+    Returns:
+        List of executed trade results with symbol, action, success status
+
+    """
+    executed_trades = []
+
+    for event in events:
+        # Look for execution lambda logs that logged trade execution
+        if "execution" in event.get("_lambda_name", "").lower():
+            # Check for OrderResult objects in execution data
+            execution_data = event.get("execution_data")
+
+            if execution_data:
+                if isinstance(execution_data, str):
+                    try:
+                        execution_data = json.loads(execution_data)
+                    except json.JSONDecodeError:
+                        continue
+
+                # Extract individual orders
+                if isinstance(execution_data, dict):
+                    orders = execution_data.get("orders", [])
+                    if isinstance(orders, str):
+                        try:
+                            orders = json.loads(orders)
+                        except json.JSONDecodeError:
+                            orders = []
+
+                    if isinstance(orders, list):
+                        for order in orders:
+                            if isinstance(order, dict) and order.get("symbol"):
+                                executed_trades.append(order)
+
+    return executed_trades
+
+
+def print_trades_execution_summary(plan: dict, events: list[dict[str, Any]]) -> None:
+    """Print trade summary showing planned rebalance plan with execution status.
+
+    Shows the rebalance plan items and highlights which were executed successfully
+    and which failed, with failure reasons highlighted in red.
 
     Args:
         plan: The rebalance plan data
+        events: List of log events (to extract execution results)
 
     """
-    print(f"\n{colour('📋 REBALANCE PLAN', 'bold')}")
-    print("=" * 80)
+    print(f"\n{colour('📋 REBALANCE PLAN & EXECUTION SUMMARY', 'bold')}")
+    print("=" * 110)
 
     metadata = plan.get("metadata", {})
     portfolio_value = metadata.get("portfolio_value", plan.get("total_portfolio_value", "N/A"))
@@ -671,73 +722,100 @@ def print_rebalance_plan_analysis(plan: dict) -> None:
     print(f"   Plan ID: {plan.get('plan_id', 'N/A')}")
 
     items = plan.get("items", [])
+    executed_trades = extract_executed_trades(events)
+
+    # Create a map of executed trades by symbol
+    executed_by_symbol = {}
+    for trade in executed_trades:
+        symbol = trade.get("symbol", "")
+        if symbol:
+            executed_by_symbol[symbol] = trade
+
+    # Print header
+    print(f"\n   {colour('PLANNED TRADES:', 'bold')}")
+    print(f"   {'-' * 106}")
+    print(f"   {'Act':<4} {'Symbol':<8} {'Qty':<12} {'Amount':<15} {'Status':<65}")
+    print(f"   {'-' * 106}")
+
+    # Print each planned trade with execution status
+    for item in items:
+        symbol = item.get("symbol", "?")
+        action = item.get("action", "?")[0:3]  # BUY/SELL -> BUY/SEL
+        target_qty = item.get("target_quantity", 0)
+        trade_amt = item.get("trade_amount", 0)
+
+        # Check if this trade was executed
+        executed = executed_by_symbol.get(symbol)
+
+        if executed:
+            success = executed.get("success", False)
+            if success:
+                status = colour("✓ EXECUTED", "green")
+            else:
+                error = executed.get("error_message", "Unknown error")
+                # Truncate long error messages
+                if len(error) > 55:
+                    error = error[:52] + "..."
+                status = colour(f"✗ FAILED: {error}", "red")
+        else:
+            # Not executed yet or skipped
+            if executed and executed.get("skipped", False):
+                skip_reason = executed.get("skip_reason", "Skipped")
+                status = colour(f"⊘ {skip_reason}", "yellow")
+            else:
+                status = colour("○ NOT EXECUTED", "grey")
+
+        print(f"   {action:<4} {symbol:<8} {str(target_qty):<12} {format_money(trade_amt):<15} {status}")
+
+    print(f"   {'-' * 106}")
+
+    # Summary stats
     buys = [i for i in items if i.get("action") == "BUY"]
     sells = [i for i in items if i.get("action") == "SELL"]
     holds = [i for i in items if i.get("action") == "HOLD"]
 
     total_buy = sum(Decimal(str(i.get("trade_amount", 0))) for i in buys)
     total_sell = sum(abs(Decimal(str(i.get("trade_amount", 0)))) for i in sells)
-    total_target_value = sum(Decimal(str(i.get("target_value", 0))) for i in items)
 
-    print(f"\n   {colour('Trade Summary:', 'bold')}")
+    # Count execution results
+    successful_trades = len([t for t in executed_trades if t.get("success", False)])
+    failed_trades = len([t for t in executed_trades if not t.get("success", False) and not t.get("skipped", False)])
+    skipped_trades = len([t for t in executed_trades if t.get("skipped", False)])
+
+    print(f"\n   {colour('PLAN SUMMARY:', 'bold')}")
     print(f"      BUY orders:  {len(buys):3d} totaling {format_money(total_buy)}")
     print(f"      SELL orders: {len(sells):3d} totaling {format_money(total_sell)}")
     print(f"      HOLD:        {len(holds):3d}")
-    print(f"      Net capital needed: {format_money(total_buy - total_sell)}")
 
-    print(f"\n   {colour('Deployment Analysis:', 'bold')}")
-    print(f"      Sum of ALL target values: {format_money(total_target_value)}")
-    print(f"      Portfolio value: {format_money(portfolio_value)}")
+    if executed_trades:
+        print(f"\n   {colour('EXECUTION RESULTS:', 'bold')}")
+        print(f"      Successful: {colour(str(successful_trades), 'green')}")
+        if failed_trades > 0:
+            print(f"      {colour(f'Failed: {failed_trades}', 'red')}")
+        if skipped_trades > 0:
+            print(f"      Skipped: {skipped_trades}")
 
+    # Deployment check
     try:
+        total_target_value = sum(Decimal(str(i.get("target_value", 0))) for i in items)
         pv = Decimal(str(portfolio_value))
         if pv > 0:
             deployment_pct = (total_target_value / pv) * 100
             deployment_str = f"{float(deployment_pct):.1f}%"
+            print(f"\n   {colour('DEPLOYMENT RATIO:', 'bold')} {deployment_str}")
             if deployment_pct > 100:
-                print(f"      {colour(f'==> DEPLOYMENT RATIO: {deployment_str}', 'yellow')}")
-                print(f"      {colour('⚠️  Attempting to deploy MORE than 100% of equity!', 'yellow')}")
-            else:
-                print(f"      ==> DEPLOYMENT RATIO: {colour(deployment_str, 'green')}")
+                print(f"   {colour('⚠️  WARNING: Deployment exceeds 100%!', 'yellow')}")
     except (InvalidOperation, ValueError, TypeError):
-        pass  # Portfolio value may be missing or invalid
-
-    # Check for negative cash (already in margin)
-    try:
-        cash = Decimal(str(cash_balance))
-        if cash < 0:
-            print(f"\n      {colour('⚠️  NEGATIVE CASH BALANCE - Account already using margin!', 'red')}")
-    except (InvalidOperation, ValueError, TypeError):
-        pass  # Cash balance may be missing or invalid
-
-    # Print largest trades
-    if sells:
-        print(f"\n   {colour('Largest SELL Orders:', 'bold')}")
-        sells_sorted = sorted(
-            sells, key=lambda x: abs(Decimal(str(x.get("trade_amount", 0)))), reverse=True
-        )
-        for item in sells_sorted[:5]:
-            symbol = item.get("symbol", "?")
-            trade_amt = format_money(item.get("trade_amount", 0))
-            print(f"      {symbol:<8} {trade_amt:>12}")
-
-    if buys:
-        print(f"\n   {colour('Largest BUY Orders:', 'bold')}")
-        buys_sorted = sorted(
-            buys, key=lambda x: Decimal(str(x.get("trade_amount", 0))), reverse=True
-        )
-        for item in buys_sorted[:5]:
-            symbol = item.get("symbol", "?")
-            trade_amt = format_money(item.get("trade_amount", 0))
-            print(f"      {symbol:<8} {trade_amt:>12}")
+        pass
 
 
-def print_workflow_data(correlation_id: str, stage: str) -> None:
+def print_workflow_data(correlation_id: str, stage: str, events: list[dict[str, Any]]) -> None:
     """Fetch and print workflow data from DynamoDB.
 
     Args:
         correlation_id: The workflow correlation ID
         stage: Environment stage (dev or prod)
+        events: List of log events (used to extract execution results)
 
     """
     print(f"\n{colour('📦 Fetching workflow data from DynamoDB...', 'cyan')}")
@@ -754,7 +832,8 @@ def print_workflow_data(correlation_id: str, stage: str) -> None:
     # Get rebalance plan
     plan = get_rebalance_plan(dynamodb, correlation_id, stage)
     if plan:
-        print_rebalance_plan_analysis(plan)
+        # Use new function that shows rebalance plan with execution summary
+        print_trades_execution_summary(plan, events)
     else:
         print(f"   {colour('⚠️  No rebalance plan found in DynamoDB', 'yellow')}")
 
@@ -940,7 +1019,7 @@ Examples:
 
         # Print workflow data from DynamoDB (signal and rebalance plan)
         if not args.no_data:
-            print_workflow_data(correlation_id, args.stage)
+            print_workflow_data(correlation_id, args.stage, events)
 
     return 0
 
