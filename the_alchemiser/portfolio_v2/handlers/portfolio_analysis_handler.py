@@ -374,11 +374,17 @@ class PortfolioAnalysisHandler:
             # Persist rebalance plan for auditability (90-day TTL)
             self._persist_rebalance_plan(rebalance_plan)
 
+            # Extract Alpaca equity for circuit breaker (authoritative broker value)
+            alpaca_equity = account_info.get("equity", Decimal("0"))
+            if not isinstance(alpaca_equity, Decimal):
+                alpaca_equity = Decimal(str(alpaca_equity))
+
             # Emit RebalancePlanned event with proper causation
             self._emit_rebalance_planned_event(
                 rebalance_plan,
                 allocation_comparison,
                 event,
+                alpaca_equity=alpaca_equity,
             )
 
             self.logger.info(
@@ -872,6 +878,8 @@ class PortfolioAnalysisHandler:
         rebalance_plan: RebalancePlan,
         allocation_comparison: AllocationComparison,
         original_event: SignalGenerated,
+        *,
+        alpaca_equity: Decimal | None = None,
     ) -> None:
         """Emit RebalancePlanned event with proper causation chain.
 
@@ -888,6 +896,7 @@ class PortfolioAnalysisHandler:
             rebalance_plan: Generated rebalance plan
             allocation_comparison: Allocation comparison data
             original_event: The original SignalGenerated event that triggered this analysis
+            alpaca_equity: Alpaca account equity for circuit breaker calculation.
 
         """
         try:
@@ -919,6 +928,7 @@ class PortfolioAnalysisHandler:
                     rebalance_plan=rebalance_plan,
                     correlation_id=original_event.correlation_id,
                     causation_id=original_event.event_id,
+                    alpaca_equity=alpaca_equity,
                 )
 
             # Emit RebalancePlanned event to internal event bus (for lambda_handler capture)
@@ -982,6 +992,8 @@ class PortfolioAnalysisHandler:
         rebalance_plan: RebalancePlan,
         correlation_id: str,
         causation_id: str,
+        *,
+        alpaca_equity: Decimal | None = None,
     ) -> None:
         """Decompose rebalance plan and enqueue to SQS Standard queue for parallel execution.
 
@@ -999,6 +1011,7 @@ class PortfolioAnalysisHandler:
             rebalance_plan: The rebalance plan to decompose.
             correlation_id: Workflow correlation ID.
             causation_id: Event that caused this operation.
+            alpaca_equity: Alpaca account equity for circuit breaker calculation.
 
         """
         import boto3
@@ -1072,20 +1085,27 @@ class PortfolioAnalysisHandler:
         buy_trades = [m for m in trade_messages if m.phase == "BUY"]
 
         # Calculate max equity deployment limit for circuit breaker
-        # max_equity_limit = portfolio_value * EQUITY_DEPLOYMENT_PCT
+        # max_equity_limit = alpaca_equity * EQUITY_DEPLOYMENT_PCT
         # This prevents over-deployment if BUY trades would exceed this limit
+        # Uses Alpaca's authoritative equity value (not our calculated total_portfolio_value)
         from the_alchemiser.shared.config.config import load_settings
 
         settings = load_settings()
         equity_deployment_pct = Decimal(str(settings.alpaca.effective_deployment_pct))
-        max_equity_limit_usd = rebalance_plan.total_portfolio_value * equity_deployment_pct
+
+        # Use Alpaca equity if provided, fallback to total_portfolio_value
+        circuit_breaker_equity = (
+            alpaca_equity if alpaca_equity else rebalance_plan.total_portfolio_value
+        )
+        max_equity_limit_usd = circuit_breaker_equity * equity_deployment_pct
 
         self.logger.info(
             "Calculated equity deployment limit for circuit breaker",
             extra={
                 "run_id": run_id,
                 "correlation_id": correlation_id,
-                "total_portfolio_value": str(rebalance_plan.total_portfolio_value),
+                "alpaca_equity": str(alpaca_equity) if alpaca_equity else "N/A",
+                "circuit_breaker_equity": str(circuit_breaker_equity),
                 "equity_deployment_pct": str(equity_deployment_pct),
                 "max_equity_limit_usd": str(max_equity_limit_usd),
             },
