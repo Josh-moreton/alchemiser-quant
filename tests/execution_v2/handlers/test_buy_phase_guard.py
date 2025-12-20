@@ -38,9 +38,7 @@ class TestBuyPhaseGuard:
         return MagicMock()
 
     @pytest.fixture
-    def handler(
-        self, mock_container: MagicMock, mock_run_service: MagicMock
-    ) -> SingleTradeHandler:
+    def handler(self, mock_container: MagicMock, mock_run_service: MagicMock) -> SingleTradeHandler:
         """Create handler with mocked dependencies."""
         return SingleTradeHandler(
             container=mock_container,

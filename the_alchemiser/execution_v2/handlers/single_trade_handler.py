@@ -332,6 +332,64 @@ class SingleTradeHandler:
                     "trade_id": trade_id,
                 }
 
+            # ========================================
+            # EQUITY DEPLOYMENT CIRCUIT BREAKER (BUY only)
+            # ========================================
+            # Before executing BUY trades, check if cumulative deployed equity
+            # would exceed the configured limit (portfolio_equity * EQUITY_DEPLOYMENT_PCT).
+            # This prevents over-deployment and potential margin calls.
+            if trade_message.phase == "BUY":
+                allowed, breaker_details = self.run_service.check_equity_circuit_breaker(
+                    run_id=run_id,
+                    proposed_buy_value=abs(trade_message.trade_amount),
+                )
+
+                if not allowed:
+                    self.logger.critical(
+                        f"🚫 EQUITY CIRCUIT BREAKER TRIGGERED - Blocking BUY for {trade_message.symbol}",
+                        extra={
+                            "run_id": run_id,
+                            "trade_id": trade_id,
+                            "symbol": trade_message.symbol,
+                            "proposed_buy_value": str(trade_message.trade_amount),
+                            "correlation_id": correlation_id,
+                            **{k: str(v) for k, v in breaker_details.items()},
+                        },
+                    )
+
+                    # Mark trade as failed due to circuit breaker
+                    completion_result = self.run_service.mark_trade_completed(
+                        run_id=run_id,
+                        trade_id=trade_id,
+                        success=False,
+                        order_id=None,
+                        error_message=(
+                            f"Equity circuit breaker: cumulative buys "
+                            f"${breaker_details.get('cumulative_buy_succeeded_value', 0)} + "
+                            f"proposed ${abs(trade_message.trade_amount):.2f} would exceed "
+                            f"limit ${breaker_details.get('max_equity_limit_usd', 0)}"
+                        ),
+                        phase=trade_message.phase,
+                        trade_amount=abs(trade_message.trade_amount),
+                    )
+
+                    # Mark the run as FAILED and emit WorkflowFailed event
+                    self.run_service.update_run_status(run_id, "FAILED")
+                    self._emit_equity_circuit_breaker_event(
+                        run_id=run_id,
+                        correlation_id=correlation_id,
+                        trade_message=trade_message,
+                        breaker_details=breaker_details,
+                    )
+
+                    return {
+                        "success": False,
+                        "skipped": False,
+                        "reason": "equity_circuit_breaker_triggered",
+                        "trade_id": trade_id,
+                        "error": "Equity deployment limit exceeded",
+                    }
+
             # Create Executor and execute the trade
             executor = self._create_executor()
             config = ExecutionConfig()
@@ -760,6 +818,8 @@ class SingleTradeHandler:
                     sqs_client.send_message(
                         QueueUrl=queue_url,
                         MessageBody=trade["message_body"],
+                        MessageDeduplicationId=trade["trade_id"],  # Exactly-once per trade
+                        MessageGroupId=trade["symbol"],  # Parallel execution across symbols
                         MessageAttributes={
                             "RunId": {"DataType": "String", "StringValue": run_id},
                             "TradeId": {"DataType": "String", "StringValue": trade["trade_id"]},
@@ -1083,6 +1143,86 @@ class SingleTradeHandler:
             # Log but don't fail - the run status was already updated
             self.logger.error(
                 f"Failed to emit WorkflowFailed event: {e}",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+
+    def _emit_equity_circuit_breaker_event(
+        self,
+        run_id: str,
+        correlation_id: str,
+        trade_message: TradeMessage,
+        breaker_details: dict[str, Any],
+    ) -> None:
+        """Emit WorkflowFailed event when equity circuit breaker is triggered.
+
+        This event triggers notifications to alert operators that the trading
+        workflow was halted because cumulative BUY trades would exceed the
+        configured equity deployment limit.
+
+        Args:
+            run_id: Execution run identifier.
+            correlation_id: Workflow correlation ID.
+            trade_message: The BUY trade that triggered the circuit breaker.
+            breaker_details: Circuit breaker state details from check.
+
+        """
+        try:
+            cumulative = breaker_details.get("cumulative_buy_succeeded_value", Decimal("0"))
+            max_limit = breaker_details.get("max_equity_limit_usd", Decimal("0"))
+            proposed = abs(trade_message.trade_amount)
+
+            event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=run_id,
+                event_id=f"equity-circuit-breaker-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module=EXECUTION_HANDLERS_MODULE,
+                source_component="SingleTradeHandler",
+                workflow_type="TradingExecution",
+                failure_reason=(
+                    f"Equity circuit breaker triggered: cumulative BUY value "
+                    f"(${cumulative:.2f}) + proposed (${proposed:.2f}) "
+                    f"would exceed limit (${max_limit:.2f})"
+                ),
+                failure_step="EQUITY_CIRCUIT_BREAKER",
+                error_details={
+                    "run_id": run_id,
+                    "trade_id": trade_message.trade_id,
+                    "symbol": trade_message.symbol,
+                    "proposed_buy_value": str(proposed),
+                    "cumulative_buy_succeeded_value": str(cumulative),
+                    "max_equity_limit_usd": str(max_limit),
+                    "new_cumulative_if_executed": str(cumulative + proposed),
+                    "overage": str(cumulative + proposed - max_limit),
+                    "guard_action": "EQUITY_CIRCUIT_BREAKER_TRIGGERED",
+                    "risk_prevented": "Over-deployment beyond configured equity limit",
+                },
+            )
+
+            self.event_bus.publish(event)
+
+            # Publish to EventBridge for Notifications Lambda to receive
+            publish_to_eventbridge(event)
+
+            self.logger.info(
+                "📡 Emitted WorkflowFailed event for equity circuit breaker",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "symbol": trade_message.symbol,
+                    "cumulative_buy": str(cumulative),
+                    "max_limit": str(max_limit),
+                },
+            )
+
+        except Exception as e:
+            # Log but don't fail - the run status was already updated
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event for equity circuit breaker: {e}",
                 extra={
                     "run_id": run_id,
                     "correlation_id": correlation_id,

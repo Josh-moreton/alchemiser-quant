@@ -1071,6 +1071,26 @@ class PortfolioAnalysisHandler:
         sell_trades = [m for m in trade_messages if m.phase == "SELL"]
         buy_trades = [m for m in trade_messages if m.phase == "BUY"]
 
+        # Calculate max equity deployment limit for circuit breaker
+        # max_equity_limit = portfolio_value * EQUITY_DEPLOYMENT_PCT
+        # This prevents over-deployment if BUY trades would exceed this limit
+        from the_alchemiser.shared.config.config import load_settings
+
+        settings = load_settings()
+        equity_deployment_pct = Decimal(str(settings.alpaca.effective_deployment_pct))
+        max_equity_limit_usd = rebalance_plan.total_portfolio_value * equity_deployment_pct
+
+        self.logger.info(
+            "Calculated equity deployment limit for circuit breaker",
+            extra={
+                "run_id": run_id,
+                "correlation_id": correlation_id,
+                "total_portfolio_value": str(rebalance_plan.total_portfolio_value),
+                "equity_deployment_pct": str(equity_deployment_pct),
+                "max_equity_limit_usd": str(max_equity_limit_usd),
+            },
+        )
+
         # Create run state entry in DynamoDB with two-phase tracking
         # BUY trades are stored but not enqueued yet (status=WAITING)
         run_service = ExecutionRunService(table_name=_get_execution_runs_table_name())
@@ -1081,10 +1101,12 @@ class PortfolioAnalysisHandler:
             trade_messages=trade_messages,
             run_timestamp=run_timestamp,
             enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
+            max_equity_limit_usd=max_equity_limit_usd,  # Circuit breaker limit
         )
 
-        # Enqueue trades to Standard SQS queue (parallel execution)
-        # Standard queue removes MessageGroupId requirement - enables parallel Lambda invocations
+        # Enqueue trades to FIFO SQS queue (parallel execution with exactly-once processing)
+        # MessageDeduplicationId=trade_id prevents duplicate execution
+        # MessageGroupId=symbol enables parallel execution across different symbols
         sqs_client = boto3.client("sqs")
         queue_url = _get_execution_fifo_queue_url()
         enqueued_count = 0
@@ -1108,6 +1130,8 @@ class PortfolioAnalysisHandler:
                     sqs_client.send_message(
                         QueueUrl=queue_url,
                         MessageBody=msg.to_sqs_message_body(),
+                        MessageDeduplicationId=msg.trade_id,  # Exactly-once per trade
+                        MessageGroupId=msg.symbol,  # Parallel execution across symbols
                         MessageAttributes={
                             "RunId": {"DataType": "String", "StringValue": run_id},
                             "TradeId": {"DataType": "String", "StringValue": msg.trade_id},
@@ -1149,8 +1173,8 @@ class PortfolioAnalysisHandler:
                 sqs_client.send_message(
                     QueueUrl=queue_url,
                     MessageBody=msg.to_sqs_message_body(),
-                    # Standard queue uses MessageDeduplicationId for client-side dedup
-                    # No MessageGroupId needed - enables parallel processing
+                    MessageDeduplicationId=msg.trade_id,  # Exactly-once per trade
+                    MessageGroupId=msg.symbol,  # Parallel execution across symbols
                     MessageAttributes={
                         "RunId": {"DataType": "String", "StringValue": run_id},
                         "TradeId": {"DataType": "String", "StringValue": msg.trade_id},

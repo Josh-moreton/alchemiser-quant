@@ -562,16 +562,22 @@ Resources:
         - !Sub "alchemiser-${Stage}-execution-dlq"
       MessageRetentionPeriod: 1209600  # 14 days
 
-  # SQS Standard Queue for parallel per-trade execution
-  # Standard queue enables parallel Lambda invocations (up to ReservedConcurrentExecutions)
+  # SQS FIFO Queue for parallel per-trade execution with exactly-once processing
+  # FIFO queue with perMessageGroupId throughput enables parallel Lambda invocations
+  # MessageGroupId=symbol allows parallel execution across different symbols
+  # MessageDeduplicationId=trade_id prevents duplicate execution (fixes Dec 19 incident)
   # SELL→BUY ordering is controlled via two-phase enqueue in Portfolio Lambda
   ExecutionFifoQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-execution-parallel"
-        - !Sub "alchemiser-${Stage}-execution-parallel"
+        - !Sub "${StackName}-execution.fifo"
+        - !Sub "alchemiser-${Stage}-execution.fifo"
+      FifoQueue: true
+      ContentBasedDeduplication: false  # Use explicit MessageDeduplicationId
+      DeduplicationScope: messageGroup  # Dedup only within same symbol
+      FifoThroughputLimit: perMessageGroupId  # High throughput: parallel across symbols
       VisibilityTimeout: 900  # 15 mins for execution
       MessageRetentionPeriod: 345600  # 4 days
       RedrivePolicy:
@@ -583,8 +589,9 @@ Resources:
     Properties:
       QueueName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-execution-parallel-dlq"
-        - !Sub "alchemiser-${Stage}-execution-parallel-dlq"
+        - !Sub "${StackName}-execution-dlq.fifo"
+        - !Sub "alchemiser-${Stage}-execution-dlq.fifo"
+      FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 days
 
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)

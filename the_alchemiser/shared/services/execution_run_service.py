@@ -96,6 +96,7 @@ class ExecutionRunService:
         run_timestamp: datetime,
         *,
         enqueue_sells_only: bool = False,
+        max_equity_limit_usd: Decimal | None = None,
     ) -> dict[str, Any]:
         """Create a new execution run with optional two-phase execution.
 
@@ -115,6 +116,8 @@ class ExecutionRunService:
             trade_messages: List of TradeMessage objects for this run.
             run_timestamp: When the run started.
             enqueue_sells_only: If True, only SELL trades are enqueued now.
+            max_equity_limit_usd: Maximum allowed equity deployment (circuit breaker limit).
+                Calculated as portfolio_equity * EQUITY_DEPLOYMENT_PCT.
 
         Returns:
             Run metadata dict.
@@ -156,6 +159,11 @@ class ExecutionRunService:
                 # Dollar amount tracking for BUY phase guard
                 "sell_failed_amount": {"N": "0"},
                 "sell_succeeded_amount": {"N": "0"},
+                # Equity deployment circuit breaker (BUY phase limit)
+                "cumulative_buy_succeeded_value": {"N": "0"},
+                "max_equity_limit_usd": {
+                    "N": str(max_equity_limit_usd) if max_equity_limit_usd else "0"
+                },
                 "current_phase": {"S": current_phase},
                 "status": {"S": status},
                 "run_timestamp": {"S": run_timestamp.isoformat()},
@@ -218,6 +226,8 @@ class ExecutionRunService:
             "sell_completed": 0,
             "sell_failed_amount": Decimal("0"),
             "sell_succeeded_amount": Decimal("0"),
+            "cumulative_buy_succeeded_value": Decimal("0"),
+            "max_equity_limit_usd": max_equity_limit_usd or Decimal("0"),
             "buy_total": len(buy_trades),
             "buy_completed": 0,
             "current_phase": current_phase,
@@ -375,15 +385,21 @@ class ExecutionRunService:
             else:
                 update_expression = f"ADD completed_trades :one, {counter_field} :one"
 
-            # For SELL phase, also track dollar amounts for BUY phase guard
+            # Track dollar amounts for phase guards
             expr_attr_values: dict[str, dict[str, str]] = {":one": {"N": "1"}}
-            if phase == "SELL" and trade_amount is not None:
+            if trade_amount is not None:
                 amount_str = str(abs(trade_amount))
-                if success:
-                    update_expression += ", sell_succeeded_amount :amount"
-                else:
-                    update_expression += ", sell_failed_amount :amount"
-                expr_attr_values[":amount"] = {"N": amount_str}
+                # For SELL phase, track sell_failed_amount and sell_succeeded_amount
+                if phase == "SELL":
+                    if success:
+                        update_expression += ", sell_succeeded_amount :amount"
+                    else:
+                        update_expression += ", sell_failed_amount :amount"
+                    expr_attr_values[":amount"] = {"N": amount_str}
+                # For BUY phase, track cumulative_buy_succeeded_value for equity circuit breaker
+                elif phase == "BUY" and success:
+                    update_expression += ", cumulative_buy_succeeded_value :amount"
+                    expr_attr_values[":amount"] = {"N": amount_str}
 
             response = self._client.update_item(
                 TableName=self._table_name,
@@ -407,6 +423,11 @@ class ExecutionRunService:
             # Dollar amounts for BUY phase guard
             sell_failed_amount = Decimal(attrs.get("sell_failed_amount", {"N": "0"})["N"])
             sell_succeeded_amount = Decimal(attrs.get("sell_succeeded_amount", {"N": "0"})["N"])
+            # Equity deployment circuit breaker fields
+            cumulative_buy_succeeded_value = Decimal(
+                attrs.get("cumulative_buy_succeeded_value", {"N": "0"})["N"]
+            )
+            max_equity_limit_usd = Decimal(attrs.get("max_equity_limit_usd", {"N": "0"})["N"])
 
             # Determine if phase is complete
             # Note: When sell_total == 0, the SELL phase is immediately complete
@@ -447,6 +468,8 @@ class ExecutionRunService:
                 "run_complete": run_complete,
                 "sell_failed_amount": sell_failed_amount,
                 "sell_succeeded_amount": sell_succeeded_amount,
+                "cumulative_buy_succeeded_value": cumulative_buy_succeeded_value,
+                "max_equity_limit_usd": max_equity_limit_usd,
             }
 
         except self._client.exceptions.ConditionalCheckFailedException:
@@ -470,6 +493,10 @@ class ExecutionRunService:
                     "run_complete": run.get("completed_trades", 0) >= run.get("total_trades", 0),
                     "sell_failed_amount": run.get("sell_failed_amount", Decimal("0")),
                     "sell_succeeded_amount": run.get("sell_succeeded_amount", Decimal("0")),
+                    "cumulative_buy_succeeded_value": run.get(
+                        "cumulative_buy_succeeded_value", Decimal("0")
+                    ),
+                    "max_equity_limit_usd": run.get("max_equity_limit_usd", Decimal("0")),
                 }
             return {
                 "completed_trades": 0,
@@ -517,6 +544,11 @@ class ExecutionRunService:
             # Dollar amount tracking for BUY phase guard
             "sell_failed_amount": Decimal(item.get("sell_failed_amount", {"N": "0"})["N"]),
             "sell_succeeded_amount": Decimal(item.get("sell_succeeded_amount", {"N": "0"})["N"]),
+            # Equity deployment circuit breaker fields
+            "cumulative_buy_succeeded_value": Decimal(
+                item.get("cumulative_buy_succeeded_value", {"N": "0"})["N"]
+            ),
+            "max_equity_limit_usd": Decimal(item.get("max_equity_limit_usd", {"N": "0"})["N"]),
             "current_phase": item.get("current_phase", {"S": "ALL"})["S"],
             "status": item["status"]["S"],
             "run_timestamp": item.get("run_timestamp", {}).get("S"),
@@ -843,6 +875,83 @@ class ExecutionRunService:
         # When sell_total == 0, the SELL phase is immediately complete
         # (there's nothing to sell), so BUY trades should proceed
         return sell_total == 0 or sell_completed >= sell_total
+
+    def check_equity_circuit_breaker(
+        self, run_id: str, proposed_buy_value: Decimal
+    ) -> tuple[bool, dict[str, Any]]:
+        """Check if a proposed BUY trade would exceed the equity deployment limit.
+
+        This is the equity deployment circuit breaker - it prevents over-deployment
+        by blocking BUY trades when cumulative executed buys would exceed the
+        configured maximum (portfolio_equity * EQUITY_DEPLOYMENT_PCT).
+
+        Args:
+            run_id: Run identifier.
+            proposed_buy_value: Dollar value of the proposed BUY trade.
+
+        Returns:
+            Tuple of (allowed, details):
+            - allowed: True if trade is within limit, False if it would exceed
+            - details: Dict with circuit breaker state for logging/diagnostics
+
+        """
+        run = self.get_run(run_id)
+        if not run:
+            # Run not found - fail safe (block the trade)
+            logger.warning(
+                "Equity circuit breaker: run not found - blocking trade",
+                extra={"run_id": run_id},
+            )
+            return False, {"error": "run_not_found", "run_id": run_id}
+
+        max_equity_limit = run.get("max_equity_limit_usd", Decimal("0"))
+        cumulative_buy = run.get("cumulative_buy_succeeded_value", Decimal("0"))
+
+        # If max_equity_limit is 0 or not set, circuit breaker is disabled
+        if max_equity_limit <= Decimal("0"):
+            return True, {
+                "circuit_breaker_enabled": False,
+                "reason": "max_equity_limit_usd not configured",
+            }
+
+        # Calculate what the new cumulative would be
+        new_cumulative = cumulative_buy + abs(proposed_buy_value)
+        headroom = max_equity_limit - cumulative_buy
+
+        details = {
+            "circuit_breaker_enabled": True,
+            "max_equity_limit_usd": max_equity_limit,
+            "cumulative_buy_succeeded_value": cumulative_buy,
+            "proposed_buy_value": proposed_buy_value,
+            "new_cumulative_if_executed": new_cumulative,
+            "headroom_remaining": headroom,
+            "would_exceed_limit": new_cumulative > max_equity_limit,
+        }
+
+        if new_cumulative > max_equity_limit:
+            logger.warning(
+                "🚫 Equity circuit breaker TRIGGERED - BUY would exceed limit",
+                extra={
+                    "run_id": run_id,
+                    "max_equity_limit_usd": str(max_equity_limit),
+                    "cumulative_buy_succeeded_value": str(cumulative_buy),
+                    "proposed_buy_value": str(proposed_buy_value),
+                    "new_cumulative_if_executed": str(new_cumulative),
+                    "overage": str(new_cumulative - max_equity_limit),
+                },
+            )
+            return False, details
+
+        logger.debug(
+            "Equity circuit breaker check passed",
+            extra={
+                "run_id": run_id,
+                "cumulative_buy": str(cumulative_buy),
+                "proposed_buy": str(proposed_buy_value),
+                "headroom": str(headroom),
+            },
+        )
+        return True, details
 
     def get_pending_buy_trades(self, run_id: str) -> list[dict[str, Any]]:
         """Get BUY trades that are waiting to be enqueued.
