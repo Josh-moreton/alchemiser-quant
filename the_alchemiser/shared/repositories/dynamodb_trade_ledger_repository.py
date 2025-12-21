@@ -258,7 +258,7 @@ class DynamoDBTradeLedgerRepository:
             # matching. Filtering avoids returning those items.
             kwargs: dict[str, Any] = {
                 "IndexName": "GSI3-StrategyIndex",
-                "KeyConditionExpression": "PK = :pk AND begins_with(SK, :sk)",
+                "KeyConditionExpression": "GSI3PK = :pk AND begins_with(GSI3SK, :sk)",
                 "FilterExpression": "EntityType = :etype",
                 "ExpressionAttributeValues": {
                     ":pk": f"STRATEGY#{strategy_name}",
