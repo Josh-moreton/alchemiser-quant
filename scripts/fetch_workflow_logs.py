@@ -67,7 +67,10 @@ LAMBDA_FUNCTIONS = [
 # Log levels to include when filtering for issues
 ERROR_LEVELS = {"error", "warning", "critical", "fatal"}
 
-# Patterns that indicate errors even if level isn't set
+# Patterns that indicate errors even if level isn't set (word boundaries reduce false positives)
+# Note: We use word boundaries (\b) to avoid matching words as substrings (e.g., "0 failures" won't
+# match "failure" with boundaries). This is intentional to trust explicit log levels and reduce noise
+# from operational logs that contain these words incidentally.
 ERROR_PATTERNS = [
     r"\btraceback\b",
     r"\bexception\b",
@@ -748,22 +751,22 @@ def print_trades_execution_summary(plan: dict, events: list[dict[str, Any]]) -> 
         executed = executed_by_symbol.get(symbol)
 
         if executed:
-            success = executed.get("success", False)
-            if success:
-                status = colour("✓ EXECUTED", "green")
-            else:
-                error = executed.get("error_message", "Unknown error")
-                # Truncate long error messages
-                if len(error) > 55:
-                    error = error[:52] + "..."
-                status = colour(f"✗ FAILED: {error}", "red")
-        else:
-            # Not executed yet or skipped
-            if executed and executed.get("skipped", False):
+            if executed.get("skipped", False):
                 skip_reason = executed.get("skip_reason", "Skipped")
                 status = colour(f"⊘ {skip_reason}", "yellow")
             else:
-                status = colour("○ NOT EXECUTED", "grey")
+                success = executed.get("success", False)
+                if success:
+                    status = colour("✓ EXECUTED", "green")
+                else:
+                    error = executed.get("error_message", "Unknown error")
+                    # Truncate long error messages
+                    if len(error) > 55:
+                        error = error[:52] + "..."
+                    status = colour(f"✗ FAILED: {error}", "red")
+        else:
+            # Not executed yet
+            status = colour("○ NOT EXECUTED", "grey")
 
         print(f"   {action:<4} {symbol:<8} {str(target_qty):<12} {format_money(trade_amt):<15} {status}")
 
