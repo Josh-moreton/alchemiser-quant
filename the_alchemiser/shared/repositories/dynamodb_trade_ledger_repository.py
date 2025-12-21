@@ -252,11 +252,18 @@ class DynamoDBTradeLedgerRepository:
 
         """
         try:
+            # Use the strategy GSI and filter to only return strategy-link items
+            # (EntityType == 'STRATEGY_TRADE'). Main trade items use the same
+            # GSI keys but do not contain `quantity`/`price`, which breaks FIFO
+            # matching. Filtering avoids returning those items.
             kwargs: dict[str, Any] = {
+                "IndexName": "GSI3-StrategyIndex",
                 "KeyConditionExpression": "PK = :pk AND begins_with(SK, :sk)",
+                "FilterExpression": "EntityType = :etype",
                 "ExpressionAttributeValues": {
                     ":pk": f"STRATEGY#{strategy_name}",
                     ":sk": "TRADE#",
+                    ":etype": "STRATEGY_TRADE",
                 },
                 "ScanIndexForward": False,
             }
