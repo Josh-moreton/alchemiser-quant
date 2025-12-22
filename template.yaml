@@ -1567,14 +1567,14 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
         - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: "Execute trading strategy daily at ~3:30 PM New York time (within 3:30-3:45 PM window)"
-      ScheduleExpression: "cron(30 15 ? * MON-FRI *)"
+      Description: "Execute trading strategy daily at ~3:45 PM New York time"
+      ScheduleExpression: "cron(45 15 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow: !If
         - IsProduction
         - Mode: "OFF"
         - Mode: FLEXIBLE
-          MaximumWindowInMinutes: 15
+          MaximumWindowInMinutes: 10
       Target:
         Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
