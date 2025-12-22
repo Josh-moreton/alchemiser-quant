@@ -49,6 +49,10 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
+from the_alchemiser.shared.logging import get_logger
+
+logger = get_logger(__name__)
+
 # AWS configuration
 REGION = "us-east-1"
 
@@ -500,16 +504,31 @@ def print_summary(events: list[dict[str, Any]]) -> None:
         )
         lambda_counts[short_name] = lambda_counts.get(short_name, 0) + 1
 
-    # Time span
+    # Time span (all events)
     first_ts = datetime.fromtimestamp(events[0]["_timestamp_ms"] / 1000, tz=UTC)
     last_ts = datetime.fromtimestamp(events[-1]["_timestamp_ms"] / 1000, tz=UTC)
     duration = last_ts - first_ts
+
+    # Workflow execution time (orchestrator start to last log)
+    orchestrator_start = None
+    for event in events:
+        if "orchestrator" in event.get("_lambda_name", "").lower():
+            orchestrator_start = datetime.fromtimestamp(event["_timestamp_ms"] / 1000, tz=UTC)
+            break
 
     print(f"\n{colour('📊 Summary:', 'bold')}")
     print(f"   Total events: {len(events)}")
     print(f"   Time span: {duration.total_seconds():.1f}s")
     print(f"   Start: {first_ts.strftime('%Y-%m-%d %H:%M:%S')} UTC")
     print(f"   End:   {last_ts.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    
+    if orchestrator_start:
+        workflow_duration = last_ts - orchestrator_start
+        minutes = int(workflow_duration.total_seconds() // 60)
+        seconds = workflow_duration.total_seconds() % 60
+        duration_str = f"{minutes}m {seconds:.1f}s" if minutes > 0 else f"{seconds:.1f}s"
+        print(f"\n   {colour('⏱️  Workflow Execution Time:', 'bold')} {colour(duration_str, 'green')}")
+        print(f"   (From orchestrator start to last log)")
 
     # Levels
     print(f"\n   {colour('By Level:', 'bold')}")
@@ -552,7 +571,7 @@ def get_rebalance_plan(
     dynamodb: Any,
     correlation_id: str,
     stage: str = "dev",
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Query rebalance plan from DynamoDB.
 
     Args:
@@ -581,7 +600,7 @@ def get_rebalance_plan(
 
         item = response["Items"][0]
         plan_data_str = item.get("plan_data", {}).get("S", "{}")
-        return json.loads(plan_data_str)
+        return dict(json.loads(plan_data_str))
 
     except ClientError:
         return None
@@ -591,7 +610,7 @@ def get_aggregated_signal(
     dynamodb: Any,
     correlation_id: str,
     stage: str = "dev",
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Query aggregated signal from DynamoDB.
 
     Args:
@@ -619,15 +638,15 @@ def get_aggregated_signal(
         item = response["Items"][0]
         merged_signal_str = item.get("merged_signal", {}).get("S")
         if merged_signal_str:
-            return json.loads(merged_signal_str)
+            return dict(json.loads(merged_signal_str))
 
-        return item
+        return dict(item)
 
     except ClientError:
         return None
 
 
-def print_signal_analysis(signal: dict) -> None:
+def print_signal_analysis(signal: dict[str, Any]) -> None:
     """Print aggregated signal analysis.
 
     Args:
@@ -660,57 +679,75 @@ def print_signal_analysis(signal: dict) -> None:
         print(f"      ... and {len(sorted_allocs) - 10} more")
 
 
-def extract_executed_trades(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Extract executed trade results from TradeExecuted events in logs.
+def query_executed_trades(
+    dynamodb: Any,
+    correlation_id: str,
+    stage: str = "dev",
+) -> dict[str, dict[str, Any]]:
+    """Query executed trades from Trade Ledger DynamoDB by correlation_id.
 
     Args:
-        events: List of log events
+        dynamodb: boto3 DynamoDB client
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
 
     Returns:
-        List of executed trade results with symbol, action, success status
+        Dict mapping symbol to trade data (direction, filled_qty, fill_price, etc.)
 
     """
-    executed_trades = []
+    table_name = f"alchemiser-{stage}-trade-ledger"
 
-    for event in events:
-        # Look for execution lambda logs that logged trade execution
-        if "execution" in event.get("_lambda_name", "").lower():
-            # Check for OrderResult objects in execution data
-            execution_data = event.get("execution_data")
+    try:
+        response = dynamodb.query(
+            TableName=table_name,
+            IndexName="GSI1-CorrelationIndex",
+            KeyConditionExpression="GSI1PK = :pk",
+            ExpressionAttributeValues={":pk": {"S": f"CORR#{correlation_id}"}},
+        )
 
-            if execution_data:
-                if isinstance(execution_data, str):
-                    try:
-                        execution_data = json.loads(execution_data)
-                    except json.JSONDecodeError:
-                        continue
+        trades_by_symbol = {}
+        for item in response.get("Items", []):
+            symbol = item.get("symbol", {}).get("S", "")
+            if symbol:
+                # Extract trade details from DynamoDB item
+                trade_data = {
+                    "symbol": symbol,
+                    "direction": item.get("direction", {}).get("S", ""),
+                    "filled_qty": item.get("filled_qty", {}).get("S", "0"),
+                    "fill_price": item.get("fill_price", {}).get("S", "0"),
+                    "order_id": item.get("order_id", {}).get("S", ""),
+                    "fill_timestamp": item.get("fill_timestamp", {}).get("S", ""),
+                    "success": True,  # If it's in the ledger, it was executed
+                }
+                trades_by_symbol[symbol] = trade_data
 
-                # Extract individual orders
-                if isinstance(execution_data, dict):
-                    orders = execution_data.get("orders", [])
-                    if isinstance(orders, str):
-                        try:
-                            orders = json.loads(orders)
-                        except json.JSONDecodeError:
-                            orders = []
+        return trades_by_symbol
 
-                    if isinstance(orders, list):
-                        for order in orders:
-                            if isinstance(order, dict) and order.get("symbol"):
-                                executed_trades.append(order)
-
-    return executed_trades
+    except ClientError as e:
+        logger.error(
+            "Failed to query trades from ledger",
+            correlation_id=correlation_id,
+            error=str(e),
+        )
+        return {}
 
 
-def print_trades_execution_summary(plan: dict, events: list[dict[str, Any]]) -> None:
+def print_trades_execution_summary(
+    plan: dict[str, Any],
+    dynamodb: Any,
+    correlation_id: str,
+    stage: str = "dev",
+) -> None:
     """Print trade summary showing planned rebalance plan with execution status.
 
     Shows the rebalance plan items and highlights which were executed successfully
-    and which failed, with failure reasons highlighted in red.
+    by querying the Trade Ledger DynamoDB table.
 
     Args:
         plan: The rebalance plan data
-        events: List of log events (to extract execution results)
+        dynamodb: boto3 DynamoDB client
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
 
     """
     print(f"\n{colour('📋 REBALANCE PLAN & EXECUTION SUMMARY', 'bold')}")
@@ -725,14 +762,7 @@ def print_trades_execution_summary(plan: dict, events: list[dict[str, Any]]) -> 
     print(f"   Plan ID: {plan.get('plan_id', 'N/A')}")
 
     items = plan.get("items", [])
-    executed_trades = extract_executed_trades(events)
-
-    # Create a map of executed trades by symbol
-    executed_by_symbol = {}
-    for trade in executed_trades:
-        symbol = trade.get("symbol", "")
-        if symbol:
-            executed_by_symbol[symbol] = trade
+    executed_by_symbol = query_executed_trades(dynamodb, correlation_id, stage)
 
     # Print header
     print(f"\n   {colour('PLANNED TRADES:', 'bold')}")
@@ -743,32 +773,29 @@ def print_trades_execution_summary(plan: dict, events: list[dict[str, Any]]) -> 
     # Print each planned trade with execution status
     for item in items:
         symbol = item.get("symbol", "?")
-        action = item.get("action", "?")[0:3]  # BUY/SELL -> BUY/SEL
+        action = item.get("action", "?")
         target_qty = item.get("target_quantity", 0)
         trade_amt = item.get("trade_amount", 0)
 
-        # Check if this trade was executed
+        # Display action as 3 chars for formatting
+        action_short = action[0:3] if len(action) >= 3 else action
+
+        # Check if this trade was executed (present in Trade Ledger)
         executed = executed_by_symbol.get(symbol)
 
-        if executed:
-            if executed.get("skipped", False):
-                skip_reason = executed.get("skip_reason", "Skipped")
-                status = colour(f"⊘ {skip_reason}", "yellow")
-            else:
-                success = executed.get("success", False)
-                if success:
-                    status = colour("✓ EXECUTED", "green")
-                else:
-                    error = executed.get("error_message", "Unknown error")
-                    # Truncate long error messages
-                    if len(error) > 55:
-                        error = error[:52] + "..."
-                    status = colour(f"✗ FAILED: {error}", "red")
+        if action == "HOLD":
+            # HOLD orders are not executed
+            status = colour("◐ HOLD", "cyan")
+        elif executed:
+            # Trade found in ledger - it was executed
+            filled_qty = executed.get("filled_qty", "0")
+            fill_price = executed.get("fill_price", "0")
+            status = colour(f"✓ EXECUTED (qty: {filled_qty}, price: ${fill_price})", "green")
         else:
-            # Not executed yet
+            # Not in ledger - not executed
             status = colour("○ NOT EXECUTED", "grey")
 
-        print(f"   {action:<4} {symbol:<8} {str(target_qty):<12} {format_money(trade_amt):<15} {status}")
+        print(f"   {action_short:<4} {symbol:<8} {str(target_qty):<12} {format_money(trade_amt):<15} {status}")
 
     print(f"   {'-' * 106}")
 
@@ -780,23 +807,21 @@ def print_trades_execution_summary(plan: dict, events: list[dict[str, Any]]) -> 
     total_buy = sum(Decimal(str(i.get("trade_amount", 0))) for i in buys)
     total_sell = sum(abs(Decimal(str(i.get("trade_amount", 0)))) for i in sells)
 
-    # Count execution results
-    successful_trades = len([t for t in executed_trades if t.get("success", False)])
-    failed_trades = len([t for t in executed_trades if not t.get("success", False) and not t.get("skipped", False)])
-    skipped_trades = len([t for t in executed_trades if t.get("skipped", False)])
+    # Count execution results from Trade Ledger
+    executed_count = len(executed_by_symbol)
+    planned_trades = len(buys) + len(sells)  # Exclude HOLDs
+    not_executed = planned_trades - executed_count
 
     print(f"\n   {colour('PLAN SUMMARY:', 'bold')}")
     print(f"      BUY orders:  {len(buys):3d} totaling {format_money(total_buy)}")
     print(f"      SELL orders: {len(sells):3d} totaling {format_money(total_sell)}")
     print(f"      HOLD:        {len(holds):3d}")
 
-    if executed_trades:
+    if executed_count > 0 or planned_trades > 0:
         print(f"\n   {colour('EXECUTION RESULTS:', 'bold')}")
-        print(f"      Successful: {colour(str(successful_trades), 'green')}")
-        if failed_trades > 0:
-            print(f"      {colour(f'Failed: {failed_trades}', 'red')}")
-        if skipped_trades > 0:
-            print(f"      Skipped: {skipped_trades}")
+        print(f"      Executed:     {colour(str(executed_count), 'green')} / {planned_trades}")
+        if not_executed > 0:
+            print(f"      Not executed: {colour(str(not_executed), 'yellow')}")
 
     # Deployment check
     try:
@@ -818,7 +843,7 @@ def print_workflow_data(correlation_id: str, stage: str, events: list[dict[str, 
     Args:
         correlation_id: The workflow correlation ID
         stage: Environment stage (dev or prod)
-        events: List of log events (used to extract execution results)
+        events: List of log events (unused, kept for compatibility)
 
     """
     print(f"\n{colour('📦 Fetching workflow data from DynamoDB...', 'cyan')}")
@@ -832,11 +857,10 @@ def print_workflow_data(correlation_id: str, stage: str, events: list[dict[str, 
     else:
         print(f"   {colour('⚠️  No aggregated signal found in DynamoDB', 'yellow')}")
 
-    # Get rebalance plan
+    # Get rebalance plan and execution status from Trade Ledger
     plan = get_rebalance_plan(dynamodb, correlation_id, stage)
     if plan:
-        # Use new function that shows rebalance plan with execution summary
-        print_trades_execution_summary(plan, events)
+        print_trades_execution_summary(plan, dynamodb, correlation_id, stage)
     else:
         print(f"   {colour('⚠️  No rebalance plan found in DynamoDB', 'yellow')}")
 
