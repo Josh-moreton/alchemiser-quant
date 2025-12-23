@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed format type-check import-check migration-check deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis format type-check import-check migration-check deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -11,6 +11,11 @@ help:
 	@echo "  run-pnl-weekly  Show weekly P&L report"
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
+	@echo "Market Analysis:"
+	@echo "  hourly-gain-analysis              Analyze hourly gain/loss for SPY & QQQ (10 years)"
+	@echo "  hourly-gain-analysis years=5      Custom lookback period"
+	@echo "  hourly-gain-analysis symbols=...  Custom symbols (space-separated)"
 	@echo ""
 	@echo "Backtesting:"
 	@echo "  backtest                             Run portfolio backtest (last 2 months, strategy.dev.json)"
@@ -82,6 +87,14 @@ run-pnl-monthly:
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
 	poetry run python -m the_alchemiser pnl --monthly --detailed
+
+# Market Analysis Commands
+hourly-gain-analysis:
+	@echo "📊 Running hourly gain/loss analysis..."
+	@YEARS=$${years:-10}; \
+	SYMBOLS=$${symbols:-SPY QQQ}; \
+	poetry run python scripts/hourly_gain_analysis.py --years $$YEARS --symbols $$SYMBOLS
+
 
 # Status command removed - use programmatic access via TradingSystem class
 

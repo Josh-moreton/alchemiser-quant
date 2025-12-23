@@ -42,6 +42,71 @@ poetry run python scripts/compare_strategy_signals.py --date today --time 14:35 
 **Use Case:**
 Run daily during migration to spot any differences in signal generation between old and new indicator calculation methods.
 
+## Hourly Gain/Loss Analysis
+
+### `hourly_gain_analysis.py`
+
+Analyze average hourly gain or loss patterns for stocks using historical data from Alpaca.
+This script fetches hourly bar data and calculates statistics showing which hours of the
+trading day historically have the best/worst average performance.
+
+**Usage:**
+
+```bash
+# Default: Analyze SPY and QQQ over last 10 years
+poetry run python scripts/hourly_gain_analysis.py
+
+# Custom lookback period (5 years)
+poetry run python scripts/hourly_gain_analysis.py --years 5
+
+# Custom symbols
+poetry run python scripts/hourly_gain_analysis.py --symbols SPY QQQ IWM
+
+# Output as CSV
+poetry run python scripts/hourly_gain_analysis.py --format csv
+
+# Output both text and CSV
+poetry run python scripts/hourly_gain_analysis.py --format both --output-dir reports
+```
+
+**Parameters:**
+- `--symbols`: Symbols to analyze (default: SPY QQQ)
+- `--years`: Number of years to look back (default: 10)
+- `--format`: Output format - text, csv, or both (default: text)
+- `--output-dir`: Directory for CSV output (default: results)
+- `--verbose`: Enable verbose logging
+
+**Environment Variables:**
+- `ALPACA_KEY` or `ALPACA__KEY`: Alpaca API key
+- `ALPACA_SECRET` or `ALPACA__SECRET`: Alpaca API secret
+
+Set these in `.env.local` file or as environment variables.
+
+**Output:**
+- Text report showing average gain/loss for each hour (UTC)
+- Statistics including total bars, positive/negative counts
+- Key insights: best and worst performing hours
+- Optional CSV export for further analysis
+
+**Example Output:**
+```
+================================================================================
+HOURLY GAIN/LOSS ANALYSIS: SPY
+Analysis Period: Last 10 years
+================================================================================
+
+Hour (UTC)   Avg Gain %   Total Bars   Positive     Negative    
+--------------------------------------------------------------------------------
+09:00-09:59      0.0523         2520        1340         1180   
+10:00-10:59      0.0412         2520        1310         1210   
+...
+================================================================================
+
+KEY INSIGHTS:
+  • Best hour: 14:00-14:59 (avg 0.0823%)
+  • Worst hour: 09:00-09:59 (avg -0.0123%)
+```
+
 ## Other Scripts
 
 ### `seed_market_data.py`
