@@ -36,6 +36,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
+from the_alchemiser.execution_v2.models.execution_result import OrderResult
+from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
 from the_alchemiser.shared.constants import EXECUTION_HANDLERS_MODULE
 from the_alchemiser.shared.errors import (
     ExecutionManagerError,
@@ -112,6 +114,9 @@ class SingleTradeHandler:
         else:
             table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "ExecutionRunsTable")
             self.run_service = ExecutionRunService(table_name=table_name)
+
+        # Initialize trade ledger service for persisting executed trades
+        self.trade_ledger = TradeLedgerService()
 
         # Track processed idempotency keys for this invocation
         # (in addition to DynamoDB checks for cross-invocation deduplication)
@@ -286,200 +291,20 @@ class SingleTradeHandler:
 
             # Check market status before executing
             market_is_open = self._check_market_status(correlation_id)
-
             if not market_is_open:
-                self.logger.warning(
-                    f"⚠️ Market is closed - skipping order placement for {trade_message.symbol}",
-                    extra={
-                        "run_id": run_id,
-                        "trade_id": trade_id,
-                        "correlation_id": correlation_id,
-                    },
-                )
+                return self._handle_market_closed(trade_message)
 
-                # Mark trade completed in DynamoDB (skipped due to market closed)
-                completion_result = self.run_service.mark_trade_completed(
-                    run_id=run_id,
-                    trade_id=trade_id,
-                    success=True,  # Not a failure, just skipped
-                    order_id=None,
-                    error_message="Market closed - order placement skipped",
-                    phase=trade_message.phase,  # For phase-specific tracking
-                    trade_amount=abs(trade_message.trade_amount),  # For SELL phase guard
-                )
-
-                # Check if this completes the SELL phase and trigger BUY phase if needed
-                self._check_and_trigger_buy_phase(
-                    run_id=run_id,
-                    correlation_id=correlation_id,
-                    completion_result=completion_result,
-                )
-
-                # Emit TradeExecuted event for this skipped trade
-                self._emit_trade_executed_event(
-                    trade_message=trade_message,
-                    success=True,
-                    order_id=None,
-                    shares_executed=Decimal("0"),
-                    price=None,
-                    error_message="Market closed - order placement skipped",
-                )
-
-                return {
-                    "success": True,
-                    "skipped": True,
-                    "reason": "market_closed",
-                    "trade_id": trade_id,
-                }
-
-            # ========================================
-            # EQUITY DEPLOYMENT CIRCUIT BREAKER (BUY only)
-            # ========================================
-            # Before executing BUY trades, check if cumulative deployed equity
-            # would exceed the configured limit (portfolio_equity * EQUITY_DEPLOYMENT_PCT).
-            # This prevents over-deployment and potential margin calls.
+            # Check equity circuit breaker for BUY trades
             if trade_message.phase == "BUY":
-                allowed, breaker_details = self.run_service.check_equity_circuit_breaker(
-                    run_id=run_id,
-                    proposed_buy_value=abs(trade_message.trade_amount),
-                )
+                breaker_result = self._check_equity_circuit_breaker(trade_message)
+                if breaker_result:
+                    return breaker_result
 
-                if not allowed:
-                    self.logger.critical(
-                        f"🚫 EQUITY CIRCUIT BREAKER TRIGGERED - Blocking BUY for {trade_message.symbol}",
-                        extra={
-                            "run_id": run_id,
-                            "trade_id": trade_id,
-                            "symbol": trade_message.symbol,
-                            "proposed_buy_value": str(trade_message.trade_amount),
-                            "correlation_id": correlation_id,
-                            **{k: str(v) for k, v in breaker_details.items()},
-                        },
-                    )
+            # Execute the trade with retries for SELL phase
+            order_result = self._execute_order_with_retries(trade_message, correlation_id)
 
-                    # Mark trade as failed due to circuit breaker
-                    completion_result = self.run_service.mark_trade_completed(
-                        run_id=run_id,
-                        trade_id=trade_id,
-                        success=False,
-                        order_id=None,
-                        error_message=(
-                            f"Equity circuit breaker: cumulative buys "
-                            f"${breaker_details.get('cumulative_buy_succeeded_value', 0)} + "
-                            f"proposed ${abs(trade_message.trade_amount):.2f} would exceed "
-                            f"limit ${breaker_details.get('max_equity_limit_usd', 0)}"
-                        ),
-                        phase=trade_message.phase,
-                        trade_amount=abs(trade_message.trade_amount),
-                    )
-
-                    # Mark the run as FAILED and emit WorkflowFailed event
-                    self.run_service.update_run_status(run_id, "FAILED")
-                    self._emit_equity_circuit_breaker_event(
-                        run_id=run_id,
-                        correlation_id=correlation_id,
-                        trade_message=trade_message,
-                        breaker_details=breaker_details,
-                    )
-
-                    return {
-                        "success": False,
-                        "skipped": False,
-                        "reason": "equity_circuit_breaker_triggered",
-                        "trade_id": trade_id,
-                        "error": "Equity deployment limit exceeded",
-                    }
-
-            # Create Executor and execute the trade
-            executor = self._create_executor()
-            config = ExecutionConfig()
-
-            try:
-                # Execute via Executor.execute_order
-                side = "buy" if trade_message.action == "BUY" else "sell"
-                shares = self._calculate_shares(trade_message)
-
-                # Determine if this is a full liquidation (target_weight = 0)
-                is_full_liquidation = (
-                    trade_message.is_full_liquidation or trade_message.target_weight <= Decimal("0")
-                )
-
-                # SELL trades get retry logic to handle transient broker errors
-                # This is critical for the BUY phase guard - we want to give SELLs
-                # multiple chances before declaring them failed
-                max_attempts = config.max_sell_retries + 1 if trade_message.phase == "SELL" else 1
-                retry_delay = config.sell_retry_delay_seconds
-                last_error: Exception | None = None
-                order_result = None
-
-                for attempt in range(1, max_attempts + 1):
-                    try:
-                        order_result = asyncio.run(
-                            executor.execute_order(
-                                symbol=trade_message.symbol,
-                                side=side,
-                                quantity=shares,
-                                correlation_id=correlation_id,
-                                is_complete_exit=is_full_liquidation,
-                                planned_trade_amount=abs(trade_message.trade_amount),
-                                strategy_id=trade_message.strategy_id,
-                            )
-                        )
-                        # If order succeeded or got a response, break out of retry loop
-                        if order_result.success:
-                            break
-                        # Non-success result from broker (e.g., rejected order)
-                        # For SELLs, retry even broker rejections (may be transient)
-                        if attempt < max_attempts:
-                            self.logger.warning(
-                                f"⚠️ SELL trade attempt {attempt}/{max_attempts} failed for "
-                                f"{trade_message.symbol}: {order_result.error_message} - retrying",
-                                extra={
-                                    "run_id": run_id,
-                                    "trade_id": trade_id,
-                                    "symbol": trade_message.symbol,
-                                    "attempt": attempt,
-                                    "max_attempts": max_attempts,
-                                    "error_message": order_result.error_message,
-                                },
-                            )
-                            time.sleep(retry_delay)
-                        else:
-                            # Last attempt, don't retry
-                            break
-
-                    except (ExecutionManagerError, TradingClientError, MarketDataError) as e:
-                        last_error = e
-                        if attempt < max_attempts:
-                            self.logger.warning(
-                                f"⚠️ SELL trade attempt {attempt}/{max_attempts} raised error for "
-                                f"{trade_message.symbol}: {e} - retrying",
-                                extra={
-                                    "run_id": run_id,
-                                    "trade_id": trade_id,
-                                    "symbol": trade_message.symbol,
-                                    "attempt": attempt,
-                                    "max_attempts": max_attempts,
-                                    "error_type": type(e).__name__,
-                                },
-                            )
-                            time.sleep(retry_delay)
-                        else:
-                            # Last attempt failed - will be handled by outer exception handler
-                            raise
-
-                # If we got here without order_result and have an error, raise it
-                if order_result is None and last_error:
-                    raise last_error
-
-                # At this point order_result must be set — raise a domain error if not
-                if order_result is None:
-                    raise ExecutionManagerError("order_result must be set after execution loop")
-
-            finally:
-                # Cleanup executor resources
-                if hasattr(executor, "shutdown"):
-                    executor.shutdown()
+            # Record successful trade to Trade Ledger DynamoDB
+            self._record_trade_to_ledger(order_result, trade_message, correlation_id)
 
             # Mark trade completed in DynamoDB with execution data
             execution_data = {
@@ -1227,5 +1052,276 @@ class SingleTradeHandler:
                     "run_id": run_id,
                     "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
+                },
+            )
+
+    def _handle_market_closed(self, trade_message: TradeMessage) -> dict[str, Any]:
+        """Handle market closed scenario by marking trade as skipped.
+
+        Args:
+            trade_message: The trade message
+
+        Returns:
+            Dict indicating market closed skip
+
+        """
+        run_id = trade_message.run_id
+        trade_id = trade_message.trade_id
+        correlation_id = trade_message.correlation_id
+
+        self.logger.warning(
+            f"⚠️ Market is closed - skipping order placement for {trade_message.symbol}",
+            extra={
+                "run_id": run_id,
+                "trade_id": trade_id,
+                "correlation_id": correlation_id,
+            },
+        )
+
+        # Mark trade completed in DynamoDB (skipped due to market closed)
+        completion_result = self.run_service.mark_trade_completed(
+            run_id=run_id,
+            trade_id=trade_id,
+            success=True,  # Not a failure, just skipped
+            order_id=None,
+            error_message="Market closed - order placement skipped",
+            phase=trade_message.phase,
+            trade_amount=abs(trade_message.trade_amount),
+        )
+
+        # Check if this completes the SELL phase and trigger BUY phase if needed
+        self._check_and_trigger_buy_phase(
+            run_id=run_id,
+            correlation_id=correlation_id,
+            completion_result=completion_result,
+        )
+
+        # Emit TradeExecuted event for this skipped trade
+        self._emit_trade_executed_event(
+            trade_message=trade_message,
+            success=True,
+            order_id=None,
+            shares_executed=Decimal("0"),
+            price=None,
+            error_message="Market closed - order placement skipped",
+        )
+
+        return {
+            "success": True,
+            "skipped": True,
+            "reason": "market_closed",
+            "trade_id": trade_id,
+        }
+
+    def _check_equity_circuit_breaker(self, trade_message: TradeMessage) -> dict[str, Any] | None:
+        """Check equity circuit breaker for BUY trades.
+
+        Args:
+            trade_message: The trade message
+
+        Returns:
+            Dict with error if breaker triggered, None if allowed
+
+        """
+        run_id = trade_message.run_id
+        trade_id = trade_message.trade_id
+        correlation_id = trade_message.correlation_id
+
+        allowed, breaker_details = self.run_service.check_equity_circuit_breaker(
+            run_id=run_id,
+            proposed_buy_value=abs(trade_message.trade_amount),
+        )
+
+        if not allowed:
+            self.logger.critical(
+                f"🚫 EQUITY CIRCUIT BREAKER TRIGGERED - Blocking BUY for {trade_message.symbol}",
+                extra={
+                    "run_id": run_id,
+                    "trade_id": trade_id,
+                    "symbol": trade_message.symbol,
+                    "proposed_buy_value": str(trade_message.trade_amount),
+                    "correlation_id": correlation_id,
+                    **{k: str(v) for k, v in breaker_details.items()},
+                },
+            )
+
+            # Mark trade as failed due to circuit breaker
+            self.run_service.mark_trade_completed(
+                run_id=run_id,
+                trade_id=trade_id,
+                success=False,
+                order_id=None,
+                error_message=(
+                    f"Equity circuit breaker: cumulative buys "
+                    f"${breaker_details.get('cumulative_buy_succeeded_value', 0)} + "
+                    f"proposed ${abs(trade_message.trade_amount):.2f} would exceed "
+                    f"limit ${breaker_details.get('max_equity_limit_usd', 0)}"
+                ),
+                phase=trade_message.phase,
+                trade_amount=abs(trade_message.trade_amount),
+            )
+
+            # Mark the run as FAILED and emit WorkflowFailed event
+            self.run_service.update_run_status(run_id, "FAILED")
+            self._emit_equity_circuit_breaker_event(
+                run_id=run_id,
+                correlation_id=correlation_id,
+                trade_message=trade_message,
+                breaker_details=breaker_details,
+            )
+
+            return {
+                "success": False,
+                "skipped": False,
+                "reason": "equity_circuit_breaker_triggered",
+                "trade_id": trade_id,
+                "error": "Equity deployment limit exceeded",
+            }
+
+        return None
+
+    def _execute_order_with_retries(
+        self, trade_message: TradeMessage, correlation_id: str
+    ) -> OrderResult:
+        """Execute order with retry logic for SELL phase.
+
+        Args:
+            trade_message: The trade message
+            correlation_id: Correlation ID for traceability
+
+        Returns:
+            OrderResult from execution
+
+        """
+        run_id = trade_message.run_id
+        trade_id = trade_message.trade_id
+
+        executor = self._create_executor()
+        config = ExecutionConfig()
+
+        try:
+            # Execute via Executor.execute_order
+            side = "buy" if trade_message.action == "BUY" else "sell"
+            shares = self._calculate_shares(trade_message)
+
+            # Determine if this is a full liquidation (target_weight = 0)
+            is_full_liquidation = (
+                trade_message.is_full_liquidation or trade_message.target_weight <= Decimal("0")
+            )
+
+            # SELL trades get retry logic to handle transient broker errors
+            max_attempts = config.max_sell_retries + 1 if trade_message.phase == "SELL" else 1
+            retry_delay = config.sell_retry_delay_seconds
+            last_error: Exception | None = None
+            order_result: OrderResult | None = None
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    order_result = asyncio.run(
+                        executor.execute_order(
+                            symbol=trade_message.symbol,
+                            side=side,
+                            quantity=shares,
+                            correlation_id=correlation_id,
+                            is_complete_exit=is_full_liquidation,
+                            planned_trade_amount=abs(trade_message.trade_amount),
+                            strategy_id=trade_message.strategy_id,
+                        )
+                    )
+                    if order_result.success:
+                        break
+                    # Retry non-success results for SELLs
+                    if attempt < max_attempts:
+                        self.logger.warning(
+                            f"⚠️ SELL trade attempt {attempt}/{max_attempts} failed for "
+                            f"{trade_message.symbol}: {order_result.error_message} - retrying",
+                            extra={
+                                "run_id": run_id,
+                                "trade_id": trade_id,
+                                "symbol": trade_message.symbol,
+                                "attempt": attempt,
+                                "max_attempts": max_attempts,
+                                "error_message": order_result.error_message,
+                            },
+                        )
+                        time.sleep(retry_delay)
+                    else:
+                        break
+
+                except (ExecutionManagerError, TradingClientError, MarketDataError) as e:
+                    last_error = e
+                    if attempt < max_attempts:
+                        self.logger.warning(
+                            f"⚠️ SELL trade attempt {attempt}/{max_attempts} raised error for "
+                            f"{trade_message.symbol}: {e} - retrying",
+                            extra={
+                                "run_id": run_id,
+                                "trade_id": trade_id,
+                                "symbol": trade_message.symbol,
+                                "attempt": attempt,
+                                "max_attempts": max_attempts,
+                                "error_type": type(e).__name__,
+                            },
+                        )
+                        time.sleep(retry_delay)
+                    else:
+                        raise
+
+            if order_result is None and last_error:
+                raise last_error
+
+            if order_result is None:
+                raise ExecutionManagerError("order_result must be set after execution loop")
+
+            return order_result
+
+        finally:
+            if hasattr(executor, "shutdown"):
+                executor.shutdown()
+
+    def _record_trade_to_ledger(
+        self,
+        order_result: OrderResult,
+        trade_message: TradeMessage,
+        correlation_id: str,
+    ) -> None:
+        """Record successful trade to Trade Ledger DynamoDB.
+
+        Args:
+            order_result: The order execution result
+            trade_message: The trade message
+            correlation_id: Correlation ID for traceability
+
+        """
+        if not (order_result.success and order_result.order_id):
+            return
+
+        try:
+            # No quote data available in this context - executor was cleaned up
+            # TODO: Consider passing executor or quote data if needed
+            self.trade_ledger.record_filled_order(
+                order_result=order_result,
+                correlation_id=correlation_id,
+                rebalance_plan=None,  # TODO: Pass rebalance plan if needed for attribution
+                quote_at_fill=None,
+            )
+
+            self.logger.info(
+                f"✅ Recorded trade to ledger: {trade_message.symbol}",
+                extra={
+                    "order_id": order_result.order_id,
+                    "symbol": trade_message.symbol,
+                    "correlation_id": correlation_id,
+                },
+            )
+        except Exception as ledger_error:
+            # Log error but don't fail the trade - execution was successful
+            self.logger.error(
+                f"Failed to record trade to ledger (trade executed successfully): {ledger_error}",
+                exc_info=True,
+                extra={
+                    "order_id": order_result.order_id,
+                    "symbol": trade_message.symbol,
+                    "error_type": type(ledger_error).__name__,
                 },
             )

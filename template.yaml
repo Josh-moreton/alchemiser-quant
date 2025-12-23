@@ -855,9 +855,9 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
-          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Enable live bar injection - appends today's current price to historical data
           # This allows indicators (e.g., 200-day SMA) to use the most recent price
@@ -1102,9 +1102,9 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Rebalance plan persistence for auditability
           REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
@@ -1209,9 +1209,9 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
-          ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
-          ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Per-trade execution configuration
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
@@ -1567,14 +1567,14 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-strategy-schedule"
         - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: "Execute trading strategy daily at ~3:30 PM New York time (within 3:30-3:45 PM window)"
-      ScheduleExpression: "cron(30 15 ? * MON-FRI *)"
+      Description: "Execute trading strategy daily at ~3:45 PM New York time"
+      ScheduleExpression: "cron(45 15 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow: !If
         - IsProduction
         - Mode: "OFF"
         - Mode: FLEXIBLE
-          MaximumWindowInMinutes: 15
+          MaximumWindowInMinutes: 10
       Target:
         Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
