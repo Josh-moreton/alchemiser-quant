@@ -104,6 +104,8 @@ dependency-injector = "^4.48.3"
 structlog = "^25.5.0"
 httpx = "^0.28.1"
 quantstats = "^0.0.64"
+backtrader = "^1.9.78"
+backtrader = "^1.9.78.123"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
