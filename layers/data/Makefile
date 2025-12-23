@@ -55,6 +55,7 @@ build-DataLayer:
 		pydantic \
 		pydantic-settings \
 		structlog \
+		yfinance \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 	

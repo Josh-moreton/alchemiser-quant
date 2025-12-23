@@ -617,3 +617,31 @@ class MarketDataFetchCompleted(BaseEvent):
     was_deduplicated: bool = Field(
         default=False, description="True if request was skipped due to recent fetch"
     )
+
+
+class DataValidationCompleted(BaseEvent):
+    """Event emitted when the Data Lambda completes a data validation run.
+
+    Published after validating market data from S3 against external source (yfinance).
+    Contains summary of validation results and link to detailed report in S3.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="DataValidationCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Validation fields
+    validation_date: str = Field(..., description="Date of validation run (YYYY-MM-DD)")
+    symbols_checked: int = Field(..., description="Total number of symbols validated")
+    symbols_passed: int = Field(..., description="Number of symbols with valid data")
+    symbols_failed: int = Field(..., description="Number of symbols with discrepancies")
+    discrepancies_found: int = Field(
+        default=0, description="Total number of data discrepancies found"
+    )
+    report_s3_key: str = Field(..., description="S3 key for detailed validation report CSV")
+    error_message: str | None = Field(default=None, description="Error message if validation failed")
+

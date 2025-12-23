@@ -179,6 +179,12 @@ Resources:
           Properties:
             Schedule: "cron(0 4 ? * TUE-SAT *)"
             Description: "Refresh market data daily at 4 AM UTC"
+        # Scheduled data validation (daily at 3 PM NY time / 8 PM UTC weekdays)
+        DataValidationSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(0 20 ? * MON-FRI *)"
+            Description: "Validate market data quality at 3 PM NY time weekdays"
         # On-demand fetch requests from strategy lambdas
         MarketDataFetchRequested:
           Type: EventBridgeRule

@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.shared.events import (
+    DataValidationCompleted,
     MarketDataFetchCompleted,
     WorkflowFailed,
 )
@@ -28,8 +29,10 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
+from .data_quality_validator import DataQualityValidator
 from .data_refresh_service import DataRefreshService
 from .fetch_request_service import FetchRequestService
+from .market_data_store import MarketDataStore
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -38,27 +41,47 @@ logger = get_logger(__name__)
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle data Lambda invocations for market data refresh.
+    """Handle data Lambda invocations for market data refresh and validation.
 
-    Handles three types of invocations:
+    Handles four types of invocations:
     1. Scheduled refresh (EventBridge Schedule) - refreshes all configured symbols
-    2. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
-    3. Manual invocation - specific symbols or full seed
+    2. Scheduled validation (EventBridge Schedule) - validates data quality against yfinance
+    3. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
+    4. Manual invocation - specific symbols or full seed
 
     Args:
         event: Lambda event (varies by trigger type)
         context: Lambda context
 
     Returns:
-        Response with refresh statistics
+        Response with refresh/validation statistics
 
     """
+    # Check if this is a data validation event
+    if _is_validation_event(event):
+        return _handle_data_validation(event)
+
     # Check if this is a MarketDataFetchRequested event
     if _is_fetch_request_event(event):
         return _handle_fetch_request(event)
 
     # Otherwise, handle as scheduled refresh or manual invocation
     return _handle_scheduled_refresh(event)
+
+
+def _is_validation_event(event: dict[str, Any]) -> bool:
+    """Check if event is a scheduled data validation event."""
+    # Check for explicit validation trigger
+    if event.get("validation_trigger") is True:
+        return True
+
+    # Check EventBridge rule ID for validation schedule
+    resources = event.get("resources", [])
+    for resource in resources:
+        if "DataValidationSchedule" in resource:
+            return True
+
+    return False
 
 
 def _is_fetch_request_event(event: dict[str, Any]) -> bool:
@@ -390,6 +413,150 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 workflow_type="data_refresh",
                 failure_reason=str(e),
                 failure_step="data_refresh",
+                error_details={"exception_type": type(e).__name__},
+            )
+            publish_to_eventbridge(failure_event)
+        except Exception as pub_error:
+            logger.error(
+                "Failed to publish WorkflowFailed event",
+                extra={"error": str(pub_error)},
+            )
+
+        return {
+            "statusCode": 500,
+            "body": {
+                "status": "error",
+                "correlation_id": correlation_id,
+                "error": str(e),
+            },
+        }
+
+
+def _handle_data_validation(event: dict[str, Any]) -> dict[str, Any]:
+    """Handle scheduled data validation run.
+
+    Validates market data from S3 against external source (yfinance).
+    Generates and uploads data quality report to S3.
+
+    Args:
+        event: Lambda event (schedule trigger or manual)
+
+    Returns:
+        Response with validation statistics
+
+    """
+    # Generate correlation ID for this workflow
+    correlation_id = event.get("correlation_id") or f"data-validation-{uuid.uuid4()}"
+
+    logger.info(
+        "Data validation invoked",
+        extra={
+            "correlation_id": correlation_id,
+            "event_source": event.get("source", "schedule"),
+        },
+    )
+
+    try:
+        # Initialize market data store and validator
+        market_data_store = MarketDataStore()
+        validator = DataQualityValidator(market_data_store=market_data_store)
+
+        # Get symbols to validate (manual override or all symbols)
+        symbols = event.get("symbols")
+        lookback_days = event.get("lookback_days", 5)
+
+        # Run validation
+        logger.info(
+            "Starting data quality validation",
+            extra={
+                "correlation_id": correlation_id,
+                "symbols": symbols or "all",
+                "lookback_days": lookback_days,
+            },
+        )
+
+        validation_result = validator.validate_all_symbols(
+            symbols=symbols, lookback_days=lookback_days
+        )
+
+        # Generate and upload report
+        report_path = validator.generate_report_csv(validation_result)
+        s3_key = validator.upload_report_to_s3(
+            report_path=report_path,
+            validation_date=validation_result.validation_date,
+        )
+
+        # Clean up temp file
+        report_path.unlink()
+
+        logger.info(
+            "Data validation completed",
+            extra={
+                "correlation_id": correlation_id,
+                "symbols_checked": validation_result.symbols_checked,
+                "symbols_passed": validation_result.symbols_passed,
+                "symbols_failed": validation_result.symbols_failed,
+                "discrepancies_found": len(validation_result.discrepancies),
+                "report_s3_key": s3_key,
+            },
+        )
+
+        # Publish DataValidationCompleted event
+        try:
+            validation_event = DataValidationCompleted(
+                correlation_id=correlation_id,
+                causation_id=correlation_id,
+                event_id=f"data-validation-completed-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="data_v2",
+                source_component="lambda_handler",
+                validation_date=validation_result.validation_date,
+                symbols_checked=validation_result.symbols_checked,
+                symbols_passed=validation_result.symbols_passed,
+                symbols_failed=validation_result.symbols_failed,
+                discrepancies_found=len(validation_result.discrepancies),
+                report_s3_key=s3_key,
+            )
+            publish_to_eventbridge(validation_event)
+        except Exception as pub_error:
+            logger.warning(
+                "Failed to publish DataValidationCompleted event",
+                extra={"error": str(pub_error)},
+            )
+
+        return {
+            "statusCode": 200,
+            "body": {
+                "status": "success",
+                "correlation_id": correlation_id,
+                "validation_date": validation_result.validation_date,
+                "symbols_checked": validation_result.symbols_checked,
+                "symbols_passed": validation_result.symbols_passed,
+                "symbols_failed": validation_result.symbols_failed,
+                "discrepancies_found": len(validation_result.discrepancies),
+                "report_s3_key": s3_key,
+            },
+        }
+
+    except Exception as e:
+        logger.error(
+            "Data validation failed with exception",
+            extra={"correlation_id": correlation_id, "error": str(e)},
+            exc_info=True,
+        )
+
+        # Publish WorkflowFailed to EventBridge
+        try:
+            failure_event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=correlation_id,
+                event_id=f"data-validation-failed-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="data_v2",
+                source_component="lambda_handler",
+                workflow_type="data_validation",
+                failure_reason=str(e),
+                failure_step="data_validation",
                 error_details={"exception_type": type(e).__name__},
             )
             publish_to_eventbridge(failure_event)
