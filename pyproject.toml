@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "8.5.1"
+version = "8.6.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -104,7 +104,6 @@ dependency-injector = "^4.48.3"
 structlog = "^25.5.0"
 httpx = "^0.28.1"
 quantstats = "^0.0.64"
-backtrader = "^1.9.78"
 backtrader = "^1.9.78.123"
 
 [tool.poetry.urls]
