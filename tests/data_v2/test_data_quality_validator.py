@@ -10,7 +10,6 @@ from decimal import Decimal
 from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
-import pytest
 
 from the_alchemiser.data_v2.data_quality_validator import (
     DataQualityValidator,
@@ -40,12 +39,12 @@ class TestDataQualityValidator:
     def test_validate_symbol_matching_data(self) -> None:
         """Test validation when Alpaca and yfinance data match."""
         # Arrange
-        yesterday = datetime.now(UTC) - timedelta(days=1)
+        today = datetime.now(UTC)
 
         # Mock S3 data
         alpaca_df = pd.DataFrame(
             {
-                "timestamp": [yesterday],
+                "timestamp": [today],
                 "open": [150.0],
                 "high": [152.0],
                 "low": [149.0],
@@ -68,14 +67,14 @@ class TestDataQualityValidator:
                 "Close": [151.0],
                 "Volume": [1000000],
             },
-            index=pd.DatetimeIndex([yesterday]),
+            index=pd.DatetimeIndex([today]),
         )
 
-        with patch("yfinance.Ticker") as mock_ticker:
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = yf_df
 
             # Act
-            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=1)
+            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
 
             # Assert
             assert passed is True
@@ -84,12 +83,12 @@ class TestDataQualityValidator:
     def test_validate_symbol_price_discrepancy(self) -> None:
         """Test validation detects price discrepancies."""
         # Arrange
-        yesterday = datetime.now(UTC) - timedelta(days=1)
+        today = datetime.now(UTC)
 
         # Mock S3 data
         alpaca_df = pd.DataFrame(
             {
-                "timestamp": [yesterday],
+                "timestamp": [today],
                 "open": [150.0],
                 "high": [152.0],
                 "low": [149.0],
@@ -114,14 +113,14 @@ class TestDataQualityValidator:
                 "Close": [154.0],  # 2% difference
                 "Volume": [1000000],
             },
-            index=pd.DatetimeIndex([yesterday]),
+            index=pd.DatetimeIndex([today]),
         )
 
-        with patch("yfinance.Ticker") as mock_ticker:
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = yf_df
 
             # Act
-            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=1)
+            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
 
             # Assert
             assert passed is False
@@ -134,12 +133,12 @@ class TestDataQualityValidator:
     def test_validate_symbol_volume_discrepancy(self) -> None:
         """Test validation detects volume discrepancies."""
         # Arrange
-        yesterday = datetime.now(UTC) - timedelta(days=1)
+        today = datetime.now(UTC)
 
         # Mock S3 data
         alpaca_df = pd.DataFrame(
             {
-                "timestamp": [yesterday],
+                "timestamp": [today],
                 "open": [150.0],
                 "high": [152.0],
                 "low": [149.0],
@@ -164,14 +163,14 @@ class TestDataQualityValidator:
                 "Close": [151.0],
                 "Volume": [1100000],  # 10% difference
             },
-            index=pd.DatetimeIndex([yesterday]),
+            index=pd.DatetimeIndex([today]),
         )
 
-        with patch("yfinance.Ticker") as mock_ticker:
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = yf_df
 
             # Act
-            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=1)
+            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
 
             # Assert
             assert passed is False
@@ -184,12 +183,12 @@ class TestDataQualityValidator:
         store = Mock(spec=MarketDataStore)
         store.list_symbols.return_value = ["AAPL", "MSFT"]
 
-        yesterday = datetime.now(UTC) - timedelta(days=1)
+        today = datetime.now(UTC)
 
         # Mock S3 data for both symbols
         df = pd.DataFrame(
             {
-                "timestamp": [yesterday],
+                "timestamp": [today],
                 "open": [150.0],
                 "high": [152.0],
                 "low": [149.0],
@@ -210,14 +209,14 @@ class TestDataQualityValidator:
                 "Close": [151.0],
                 "Volume": [1000000],
             },
-            index=pd.DatetimeIndex([yesterday]),
+            index=pd.DatetimeIndex([today]),
         )
 
-        with patch("yfinance.Ticker") as mock_ticker:
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = yf_df
 
             # Act
-            result = validator.validate_all_symbols(lookback_days=1)
+            result = validator.validate_all_symbols(lookback_days=5)
 
             # Assert
             assert result.symbols_checked == 2
@@ -303,3 +302,148 @@ class TestDataQualityValidator:
 
         # Cleanup
         report_path.unlink()
+
+    def test_validate_symbol_yfinance_empty_response(self) -> None:
+        """Test validation when yfinance returns empty data for symbol."""
+        # Arrange
+        today = datetime.now(UTC)
+
+        # Mock S3 data
+        alpaca_df = pd.DataFrame(
+            {
+                "timestamp": [today],
+                "open": [150.0],
+                "high": [152.0],
+                "low": [149.0],
+                "close": [151.0],
+                "volume": [1000000],
+            }
+        )
+
+        store = Mock(spec=MarketDataStore)
+        store.read_symbol_data.return_value = alpaca_df
+
+        validator = DataQualityValidator(market_data_store=store)
+
+        # Mock yfinance returning empty DataFrame
+        yf_df = pd.DataFrame(
+            {
+                "Open": [],
+                "High": [],
+                "Low": [],
+                "Close": [],
+                "Volume": [],
+            }
+        )
+
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.history.return_value = yf_df
+
+            # Act
+            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
+
+            # Assert
+            assert passed is False
+            assert len(discrepancies) == 0
+
+    def test_validate_symbol_missing_timestamp_column(self) -> None:
+        """Test validation when S3 data is missing timestamp column."""
+        # Arrange
+        # Mock S3 data without timestamp column
+        alpaca_df = pd.DataFrame(
+            {
+                "open": [150.0],
+                "high": [152.0],
+                "low": [149.0],
+                "close": [151.0],
+                "volume": [1000000],
+            }
+        )
+
+        store = Mock(spec=MarketDataStore)
+        store.read_symbol_data.return_value = alpaca_df
+
+        validator = DataQualityValidator(market_data_store=store)
+
+        # Act
+        passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
+
+        # Assert
+        assert passed is False
+        assert len(discrepancies) == 0
+
+    def test_validate_symbol_both_zero_values(self) -> None:
+        """Test validation correctly handles case where both sources report zero."""
+        # Arrange
+        today = datetime.now(UTC)
+
+        # Mock S3 data with zero values
+        alpaca_df = pd.DataFrame(
+            {
+                "timestamp": [today],
+                "open": [0.0],
+                "high": [0.0],
+                "low": [0.0],
+                "close": [0.0],
+                "volume": [0],
+            }
+        )
+
+        store = Mock(spec=MarketDataStore)
+        store.read_symbol_data.return_value = alpaca_df
+
+        validator = DataQualityValidator(market_data_store=store)
+
+        # Mock yfinance data also with zero values (legitimate scenario)
+        yf_df = pd.DataFrame(
+            {
+                "Open": [0.0],
+                "High": [0.0],
+                "Low": [0.0],
+                "Close": [0.0],
+                "Volume": [0],
+            },
+            index=pd.DatetimeIndex([today]),
+        )
+
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.history.return_value = yf_df
+
+            # Act
+            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
+
+            # Assert - should pass because both zeros are legitimate match
+            assert passed is True
+            assert len(discrepancies) == 0
+
+    def test_validate_symbol_yfinance_network_error(self) -> None:
+        """Test validation handles yfinance network errors gracefully."""
+        # Arrange
+        today = datetime.now(UTC)
+
+        alpaca_df = pd.DataFrame(
+            {
+                "timestamp": [today],
+                "open": [150.0],
+                "high": [152.0],
+                "low": [149.0],
+                "close": [151.0],
+                "volume": [1000000],
+            }
+        )
+
+        store = Mock(spec=MarketDataStore)
+        store.read_symbol_data.return_value = alpaca_df
+
+        validator = DataQualityValidator(market_data_store=store)
+
+        # Mock yfinance raising OSError (network error)
+        with patch("the_alchemiser.data_v2.data_quality_validator.yf.Ticker") as mock_ticker:
+            mock_ticker.side_effect = OSError("Network error connecting to yfinance")
+
+            # Act
+            passed, discrepancies = validator.validate_symbol("AAPL", lookback_days=5)
+
+            # Assert - should return False but not raise exception
+            assert passed is False
+            assert len(discrepancies) == 0

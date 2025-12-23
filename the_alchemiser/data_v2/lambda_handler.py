@@ -29,7 +29,7 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
-from .data_quality_validator import DataQualityValidator
+from .data_quality_validator import DataQualityValidator, ValidationResult
 from .data_refresh_service import DataRefreshService
 from .fetch_request_service import FetchRequestService
 from .market_data_store import MarketDataStore
@@ -47,7 +47,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     1. Scheduled refresh (EventBridge Schedule) - refreshes all configured symbols
     2. Scheduled validation (EventBridge Schedule) - validates data quality against yfinance
     3. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
-    4. Manual invocation - specific symbols or full seed
+    4. Manual invocation - specific symbols or full seed or validation trigger
 
     Args:
         event: Lambda event (varies by trigger type)
@@ -77,11 +77,7 @@ def _is_validation_event(event: dict[str, Any]) -> bool:
 
     # Check EventBridge rule ID for validation schedule
     resources = event.get("resources", [])
-    for resource in resources:
-        if "DataValidationSchedule" in resource:
-            return True
-
-    return False
+    return any("DataValidationSchedule" in resource for resource in resources)
 
 
 def _is_fetch_request_event(event: dict[str, Any]) -> bool:
@@ -432,6 +428,74 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         }
 
 
+def _publish_validation_success(
+    correlation_id: str,
+    validation_result: ValidationResult,
+    s3_key: str,
+) -> None:
+    """Publish DataValidationCompleted event to EventBridge.
+
+    Args:
+        correlation_id: Correlation ID for this workflow
+        validation_result: Results from validation
+        s3_key: S3 key of validation report
+
+    """
+    try:
+        validation_event = DataValidationCompleted(
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            event_id=f"data-validation-completed-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="data_v2",
+            source_component="lambda_handler",
+            validation_date=validation_result.validation_date,
+            symbols_checked=validation_result.symbols_checked,
+            symbols_passed=validation_result.symbols_passed,
+            symbols_failed=validation_result.symbols_failed,
+            discrepancies_found=len(validation_result.discrepancies),
+            report_s3_key=s3_key,
+        )
+        publish_to_eventbridge(validation_event)
+    except Exception as pub_error:
+        logger.warning(
+            "Failed to publish DataValidationCompleted event",
+            extra={"error": str(pub_error)},
+        )
+
+
+def _publish_validation_failure(
+    correlation_id: str,
+    error_msg: str,
+) -> None:
+    """Publish WorkflowFailed event to EventBridge.
+
+    Args:
+        correlation_id: Correlation ID for this workflow
+        error_msg: Error message describing the failure
+
+    """
+    try:
+        failure_event = WorkflowFailed(
+            correlation_id=correlation_id,
+            causation_id=correlation_id,
+            event_id=f"data-validation-failed-{uuid.uuid4()}",
+            timestamp=datetime.now(UTC),
+            source_module="data_v2",
+            source_component="lambda_handler",
+            workflow_type="data_validation",
+            failure_reason=error_msg,
+            failure_step="data_validation",
+            error_details={"exception_type": type(ValueError).__name__},
+        )
+        publish_to_eventbridge(failure_event)
+    except Exception as pub_error:
+        logger.error(
+            "Failed to publish WorkflowFailed event",
+            extra={"error": str(pub_error)},
+        )
+
+
 def _handle_data_validation(event: dict[str, Any]) -> dict[str, Any]:
     """Handle scheduled data validation run.
 
@@ -486,8 +550,9 @@ def _handle_data_validation(event: dict[str, Any]) -> dict[str, Any]:
             validation_date=validation_result.validation_date,
         )
 
-        # Clean up temp file
-        report_path.unlink()
+        # Clean up temp file (best-effort; ignore if already missing)
+        with contextlib.suppress(FileNotFoundError):
+            report_path.unlink()
 
         logger.info(
             "Data validation completed",
@@ -502,27 +567,7 @@ def _handle_data_validation(event: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Publish DataValidationCompleted event
-        try:
-            validation_event = DataValidationCompleted(
-                correlation_id=correlation_id,
-                causation_id=correlation_id,
-                event_id=f"data-validation-completed-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="data_v2",
-                source_component="lambda_handler",
-                validation_date=validation_result.validation_date,
-                symbols_checked=validation_result.symbols_checked,
-                symbols_passed=validation_result.symbols_passed,
-                symbols_failed=validation_result.symbols_failed,
-                discrepancies_found=len(validation_result.discrepancies),
-                report_s3_key=s3_key,
-            )
-            publish_to_eventbridge(validation_event)
-        except Exception as pub_error:
-            logger.warning(
-                "Failed to publish DataValidationCompleted event",
-                extra={"error": str(pub_error)},
-            )
+        _publish_validation_success(correlation_id, validation_result, s3_key)
 
         return {
             "statusCode": 200,
@@ -538,33 +583,29 @@ def _handle_data_validation(event: dict[str, Any]) -> dict[str, Any]:
             },
         }
 
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         logger.error(
-            "Data validation failed with exception",
+            "Data validation failed with specific error",
             extra={"correlation_id": correlation_id, "error": str(e)},
             exc_info=True,
         )
+        _publish_validation_failure(correlation_id, str(e))
 
-        # Publish WorkflowFailed to EventBridge
-        try:
-            failure_event = WorkflowFailed(
-                correlation_id=correlation_id,
-                causation_id=correlation_id,
-                event_id=f"data-validation-failed-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="data_v2",
-                source_component="lambda_handler",
-                workflow_type="data_validation",
-                failure_reason=str(e),
-                failure_step="data_validation",
-                error_details={"exception_type": type(e).__name__},
-            )
-            publish_to_eventbridge(failure_event)
-        except Exception as pub_error:
-            logger.error(
-                "Failed to publish WorkflowFailed event",
-                extra={"error": str(pub_error)},
-            )
+        return {
+            "statusCode": 500,
+            "body": {
+                "status": "error",
+                "correlation_id": correlation_id,
+                "error": str(e),
+            },
+        }
+    except Exception as e:
+        logger.error(
+            "Data validation failed with unexpected error",
+            extra={"correlation_id": correlation_id, "error": str(e)},
+            exc_info=True,
+        )
+        _publish_validation_failure(correlation_id, str(e))
 
         return {
             "statusCode": 500,

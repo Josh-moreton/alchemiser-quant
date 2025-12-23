@@ -122,15 +122,12 @@ adapter = CachedMarketDataAdapter(
 | Lambda | Time | Purpose |
 |--------|------|---------|
 | Data Lambda (Refresh) | Overnight (4 AM UTC) | Refresh historical bars in S3 |
-| Data Lambda (Validation) | 3 PM NY Time (8 PM UTC) Weekdays | Validate data quality against Yahoo Finance |
+| Data Lambda (Validation) | 3 PM EST / 4 PM EDT (8 PM UTC) Weekdays | Validate data quality against Yahoo Finance |
 | Strategy Lambda | 3:30 PM ET | Run strategies with live bar injection |
 
 ## Data Quality Validation
 
-The Data Lambda runs daily data quality validation at 3 PM NY time on weekdays. This validates S3 cached data against Yahoo Finance to detect discrepancies.
-
-### Validation Process
-
+The Data Lambda runs daily data quality validation at 8 PM UTC on weekdays (3 PM Eastern Standard Time / 4 PM Eastern Daylight Time). This validates S3 cached data against Yahoo Finance to detect discrepancies.
 1. **Fetch data from yfinance**: Downloads recent bars for comparison
 2. **Compare OHLCV fields**: Validates close, open, high, low, and volume
 3. **Apply tolerances**: 

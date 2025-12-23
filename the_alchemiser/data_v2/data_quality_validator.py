@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import yfinance as yf  # type: ignore[import-untyped]
 
 from the_alchemiser.shared.logging import get_logger
 
@@ -102,6 +103,93 @@ class DataQualityValidator:
         self.price_tolerance_pct = price_tolerance_pct
         self.volume_tolerance_pct = volume_tolerance_pct
 
+    def _compare_row_data(
+        self,
+        symbol: str,
+        alpaca_row: pd.Series,
+        yf_row: pd.Series,
+        date_str: str,
+    ) -> list[ValidationDiscrepancy]:
+        """Compare OHLCV data for a single date between Alpaca and yfinance.
+
+        Args:
+            symbol: Ticker symbol
+            alpaca_row: S3 data row (Series or named tuple from itertuples)
+            yf_row: yfinance data row (Series)
+            date_str: Date string (YYYY-MM-DD)
+
+        Returns:
+            List of discrepancies found for this date
+
+        """
+        row_discrepancies: list[ValidationDiscrepancy] = []
+
+        # Helper to get value from row (handles both Series and named tuples)
+        def get_value(row: pd.Series, field: str) -> str:
+            """Get field value from either Series or named tuple."""
+            if isinstance(row, pd.Series):
+                return str(row[field])
+            return str(getattr(row, field))
+
+        # Compare price fields
+        for field in ["close", "open", "high", "low"]:
+            alpaca_val = Decimal(get_value(alpaca_row, field))
+            yf_val = Decimal(str(yf_row[field]))
+
+            # Both zero is a match; skip comparison only if both are zero
+            if alpaca_val == Decimal("0") and yf_val == Decimal("0"):
+                continue
+
+            if yf_val != Decimal("0"):
+                diff_pct = abs((alpaca_val - yf_val) / yf_val * Decimal("100"))
+
+                if diff_pct > self.price_tolerance_pct:
+                    row_discrepancies.append(
+                        ValidationDiscrepancy(
+                            symbol=symbol,
+                            date=date_str,
+                            field=field,
+                            alpaca_value=alpaca_val,
+                            yfinance_value=yf_val,
+                            diff_pct=diff_pct,
+                        )
+                    )
+
+        # Compare volume (higher tolerance)
+        # Check for volume attribute in named tuple or column in Series
+        has_volume_alpaca = (
+            hasattr(alpaca_row, "volume")
+            if hasattr(alpaca_row, "_fields")
+            else "volume" in alpaca_row
+        )
+        has_volume_yf = "volume" in yf_row
+
+        if has_volume_alpaca and has_volume_yf:
+            alpaca_vol = Decimal(get_value(alpaca_row, "volume"))
+            yf_vol = Decimal(str(yf_row["volume"]))
+
+            # Both zero is a match; treat the case where both sources
+            # report zero volume as a match
+            if alpaca_vol == Decimal("0") and yf_vol == Decimal("0"):
+                return row_discrepancies
+
+            if yf_vol != Decimal("0"):
+                vol_diff_pct = abs((alpaca_vol - yf_vol) / yf_vol * Decimal("100"))
+
+                if vol_diff_pct > self.volume_tolerance_pct:
+                    row_discrepancies.append(
+                        ValidationDiscrepancy(
+                            symbol=symbol,
+                            date=date_str,
+                            field="volume",
+                            alpaca_value=alpaca_vol,
+                            yfinance_value=yf_vol,
+                            diff_pct=vol_diff_pct,
+                        )
+                    )
+
+        return row_discrepancies
+
     def validate_symbol(
         self, symbol: str, lookback_days: int = 5
     ) -> tuple[bool, list[ValidationDiscrepancy]]:
@@ -135,14 +223,10 @@ class DataQualityValidator:
             alpaca_df = alpaca_df[alpaca_df["timestamp"] >= cutoff_date].copy()
 
             if alpaca_df.empty:
-                logger.warning(
-                    "No recent data in S3", symbol=symbol, lookback_days=lookback_days
-                )
+                logger.warning("No recent data in S3", symbol=symbol, lookback_days=lookback_days)
                 return False, discrepancies
 
-            # Fetch from yfinance (lazy import to avoid cold start penalty)
-            import yfinance as yf
-
+            # Fetch from yfinance
             ticker = yf.Ticker(symbol)
             yf_df = ticker.history(period=f"{lookback_days}d", interval="1d")
 
@@ -154,9 +238,9 @@ class DataQualityValidator:
             yf_df.index = pd.to_datetime(yf_df.index)
             yf_df.columns = yf_df.columns.str.lower()
 
-            # Compare date by date
-            for _, alpaca_row in alpaca_df.iterrows():
-                date = alpaca_row["timestamp"].date()
+            # Compare date by date using itertuples for better performance
+            for alpaca_row in alpaca_df.itertuples(index=False):
+                date = pd.Timestamp(alpaca_row.timestamp).date()
                 date_str = date.strftime("%Y-%m-%d")
 
                 # Find matching date in yfinance data
@@ -166,46 +250,9 @@ class DataQualityValidator:
 
                 yf_row = yf_matches.iloc[0]
 
-                # Compare each field
-                for field in ["close", "open", "high", "low"]:
-                    alpaca_val = Decimal(str(alpaca_row[field]))
-                    yf_val = Decimal(str(yf_row[field]))
-
-                    # Calculate percentage difference
-                    if yf_val != Decimal("0"):
-                        diff_pct = abs((alpaca_val - yf_val) / yf_val * Decimal("100"))
-
-                        if diff_pct > self.price_tolerance_pct:
-                            discrepancies.append(
-                                ValidationDiscrepancy(
-                                    symbol=symbol,
-                                    date=date_str,
-                                    field=field,
-                                    alpaca_value=alpaca_val,
-                                    yfinance_value=yf_val,
-                                    diff_pct=diff_pct,
-                                )
-                            )
-
-                # Compare volume (higher tolerance)
-                if "volume" in alpaca_row and "volume" in yf_row:
-                    alpaca_vol = Decimal(str(alpaca_row["volume"]))
-                    yf_vol = Decimal(str(yf_row["volume"]))
-
-                    if yf_vol != Decimal("0"):
-                        vol_diff_pct = abs((alpaca_vol - yf_vol) / yf_vol * Decimal("100"))
-
-                        if vol_diff_pct > self.volume_tolerance_pct:
-                            discrepancies.append(
-                                ValidationDiscrepancy(
-                                    symbol=symbol,
-                                    date=date_str,
-                                    field="volume",
-                                    alpaca_value=alpaca_vol,
-                                    yfinance_value=yf_vol,
-                                    diff_pct=vol_diff_pct,
-                                )
-                            )
+                # Compare row and collect discrepancies
+                row_discrepancies = self._compare_row_data(symbol, alpaca_row, yf_row, date_str)
+                discrepancies.extend(row_discrepancies)
 
             passed = len(discrepancies) == 0
             if passed:
@@ -219,11 +266,28 @@ class DataQualityValidator:
 
             return passed, discrepancies
 
-        except Exception as e:
+        except (ValueError, KeyError, pd.errors.ParserError) as e:
             logger.error(
-                "Validation error",
+                "Data parsing error during validation",
                 symbol=symbol,
                 error=str(e),
+                exc_info=True,
+            )
+            return False, discrepancies
+        except OSError as e:
+            logger.error(
+                "S3 or file system error during validation",
+                symbol=symbol,
+                error=str(e),
+                exc_info=True,
+            )
+            return False, discrepancies
+        except Exception as e:
+            logger.error(
+                "Unexpected validation error",
+                symbol=symbol,
+                error=str(e),
+                error_type=type(e).__name__,
                 exc_info=True,
             )
             return False, discrepancies
@@ -292,16 +356,14 @@ class DataQualityValidator:
             Path to generated CSV file
 
         """
-        # Create temp file for CSV
-        temp_file = tempfile.NamedTemporaryFile(
+        # Create temp file for CSV using context manager
+        with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".csv",
             delete=False,
             prefix=f"data_quality_report_{validation_result.validation_date}_",
-        )
-
-        with temp_file as f:
-            writer = csv.writer(f)
+        ) as temp_file:
+            writer = csv.writer(temp_file)
 
             # Write header
             writer.writerow(
@@ -328,7 +390,8 @@ class DataQualityValidator:
                     ]
                 )
 
-        report_path = Path(temp_file.name)
+            report_path = Path(temp_file.name)
+
         logger.info(
             "Generated validation report CSV",
             report_path=str(report_path),

@@ -22,6 +22,7 @@
 # To update versions, edit layers/data/Makefile:
 #   AWSWRANGLER_VERSION := 3.10.0
 #   ALPACA_PY_VERSION := 0.43.0
+#   YFINANCE_VERSION := 0.2.49
 #
 # ADDED FOR DATA VALIDATION:
-#   - yfinance (for external validation against Yahoo Finance)
+#   - yfinance==0.2.49 (for external validation against Yahoo Finance)

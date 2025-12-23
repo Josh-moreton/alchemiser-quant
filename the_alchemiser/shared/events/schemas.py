@@ -643,5 +643,6 @@ class DataValidationCompleted(BaseEvent):
         default=0, description="Total number of data discrepancies found"
     )
     report_s3_key: str = Field(..., description="S3 key for detailed validation report CSV")
-    error_message: str | None = Field(default=None, description="Error message if validation failed")
-
+    error_message: str | None = Field(
+        default=None, description="Error message if validation failed"
+    )
