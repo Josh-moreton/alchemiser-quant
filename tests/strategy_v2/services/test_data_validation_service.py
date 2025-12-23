@@ -54,7 +54,7 @@ class TestDataValidationService:
     ) -> DataValidationService:
         """Create data validation service with mocked dependencies."""
         validator = DataFreshnessValidator(
-            market_data_store=mock_market_data_store, max_staleness_days=2
+            market_data_store=mock_market_data_store, max_staleness_days=0
         )
         service = DataValidationService(
             validator=validator,

@@ -40,6 +40,12 @@ class DataValidationService:
     It validates data freshness, triggers synchronous refresh if needed, and waits
     for completion before allowing strategy execution to proceed.
 
+    DATA FRESHNESS POLICY:
+    - Weekdays (Mon-Fri): ONLY yesterday's data is acceptable (max_staleness_days=0)
+    - Weekends (Sat-Sun): Friday's data is acceptable (validator automatically adjusts)
+    - No extra tolerance window - staleness is only allowed if weekend is detected
+    - If data is stale on any weekday, triggers synchronous refresh immediately
+
     ARCHITECTURAL NOTE - Synchronous Lambda Invocation:
     This service currently uses synchronous (RequestResponse) Lambda invocation to wait
     for data refresh completion before proceeding. This creates tight coupling with the
@@ -88,7 +94,7 @@ class DataValidationService:
         """
         self.market_data_store = market_data_store or MarketDataStore()
         self.validator = validator or DataFreshnessValidator(
-            market_data_store=self.market_data_store, max_staleness_days=2
+            market_data_store=self.market_data_store, max_staleness_days=0
         )
         self.lambda_client = boto3.client("lambda")
         self.data_lambda_name = data_lambda_name or os.environ.get(
