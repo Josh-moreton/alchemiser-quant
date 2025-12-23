@@ -172,7 +172,8 @@ def calculate_hourly_statistics(
     hourly_gains: dict[int, list[float]] = {}
 
     for bar in bars:
-        # Parse timestamp and extract hour (in ET, which is Alpaca's native timezone)
+        # Parse timestamp and extract hour
+        # Note: Alpaca returns UTC timestamps
         timestamp_str = bar["timestamp"]
         if isinstance(timestamp_str, str):
             # Parse ISO format timestamp
@@ -369,9 +370,11 @@ def main() -> int:
     # Validate environment
     api_key, secret_key = validate_environment()
 
-    # Calculate date range
+    # Calculate date range (accounting for leap years)
     end_date = datetime.now(UTC)
-    start_date = end_date - timedelta(days=args.years * 365)
+    # Use 365.25 days per year to account for leap years
+    days_back = int(args.years * 365.25)
+    start_date = end_date - timedelta(days=days_back)
 
     print("=" * 80)
     print("HOURLY GAIN/LOSS ANALYSIS")
