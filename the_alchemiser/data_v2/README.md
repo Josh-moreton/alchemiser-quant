@@ -121,8 +121,51 @@ adapter = CachedMarketDataAdapter(
 
 | Lambda | Time | Purpose |
 |--------|------|---------|
-| Data Lambda | Overnight (4 AM UTC) | Refresh historical bars in S3 |
+| Data Lambda (Refresh) | Overnight (4 AM UTC) | Refresh historical bars in S3 |
+| Data Lambda (Validation) | 3 PM NY Time (8 PM UTC) Weekdays | Validate data quality against Yahoo Finance |
 | Strategy Lambda | 3:30 PM ET | Run strategies with live bar injection |
+
+## Data Quality Validation
+
+The Data Lambda runs daily data quality validation at 3 PM NY time on weekdays. This validates S3 cached data against Yahoo Finance to detect discrepancies.
+
+### Validation Process
+
+1. **Fetch data from yfinance**: Downloads recent bars for comparison
+2. **Compare OHLCV fields**: Validates close, open, high, low, and volume
+3. **Apply tolerances**: 
+   - Price fields: 0.5% tolerance
+   - Volume: 5% tolerance
+4. **Generate report**: Creates CSV with all discrepancies
+5. **Upload to S3**: Stores report in `data-quality-reports/` prefix
+6. **Publish event**: Emits `DataValidationCompleted` event
+
+### Manual Validation
+
+```python
+# Trigger validation via Lambda invocation
+{
+    "validation_trigger": true,
+    "symbols": ["AAPL", "MSFT"],  # Optional: specific symbols
+    "lookback_days": 5             # Optional: days to validate
+}
+```
+
+### Validation Reports
+
+Reports are stored in S3:
+```
+s3://alchemiser-shared-market-data/data-quality-reports/
+├── 2025-01-01_validation_report.csv
+├── 2025-01-02_validation_report.csv
+└── ...
+```
+
+Report format:
+```csv
+Symbol,Date,Field,Alpaca Value,YFinance Value,Diff %
+AAPL,2025-01-01,close,150.00,151.00,0.67
+```
 
 ## File Structure
 
@@ -134,6 +177,7 @@ data_v2/
 ├── market_data_store.py           # S3 Parquet read/write
 ├── data_refresh_service.py        # Nightly data refresh
 ├── data_freshness_validator.py    # Data staleness checks
+├── data_quality_validator.py      # External validation against yfinance
 ├── fetch_request_service.py       # Batch fetch coordination
 ├── lambda_handler.py              # Data Lambda entry point
 ├── symbol_extractor.py            # Symbol list extraction
