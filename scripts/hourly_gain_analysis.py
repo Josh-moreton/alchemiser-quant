@@ -371,10 +371,33 @@ def main() -> int:
     api_key, secret_key = validate_environment()
 
     # Calculate date range (accounting for leap years)
-    end_date = datetime.now(UTC)
+    desired_end = datetime.now(UTC)
+
+    # Alpaca subscriptions often disallow querying very recent SIP data.
+    # Clip the end_date to `now - safety_window` to avoid 403 errors
+    # (e.g., "subscription does not permit querying recent SIP data").
+    safety_window = timedelta(minutes=15)
+    end_date = desired_end - safety_window
+
     # Use 365.25 days per year to account for leap years
     days_back = int(args.years * 365.25)
     start_date = end_date - timedelta(days=days_back)
+
+    # If the requested lookback is too small and start >= end after clipping,
+    # expand the window to at least one day to ensure a valid range.
+    if start_date >= end_date:
+        logger.warning(
+            "Adjusted start_date because end_date was clipped to avoid recent data window",
+            original_start=(desired_end - timedelta(days=days_back)).isoformat(),
+            adjusted_start=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+        )
+        # Ensure at least 1 day of data
+        start_date = end_date - timedelta(days=1)
+        print(
+            "Note: end date clipped to avoid recent SIP data (last 15 minutes)."
+            " Adjusted start date to ensure valid range."
+        )
 
     print("=" * 80)
     print("HOURLY GAIN/LOSS ANALYSIS")
