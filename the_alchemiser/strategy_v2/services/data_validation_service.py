@@ -66,7 +66,7 @@ class DataValidationService:
             market_data_store=self.market_data_store, max_staleness_days=2
         )
         self.lambda_client = boto3.client("lambda")
-        self.data_lambda_name = data_lambda_name or "alchemiser-data-lambda"
+        self.data_lambda_name = data_lambda_name or "alchemiser-shared-data"
 
         logger.info(
             "DataValidationService initialized",

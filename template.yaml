@@ -916,6 +916,12 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:s3:::${SharedMarketDataBucket}"
                   - !Sub "arn:aws:s3:::${SharedMarketDataBucket}/*"
+              # Lambda invoke permission for Data Lambda (for synchronous data refresh)
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - "arn:aws:lambda:*:*:function:alchemiser-shared-data"
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running
