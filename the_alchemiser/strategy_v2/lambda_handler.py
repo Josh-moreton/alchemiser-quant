@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.errors.exceptions import DataProviderError
 from the_alchemiser.shared.events import (
     PartialSignalGenerated,
     WorkflowFailed,
@@ -28,6 +29,9 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.strategy_v2.handlers.single_file_signal_handler import (
     SingleFileSignalHandler,
+)
+from the_alchemiser.strategy_v2.services.data_validation_service import (
+    DataValidationService,
 )
 
 # Initialize logging on cold start (must be before get_logger)
@@ -89,6 +93,28 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     )
 
     try:
+        # Validate data freshness BEFORE strategy execution
+        logger.info(
+            "Validating data freshness before strategy execution",
+            extra={
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "dsl_file": dsl_file,
+            },
+        )
+
+        validation_service = DataValidationService()
+        validation_service.validate_and_refresh_if_needed(dsl_file, correlation_id)
+
+        logger.info(
+            "Data validation completed successfully",
+            extra={
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "dsl_file": dsl_file,
+            },
+        )
+
         # Create application container
         container = ApplicationContainer.create_for_strategy("production")
 
@@ -145,6 +171,55 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "correlation_id": correlation_id,
                 "dsl_file": dsl_file,
                 "signal_count": result["signal_count"],
+            },
+        }
+
+    except DataProviderError as e:
+        logger.error(
+            "Data validation failed - halting strategy execution",
+            extra={
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "dsl_file": dsl_file,
+                "error": str(e),
+            },
+            exc_info=True,
+        )
+
+        # Publish WorkflowFailed to EventBridge
+        try:
+            failure_event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=session_id,
+                event_id=f"workflow-failed-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="strategy_v2",
+                source_component="StrategyWorker",
+                workflow_type="signal_generation",
+                failure_reason=f"Data validation failed: {str(e)}",
+                failure_step="data_validation",
+                error_details={
+                    "exception_type": type(e).__name__,
+                    "dsl_file": dsl_file,
+                    "session_id": session_id,
+                },
+            )
+            publish_to_eventbridge(failure_event)
+        except Exception as pub_error:
+            logger.error(
+                "Failed to publish WorkflowFailed event",
+                extra={"error": str(pub_error)},
+            )
+
+        return {
+            "statusCode": 500,
+            "body": {
+                "status": "error",
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "dsl_file": dsl_file,
+                "error": str(e),
+                "error_type": "DataValidationError",
             },
         }
 
