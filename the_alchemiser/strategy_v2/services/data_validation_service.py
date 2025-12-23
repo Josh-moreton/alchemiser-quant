@@ -10,6 +10,7 @@ Halts strategy execution if refresh fails or times out.
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,9 +28,9 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Timeout and retry configuration
-MAX_REFRESH_WAIT_SECONDS = 60
-POLL_INTERVAL_SECONDS = 2
+# Timeout and retry configuration (12-factor configuration via environment variables)
+MAX_REFRESH_WAIT_SECONDS = int(os.environ.get("DATA_VALIDATION_MAX_WAIT_SECONDS", "60"))
+POLL_INTERVAL_SECONDS = int(os.environ.get("DATA_VALIDATION_POLL_INTERVAL_SECONDS", "2"))
 
 
 class DataValidationService:
@@ -38,6 +39,30 @@ class DataValidationService:
     This service ensures that strategies only execute with up-to-date market data.
     It validates data freshness, triggers synchronous refresh if needed, and waits
     for completion before allowing strategy execution to proceed.
+
+    ARCHITECTURAL NOTE - Synchronous Lambda Invocation:
+    This service currently uses synchronous (RequestResponse) Lambda invocation to wait
+    for data refresh completion before proceeding. This creates tight coupling with the
+    Data Lambda and introduces operational risks:
+
+    - Strategy Lambda timeout is coupled to Data Lambda performance
+    - Data Lambda cold starts directly impact strategy execution latency
+    - Cascading failures if Data Lambda is throttled
+    - No built-in retry mechanism for transient failures
+
+    A future enhancement should migrate to an event-driven pattern:
+    1. Publish DataRefreshRequested event to EventBridge
+    2. Use Step Functions or polling with exponential backoff
+    3. Maintain event-driven architecture consistency
+    4. Improve resilience through decoupling
+
+    PERFORMANCE NOTE - Sequential Symbol Refresh:
+    Currently refreshes stale symbols sequentially (one at a time). With multiple stale
+    symbols, this can consume significant timeout budget. For example, 3 stale symbols at
+    60s each = 180s (20% of 900s Lambda timeout). Consider future optimization:
+    1. Batch all stale symbols in a single Data Lambda call
+    2. Use concurrent invocations with asyncio
+    3. Document maximum expected stale symbols and verify timeout budget
 
     Attributes:
         validator: DataFreshnessValidator instance for checking data freshness
@@ -66,16 +91,16 @@ class DataValidationService:
             market_data_store=self.market_data_store, max_staleness_days=2
         )
         self.lambda_client = boto3.client("lambda")
-        self.data_lambda_name = data_lambda_name or "alchemiser-shared-data"
+        self.data_lambda_name = data_lambda_name or os.environ.get(
+            "DATA_LAMBDA_FUNCTION_NAME", "alchemiser-shared-data"
+        )
 
         logger.info(
             "DataValidationService initialized",
             extra={"data_lambda": self.data_lambda_name},
         )
 
-    def validate_and_refresh_if_needed(
-        self, dsl_file: str, correlation_id: str
-    ) -> None:
+    def validate_and_refresh_if_needed(self, dsl_file: str, correlation_id: str) -> None:
         """Validate data freshness for symbols in DSL file, refresh if stale.
 
         Extracts symbols from the DSL file, validates their data freshness,
@@ -128,6 +153,9 @@ class DataValidationService:
                     "correlation_id": correlation_id,
                 },
             )
+            # NOTE: Currently logs success locally only. For operational visibility into
+            # data freshness patterns, consider emitting DataValidationCompleted event or
+            # structured metrics (symbols_validated, refresh_rate) to EventBridge.
             return
 
         # Data is stale - trigger refresh
@@ -143,9 +171,9 @@ class DataValidationService:
         # Refresh stale symbols
         self._refresh_symbols_sync(list(stale_symbols.keys()), correlation_id)
 
-        # Re-validate after refresh
+        # Re-validate after refresh only for symbols that were previously stale
         is_fresh_after_refresh, still_stale = self.validator.validate_data_freshness(
-            symbols=list(symbols), raise_on_stale=False
+            symbols=list(stale_symbols.keys()), raise_on_stale=False
         )
 
         if not is_fresh_after_refresh:
@@ -195,9 +223,7 @@ class DataValidationService:
 
         return extract_symbols_from_file(file_path)
 
-    def _refresh_symbols_sync(
-        self, symbols: list[str], correlation_id: str
-    ) -> None:
+    def _refresh_symbols_sync(self, symbols: list[str], correlation_id: str) -> None:
         """Refresh symbols synchronously via Data Lambda.
 
         Invokes Data Lambda for each symbol and waits for completion.
@@ -242,6 +268,23 @@ class DataValidationService:
 
                 elapsed_time = time.time() - start_time
 
+                # Check if we've exceeded max wait time before processing result
+                if elapsed_time > MAX_REFRESH_WAIT_SECONDS:
+                    error_msg = (
+                        f"Data refresh for {symbol} exceeded max wait time "
+                        f"({MAX_REFRESH_WAIT_SECONDS}s)"
+                    )
+                    logger.error(
+                        error_msg,
+                        extra={
+                            "symbol": symbol,
+                            "elapsed_seconds": round(elapsed_time, 2),
+                            "max_wait_seconds": MAX_REFRESH_WAIT_SECONDS,
+                            "correlation_id": correlation_id,
+                        },
+                    )
+                    raise DataProviderError(error_msg)
+
                 if status_code == 200:
                     logger.info(
                         "✅ Symbol refresh completed successfully",
@@ -270,8 +313,7 @@ class DataValidationService:
             except Exception as e:
                 elapsed_time = time.time() - start_time
                 error_msg = (
-                    f"Failed to refresh symbol {symbol} after "
-                    f"{round(elapsed_time, 2)}s: {str(e)}"
+                    f"Failed to refresh symbol {symbol} after {round(elapsed_time, 2)}s: {e!s}"
                 )
                 logger.error(
                     error_msg,

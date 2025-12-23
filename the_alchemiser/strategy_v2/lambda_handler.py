@@ -174,6 +174,55 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
         }
 
+    except FileNotFoundError as e:
+        logger.error(
+            "DSL file not found - check strategy configuration",
+            extra={
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "dsl_file": dsl_file,
+                "error": str(e),
+            },
+            exc_info=True,
+        )
+
+        # Publish WorkflowFailed to EventBridge for configuration error
+        try:
+            failure_event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=session_id,
+                event_id=f"workflow-failed-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="strategy_v2",
+                source_component="StrategyWorker",
+                workflow_type="signal_generation",
+                failure_reason=f"DSL file not found: {dsl_file}",
+                failure_step="dsl_configuration",
+                error_details={
+                    "exception_type": type(e).__name__,
+                    "dsl_file": dsl_file,
+                    "session_id": session_id,
+                },
+            )
+            publish_to_eventbridge(failure_event)
+        except Exception as pub_error:
+            logger.error(
+                "Failed to publish WorkflowFailed event for DSL configuration error",
+                extra={"error": str(pub_error)},
+            )
+
+        return {
+            "statusCode": 500,
+            "body": {
+                "status": "error",
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "dsl_file": dsl_file,
+                "error": f"DSL file not found: {dsl_file}",
+                "error_type": "ConfigurationError",
+            },
+        }
+
     except DataProviderError as e:
         logger.error(
             "Data validation failed - halting strategy execution",
@@ -196,7 +245,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 source_module="strategy_v2",
                 source_component="StrategyWorker",
                 workflow_type="signal_generation",
-                failure_reason=f"Data validation failed: {str(e)}",
+                failure_reason=f"Data validation failed: {e!s}",
                 failure_step="data_validation",
                 error_details={
                     "exception_type": type(e).__name__,

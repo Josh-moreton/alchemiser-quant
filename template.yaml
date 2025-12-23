@@ -921,7 +921,7 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource:
-                  - "arn:aws:lambda:*:*:function:alchemiser-shared-data"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:alchemiser-shared-data"
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running

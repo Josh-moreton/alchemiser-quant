@@ -70,9 +70,8 @@ class TestDataValidationService:
         mock_lambda_client: Mock,
     ) -> None:
         """Test that validation passes when data is fresh."""
-        with patch(
-            "the_alchemiser.strategy_v2.services.data_validation_service.extract_symbols_from_file",
-            return_value={"AAPL"},
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value={"AAPL"}
         ):
             validation_service.validate_and_refresh_if_needed(
                 "test-strategy.clj", "test-correlation-id"
@@ -105,9 +104,8 @@ class TestDataValidationService:
             ),
         ]
 
-        with patch(
-            "the_alchemiser.strategy_v2.services.data_validation_service.extract_symbols_from_file",
-            return_value={"AAPL"},
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value={"AAPL"}
         ):
             validation_service.validate_and_refresh_if_needed(
                 "test-strategy.clj", "test-correlation-id"
@@ -137,9 +135,8 @@ class TestDataValidationService:
             updated_at=datetime.now(UTC).isoformat(),
         )
 
-        with patch(
-            "the_alchemiser.strategy_v2.services.data_validation_service.extract_symbols_from_file",
-            return_value={"AAPL"},
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value={"AAPL"}
         ):
             with pytest.raises(
                 DataProviderError, match="Data validation failed after refresh"
@@ -149,3 +146,124 @@ class TestDataValidationService:
                 )
 
         mock_lambda_client.invoke.assert_called_once()
+
+    def test_validation_passes_with_no_symbols(
+        self,
+        validation_service: DataValidationService,
+        mock_lambda_client: Mock,
+    ) -> None:
+        """Test that validation passes gracefully when DSL contains no symbols."""
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value=set()
+        ):
+            validation_service.validate_and_refresh_if_needed(
+                "empty-strategy.clj", "test-correlation-id"
+            )
+
+        mock_lambda_client.invoke.assert_not_called()
+
+    def test_validation_raises_on_lambda_non_200_status(
+        self,
+        validation_service: DataValidationService,
+        mock_market_data_store: Mock,
+        mock_lambda_client: Mock,
+    ) -> None:
+        """Test that validation fails when Data Lambda returns error status."""
+        five_days_ago = (datetime.now(UTC) - timedelta(days=5)).strftime("%Y-%m-%d")
+        mock_market_data_store.get_metadata.return_value = SymbolMetadata(
+            symbol="AAPL",
+            last_bar_date=five_days_ago,
+            row_count=1000,
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+
+        error_response = {
+            "statusCode": 500,
+            "body": {"status": "error", "error": "Failed to fetch data"},
+        }
+        mock_lambda_client.invoke.return_value = {
+            "Payload": Mock(read=Mock(return_value=json.dumps(error_response)))
+        }
+
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value={"AAPL"}
+        ):
+            with pytest.raises(
+                DataProviderError, match="Data Lambda returned error"
+            ):
+                validation_service.validate_and_refresh_if_needed(
+                    "test-strategy.clj", "test-correlation-id"
+                )
+
+    def test_validation_raises_on_lambda_invocation_exception(
+        self,
+        validation_service: DataValidationService,
+        mock_market_data_store: Mock,
+        mock_lambda_client: Mock,
+    ) -> None:
+        """Test that validation fails when Lambda invocation raises exception."""
+        five_days_ago = (datetime.now(UTC) - timedelta(days=5)).strftime("%Y-%m-%d")
+        mock_market_data_store.get_metadata.return_value = SymbolMetadata(
+            symbol="AAPL",
+            last_bar_date=five_days_ago,
+            row_count=1000,
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+
+        mock_lambda_client.invoke.side_effect = Exception("Connection timeout")
+
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value={"AAPL"}
+        ):
+            with pytest.raises(
+                DataProviderError, match="Failed to refresh symbol"
+            ):
+                validation_service.validate_and_refresh_if_needed(
+                    "test-strategy.clj", "test-correlation-id"
+                )
+
+    def test_validation_respects_max_wait_timeout(
+        self,
+        validation_service: DataValidationService,
+        mock_market_data_store: Mock,
+        mock_lambda_client: Mock,
+    ) -> None:
+        """Test that validation fails if refresh exceeds max wait time."""
+        five_days_ago = (datetime.now(UTC) - timedelta(days=5)).strftime("%Y-%m-%d")
+        mock_market_data_store.get_metadata.return_value = SymbolMetadata(
+            symbol="AAPL",
+            last_bar_date=five_days_ago,
+            row_count=1000,
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+
+        # Mock a slow response
+        success_response = {
+            "statusCode": 200,
+            "body": {"status": "success", "symbol": "AAPL", "bars_fetched": 1},
+        }
+        mock_lambda_client.invoke.return_value = {
+            "Payload": Mock(read=Mock(return_value=json.dumps(success_response)))
+        }
+
+        # Mock time.time to simulate timeout (returns current time for start, then +100 for end)
+        time_mock = Mock()
+        time_mock.side_effect = [0, 100, 100]  # start, end of invoke, extra for exception handler
+        
+        with patch.object(
+            validation_service, "_extract_symbols_from_dsl", return_value={"AAPL"}
+        ), patch(
+            "the_alchemiser.strategy_v2.services.data_validation_service.time.time",
+            time_mock,
+        ):
+            # Override MAX_REFRESH_WAIT_SECONDS for this test
+            with patch(
+                "the_alchemiser.strategy_v2.services.data_validation_service.MAX_REFRESH_WAIT_SECONDS",
+                60,
+            ):
+                with pytest.raises(
+                    DataProviderError, match="exceeded max wait time"
+                ):
+                    validation_service.validate_and_refresh_if_needed(
+                        "test-strategy.clj", "test-correlation-id"
+                    )
