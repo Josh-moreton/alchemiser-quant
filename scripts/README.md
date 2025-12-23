@@ -2,6 +2,53 @@
 
 Utility scripts for testing, deployment, and analysis.
 
+## Backtrader Strategies
+
+### `backtrader_uk_tqqq_sh_strategy.py`
+
+Backtrader implementation of the "TQQQ or SH KMLM Phenomenon" strategy adapted for UK markets.
+
+**Strategy Overview:**
+- Switches between leveraged long (LQQ3) and short (XSPS) positions
+- Uses RSI indicators across multiple timeframes for decision making
+- UK ticker substitutions: TQQQ→LQQ3, SH→XSPS
+
+**Usage:**
+
+```bash
+# Default run (last 365 days)
+python scripts/backtrader_uk_tqqq_sh_strategy.py
+
+# Custom date range
+python scripts/backtrader_uk_tqqq_sh_strategy.py --start 2020-01-01 --end 2023-12-31
+
+# Custom capital and commission
+python scripts/backtrader_uk_tqqq_sh_strategy.py --capital 50000 --commission 0.002
+
+# Generate plot with verbose output
+python scripts/backtrader_uk_tqqq_sh_strategy.py --plot --verbose
+```
+
+**Parameters:**
+- `--start`: Start date (YYYY-MM-DD)
+- `--end`: End date (YYYY-MM-DD)
+- `--capital`: Initial capital (default: 100000)
+- `--data-dir`: Path to historical data directory
+- `--commission`: Commission rate (default: 0.001 = 0.1%)
+- `--plot`: Generate plot of results
+- `--verbose`: Enable verbose output
+
+**Required Data:**
+IEF, PSQ, XLK, KMLM, LQQ3, XSPS, DBMF
+
+Fetch data with:
+```bash
+python scripts/fetch_backtest_data.py --symbols IEF PSQ XLK KMLM LQQ3 XSPS DBMF
+```
+
+**Documentation:**
+See [docs/BACKTRADER_UK_STRATEGY.md](../docs/BACKTRADER_UK_STRATEGY.md) for detailed documentation.
+
 ## Signal Comparison
 
 ### `compare_strategy_signals.py`
