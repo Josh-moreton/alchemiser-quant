@@ -1,10 +1,10 @@
 # Makefile for Data Lambda Layer
-# Downloads pre-built awswrangler layer and adds alpaca-py (without pandas duplication)
+# Downloads pre-built awswrangler layer and adds alpaca-py and yfinance (without duplication)
 #
 # awswrangler layer provides: pandas, numpy, pyarrow, boto3, botocore, etc.
-# We add: alpaca-py and its non-pandas dependencies
+# We add: alpaca-py, yfinance and their non-overlapping dependencies
 #
-# Total size: ~186MB unzipped (well under 250MB Lambda limit)
+# Total size: ~200MB unzipped (under 250MB Lambda limit)
 
 AWSWRANGLER_VERSION := 3.10.0
 PYTHON_VERSION := 3.12
@@ -55,7 +55,21 @@ build-DataLayer:
 		pydantic \
 		pydantic-settings \
 		structlog \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade
+	
+	# Add yfinance WITHOUT its dependencies (pandas already in awswrangler)
+	@echo "➕ Adding yfinance (no-deps)..."
+	$(PIP) install -q \
 		yfinance \
+		--no-deps \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade
+	
+	# Add yfinance's runtime dependencies not in awswrangler
+	@echo "➕ Adding yfinance runtime dependencies..."
+	$(PIP) install -q \
+		lxml \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 	
