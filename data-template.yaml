@@ -149,7 +149,6 @@ Resources:
         - python3.12
       CompatibleArchitectures:
         - x86_64
-      RetentionPolicy: Retain
     Metadata:
       BuildMethod: makefile
 
