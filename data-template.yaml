@@ -211,6 +211,18 @@ Resources:
           - '**/*.egg-info/**'
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
+          # Exclude large directories that bloat the package
+          - 'data/**'
+          - 'tests/**'
+          - 'docs/**'
+          - 'scripts/**'
+          - 'results/**'
+          - 'logs/**'
+          - 'layers/**'
+          - '.aws-sam/**'
+          - '.git/**'
+          - '.venv/**'
+          - 'node_modules/**'
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
