@@ -1,8 +1,8 @@
-# Makefile for Data Lambda Layer
-# Downloads pre-built awswrangler layer and adds alpaca-py and yfinance (without duplication)
+# Makefile for Shared Data Lambda Layer
+# Downloads pre-built awswrangler layer and adds alpaca-py + yfinance (without pandas duplication)
 #
-# awswrangler layer provides: pandas, numpy, pyarrow, boto3, botocore, etc.
-# We add: alpaca-py, yfinance and their non-overlapping dependencies
+# awswrangler layer provides: pandas, numpy, pyarrow, boto3, botocore, pydantic, requests, etc.
+# We add: alpaca-py, yfinance and their non-pandas dependencies
 #
 # Total size: ~200MB unzipped (under 250MB Lambda limit)
 
@@ -13,12 +13,9 @@ ALPACA_PY_VERSION := 0.43.0
 # Use python3 -m pip for portability across environments
 PIP := python3 -m pip
 
-.PHONY: build-DataLayer build-SharedDataLayer
+.PHONY: build-SharedDataLayer
 
-# Alias for shared data stack (data-template.yaml)
-build-SharedDataLayer: build-DataLayer
-
-build-DataLayer:
+build-SharedDataLayer:
 	@echo "📦 Building Data Layer..."
 	@echo "   awswrangler: $(AWSWRANGLER_VERSION)"
 	@echo "   alpaca-py: $(ALPACA_PY_VERSION)"
