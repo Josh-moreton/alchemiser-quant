@@ -59,11 +59,13 @@ jobs:
             PARAMS="$PARAMS AlpacaSecret=$ALPACA_SECRET"
           fi
           
+          # Deploy from .aws-sam/build (NOT the source template)
+          # This ensures layers are properly built and packaged
           sam deploy \
-            --template-file data-template.yaml \
             --stack-name alchemiser-shared-data \
             --region ${{ secrets.AWS_REGION }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --resolve-s3 \
             ${PARAMS:+--parameter-overrides $PARAMS} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
