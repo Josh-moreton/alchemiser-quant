@@ -193,9 +193,9 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/data_v2/**/*.py'
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
         Exclude:
           - '.env*'
@@ -204,8 +204,7 @@ Resources:
           - '**/*.pyc'
           - '**/*.pyo'
           - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+          - '**/*.md'
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
