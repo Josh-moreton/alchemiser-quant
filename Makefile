@@ -460,6 +460,16 @@ deploy-prod:
 		echo "💡 Use a different version or delete the existing tag"; \
 		exit 1; \
 	fi; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
 	echo "🔍 Checking for uncommitted changes..."; \
 	if ! git diff --quiet || ! git diff --cached --quiet; then \
 		echo "❌ You have uncommitted changes!"; \
@@ -478,7 +488,11 @@ deploy-prod:
 	git tag -a "$$TAG" -m "Production release $$TAG"; \
 	echo "📤 Pushing tag to origin (will trigger prod deployment)..."; \
 	git push origin "$$TAG"; \
-	echo "✅ Production tag $$TAG created and pushed!"; \
+	echo "🚀 Creating GitHub production release..."; \
+	gh release create "$$TAG" \
+		--title "Release $$TAG" \
+		--notes "Production release $$TAG"; \
+	echo "✅ Production release $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
 
 # Shared Data Infrastructure - triggers GitHub Actions workflow
