@@ -142,8 +142,8 @@ Resources:
   SharedDataLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: alchemiser-shared-data-deps
-      Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included).
+      LayerName: alchemiser-shared-data-deps-v2
+      Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
       ContentUri: layers/data/
       CompatibleRuntimes:
         - python3.12
