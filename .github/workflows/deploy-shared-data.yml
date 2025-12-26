@@ -58,9 +58,11 @@ jobs:
           if [ -n "$ALPACA_SECRET" ]; then
             PARAMS="$PARAMS AlpacaSecret=$ALPACA_SECRET"
           fi
-          
+
+          # Deploy using built template (.aws-sam/build/template.yaml)
+          # IMPORTANT: Do NOT use --template-file data-template.yaml here!
+          # That would deploy source files instead of built artifacts (201MB layer → 1.6KB bug)
           sam deploy \
-            --template-file data-template.yaml \
             --stack-name alchemiser-shared-data \
             --region ${{ secrets.AWS_REGION }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
