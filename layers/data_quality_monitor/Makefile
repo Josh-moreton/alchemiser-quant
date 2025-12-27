@@ -53,12 +53,12 @@ build-DataQualityMonitorLayer:
 		--upgrade
 
 	# Add Data Quality Monitor-specific deps not in awswrangler
-	# Note: pydantic already in awswrangler, just add pydantic-settings and structlog
+	# Note: awswrangler does NOT include pydantic, we must add it
 	@echo "➕ Adding Data Quality Monitor-specific dependencies..."
 	$(PIP) install -q \
-		pydantic-settings==2.7.1 \
-		structlog==24.4.0 \
-		--no-deps \
+		pydantic \
+		pydantic-settings \
+		structlog \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 
