@@ -344,13 +344,12 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
     has_timestamp_col = "timestamp" in columns_lower
     date_col = columns_lower.get("timestamp") if has_timestamp_col else None
 
-    # Find OHLCV columns
+    # Find OHLC columns (volume ignored - only prices matter for indicators)
     # Note: Use regular Close (not Adj Close) for comparison since S3 stores unadjusted prices
     open_col = columns_lower.get("open")
     high_col = columns_lower.get("high")
     low_col = columns_lower.get("low")
     close_col = columns_lower.get("close")  # Prefer Close over Adj Close for S3 compatibility
-    volume_col = columns_lower.get("volume")
 
     # Fallback to pattern matching if not found
     if not open_col:
@@ -365,8 +364,6 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
             (c for c in df.columns if str(c).lower() == "close"),
             next((c for c in df.columns if "close" in str(c).lower()), None),
         )
-    if not volume_col:
-        volume_col = next((c for c in df.columns if "volume" in str(c).lower()), None)
 
     for idx, row in df.iterrows():
         try:
