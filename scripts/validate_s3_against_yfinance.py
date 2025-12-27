@@ -148,9 +148,14 @@ def fetch_yfinance_data(symbol: str, max_retries: int = 3) -> pd.DataFrame | Non
         DataFrame with OHLCV data, or None if fetch fails
 
     """
+    import warnings
+
+    # Suppress yfinance FutureWarning about auto_adjust default
+    warnings.filterwarnings("ignore", message=".*auto_adjust default to True.*")
+
     for attempt in range(max_retries):
         try:
-            df = yf.download(symbol, progress=False, period="max")
+            df = yf.download(symbol, progress=False, period="max", auto_adjust=False)
             if df is None or df.empty:
                 logger.warning(f"Empty data from yfinance for {symbol}")
                 return None
@@ -183,8 +188,17 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
 
     points: list[DataPoint] = []
 
-    # Handle different column name conventions
-    columns_lower = {col.lower(): col for col in df.columns}
+    # Handle yfinance MultiIndex columns (tuples) by flattening to single level
+    if isinstance(df.columns, pd.MultiIndex):
+        # Flatten MultiIndex: take first level only (the OHLCV names)
+        df.columns = df.columns.get_level_values(0)
+
+    # Create lowercase mapping for case-insensitive column lookup
+    columns_lower: dict[str, str] = {}
+    for col in df.columns:
+        # Handle both string and non-string column names
+        col_str = str(col)
+        columns_lower[col_str.lower()] = col
 
     for date_idx, row in df.iterrows():
         try:
@@ -195,19 +209,34 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
                 date_str = pd.to_datetime(date_idx).strftime("%Y-%m-%d")
 
             # Extract price/volume columns (yfinance uses Adj Close, S3 might use Close)
-            open_col = columns_lower.get("open") or "Open"
-            high_col = columns_lower.get("high") or "High"
-            low_col = columns_lower.get("low") or "Low"
-            close_col = columns_lower.get("adj close") or columns_lower.get("close") or "Close"
-            volume_col = columns_lower.get("volume") or "Volume"
+            open_col = columns_lower.get("open")
+            high_col = columns_lower.get("high")
+            low_col = columns_lower.get("low")
+            close_col = columns_lower.get("adj close") or columns_lower.get("close")
+            volume_col = columns_lower.get("volume")
+
+            # Fallback to original column names if not found in lowercase mapping
+            if not open_col:
+                open_col = next((c for c in df.columns if "open" in str(c).lower()), None)
+            if not high_col:
+                high_col = next((c for c in df.columns if "high" in str(c).lower()), None)
+            if not low_col:
+                low_col = next((c for c in df.columns if "low" in str(c).lower()), None)
+            if not close_col:
+                close_col = next(
+                    (c for c in df.columns if "adj close" in str(c).lower()),
+                    next((c for c in df.columns if "close" in str(c).lower()), None),
+                )
+            if not volume_col:
+                volume_col = next((c for c in df.columns if "volume" in str(c).lower()), None)
 
             point = DataPoint(
                 date=date_str,
-                open_price=float(row.get(open_col, 0)) or 0.0,
-                high_price=float(row.get(high_col, 0)) or 0.0,
-                low_price=float(row.get(low_col, 0)) or 0.0,
-                close_price=float(row.get(close_col, 0)) or 0.0,
-                volume=int(row.get(volume_col, 0)) or 0,
+                open_price=float(row.get(open_col, 0)) if open_col else 0.0,
+                high_price=float(row.get(high_col, 0)) if high_col else 0.0,
+                low_price=float(row.get(low_col, 0)) if low_col else 0.0,
+                close_price=float(row.get(close_col, 0)) if close_col else 0.0,
+                volume=int(row.get(volume_col, 0)) if volume_col else 0,
             )
             points.append(point)
         except Exception as e:
