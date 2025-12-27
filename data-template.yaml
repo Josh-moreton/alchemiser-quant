@@ -9,13 +9,10 @@ Description: >
   Only the Data Lambda has write permissions; all other Lambdas are read-only consumers.
   Includes DynamoDB table for deduplicating concurrent fetch requests.
 
-# Data Lambda functions use CodeUri: ./ with BuildProperties Include patterns
-# to match the main template.yaml approach. This keeps `the_alchemiser` as a
-# proper Python package so absolute imports work correctly.
-# 
-# Key insight: Main lambdas work because they have smaller layers (~50MB).
-# Data lambdas have ~180-200MB layers, leaving only ~55-70MB for code.
-# BuildProperties Include filters ensure only necessary code is shipped.
+# Data Lambda functions use BuildMethod: makefile (layers/data_functions/Makefile)
+# to copy only required modules. SAM's BuildProperties Include/Exclude patterns
+# are unreliable, so we use the same Makefile approach as the layers.
+# This reduces function code from ~45MB to ~4MB.
 
 Parameters:
   AlpacaKey:
@@ -186,7 +183,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: layers/data_functions/
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt SharedDataExecutionRole.Arn
       Layers:
@@ -214,20 +211,7 @@ Resources:
               detail-type:
                 - "MarketDataFetchRequested"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/data_v2/**/*.py'
-          - 'the_alchemiser/shared/**/*.py'
-          - 'the_alchemiser/config/**/*.json'
-          - 'the_alchemiser/__init__.py'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - '**/*.md'
+      BuildMethod: makefile
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
@@ -300,7 +284,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: layers/data_functions/
       Handler: the_alchemiser.data_quality_monitor.lambda_handler.lambda_handler
       Role: !GetAtt DataQualityMonitorExecutionRole.Arn
       Layers:
@@ -319,20 +303,7 @@ Resources:
             Schedule: "cron(30 4 ? * TUE-SAT *)"
             Description: "Validate data quality daily at 4:30 AM UTC"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/data_quality_monitor/**/*.py'
-          - 'the_alchemiser/shared/**/*.py'
-          - 'the_alchemiser/config/**/*.json'
-          - 'the_alchemiser/__init__.py'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - '**/*.md'
+      BuildMethod: makefile
 
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role
