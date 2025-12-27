@@ -435,6 +435,44 @@ Resources:
         - Key: Service
           Value: rebalance-plans
 
+  # ========== BAD DATA MARKERS TABLE (DATA QUALITY) ==========
+  # DynamoDB Table for tracking symbols/dates that need data re-fetch
+  # Used by local validation script to mark bad data, consumed by Data Lambda
+  BadDataMarkersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If 
+        - UseStackNameForResources
+        - !Sub "${StackName}-bad-data-markers"
+        - !Sub "alchemiser-${Stage}-bad-data-markers"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      # Auto-cleanup after 30 days (markers should be processed quickly)
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: bad-data-markers
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1947,6 +1985,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-RebalancePlanTable"
         - !Sub "alchemiser-${Stage}-RebalancePlanTable"
+
+  BadDataMarkersTableName:
+    Description: "DynamoDB table for tracking bad data markers (30-day TTL)"
+    Value: !Ref BadDataMarkersTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-BadDataMarkersTable"
+        - !Sub "alchemiser-${Stage}-BadDataMarkersTable"
 
   ExecutionFifoQueueUrl:
     Description: "SQS Standard queue for parallel per-trade execution"

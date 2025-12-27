@@ -86,6 +86,13 @@ def parse_args() -> argparse.Namespace:
         help="Enable verbose output",
     )
 
+    parser.add_argument(
+        "--process-markers",
+        action="store_true",
+        help="Process bad data markers from DynamoDB and re-fetch marked symbols. "
+        "Use after running validation script with --mark-bad.",
+    )
+
     return parser.parse_args()
 
 
@@ -135,8 +142,75 @@ def validate_environment() -> bool:
     return True
 
 
+def process_bad_data_markers(args: argparse.Namespace) -> int:
+    """Process bad data markers and re-fetch marked symbols.
+
+    Args:
+        args: Command line arguments
+
+    Returns:
+        Exit code (0 for success)
+
+    """
+    print("\nProcessing bad data markers...")
+
+    # Set up the markers table env var
+    stage = os.environ.get("APP__STAGE", "dev")
+    markers_table = f"alchemiser-{stage}-bad-data-markers"
+    os.environ["BAD_DATA_MARKERS_TABLE"] = markers_table
+    print(f"Using markers table: {markers_table}")
+
+    service = DataRefreshService()
+
+    # Get pending markers
+    markers = service.bad_data_marker_service.get_all_pending_markers()
+
+    if not markers:
+        print("\n✅ No bad data markers found - nothing to process.")
+        return 0
+
+    # Group by symbol
+    symbols_to_refetch = {m.symbol for m in markers}
+    print(f"\nFound {len(markers)} markers for {len(symbols_to_refetch)} symbols:")
+    for symbol in sorted(symbols_to_refetch):
+        symbol_markers = [m for m in markers if m.symbol == symbol]
+        reasons = {m.reason for m in symbol_markers}
+        print(f"  - {symbol}: {', '.join(reasons)}")
+
+    if args.dry_run:
+        print("\n[DRY RUN] Would re-fetch these symbols.")
+        return 0
+
+    response = input("\nProceed with re-fetch? [y/N] ").strip().lower()
+    if response != "y":
+        print("Aborted.")
+        return 0
+
+    print("\nRe-fetching marked symbols with adjusted prices...")
+    print("-" * 60)
+
+    results = service.process_bad_data_markers(lookback_days=args.lookback)
+
+    # Summary
+    success_count = sum(results.values())
+    failed_count = len(results) - success_count
+
+    print("\n" + "=" * 60)
+    print("MARKER PROCESSING COMPLETE")
+    print("=" * 60)
+    print(f"Symbols processed: {len(results)}")
+    print(f"Success: {success_count}")
+    print(f"Failed: {failed_count}")
+
+    if failed_count > 0:
+        failed_symbols = [s for s, ok in results.items() if not ok]
+        print(f"\nFailed symbols: {', '.join(failed_symbols)}")
+
+    return 0 if failed_count == 0 else 1
+
+
 def main() -> int:
-    """Main entry point for data seeding."""
+    """Seed historical market data from Alpaca to S3."""
     args = parse_args()
 
     print("=" * 60)
@@ -146,6 +220,10 @@ def main() -> int:
     # Validate environment
     if not validate_environment():
         return 1
+
+    # Handle --process-markers mode
+    if args.process_markers:
+        return process_bad_data_markers(args)
 
     # Get symbols to seed
     if args.symbols:

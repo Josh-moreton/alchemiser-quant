@@ -116,6 +116,9 @@ ignore = [ "E501", "B008", "B904", "D203", "D213",]
 fixable = [ "ALL",]
 unfixable = []
 
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]  # Allow late imports after load_dotenv()
+
 [tool.pytest.ini_options]
 addopts = "-n auto --dist=loadscope -q --durations=10"
 testpaths = [ "tests",]
