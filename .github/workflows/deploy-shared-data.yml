@@ -49,6 +49,7 @@ jobs:
         env:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
         run: |
           # Build parameter overrides, only including non-empty values
           PARAMS=""
@@ -57,6 +58,9 @@ jobs:
           fi
           if [ -n "$ALPACA_SECRET" ]; then
             PARAMS="$PARAMS AlpacaSecret=$ALPACA_SECRET"
+          fi
+          if [ -n "$TWELVEDATA_API_KEY" ]; then
+            PARAMS="$PARAMS TwelveDataApiKey=$TWELVEDATA_API_KEY"
           fi
           
           sam deploy \

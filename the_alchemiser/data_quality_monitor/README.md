@@ -63,13 +63,16 @@ Runs automatically daily at 4:30 AM UTC via EventBridge Schedule.
 |----------|-------------|---------|
 | `MARKET_DATA_BUCKET` | S3 bucket for market data | `alchemiser-shared-market-data` |
 | `EVENT_BUS_NAME` | EventBridge bus for events | `alchemiser-shared-data-events` |
+| `TWELVEDATA_API_KEY` | Twelve Data API key (required for external validation) | None |
 
 ## External Data Source
 
-Uses **Yahoo Finance** (via `yfinance` library) for validation:
-- Free, no API key required
-- Reliable historical data
-- Good coverage for US equities
+Uses **Twelve Data API** (via `twelvedata` SDK) for validation:
+- Professional-grade financial data API
+- Free tier: 800 requests/day
+- Reliable and no IP blocking (unlike Yahoo Finance)
+- Requires `TWELVEDATA_API_KEY` environment variable
+- Get free API key at: https://twelvedata.com/pricing
 
 ## Outputs
 
@@ -128,7 +131,7 @@ WorkflowFailed(
 
 Requires:
 - `awswrangler` (S3/Parquet access)
-- `yfinance` (external data source)
+- `twelvedata` (external data validation via Twelve Data API)
 - `pandas` (data manipulation)
 - `pydantic` (schemas)
 - `structlog` (logging)

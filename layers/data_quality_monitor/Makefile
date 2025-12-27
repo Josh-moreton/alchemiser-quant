@@ -1,14 +1,14 @@
 # Makefile for Data Quality Monitor Lambda Layer
-# Downloads pre-built awswrangler layer and adds yfinance for external data validation
+# Downloads pre-built awswrangler layer and adds twelvedata for external data validation
 #
 # awswrangler layer provides: pandas, numpy, pyarrow, boto3, botocore, pydantic, requests, etc.
-# We add: yfinance (no-deps since pandas/numpy/requests already in awswrangler)
+# We add: twelvedata (no-deps since pandas/numpy/requests already in awswrangler)
 #
 # Total size: ~200MB unzipped (within 250MB Lambda limit)
 
 AWSWRANGLER_VERSION := 3.10.0
 PYTHON_VERSION := 3.12
-YFINANCE_VERSION := 0.2.49
+TWELVEDATA_VERSION := 1.2.17
 
 # Use python3 -m pip for portability across environments
 PIP := python3 -m pip
@@ -18,7 +18,7 @@ PIP := python3 -m pip
 build-DataQualityMonitorLayer:
 	@echo "📦 Building Data Quality Monitor Layer..."
 	@echo "   awswrangler: $(AWSWRANGLER_VERSION)"
-	@echo "   yfinance: $(YFINANCE_VERSION)"
+	@echo "   twelvedata: $(TWELVEDATA_VERSION)"
 	@echo "   Target: $(ARTIFACTS_DIR)"
 
 	# Download pre-built awswrangler layer from AWS public bucket
@@ -29,26 +29,10 @@ build-DataQualityMonitorLayer:
 	@echo "📂 Extracting awswrangler layer..."
 	unzip -q -o /tmp/awswrangler-layer.zip -d "$(ARTIFACTS_DIR)"
 
-	# Add yfinance WITHOUT its heavy dependencies (pandas, numpy, requests already in awswrangler)
-	@echo "➕ Adding yfinance (no-deps)..."
+	# Add twelvedata WITHOUT its heavy dependencies (pandas, numpy, requests already in awswrangler)
+	@echo "➕ Adding twelvedata..."
 	$(PIP) install -q \
-		yfinance==$(YFINANCE_VERSION) \
-		--no-deps \
-		-t "$(ARTIFACTS_DIR)/python" \
-		--upgrade
-
-	# Add only the yfinance runtime dependencies not already in awswrangler
-	# Skipping: pandas, numpy, pytz, requests (in awswrangler)
-	# Skipping: curl_cffi, lxml (heavy, yfinance works without them - falls back to requests)
-	@echo "➕ Adding yfinance runtime dependencies..."
-	$(PIP) install -q \
-		beautifulsoup4 \
-		frozendict \
-		multitasking \
-		peewee \
-		platformdirs \
-		html5lib \
-		--no-deps \
+		twelvedata==$(TWELVEDATA_VERSION) \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 

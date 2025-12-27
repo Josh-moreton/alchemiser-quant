@@ -2,7 +2,7 @@
 
 Data quality validation logic.
 
-Compares S3 parquet market data against external data sources (Yahoo Finance)
+Compares S3 parquet market data against external data sources (Twelve Data API)
 to detect data quality issues.
 """
 
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
-import yfinance as yf  # type: ignore[import-untyped]
+from twelvedata import TDClient  # type: ignore[import-not-found]
 
 from the_alchemiser.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.data_v2.symbol_extractor import get_all_configured_symbols
@@ -43,9 +43,15 @@ class DataQualityChecker:
     """Validates market data quality by comparing against external sources."""
 
     def __init__(self) -> None:
-        """Initialize quality checker with S3 access."""
+        """Initialize quality checker with S3 access and Twelve Data client."""
         bucket = os.environ.get("MARKET_DATA_BUCKET", "alchemiser-shared-market-data")
         self.market_data_store = MarketDataStore(bucket)
+
+        # Initialize Twelve Data client (requires TWELVEDATA_API_KEY env var)
+        api_key = os.environ.get("TWELVEDATA_API_KEY")
+        if not api_key:
+            logger.warning("TWELVEDATA_API_KEY not set - external validation will be skipped")
+        self.td_client = TDClient(apikey=api_key) if api_key else None
 
     def validate_all_symbols(
         self,
@@ -105,7 +111,7 @@ class DataQualityChecker:
                     passed=False,
                     issues=[f"Data provider error: {e}"],
                     rows_checked=0,
-                    external_source="yfinance",
+                    external_source="twelvedata",
                 )
             except DataQualityError as e:
                 logger.error(
@@ -118,7 +124,7 @@ class DataQualityChecker:
                     passed=False,
                     issues=[f"Data quality error: {e}"],
                     rows_checked=0,
-                    external_source="yfinance",
+                    external_source="twelvedata",
                 )
             except Exception as e:
                 logger.error(
@@ -161,7 +167,7 @@ class DataQualityChecker:
                 passed=False,
                 issues=issues,
                 rows_checked=0,
-                external_source="yfinance",
+                external_source="twelvedata",
             )
 
         # Fetch external data for comparison
@@ -174,7 +180,7 @@ class DataQualityChecker:
                 passed=False,
                 issues=issues,
                 rows_checked=len(our_data),
-                external_source="yfinance",
+                external_source="twelvedata",
             )
 
         # Validate data freshness
@@ -196,7 +202,7 @@ class DataQualityChecker:
             passed=passed,
             issues=issues,
             rows_checked=len(our_data),
-            external_source="yfinance",
+            external_source="twelvedata",
         )
 
     def _fetch_our_data(
@@ -262,7 +268,7 @@ class DataQualityChecker:
         symbol: str,
         lookback_days: int,
     ) -> pd.DataFrame | None:
-        """Fetch external data from Yahoo Finance.
+        """Fetch external data from Twelve Data API.
 
         Args:
             symbol: Symbol to fetch
@@ -272,44 +278,49 @@ class DataQualityChecker:
             DataFrame with external data, or None if not found
 
         """
-        try:
-            # Fetch from Yahoo Finance
-            ticker = yf.Ticker(symbol)
+        # If no API key configured, skip external validation
+        if not self.td_client:
+            logger.debug(
+                "Skipping external validation - no API key configured",
+                extra={"symbol": symbol},
+            )
+            return None
 
-            # Get data for the lookback period
+        try:
+            # Fetch from Twelve Data API
+            # Calculate date range
             end_date = datetime.now(UTC)
             start_date = end_date - timedelta(days=lookback_days + 5)  # Buffer for weekends
 
-            df = ticker.history(
-                start=start_date,
-                end=end_date,
-                interval="1d",
-                auto_adjust=True,
+            # Request time series data
+            ts = self.td_client.time_series(
+                symbol=symbol,
+                interval="1day",
+                outputsize=lookback_days + 10,  # Request extra to ensure coverage
+                timezone="UTC",
             )
 
-            if df.empty:
+            # Get DataFrame
+            df = ts.as_pandas()
+
+            if df is None or df.empty:
                 return None
 
-            # Standardize column names to match our format
-            df = df.rename(
-                columns={
-                    "Open": "open",
-                    "High": "high",
-                    "Low": "low",
-                    "Close": "close",
-                    "Volume": "volume",
-                }
-            )
-
-            # Ensure timezone-aware index
-            if df.index.tz is None:
-                df.index = df.index.tz_localize("UTC")
-            else:
-                df.index = df.index.tz_convert("UTC")
-
-            # Reset index to have timestamp column
+            # Twelve Data returns data with columns: open, high, low, close, volume
+            # and datetime index - already in the format we need
+            # Just need to rename index to timestamp column
             df = df.reset_index()
-            return df.rename(columns={"Date": "timestamp"})
+            df = df.rename(columns={"datetime": "timestamp"})
+
+            # Ensure timezone-aware timestamps
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            if df["timestamp"].dt.tz is None:
+                df["timestamp"] = df["timestamp"].dt.tz_localize("UTC")
+            else:
+                df["timestamp"] = df["timestamp"].dt.tz_convert("UTC")
+
+            # Filter to requested date range and return
+            return df[df["timestamp"] >= start_date]
 
         except DataProviderError:
             # Re-raise DataProviderError as-is
@@ -321,7 +332,7 @@ class DataQualityChecker:
             )
             # Re-raise as DataProviderError for consistency
             raise DataProviderError(
-                f"Failed to fetch Yahoo Finance data for {symbol}: {e}",
+                f"Failed to fetch Twelve Data API data for {symbol}: {e}",
                 context={"symbol": symbol, "error_type": type(e).__name__},
             ) from e
 

@@ -1,7 +1,7 @@
 # Data Quality Monitor Lambda Layer - Reference Documentation
 # ============================================================
 # This layer is built via Makefile, NOT pip install from this file.
-# The Makefile downloads pre-built awswrangler and adds yfinance.
+# The Makefile downloads pre-built awswrangler and adds twelvedata.
 #
 # INCLUDED FROM AWSWRANGLER LAYER (3.10.0):
 #   - awswrangler, pandas, numpy, pyarrow
@@ -14,11 +14,11 @@
 # layer includes them, but we cannot exclude them from the downloaded artifact.
 #
 # ADDED BY MAKEFILE:
-#   - yfinance (for external data validation)
-#   - structlog, dependency-injector (shared dependencies)
+#   - twelvedata (for external data validation via Twelve Data API)
+#   - structlog, pydantic (shared dependencies)
 #
 # Total size: ~190MB unzipped (under 250MB Lambda limit)
 #
 # To update versions, edit layers/data_quality_monitor/Makefile:
 #   AWSWRANGLER_VERSION := 3.10.0
-#   YFINANCE_VERSION := 0.2.49
+#   TWELVEDATA_VERSION := 1.2.17
