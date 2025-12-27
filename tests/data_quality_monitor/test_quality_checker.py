@@ -234,10 +234,10 @@ class TestDataQualityChecker:
         checker = DataQualityChecker()
 
         # Mock exception during validation
-        checker._fetch_our_data = Mock(side_effect=Exception(\"S3 error\"))  # type: ignore[method-assign]
+        checker._fetch_our_data = Mock(side_effect=Exception("S3 error"))  # type: ignore[method-assign]
 
         # Act & Assert - should raise DataQualityError
         with pytest.raises(DataQualityError) as exc_info:
-            checker.validate_symbols([\"ERROR\"], lookback_days=5)
+            checker.validate_symbols(["ERROR"], lookback_days=5)
         
-        assert \"Validation failed for ERROR\" in str(exc_info.value)
+        assert "Validation failed for ERROR" in str(exc_info.value)
