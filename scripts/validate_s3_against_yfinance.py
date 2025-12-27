@@ -24,7 +24,6 @@ import argparse
 import csv
 import json
 import logging
-import math
 import os
 import sys
 from dataclasses import dataclass, field
@@ -57,6 +56,7 @@ def detect_split_factor(s3_price: float, yf_price: float, tolerance: float = 0.0
 
     Returns:
         Split factor if detected, None otherwise
+
     """
     if yf_price == 0 or s3_price == 0:
         return None
@@ -84,7 +84,7 @@ class DataPoint:
         """Make hashable for set operations."""
         return hash((self.date, self.close_price))
 
-    def prices_match(self, other: "DataPoint", tolerance: float = 0.02) -> bool:
+    def prices_match(self, other: DataPoint, tolerance: float = 0.02) -> bool:
         """Check if prices match within tolerance (absolute, not percentage)."""
         return (
             self.date == other.date
@@ -94,7 +94,7 @@ class DataPoint:
             and abs(self.close_price - other.close_price) < tolerance
         )
 
-    def prices_match_pct(self, other: "DataPoint", tolerance_pct: float = 0.01) -> bool:
+    def prices_match_pct(self, other: DataPoint, tolerance_pct: float = 0.01) -> bool:
         """Check if prices match within percentage tolerance (better for varying price ranges)."""
         if self.date != other.date:
             return False
@@ -111,7 +111,7 @@ class DataPoint:
             and pct_diff(self.close_price, other.close_price) < tolerance_pct
         )
 
-    def detect_split_factor(self, other: "DataPoint") -> float | None:
+    def detect_split_factor(self, other: DataPoint) -> float | None:
         """Detect if this point differs from other by a split factor."""
         return detect_split_factor(self.close_price, other.close_price)
 
@@ -207,7 +207,7 @@ class SymbolValidationResult:
 
 
 def read_s3_data(
-    s3_client: "boto3.client",
+    s3_client: boto3.client,
     bucket: str,
     symbol: str,
 ) -> pd.DataFrame | None:
@@ -275,8 +275,8 @@ def fetch_yfinance_data(
         try:
             # Use date range if provided, otherwise fetch max history
             if start_date and end_date:
-                # Add 1 day to end_date since yfinance end is exclusive
-                end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+                # Add 1 day to end_date since yfinance end is exclusive (noqa: DTZ007 - timezone not needed for date-only string)
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)  # noqa: DTZ007
                 end_str = end_dt.strftime("%Y-%m-%d")
                 df = yf.download(
                     symbol,
@@ -389,7 +389,7 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
 
 def validate_symbol(
     symbol: str,
-    s3_client: "boto3.client",
+    s3_client: boto3.client,
     bucket: str,
     debug: bool = False,
 ) -> SymbolValidationResult:
@@ -470,7 +470,7 @@ def validate_symbol(
         print(f"    - Genuine errors: {genuine_count}")
 
         if result.mismatched_records:
-            print(f"\n  Sample PRICE mismatches:")
+            print("\n  Sample PRICE mismatches:")
             for i, (s3_pt, yf_pt) in enumerate(result.mismatched_records[:3]):
                 print(f"    [{i + 1}] Date: {s3_pt.date}")
                 print(
@@ -496,7 +496,7 @@ def validate_symbol(
     return result
 
 
-def list_s3_symbols(s3_client: "boto3.client", bucket: str) -> list[str]:
+def list_s3_symbols(s3_client: boto3.client, bucket: str) -> list[str]:
     """List all symbols available in S3.
 
     Args:
@@ -649,6 +649,8 @@ def write_detailed_report(results: list[SymbolValidationResult], output_file: st
 def discover_markers_table_from_cloudformation(region: str) -> str | None:
     """Attempt to discover bad data markers table from CloudFormation.
 
+    The BadDataMarkersTable is in the shared data stack (alchemiser-shared-data).
+
     Args:
         region: AWS region
 
@@ -659,26 +661,31 @@ def discover_markers_table_from_cloudformation(region: str) -> str | None:
     try:
         cf_client = boto3.client("cloudformation", region_name=region)
 
-        # Try common stack names in order of likelihood
-        stack_names = [
-            "alchemiser-dev",
-            "alchemiser-staging",
-            "alchemiser-prod",
-        ]
+        # The markers table is in the shared data stack
+        stack_name = "alchemiser-shared-data"
 
-        for stack_name in stack_names:
-            try:
-                response = cf_client.describe_stacks(StackName=stack_name)
-                if response["Stacks"]:
-                    # Table name follows pattern: alchemiser-{stage}-bad-data-markers
-                    stage = stack_name.replace("alchemiser-", "")
-                    table_name = f"alchemiser-{stage}-bad-data-markers"
-                    logger.info(f"Inferred markers table from stack {stack_name}: {table_name}")
-                    return table_name
-            except cf_client.exceptions.ClientError as e:
-                if e.response["Error"]["Code"] != "ValidationError":
-                    raise
-                continue
+        try:
+            response = cf_client.describe_stacks(StackName=stack_name)
+            if response["Stacks"]:
+                stack = response["Stacks"][0]
+                if "Outputs" in stack:
+                    for output in stack["Outputs"]:
+                        if output.get("OutputKey") == "BadDataMarkersTableName":
+                            table_name = output.get("OutputValue")
+                            logger.info(
+                                f"Discovered markers table from {stack_name}: {table_name}"
+                            )
+                            return table_name
+
+                # Fallback: use known table name pattern
+                table_name = "alchemiser-bad-data-markers"
+                logger.info(f"Using default markers table name: {table_name}")
+                return table_name
+
+        except cf_client.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] != "ValidationError":
+                raise
+            logger.warning(f"Stack {stack_name} not found")
 
     except Exception as e:
         logger.warning(f"Failed to discover markers table: {e}")
@@ -801,8 +808,8 @@ def discover_bucket_from_cloudformation(region: str) -> str | None:
     return None
 
 
-def main() -> None:
-    """Main entry point."""
+def main() -> None:  # noqa: C901
+    """Run validation of S3 market data against yfinance."""
     parser = argparse.ArgumentParser(
         description="Validate S3 market data against yfinance",
         formatter_class=argparse.RawDescriptionHelpFormatter,

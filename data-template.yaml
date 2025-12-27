@@ -199,6 +199,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref SharedDataEventBus
+          BAD_DATA_MARKERS_TABLE: !Ref BadDataMarkersTable
       Events:
         # Scheduled data refresh (daily at 4 AM UTC / 11 PM ET)
         DataSchedule:
@@ -254,6 +255,16 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt MarketDataFetchRequestsTable.Arn
+              # DynamoDB for bad data markers (read pending, delete after processing)
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt BadDataMarkersTable.Arn
               # EventBridge for publishing completion events
               - Effect: Allow
                 Action:
@@ -311,6 +322,39 @@ Resources:
       Tags:
         - Key: Service
           Value: data-quality-validation
+
+  # ========== BAD DATA MARKERS TABLE ==========
+  # DynamoDB Table for tracking symbols/dates that need data re-fetch
+  # Populated by data quality validation, consumed by Data Lambda on next refresh
+  BadDataMarkersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: alchemiser-bad-data-markers
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      # Auto-cleanup after 30 days (markers should be processed quickly)
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Service
+          Value: bad-data-markers
 
   # ========== VALIDATION QUEUE (SQS) ==========
   # Queue for batch processing with delay support
@@ -574,3 +618,15 @@ Outputs:
     Value: !GetAtt DataQualityBatchProcessorFunction.Arn
     Export:
       Name: alchemiser-data-quality-batch-processor-function-arn
+
+  BadDataMarkersTableName:
+    Description: "DynamoDB table for bad data markers"
+    Value: !Ref BadDataMarkersTable
+    Export:
+      Name: alchemiser-bad-data-markers-table
+
+  BadDataMarkersTableArn:
+    Description: "ARN of bad data markers table"
+    Value: !GetAtt BadDataMarkersTable.Arn
+    Export:
+      Name: alchemiser-bad-data-markers-table-arn
