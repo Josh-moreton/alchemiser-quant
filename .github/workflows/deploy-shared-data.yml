@@ -67,7 +67,8 @@ jobs:
             ${PARAMS:+--parameter-overrides $PARAMS} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --force-upload
+            --force-upload \
+            --resolve-s3
 
       - name: Output stack info
         run: |
