@@ -154,6 +154,62 @@ KEY INSIGHTS:
   • Worst hour: 09:00-09:59 (avg -0.0123%)
 ```
 
+## Data Validation
+
+### `validate_s3_against_yfinance.py`
+
+Validate your entire S3 market data datalake against yfinance for data integrity issues.
+
+**Why local-only?** yfinance blocks Lambda IP ranges, so validation must run on your development machine.
+
+**Features:**
+- ✅ Date validation (missing dates in S3 or yfinance)
+- ✅ Price validation (OHLC mismatches with float tolerance)
+- ✅ Volume validation (incorrect volume data)
+- ✅ Flexible filtering (all symbols, specific list, or limited batch)
+- ✅ Dual reporting (CSV summary + optional JSON detailed report)
+- ✅ Batch processing (handles hundreds of symbols efficiently)
+- ✅ Error resilience (continues despite individual symbol failures)
+
+**Usage:**
+
+```bash
+# Validate specific symbols
+poetry run python scripts/validate_s3_against_yfinance.py \
+  --symbols AAPL,MSFT,GOOGL \
+  --output report.csv
+
+# Validate first 50 symbols
+poetry run python scripts/validate_s3_against_yfinance.py \
+  --limit 50 \
+  --output validation_report.csv
+
+# Validate all with detailed discrepancies
+poetry run python scripts/validate_s3_against_yfinance.py \
+  --output summary.csv \
+  --detailed discrepancies.json
+
+# Custom S3 bucket and region
+poetry run python scripts/validate_s3_against_yfinance.py \
+  --bucket my-bucket \
+  --region us-west-2
+```
+
+**Parameters:**
+- `--symbols`: Comma-separated list (e.g., `AAPL,MSFT,GOOGL`)
+- `--limit`: Maximum number of symbols to validate
+- `--output`: CSV summary report (default: `s3_validation_report.csv`)
+- `--detailed`: JSON file with detailed discrepancies
+- `--bucket`: S3 bucket name (default: `MARKET_DATA_BUCKET` env var)
+- `--region`: AWS region (default: `us-east-1`)
+
+**Output:**
+- **CSV Report**: Summary of valid/invalid symbols with discrepancy counts
+- **JSON Report** (optional): Detailed list of missing dates, mismatched prices, etc.
+
+**Full Documentation:**
+See [VALIDATION_SCRIPT_README.md](./VALIDATION_SCRIPT_README.md) for comprehensive guide, performance tips, troubleshooting, and advanced usage.
+
 ## Other Scripts
 
 ### `seed_market_data.py`

@@ -27,6 +27,12 @@ Parameters:
     NoEcho: true
     Description: Alpaca API Secret for data fetching
 
+  TwelveDataApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Twelve Data API Key for external data validation (optional)
+
   FetchCooldownMinutes:
     Type: Number
     Default: 15
@@ -280,7 +286,7 @@ Resources:
   DataQualityMonitorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: alchemiser-data-quality-monitor
+      FunctionName: alchemiser-shared-data-quality-monitor
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -295,6 +301,7 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref SharedDataEventBus
           MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
+          TWELVEDATA_API_KEY: !Ref TwelveDataApiKey
       Events:
         # Scheduled quality check (daily at 4:30 AM UTC, 30 min after data refresh)
         QualityCheckSchedule:
@@ -308,7 +315,7 @@ Resources:
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: alchemiser-data-quality-monitor-role
+      RoleName: alchemiser-shared-data-quality-monitor-role
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow

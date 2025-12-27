@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis validate-s3 format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -16,6 +16,12 @@ help:
 	@echo "  hourly-gain-analysis              Analyze hourly gain/loss for SPY & QQQ (10 years)"
 	@echo "  hourly-gain-analysis years=5      Custom lookback period"
 	@echo "  hourly-gain-analysis symbols=...  Custom symbols (space-separated)"
+	@echo ""
+	@echo "Data Validation:"
+	@echo "  validate-s3                        Validate S3 data against yfinance (all symbols)"
+	@echo "  validate-s3 symbols=AAPL,MSFT     Validate specific symbols"
+	@echo "  validate-s3 limit=50               Validate first 50 symbols"
+	@echo "  validate-s3 limit=100 detailed=1  Validate with detailed discrepancies JSON"
 	@echo ""
 	@echo "Backtesting:"
 	@echo "  backtest                             Run portfolio backtest (last 2 months, strategy.dev.json)"
@@ -96,6 +102,24 @@ hourly-gain-analysis:
 	SYMBOLS=$${symbols:-SPY QQQ}; \
 	poetry run python scripts/hourly_gain_analysis.py --years $$YEARS --symbols $$SYMBOLS
 
+# Validate S3 market data against yfinance
+# Usage: make validate-s3                                    # All symbols
+#        make validate-s3 symbols=AAPL,MSFT,GOOGL            # Specific symbols
+#        make validate-s3 limit=50                           # First 50
+#        make validate-s3 limit=100 detailed=1               # With detailed JSON report
+#        make validate-s3 bucket=my-bucket region=us-west-2  # Custom S3
+validate-s3:
+	@echo "🔍 Validating S3 market data against yfinance..."
+	@ARGS=""; \
+	if [ -n "$(symbols)" ]; then ARGS="$$ARGS --symbols $(symbols)"; fi; \
+	if [ -n "$(limit)" ]; then ARGS="$$ARGS --limit $(limit)"; fi; \
+	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; else ARGS="$$ARGS --output s3_validation_report.csv"; fi; \
+	if [ -n "$(detailed)" ]; then ARGS="$$ARGS --detailed s3_validation_discrepancies.json"; fi; \
+	if [ -n "$(bucket)" ]; then ARGS="$$ARGS --bucket $(bucket)"; fi; \
+	if [ -n "$(region)" ]; then ARGS="$$ARGS --region $(region)"; fi; \
+	poetry run python scripts/validate_s3_against_yfinance.py $$ARGS && \
+	echo "" && \
+	echo "✅ Validation complete! Report: s3_validation_report.csv"
 
 # Status command removed - use programmatic access via TradingSystem class
 
@@ -524,10 +548,10 @@ data-quality:
 	@echo "🧪 Testing data quality monitor Lambda..."
 	@STAGE=$${stage:-dev}; \
 	if [ "$$STAGE" = "dev" ]; then \
-		FUNCTION_NAME="alchemiser-data-quality-monitor"; \
+		FUNCTION_NAME="alchemiser-shared-data-quality-monitor"; \
 		REGION="us-east-1"; \
 	else \
-		FUNCTION_NAME="alchemiser-data-quality-monitor-$$STAGE"; \
+		FUNCTION_NAME="alchemiser-shared-data-quality-monitor-$$STAGE"; \
 		REGION="us-east-1"; \
 	fi; \
 	echo "📍 Function: $$FUNCTION_NAME"; \
