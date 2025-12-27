@@ -16,6 +16,7 @@ from decimal import Decimal
 from secrets import randbelow
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from alpaca.data.enums import Adjustment
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
@@ -625,11 +626,14 @@ class MarketDataService(MarketDataPort):
         start_dt = datetime.fromisoformat(start_date)
         end_dt = datetime.fromisoformat(end_date)
 
+        # Use Adjustment.ALL to get split/dividend adjusted prices
+        # This ensures data is suitable for indicator calculation and backtesting
         request = StockBarsRequest(
             symbol_or_symbols=symbol,
             timeframe=resolved_timeframe,
             start=start_dt,
             end=end_dt,
+            adjustment=Adjustment.ALL,
         )
 
         # Make API call and extract bars
