@@ -205,6 +205,7 @@ class TradeAggregatorService:
             "completed_trades": int(item.get("completed_trades", {}).get("N", "0")),
             "succeeded_trades": int(item.get("succeeded_trades", {}).get("N", "0")),
             "failed_trades": int(item.get("failed_trades", {}).get("N", "0")),
+            "skipped_trades": int(item.get("skipped_trades", {}).get("N", "0")),
             "status": item.get("status", {}).get("S", "UNKNOWN"),
             "created_at": item.get("created_at", {}).get("S", ""),
         }

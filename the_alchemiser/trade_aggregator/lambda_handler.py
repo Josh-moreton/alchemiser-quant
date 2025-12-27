@@ -172,6 +172,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             total_trades=run_metadata.get("total_trades", 0),
             succeeded_trades=run_metadata.get("succeeded_trades", 0),
             failed_trades=run_metadata.get("failed_trades", 0),
+            skipped_trades=run_metadata.get("skipped_trades", 0),
             aggregated_execution_data=aggregated_data,
             capital_deployed_pct=capital_deployed_pct,
             failed_symbols=aggregated_data.get("failed_symbols", []),

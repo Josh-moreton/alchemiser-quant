@@ -238,6 +238,9 @@ class NotificationService:
         else:
             capital_deployed_str = "N/A"
 
+        # Calculate orders actually executed (excluding skips)
+        orders_executed = event.orders_placed - event.orders_skipped
+
         lines = [
             "THE ALCHEMISER - TRADING REPORT",
             "=" * 40,
@@ -245,7 +248,8 @@ class NotificationService:
             f"Status: {status}",
             f"Mode: {event.trading_mode.upper()}",
             f"Orders Placed: {event.orders_placed}",
-            f"Orders Succeeded: {event.orders_succeeded}",
+            f"Orders Executed: {orders_executed}",
+            f"Orders Skipped: {event.orders_skipped}",
             f"Capital Deployed: {capital_deployed_str}",
             "",
             f"Correlation ID: {event.correlation_id}",

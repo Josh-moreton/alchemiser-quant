@@ -151,6 +151,7 @@ class ExecutionRunService:
                 "completed_trades": {"N": "0"},
                 "succeeded_trades": {"N": "0"},
                 "failed_trades": {"N": "0"},
+                "skipped_trades": {"N": "0"},
                 # Phase tracking for two-phase execution
                 "sell_total": {"N": str(len(sell_trades))},
                 "sell_completed": {"N": "0"},
@@ -294,6 +295,7 @@ class ExecutionRunService:
         trade_id: str,
         *,
         success: bool,
+        skipped: bool = False,
         order_id: str | None = None,
         error_message: str | None = None,
         execution_data: dict[str, Any] | None = None,
@@ -313,6 +315,7 @@ class ExecutionRunService:
             run_id: Run identifier.
             trade_id: Trade identifier.
             success: Whether the trade succeeded.
+            skipped: Whether the trade was skipped (e.g., market closed).
             order_id: Broker order ID if available.
             error_message: Error message if failed.
             execution_data: Additional execution data.
@@ -368,7 +371,13 @@ class ExecutionRunService:
             )
 
             # Increment counters atomically - both overall and phase-specific
-            counter_field = "succeeded_trades" if success else "failed_trades"
+            # Determine which counter to increment based on outcome
+            if skipped:
+                counter_field = "skipped_trades"
+            elif success:
+                counter_field = "succeeded_trades"
+            else:
+                counter_field = "failed_trades"
 
             # Build update expression for phase-specific counters
             if phase == "SELL":
@@ -415,6 +424,9 @@ class ExecutionRunService:
             attrs = response.get("Attributes", {})
             completed = int(attrs.get("completed_trades", {"N": "0"})["N"])
             total = int(attrs.get("total_trades", {"N": "0"})["N"])
+            succeeded_trades = int(attrs.get("succeeded_trades", {"N": "0"})["N"])
+            failed_trades = int(attrs.get("failed_trades", {"N": "0"})["N"])
+            skipped_trades = int(attrs.get("skipped_trades", {"N": "0"})["N"])
             sell_completed = int(attrs.get("sell_completed", {"N": "0"})["N"])
             sell_total = int(attrs.get("sell_total", {"N": "0"})["N"])
             buy_completed = int(attrs.get("buy_completed", {"N": "0"})["N"])
@@ -458,6 +470,9 @@ class ExecutionRunService:
             return {
                 "completed_trades": completed,
                 "total_trades": total,
+                "succeeded_trades": succeeded_trades,
+                "failed_trades": failed_trades,
+                "skipped_trades": skipped_trades,
                 "sell_completed": sell_completed,
                 "sell_total": sell_total,
                 "buy_completed": buy_completed,
@@ -483,6 +498,9 @@ class ExecutionRunService:
                 return {
                     "completed_trades": run.get("completed_trades", 0),
                     "total_trades": run.get("total_trades", 0),
+                    "succeeded_trades": run.get("succeeded_trades", 0),
+                    "failed_trades": run.get("failed_trades", 0),
+                    "skipped_trades": run.get("skipped_trades", 0),
                     "sell_completed": run.get("sell_completed", 0),
                     "sell_total": run.get("sell_total", 0),
                     "buy_completed": run.get("buy_completed", 0),
@@ -501,6 +519,9 @@ class ExecutionRunService:
             return {
                 "completed_trades": 0,
                 "total_trades": 0,
+                "succeeded_trades": 0,
+                "failed_trades": 0,
+                "skipped_trades": 0,
                 "run_complete": False,
                 "sell_failed_amount": Decimal("0"),
                 "sell_succeeded_amount": Decimal("0"),
@@ -536,6 +557,7 @@ class ExecutionRunService:
             "completed_trades": int(item["completed_trades"]["N"]),
             "succeeded_trades": int(item.get("succeeded_trades", {"N": "0"})["N"]),
             "failed_trades": int(item.get("failed_trades", {"N": "0"})["N"]),
+            "skipped_trades": int(item.get("skipped_trades", {"N": "0"})["N"]),
             # Phase tracking fields
             "sell_total": int(item.get("sell_total", {"N": "0"})["N"]),
             "sell_completed": int(item.get("sell_completed", {"N": "0"})["N"]),
