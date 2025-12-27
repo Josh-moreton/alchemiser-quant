@@ -419,6 +419,56 @@ def write_detailed_report(results: list[SymbolValidationResult], output_file: st
     logger.info(f"Detailed report written to {output_file}")
 
 
+def discover_bucket_from_cloudformation(region: str) -> str | None:
+    """Attempt to discover bucket from CloudFormation stack outputs.
+
+    Looks for stack outputs named MarketDataBucketName in stacks matching:
+    - alchemiser-dev (dev stage)
+    - alchemiser-staging (staging stage)
+    - alchemiser-prod (prod stage)
+
+    Args:
+        region: AWS region
+
+    Returns:
+        Bucket name if found, None otherwise
+
+    """
+    try:
+        cf_client = boto3.client("cloudformation", region_name=region)
+
+        # Try common stack names in order of likelihood
+        stack_names = [
+            "alchemiser-dev",
+            "alchemiser-staging",
+            "alchemiser-prod",
+        ]
+
+        for stack_name in stack_names:
+            try:
+                response = cf_client.describe_stacks(StackName=stack_name)
+                if response["Stacks"]:
+                    stack = response["Stacks"][0]
+                    if "Outputs" in stack:
+                        for output in stack["Outputs"]:
+                            if output.get("OutputKey") == "MarketDataBucketName":
+                                bucket = output.get("OutputValue")
+                                logger.info(
+                                    f"Auto-discovered bucket from CloudFormation stack {stack_name}: {bucket}"
+                                )
+                                return bucket
+            except cf_client.exceptions.ClientError as e:
+                if e.response["Error"]["Code"] != "ValidationError":
+                    raise
+                # Stack doesn't exist, try next one
+                continue
+
+    except Exception as e:
+        logger.warning(f"Failed to auto-discover bucket from CloudFormation: {e}")
+
+    return None
+
+
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -426,7 +476,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Validate all symbols
+  # Validate all symbols (auto-discovers bucket from CloudFormation)
   python scripts/validate_s3_against_yfinance.py
 
   # Validate specific symbols
@@ -437,6 +487,9 @@ Examples:
 
   # Custom output file
   python scripts/validate_s3_against_yfinance.py --output validation_report.csv
+
+  # Explicit bucket (overrides auto-discovery)
+  python scripts/validate_s3_against_yfinance.py --bucket my-bucket
         """,
     )
     parser.add_argument(
@@ -464,7 +517,7 @@ Examples:
         "--bucket",
         type=str,
         default=None,
-        help="S3 bucket name (default: MARKET_DATA_BUCKET env var)",
+        help="S3 bucket name (default: auto-discover from CloudFormation, MARKET_DATA_BUCKET env var, or specify explicitly)",
     )
     parser.add_argument(
         "--region",
@@ -475,10 +528,20 @@ Examples:
 
     args = parser.parse_args()
 
-    # Resolve bucket
+    # Resolve bucket: explicit arg > env var > CloudFormation auto-discovery
     bucket = args.bucket or os.environ.get("MARKET_DATA_BUCKET")
+
     if not bucket:
-        logger.error("Bucket not specified. Set --bucket or MARKET_DATA_BUCKET env var")
+        logger.info("Attempting to auto-discover bucket from CloudFormation...")
+        bucket = discover_bucket_from_cloudformation(args.region)
+
+    if not bucket:
+        logger.error(
+            "Bucket not found. Provide via:\n"
+            "  1. --bucket argument\n"
+            "  2. MARKET_DATA_BUCKET env var\n"
+            "  3. CloudFormation stack output (auto-discovered from alchemiser-dev/staging/prod stacks)"
+        )
         sys.exit(1)
 
     logger.info(f"Using bucket: {bucket}")
