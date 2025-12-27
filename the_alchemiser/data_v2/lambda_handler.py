@@ -297,6 +297,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         # Check for specific symbols (manual invocation)
         specific_symbols = event.get("symbols")
         full_seed = event.get("full_seed", False)
+        process_markers = event.get("process_markers", True)  # Default: process bad data markers
 
         if specific_symbols:
             # Refresh only specified symbols
@@ -316,7 +317,11 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                     results[symbol] = service.refresh_symbol(symbol)
         else:
             # Refresh all symbols from strategy configs
-            results = service.refresh_all_symbols()
+            # Use refresh_all_with_markers to also process bad data markers
+            if process_markers:
+                results = service.refresh_all_with_markers()
+            else:
+                results = service.refresh_all_symbols()
 
         # Calculate statistics
         total = len(results)

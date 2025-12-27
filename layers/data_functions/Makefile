@@ -28,11 +28,13 @@ SOURCE_DIR := $(or \
 	$(call find_source,/home/runner/work/alchemiser-quant/alchemiser-quant), \
 	$(error Could not find source directory with the_alchemiser module))
 
-.PHONY: build build-SharedDataFunction build-DataQualityMonitorFunction
+.PHONY: build build-SharedDataFunction build-DataQualityMonitorFunction build-DataQualityCoordinatorFunction build-DataQualityBatchProcessorFunction
 
 # SAM calls build-<FunctionName> for each function
 build-SharedDataFunction: build
 build-DataQualityMonitorFunction: build
+build-DataQualityCoordinatorFunction: build
+build-DataQualityBatchProcessorFunction: build
 
 build:
 	@echo "📦 Building Data Lambda function code..."
