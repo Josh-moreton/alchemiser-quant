@@ -1,9 +1,32 @@
 # Data Lambda Function Build
 # Uses Makefile to copy only necessary code (SAM's BuildProperties doesn't work reliably)
+#
+# SAM workflow:
+# 1. Copies CodeUri directory to temp build location
+# 2. Runs make build-<FunctionName> with ARTIFACTS_DIR set
+# 3. Packages contents of ARTIFACTS_DIR into Lambda zip
+#
+# We need to find the repo root relative to where SAM copied us
 
 ARTIFACTS_DIR ?= $(shell pwd)
-# Go up two levels: layers/data_functions -> layers -> repo root
-SOURCE_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST)))../..)
+
+# SAM copies layers/data_functions/ to a temp dir and runs make there
+# We need to find the repo root (../../ from layers/data_functions)
+# But SAM also sets the working directory, so we use CODEBUILD_SRC_DIR or fallback
+SOURCE_DIR := $(if $(CODEBUILD_SRC_DIR),$(CODEBUILD_SRC_DIR),$(shell cd ../.. 2>/dev/null && pwd || echo ""))
+
+# Fallback: if we can't find source, check if the_alchemiser exists at common locations
+define find_source
+$(if $(wildcard $(1)/the_alchemiser/__init__.py),$(1),)
+endef
+
+# Try multiple locations
+SOURCE_DIR := $(or \
+	$(call find_source,$(SOURCE_DIR)), \
+	$(call find_source,$(GITHUB_WORKSPACE)), \
+	$(call find_source,$(shell pwd)/../..), \
+	$(call find_source,/home/runner/work/alchemiser-quant/alchemiser-quant), \
+	$(error Could not find source directory with the_alchemiser module))
 
 .PHONY: build build-SharedDataFunction build-DataQualityMonitorFunction
 
