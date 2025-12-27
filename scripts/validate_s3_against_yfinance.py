@@ -44,7 +44,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Common split factors to detect (forward and reverse splits)
-COMMON_SPLIT_FACTORS = [2, 3, 4, 5, 7, 8, 10, 20, 1/2, 1/3, 1/4, 1/5, 1/10]
+COMMON_SPLIT_FACTORS = [2, 3, 4, 5, 7, 8, 10, 20, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 10]
 
 
 def detect_split_factor(s3_price: float, yf_price: float, tolerance: float = 0.02) -> float | None:
@@ -168,11 +168,7 @@ class SymbolValidationResult:
         """Records missing in S3 that are within the S3 date range (unexpected gaps)."""
         if not self.s3_start_date or not self.s3_end_date:
             return []
-        return [
-            p
-            for p in self.missing_in_s3
-            if self.s3_start_date <= p.date <= self.s3_end_date
-        ]
+        return [p for p in self.missing_in_s3 if self.s3_start_date <= p.date <= self.s3_end_date]
 
     @property
     def missing_in_s3_historical(self) -> list[DataPoint]:
@@ -197,11 +193,7 @@ class SymbolValidationResult:
 
         Note: Split-affected data is flagged separately for correction, not as invalid.
         """
-        return (
-            not self.missing_in_s3_recent
-            and not self.genuine_errors
-            and not self.errors
-        )
+        return not self.missing_in_s3_recent and not self.genuine_errors and not self.errors
 
     @property
     def discrepancy_count(self) -> int:
@@ -235,6 +227,7 @@ def read_s3_data(
         response = s3_client.get_object(Bucket=bucket, Key=key)
 
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
             tmp.write(response["Body"].read())
             tmp_path = tmp.name
@@ -302,9 +295,7 @@ def fetch_yfinance_data(
             return df
         except Exception as e:
             if attempt < max_retries - 1:
-                logger.warning(
-                    f"Attempt {attempt + 1} failed for {symbol}, retrying: {e}"
-                )
+                logger.warning(f"Attempt {attempt + 1} failed for {symbol}, retrying: {e}")
             else:
                 logger.error(f"Failed to fetch yfinance data for {symbol}: {e}")
                 return None
@@ -481,9 +472,13 @@ def validate_symbol(
         if result.mismatched_records:
             print(f"\n  Sample PRICE mismatches:")
             for i, (s3_pt, yf_pt) in enumerate(result.mismatched_records[:3]):
-                print(f"    [{i+1}] Date: {s3_pt.date}")
-                print(f"        S3:  O={s3_pt.open_price:.4f} H={s3_pt.high_price:.4f} L={s3_pt.low_price:.4f} C={s3_pt.close_price:.4f}")
-                print(f"        YF:  O={yf_pt.open_price:.4f} H={yf_pt.high_price:.4f} L={yf_pt.low_price:.4f} C={yf_pt.close_price:.4f}")
+                print(f"    [{i + 1}] Date: {s3_pt.date}")
+                print(
+                    f"        S3:  O={s3_pt.open_price:.4f} H={s3_pt.high_price:.4f} L={s3_pt.low_price:.4f} C={s3_pt.close_price:.4f}"
+                )
+                print(
+                    f"        YF:  O={yf_pt.open_price:.4f} H={yf_pt.high_price:.4f} L={yf_pt.low_price:.4f} C={yf_pt.close_price:.4f}"
+                )
                 # Check for split factor
                 if yf_pt.close_price > 0:
                     ratio = s3_pt.close_price / yf_pt.close_price
@@ -550,33 +545,39 @@ def write_csv_report(results: list[SymbolValidationResult], output_file: str) ->
         writer.writerow([])
 
         # Symbol details header
-        writer.writerow([
-            "Symbol",
-            "S3 Records",
-            "S3 Date Range",
-            "yfinance Records",
-            "Historical Gaps",
-            "Unexpected Gaps",
-            "Missing in yfinance",
-            "Mismatched",
-            "Errors",
-            "Status",
-        ])
+        writer.writerow(
+            [
+                "Symbol",
+                "S3 Records",
+                "S3 Date Range",
+                "yfinance Records",
+                "Historical Gaps",
+                "Unexpected Gaps",
+                "Missing in yfinance",
+                "Mismatched",
+                "Errors",
+                "Status",
+            ]
+        )
 
         for result in results:
-            date_range = f"{result.s3_start_date} to {result.s3_end_date}" if result.s3_start_date else "N/A"
-            writer.writerow([
-                result.symbol,
-                result.s3_record_count,
-                date_range,
-                result.yfinance_record_count,
-                result.historical_gap_count,
-                len(result.missing_in_s3_recent),
-                len(result.missing_in_yfinance),
-                len(result.mismatched_records),
-                "; ".join(result.errors) if result.errors else "",
-                "VALID" if result.is_valid else "INVALID",
-            ])
+            date_range = (
+                f"{result.s3_start_date} to {result.s3_end_date}" if result.s3_start_date else "N/A"
+            )
+            writer.writerow(
+                [
+                    result.symbol,
+                    result.s3_record_count,
+                    date_range,
+                    result.yfinance_record_count,
+                    result.historical_gap_count,
+                    len(result.missing_in_s3_recent),
+                    len(result.missing_in_yfinance),
+                    len(result.mismatched_records),
+                    "; ".join(result.errors) if result.errors else "",
+                    "VALID" if result.is_valid else "INVALID",
+                ]
+            )
 
     logger.info(f"Report written to {output_file}")
 
@@ -596,7 +597,9 @@ def write_detailed_report(results: list[SymbolValidationResult], output_file: st
             symbol_report: dict = {
                 "s3_record_count": result.s3_record_count,
                 "yfinance_record_count": result.yfinance_record_count,
-                "s3_date_range": f"{result.s3_start_date} to {result.s3_end_date}" if result.s3_start_date else "N/A",
+                "s3_date_range": f"{result.s3_start_date} to {result.s3_end_date}"
+                if result.s3_start_date
+                else "N/A",
                 "historical_gaps": result.historical_gap_count,
                 "unexpected_gaps": len(result.missing_in_s3_recent),
                 "is_valid": result.is_valid,
@@ -628,7 +631,9 @@ def write_detailed_report(results: list[SymbolValidationResult], output_file: st
                         "date": s3_point.date,
                         "s3_close": s3_point.close_price,
                         "yf_close": yf_point.close_price,
-                        "ratio": round(s3_point.close_price / yf_point.close_price, 4) if yf_point.close_price else None,
+                        "ratio": round(s3_point.close_price / yf_point.close_price, 4)
+                        if yf_point.close_price
+                        else None,
                     }
                     for s3_point, yf_point in result.mismatched_records[:10]  # Limit to 10
                 ]
@@ -639,6 +644,111 @@ def write_detailed_report(results: list[SymbolValidationResult], output_file: st
         json.dump(report, f, indent=2)
 
     logger.info(f"Detailed report written to {output_file}")
+
+
+def discover_markers_table_from_cloudformation(region: str) -> str | None:
+    """Attempt to discover bad data markers table from CloudFormation.
+
+    Args:
+        region: AWS region
+
+    Returns:
+        Table name if found, None otherwise
+
+    """
+    try:
+        cf_client = boto3.client("cloudformation", region_name=region)
+
+        # Try common stack names in order of likelihood
+        stack_names = [
+            "alchemiser-dev",
+            "alchemiser-staging",
+            "alchemiser-prod",
+        ]
+
+        for stack_name in stack_names:
+            try:
+                response = cf_client.describe_stacks(StackName=stack_name)
+                if response["Stacks"]:
+                    # Table name follows pattern: alchemiser-{stage}-bad-data-markers
+                    stage = stack_name.replace("alchemiser-", "")
+                    table_name = f"alchemiser-{stage}-bad-data-markers"
+                    logger.info(f"Inferred markers table from stack {stack_name}: {table_name}")
+                    return table_name
+            except cf_client.exceptions.ClientError as e:
+                if e.response["Error"]["Code"] != "ValidationError":
+                    raise
+                continue
+
+    except Exception as e:
+        logger.warning(f"Failed to discover markers table: {e}")
+
+    return None
+
+
+def write_bad_data_markers(
+    results: list[SymbolValidationResult],
+    region: str,
+) -> int:
+    """Write bad data markers to DynamoDB for symbols needing re-fetch.
+
+    Args:
+        results: Validation results
+        region: AWS region
+
+    Returns:
+        Number of markers written
+
+    """
+    # Discover table name
+    table_name = discover_markers_table_from_cloudformation(region)
+
+    if not table_name:
+        logger.error("Could not discover markers table. Ensure alchemiser stack is deployed.")
+        return 0
+
+    # Import the service (local import to avoid circular deps)
+    # We're adding the project to path so we can import from the_alchemiser
+    import sys
+    from pathlib import Path
+
+    project_root = Path(__file__).parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    from the_alchemiser.data_v2.bad_data_marker_service import BadDataMarkerService
+
+    marker_service = BadDataMarkerService(table_name=table_name)
+
+    markers_written = 0
+
+    for result in results:
+        # Only mark symbols with split-affected records
+        if not result.split_affected_records:
+            continue
+
+        # Get representative split factor
+        split_factors = [factor for _, _, factor in result.split_affected_records]
+        avg_factor = sum(split_factors) / len(split_factors) if split_factors else None
+
+        success = marker_service.mark_symbol_for_refetch(
+            symbol=result.symbol,
+            reason="split_adjusted",
+            start_date=result.s3_start_date,
+            end_date=result.s3_end_date,
+            detected_ratio=avg_factor,
+            source="validation_script",
+        )
+
+        if success:
+            markers_written += 1
+            logger.info(
+                f"Marked {result.symbol} for re-fetch "
+                f"({len(result.split_affected_records)} split-affected records, "
+                f"ratio: {avg_factor:.2f}x)"
+            )
+
+    return markers_written
 
 
 def discover_bucket_from_cloudformation(region: str) -> str | None:
@@ -752,6 +862,12 @@ Examples:
         action="store_true",
         help="Print sample mismatches with actual S3 vs yfinance values for debugging",
     )
+    parser.add_argument(
+        "--mark-bad",
+        action="store_true",
+        help="Write bad data markers to DynamoDB for symbols with split-adjusted data. "
+        "These markers will be processed by the next Data Lambda run to re-fetch data.",
+    )
 
     args = parser.parse_args()
 
@@ -811,6 +927,20 @@ Examples:
     if args.detailed:
         write_detailed_report(results, args.detailed)
 
+    # Write bad data markers if requested
+    markers_written = 0
+    if args.mark_bad:
+        symbols_with_splits = [r for r in results if r.split_affected_records]
+        if symbols_with_splits:
+            print(
+                f"\nWriting bad data markers for {len(symbols_with_splits)} symbols with split-affected data..."
+            )
+            markers_written = write_bad_data_markers(results, args.region)
+            print(f"✅ Wrote {markers_written} markers to DynamoDB")
+            print("   These will be processed on next Data Lambda run.")
+        else:
+            print("\nNo symbols with split-affected data found - no markers to write.")
+
     # Print summary
     valid_count = sum(1 for r in results if r.is_valid)
     invalid_count = len(results) - valid_count
@@ -829,12 +959,16 @@ Examples:
     print("Discrepancy Breakdown:")
     print(f"  - Unexpected gaps (missing dates in S3): {total_unexpected_gaps}")
     print(f"  - Total price mismatches: {total_mismatches}")
-    print(f"    - Split-adjusted (fixable by re-fetching with adjustment='all'): {total_split_affected}")
+    print(
+        f"    - Split-adjusted (fixable by re-fetching with adjustment='all'): {total_split_affected}"
+    )
     print(f"    - Genuine errors (unexplained): {total_genuine_errors}")
     print()
     print(f"Report: {args.output}")
     if args.detailed:
         print(f"Detailed Report: {args.detailed}")
+    if markers_written > 0:
+        print(f"Bad Data Markers Written: {markers_written}")
     print("=" * 80)
 
     if invalid_count > 0:
@@ -850,9 +984,15 @@ Examples:
     # Note about split-adjusted data
     if total_split_affected > 0:
         print(f"\n⚠️  NOTE: {total_split_affected} records have split-adjusted price differences.")
-        print("   yfinance returns split-adjusted prices, while Alpaca/S3 stores unadjusted prices.")
-        print("   Fix: Re-fetch data using Alpaca's adjustment='all' parameter.")
-        print("   These are marked separately from genuine errors.")
+        print(
+            "   yfinance returns split-adjusted prices, while Alpaca/S3 stores unadjusted prices."
+        )
+        if markers_written > 0:
+            print(
+                f"   ✅ {markers_written} symbols marked for re-fetch - will be processed on next Data Lambda run."
+            )
+        else:
+            print("   Run with --mark-bad to write DynamoDB markers for automatic re-fetch.")
 
 
 if __name__ == "__main__":
