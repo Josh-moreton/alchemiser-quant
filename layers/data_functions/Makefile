@@ -50,7 +50,11 @@ build:
 	cp -r "$(SOURCE_DIR)/the_alchemiser/shared" "$(ARTIFACTS_DIR)/the_alchemiser/"
 	cp -r "$(SOURCE_DIR)/the_alchemiser/data_v2" "$(ARTIFACTS_DIR)/the_alchemiser/"
 	cp -r "$(SOURCE_DIR)/the_alchemiser/data_quality_monitor" "$(ARTIFACTS_DIR)/the_alchemiser/"
+
+	# Config files and strategy DSL files (needed for symbol extraction)
 	cp -r "$(SOURCE_DIR)/the_alchemiser/config" "$(ARTIFACTS_DIR)/the_alchemiser/" 2>/dev/null || true
+	mkdir -p "$(ARTIFACTS_DIR)/the_alchemiser/strategy_v2"
+	cp -r "$(SOURCE_DIR)/the_alchemiser/strategy_v2/strategies" "$(ARTIFACTS_DIR)/the_alchemiser/strategy_v2/" 2>/dev/null || true
 	
 	# Cleanup Python cache
 	find "$(ARTIFACTS_DIR)" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
