@@ -66,7 +66,8 @@ jobs:
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             ${PARAMS:+--parameter-overrides $PARAMS} \
             --no-confirm-changeset \
-            --no-fail-on-empty-changeset
+            --no-fail-on-empty-changeset \
+            --force-upload
 
       - name: Output stack info
         run: |
