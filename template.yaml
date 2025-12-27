@@ -526,6 +526,23 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  # Shared Code Layer: Contains the_alchemiser.shared module (business logic)
+  # Pure Python code - no third-party dependencies
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-shared-code"
+        - !Sub "alchemiser-${Stage}-shared-code"
+      Description: Shared business logic and utilities (the_alchemiser.shared)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -844,11 +861,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/strategy_v2/
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
         - !Ref StrategyLayer  # awswrangler + alpaca-py (built via Makefile)
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 900  # Max timeout for on-demand data fetching
       MemorySize: 1024
       Environment:
@@ -932,11 +950,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/coordinator_v2/
       Handler: the_alchemiser.coordinator_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 60  # Orchestrator just dispatches, doesn't run strategies
       MemorySize: 512
       Environment:
@@ -1010,11 +1029,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/aggregator_v2/
       Handler: the_alchemiser.aggregator_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyAggregatorExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
       Environment:
@@ -1092,11 +1112,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/portfolio_v2/
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
         - !Ref PortfolioLayer
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 900  # Max timeout for comprehensive processing
       MemorySize: 1024
       Environment:
@@ -1194,11 +1215,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/execution_v2/
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
       Layers:
         - !Ref ExecutionLayer
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 600
       MemorySize: 1024
       # Concurrency limited to 10 for Alpaca trading API rate limits (200 calls/min)
@@ -1313,11 +1335,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/trade_aggregator/
       Handler: the_alchemiser.trade_aggregator.lambda_handler.lambda_handler
       Role: !GetAtt TradeAggregatorExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, alpaca-py for capital metrics)
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
       Environment:
@@ -1391,11 +1414,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/notifications_v2/
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 60
       MemorySize: 512
       Environment:
@@ -1492,11 +1516,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/metrics_v2/
       Handler: the_alchemiser.metrics_v2.lambda_handler.lambda_handler
       Role: !GetAtt MetricsExecutionRole.Arn
       Layers:
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, boto3)
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 60
       MemorySize: 512
       Environment:
