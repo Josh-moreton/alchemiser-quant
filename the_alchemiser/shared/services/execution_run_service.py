@@ -395,8 +395,9 @@ class ExecutionRunService:
                 update_expression = f"ADD completed_trades :one, {counter_field} :one"
 
             # Track dollar amounts for phase guards
+            # CRITICAL: Skip amount tracking for skipped trades to avoid corrupting risk calculations
             expr_attr_values: dict[str, dict[str, str]] = {":one": {"N": "1"}}
-            if trade_amount is not None:
+            if trade_amount is not None and not skipped:
                 amount_str = str(abs(trade_amount))
                 # For SELL phase, track sell_failed_amount and sell_succeeded_amount
                 if phase == "SELL":

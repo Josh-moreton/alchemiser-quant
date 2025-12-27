@@ -334,7 +334,8 @@ class TestTradingNotificationHandling:
 
         # Verify message contains order counts
         assert "Orders Placed: 5" in message
-        assert "Orders Succeeded: 5" in message
+        assert "Orders Executed: 5" in message
+        assert "Orders Skipped: 0" in message
 
     @patch("the_alchemiser.notifications_v2.service.publish_notification")
     def test_handle_trading_notification_shows_capital_deployed(
