@@ -304,6 +304,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref SharedDataEventBus
+          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
       Events:
         # Scheduled quality check (daily at 4:30 AM UTC, 30 min after data refresh)
         QualityCheckSchedule:
