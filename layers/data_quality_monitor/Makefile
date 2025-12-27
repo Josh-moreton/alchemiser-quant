@@ -2,9 +2,9 @@
 # Downloads pre-built awswrangler layer and adds yfinance for external data validation
 #
 # awswrangler layer provides: pandas, numpy, pyarrow, boto3, botocore, pydantic, requests, etc.
-# We add: yfinance and its dependencies
+# We add: yfinance (no-deps since pandas/numpy/requests already in awswrangler)
 #
-# Total size: ~190MB unzipped (well under 250MB Lambda limit)
+# Total size: ~200MB unzipped (within 250MB Lambda limit)
 
 AWSWRANGLER_VERSION := 3.10.0
 PYTHON_VERSION := 3.12
@@ -29,22 +29,45 @@ build-DataQualityMonitorLayer:
 	@echo "📂 Extracting awswrangler layer..."
 	unzip -q -o /tmp/awswrangler-layer.zip -d "$(ARTIFACTS_DIR)"
 
-	# Add yfinance and its dependencies
-	@echo "➕ Adding yfinance..."
+	# Add yfinance WITHOUT its heavy dependencies (pandas, numpy, requests already in awswrangler)
+	@echo "➕ Adding yfinance (no-deps)..."
 	$(PIP) install -q \
 		yfinance==$(YFINANCE_VERSION) \
+		--no-deps \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade
+
+	# Add only the yfinance runtime dependencies not already in awswrangler
+	# Skipping: pandas, numpy, pytz, requests (in awswrangler)
+	# Skipping: curl_cffi, lxml (heavy, yfinance works without them - falls back to requests)
+	@echo "➕ Adding yfinance runtime dependencies..."
+	$(PIP) install -q \
+		beautifulsoup4 \
+		frozendict \
+		multitasking \
+		peewee \
+		platformdirs \
+		html5lib \
+		--no-deps \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 
 	# Add Data Quality Monitor-specific deps not in awswrangler
+	# Note: pydantic already in awswrangler, just add pydantic-settings and structlog
 	@echo "➕ Adding Data Quality Monitor-specific dependencies..."
 	$(PIP) install -q \
-		pydantic==2.10.5 \
 		pydantic-settings==2.7.1 \
 		structlog==24.4.0 \
-		dependency-injector==4.43.0 \
+		--no-deps \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
+
+	# Cleanup to reduce size
+	@echo "🧹 Cleaning up unnecessary files..."
+	find "$(ARTIFACTS_DIR)/python" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find "$(ARTIFACTS_DIR)/python" -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
+	find "$(ARTIFACTS_DIR)/python" -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
+	find "$(ARTIFACTS_DIR)/python" -type f -name "*.pyc" -delete 2>/dev/null || true
 
 	# Cleanup
 	rm -f /tmp/awswrangler-layer.zip
