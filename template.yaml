@@ -866,10 +866,15 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Strategy module (this Lambda's business logic)
+          - 'the_alchemiser/strategy_v2/**/*.py'
+          - 'the_alchemiser/strategy_v2/**/*.clj'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -949,10 +954,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Coordinator module (this Lambda's business logic)
+          - 'the_alchemiser/coordinator_v2/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -1036,10 +1045,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Aggregator module (this Lambda's business logic)
+          - 'the_alchemiser/aggregator_v2/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -1115,10 +1128,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Portfolio module (this Lambda's business logic)
+          - 'the_alchemiser/portfolio_v2/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -1237,10 +1254,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Execution module (this Lambda's business logic)
+          - 'the_alchemiser/execution_v2/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -1338,9 +1359,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Trade Aggregator module (this Lambda's business logic)
+          - 'the_alchemiser/trade_aggregator/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -1430,9 +1456,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Notifications module (this Lambda's business logic)
+          - 'the_alchemiser/notifications_v2/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -1517,9 +1548,14 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
+          # Root package files
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
+          # Shared components (required by all Lambdas)
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/*.json'
+          # Metrics module (this Lambda's business logic)
+          - 'the_alchemiser/metrics_v2/**/*.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
