@@ -9,6 +9,11 @@ Description: >
   Only the Data Lambda has write permissions; all other Lambdas are read-only consumers.
   Includes DynamoDB table for deduplicating concurrent fetch requests.
 
+# Data Lambda functions use BuildMethod: makefile (layers/data_functions/Makefile)
+# to copy only required modules. SAM's BuildProperties Include/Exclude patterns
+# are unreliable, so we use the same Makefile approach as the layers.
+# This reduces function code from ~45MB to ~4MB.
+
 Parameters:
   AlpacaKey:
     Type: String
@@ -178,7 +183,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: layers/data_functions/
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt SharedDataExecutionRole.Arn
       Layers:
@@ -206,23 +211,7 @@ Resources:
               detail-type:
                 - "MarketDataFetchRequested"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
-          - 'the_alchemiser/data_quality_monitor/**'
+      BuildMethod: makefile
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
@@ -295,7 +284,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: layers/data_functions/
       Handler: the_alchemiser.data_quality_monitor.lambda_handler.lambda_handler
       Role: !GetAtt DataQualityMonitorExecutionRole.Arn
       Layers:
@@ -314,22 +303,7 @@ Resources:
             Schedule: "cron(30 4 ? * TUE-SAT *)"
             Description: "Validate data quality daily at 4:30 AM UTC"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role

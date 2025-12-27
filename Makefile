@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis format type-check import-check migration-check deploy-dev deploy-prod deploy-data bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -61,8 +61,9 @@ help:
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
 	@echo ""
 	@echo "Shared Data Infrastructure:"
-	@echo "  deploy-data     Deploy shared datalake via GitHub Actions"
-	@echo "                  (triggers workflow_dispatch manually)"
+	@echo "  deploy-data              Deploy shared datalake via GitHub Actions"
+	@echo "                           (triggers workflow_dispatch manually)"
+	@echo "  data-quality        Test data quality monitor Lambda (invokes in AWS)"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -515,3 +516,37 @@ deploy-data:
 	echo ""; \
 	echo "✅ Workflow triggered! Check status at:"; \
 	echo "   https://github.com/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/workflows/deploy-shared-data.yml"
+
+# Test Data Quality Monitor Lambda
+# Usage: make data-quality
+#        make data-quality stage=prod
+data-quality:
+	@echo "🧪 Testing data quality monitor Lambda..."
+	@STAGE=$${stage:-dev}; \
+	if [ "$$STAGE" = "dev" ]; then \
+		FUNCTION_NAME="alchemiser-data-quality-monitor"; \
+		REGION="us-east-1"; \
+	else \
+		FUNCTION_NAME="alchemiser-data-quality-monitor-$$STAGE"; \
+		REGION="us-east-1"; \
+	fi; \
+	echo "📍 Function: $$FUNCTION_NAME"; \
+	echo "📍 Region: $$REGION"; \
+	echo ""; \
+	echo "🚀 Invoking Lambda..."; \
+	if aws lambda invoke \
+		--function-name "$$FUNCTION_NAME" \
+		--region "$$REGION" \
+		--log-type Tail \
+		/tmp/dqm-response.json 2>&1 | grep -q "StatusCode"; then \
+		echo "✅ Lambda invoked successfully!"; \
+		echo ""; \
+		echo "📋 Response:"; \
+		cat /tmp/dqm-response.json | jq . 2>/dev/null || cat /tmp/dqm-response.json; \
+		echo ""; \
+		rm -f /tmp/dqm-response.json; \
+	else \
+		echo "❌ Failed to invoke Lambda"; \
+		echo "💡 Make sure the function is deployed and you have AWS credentials configured"; \
+		exit 1; \
+	fi

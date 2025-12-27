@@ -60,13 +60,15 @@ jobs:
           fi
           
           sam deploy \
-            --template-file data-template.yaml \
+            --template-file .aws-sam/build/template.yaml \
             --stack-name alchemiser-shared-data \
             --region ${{ secrets.AWS_REGION }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             ${PARAMS:+--parameter-overrides $PARAMS} \
             --no-confirm-changeset \
-            --no-fail-on-empty-changeset
+            --no-fail-on-empty-changeset \
+            --force-upload \
+            --resolve-s3
 
       - name: Output stack info
         run: |
