@@ -154,9 +154,8 @@ def process_bad_data_markers(args: argparse.Namespace) -> int:
     """
     print("\nProcessing bad data markers...")
 
-    # Set up the markers table env var
-    stage = os.environ.get("APP__STAGE", "dev")
-    markers_table = f"alchemiser-{stage}-bad-data-markers"
+    # Set up the markers table env var (shared table, not per-stage)
+    markers_table = "alchemiser-bad-data-markers"
     os.environ["BAD_DATA_MARKERS_TABLE"] = markers_table
     print(f"Using markers table: {markers_table}")
 

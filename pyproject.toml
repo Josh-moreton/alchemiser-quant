@@ -117,7 +117,8 @@ fixable = [ "ALL",]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"scripts/*" = ["E402"]  # Allow late imports after load_dotenv()
+# Scripts: Allow late imports (load_dotenv), boolean args, ternary preferences, Path.open()
+"scripts/*" = ["E402", "FBT001", "FBT002", "SIM108", "PTH123"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto --dist=loadscope -q --durations=10"
