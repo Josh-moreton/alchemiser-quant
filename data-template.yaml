@@ -153,6 +153,22 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  # ========== DATA QUALITY MONITOR LAMBDA LAYER ==========
+  # awswrangler + yfinance for data quality validation
+  DataQualityMonitorLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: alchemiser-data-quality-monitor-deps
+      Description: awswrangler 3.10.0 + yfinance (pandas, numpy, pyarrow included)
+      ContentUri: layers/data_quality_monitor/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
+
   # ========== DATA LAMBDA FUNCTION ==========
   # Single writer to S3 - handles scheduled refreshes and on-demand fetch requests
   SharedDataFunction:
@@ -269,6 +285,81 @@ Resources:
               - !GetAtt SharedMarketDataBucket.Arn
               - !Sub "${SharedMarketDataBucket.Arn}/*"
 
+  # ========== DATA QUALITY MONITOR FUNCTION ==========
+  # Validates market data quality by comparing against external sources
+  DataQualityMonitorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: alchemiser-data-quality-monitor
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: ./
+      Handler: the_alchemiser.data_quality_monitor.lambda_handler.lambda_handler
+      Role: !GetAtt DataQualityMonitorExecutionRole.Arn
+      Layers:
+        - !Ref DataQualityMonitorLayer
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref SharedDataEventBus
+      Events:
+        # Scheduled quality check (daily at 4:30 AM UTC, 30 min after data refresh)
+        QualityCheckSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(30 4 ? * TUE-SAT *)"
+            Description: "Validate data quality daily at 4:30 AM UTC"
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
+          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/py.typed'
+        Exclude:
+          - '.env*'
+          - 'the_alchemiser/.env*'
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - '**/*.pyo'
+          - '**/*.egg-info/**'
+          - 'the_alchemiser/.editorconfig'
+          - 'the_alchemiser/**/*.md'
+
+  DataQualityMonitorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: alchemiser-data-quality-monitor-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DataQualityMonitorPolicy
+          PolicyDocument:
+            Statement:
+              # S3 read-only for market data
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt SharedMarketDataBucket.Arn
+                  - !Sub "${SharedMarketDataBucket.Arn}/*"
+              # EventBridge for publishing failure events
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt SharedDataEventBus.Arn
+
   # ========== EVENTBRIDGE POLICY FOR CROSS-STACK PUBLISHING ==========
   # Allow per-stage stacks to publish MarketDataFetchRequested events
   SharedDataEventBusPolicy:
@@ -325,3 +416,9 @@ Outputs:
     Value: !GetAtt SharedDataFunction.Arn
     Export:
       Name: alchemiser-shared-data-function-arn
+
+  DataQualityMonitorFunctionArn:
+    Description: "ARN of data quality monitor function"
+    Value: !GetAtt DataQualityMonitorFunction.Arn
+    Export:
+      Name: alchemiser-data-quality-monitor-function-arn
