@@ -9,17 +9,13 @@ Description: >
   Only the Data Lambda has write permissions; all other Lambdas are read-only consumers.
   Includes DynamoDB table for deduplicating concurrent fetch requests.
 
-# TODO: Future optimization - match main template.yaml approach
-# Currently using CodeUri: ./ with exclusion patterns. This works but ships unnecessary modules.
-# In future, refactor to:
-#   1. Move handler code to dedicated modules (e.g., data_v2/handlers/ + data_quality_monitor/handlers/)
-#   2. Use CodeUri: the_alchemiser/ to avoid scanning entire repo
-#   3. Remove exclusion patterns (no longer needed when CodeUri is app directory)
-# This will:
-#   - Align with AWS SAM best practices
-#   - Match template.yaml pattern
-#   - Reduce build clarity and maintenance burden
-#   - Prevent accidental inclusion of unrelated modules
+# Data Lambda functions use CodeUri: ./ with BuildProperties Include patterns
+# to match the main template.yaml approach. This keeps `the_alchemiser` as a
+# proper Python package so absolute imports work correctly.
+# 
+# Key insight: Main lambdas work because they have smaller layers (~50MB).
+# Data lambdas have ~180-200MB layers, leaving only ~55-70MB for code.
+# BuildProperties Include filters ensure only necessary code is shipped.
 
 Parameters:
   AlpacaKey:
@@ -221,16 +217,16 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - '**/*.py'
-          - 'config/*.json'
-          - 'py.typed'
+          - 'the_alchemiser/data_v2/**/*.py'
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/**/*.json'
+          - 'the_alchemiser/__init__.py'
+          - 'the_alchemiser/py.typed'
         Exclude:
-          - '.env*'
           - '**/__pycache__/**'
           - '**/*.pyc'
           - '**/*.pyo'
           - '**/*.egg-info/**'
-          - '.editorconfig'
           - '**/*.md'
 
   SharedDataExecutionRole:
@@ -326,18 +322,17 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
+          - 'the_alchemiser/data_quality_monitor/**/*.py'
+          - 'the_alchemiser/shared/**/*.py'
+          - 'the_alchemiser/config/**/*.json'
+          - 'the_alchemiser/__init__.py'
           - 'the_alchemiser/py.typed'
         Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
           - '**/__pycache__/**'
           - '**/*.pyc'
           - '**/*.pyo'
           - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+          - '**/*.md'
 
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role
