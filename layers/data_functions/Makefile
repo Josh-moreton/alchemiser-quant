@@ -2,7 +2,8 @@
 # Uses Makefile to copy only necessary code (SAM's BuildProperties doesn't work reliably)
 
 ARTIFACTS_DIR ?= $(shell pwd)
-SOURCE_DIR := $(shell dirname $(shell dirname $(MAKEFILE_LIST)))
+# Go up two levels: layers/data_functions -> layers -> repo root
+SOURCE_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST)))../..)
 
 .PHONY: build build-SharedDataFunction build-DataQualityMonitorFunction
 
