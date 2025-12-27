@@ -14,16 +14,21 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
-import yfinance as yf
+import yfinance as yf  # type: ignore[import-untyped]
 
 from the_alchemiser.data_v2.market_data_store import MarketDataStore
-from the_alchemiser.data_v2.symbol_extractor import SymbolExtractor
+from the_alchemiser.data_v2.symbol_extractor import get_all_configured_symbols
+from the_alchemiser.shared.errors import AlchemiserError, DataProviderError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-@dataclass
+class DataQualityError(AlchemiserError):
+    """Raised when data quality validation encounters an error."""
+
+
+@dataclass(frozen=True)
 class ValidationResult:
     """Result of data quality validation for a symbol."""
 
@@ -41,7 +46,6 @@ class DataQualityChecker:
         """Initialize quality checker with S3 access."""
         bucket = os.environ.get("MARKET_DATA_BUCKET", "alchemiser-shared-market-data")
         self.market_data_store = MarketDataStore(bucket)
-        self.symbol_extractor = SymbolExtractor()
 
     def validate_all_symbols(
         self,
@@ -57,7 +61,7 @@ class DataQualityChecker:
 
         """
         # Extract all symbols from strategy configs
-        symbols = self.symbol_extractor.extract_all_symbols()
+        symbols = list(get_all_configured_symbols())
 
         logger.info(
             "Validating all symbols",
@@ -90,19 +94,43 @@ class DataQualityChecker:
             try:
                 result = self._validate_symbol(symbol, lookback_days)
                 results[symbol] = result
-            except Exception as e:
+            except DataProviderError as e:
                 logger.error(
-                    "Failed to validate symbol",
+                    "Data provider error during symbol validation",
                     extra={"symbol": symbol, "error": str(e)},
                     exc_info=True,
                 )
                 results[symbol] = ValidationResult(
                     symbol=symbol,
                     passed=False,
-                    issues=[f"Validation failed: {e}"],
+                    issues=[f"Data provider error: {e}"],
                     rows_checked=0,
                     external_source="yfinance",
                 )
+            except DataQualityError as e:
+                logger.error(
+                    "Data quality error during symbol validation",
+                    extra={"symbol": symbol, "error": str(e)},
+                    exc_info=True,
+                )
+                results[symbol] = ValidationResult(
+                    symbol=symbol,
+                    passed=False,
+                    issues=[f"Data quality error: {e}"],
+                    rows_checked=0,
+                    external_source="yfinance",
+                )
+            except Exception as e:
+                logger.error(
+                    "Unexpected error during symbol validation",
+                    extra={"symbol": symbol, "error": str(e)},
+                    exc_info=True,
+                )
+                # Re-raise as DataQualityError
+                raise DataQualityError(
+                    f"Validation failed for {symbol}: {e}",
+                    context={"symbol": symbol, "error_type": type(e).__name__},
+                ) from e
 
         return results
 
@@ -191,21 +219,43 @@ class DataQualityChecker:
             end_date = datetime.now(UTC).date()
             start_date = end_date - timedelta(days=lookback_days)
 
-            # Fetch from S3
-            df = self.market_data_store.read_bars(
-                symbol=symbol,
-                start_date=start_date,
-                end_date=end_date,
-            )
+            # Fetch full symbol data from S3 and filter locally by date range
+            df = self.market_data_store.read_symbol_data(symbol=symbol, use_cache=True)
+
+            if df is None or df.empty:
+                return df
+
+            # Ensure we have a datetime-like index to filter on
+            if "timestamp" in df.columns:
+                df["timestamp"] = pd.to_datetime(df["timestamp"])
+                # Filter by date range
+                mask = (df["timestamp"].dt.date >= start_date) & (
+                    df["timestamp"].dt.date <= end_date
+                )
+                df = df.loc[mask]
+            else:
+                # Cannot confidently filter without a timestamp column
+                logger.warning(
+                    "No timestamp column found for filtering",
+                    extra={"symbol": symbol},
+                )
+                return df
 
             return df
 
+        except DataProviderError:
+            # Re-raise DataProviderError as-is
+            raise
         except Exception as e:
             logger.warning(
                 "Failed to fetch our data",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            return None
+            # Re-raise as DataProviderError for consistency
+            raise DataProviderError(
+                f"Failed to fetch S3 data for {symbol}: {e}",
+                context={"symbol": symbol, "error_type": type(e).__name__},
+            ) from e
 
     def _fetch_external_data(
         self,
@@ -259,16 +309,21 @@ class DataQualityChecker:
 
             # Reset index to have timestamp column
             df = df.reset_index()
-            df = df.rename(columns={"Date": "timestamp"})
+            return df.rename(columns={"Date": "timestamp"})
 
-            return df
-
+        except DataProviderError:
+            # Re-raise DataProviderError as-is
+            raise
         except Exception as e:
             logger.warning(
                 "Failed to fetch external data",
                 extra={"symbol": symbol, "error": str(e)},
             )
-            return None
+            # Re-raise as DataProviderError for consistency
+            raise DataProviderError(
+                f"Failed to fetch Yahoo Finance data for {symbol}: {e}",
+                context={"symbol": symbol, "error_type": type(e).__name__},
+            ) from e
 
     def _check_freshness(self, our_data: pd.DataFrame) -> list[str]:
         """Check if our data is recent enough.
@@ -280,7 +335,7 @@ class DataQualityChecker:
             List of freshness issues
 
         """
-        issues = []
+        issues: list[str] = []
 
         if our_data.empty:
             return issues
@@ -339,16 +394,11 @@ class DataQualityChecker:
 
         if missing_dates:
             # Only flag as issue if we're missing recent dates (last 2 days)
-            recent_missing = [
-                d
-                for d in missing_dates
-                if (datetime.now(UTC).date() - d).days <= 2
-            ]
+            recent_missing = [d for d in missing_dates if (datetime.now(UTC).date() - d).days <= 2]
 
             if recent_missing:
                 issues.append(
-                    f"Missing {len(recent_missing)} recent trading day(s): "
-                    f"{sorted(recent_missing)}"
+                    f"Missing {len(recent_missing)} recent trading day(s): {sorted(recent_missing)}"
                 )
 
         return issues
@@ -396,7 +446,7 @@ class DataQualityChecker:
             date = row["date"]
 
             # Calculate percentage difference
-            if ext_close == 0:
+            if math.isclose(ext_close, 0.0, abs_tol=1e-9):
                 continue
 
             pct_diff = abs(our_close - ext_close) / ext_close * 100

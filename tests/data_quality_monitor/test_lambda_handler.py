@@ -5,10 +5,7 @@ Tests for data quality monitor Lambda handler.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from unittest.mock import Mock, patch
-
-import pytest
 
 from the_alchemiser.data_quality_monitor.lambda_handler import lambda_handler
 from the_alchemiser.data_quality_monitor.quality_checker import ValidationResult

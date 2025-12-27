@@ -39,10 +39,10 @@ build-DataQualityMonitorLayer:
 	# Add Data Quality Monitor-specific deps not in awswrangler
 	@echo "➕ Adding Data Quality Monitor-specific dependencies..."
 	$(PIP) install -q \
-		pydantic \
-		pydantic-settings \
-		structlog \
-		dependency-injector \
+		pydantic==2.10.5 \
+		pydantic-settings==2.7.1 \
+		structlog==24.4.0 \
+		dependency-injector==4.43.0 \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
 

@@ -6,14 +6,13 @@ Tests for data quality validation logic.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 
 from the_alchemiser.data_quality_monitor.quality_checker import (
     DataQualityChecker,
-    ValidationResult,
 )
 
 
@@ -230,15 +229,15 @@ class TestDataQualityChecker:
     def test_validate_symbols_handles_exceptions(self) -> None:
         """Test that validation handles exceptions gracefully."""
         # Arrange
+        from the_alchemiser.data_quality_monitor.quality_checker import DataQualityError
+
         checker = DataQualityChecker()
 
         # Mock exception during validation
-        checker._fetch_our_data = Mock(side_effect=Exception("S3 error"))  # type: ignore[method-assign]
+        checker._fetch_our_data = Mock(side_effect=Exception(\"S3 error\"))  # type: ignore[method-assign]
 
-        # Act
-        results = checker.validate_symbols(["ERROR"], lookback_days=5)
-
-        # Assert
-        assert len(results) == 1
-        assert results["ERROR"].passed is False
-        assert any("validation failed" in issue.lower() for issue in results["ERROR"].issues)
+        # Act & Assert - should raise DataQualityError
+        with pytest.raises(DataQualityError) as exc_info:
+            checker.validate_symbols([\"ERROR\"], lookback_days=5)
+        
+        assert \"Validation failed for ERROR\" in str(exc_info.value)
