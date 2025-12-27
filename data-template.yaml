@@ -180,6 +180,20 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  # Shared Code Layer: Contains the_alchemiser.shared module (business logic)
+  # Pure Python code - no third-party dependencies
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: alchemiser-shared-code
+      Description: Shared business logic and utilities (the_alchemiser.shared)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   # ========== DATA LAMBDA FUNCTION ==========
   # Single writer to S3 - handles scheduled refreshes and on-demand fetch requests
   SharedDataFunction:
@@ -189,11 +203,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: layers/data_functions/
+      CodeUri: functions/data_v2/
       Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
       Role: !GetAtt SharedDataExecutionRole.Arn
       Layers:
         - !Ref SharedDataLayer
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 900
       MemorySize: 1024
       Environment:
@@ -217,7 +232,11 @@ Resources:
               detail-type:
                 - "MarketDataFetchRequested"
     Metadata:
-      BuildMethod: makefile
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
+          - 'the_alchemiser/**/*.clj'
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
@@ -290,11 +309,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: layers/data_functions/
+      CodeUri: functions/data_quality_monitor/
       Handler: the_alchemiser.data_quality_monitor.lambda_handler.lambda_handler
       Role: !GetAtt DataQualityMonitorExecutionRole.Arn
       Layers:
         - !Ref DataQualityMonitorLayer
+        - !Ref SharedCodeLayer  # Shared business logic
       Timeout: 900
       MemorySize: 1024
       Environment:
@@ -310,7 +330,10 @@ Resources:
             Schedule: "cron(30 4 ? * TUE-SAT *)"
             Description: "Validate data quality daily at 4:30 AM UTC"
     Metadata:
-      BuildMethod: makefile
+      BuildMethod: python3.12
+      BuildProperties:
+        Include:
+          - 'the_alchemiser/**/*.py'
 
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role
