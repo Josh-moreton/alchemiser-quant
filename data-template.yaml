@@ -281,27 +281,77 @@ Resources:
               - !GetAtt SharedMarketDataBucket.Arn
               - !Sub "${SharedMarketDataBucket.Arn}/*"
 
-  # ========== DATA QUALITY MONITOR FUNCTION ==========
-  # Validates market data quality by comparing against external sources
-  DataQualityMonitorFunction:
+  # ========== DATA QUALITY VALIDATION SESSIONS TABLE ==========
+  # DynamoDB table for tracking batch validation sessions
+  ValidationSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: alchemiser-data-quality-validation-sessions
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Service
+          Value: data-quality-validation
+
+  # ========== VALIDATION QUEUE (SQS) ==========
+  # Queue for batch processing with delay support
+  ValidationQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: alchemiser-data-quality-validation-dlq
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  ValidationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: alchemiser-data-quality-validation-queue
+      VisibilityTimeout: 900  # 15 minutes (match Lambda timeout)
+      MessageRetentionPeriod: 86400  # 24 hours
+      DelaySeconds: 0  # Per-message delay is set programmatically
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ValidationQueueDLQ.Arn
+        maxReceiveCount: 3
+
+  # ========== DATA QUALITY COORDINATOR FUNCTION ==========
+  # Entry point - creates validation session and initiates batch processing
+  DataQualityCoordinatorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: alchemiser-shared-data-quality-monitor
+      FunctionName: alchemiser-shared-data-quality-coordinator
       Runtime: python3.12
       Architectures:
         - x86_64
       CodeUri: layers/data_functions/
-      Handler: the_alchemiser.data_quality_monitor.lambda_handler.lambda_handler
-      Role: !GetAtt DataQualityMonitorExecutionRole.Arn
+      Handler: the_alchemiser.data_quality_monitor.coordinator_handler.lambda_handler
+      Role: !GetAtt DataQualityCoordinatorExecutionRole.Arn
       Layers:
         - !Ref DataQualityMonitorLayer
-      Timeout: 900
-      MemorySize: 1024
+      Timeout: 120  # 2 minutes
+      MemorySize: 512
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref SharedDataEventBus
-          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
-          TWELVEDATA_API_KEY: !Ref TwelveDataApiKey
+          VALIDATION_SESSIONS_TABLE: !Ref ValidationSessionsTable
+          VALIDATION_QUEUE_URL: !Ref ValidationQueue
       Events:
         # Scheduled quality check (daily at 4:30 AM UTC, 30 min after data refresh)
         QualityCheckSchedule:
@@ -312,10 +362,10 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-  DataQualityMonitorExecutionRole:
+  DataQualityCoordinatorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: alchemiser-shared-data-quality-monitor-role
+      RoleName: alchemiser-shared-data-quality-coordinator-role
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
@@ -325,7 +375,78 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: DataQualityMonitorPolicy
+        - PolicyName: DataQualityCoordinatorPolicy
+          PolicyDocument:
+            Statement:
+              # DynamoDB for session management
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ValidationSessionsTable.Arn
+              # SQS for enqueuing batches
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt ValidationQueue.Arn
+              # EventBridge for publishing failure events
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt SharedDataEventBus.Arn
+
+  # ========== DATA QUALITY BATCH PROCESSOR FUNCTION ==========
+  # Worker - validates a single batch of symbols (max 8)
+  DataQualityBatchProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: alchemiser-shared-data-quality-batch-processor
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: layers/data_functions/
+      Handler: the_alchemiser.data_quality_monitor.batch_processor_handler.lambda_handler
+      Role: !GetAtt DataQualityBatchProcessorExecutionRole.Arn
+      Layers:
+        - !Ref DataQualityMonitorLayer
+      Timeout: 900  # 15 minutes
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref SharedDataEventBus
+          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
+          VALIDATION_SESSIONS_TABLE: !Ref ValidationSessionsTable
+          VALIDATION_QUEUE_URL: !Ref ValidationQueue
+          TWELVEDATA_API_KEY: !Ref TwelveDataApiKey
+      Events:
+        # Triggered by SQS messages
+        ValidationQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ValidationQueue.Arn
+            BatchSize: 1  # Process one batch at a time
+    Metadata:
+      BuildMethod: makefile
+
+  DataQualityBatchProcessorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: alchemiser-shared-data-quality-batch-processor-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DataQualityBatchProcessorPolicy
           PolicyDocument:
             Statement:
               # S3 read-only for market data
@@ -336,7 +457,25 @@ Resources:
                 Resource:
                   - !GetAtt SharedMarketDataBucket.Arn
                   - !Sub "${SharedMarketDataBucket.Arn}/*"
-              # EventBridge for publishing failure events
+              # DynamoDB for session management
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ValidationSessionsTable.Arn
+              # SQS for receiving and sending messages
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt ValidationQueue.Arn
+              # EventBridge for publishing events
               - Effect: Allow
                 Action:
                   - events:PutEvents
@@ -400,8 +539,38 @@ Outputs:
     Export:
       Name: alchemiser-shared-data-function-arn
 
-  DataQualityMonitorFunctionArn:
-    Description: "ARN of data quality monitor function"
-    Value: !GetAtt DataQualityMonitorFunction.Arn
+  ValidationSessionsTableName:
+    Description: "DynamoDB table for validation sessions"
+    Value: !Ref ValidationSessionsTable
     Export:
-      Name: alchemiser-data-quality-monitor-function-arn
+      Name: alchemiser-validation-sessions-table
+
+  ValidationSessionsTableArn:
+    Description: "ARN of validation sessions table"
+    Value: !GetAtt ValidationSessionsTable.Arn
+    Export:
+      Name: alchemiser-validation-sessions-table-arn
+
+  ValidationQueueUrl:
+    Description: "URL of validation queue"
+    Value: !Ref ValidationQueue
+    Export:
+      Name: alchemiser-validation-queue-url
+
+  ValidationQueueArn:
+    Description: "ARN of validation queue"
+    Value: !GetAtt ValidationQueue.Arn
+    Export:
+      Name: alchemiser-validation-queue-arn
+
+  DataQualityCoordinatorFunctionArn:
+    Description: "ARN of data quality coordinator function"
+    Value: !GetAtt DataQualityCoordinatorFunction.Arn
+    Export:
+      Name: alchemiser-data-quality-coordinator-function-arn
+
+  DataQualityBatchProcessorFunctionArn:
+    Description: "ARN of data quality batch processor function"
+    Value: !GetAtt DataQualityBatchProcessorFunction.Arn
+    Export:
+      Name: alchemiser-data-quality-batch-processor-function-arn

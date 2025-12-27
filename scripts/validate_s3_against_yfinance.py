@@ -51,16 +51,27 @@ class DataPoint:
         return hash((self.date, self.close_price, self.volume))
 
     def __eq__(self, other: object) -> bool:
-        """Check equality allowing for minor float precision differences."""
+        """Check equality allowing for minor float precision and volume differences.
+
+        Tolerances:
+        - Price: 0.02 (accounts for rounding differences between feeds)
+        - Volume: 0.01% (accounts for minor reporting differences)
+        """
         if not isinstance(other, DataPoint):
             return NotImplemented
+
+        # Volume tolerance: allow 0.01% difference (min 100 shares)
+        max_vol = max(self.volume, other.volume, 1)
+        volume_tolerance = max(100, int(max_vol * 0.0001))
+        volume_match = abs(self.volume - other.volume) <= volume_tolerance
+
         return (
             self.date == other.date
-            and abs(self.open_price - other.open_price) < 0.01
-            and abs(self.high_price - other.high_price) < 0.01
-            and abs(self.low_price - other.low_price) < 0.01
-            and abs(self.close_price - other.close_price) < 0.01
-            and self.volume == other.volume
+            and abs(self.open_price - other.open_price) < 0.02
+            and abs(self.high_price - other.high_price) < 0.02
+            and abs(self.low_price - other.low_price) < 0.02
+            and abs(self.close_price - other.close_price) < 0.02
+            and volume_match
         )
 
 
@@ -71,16 +82,45 @@ class SymbolValidationResult:
     symbol: str
     s3_record_count: int
     yfinance_record_count: int
+    s3_start_date: str = ""  # Earliest date in S3
+    s3_end_date: str = ""  # Latest date in S3
     missing_in_s3: list[DataPoint] = field(default_factory=list)
     missing_in_yfinance: list[DataPoint] = field(default_factory=list)
     mismatched_records: list[tuple[DataPoint, DataPoint]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     @property
+    def missing_in_s3_recent(self) -> list[DataPoint]:
+        """Records missing in S3 that are within the S3 date range (unexpected gaps)."""
+        if not self.s3_start_date or not self.s3_end_date:
+            return []
+        return [
+            p
+            for p in self.missing_in_s3
+            if self.s3_start_date <= p.date <= self.s3_end_date
+        ]
+
+    @property
+    def missing_in_s3_historical(self) -> list[DataPoint]:
+        """Records missing in S3 that are before S3 start date (expected - not seeded)."""
+        if not self.s3_start_date:
+            return self.missing_in_s3
+        return [p for p in self.missing_in_s3 if p.date < self.s3_start_date]
+
+    @property
     def is_valid(self) -> bool:
-        """Check if symbol passed all validations."""
+        """Check if symbol passed all validations.
+
+        A symbol is valid if:
+        - No unexpected gaps (missing within S3 date range)
+        - No missing in yfinance (S3 has extra data somehow)
+        - No price/volume mismatches
+        - No errors
+
+        Historical gaps (before S3 start date) are expected and don't fail validation.
+        """
         return (
-            not self.missing_in_s3
+            not self.missing_in_s3_recent
             and not self.missing_in_yfinance
             and not self.mismatched_records
             and not self.errors
@@ -88,12 +128,17 @@ class SymbolValidationResult:
 
     @property
     def discrepancy_count(self) -> int:
-        """Total number of discrepancies."""
+        """Total number of actionable discrepancies (excludes historical gaps)."""
         return (
-            len(self.missing_in_s3)
+            len(self.missing_in_s3_recent)
             + len(self.missing_in_yfinance)
             + len(self.mismatched_records)
         )
+
+    @property
+    def historical_gap_count(self) -> int:
+        """Number of expected historical gaps (before S3 start date)."""
+        return len(self.missing_in_s3_historical)
 
 
 def read_s3_data(
@@ -200,35 +245,48 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
         col_str = str(col)
         columns_lower[col_str.lower()] = col
 
-    for date_idx, row in df.iterrows():
+    # Determine date column/index
+    # S3 data uses 'timestamp' column, yfinance uses DatetimeIndex
+    has_timestamp_col = "timestamp" in columns_lower
+    date_col = columns_lower.get("timestamp") if has_timestamp_col else None
+
+    # Find OHLCV columns
+    # Note: Use regular Close (not Adj Close) for comparison since S3 stores unadjusted prices
+    open_col = columns_lower.get("open")
+    high_col = columns_lower.get("high")
+    low_col = columns_lower.get("low")
+    close_col = columns_lower.get("close")  # Prefer Close over Adj Close for S3 compatibility
+    volume_col = columns_lower.get("volume")
+
+    # Fallback to pattern matching if not found
+    if not open_col:
+        open_col = next((c for c in df.columns if "open" in str(c).lower()), None)
+    if not high_col:
+        high_col = next((c for c in df.columns if "high" in str(c).lower()), None)
+    if not low_col:
+        low_col = next((c for c in df.columns if "low" in str(c).lower()), None)
+    if not close_col:
+        # Prefer regular Close over Adj Close for S3 compatibility
+        close_col = next(
+            (c for c in df.columns if str(c).lower() == "close"),
+            next((c for c in df.columns if "close" in str(c).lower()), None),
+        )
+    if not volume_col:
+        volume_col = next((c for c in df.columns if "volume" in str(c).lower()), None)
+
+    for idx, row in df.iterrows():
         try:
-            # Parse date
-            if isinstance(date_idx, str):
-                date_str = date_idx
+            # Parse date - S3 has 'timestamp' column, yfinance uses index
+            if has_timestamp_col and date_col:
+                date_val = row[date_col]
             else:
-                date_str = pd.to_datetime(date_idx).strftime("%Y-%m-%d")
+                date_val = idx
 
-            # Extract price/volume columns (yfinance uses Adj Close, S3 might use Close)
-            open_col = columns_lower.get("open")
-            high_col = columns_lower.get("high")
-            low_col = columns_lower.get("low")
-            close_col = columns_lower.get("adj close") or columns_lower.get("close")
-            volume_col = columns_lower.get("volume")
-
-            # Fallback to original column names if not found in lowercase mapping
-            if not open_col:
-                open_col = next((c for c in df.columns if "open" in str(c).lower()), None)
-            if not high_col:
-                high_col = next((c for c in df.columns if "high" in str(c).lower()), None)
-            if not low_col:
-                low_col = next((c for c in df.columns if "low" in str(c).lower()), None)
-            if not close_col:
-                close_col = next(
-                    (c for c in df.columns if "adj close" in str(c).lower()),
-                    next((c for c in df.columns if "close" in str(c).lower()), None),
-                )
-            if not volume_col:
-                volume_col = next((c for c in df.columns if "volume" in str(c).lower()), None)
+            # Convert to YYYY-MM-DD string
+            if isinstance(date_val, str):
+                date_str = date_val[:10]  # Take first 10 chars
+            else:
+                date_str = pd.to_datetime(date_val).strftime("%Y-%m-%d")
 
             point = DataPoint(
                 date=date_str,
@@ -240,7 +298,7 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
             )
             points.append(point)
         except Exception as e:
-            logger.warning(f"Failed to parse row for {date_idx}: {e}")
+            logger.warning(f"Failed to parse row for {idx}: {e}")
             continue
 
     logger.debug(f"Normalized {len(points)} points from {source}")
@@ -285,6 +343,12 @@ def validate_symbol(
     s3_points = normalize_dataframe(s3_df, "S3")
     yf_points = normalize_dataframe(yf_df, "yfinance")
 
+    # Capture S3 date range for distinguishing historical vs unexpected gaps
+    if s3_points:
+        sorted_dates = sorted(p.date for p in s3_points)
+        result.s3_start_date = sorted_dates[0]
+        result.s3_end_date = sorted_dates[-1]
+
     # Convert to sets for comparison (by date)
     s3_by_date = {p.date: p for p in s3_points}
     yf_by_date = {p.date: p for p in yf_points}
@@ -308,8 +372,10 @@ def validate_symbol(
 
     logger.info(
         f"Validation complete for {symbol}: "
-        f"S3={result.s3_record_count}, yfinance={result.yfinance_record_count}, "
-        f"discrepancies={result.discrepancy_count}"
+        f"S3={result.s3_record_count} ({result.s3_start_date} to {result.s3_end_date}), "
+        f"yfinance={result.yfinance_record_count}, "
+        f"gaps={result.historical_gap_count} historical + {len(result.missing_in_s3_recent)} unexpected, "
+        f"mismatches={len(result.mismatched_records)}"
     )
 
     return result
@@ -367,8 +433,10 @@ def write_csv_report(results: list[SymbolValidationResult], output_file: str) ->
         writer.writerow([
             "Symbol",
             "S3 Records",
+            "S3 Date Range",
             "yfinance Records",
-            "Missing in S3",
+            "Historical Gaps",
+            "Unexpected Gaps",
             "Missing in yfinance",
             "Mismatched",
             "Errors",
@@ -376,11 +444,14 @@ def write_csv_report(results: list[SymbolValidationResult], output_file: str) ->
         ])
 
         for result in results:
+            date_range = f"{result.s3_start_date} to {result.s3_end_date}" if result.s3_start_date else "N/A"
             writer.writerow([
                 result.symbol,
                 result.s3_record_count,
+                date_range,
                 result.yfinance_record_count,
-                len(result.missing_in_s3),
+                result.historical_gap_count,
+                len(result.missing_in_s3_recent),
                 len(result.missing_in_yfinance),
                 len(result.mismatched_records),
                 "; ".join(result.errors) if result.errors else "",
@@ -401,21 +472,26 @@ def write_detailed_report(results: list[SymbolValidationResult], output_file: st
     report: dict[str, dict] = {}
 
     for result in results:
-        if not result.is_valid:
+        if not result.is_valid or result.historical_gap_count > 0:
             symbol_report: dict = {
                 "s3_record_count": result.s3_record_count,
                 "yfinance_record_count": result.yfinance_record_count,
+                "s3_date_range": f"{result.s3_start_date} to {result.s3_end_date}" if result.s3_start_date else "N/A",
+                "historical_gaps": result.historical_gap_count,
+                "unexpected_gaps": len(result.missing_in_s3_recent),
+                "is_valid": result.is_valid,
                 "errors": result.errors,
             }
 
-            if result.missing_in_s3:
-                symbol_report["missing_in_s3"] = [
+            # Only include unexpected gaps in detail (not historical)
+            if result.missing_in_s3_recent:
+                symbol_report["unexpected_gaps_detail"] = [
                     {
                         "date": p.date,
                         "close": p.close_price,
                         "volume": p.volume,
                     }
-                    for p in result.missing_in_s3
+                    for p in result.missing_in_s3_recent[:20]  # Limit to 20
                 ]
 
             if result.missing_in_yfinance:
@@ -617,6 +693,7 @@ Examples:
     valid_count = sum(1 for r in results if r.is_valid)
     invalid_count = len(results) - valid_count
     total_discrepancies = sum(r.discrepancy_count for r in results)
+    total_historical_gaps = sum(r.historical_gap_count for r in results)
 
     print("\n" + "=" * 80)
     print("VALIDATION SUMMARY")
@@ -624,7 +701,8 @@ Examples:
     print(f"Total Symbols Validated: {len(results)}")
     print(f"Valid Symbols: {valid_count}")
     print(f"Invalid Symbols: {invalid_count}")
-    print(f"Total Discrepancies: {total_discrepancies}")
+    print(f"Total Actionable Discrepancies: {total_discrepancies}")
+    print(f"Total Historical Gaps (expected): {total_historical_gaps}")
     print(f"Report: {args.output}")
     if args.detailed:
         print(f"Detailed Report: {args.detailed}")
@@ -635,11 +713,24 @@ Examples:
         for result in results:
             if not result.is_valid:
                 print(
-                    f"  - {result.symbol}: "
-                    f"{len(result.missing_in_s3)} missing in S3, "
-                    f"{len(result.missing_in_yfinance)} missing in yfinance, "
+                    f"  - {result.symbol} ({result.s3_start_date} to {result.s3_end_date}): "
+                    f"{len(result.missing_in_s3_recent)} unexpected gaps, "
+                    f"{len(result.missing_in_yfinance)} extra in S3, "
                     f"{len(result.mismatched_records)} mismatched"
                 )
+
+    # Show symbols with only historical gaps (valid but worth noting)
+    symbols_with_historical_gaps = [r for r in results if r.is_valid and r.historical_gap_count > 0]
+    if symbols_with_historical_gaps and len(symbols_with_historical_gaps) <= 10:
+        print("\nSymbols with Historical Gaps (valid - data before S3 seeding):")
+        for result in symbols_with_historical_gaps:
+            print(
+                f"  - {result.symbol}: S3 has {result.s3_record_count} records "
+                f"({result.s3_start_date} to {result.s3_end_date}), "
+                f"{result.historical_gap_count} historical records not seeded"
+            )
+    elif symbols_with_historical_gaps:
+        print(f"\n{len(symbols_with_historical_gaps)} symbols have historical gaps (data before S3 seeding - this is expected)")
 
 
 if __name__ == "__main__":
