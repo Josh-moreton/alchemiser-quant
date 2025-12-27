@@ -872,6 +872,8 @@ Resources:
           # Shared components (required by all Lambdas)
           - 'the_alchemiser/shared/**/*.py'
           - 'the_alchemiser/config/*.json'
+          # Data access layer used by strategy_v2 (market data adapters, caches, etc.)
+          - 'the_alchemiser/data_v2/**/*.py'
           # Strategy module (this Lambda's business logic)
           - 'the_alchemiser/strategy_v2/**/*.py'
           - 'the_alchemiser/strategy_v2/**/*.clj'
