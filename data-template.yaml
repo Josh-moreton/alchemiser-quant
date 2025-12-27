@@ -316,10 +316,13 @@ Resources:
       BuildMethod: python3.12
       BuildProperties:
         Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
+          # Only include required modules for data quality monitor
+          - 'the_alchemiser/data_quality_monitor/**/*.py'
+          - 'the_alchemiser/data_v2/**/*.py'
+          - 'the_alchemiser/shared/**/*.py'
           - 'the_alchemiser/config/*.json'
           - 'the_alchemiser/py.typed'
+          - 'the_alchemiser/__init__.py'
         Exclude:
           - '.env*'
           - 'the_alchemiser/.env*'
@@ -329,6 +332,16 @@ Resources:
           - '**/*.egg-info/**'
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
+          # Explicitly exclude large modules not needed by data quality monitor
+          - 'the_alchemiser/strategy_v2/**'
+          - 'the_alchemiser/execution_v2/**'
+          - 'the_alchemiser/portfolio_v2/**'
+          - 'the_alchemiser/coordinator_v2/**'
+          - 'the_alchemiser/aggregator_v2/**'
+          - 'the_alchemiser/notifications_v2/**'
+          - 'the_alchemiser/trade_aggregator/**'
+          - 'the_alchemiser/backtest_v2/**'
+          - 'the_alchemiser/metrics_v2/**'
 
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role
