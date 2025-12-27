@@ -21,9 +21,11 @@ Live Bar Injection (Optional):
     Live bars are cached per-symbol for the duration of the Lambda run to
     minimize API calls when multiple indicators request the same symbol.
 
-    In production, this feature is DISABLED (append_live_bar=False). Indicators
-    use only historical data from S3 Parquet (e.g., 200-day SMA uses the last
-    200 days of close prices from cache).
+    In production, this feature should be DISABLED by configuring
+    `append_live_bar=False` in the wiring layer (e.g., Strategy Lambda wiring).
+    The production wiring sets `append_live_bar=False`, so indicators use only
+    historical data from S3 Parquet (e.g., a 200-day SMA uses the last 200
+    days of close prices from cache).
 
 Architecture:
     S3 Cache (Parquet) -> CachedMarketDataAdapter
@@ -110,7 +112,7 @@ class CachedMarketDataAdapter(MarketDataPort):
         *,
         fallback_adapter: MarketDataPort | None = None,
         enable_live_fallback: bool = False,
-        append_live_bar: bool = True,
+        append_live_bar: bool = False,
         live_bar_provider: LiveBarProvider | None = None,
     ) -> None:
         """Initialize cached market data adapter.
@@ -122,8 +124,9 @@ class CachedMarketDataAdapter(MarketDataPort):
             enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
                                  Only used if fallback_adapter is None.
             append_live_bar: Whether to append today's live bar to historical data.
-                            Defaults to True. Fetches current price from Alpaca Snapshot
-                            API and appends as the most recent bar for indicator computation.
+                            Defaults to False for production use (historical data only).
+                            When True, fetches current price from Alpaca Snapshot API
+                            and appends as the most recent bar for indicator computation.
             live_bar_provider: Optional LiveBarProvider instance. If None and
                               append_live_bar is True, creates a default provider.
 
