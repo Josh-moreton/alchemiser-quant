@@ -222,6 +222,7 @@ Resources:
           - '**/*.egg-info/**'
           - 'the_alchemiser/.editorconfig'
           - 'the_alchemiser/**/*.md'
+          - 'the_alchemiser/data_quality_monitor/**'
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
