@@ -8,11 +8,10 @@ into the main ApplicationContainer. Follows single composition root pattern.
 The strategy module reads market data directly from S3 Parquet cache.
 Data must be pre-populated by the scheduled Data Lambda refresh.
 
-Live Bar Injection:
-    The adapter fetches today's current price from Alpaca Snapshot API and
-    appends it to historical data. This enables strategies to use the most
-    recent price for indicator computation (e.g., 200-day SMA uses 199
-    historical days + today's current price).
+Historical Data Only:
+    Indicators use only historical data from S3 Parquet files. For example,
+    a 200-day SMA uses the last 200 days of close prices from the cache,
+    without appending today's live price.
 """
 
 from __future__ import annotations
@@ -35,9 +34,9 @@ def register_strategy(container: ApplicationContainer) -> None:
     Market data is read directly from S3 Parquet cache by CachedMarketDataAdapter.
     Data must be pre-populated by the scheduled Data Lambda refresh.
 
-    Live bar injection is always enabled - today's current price from Alpaca
-    Snapshot API is appended to historical data, enabling strategies to compute
-    indicators with the most recent price as "today's close".
+    Indicators use only historical data from parquet files - today's live price
+    is NOT appended. For example, a 200-day SMA uses the last 200 days of
+    close prices from the cache.
 
     Args:
         container: The main ApplicationContainer instance
@@ -52,7 +51,6 @@ def register_strategy(container: ApplicationContainer) -> None:
     from the_alchemiser.data_v2.cached_market_data_adapter import (
         CachedMarketDataAdapter,
     )
-    from the_alchemiser.data_v2.live_bar_provider import LiveBarProvider
     from the_alchemiser.data_v2.market_data_store import MarketDataStore
     from the_alchemiser.strategy_v2.core.orchestrator import SingleStrategyOrchestrator
     from the_alchemiser.strategy_v2.core.registry import StrategyRegistry
@@ -63,18 +61,14 @@ def register_strategy(container: ApplicationContainer) -> None:
     # Register market data store (reads from S3 Parquet)
     container.market_data_store = providers.Singleton(MarketDataStore)
 
-    # Create live bar provider for fetching today's price from Alpaca
-    live_bar_provider = LiveBarProvider()
-
-    # Register market data adapter with live bar injection enabled
-    # Fetches today's price from Alpaca and appends to historical data
+    # Register market data adapter using only historical data from parquet
+    # No live bar injection - indicators use only cached historical data
     container.strategy_market_data_adapter = providers.Factory(
         CachedMarketDataAdapter,
         market_data_store=container.market_data_store,
         fallback_adapter=None,
         enable_live_fallback=False,
-        append_live_bar=True,
-        live_bar_provider=live_bar_provider,
+        append_live_bar=False,
     )
 
     # Register strategy orchestrator (uses market data adapter)
