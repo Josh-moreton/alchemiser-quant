@@ -9,6 +9,18 @@ Description: >
   Only the Data Lambda has write permissions; all other Lambdas are read-only consumers.
   Includes DynamoDB table for deduplicating concurrent fetch requests.
 
+# TODO: Future optimization - match main template.yaml approach
+# Currently using CodeUri: ./ with exclusion patterns. This works but ships unnecessary modules.
+# In future, refactor to:
+#   1. Move handler code to dedicated modules (e.g., data_v2/handlers/ + data_quality_monitor/handlers/)
+#   2. Use CodeUri: the_alchemiser/ to avoid scanning entire repo
+#   3. Remove exclusion patterns (no longer needed when CodeUri is app directory)
+# This will:
+#   - Align with AWS SAM best practices
+#   - Match template.yaml pattern
+#   - Reduce build clarity and maintenance burden
+#   - Prevent accidental inclusion of unrelated modules
+
 Parameters:
   AlpacaKey:
     Type: String
