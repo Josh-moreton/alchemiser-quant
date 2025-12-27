@@ -508,8 +508,10 @@ deploy-data:
 		echo "💡 Run: gh auth login"; \
 		exit 1; \
 	fi; \
-	echo "🚀 Triggering deploy-shared-data workflow..."; \
-	gh workflow run deploy-shared-data.yml --field confirm=deploy; \
+	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	echo "📍 Current branch: $$CURRENT_BRANCH"; \
+	echo "🚀 Triggering deploy-shared-data workflow on branch $$CURRENT_BRANCH..."; \
+	gh workflow run deploy-shared-data.yml --ref $$CURRENT_BRANCH --field confirm=deploy; \
 	echo ""; \
 	echo "✅ Workflow triggered! Check status at:"; \
 	echo "   https://github.com/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/workflows/deploy-shared-data.yml"

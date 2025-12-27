@@ -1083,6 +1083,7 @@ class SingleTradeHandler:
             run_id=run_id,
             trade_id=trade_id,
             success=True,  # Not a failure, just skipped
+            skipped=True,  # Explicitly mark as skipped
             order_id=None,
             error_message="Market closed - order placement skipped",
             phase=trade_message.phase,

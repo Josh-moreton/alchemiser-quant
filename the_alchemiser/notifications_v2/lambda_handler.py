@@ -189,8 +189,10 @@ def _build_trading_notification_from_aggregated(
     total_trades = all_trades_detail.get("total_trades", 0)
     succeeded_trades = all_trades_detail.get("succeeded_trades", 0)
     failed_trades = all_trades_detail.get("failed_trades", 0)
+    skipped_trades = all_trades_detail.get("skipped_trades", 0)
 
     # Trading is successful if there are trades and none failed
+    # Skipped trades don't count as failures
     trading_success = total_trades > 0 and failed_trades == 0
 
     # Get pre-aggregated execution data
@@ -224,6 +226,7 @@ def _build_trading_notification_from_aggregated(
         trading_mode=mode_str,
         orders_placed=total_trades,
         orders_succeeded=succeeded_trades,
+        orders_skipped=skipped_trades,
         capital_deployed_pct=capital_deployed_pct,
         execution_data=execution_data,
         error_message=error_message,

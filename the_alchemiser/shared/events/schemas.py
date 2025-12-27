@@ -391,6 +391,7 @@ class AllTradesCompleted(BaseEvent):
     total_trades: int = Field(..., description="Total number of trades in the run")
     succeeded_trades: int = Field(..., description="Number of trades that succeeded")
     failed_trades: int = Field(..., description="Number of trades that failed")
+    skipped_trades: int = Field(..., description="Number of trades that were skipped")
 
     # Pre-aggregated execution data for notifications
     aggregated_execution_data: dict[str, Any] = Field(
@@ -503,6 +504,7 @@ class TradingNotificationRequested(BaseEvent):
     trading_mode: str = Field(..., description="Trading mode (LIVE, PAPER)")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of orders that succeeded")
+    orders_skipped: int = Field(default=0, description="Number of orders skipped")
     capital_deployed_pct: Decimal | None = Field(
         default=None,
         description="Percentage of account equity deployed in positions (0-100)",
