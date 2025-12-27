@@ -524,10 +524,10 @@ data-quality:
 	@echo "🧪 Testing data quality monitor Lambda..."
 	@STAGE=$${stage:-dev}; \
 	if [ "$$STAGE" = "dev" ]; then \
-		FUNCTION_NAME="alchemiser-data-quality-monitor"; \
+		FUNCTION_NAME="alchemiser-shared-data-quality-monitor"; \
 		REGION="us-east-1"; \
 	else \
-		FUNCTION_NAME="alchemiser-data-quality-monitor-$$STAGE"; \
+		FUNCTION_NAME="alchemiser-shared-data-quality-monitor-$$STAGE"; \
 		REGION="us-east-1"; \
 	fi; \
 	echo "📍 Function: $$FUNCTION_NAME"; \

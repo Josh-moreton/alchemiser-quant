@@ -280,7 +280,7 @@ Resources:
   DataQualityMonitorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: alchemiser-data-quality-monitor
+      FunctionName: alchemiser-shared-data-quality-monitor
       Runtime: python3.12
       Architectures:
         - x86_64
@@ -308,7 +308,7 @@ Resources:
   DataQualityMonitorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: alchemiser-data-quality-monitor-role
+      RoleName: alchemiser-shared-data-quality-monitor-role
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow

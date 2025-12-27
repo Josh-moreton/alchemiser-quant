@@ -145,6 +145,6 @@ See `tests/data_quality_monitor/` for unit tests.
 
 ## Monitoring
 
-- CloudWatch Logs: `/aws/lambda/alchemiser-data-quality-monitor`
+- CloudWatch Logs: `/aws/lambda/alchemiser-shared-data-quality-monitor`
 - Dashboard: Included in shared data infrastructure dashboard
 - Alerts: WorkflowFailed events trigger SNS notifications
