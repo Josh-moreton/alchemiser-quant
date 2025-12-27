@@ -1,12 +1,12 @@
 """Business Unit: data | Status: current.
 
-Cached market data adapter for S3-backed market data with live bar injection.
+Cached market data adapter for S3-backed market data with optional live bar injection.
 
 This adapter implements the MarketDataPort interface using S3 Parquet storage
 as the primary data source. When cache misses occur, it can optionally delegate
 to a configurable fallback adapter (e.g., direct Alpaca API calls).
 
-Live Bar Injection:
+Live Bar Injection (Optional):
     When `append_live_bar=True`, the adapter fetches today's current bar from
     Alpaca Snapshot API and appends it to the historical data series. This
     enables indicators to use the most recent price action (e.g., a 200-day SMA
@@ -21,19 +21,21 @@ Live Bar Injection:
     Live bars are cached per-symbol for the duration of the Lambda run to
     minimize API calls when multiple indicators request the same symbol.
 
-    Live bar injection is enabled by default (append_live_bar=True).
+    In production, this feature should be DISABLED by configuring
+    `append_live_bar=False` in the wiring layer (e.g., Strategy Lambda wiring).
+    The production wiring sets `append_live_bar=False`, so indicators use only
+    historical data from S3 Parquet (e.g., a 200-day SMA uses the last 200
+    days of close prices from cache).
 
 Architecture:
-    S3 Cache (Parquet) + Alpaca Snapshot (live) -> CachedMarketDataAdapter
-           ↓                     ↓
-     Historical bars       Today's bar
-           ↓                     ↓
-              Combined series (N+1 bars)
-                      ↓
+    S3 Cache (Parquet) -> CachedMarketDataAdapter
+           ↓
+     Historical bars only
+           ↓
     IndicatorService <- DSL Strategy Engine <- Strategy Lambda
 
     Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda reads from S3 cache and optionally appends live bar.
+    Strategy Lambda reads from S3 cache using only historical data.
 """
 
 from __future__ import annotations
@@ -110,7 +112,7 @@ class CachedMarketDataAdapter(MarketDataPort):
         *,
         fallback_adapter: MarketDataPort | None = None,
         enable_live_fallback: bool = False,
-        append_live_bar: bool = True,
+        append_live_bar: bool = False,
         live_bar_provider: LiveBarProvider | None = None,
     ) -> None:
         """Initialize cached market data adapter.
@@ -122,8 +124,9 @@ class CachedMarketDataAdapter(MarketDataPort):
             enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
                                  Only used if fallback_adapter is None.
             append_live_bar: Whether to append today's live bar to historical data.
-                            Defaults to True. Fetches current price from Alpaca Snapshot
-                            API and appends as the most recent bar for indicator computation.
+                            Defaults to False for production use (historical data only).
+                            When True, fetches current price from Alpaca Snapshot API
+                            and appends as the most recent bar for indicator computation.
             live_bar_provider: Optional LiveBarProvider instance. If None and
                               append_live_bar is True, creates a default provider.
 
