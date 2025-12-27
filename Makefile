@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis validate-s3 format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean sync-shared-layer run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis validate-s3 format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Default target
 help:
@@ -58,6 +58,7 @@ help:
 	@echo "  format          Format code with Ruff (style, whitespace, auto-fixes)"
 	@echo "  type-check      Run MyPy type checking"
 	@echo "  import-check    Check module dependency rules"
+	@echo "  sync-shared-layer  Sync shared code to Lambda layer"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment (via GitHub Actions CI/CD):"
@@ -153,6 +154,15 @@ clean:
 	rm -rf .aws-sam/
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
+
+# Sync shared code to Lambda layer
+sync-shared-layer:
+	@echo "🔄 Syncing shared code to Lambda layer..."
+	rm -rf layers/shared/python/the_alchemiser/shared
+	mkdir -p layers/shared/python/the_alchemiser
+	cp the_alchemiser/__init__.py layers/shared/python/the_alchemiser/
+	cp -r the_alchemiser/shared layers/shared/python/the_alchemiser/
+	@echo "✅ Shared code synced to layers/shared/"
 
 # Version Management
 version:

@@ -1,0 +1,2 @@
+# Shared code layer - contains only Python source code from the_alchemiser.shared
+# No third-party dependencies needed here - they are in function-specific layers

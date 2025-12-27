@@ -526,6 +526,23 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  # Shared Code Layer: Contains the_alchemiser.shared module (business logic)
+  # Pure Python code - no third-party dependencies
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-shared-code"
+        - !Sub "alchemiser-${Stage}-shared-code"
+      Description: Shared business logic and utilities (the_alchemiser.shared)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
   # ============================================================================
