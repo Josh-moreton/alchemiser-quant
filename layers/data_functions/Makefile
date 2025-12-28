@@ -28,13 +28,10 @@ SOURCE_DIR := $(or \
 	$(call find_source,/home/runner/work/alchemiser-quant/alchemiser-quant), \
 	$(error Could not find source directory with the_alchemiser module))
 
-.PHONY: build build-SharedDataFunction build-DataQualityMonitorFunction build-DataQualityCoordinatorFunction build-DataQualityBatchProcessorFunction
+.PHONY: build build-SharedDataFunction
 
 # SAM calls build-<FunctionName> for each function
 build-SharedDataFunction: build
-build-DataQualityMonitorFunction: build
-build-DataQualityCoordinatorFunction: build
-build-DataQualityBatchProcessorFunction: build
 
 build:
 	@echo "📦 Building Data Lambda function code..."
@@ -51,7 +48,6 @@ build:
 	# Core modules needed
 	cp -r "$(SOURCE_DIR)/the_alchemiser/shared" "$(ARTIFACTS_DIR)/the_alchemiser/"
 	cp -r "$(SOURCE_DIR)/the_alchemiser/data_v2" "$(ARTIFACTS_DIR)/the_alchemiser/"
-	cp -r "$(SOURCE_DIR)/the_alchemiser/data_quality_monitor" "$(ARTIFACTS_DIR)/the_alchemiser/"
 
 	# Config files and strategy DSL files (needed for symbol extraction)
 	cp -r "$(SOURCE_DIR)/the_alchemiser/config" "$(ARTIFACTS_DIR)/the_alchemiser/" 2>/dev/null || true
