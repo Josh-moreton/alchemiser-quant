@@ -33,8 +33,9 @@ logger = get_logger(__name__)
 # Module constants
 MODULE_NAME: Final[str] = "backtest_v2.adapters.data_fetcher"
 
-# Default lookback for initial data seeding (1+ year for 252 trading days)
-DEFAULT_LOOKBACK_DAYS: Final[int] = 400
+# Default lookback for initial data seeding (5 years of trading days)
+# 5 years x 365 days = 1825 calendar days, approx 1260 trading days
+DEFAULT_LOOKBACK_DAYS: Final[int] = 1825
 
 # Rate limiting: Conservative for S3 calls (generous limit)
 API_RATE_LIMIT_DELAY: Final[float] = 0.1  # seconds between S3 calls

@@ -526,7 +526,7 @@ def run_portfolio_backtest(
             strategies_base_dir=args.strategies_dir,
             slippage_bps=args.slippage,
             auto_fetch_missing=args.auto_fetch,
-            auto_fetch_lookback_days=400,  # Default lookback for S3 sync
+            auto_fetch_lookback_days=1825,  # Default lookback for S3 sync (5 years)
         )
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
         print(f"Error: Invalid portfolio configuration: {e}", file=sys.stderr)

@@ -32,8 +32,9 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Default lookback for initial data seeding (1 year of trading days + buffer)
-DEFAULT_INITIAL_LOOKBACK_DAYS = 400
+# Default lookback for initial data seeding (5 years of trading days)
+# 5 years x 365 days = 1825 calendar days, approx 1260 trading days
+DEFAULT_INITIAL_LOOKBACK_DAYS = 1825
 
 # Minimum bars required for indicator computation
 MIN_BARS_REQUIRED = 252
