@@ -125,19 +125,13 @@ def validate_environment() -> bool:
     os.environ["ALPACA__KEY"] = alpaca_key
     os.environ["ALPACA__SECRET"] = alpaca_secret
 
-    # Check for bucket configuration
-    bucket = os.environ.get("MARKET_DATA_BUCKET")
-    stage = os.environ.get("APP__STAGE", "dev")
-
-    if not bucket:
-        # Construct bucket name from stage
-        bucket = f"alchemiser-{stage}-market-data"
-        os.environ["MARKET_DATA_BUCKET"] = bucket
-        logger.info(
-            "Using constructed bucket name",
-            bucket=bucket,
-            stage=stage,
-        )
+    # Default to the shared market data bucket unless explicitly overridden
+    bucket = os.environ.get("MARKET_DATA_BUCKET", "alchemiser-shared-market-data")
+    os.environ["MARKET_DATA_BUCKET"] = bucket
+    logger.info(
+        "Using market data bucket",
+        bucket=bucket,
+    )
 
     return True
 
