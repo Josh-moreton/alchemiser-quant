@@ -936,16 +936,15 @@ Examples:
     # Write bad data markers if requested
     markers_written = 0
     if args.mark_bad:
-        symbols_with_splits = [r for r in results if r.split_affected_records]
-        if symbols_with_splits:
+        symbols_with_mismatches = [r for r in results if r.mismatched_records]
+        if symbols_with_mismatches:
             print(
-                f"\nWriting bad data markers for {len(symbols_with_splits)} symbols with split-affected data..."
+                f"\nWriting bad data markers for {len(symbols_with_mismatches)} symbols with price mismatches..."
             )
             markers_written = write_bad_data_markers(results, args.region)
-            print(f"✅ Wrote {markers_written} markers to DynamoDB")
-            print("   These will be processed on next Data Lambda run.")
+            print(f"✅ {markers_written} symbols marked for re-fetch - will be processed on next Data Lambda run.")
         else:
-            print("\nNo symbols with split-affected data found - no markers to write.")
+            print("\n✅ No price mismatches found - no markers to write.")
 
     # Print summary
     valid_count = sum(1 for r in results if r.is_valid)
