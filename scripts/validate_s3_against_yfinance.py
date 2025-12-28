@@ -94,8 +94,12 @@ class DataPoint:
             and abs(self.close_price - other.close_price) < tolerance
         )
 
-    def prices_match_pct(self, other: DataPoint, tolerance_pct: float = 0.01) -> bool:
-        """Check if prices match within percentage tolerance (better for varying price ranges)."""
+    def prices_match_pct(self, other: DataPoint, tolerance_pct: float = 0.02) -> bool:
+        """Check if close prices match within percentage tolerance.
+
+        Only compares close prices since that's what matters for indicators.
+        Uses 2% tolerance to account for minor vendor differences in adjustment calculations.
+        """
         if self.date != other.date:
             return False
 
@@ -104,22 +108,18 @@ class DataPoint:
                 return 0
             return abs(a - b) / max(abs(a), abs(b))
 
-        return (
-            pct_diff(self.open_price, other.open_price) < tolerance_pct
-            and pct_diff(self.high_price, other.high_price) < tolerance_pct
-            and pct_diff(self.low_price, other.low_price) < tolerance_pct
-            and pct_diff(self.close_price, other.close_price) < tolerance_pct
-        )
+        # Only compare close prices - that's what matters for indicators
+        return pct_diff(self.close_price, other.close_price) < tolerance_pct
 
     def detect_split_factor(self, other: DataPoint) -> float | None:
         """Detect if this point differs from other by a split factor."""
         return detect_split_factor(self.close_price, other.close_price)
 
     def __eq__(self, other: object) -> bool:
-        """Check equality using percentage-based tolerance (1%)."""
+        """Check equality using percentage-based tolerance (2%) on close price only."""
         if not isinstance(other, DataPoint):
             return NotImplemented
-        return self.prices_match_pct(other, tolerance_pct=0.01)
+        return self.prices_match_pct(other, tolerance_pct=0.02)
 
 
 @dataclass
@@ -283,7 +283,7 @@ def fetch_yfinance_data(
                     progress=False,
                     start=start_date,
                     end=end_str,
-                    auto_adjust=False,
+                    auto_adjust=False,  # Keep False to get Adj Close column explicitly
                 )
             else:
                 df = yf.download(symbol, progress=False, period="max", auto_adjust=False)
@@ -335,12 +335,16 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
     has_timestamp_col = "timestamp" in columns_lower
     date_col = columns_lower.get("timestamp") if has_timestamp_col else None
 
-    # Find OHLC columns (volume ignored - only prices matter for indicators)
-    # Note: Use regular Close (not Adj Close) for comparison since S3 stores unadjusted prices
+    # Find OHLC columns (volume ignored - only close price matters for validation)
+    # S3 stores adjusted prices (Alpaca Adjustment.ALL), so compare against yfinance Adj Close
     open_col = columns_lower.get("open")
     high_col = columns_lower.get("high")
     low_col = columns_lower.get("low")
-    close_col = columns_lower.get("close")  # Prefer Close over Adj Close for S3 compatibility
+
+    # For close column: prefer Adj Close for yfinance data, regular close for S3
+    # yfinance with auto_adjust=False gives us both Close and Adj Close columns
+    adj_close_col = columns_lower.get("adj close")
+    close_col = adj_close_col if adj_close_col else columns_lower.get("close")
 
     # Fallback to pattern matching if not found
     if not open_col:
@@ -350,9 +354,9 @@ def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
     if not low_col:
         low_col = next((c for c in df.columns if "low" in str(c).lower()), None)
     if not close_col:
-        # Prefer regular Close over Adj Close for S3 compatibility
+        # Prefer Adj Close over regular Close for accurate adjusted price comparison
         close_col = next(
-            (c for c in df.columns if str(c).lower() == "close"),
+            (c for c in df.columns if "adj close" in str(c).lower()),
             next((c for c in df.columns if "close" in str(c).lower()), None),
         )
 
@@ -730,20 +734,16 @@ def write_bad_data_markers(
     markers_written = 0
 
     for result in results:
-        # Only mark symbols with split-affected records
-        if not result.split_affected_records:
+        # Mark any symbol with price mismatches (regardless of cause)
+        if not result.mismatched_records:
             continue
-
-        # Get representative split factor
-        split_factors = [factor for _, _, factor in result.split_affected_records]
-        avg_factor = sum(split_factors) / len(split_factors) if split_factors else None
 
         success = marker_service.mark_symbol_for_refetch(
             symbol=result.symbol,
-            reason="split_adjusted",
+            reason="price_mismatch",
             start_date=result.s3_start_date,
             end_date=result.s3_end_date,
-            detected_ratio=avg_factor,
+            detected_ratio=None,
             source="validation_script",
         )
 
@@ -751,8 +751,7 @@ def write_bad_data_markers(
             markers_written += 1
             logger.info(
                 f"Marked {result.symbol} for re-fetch "
-                f"({len(result.split_affected_records)} split-affected records, "
-                f"ratio: {avg_factor:.2f}x)"
+                f"({len(result.mismatched_records)} mismatched records)"
             )
 
     return markers_written
