@@ -574,3 +574,129 @@ data-quality:
 		echo "💡 Make sure the function is deployed and you have AWS credentials configured"; \
 		exit 1; \
 	fi
+
+# ========== Lambda CodeUri Migration Sync Targets ==========
+
+.PHONY: sync-all sync-shared sync-functions clean-sync
+
+# Master sync target - called before sam build
+sync-all: sync-shared sync-functions
+	@echo "✅ All code synced to deployment targets"
+
+# Sync shared code to SharedCodeLayer
+sync-shared:
+	@echo "📦 Syncing shared code to layer..."
+	mkdir -p layers/shared/python/the_alchemiser
+	rsync -av --delete \
+		--exclude='__pycache__' \
+		--exclude='*.pyc' \
+		--exclude='*.pyo' \
+		--exclude='*.egg-info' \
+		--exclude='*.md' \
+		the_alchemiser/shared/ \
+		layers/shared/python/the_alchemiser/shared/
+	cp the_alchemiser/__init__.py layers/shared/python/the_alchemiser/
+	cp the_alchemiser/py.typed layers/shared/python/the_alchemiser/ 2>/dev/null || true
+
+# Sync module code to function directories
+sync-functions:
+	@echo "📦 Syncing function code..."
+	# Coordinator
+	@echo "  → Coordinator..."
+	@mkdir -p functions/coordinator/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/coordinator_v2/ \
+		functions/coordinator/the_alchemiser/coordinator_v2/
+	@cp the_alchemiser/__init__.py functions/coordinator/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/coordinator/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/coordinator/the_alchemiser/config/
+
+	# Strategy (includes .clj files)
+	@echo "  → Strategy..."
+	@mkdir -p functions/strategy/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/strategy_v2/ \
+		functions/strategy/the_alchemiser/strategy_v2/
+	@cp the_alchemiser/__init__.py functions/strategy/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/strategy/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/strategy/the_alchemiser/config/
+
+	# Aggregator
+	@echo "  → Aggregator..."
+	@mkdir -p functions/aggregator/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/aggregator_v2/ \
+		functions/aggregator/the_alchemiser/aggregator_v2/
+	@cp the_alchemiser/__init__.py functions/aggregator/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/aggregator/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/aggregator/the_alchemiser/config/
+
+	# Portfolio
+	@echo "  → Portfolio..."
+	@mkdir -p functions/portfolio/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/portfolio_v2/ \
+		functions/portfolio/the_alchemiser/portfolio_v2/
+	@cp the_alchemiser/__init__.py functions/portfolio/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/portfolio/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/portfolio/the_alchemiser/config/
+
+	# Execution
+	@echo "  → Execution..."
+	@mkdir -p functions/execution/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/execution_v2/ \
+		functions/execution/the_alchemiser/execution_v2/
+	@cp the_alchemiser/__init__.py functions/execution/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/execution/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/execution/the_alchemiser/config/
+
+	# TradeAggregator
+	@echo "  → TradeAggregator..."
+	@mkdir -p functions/trade_aggregator/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/trade_aggregator/ \
+		functions/trade_aggregator/the_alchemiser/trade_aggregator/
+	@cp the_alchemiser/__init__.py functions/trade_aggregator/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/trade_aggregator/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/trade_aggregator/the_alchemiser/config/
+
+	# Notifications
+	@echo "  → Notifications..."
+	@mkdir -p functions/notifications/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/notifications_v2/ \
+		functions/notifications/the_alchemiser/notifications_v2/
+	@cp the_alchemiser/__init__.py functions/notifications/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/notifications/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/notifications/the_alchemiser/config/
+
+	# Metrics
+	@echo "  → Metrics..."
+	@mkdir -p functions/metrics/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/metrics_v2/ \
+		functions/metrics/the_alchemiser/metrics_v2/
+	@cp the_alchemiser/__init__.py functions/metrics/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/metrics/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/metrics/the_alchemiser/config/
+
+	# Data (for SharedDataFunction in data-template.yaml)
+	@echo "  → Data..."
+	@mkdir -p functions/data/the_alchemiser
+	@rsync -av --delete --exclude='__pycache__' --exclude='*.pyc' \
+		the_alchemiser/data_v2/ \
+		functions/data/the_alchemiser/data_v2/
+	@cp the_alchemiser/__init__.py functions/data/the_alchemiser/
+	@cp the_alchemiser/py.typed functions/data/the_alchemiser/ 2>/dev/null || true
+	@rsync -av --delete the_alchemiser/config/ functions/data/the_alchemiser/config/
+	# Data also needs strategy DSL files for symbol extraction
+	@mkdir -p functions/data/the_alchemiser/strategy_v2
+	@rsync -av --delete the_alchemiser/strategy_v2/strategies/ \
+		functions/data/the_alchemiser/strategy_v2/strategies/ 2>/dev/null || true
+
+# Clean synced build artifacts
+clean-sync:
+	@echo "🧹 Cleaning synced build artifacts..."
+	rm -rf functions/*/the_alchemiser
+	rm -rf layers/shared/python

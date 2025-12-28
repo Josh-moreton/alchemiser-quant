@@ -1,0 +1,20 @@
+# TradeAggregator Lambda Build
+# Code is synced from source via root Makefile before SAM build
+
+ARTIFACTS_DIR ?= $(shell pwd)
+
+.PHONY: build build-TradeAggregatorFunction
+
+build-TradeAggregatorFunction: build
+
+build:
+	@echo "📦 Building TradeAggregator Lambda..."
+	if [ ! -d "the_alchemiser/trade_aggregator" ]; then \
+		echo "❌ ERROR: trade_aggregator not found. Run 'make sync-all' from repo root first."; \
+		exit 1; \
+	fi
+	cp -r the_alchemiser "$(ARTIFACTS_DIR)/"
+	find "$(ARTIFACTS_DIR)" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find "$(ARTIFACTS_DIR)" -type f -name "*.pyc" -delete 2>/dev/null || true
+	@echo "✅ TradeAggregator build complete"
+	@du -sh "$(ARTIFACTS_DIR)/the_alchemiser"

@@ -88,6 +88,12 @@ jobs:
       - name: Install SAM CLI
         uses: aws-actions/setup-sam@v2
 
+      - name: Sync code to deployment targets
+        run: |
+          echo "🔄 Syncing code from source to functions/ and layers/"
+          make sync-all
+          echo "✅ Sync complete"
+
       - name: Build (matching target env)
         run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
 

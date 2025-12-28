@@ -67,6 +67,10 @@ dist/
 *.egg-info/
 .aws-sam/
 
+# Lambda build artifacts (synced from source at build time)
+functions/*/the_alchemiser/
+layers/shared/python/
+
 # Data outputs
 data/*
 # Exclude all historical backtest data

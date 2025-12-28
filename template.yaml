@@ -526,6 +526,24 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  # ========== SHARED CODE LAMBDA LAYER ==========
+  # Contains the_alchemiser/shared/ module used by all Lambdas
+  # Built via Makefile: syncs from the_alchemiser/shared/
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-shared-code"
+        - !Sub "alchemiser-${Stage}-shared-code"
+      Description: Shared the_alchemiser.shared module (events, adapters, DTOs, logging, errors)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
+
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -844,10 +862,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/strategy/
       Handler: the_alchemiser.strategy_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref StrategyLayer  # awswrangler + alpaca-py (built via Makefile)
       Timeout: 900  # Max timeout for on-demand data fetching
       MemorySize: 1024
@@ -863,22 +882,7 @@ Resources:
           # This allows indicators (e.g., 200-day SMA) to use the most recent price
 
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
@@ -932,10 +936,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/coordinator/
       Handler: the_alchemiser.coordinator_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
       Timeout: 60  # Orchestrator just dispatches, doesn't run strategies
       MemorySize: 512
@@ -946,22 +951,7 @@ Resources:
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
           AGGREGATION_TIMEOUT_SECONDS: "600"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   StrategyOrchestratorExecutionRole:
     Type: AWS::IAM::Role
@@ -1010,10 +1000,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/aggregator/
       Handler: the_alchemiser.aggregator_v2.lambda_handler.lambda_handler
       Role: !GetAtt StrategyAggregatorExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
@@ -1033,22 +1024,7 @@ Resources:
               detail-type:
                 - "PartialSignalGenerated"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   StrategyAggregatorExecutionRole:
     Type: AWS::IAM::Role
@@ -1092,10 +1068,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/portfolio/
       Handler: the_alchemiser.portfolio_v2.lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref PortfolioLayer
       Timeout: 900  # Max timeout for comprehensive processing
       MemorySize: 1024
@@ -1112,22 +1089,7 @@ Resources:
           EXECUTION_FIFO_QUEUE_URL: !Ref ExecutionFifoQueue
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   PortfolioExecutionRole:
     Type: AWS::IAM::Role
@@ -1194,10 +1156,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/execution/
       Handler: the_alchemiser.execution_v2.lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref ExecutionLayer
       Timeout: 600
       MemorySize: 1024
@@ -1234,22 +1197,7 @@ Resources:
             FunctionResponseTypes:
               - ReportBatchItemFailures
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   ExecutionExecutionRole:
     Type: AWS::IAM::Role
@@ -1313,10 +1261,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/trade_aggregator/
       Handler: the_alchemiser.trade_aggregator.lambda_handler.lambda_handler
       Role: !GetAtt TradeAggregatorExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, alpaca-py for capital metrics)
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
@@ -1335,21 +1284,7 @@ Resources:
               detail-type:
                 - "TradeExecuted"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   TradeAggregatorExecutionRole:
     Type: AWS::IAM::Role
@@ -1391,10 +1326,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/notifications/
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref NotificationsLayer
       Timeout: 60
       MemorySize: 512
@@ -1427,21 +1363,7 @@ Resources:
               detail-type:
                 - "WorkflowFailed"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   NotificationsExecutionRole:
     Type: AWS::IAM::Role
@@ -1492,10 +1414,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/metrics/
       Handler: the_alchemiser.metrics_v2.lambda_handler.lambda_handler
       Role: !GetAtt MetricsExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer  # Shared code (the_alchemiser.shared)
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, boto3)
       Timeout: 60
       MemorySize: 512
@@ -1514,21 +1437,7 @@ Resources:
               detail-type:
                 - "TradeExecuted"
     Metadata:
-      BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      BuildMethod: makefile
 
   MetricsExecutionRole:
     Type: AWS::IAM::Role
