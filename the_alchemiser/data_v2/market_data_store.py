@@ -14,6 +14,7 @@ import os
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -322,14 +323,24 @@ class MarketDataStore:
             )
             return False
 
-    def append_bars(self, symbol: str, new_bars: pd.DataFrame) -> bool:
-        """Append new bars to existing symbol data.
+    def append_bars(
+        self,
+        symbol: str,
+        new_bars: pd.DataFrame,
+        *,
+        force_replace: bool = False,
+        adjustment_threshold: Decimal = Decimal("0.005"),
+    ) -> bool:
+        """Append new bars with adjustment-aware update logic.
 
-        Handles deduplication by timestamp to ensure idempotent updates.
+        Automatically detects and replaces bars when prices have been
+        retroactively adjusted (e.g., post-split, post-dividend).
 
         Args:
             symbol: Ticker symbol
-            new_bars: DataFrame with new OHLCV bars to append
+            new_bars: DataFrame with new/updated bars from Alpaca
+            force_replace: If True, replace all data (for re-seeding)
+            adjustment_threshold: Price change % to consider an adjustment (default 0.5%)
 
         Returns:
             True if successful, False otherwise
@@ -342,8 +353,8 @@ class MarketDataStore:
         # Read existing data
         existing_df = self.read_symbol_data(symbol, use_cache=False)
 
-        if existing_df is None:
-            # No existing data, write new bars directly
+        if existing_df is None or force_replace:
+            # No existing data or forced replacement
             return self.write_symbol_data(symbol, new_bars)
 
         # Ensure timestamp column exists in both
@@ -358,24 +369,65 @@ class MarketDataStore:
         existing_df["timestamp"] = pd.to_datetime(existing_df["timestamp"])
         new_bars["timestamp"] = pd.to_datetime(new_bars["timestamp"])
 
-        # Filter out bars that already exist
-        existing_dates = set(existing_df["timestamp"].dt.date)
-        new_bars_filtered = new_bars[~new_bars["timestamp"].dt.date.isin(existing_dates)]
+        # Create date-keyed lookups for comparison
+        existing_by_date = existing_df.set_index(existing_df["timestamp"].dt.date)
+        new_by_date = new_bars.set_index(new_bars["timestamp"].dt.date)
 
-        if new_bars_filtered.empty:
-            logger.debug("All bars already exist", symbol=symbol)
+        # Identify truly new dates
+        existing_dates = set(existing_by_date.index)
+        new_dates_set = set(new_by_date.index)
+        truly_new_dates = new_dates_set - existing_dates
+
+        # Detect retroactive price adjustments in overlapping dates
+        overlapping_dates = new_dates_set & existing_dates
+        dates_to_update: set[Any] = set()
+
+        for date in overlapping_dates:
+            existing_close = Decimal(str(existing_by_date.loc[date]["close"]))
+            new_close = Decimal(str(new_by_date.loc[date]["close"]))
+
+            # Skip comparison if either price is zero
+            if existing_close == 0 or new_close == 0:
+                continue
+
+            # Calculate percentage change
+            pct_change = abs((new_close - existing_close) / existing_close)
+
+            if pct_change > adjustment_threshold:
+                dates_to_update.add(date)
+                logger.info(
+                    "Detected retroactive price adjustment",
+                    symbol=symbol,
+                    date=str(date),
+                    old_close=float(existing_close),
+                    new_close=float(new_close),
+                    pct_change_pct=float(pct_change * 100),
+                )
+
+        # Combine: truly new dates + dates needing adjustment
+        dates_to_include = truly_new_dates | dates_to_update
+
+        if not dates_to_include:
+            logger.debug("All bars already up to date", symbol=symbol)
             return True
 
-        # Concatenate and sort by timestamp
-        combined_df = pd.concat([existing_df, new_bars_filtered], ignore_index=True)
+        # Filter new bars to include
+        new_bars_to_add = new_bars[new_bars["timestamp"].dt.date.isin(dates_to_include)]
+
+        # Remove old versions of adjusted dates
+        existing_df_filtered = existing_df[~existing_df["timestamp"].dt.date.isin(dates_to_update)]
+
+        # Combine and sort by timestamp
+        combined_df = pd.concat([existing_df_filtered, new_bars_to_add], ignore_index=True)
         combined_df = combined_df.sort_values("timestamp").reset_index(drop=True)
 
         logger.info(
             "Appending bars",
             symbol=symbol,
             existing_rows=len(existing_df),
-            new_rows=len(new_bars_filtered),
-            total_rows=len(combined_df),
+            new_dates=len(truly_new_dates),
+            adjusted_dates=len(dates_to_update),
+            final_rows=len(combined_df),
         )
 
         return self.write_symbol_data(symbol, combined_df)
