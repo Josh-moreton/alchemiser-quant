@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "8.8.1"
+version = "8.8.2"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
@@ -115,6 +115,10 @@ select = [ "E", "W", "F", "I", "UP", "B", "C4", "SIM", "PTH", "DTZ", "Q", "PIE",
 ignore = [ "E501", "B008", "B904", "D203", "D213",]
 fixable = [ "ALL",]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts: Allow late imports (load_dotenv), boolean args, ternary preferences, Path.open()
+"scripts/*" = ["E402", "FBT001", "FBT002", "SIM108", "PTH123"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto --dist=loadscope -q --durations=10"

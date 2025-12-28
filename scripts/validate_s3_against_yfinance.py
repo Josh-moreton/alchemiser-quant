@@ -1,25 +1,19 @@
 """Business Unit: data | Status: current.
 
-Validate S3 market data against yfinance for data integrity.
+Validate S3 market data against yfinance adjusted prices.
 
-This script connects to the S3 datalake and validates each symbol's
-entire data store against yfinance, checking date, price, and volume.
-Discrepancies are logged for manual review.
-
-Run locally (yfinance blocks Lambda IP ranges):
-    python scripts/validate_s3_against_yfinance.py [--symbols AAPL,MSFT] [--output report.csv]
+Simple validation: does S3 close price match yfinance Adj Close within 2% tolerance?
+If not, it's a mismatch. Report it.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
-import json
 import logging
-import os
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import boto3
@@ -27,619 +21,232 @@ import pandas as pd
 import yfinance as yf
 from botocore.exceptions import ClientError
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-
-@dataclass(frozen=True)
-class DataPoint:
-    """A single OHLCV data point."""
-
-    date: str  # YYYY-MM-DD
-    open_price: float
-    high_price: float
-    low_price: float
-    close_price: float
-    volume: int
-
-    def __hash__(self) -> int:
-        """Make hashable for set operations."""
-        return hash((self.date, self.close_price, self.volume))
-
-    def __eq__(self, other: object) -> bool:
-        """Check equality allowing for minor float precision differences."""
-        if not isinstance(other, DataPoint):
-            return NotImplemented
-        return (
-            self.date == other.date
-            and abs(self.open_price - other.open_price) < 0.01
-            and abs(self.high_price - other.high_price) < 0.01
-            and abs(self.low_price - other.low_price) < 0.01
-            and abs(self.close_price - other.close_price) < 0.01
-            and self.volume == other.volume
-        )
+TOLERANCE_PCT = 0.02  # 2% tolerance
 
 
 @dataclass
-class SymbolValidationResult:
-    """Result of validating a symbol against yfinance."""
+class ValidationResult:
+    """Result of validating a symbol."""
 
     symbol: str
-    s3_record_count: int
-    yfinance_record_count: int
-    missing_in_s3: list[DataPoint] = field(default_factory=list)
-    missing_in_yfinance: list[DataPoint] = field(default_factory=list)
-    mismatched_records: list[tuple[DataPoint, DataPoint]] = field(default_factory=list)
+    s3_records: int = 0
+    yf_records: int = 0
+    mismatches: int = 0
+    gaps: int = 0  # dates in yfinance but not S3
     errors: list[str] = field(default_factory=list)
+    sample_mismatches: list[dict] = field(default_factory=list)
 
     @property
     def is_valid(self) -> bool:
-        """Check if symbol passed all validations."""
-        return (
-            not self.missing_in_s3
-            and not self.missing_in_yfinance
-            and not self.mismatched_records
-            and not self.errors
-        )
-
-    @property
-    def discrepancy_count(self) -> int:
-        """Total number of discrepancies."""
-        return (
-            len(self.missing_in_s3)
-            + len(self.missing_in_yfinance)
-            + len(self.mismatched_records)
-        )
+        return self.mismatches == 0 and self.gaps == 0 and not self.errors
 
 
-def read_s3_data(
-    s3_client: "boto3.client",
-    bucket: str,
-    symbol: str,
-) -> pd.DataFrame | None:
-    """Read Parquet data for a symbol from S3.
-
-    Args:
-        s3_client: Initialized S3 client
-        bucket: S3 bucket name
-        symbol: Ticker symbol
-
-    Returns:
-        DataFrame with OHLCV data, or None if not found
-
-    """
+def read_s3_data(s3_client, bucket: str, symbol: str) -> pd.DataFrame | None:
+    """Read parquet data from S3."""
     try:
         key = f"{symbol}/daily.parquet"
         response = s3_client.get_object(Bucket=bucket, Key=key)
-
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
-            tmp.write(response["Body"].read())
-            tmp_path = tmp.name
-
-        df = pd.read_parquet(tmp_path, engine="pyarrow")
-        Path(tmp_path).unlink()
-
-        logger.info(f"Read {len(df)} records from S3 for {symbol}")
+        with Path("/tmp/temp.parquet").open("wb") as f:
+            f.write(response["Body"].read())
+        df = pd.read_parquet("/tmp/temp.parquet")
+        Path("/tmp/temp.parquet").unlink()
         return df
-
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchKey":
-            logger.warning(f"No data found in S3 for {symbol}")
             return None
         raise
-    except Exception as e:
-        logger.error(f"Error reading S3 data for {symbol}: {e}")
+
+
+def fetch_yfinance_data(symbol: str, start: str, end: str) -> pd.DataFrame | None:
+    """Fetch yfinance data with Adj Close."""
+    import warnings
+    warnings.filterwarnings("ignore")
+    
+    try:
+        end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
+        df = yf.download(symbol, start=start, end=end_dt.strftime("%Y-%m-%d"), 
+                         auto_adjust=False, progress=False)
+        if df is None or df.empty:
+            return None
+        return df
+    except Exception:
         return None
 
 
-def fetch_yfinance_data(symbol: str, max_retries: int = 3) -> pd.DataFrame | None:
-    """Fetch historical data from yfinance.
-
-    Args:
-        symbol: Ticker symbol
-        max_retries: Number of retries on failure
-
-    Returns:
-        DataFrame with OHLCV data, or None if fetch fails
-
-    """
-    import warnings
-
-    # Suppress yfinance FutureWarning about auto_adjust default
-    warnings.filterwarnings("ignore", message=".*auto_adjust default to True.*")
-
-    for attempt in range(max_retries):
-        try:
-            df = yf.download(symbol, progress=False, period="max", auto_adjust=False)
-            if df is None or df.empty:
-                logger.warning(f"Empty data from yfinance for {symbol}")
-                return None
-            logger.info(f"Fetched {len(df)} records from yfinance for {symbol}")
-            return df
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(
-                    f"Attempt {attempt + 1} failed for {symbol}, retrying: {e}"
-                )
-            else:
-                logger.error(f"Failed to fetch yfinance data for {symbol}: {e}")
-                return None
-    return None
-
-
-def normalize_dataframe(df: pd.DataFrame, source: str) -> list[DataPoint]:
-    """Normalize a dataframe to a list of DataPoint objects.
-
-    Args:
-        df: DataFrame with OHLCV data
-        source: Source name for logging (e.g., "S3", "yfinance")
-
-    Returns:
-        List of DataPoint objects
-
-    """
-    if df is None or df.empty:
-        return []
-
-    points: list[DataPoint] = []
-
-    # Handle yfinance MultiIndex columns (tuples) by flattening to single level
-    if isinstance(df.columns, pd.MultiIndex):
-        # Flatten MultiIndex: take first level only (the OHLCV names)
-        df.columns = df.columns.get_level_values(0)
-
-    # Create lowercase mapping for case-insensitive column lookup
-    columns_lower: dict[str, str] = {}
-    for col in df.columns:
-        # Handle both string and non-string column names
-        col_str = str(col)
-        columns_lower[col_str.lower()] = col
-
-    for date_idx, row in df.iterrows():
-        try:
-            # Parse date
-            if isinstance(date_idx, str):
-                date_str = date_idx
-            else:
-                date_str = pd.to_datetime(date_idx).strftime("%Y-%m-%d")
-
-            # Extract price/volume columns (yfinance uses Adj Close, S3 might use Close)
-            open_col = columns_lower.get("open")
-            high_col = columns_lower.get("high")
-            low_col = columns_lower.get("low")
-            close_col = columns_lower.get("adj close") or columns_lower.get("close")
-            volume_col = columns_lower.get("volume")
-
-            # Fallback to original column names if not found in lowercase mapping
-            if not open_col:
-                open_col = next((c for c in df.columns if "open" in str(c).lower()), None)
-            if not high_col:
-                high_col = next((c for c in df.columns if "high" in str(c).lower()), None)
-            if not low_col:
-                low_col = next((c for c in df.columns if "low" in str(c).lower()), None)
-            if not close_col:
-                close_col = next(
-                    (c for c in df.columns if "adj close" in str(c).lower()),
-                    next((c for c in df.columns if "close" in str(c).lower()), None),
-                )
-            if not volume_col:
-                volume_col = next((c for c in df.columns if "volume" in str(c).lower()), None)
-
-            point = DataPoint(
-                date=date_str,
-                open_price=float(row.get(open_col, 0)) if open_col else 0.0,
-                high_price=float(row.get(high_col, 0)) if high_col else 0.0,
-                low_price=float(row.get(low_col, 0)) if low_col else 0.0,
-                close_price=float(row.get(close_col, 0)) if close_col else 0.0,
-                volume=int(row.get(volume_col, 0)) if volume_col else 0,
-            )
-            points.append(point)
-        except Exception as e:
-            logger.warning(f"Failed to parse row for {date_idx}: {e}")
-            continue
-
-    logger.debug(f"Normalized {len(points)} points from {source}")
-    return points
-
-
-def validate_symbol(
-    symbol: str,
-    s3_client: "boto3.client",
-    bucket: str,
-) -> SymbolValidationResult:
-    """Validate a single symbol's data against yfinance.
-
-    Args:
-        symbol: Ticker symbol
-        s3_client: Initialized S3 client
-        bucket: S3 bucket name
-
-    Returns:
-        SymbolValidationResult with discrepancies
-
-    """
-    result = SymbolValidationResult(symbol=symbol, s3_record_count=0, yfinance_record_count=0)
-
-    # Fetch S3 data
+def validate_symbol(symbol: str, s3_client, bucket: str) -> ValidationResult:
+    """Validate a single symbol. Simple: does price match within tolerance?"""
+    result = ValidationResult(symbol=symbol)
+    
+    # Get S3 data
     s3_df = read_s3_data(s3_client, bucket, symbol)
     if s3_df is None:
-        result.errors.append(f"No S3 data found for {symbol}")
+        result.errors.append("No S3 data")
         return result
-
-    result.s3_record_count = len(s3_df)
-
-    # Fetch yfinance data
-    yf_df = fetch_yfinance_data(symbol)
+    
+    result.s3_records = len(s3_df)
+    
+    # Normalize S3 timestamps
+    s3_df["date"] = pd.to_datetime(s3_df["timestamp"]).dt.strftime("%Y-%m-%d")
+    s3_by_date = s3_df.set_index("date")["close"].to_dict()
+    
+    start_date = min(s3_by_date.keys())
+    end_date = max(s3_by_date.keys())
+    
+    # Get yfinance data
+    yf_df = fetch_yfinance_data(symbol, start_date, end_date)
     if yf_df is None:
-        result.errors.append(f"Failed to fetch yfinance data for {symbol}")
+        result.errors.append("Failed to fetch yfinance")
         return result
-
-    result.yfinance_record_count = len(yf_df)
-
-    # Normalize to DataPoint lists
-    s3_points = normalize_dataframe(s3_df, "S3")
-    yf_points = normalize_dataframe(yf_df, "yfinance")
-
-    # Convert to sets for comparison (by date)
-    s3_by_date = {p.date: p for p in s3_points}
-    yf_by_date = {p.date: p for p in yf_points}
-
-    # Find missing dates
-    s3_dates = set(s3_by_date.keys())
-    yf_dates = set(yf_by_date.keys())
-
-    for date in yf_dates - s3_dates:
-        result.missing_in_s3.append(yf_by_date[date])
-
-    for date in s3_dates - yf_dates:
-        result.missing_in_yfinance.append(s3_by_date[date])
-
-    # Check for mismatches in overlapping dates
-    for date in s3_dates & yf_dates:
-        s3_point = s3_by_date[date]
-        yf_point = yf_by_date[date]
-        if s3_point != yf_point:
-            result.mismatched_records.append((s3_point, yf_point))
-
-    logger.info(
-        f"Validation complete for {symbol}: "
-        f"S3={result.s3_record_count}, yfinance={result.yfinance_record_count}, "
-        f"discrepancies={result.discrepancy_count}"
-    )
-
+    
+    # Flatten multi-index if needed
+    if isinstance(yf_df.columns, pd.MultiIndex):
+        yf_df.columns = yf_df.columns.get_level_values(0)
+    
+    result.yf_records = len(yf_df)
+    
+    # Get Adj Close column
+    adj_close_col = "Adj Close" if "Adj Close" in yf_df.columns else "Close"
+    yf_df["date"] = yf_df.index.strftime("%Y-%m-%d")
+    yf_by_date = yf_df.set_index("date")[adj_close_col].to_dict()
+    
+    # Compare
+    for date, yf_price in yf_by_date.items():
+        if date not in s3_by_date:
+            result.gaps += 1
+            continue
+        
+        s3_price = s3_by_date[date]
+        if max(abs(s3_price), abs(yf_price)) == 0:
+            continue
+        
+        pct_diff = abs(s3_price - yf_price) / max(abs(s3_price), abs(yf_price))
+        if pct_diff > TOLERANCE_PCT:
+            result.mismatches += 1
+            if len(result.sample_mismatches) < 3:
+                result.sample_mismatches.append({
+                    "date": date,
+                    "s3": round(s3_price, 2),
+                    "yf": round(yf_price, 2),
+                    "diff_pct": round(pct_diff * 100, 2),
+                })
+    
     return result
 
 
-def list_s3_symbols(s3_client: "boto3.client", bucket: str) -> list[str]:
-    """List all symbols available in S3.
-
-    Args:
-        s3_client: Initialized S3 client
-        bucket: S3 bucket name
-
-    Returns:
-        List of symbol names
-
-    """
-    symbols: set[str] = set()
+def list_s3_symbols(s3_client, bucket: str) -> list[str]:
+    """List all symbols in S3."""
+    symbols = set()
     paginator = s3_client.get_paginator("list_objects_v2")
-    pages = paginator.paginate(Bucket=bucket, Delimiter="/")
-
-    for page in pages:
-        if "CommonPrefixes" in page:
-            for prefix in page["CommonPrefixes"]:
-                symbol = prefix["Prefix"].rstrip("/")
-                if symbol:
-                    symbols.add(symbol)
-
+    for page in paginator.paginate(Bucket=bucket, Delimiter="/"):
+        for prefix in page.get("CommonPrefixes", []):
+            symbol = prefix["Prefix"].rstrip("/")
+            if symbol:
+                symbols.add(symbol)
     return sorted(symbols)
 
 
-def write_csv_report(results: list[SymbolValidationResult], output_file: str) -> None:
-    """Write validation results to CSV report.
-
-    Args:
-        results: List of SymbolValidationResult objects
-        output_file: Path to output CSV file
-
-    """
-    with open(output_file, "w", newline="") as f:
-        writer = csv.writer(f)
-
-        # Write summary header
-        writer.writerow(["VALIDATION REPORT", datetime.now(UTC).isoformat()])
-        writer.writerow([])
-
-        # Summary stats
-        total_symbols = len(results)
-        valid_symbols = sum(1 for r in results if r.is_valid)
-        writer.writerow(["Total Symbols", total_symbols])
-        writer.writerow(["Valid Symbols", valid_symbols])
-        writer.writerow(["Invalid Symbols", total_symbols - valid_symbols])
-        writer.writerow([])
-
-        # Symbol details header
-        writer.writerow([
-            "Symbol",
-            "S3 Records",
-            "yfinance Records",
-            "Missing in S3",
-            "Missing in yfinance",
-            "Mismatched",
-            "Errors",
-            "Status",
-        ])
-
-        for result in results:
-            writer.writerow([
-                result.symbol,
-                result.s3_record_count,
-                result.yfinance_record_count,
-                len(result.missing_in_s3),
-                len(result.missing_in_yfinance),
-                len(result.mismatched_records),
-                "; ".join(result.errors) if result.errors else "",
-                "VALID" if result.is_valid else "INVALID",
-            ])
-
-    logger.info(f"Report written to {output_file}")
-
-
-def write_detailed_report(results: list[SymbolValidationResult], output_file: str) -> None:
-    """Write detailed discrepancies to JSON file.
-
-    Args:
-        results: List of SymbolValidationResult objects
-        output_file: Path to output JSON file
-
-    """
-    report: dict[str, dict] = {}
-
-    for result in results:
-        if not result.is_valid:
-            symbol_report: dict = {
-                "s3_record_count": result.s3_record_count,
-                "yfinance_record_count": result.yfinance_record_count,
-                "errors": result.errors,
-            }
-
-            if result.missing_in_s3:
-                symbol_report["missing_in_s3"] = [
-                    {
-                        "date": p.date,
-                        "close": p.close_price,
-                        "volume": p.volume,
-                    }
-                    for p in result.missing_in_s3
-                ]
-
-            if result.missing_in_yfinance:
-                symbol_report["missing_in_yfinance"] = [
-                    {
-                        "date": p.date,
-                        "close": p.close_price,
-                        "volume": p.volume,
-                    }
-                    for p in result.missing_in_yfinance
-                ]
-
-            if result.mismatched_records:
-                symbol_report["mismatched"] = [
-                    {
-                        "date": s3_point.date,
-                        "s3_close": s3_point.close_price,
-                        "yf_close": yf_point.close_price,
-                        "s3_volume": s3_point.volume,
-                        "yf_volume": yf_point.volume,
-                    }
-                    for s3_point, yf_point in result.mismatched_records[:10]  # Limit to 10
-                ]
-
-            report[result.symbol] = symbol_report
-
-    with open(output_file, "w") as f:
-        json.dump(report, f, indent=2)
-
-    logger.info(f"Detailed report written to {output_file}")
-
-
-def discover_bucket_from_cloudformation(region: str) -> str | None:
-    """Attempt to discover bucket from CloudFormation stack outputs.
-
-    Looks for stack outputs named MarketDataBucketName in stacks matching:
-    - alchemiser-dev (dev stage)
-    - alchemiser-staging (staging stage)
-    - alchemiser-prod (prod stage)
-
-    Args:
-        region: AWS region
-
-    Returns:
-        Bucket name if found, None otherwise
-
-    """
-    try:
-        cf_client = boto3.client("cloudformation", region_name=region)
-
-        # Try common stack names in order of likelihood
-        stack_names = [
-            "alchemiser-dev",
-            "alchemiser-staging",
-            "alchemiser-prod",
-        ]
-
-        for stack_name in stack_names:
-            try:
-                response = cf_client.describe_stacks(StackName=stack_name)
-                if response["Stacks"]:
-                    stack = response["Stacks"][0]
-                    if "Outputs" in stack:
-                        for output in stack["Outputs"]:
-                            if output.get("OutputKey") == "MarketDataBucketName":
-                                bucket = output.get("OutputValue")
-                                logger.info(
-                                    f"Auto-discovered bucket from CloudFormation stack {stack_name}: {bucket}"
-                                )
-                                return bucket
-            except cf_client.exceptions.ClientError as e:
-                if e.response["Error"]["Code"] != "ValidationError":
-                    raise
-                # Stack doesn't exist, try next one
-                continue
-
-    except Exception as e:
-        logger.warning(f"Failed to auto-discover bucket from CloudFormation: {e}")
-
-    return None
+def write_bad_data_markers(results: list[ValidationResult], region: str) -> int:
+    """Write markers for symbols with mismatches."""
+    table_name = "alchemiser-bad-data-markers"
+    
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from the_alchemiser.data_v2.bad_data_marker_service import BadDataMarkerService
+    
+    marker_service = BadDataMarkerService(table_name=table_name)
+    count = 0
+    
+    for r in results:
+        if r.mismatches == 0:
+            continue
+        if marker_service.mark_symbol_for_refetch(
+            symbol=r.symbol,
+            reason="price_mismatch",
+            start_date="",
+            end_date="",
+            detected_ratio=None,
+            source="validation_script",
+        ):
+            count += 1
+            logger.info(f"Marked {r.symbol} ({r.mismatches} mismatches)")
+    
+    return count
 
 
 def main() -> None:
-    """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Validate S3 market data against yfinance",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Validate all symbols (auto-discovers bucket from CloudFormation)
-  python scripts/validate_s3_against_yfinance.py
-
-  # Validate specific symbols
-  python scripts/validate_s3_against_yfinance.py --symbols AAPL,MSFT,GOOGL
-
-  # Limit to first 10 symbols
-  python scripts/validate_s3_against_yfinance.py --limit 10
-
-  # Custom output file
-  python scripts/validate_s3_against_yfinance.py --output validation_report.csv
-
-  # Explicit bucket (overrides auto-discovery)
-  python scripts/validate_s3_against_yfinance.py --bucket my-bucket
-        """,
-    )
-    parser.add_argument(
-        "--symbols",
-        type=str,
-        help="Comma-separated list of symbols to validate (default: all)",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        help="Maximum number of symbols to validate",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="s3_validation_report.csv",
-        help="Output CSV report file (default: s3_validation_report.csv)",
-    )
-    parser.add_argument(
-        "--detailed",
-        type=str,
-        help="Output detailed JSON report of discrepancies",
-    )
-    parser.add_argument(
-        "--bucket",
-        type=str,
-        default=None,
-        help="S3 bucket name (default: auto-discover from CloudFormation, MARKET_DATA_BUCKET env var, or specify explicitly)",
-    )
-    parser.add_argument(
-        "--region",
-        type=str,
-        default="us-east-1",
-        help="AWS region (default: us-east-1)",
-    )
-
+    parser = argparse.ArgumentParser(description="Validate S3 data against yfinance")
+    parser.add_argument("--symbols", type=str, help="Comma-separated symbols")
+    parser.add_argument("--limit", type=int, help="Max symbols to validate")
+    parser.add_argument("--output", type=str, default="s3_validation_report.csv")
+    parser.add_argument("--bucket", type=str, default="alchemiser-shared-market-data")
+    parser.add_argument("--region", type=str, default="us-east-1")
+    parser.add_argument("--mark-bad", action="store_true", help="Write DynamoDB markers")
+    parser.add_argument("--debug", action="store_true", help="Show sample mismatches")
     args = parser.parse_args()
-
-    # Resolve bucket: explicit arg > env var > CloudFormation auto-discovery
-    bucket = args.bucket or os.environ.get("MARKET_DATA_BUCKET")
-
-    if not bucket:
-        logger.info("Attempting to auto-discover bucket from CloudFormation...")
-        bucket = discover_bucket_from_cloudformation(args.region)
-
-    if not bucket:
-        logger.error(
-            "Bucket not found. Provide via:\n"
-            "  1. --bucket argument\n"
-            "  2. MARKET_DATA_BUCKET env var\n"
-            "  3. CloudFormation stack output (auto-discovered from alchemiser-dev/staging/prod stacks)"
-        )
-        sys.exit(1)
-
-    logger.info(f"Using bucket: {bucket}")
-
-    # Initialize S3 client
+    
     s3_client = boto3.client("s3", region_name=args.region)
-
-    # Determine symbols to validate
+    
+    # Get symbols
     if args.symbols:
         symbols = [s.strip().upper() for s in args.symbols.split(",")]
     else:
-        logger.info("Listing symbols from S3...")
-        symbols = list_s3_symbols(s3_client, bucket)
-        logger.info(f"Found {len(symbols)} symbols in S3")
-
+        symbols = list_s3_symbols(s3_client, args.bucket)
+    
     if args.limit:
-        symbols = symbols[: args.limit]
-        logger.info(f"Limiting to first {args.limit} symbols")
-
-    # Validate each symbol
-    results: list[SymbolValidationResult] = []
+        symbols = symbols[:args.limit]
+    
+    logger.info(f"Validating {len(symbols)} symbols...")
+    
+    # Validate
+    results = []
     for i, symbol in enumerate(symbols, 1):
-        logger.info(f"[{i}/{len(symbols)}] Validating {symbol}...")
-        try:
-            result = validate_symbol(symbol, s3_client, bucket)
-            results.append(result)
-        except Exception as e:
-            logger.error(f"Unexpected error validating {symbol}: {e}")
-            result = SymbolValidationResult(
-                symbol=symbol,
-                s3_record_count=0,
-                yfinance_record_count=0,
-                errors=[str(e)],
-            )
-            results.append(result)
-
-    # Write reports
-    write_csv_report(results, args.output)
-
-    if args.detailed:
-        write_detailed_report(results, args.detailed)
-
-    # Print summary
-    valid_count = sum(1 for r in results if r.is_valid)
-    invalid_count = len(results) - valid_count
-    total_discrepancies = sum(r.discrepancy_count for r in results)
-
-    print("\n" + "=" * 80)
-    print("VALIDATION SUMMARY")
-    print("=" * 80)
-    print(f"Total Symbols Validated: {len(results)}")
-    print(f"Valid Symbols: {valid_count}")
-    print(f"Invalid Symbols: {invalid_count}")
-    print(f"Total Discrepancies: {total_discrepancies}")
+        logger.info(f"[{i}/{len(symbols)}] {symbol}")
+        result = validate_symbol(symbol, s3_client, args.bucket)
+        results.append(result)
+        
+        if args.debug and result.sample_mismatches:
+            for m in result.sample_mismatches:
+                print(f"  {m['date']}: S3={m['s3']}, YF={m['yf']}, diff={m['diff_pct']}%")
+    
+    # Write CSV
+    with open(args.output, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Symbol", "S3 Records", "YF Records", "Mismatches", "Gaps", "Status"])
+        for r in results:
+            status = "VALID" if r.is_valid else "INVALID"
+            writer.writerow([r.symbol, r.s3_records, r.yf_records, r.mismatches, r.gaps, status])
+    
+    # Mark bad if requested
+    markers = 0
+    if args.mark_bad:
+        with_mismatches = [r for r in results if r.mismatches > 0]
+        if with_mismatches:
+            markers = write_bad_data_markers(results, args.region)
+    
+    # Summary
+    valid = sum(1 for r in results if r.is_valid)
+    invalid = len(results) - valid
+    total_mismatches = sum(r.mismatches for r in results)
+    
+    print(f"\n{'='*60}")
+    print(f"VALIDATION SUMMARY")
+    print(f"{'='*60}")
+    print(f"Total: {len(results)} | Valid: {valid} | Invalid: {invalid}")
+    print(f"Total mismatches: {total_mismatches}")
+    if markers:
+        print(f"Markers written: {markers}")
     print(f"Report: {args.output}")
-    if args.detailed:
-        print(f"Detailed Report: {args.detailed}")
-    print("=" * 80)
-
-    if invalid_count > 0:
-        print("\nInvalid Symbols:")
-        for result in results:
-            if not result.is_valid:
-                print(
-                    f"  - {result.symbol}: "
-                    f"{len(result.missing_in_s3)} missing in S3, "
-                    f"{len(result.missing_in_yfinance)} missing in yfinance, "
-                    f"{len(result.mismatched_records)} mismatched"
-                )
+    
+    if invalid > 0:
+        print(f"\nInvalid symbols:")
+        for r in results:
+            if not r.is_valid:
+                print(f"  {r.symbol}: {r.mismatches} mismatches, {r.gaps} gaps")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,9 @@ Data refresh service for incremental market data updates.
 
 Orchestrates the process of identifying symbols that need data updates,
 fetching new bars from Alpaca, and storing them in S3.
+
+Now includes bad data marker support: symbols flagged by validation script
+are automatically re-fetched with full history to get adjusted prices.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.market_data_service import MarketDataService
 
+from .bad_data_marker_service import BadDataMarkerService
 from .market_data_store import MarketDataStore
 from .symbol_extractor import get_all_configured_symbols
 
@@ -56,15 +60,18 @@ class DataRefreshService:
         self,
         market_data_store: MarketDataStore | None = None,
         alpaca_manager: AlpacaManager | None = None,
+        bad_data_marker_service: BadDataMarkerService | None = None,
     ) -> None:
         """Initialize data refresh service.
 
         Args:
             market_data_store: S3 store instance. If None, creates from env vars.
             alpaca_manager: Alpaca client. If None, creates from env vars.
+            bad_data_marker_service: Bad data marker service. If None, creates from env vars.
 
         """
         self.market_data_store = market_data_store or MarketDataStore()
+        self.bad_data_marker_service = bad_data_marker_service or BadDataMarkerService()
 
         if alpaca_manager is None:
             alpaca_manager = AlpacaManager(
@@ -302,6 +309,83 @@ class DataRefreshService:
             failed=failure_count,
             failed_symbols=[s for s, ok in results.items() if not ok],
         )
+
+        return results
+
+    def process_bad_data_markers(
+        self,
+        lookback_days: int = DEFAULT_INITIAL_LOOKBACK_DAYS,
+    ) -> dict[str, bool]:
+        """Process all pending bad data markers by re-fetching affected symbols.
+
+        Symbols flagged by the validation script will be fully re-fetched
+        from Alpaca with adjusted prices. After successful re-fetch, markers
+        are cleared.
+
+        Args:
+            lookback_days: Days of history to fetch for marked symbols
+
+        Returns:
+            Dict mapping symbol to success status
+
+        """
+        marked_symbols = self.bad_data_marker_service.get_symbols_needing_refetch()
+
+        if not marked_symbols:
+            logger.info("No bad data markers to process")
+            return {}
+
+        logger.info(
+            "Processing bad data markers",
+            symbol_count=len(marked_symbols),
+            symbols=sorted(marked_symbols),
+        )
+
+        # Re-fetch all marked symbols with full history (to get adjusted prices)
+        results = self.seed_initial_data(list(marked_symbols), lookback_days)
+
+        # Clear markers for successfully processed symbols
+        for symbol, success in results.items():
+            if success:
+                cleared = self.bad_data_marker_service.clear_all_markers_for_symbol(symbol)
+                logger.info(
+                    "Cleared bad data markers after successful re-fetch",
+                    symbol=symbol,
+                    markers_cleared=cleared,
+                )
+
+        return results
+
+    def refresh_all_with_markers(
+        self,
+        base_path: Path | None = None,
+    ) -> dict[str, bool]:
+        """Refresh all symbols AND process any pending bad data markers.
+
+        This is the main entry point for scheduled data refresh. It:
+        1. First processes any pending bad data markers (full re-fetch)
+        2. Then performs incremental refresh on all configured symbols
+
+        Args:
+            base_path: Base path for symbol extraction
+
+        Returns:
+            Combined results for all symbols
+
+        """
+        results: dict[str, bool] = {}
+
+        # Process bad data markers first (these need full re-fetch)
+        marker_results = self.process_bad_data_markers()
+        results.update(marker_results)
+
+        # Then do incremental refresh (markers already re-fetched, won't duplicate)
+        refresh_results = self.refresh_all_symbols(base_path)
+
+        # Merge results (marker results take precedence for overlapping symbols)
+        for symbol, success in refresh_results.items():
+            if symbol not in results:
+                results[symbol] = success
 
         return results
 

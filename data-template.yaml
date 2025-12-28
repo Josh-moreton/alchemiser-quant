@@ -27,12 +27,6 @@ Parameters:
     NoEcho: true
     Description: Alpaca API Secret for data fetching
 
-  TwelveDataApiKey:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Twelve Data API Key for external data validation (optional)
-
   FetchCooldownMinutes:
     Type: Number
     Default: 15
@@ -164,22 +158,6 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-  # ========== DATA QUALITY MONITOR LAMBDA LAYER ==========
-  # awswrangler + yfinance for data quality validation
-  DataQualityMonitorLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: alchemiser-data-quality-monitor-deps
-      Description: awswrangler 3.10.0 + yfinance (pandas, numpy, pyarrow included)
-      ContentUri: layers/data_quality_monitor/
-      CompatibleRuntimes:
-        - python3.12
-      CompatibleArchitectures:
-        - x86_64
-      RetentionPolicy: Retain
-    Metadata:
-      BuildMethod: makefile
-
   # ========== DATA LAMBDA FUNCTION ==========
   # Single writer to S3 - handles scheduled refreshes and on-demand fetch requests
   SharedDataFunction:
@@ -199,6 +177,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref SharedDataEventBus
+          BAD_DATA_MARKERS_TABLE: !Ref BadDataMarkersTable
       Events:
         # Scheduled data refresh (daily at 4 AM UTC / 11 PM ET)
         DataSchedule:
@@ -254,6 +233,16 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt MarketDataFetchRequestsTable.Arn
+              # DynamoDB for bad data markers (read pending, delete after processing)
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt BadDataMarkersTable.Arn
               # EventBridge for publishing completion events
               - Effect: Allow
                 Action:
@@ -281,67 +270,38 @@ Resources:
               - !GetAtt SharedMarketDataBucket.Arn
               - !Sub "${SharedMarketDataBucket.Arn}/*"
 
-  # ========== DATA QUALITY MONITOR FUNCTION ==========
-  # Validates market data quality by comparing against external sources
-  DataQualityMonitorFunction:
-    Type: AWS::Serverless::Function
+  # ========== BAD DATA MARKERS TABLE ==========
+  # DynamoDB Table for tracking symbols/dates that need data re-fetch
+  # Populated by data quality validation, consumed by Data Lambda on next refresh
+  BadDataMarkersTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      FunctionName: alchemiser-shared-data-quality-monitor
-      Runtime: python3.12
-      Architectures:
-        - x86_64
-      CodeUri: layers/data_functions/
-      Handler: the_alchemiser.data_quality_monitor.lambda_handler.lambda_handler
-      Role: !GetAtt DataQualityMonitorExecutionRole.Arn
-      Layers:
-        - !Ref DataQualityMonitorLayer
-      Timeout: 900
-      MemorySize: 1024
-      Environment:
-        Variables:
-          EVENT_BUS_NAME: !Ref SharedDataEventBus
-          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
-          TWELVEDATA_API_KEY: !Ref TwelveDataApiKey
-      Events:
-        # Scheduled quality check (daily at 4:30 AM UTC, 30 min after data refresh)
-        QualityCheckSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: "cron(30 4 ? * TUE-SAT *)"
-            Description: "Validate data quality daily at 4:30 AM UTC"
-    Metadata:
-      BuildMethod: makefile
+      TableName: alchemiser-bad-data-markers
+      BillingMode: PAY_PER_REQUEST
 
-  DataQualityMonitorExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: alchemiser-shared-data-quality-monitor-role
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: DataQualityMonitorPolicy
-          PolicyDocument:
-            Statement:
-              # S3 read-only for market data
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt SharedMarketDataBucket.Arn
-                  - !Sub "${SharedMarketDataBucket.Arn}/*"
-              # EventBridge for publishing failure events
-              - Effect: Allow
-                Action:
-                  - events:PutEvents
-                Resource:
-                  - !GetAtt SharedDataEventBus.Arn
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      # Auto-cleanup after 30 days (markers should be processed quickly)
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Service
+          Value: bad-data-markers
 
   # ========== EVENTBRIDGE POLICY FOR CROSS-STACK PUBLISHING ==========
   # Allow per-stage stacks to publish MarketDataFetchRequested events
@@ -400,8 +360,14 @@ Outputs:
     Export:
       Name: alchemiser-shared-data-function-arn
 
-  DataQualityMonitorFunctionArn:
-    Description: "ARN of data quality monitor function"
-    Value: !GetAtt DataQualityMonitorFunction.Arn
+  BadDataMarkersTableName:
+    Description: "DynamoDB table for bad data markers"
+    Value: !Ref BadDataMarkersTable
     Export:
-      Name: alchemiser-data-quality-monitor-function-arn
+      Name: alchemiser-bad-data-markers-table
+
+  BadDataMarkersTableArn:
+    Description: "ARN of bad data markers table"
+    Value: !GetAtt BadDataMarkersTable.Arn
+    Export:
+      Name: alchemiser-bad-data-markers-table-arn
