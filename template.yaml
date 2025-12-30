@@ -526,6 +526,25 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  # ========== SHARED CODE LAMBDA LAYER ==========
+  # Contains the_alchemiser.shared module - used by ALL Lambda functions
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-shared-code"
+        - !Sub "alchemiser-${Stage}-shared-code"
+      Description: Shared business logic (the_alchemiser.shared module)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -1391,11 +1410,12 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
+      CodeUri: functions/notifications/
       Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
-        - !Ref NotificationsLayer
+        - !Ref SharedCodeLayer        # Shared code (the_alchemiser.shared)
+        - !Ref NotificationsLayer     # Dependencies (pydantic, structlog)
       Timeout: 60
       MemorySize: 512
       Environment:
@@ -1428,20 +1448,7 @@ Resources:
                 - "WorkflowFailed"
     Metadata:
       BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
+      # BuildProperties removed - SAM auto-includes everything in CodeUri
 
   NotificationsExecutionRole:
     Type: AWS::IAM::Role
