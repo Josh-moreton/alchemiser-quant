@@ -1993,6 +1993,7 @@ description = "Mypyc runtime library"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
+markers = "platform_python_implementation != \"PyPy\""
 files = [
     {file = "librt-0.7.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:81056e01bba1394f1d92904ec61a4078f66df785316275edbaf51d90da8c6e26"},
     {file = "librt-0.7.5-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:d7c72c8756eeb3aefb1b9e3dac7c37a4a25db63640cac0ab6fc18e91a0edf05a"},
@@ -4278,4 +4279,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0.0"
-content-hash = "0475cea1bb31a90a7ce757c9b488cb8a068209cc57ddb48e6f75c45b2bdfccbd"
+content-hash = "4c60949e0a4a7d07c4e9f18cadb710fbdbd5121d256d680872adba315da2482b"
