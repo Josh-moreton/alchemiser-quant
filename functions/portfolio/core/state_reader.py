@@ -15,7 +15,7 @@ from the_alchemiser.shared.errors.exceptions import NegativeCashBalanceError
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
-    from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
+    from adapters.alpaca_data_adapter import (
         AccountInfo,
         AlpacaDataAdapter,
     )
