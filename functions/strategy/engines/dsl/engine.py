@@ -76,7 +76,7 @@ class DslEngine(EventHandler):
         else:
             # Use injected adapter from DI container, or create default for testing
             if market_data_adapter is None:
-                from the_alchemiser.data_v2.cached_market_data_adapter import (
+                from the_alchemiser.shared.data_v2.cached_market_data_adapter import (
                     CachedMarketDataAdapter,
                 )
 

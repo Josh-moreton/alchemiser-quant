@@ -20,11 +20,11 @@ Use explicit import: `from data_refresh_service import DataRefreshService`
 
 from typing import TYPE_CHECKING
 
-from cached_market_data_adapter import (
+from the_alchemiser.shared.data_v2.cached_market_data_adapter import (
     CachedMarketDataAdapter,
 )
+from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore, SymbolMetadata
 from data_freshness_validator import DataFreshnessValidator
-from market_data_store import MarketDataStore, SymbolMetadata
 from symbol_extractor import (
     get_all_configured_symbols,
 )

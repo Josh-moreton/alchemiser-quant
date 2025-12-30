@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from the_alchemiser.data_v2.market_data_store import MarketDataStore
+from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.events import MarketDataFetchRequested
 from the_alchemiser.shared.events.eventbridge_publisher import EventBridgePublisher
 from the_alchemiser.shared.logging import get_logger

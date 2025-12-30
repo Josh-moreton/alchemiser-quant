@@ -81,10 +81,10 @@ def _create_cached_market_data_adapter(
     if bucket:
         try:
             # Import here to avoid circular dependencies and optional fastparquet dependency
-            from the_alchemiser.data_v2.cached_market_data_adapter import (
+            from the_alchemiser.shared.data_v2.cached_market_data_adapter import (
                 CachedMarketDataAdapter,
             )
-            from the_alchemiser.data_v2.market_data_store import MarketDataStore
+            from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 
             store = MarketDataStore(bucket_name=bucket)
             # Return cached adapter WITHOUT Alpaca fallback
