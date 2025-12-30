@@ -16,10 +16,8 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from the_alchemiser.notifications_v2.service import NotificationService
-from the_alchemiser.notifications_v2.strategy_report_service import (
-    generate_performance_report_url,
-)
+from service import NotificationService
+from strategy_report_service import generate_performance_report_url
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events.eventbridge_publisher import unwrap_eventbridge_event
 from the_alchemiser.shared.events.schemas import (

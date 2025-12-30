@@ -1411,7 +1411,7 @@ Resources:
       Architectures:
         - x86_64
       CodeUri: functions/notifications/
-      Handler: the_alchemiser.notifications_v2.lambda_handler.lambda_handler
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer        # Shared code (the_alchemiser.shared)
