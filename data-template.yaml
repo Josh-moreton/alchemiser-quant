@@ -167,10 +167,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: layers/data_functions/
-      Handler: the_alchemiser.data_v2.lambda_handler.lambda_handler
+      CodeUri: functions/data/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt SharedDataExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer
         - !Ref SharedDataLayer
       Timeout: 900
       MemorySize: 1024
@@ -196,7 +197,7 @@ Resources:
               detail-type:
                 - "MarketDataFetchRequested"
     Metadata:
-      BuildMethod: makefile
+      BuildMethod: python3.12
 
   SharedDataExecutionRole:
     Type: AWS::IAM::Role
