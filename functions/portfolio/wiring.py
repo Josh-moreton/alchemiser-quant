@@ -33,12 +33,10 @@ def register_portfolio(container: ApplicationContainer) -> None:
         >>> planner = container.portfolio_planner()
 
     """
-    from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
-        AlpacaDataAdapter,
-    )
-    from the_alchemiser.portfolio_v2.core.planner import RebalancePlanCalculator
-    from the_alchemiser.portfolio_v2.core.portfolio_service import PortfolioServiceV2
-    from the_alchemiser.portfolio_v2.core.state_reader import PortfolioStateReader
+    from adapters.alpaca_data_adapter import AlpacaDataAdapter
+    from core.planner import RebalancePlanCalculator
+    from core.portfolio_service import PortfolioServiceV2
+    from core.state_reader import PortfolioStateReader
 
     # Register data adapter (uses AlpacaManager from infrastructure)
     container.portfolio_data_adapter = providers.Factory(

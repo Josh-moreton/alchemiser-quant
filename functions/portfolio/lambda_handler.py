@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from handlers.portfolio_analysis_handler import PortfolioAnalysisHandler
+from wiring import register_portfolio
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -63,8 +64,10 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     )
 
     try:
-        # Create application container
-        container = ApplicationContainer.create_for_environment("production")
+        # Create application container (minimal - no auto-wiring)
+        container = ApplicationContainer()
+        # Wire portfolio-specific dependencies
+        register_portfolio(container)
 
         # Parse timestamp if string
         timestamp = detail.get("timestamp")
