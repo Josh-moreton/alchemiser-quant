@@ -1,9 +1,8 @@
-# The Alchemiser
-
 <p align="center">
   <img src="./logo.png" alt="The Alchemiser" width="180">
 </p>
 
+# The Alchemiser
 
 A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 

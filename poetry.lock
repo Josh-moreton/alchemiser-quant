@@ -155,14 +155,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "boto3-stubs"
-version = "1.42.18"
-description = "Type annotations for boto3 1.42.18 generated with mypy-boto3-builder 8.12.0"
+version = "1.42.15"
+description = "Type annotations for boto3 1.42.15 generated with mypy-boto3-builder 8.12.0"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "boto3_stubs-1.42.18-py3-none-any.whl", hash = "sha256:6ebd0636575df5e5e4be8a449fef1593c68e1da454913385d4d92ecdeb64278d"},
-    {file = "boto3_stubs-1.42.18.tar.gz", hash = "sha256:885270b0ff70f4b0d44bbcc3a799b802552141b25512b6f96ab9d95305ac7fa3"},
+    {file = "boto3_stubs-1.42.15-py3-none-any.whl", hash = "sha256:e6be0f3b7b443f98ef29a6b715c05274fc4656a08613c7df6f8d77eeb32e34f5"},
+    {file = "boto3_stubs-1.42.15.tar.gz", hash = "sha256:7d4ef2148f247810c769bc69ff94232b8fa97d7330bff2336b4443d55447de4c"},
 ]
 
 [package.dependencies]
@@ -226,7 +226,7 @@ bedrock-data-automation-runtime = ["mypy-boto3-bedrock-data-automation-runtime (
 bedrock-runtime = ["mypy-boto3-bedrock-runtime (>=1.42.0,<1.43.0)"]
 billing = ["mypy-boto3-billing (>=1.42.0,<1.43.0)"]
 billingconductor = ["mypy-boto3-billingconductor (>=1.42.0,<1.43.0)"]
-boto3 = ["boto3 (==1.42.18)"]
+boto3 = ["boto3 (==1.42.15)"]
 braket = ["mypy-boto3-braket (>=1.42.0,<1.43.0)"]
 budgets = ["mypy-boto3-budgets (>=1.42.0,<1.43.0)"]
 ce = ["mypy-boto3-ce (>=1.42.0,<1.43.0)"]
@@ -615,14 +615,14 @@ crt = ["awscrt (==0.29.2)"]
 
 [[package]]
 name = "botocore-stubs"
-version = "1.42.18"
+version = "1.42.15"
 description = "Type annotations and code completion for botocore"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "botocore_stubs-1.42.18-py3-none-any.whl", hash = "sha256:c20a19ef2a8ab9a0c04ac873ef4d4c9c0b3cbbde8cbbde39806eea080b629ebc"},
-    {file = "botocore_stubs-1.42.18.tar.gz", hash = "sha256:15f2f7715a21d442c1efadc60876d29770e2bb8441c61c3b86ab90122fbfd4b5"},
+    {file = "botocore_stubs-1.42.15-py3-none-any.whl", hash = "sha256:4139df99bbedf6eb4347a463ff06cfd7cf20f70790662250af814aa6fd5f3132"},
+    {file = "botocore_stubs-1.42.15.tar.gz", hash = "sha256:f92cec51967135b21fe3e0e36c19451f5c49a2b9043350a7a204220eba61cae6"},
 ]
 
 [package.dependencies]
@@ -4278,4 +4278,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0.0"
-content-hash = "473accaae4cb8c437110cb87063f9eeb128796aa53d1c7d2a1ee3ad7c9eaa11a"
+content-hash = "0475cea1bb31a90a7ce757c9b488cb8a068209cc57ddb48e6f75c45b2bdfccbd"
