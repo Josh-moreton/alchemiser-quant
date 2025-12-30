@@ -9,6 +9,7 @@ description = "Advanced Multi-Strategy Quantitative Trading System - AWS Lambda 
 readme = "README.md"
 authors = [ "Josh Moreton <josh@example.com>",]
 license = "MIT"
+package-mode = false  # Poetry used for dependency management only, not packaging
 classifiers = [ "Development Status :: 4 - Beta", "Intended Audience :: Financial and Insurance Industry", "License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12",]
 
 # No packages to install - Lambda functions are deployed via SAM
