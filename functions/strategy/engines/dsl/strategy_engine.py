@@ -20,8 +20,8 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.strategy_signal import StrategySignal
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
-from the_alchemiser.strategy_v2.errors import ConfigurationError, StrategyExecutionError
+from engines.dsl.engine import DslEngine
+from errors import ConfigurationError, StrategyExecutionError
 
 # Module-level constants for maintainability
 DEFAULT_STRATEGY_FILE = "KLM.clj"

@@ -20,7 +20,7 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
-from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
+from engines.dsl.engine import DslEngine
 
 logger = get_logger(__name__)
 

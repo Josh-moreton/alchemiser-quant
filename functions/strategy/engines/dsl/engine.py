@@ -29,7 +29,7 @@ from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.strategy_v2.errors import StrategyV2Error
+from errors import StrategyV2Error
 
 from engines.dsl.dsl_evaluator import DslEvaluator
 from engines.dsl.sexpr_parser import SexprParseError, SexprParser
@@ -58,7 +58,7 @@ class DslEngine(EventHandler):
             market_data_adapter: Optional injected market data adapter (from DI container)
 
         """
-        from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
+        from indicators.indicator_service import IndicatorService
 
         self.logger = get_logger(__name__)
         self.event_bus = event_bus

@@ -20,9 +20,9 @@ from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
-from the_alchemiser.strategy_v2.errors import MarketDataError
-from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
+from engines.dsl.types import DslEvaluationError
+from errors import MarketDataError
+from indicators.indicators import TechnicalIndicators
 
 logger = get_logger(__name__)
 
