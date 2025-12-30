@@ -357,7 +357,7 @@ class StrategySettings(BaseModel):
         """Load strategy configuration from packaged JSON file.
 
         Args:
-            package: Package name (e.g., 'the_alchemiser.config')
+            package: Package name (e.g., 'the_alchemiser.shared.config')
             filename: Config filename (e.g., 'strategy.dev.json')
 
         Returns:
@@ -394,7 +394,7 @@ class StrategySettings(BaseModel):
 
         Resolution order:
         1) Per-stage JSON file bundled with the package (recommended):
-           the_alchemiser/config/strategy.<stage>.json
+           the_alchemiser/shared/config/strategy.<stage>.json
         2) Fallback to in-code defaults (DEV_DSL_* / PROD_DSL_*)
 
         Returns:
@@ -403,7 +403,7 @@ class StrategySettings(BaseModel):
         """
         stage = (os.getenv("APP__STAGE") or os.getenv("STAGE") or "dev").lower()
         filename = "strategy.prod.json" if stage == "prod" else "strategy.dev.json"
-        package = "the_alchemiser.config"
+        package = "the_alchemiser.shared.config"
 
         # Try packaged JSON config first
         result = StrategySettings._load_packaged_strategy_config(package, filename)
