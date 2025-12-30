@@ -951,10 +951,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
-      Handler: the_alchemiser.coordinator_v2.lambda_handler.lambda_handler
+      CodeUri: functions/strategy-orchestrator/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
       Timeout: 60  # Orchestrator just dispatches, doesn't run strategies
       MemorySize: 512
@@ -966,21 +967,6 @@ Resources:
           AGGREGATION_TIMEOUT_SECONDS: "600"
     Metadata:
       BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
 
   StrategyOrchestratorExecutionRole:
     Type: AWS::IAM::Role
@@ -1029,10 +1015,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
-      Handler: the_alchemiser.aggregator_v2.lambda_handler.lambda_handler
+      CodeUri: functions/strategy-aggregator/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyAggregatorExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
@@ -1053,21 +1040,6 @@ Resources:
                 - "PartialSignalGenerated"
     Metadata:
       BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/**/*.clj'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
 
   StrategyAggregatorExecutionRole:
     Type: AWS::IAM::Role
@@ -1332,10 +1304,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
-      Handler: the_alchemiser.trade_aggregator.lambda_handler.lambda_handler
+      CodeUri: functions/trade-aggregator/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt TradeAggregatorExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, alpaca-py for capital metrics)
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
@@ -1355,20 +1328,6 @@ Resources:
                 - "TradeExecuted"
     Metadata:
       BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
 
   TradeAggregatorExecutionRole:
     Type: AWS::IAM::Role
@@ -1499,10 +1458,11 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: ./
-      Handler: the_alchemiser.metrics_v2.lambda_handler.lambda_handler
+      CodeUri: functions/metrics/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt MetricsExecutionRole.Arn
       Layers:
+        - !Ref SharedCodeLayer
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, boto3)
       Timeout: 60
       MemorySize: 512
@@ -1522,20 +1482,6 @@ Resources:
                 - "TradeExecuted"
     Metadata:
       BuildMethod: python3.12
-      BuildProperties:
-        Include:
-          - 'the_alchemiser/**/*.py'
-          - 'the_alchemiser/config/*.json'
-          - 'the_alchemiser/py.typed'
-        Exclude:
-          - '.env*'
-          - 'the_alchemiser/.env*'
-          - '**/__pycache__/**'
-          - '**/*.pyc'
-          - '**/*.pyo'
-          - '**/*.egg-info/**'
-          - 'the_alchemiser/.editorconfig'
-          - 'the_alchemiser/**/*.md'
 
   MetricsExecutionRole:
     Type: AWS::IAM::Role
