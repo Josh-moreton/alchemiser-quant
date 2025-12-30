@@ -15,29 +15,29 @@ Components:
 
 Note: DataRefreshService is NOT imported at module level to avoid pulling in
 alpaca-py for Lambdas that only need to READ from the cache (e.g., Strategy Lambda).
-Use explicit import: `from the_alchemiser.data_v2.data_refresh_service import DataRefreshService`
+Use explicit import: `from data_refresh_service import DataRefreshService`
 """
 
 from typing import TYPE_CHECKING
 
-from the_alchemiser.data_v2.cached_market_data_adapter import (
+from cached_market_data_adapter import (
     CachedMarketDataAdapter,
 )
-from the_alchemiser.data_v2.data_freshness_validator import DataFreshnessValidator
-from the_alchemiser.data_v2.market_data_store import MarketDataStore, SymbolMetadata
-from the_alchemiser.data_v2.symbol_extractor import (
+from data_freshness_validator import DataFreshnessValidator
+from market_data_store import MarketDataStore, SymbolMetadata
+from symbol_extractor import (
     get_all_configured_symbols,
 )
 
 # Lazy import for DataRefreshService to avoid alpaca-py dependency
 if TYPE_CHECKING:
-    from the_alchemiser.data_v2.data_refresh_service import DataRefreshService
+    from data_refresh_service import DataRefreshService
 
 
 def __getattr__(name: str) -> object:
     """Lazy import for components that require alpaca-py."""
     if name == "DataRefreshService":
-        from the_alchemiser.data_v2.data_refresh_service import DataRefreshService
+        from data_refresh_service import DataRefreshService
 
         return DataRefreshService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -47,8 +47,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from the_alchemiser.data_v2.live_bar_provider import LiveBarProvider
-from the_alchemiser.data_v2.market_data_store import MarketDataStore
+from live_bar_provider import LiveBarProvider
+from market_data_store import MarketDataStore
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort

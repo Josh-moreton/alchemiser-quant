@@ -125,11 +125,26 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
-  # Shared Data Infrastructure
-  SharedMarketDataBucket:
+  # Data Function Configuration
+  DataRefreshScheduleDev:
     Type: String
-    Default: alchemiser-shared-market-data
-    Description: Name of the shared market data S3 bucket (deployed via data-template.yaml)
+    Default: "cron(0 4 ? * TUE-SAT *)"
+    Description: Data refresh schedule for dev (4 AM UTC, Tue-Sat)
+
+  DataRefreshScheduleStaging:
+    Type: String
+    Default: "cron(0 3 ? * TUE-SAT *)"
+    Description: Data refresh schedule for staging (3 AM UTC, Tue-Sat, 1hr earlier for pre-prod validation)
+
+  DataRefreshScheduleProd:
+    Type: String
+    Default: "cron(0 4 ? * TUE-SAT *)"
+    Description: Data refresh schedule for prod (4 AM UTC, Tue-Sat)
+
+  FetchCooldownMinutes:
+    Type: Number
+    Default: 15
+    Description: Cooldown period (minutes) before allowing another fetch for same symbol
 
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
@@ -435,6 +450,76 @@ Resources:
         - Key: Service
           Value: rebalance-plans
 
+  # ========== MARKET DATA FETCH REQUESTS TABLE (PER-STAGE) ==========
+  # DynamoDB table for deduplicating concurrent fetch requests from Data Lambda
+  # Prevents multiple fetch attempts when data is detected as missing/stale
+  MarketDataFetchRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-market-data-fetch-requests"
+        - !Sub "alchemiser-${Stage}-market-data-fetch-requests"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: market-data-fetch-requests
+
+  # ========== BAD DATA MARKERS TABLE (PER-STAGE) ==========
+  # DynamoDB table for tracking symbols/dates needing data re-fetch
+  # Populated by data quality validation, consumed by Data Lambda on next refresh
+  BadDataMarkersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-bad-data-markers"
+        - !Sub "alchemiser-${Stage}-bad-data-markers"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: bad-data-markers
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -660,33 +745,40 @@ Resources:
         - Key: Service
           Value: performance-reports
 
-  # ========== MARKET DATA S3 BUCKET ==========
-  # DEPRECATED: Per-stage bucket replaced by shared bucket (alchemiser-shared-market-data)
-  # Deployed via data-template.yaml - use SharedMarketDataBucket parameter instead
-  # 
-  # MarketDataBucket:
-  #   Type: AWS::S3::Bucket
-  #   Properties:
-  #     BucketName: !If
-  #       - HasStackName
-  #       - !Sub "${StackName}-historical-market-data"
-  #       - !Sub "alchemiser-${Stage}-market-data"
-  #     VersioningConfiguration:
-  #       Status: Enabled
-  #     PublicAccessBlockConfiguration:
-  #       BlockPublicAcls: true
-  #       BlockPublicPolicy: true
-  #       IgnorePublicAcls: true
-  #       RestrictPublicBuckets: true
-  #     BucketEncryption:
-  #       ServerSideEncryptionConfiguration:
-  #         - ServerSideEncryptionByDefault:
-  #             SSEAlgorithm: AES256
-  #     Tags:
-  #       - Key: Environment
-  #         Value: !Ref Stage
-  #       - Key: Service
-  #         Value: market-data
+  # ========== MARKET DATA S3 BUCKET (PER-STAGE) ==========
+  # Per-stage S3 buckets for market data isolation (dev, staging, prod each get own bucket)
+  # Replaces previous shared bucket architecture (alchemiser-shared-market-data)
+  MarketDataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !If
+        - HasStackName
+        - !Sub "${StackName}-market-data"
+        - !Sub "alchemiser-${Stage}-market-data"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: market-data
 
   # ========== TRADING NOTIFICATIONS SNS ==========
   # SNS Topic for trading notifications (trade results, workflow failures)
@@ -874,7 +966,7 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          MARKET_DATA_BUCKET: !Ref SharedMarketDataBucket
+          MARKET_DATA_BUCKET: !Ref MarketDataBucket
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
@@ -913,14 +1005,14 @@ Resources:
                 Resource:
                   - !GetAtt TradeLedgerTable.Arn
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
-              # S3 permissions for shared market data bucket (read-only)
+              # S3 permissions for per-stage market data bucket (read-only)
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}"
-                  - !Sub "arn:aws:s3:::${SharedMarketDataBucket}/*"
+                  - !GetAtt MarketDataBucket.Arn
+                  - !Sub "${MarketDataBucket.Arn}/*"
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running
@@ -1469,6 +1561,120 @@ Resources:
                   - cloudwatch:PutMetricData
                 Resource: "*"
 
+  # ========== DATA LAMBDA FUNCTION (PER-STAGE) ==========
+  # Market data fetching and S3 storage (replaces alchemiser-shared-data)
+  # Each stage gets own data function with own S3 bucket
+  DataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data"
+        - !Sub "alchemiser-${Stage}-data"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/data/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt DataExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref DataLayer
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          FETCH_REQUESTS_TABLE: !Ref MarketDataFetchRequestsTable
+          BAD_DATA_MARKERS_TABLE: !Ref BadDataMarkersTable
+          FETCH_COOLDOWN_MINUTES: !Ref FetchCooldownMinutes
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
+      Events:
+        # Scheduled data refresh (stage-specific times)
+        DataSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !If
+              - IsProduction
+              - !Ref DataRefreshScheduleProd
+              - !If [ IsStaging, !Ref DataRefreshScheduleStaging, !Ref DataRefreshScheduleDev ]
+            Description: !Sub "Refresh market data for ${Stage}"
+        # On-demand fetch requests from strategy lambdas
+        MarketDataFetchRequested:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.strategy"
+              detail-type:
+                - "MarketDataFetchRequested"
+    Metadata:
+      BuildMethod: python3.12
+
+  DataExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DataPolicy
+          PolicyDocument:
+            Statement:
+              # S3 read/write for market data
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                Resource:
+                  - !GetAtt MarketDataBucket.Arn
+                  - !Sub "${MarketDataBucket.Arn}/*"
+              # DynamoDB for fetch request deduplication
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt MarketDataFetchRequestsTable.Arn
+              # DynamoDB for bad data markers
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt BadDataMarkersTable.Arn
+              # EventBridge for publishing completion events
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+
+  # EventBridge permission for Data Lambda invocation
+  DataEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DataFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
+
   # Scheduler to trigger Strategy Orchestrator (workflow entry point)
   # Orchestrator fans out to Strategy Workers for parallel execution
   StrategySchedule:
@@ -1819,7 +2025,7 @@ Resources:
           ExecutionLog: !Sub "/aws/lambda/${ExecutionFunction}"
           NotificationsLog: !Sub "/aws/lambda/${NotificationsFunction}"
           MetricsLog: !Sub "/aws/lambda/${MetricsFunction}"
-          DataLog: "/aws/lambda/alchemiser-shared-data"
+          DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
 Outputs:
@@ -1878,13 +2084,40 @@ Outputs:
         - !Sub "alchemiser-${Stage}-PerformanceReportsBucket"
 
   MarketDataBucketName:
-    Description: "Shared S3 bucket for historical market data (Parquet files)"
-    Value: !Ref SharedMarketDataBucket
+    Description: "Per-stage S3 bucket for historical market data (Parquet files)"
+    Value: !Ref MarketDataBucket
     Export:
       Name: !If
         - UseStackNameForResources
         - !Sub "${StackName}-MarketDataBucket"
         - !Sub "alchemiser-${Stage}-MarketDataBucket"
+
+  MarketDataFetchRequestsTableName:
+    Description: "DynamoDB table for fetch request deduplication"
+    Value: !Ref MarketDataFetchRequestsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-MarketDataFetchRequestsTable"
+        - !Sub "alchemiser-${Stage}-MarketDataFetchRequestsTable"
+
+  BadDataMarkersTableName:
+    Description: "DynamoDB table for bad data markers"
+    Value: !Ref BadDataMarkersTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-BadDataMarkersTable"
+        - !Sub "alchemiser-${Stage}-BadDataMarkersTable"
+
+  DataFunctionArn:
+    Description: "ARN of per-stage data function"
+    Value: !GetAtt DataFunction.Arn
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-DataFunction"
+        - !Sub "alchemiser-${Stage}-DataFunction"
 
   DeploymentStage:
     Description: "Deployed stage"
