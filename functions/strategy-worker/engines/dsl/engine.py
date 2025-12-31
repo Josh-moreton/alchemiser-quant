@@ -12,7 +12,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from importlib.abc import Traversable
 from pathlib import Path
+from typing import Union
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.events.base import BaseEvent
@@ -44,7 +46,7 @@ class DslEngine(EventHandler):
 
     def __init__(
         self,
-        strategy_config_path: str | None = None,
+        strategy_config_path: Union[str, Path, Traversable, None] = None,
         event_bus: EventBus | None = None,
         indicator_service: IndicatorPort | None = None,
         market_data_adapter: MarketDataPort | None = None,
@@ -52,7 +54,7 @@ class DslEngine(EventHandler):
         """Initialize DSL engine.
 
         Args:
-            strategy_config_path: Optional path to strategy config directory
+            strategy_config_path: Optional path to strategy config directory (str, Path, or Traversable)
             event_bus: Optional event bus for pub/sub
             indicator_service: Optional pre-configured indicator service (for testing)
             market_data_adapter: Optional injected market data adapter (from DI container)
@@ -62,7 +64,8 @@ class DslEngine(EventHandler):
 
         self.logger = get_logger(__name__)
         self.event_bus = event_bus
-        self.strategy_config_path = strategy_config_path or "."
+        # Store as-is (can be str, Path, or Traversable for Lambda layer)
+        self.strategy_config_path = strategy_config_path if strategy_config_path is not None else Path(".")
 
         # Track processed events for idempotency
         self._processed_events: set[str] = set()
@@ -266,25 +269,46 @@ class DslEngine(EventHandler):
 
         """
         try:
-            # Resolve full path
-            full_path = Path(self.strategy_config_path) / strategy_config_path
-            if not full_path.exists():
-                # Try as absolute path
-                full_path = Path(strategy_config_path)
+            # Handle different path types: Traversable (Lambda layer), Path, or str
+            if isinstance(self.strategy_config_path, Traversable):
+                # Lambda layer: use Traversable.joinpath()
+                strategy_file = self.strategy_config_path.joinpath(strategy_config_path)
+                if not strategy_file.is_file():
+                    raise DslEngineError(
+                        f"Strategy file not found: {strategy_config_path}",
+                        correlation_id=None,
+                        strategy_path=strategy_config_path,
+                    )
 
-            if not full_path.exists():
-                raise DslEngineError(
-                    f"Strategy file not found: {strategy_config_path}",
-                    correlation_id=None,
-                    strategy_path=strategy_config_path,
+                self.logger.debug(
+                    "Parsing strategy file from Lambda layer",
+                    extra={"component": "dsl_engine", "strategy_file": strategy_config_path},
                 )
 
-            self.logger.debug(
-                "Parsing strategy file",
-                extra={"component": "dsl_engine", "strategy_file": str(full_path)},
-            )
+                # Read file content and parse directly
+                file_content = strategy_file.read_text(encoding="utf-8")
+                return self.parser.parse(file_content)
+            else:
+                # Local filesystem: use Path operations
+                base_path = Path(self.strategy_config_path) if isinstance(self.strategy_config_path, str) else self.strategy_config_path
+                full_path = base_path / strategy_config_path
+                if not full_path.exists():
+                    # Try as absolute path
+                    full_path = Path(strategy_config_path)
 
-            return self.parser.parse_file(str(full_path))
+                if not full_path.exists():
+                    raise DslEngineError(
+                        f"Strategy file not found: {strategy_config_path}",
+                        correlation_id=None,
+                        strategy_path=strategy_config_path,
+                    )
+
+                self.logger.debug(
+                    "Parsing strategy file",
+                    extra={"component": "dsl_engine", "strategy_file": str(full_path)},
+                )
+
+                return self.parser.parse_file(str(full_path))
 
         except SexprParseError as e:
             raise DslEngineError(

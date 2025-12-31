@@ -64,8 +64,9 @@ class SingleFileSignalHandler:
         # Get market data adapter from container (with live bar injection if configured)
         market_data_adapter = container.strategy_market_data_adapter()
 
+        # Pass Traversable object directly (don't convert to string)
         self.dsl_engine = DslEngine(
-            strategy_config_path=str(strategies_path),
+            strategy_config_path=strategies_path,
             market_data_adapter=market_data_adapter,
         )
 

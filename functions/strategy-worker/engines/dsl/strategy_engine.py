@@ -13,8 +13,9 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from importlib import resources as importlib_resources
+from importlib.abc import Traversable
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging import get_logger
@@ -30,16 +31,16 @@ DEFAULT_STRATEGY_FILE = "KLM.clj"
 REASONING_TRUNCATION_SUFFIX_LENGTH = 20
 
 
-def _get_strategies_path() -> Path:
+def _get_strategies_path() -> Union[Traversable, Path]:
     """Get strategies directory path (Lambda layer or local).
 
     Returns:
-        Path to strategies directory
+        Traversable for Lambda layer, or Path for local development
 
     """
     try:
-        # Try Lambda layer first
-        return Path(str(importlib_resources.files("the_alchemiser.shared.strategies")))
+        # Try Lambda layer first (returns Traversable, don't convert to Path)
+        return importlib_resources.files("the_alchemiser.shared.strategies")
     except (ModuleNotFoundError, AttributeError):
         # Fallback for local development
         return Path(__file__).parent.parent.parent / "strategies"
@@ -91,8 +92,9 @@ class DslStrategyEngine:
         # Initialize DSL engine with strategies directory as config path
         # Use importlib.resources to locate strategies in Lambda layer or local
         strategies_path = _get_strategies_path()
+        # Pass Traversable or Path directly (don't convert to string)
         self.dsl_engine = DslEngine(
-            strategy_config_path=str(strategies_path),
+            strategy_config_path=strategies_path,
         )
 
         configured_dsl_files = self.settings.strategy.dsl_files or [self.strategy_file]
