@@ -10,7 +10,7 @@
 | StrategyAggregatorFunction | Low | 3 | ⏳ PENDING | |
 | StrategyOrchestratorFunction | Low | 3 | ⏳ PENDING | |
 | PortfolioFunction | Medium | 8 | ⏳ PENDING | |
-| DataFunction | Medium | 10 | ⏳ PENDING | |
+| DataFunction | Medium | 10 | 🔄 IN PROGRESS | Imports adjusted in functions/data/; build/test pending |
 | StrategyFunction | High | 24 | ⏳ PENDING | |
 | ExecutionFunction | High | 23 | ⏳ PENDING | Most critical |
 
@@ -316,7 +316,7 @@ from the_alchemiser.shared.events import EventBus
 ```yaml
 FunctionName:
   Properties:
-    CodeUri: ./
+    CodeUri: ./   # legacy - migrate to CodeUri: functions/<name>/ and attach SharedCodeLayer
     Handler: the_alchemiser.module_v2.lambda_handler.lambda_handler
     Layers:
       - !Ref DependencyLayer
@@ -347,8 +347,8 @@ FunctionName:
 ## Post-Migration Cleanup
 
 After ALL 9 functions migrated:
-
-- [ ] Remove `the_alchemiser/shared/` (temporary copy)
+-
+- [ ] Remove any temporary local copies of `the_alchemiser/shared/` used during migration; ensure the shared layer content remains in `layers/shared/` and is validated before deleting the source of truth.
 - [ ] Remove all old module directories (`the_alchemiser/metrics_v2/`, etc.)
 - [ ] Update .gitignore if needed
 - [ ] Verify all Lambdas still work

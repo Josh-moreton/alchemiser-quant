@@ -13,10 +13,13 @@ make format                           # Format code
 make type-check                       # Type check (via make)
 make bump-patch                       # Version bump after changes (REQUIRED)
 ```
+Note: For packaging or migration documentation changes (like CodeUri/layer updates), use `make bump-patch` for docs-only PRs.
 
 ## Project Overview
 
 Alchemiser is a **multi-strategy quantitative trading system** deployed as **multiple AWS Lambda microservices**. It uses an **event-driven architecture** where Lambdas communicate via EventBridge, SQS, and SNS.
+
+Note: Each Lambda's source is packaged from `functions/<name>/` (SAM `CodeUri`) and shared runtime/business code is provided by `layers/shared/` (the `SharedCodeLayer`). Avoid copying `the_alchemiser/shared/` into each function; prefer the shared layer.
 
 ### Tech Stack
 - **Language**: Python 3.12+
@@ -301,11 +304,47 @@ from pydantic import BaseModel, ConfigDict
 
 class OrderResult(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     order_id: str
     symbol: str
     quantity: int
     price: Decimal
+```
+
+### Writing New Scripts
+
+All scripts that import from `the_alchemiser.*` must use the import helper:
+
+```python
+#!/usr/bin/env python3
+"""Business Unit: scripts | Status: current."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+# Setup imports BEFORE the_alchemiser imports
+import _setup_imports  # noqa: F401
+
+from the_alchemiser.shared.logging import get_logger
+
+# Use PROJECT_ROOT if needed for .env or config file paths
+project_root = _setup_imports.PROJECT_ROOT
+```
+
+For scripts that need function-specific imports (e.g., `strategy_v2`):
+
+```python
+import _setup_imports  # Shared layer
+
+# Also add strategy function code
+import sys
+strategy_function_path = _setup_imports.PROJECT_ROOT / "functions" / "strategy-worker"
+sys.path.insert(0, str(strategy_function_path))
+
+from the_alchemiser.shared.logging import get_logger  # From layer
+from the_alchemiser.strategy_v2.lambda_handler import lambda_handler  # From function
 ```
 
 ## Error Handling
@@ -409,6 +448,7 @@ logger.info(
 | Strategy engines | `the_alchemiser/strategy_v2/engines/` |
 | Infrastructure (SAM) | `template.yaml` |
 | Tests | `tests/` (mirrors source structure) |
+| Script import helper | `scripts/_setup_imports.py` |
 
 ## Pre-Commit Checklist
 

@@ -13,9 +13,8 @@ import logging
 import sys
 from pathlib import Path
 
-# Add the project root to the Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
 
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.logging import configure_application_logging

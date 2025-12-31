@@ -3,6 +3,13 @@
 
 import sys
 
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
+
+# Also add strategy function code to path (needed for strategy_v2 imports)
+strategy_function_path = _setup_imports.PROJECT_ROOT / "functions" / "strategy-worker"
+sys.path.insert(0, str(strategy_function_path))
+
 # Store the import chain
 import_chain: list[str] = []
 original_import = __builtins__.__import__

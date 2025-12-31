@@ -11,6 +11,17 @@ This document outlines the plan to migrate each Lambda function from the current
 
 ## Current State Analysis
 
+## Final Configuration (post-migration)
+
+After migration, the repository uses per-function CodeUri paths and a shared layer for common runtime code:
+
+- Function code: `functions/<name>/` (each Lambda's SAM `CodeUri` points here)
+- Shared runtime/business code: `layers/shared/` (published as `SharedCodeLayer` and referenced by each Lambda via `!Ref SharedCodeLayer`)
+- Handler convention: function-level `lambda_handler.lambda_handler` (function code flattened under `functions/<name>/`)
+
+Do NOT copy `the_alchemiser/shared/` into each function's CodeUri; use the shared layer instead.
+
+
 ### Lambda Inventory (10 Functions)
 
 | Lambda | Template | Handler | Layer | Shared Dependencies |
@@ -30,7 +41,7 @@ This document outlines the plan to migrate each Lambda function from the current
 
 All Lambdas currently use:
 ```yaml
-CodeUri: ./
+CodeUri: ./   # legacy (before migration). Final pattern: CodeUri: functions/<name>/ and use layers/shared/ for shared code
 Metadata:
   BuildMethod: python3.12
   BuildProperties:

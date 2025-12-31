@@ -1,7 +1,10 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis validate-s3 format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs backtest strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis validate-s3 format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+
+# Python path setup for scripts (mirrors Lambda layer structure)
+export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
 
 # Default target
 help:
@@ -22,13 +25,6 @@ help:
 	@echo "  validate-s3 symbols=AAPL,MSFT     Validate specific symbols"
 	@echo "  validate-s3 limit=50               Validate first 50 symbols"
 	@echo "  validate-s3 limit=100 detailed=1  Validate with detailed discrepancies JSON"
-	@echo ""
-	@echo "Backtesting:"
-	@echo "  backtest                             Run portfolio backtest (last 2 months, strategy.dev.json)"
-	@echo "  backtest start=<date> end=<date>    Run with custom date range"
-	@echo "  backtest ... config=<file>          Use custom config file"
-	@echo "  backtest ... report=1               Generate HTML report"
-	@echo "  backtest ... no-auto-fetch=1        Disable S3 auto-fetch (local only)"
 	@echo ""
 	@echo "Data Management:"
 	@echo "  sync-data                            Sync all symbols from S3 to local"
@@ -250,42 +246,6 @@ bump-major:
 		echo "📤 Pushing commit to origin (current branch)..."; \
 		git push origin HEAD; \
 	fi
-
-# ============================================================================
-# BACKTESTING
-# ============================================================================
-
-# Run portfolio backtests
-# Usage:
-#   make backtest                                    # Last 2 months, strategy.dev.json
-#   make backtest start=2024-01-01 end=2024-12-01   # Custom date range
-#   make backtest config=the_alchemiser/config/strategy.prod.json
-#   make backtest capital=50000 report=1
-#   make backtest fetch=1
-
-backtest:
-	@ARGS=""; \
-	if [ -n "$(config)" ]; then ARGS="$$ARGS --config $(config)"; fi; \
-	if [ -n "$(start)" ]; then ARGS="$$ARGS --start $(start)"; fi; \
-	if [ -n "$(end)" ]; then ARGS="$$ARGS --end $(end)"; fi; \
-	if [ -n "$(capital)" ]; then ARGS="$$ARGS --capital $(capital)"; fi; \
-	if [ -n "$(report)" ]; then ARGS="$$ARGS --report"; fi; \
-	if [ -n "$(pdf)" ]; then ARGS="$$ARGS --pdf"; fi; \
-	if [ -n "$(fetch)" ]; then ARGS="$$ARGS --fetch-data"; fi; \
-	if [ -n "$$(echo '$(no-auto-fetch)' | tr -d ' ')" ]; then ARGS="$$ARGS --no-auto-fetch"; fi; \
-	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; fi; \
-	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
-	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
-	poetry run python scripts/run_backtest.py $$ARGS
-
-# Sync data from S3 to local storage
-# Usage: make sync-data
-#        make sync-data force=1  (re-download all)
-sync-data:
-	@echo "📥 Syncing market data from S3 to local..."
-	@ARGS=""; \
-	if [ -n "$(force)" ]; then ARGS="--force"; fi; \
-	poetry run python -c "from the_alchemiser.backtest_v2.adapters.data_fetcher import BacktestDataFetcher; from pathlib import Path; f = BacktestDataFetcher(Path('data/historical')); r = f.sync_all_from_s3(force_full=$(if $(force),True,False)); print(f'Synced {sum(r.values())}/{len(r)} symbols')"
 
 # Seed S3 from Alpaca (requires API credentials)
 # Usage: make seed-data

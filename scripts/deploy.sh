@@ -81,7 +81,7 @@ if [ -f ".aws-sam/build/template.yaml" ]; then
     echo "   (To force rebuild, run: rm -rf .aws-sam)"
 else
     echo "🔨 Building SAM application..."
-    # Note: CodeUri now points to the_alchemiser/ for cleaner packaging
+    # Note: CodeUri now points to functions/<name>/ for per-Lambda packaging; shared runtime code is provided by layers/shared/ (SharedCodeLayer)
     sam build --parallel --config-env "$ENVIRONMENT"
 fi
 

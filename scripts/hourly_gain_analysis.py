@@ -34,9 +34,11 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
+
+# Get project root for .env file loading
+project_root = _setup_imports.PROJECT_ROOT
 
 try:
     from dotenv import load_dotenv

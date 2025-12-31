@@ -33,19 +33,19 @@ import os
 import sys
 from pathlib import Path
 
-# Ensure the package is importable
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-from the_alchemiser.data_v2.data_refresh_service import (
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
+
+from the_alchemiser.shared.data_v2.data_refresh_service import (
     DEFAULT_INITIAL_LOOKBACK_DAYS,
     DataRefreshService,
 )
-from the_alchemiser.data_v2.symbol_extractor import get_all_configured_symbols
+from the_alchemiser.shared.data_v2.symbol_extractor import get_all_configured_symbols
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
 configure_application_logging()

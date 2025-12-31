@@ -24,9 +24,11 @@ import sys
 import time
 from pathlib import Path
 
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
+
+# Get project root for .env file loading
+project_root = _setup_imports.PROJECT_ROOT
 
 # Load .env file automatically (simple parser, no dependencies needed)
 env_file = project_root / ".env"
@@ -57,8 +59,8 @@ from the_alchemiser.shared.schemas.asset_info import AssetInfo
 configure_application_logging()
 logger = get_logger(__name__)
 
-STRATEGIES_DIR = project_root / "the_alchemiser" / "strategy_v2" / "strategies"
-CONFIG_DIR = project_root / "the_alchemiser" / "config"
+STRATEGIES_DIR = project_root / "functions" / "strategy-worker" / "strategies"
+CONFIG_DIR = project_root / "functions" / "strategy-worker" / "config"
 
 
 def extract_symbols_from_dsl(file_path: Path) -> set[str]:

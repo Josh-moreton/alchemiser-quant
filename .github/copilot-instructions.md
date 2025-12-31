@@ -168,6 +168,8 @@ publish_notification(subject="...", message="...")
   3. Stage your changes: `git add <files>`
   4. Run appropriate bump command: `make bump-patch` / `make bump-minor` / `make bump-major`
   5. The bump command commits both your staged changes and the version bump together
+
+  Note: Packaging change — each Lambda's code is packaged from `functions/<name>/` (SAM `CodeUri`) and shared business/runtime code is provided via `layers/shared/` (referenced in the template as `SharedCodeLayer`). Do not vendor `the_alchemiser/shared/` into each function; prefer the shared layer and add `!Ref SharedCodeLayer` to each function's `Layers` in `template.yaml`.
 - **Releases**: Create releases with `make deploy` (auto-version) or `make deploy v=x.y.z` (custom version).
 
 ## Observability
