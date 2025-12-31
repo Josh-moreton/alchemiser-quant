@@ -270,17 +270,14 @@ class DataRefreshService:
             )
             return False
 
-    def refresh_all_symbols(self, base_path: Path | None = None) -> dict[str, bool]:
+    def refresh_all_symbols(self) -> dict[str, bool]:
         """Refresh data for all configured symbols.
-
-        Args:
-            base_path: Base path for symbol extraction
 
         Returns:
             Dict mapping symbol to success status
 
         """
-        symbols = self._get_symbols_to_refresh(base_path)
+        symbols = self._get_symbols_to_refresh()
 
         logger.info(
             "Starting full data refresh",
@@ -354,18 +351,12 @@ class DataRefreshService:
 
         return results
 
-    def refresh_all_with_markers(
-        self,
-        base_path: Path | None = None,
-    ) -> dict[str, bool]:
+    def refresh_all_with_markers(self) -> dict[str, bool]:
         """Refresh all symbols AND process any pending bad data markers.
 
         This is the main entry point for scheduled data refresh. It:
         1. First processes any pending bad data markers (full re-fetch)
         2. Then performs incremental refresh on all configured symbols
-
-        Args:
-            base_path: Base path for symbol extraction
 
         Returns:
             Combined results for all symbols
@@ -378,7 +369,7 @@ class DataRefreshService:
         results.update(marker_results)
 
         # Then do incremental refresh (markers already re-fetched, won't duplicate)
-        refresh_results = self.refresh_all_symbols(base_path)
+        refresh_results = self.refresh_all_symbols()
 
         # Merge results (marker results take precedence for overlapping symbols)
         for symbol, success in refresh_results.items():
