@@ -12,6 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,21 @@ from errors import ConfigurationError, StrategyExecutionError
 DEFAULT_STRATEGY_FILE = "KLM.clj"
 # Accounts for '... [N decisions]' truncation suffix when reasoning exceeds max length
 REASONING_TRUNCATION_SUFFIX_LENGTH = 20
+
+
+def _get_strategies_path() -> Path:
+    """Get strategies directory path (Lambda layer or local).
+
+    Returns:
+        Path to strategies directory
+
+    """
+    try:
+        # Try Lambda layer first
+        return Path(str(importlib_resources.files("the_alchemiser.shared.strategies")))
+    except (ModuleNotFoundError, AttributeError):
+        # Fallback for local development
+        return Path(__file__).parent.parent.parent / "strategies"
 
 
 class DslStrategyEngine:
@@ -73,8 +89,8 @@ class DslStrategyEngine:
             self.settings = MinimalSettings()  # type: ignore[assignment]
 
         # Initialize DSL engine with strategies directory as config path
-        # Resolve strategies directory relative to this module to avoid depending on repo root
-        strategies_path = Path(__file__).parent.parent.parent / "strategies"
+        # Use importlib.resources to locate strategies in Lambda layer or local
+        strategies_path = _get_strategies_path()
         self.dsl_engine = DslEngine(
             strategy_config_path=str(strategies_path),
         )
@@ -347,7 +363,7 @@ class DslStrategyEngine:
         dsl_allocs = self.settings.strategy.dsl_allocations or {self.strategy_file: 1.0}
 
         # Validate files exist
-        strategies_path = Path(__file__).parent.parent.parent / "strategies"
+        strategies_path = _get_strategies_path()
         for f in dsl_files:
             file_path = strategies_path / f
             if not file_path.exists():

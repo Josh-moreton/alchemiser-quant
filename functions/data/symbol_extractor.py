@@ -10,9 +10,14 @@ from __future__ import annotations
 
 import json
 import re
+from importlib import resources as importlib_resources
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.logging import get_logger
+
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
 
 logger = get_logger(__name__)
 
@@ -57,21 +62,16 @@ INDICATOR_PATTERNS = [
 ]
 
 
-def extract_symbols_from_file(file_path: Path) -> set[str]:
-    """Extract all ticker symbols from a single DSL strategy file.
+def _extract_symbols_from_content(content: str) -> set[str]:
+    """Extract ticker symbols from DSL file content.
 
     Args:
-        file_path: Path to the .clj strategy file
+        content: DSL strategy file content
 
     Returns:
-        Set of unique ticker symbols found in the file
-
-    Raises:
-        FileNotFoundError: If the file does not exist
-        IOError: If the file cannot be read
+        Set of unique ticker symbols found in the content
 
     """
-    content = file_path.read_text(encoding="utf-8")
     symbols: set[str] = set()
 
     # Extract from asset declarations
@@ -87,6 +87,26 @@ def extract_symbols_from_file(file_path: Path) -> set[str]:
             if symbol not in RESERVED_KEYWORDS:
                 symbols.add(symbol)
 
+    return symbols
+
+
+def extract_symbols_from_file(file_path: Path) -> set[str]:
+    """Extract all ticker symbols from a single DSL strategy file.
+
+    Args:
+        file_path: Path to the .clj strategy file
+
+    Returns:
+        Set of unique ticker symbols found in the file
+
+    Raises:
+        FileNotFoundError: If the file does not exist
+        IOError: If the file cannot be read
+
+    """
+    content = file_path.read_text(encoding="utf-8")
+    symbols = _extract_symbols_from_content(content)
+
     logger.debug(
         "Extracted symbols from file",
         file_path=str(file_path),
@@ -96,12 +116,15 @@ def extract_symbols_from_file(file_path: Path) -> set[str]:
     return symbols
 
 
-def extract_symbols_from_config(config_path: Path, strategies_dir: Path) -> set[str]:
+def extract_symbols_from_config(
+    config_path: Traversable | Path,
+    strategies_dir: Traversable | Path,
+) -> set[str]:
     """Extract all symbols from strategies listed in a config file.
 
     Args:
-        config_path: Path to strategy config JSON (e.g., strategy.dev.json)
-        strategies_dir: Base directory containing strategy .clj files
+        config_path: Path-like to strategy config JSON (e.g., strategy.dev.json)
+        strategies_dir: Path-like to directory containing strategy .clj files
 
     Returns:
         Set of unique ticker symbols across all configured strategies
@@ -119,60 +142,88 @@ def extract_symbols_from_config(config_path: Path, strategies_dir: Path) -> set[
 
     for strategy_file in strategy_files:
         file_path = strategies_dir / strategy_file
-        if file_path.exists():
-            symbols = extract_symbols_from_file(file_path)
-            all_symbols.update(symbols)
-            logger.info(
-                "Extracted symbols from strategy",
-                strategy=strategy_file,
-                symbol_count=len(symbols),
-            )
-        else:
+        try:
+            if file_path.is_file():
+                # Convert Traversable to Path for extract_symbols_from_file if needed
+                if hasattr(file_path, "__fspath__"):
+                    symbols = extract_symbols_from_file(Path(file_path))
+                else:
+                    # Read content directly from Traversable
+                    content = file_path.read_text(encoding="utf-8")
+                    symbols = _extract_symbols_from_content(content)
+
+                all_symbols.update(symbols)
+                logger.info(
+                    "Extracted symbols from strategy",
+                    strategy=strategy_file,
+                    symbol_count=len(symbols),
+                )
+            else:
+                logger.warning(
+                    "Strategy file not found",
+                    strategy=strategy_file,
+                    path=str(file_path),
+                )
+        except Exception as e:
             logger.warning(
-                "Strategy file not found",
+                "Failed to extract symbols from strategy",
                 strategy=strategy_file,
-                path=str(file_path),
+                error=str(e),
             )
 
     return all_symbols
 
 
-def get_all_configured_symbols(base_path: Path | None = None) -> set[str]:
+def get_all_configured_symbols() -> set[str]:
     """Get all symbols from both dev and prod strategy configurations.
 
-    Args:
-        base_path: Base path to the_alchemiser directory.
-            If None, attempts to find it relative to this module.
+    Uses importlib.resources to locate files in the shared Lambda layer.
 
     Returns:
         Set of all unique ticker symbols across all configured strategies
 
     """
-    if base_path is None:
-        # Resolve relative to this module's location
-        base_path = Path(__file__).parent.parent
-
-    config_dir = base_path / "config"
-    strategies_dir = base_path / "strategy_v2" / "strategies"
-
     all_symbols: set[str] = set()
+
+    # Get paths using importlib.resources
+    config_package = "the_alchemiser.shared.config"
+    strategies_package = "the_alchemiser.shared.strategies"
+
+    try:
+        config_path = importlib_resources.files(config_package)
+        strategies_path = importlib_resources.files(strategies_package)
+    except (ModuleNotFoundError, AttributeError) as e:
+        logger.error(
+            "Failed to locate shared layer packages",
+            error=str(e),
+            config_package=config_package,
+            strategies_package=strategies_package,
+        )
+        return set()
 
     # Process both dev and prod configs
     for config_name in ["strategy.dev.json", "strategy.prod.json"]:
-        config_path = config_dir / config_name
-        if config_path.exists():
-            symbols = extract_symbols_from_config(config_path, strategies_dir)
-            all_symbols.update(symbols)
-            logger.info(
-                "Processed config file",
-                config=config_name,
-                total_symbols=len(symbols),
-            )
-        else:
+        config_file = config_path / config_name
+        try:
+            if config_file.is_file():
+                symbols = extract_symbols_from_config(config_file, strategies_path)
+                all_symbols.update(symbols)
+                logger.info(
+                    "Processed config file",
+                    config=config_name,
+                    total_symbols=len(symbols),
+                )
+            else:
+                logger.warning(
+                    "Config file not found",
+                    config=config_name,
+                    path=str(config_file),
+                )
+        except Exception as e:
             logger.warning(
-                "Config file not found",
+                "Failed to process config file",
                 config=config_name,
-                path=str(config_path),
+                error=str(e),
             )
 
     logger.info(

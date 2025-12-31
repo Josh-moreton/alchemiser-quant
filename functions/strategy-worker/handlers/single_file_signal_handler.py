@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -52,8 +53,13 @@ class SingleFileSignalHandler:
         self.allocation = allocation
         self.logger = logger
 
-        # Resolve strategies directory
-        strategies_path = Path(__file__).parent.parent / "strategies"
+        # Resolve strategies directory using importlib.resources (Lambda layer)
+        try:
+            strategies_path = importlib_resources.files("the_alchemiser.shared.strategies")
+        except (ModuleNotFoundError, AttributeError):
+            # Fallback for local development
+            strategies_path = Path(__file__).parent.parent / "strategies"
+            logger.warning("Using local strategies path (not Lambda layer)")
 
         # Get market data adapter from container (with live bar injection if configured)
         market_data_adapter = container.strategy_market_data_adapter()

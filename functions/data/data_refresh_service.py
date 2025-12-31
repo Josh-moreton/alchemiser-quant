@@ -85,17 +85,14 @@ class DataRefreshService:
 
         logger.info("DataRefreshService initialized")
 
-    def _get_symbols_to_refresh(self, base_path: Path | None = None) -> set[str]:
+    def _get_symbols_to_refresh(self) -> set[str]:
         """Get all symbols that need data refresh.
-
-        Args:
-            base_path: Base path to the_alchemiser directory for symbol extraction
 
         Returns:
             Set of ticker symbols from strategy configurations
 
         """
-        return get_all_configured_symbols(base_path)
+        return get_all_configured_symbols()
 
     def _calculate_fetch_range(
         self,
