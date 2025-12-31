@@ -28,8 +28,8 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
-from .data_refresh_service import DataRefreshService
-from .fetch_request_service import FetchRequestService
+from data_refresh_service import DataRefreshService
+from fetch_request_service import FetchRequestService
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
