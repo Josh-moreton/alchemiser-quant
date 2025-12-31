@@ -174,9 +174,9 @@ class MarketDataStore:
         if df.empty:
             return
 
-        # Get the last bar date from the DataFrame
+        # Get the last bar date from the DataFrame (normalize to UTC for consistency)
         if "timestamp" in df.columns:
-            last_date = pd.to_datetime(df["timestamp"]).max()
+            last_date = pd.to_datetime(df["timestamp"], utc=True).max()
         else:
             # Assume index is datetime
             last_date = df.index.max()
@@ -365,9 +365,9 @@ class MarketDataStore:
             )
             return False
 
-        # Convert timestamps for comparison
-        existing_df["timestamp"] = pd.to_datetime(existing_df["timestamp"])
-        new_bars["timestamp"] = pd.to_datetime(new_bars["timestamp"])
+        # Convert timestamps for comparison (normalize to UTC to avoid tz-naive/tz-aware mismatch)
+        existing_df["timestamp"] = pd.to_datetime(existing_df["timestamp"], utc=True)
+        new_bars["timestamp"] = pd.to_datetime(new_bars["timestamp"], utc=True)
 
         # Create date-keyed lookups for comparison
         existing_by_date = existing_df.set_index(existing_df["timestamp"].dt.date)
@@ -498,9 +498,9 @@ class MarketDataStore:
         if df is None or df.empty:
             return None
 
-        # Ensure timestamp column and sort
+        # Ensure timestamp column and sort (normalize to UTC for consistency)
         if "timestamp" in df.columns:
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
             df = df.sort_values("timestamp")
         else:
             return None

@@ -82,8 +82,8 @@ def fetch_yfinance_data(symbol: str, start_date: str, end_date: str) -> pd.DataF
         df = df.reset_index()
         df = df.rename(columns={"Date": "timestamp"})
 
-        # Ensure timestamp is datetime
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        # Ensure timestamp is datetime with UTC timezone (to match Alpaca data format)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
 
         # Select only required columns
         df = df[["timestamp", "open", "high", "low", "close", "volume"]]
