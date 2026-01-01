@@ -583,7 +583,7 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  # Notifications Layer: pydantic + structlog + quantstats + alpaca-py
+  # Notifications Layer: pydantic + structlog + alpaca-py (lightweight)
   NotificationsLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -591,7 +591,7 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-notifications-deps"
         - !Sub "alchemiser-${Stage}-notifications-deps"
-      Description: Notifications Lambda dependencies (pydantic, structlog, quantstats, alpaca-py)
+      Description: Notifications Lambda dependencies (pydantic, structlog, alpaca-py)
       ContentUri: layers/notifications/
       CompatibleRuntimes:
         - python3.12
