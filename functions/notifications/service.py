@@ -24,7 +24,7 @@ from the_alchemiser.shared.events.schemas import (
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.notifications.dedup import get_dedup_manager
-from the_alchemiser.shared.notifications.ses_publisher import EmailAttachment, send_email
+from the_alchemiser.shared.notifications.ses_publisher import send_email
 from the_alchemiser.shared.notifications.templates import (
     format_subject,
     render_daily_run_failure_html,
@@ -326,9 +326,6 @@ class NotificationService:
         monthly_pnl = pnl_metrics_raw.get("monthly_pnl", {})
         yearly_pnl = pnl_metrics_raw.get("yearly_pnl", {})
 
-        # Extract tearsheet info from execution_data
-        tearsheet_info = execution_data.get("tearsheet_info")
-
         # Determine status for template
         if is_partial_success:
             status = "PARTIAL_SUCCESS"
@@ -366,13 +363,6 @@ class NotificationService:
             "logs_url": self._build_logs_url(event.correlation_id),
             # Partial success specific
             "non_fractionable_skipped_symbols": non_fractionable_skipped,
-            # Tearsheet info for template
-            "tearsheet_attached": False,  # Will be updated if attachment succeeds
-            "tearsheet_available": tearsheet_info is not None
-            and tearsheet_info.get("success", False),
-            "strategy_tearsheet_count": tearsheet_info.get("strategy_count", 0)
-            if tearsheet_info
-            else 0,
         }
 
         try:
@@ -420,63 +410,19 @@ class NotificationService:
             # Get recipient addresses
             to_addresses = self._get_recipients()
 
-            # Prepare email attachments (only for success/partial success)
-            attachments = []
-            if (event.trading_success or is_partial_success) and tearsheet_info:
-                portfolio_html_content = tearsheet_info.get("portfolio_html_content")
-                if portfolio_html_content and tearsheet_info.get("success"):
-                    timestamp = datetime.now(UTC).strftime("%Y-%m-%d")
-                    attachments.append(
-                        EmailAttachment(
-                            filename=f"portfolio_tearsheet_{timestamp}.html",
-                            content=portfolio_html_content.encode("utf-8"),
-                            content_type="text/html",
-                        )
-                    )
-                    # Update context to reflect attachment
-                    context["tearsheet_attached"] = True
-
-            # Send via SES (with or without attachments)
+            # Send via SES
             result = send_email(
                 to_addresses=to_addresses,
                 subject=subject,
                 html_body=html_body,
                 text_body=text_body,
-                attachments=attachments if attachments else None,
             )
-
-            # If sending with attachment failed, retry without attachment
-            if result.get("status") == "failed" and attachments:
-                self.logger.warning(
-                    "Failed to send email with attachment, retrying without attachment",
-                    extra={
-                        "correlation_id": event.correlation_id,
-                        "error": result.get("error"),
-                    },
-                )
-                # Update context to reflect no attachment
-                context["tearsheet_attached"] = False
-                # Re-render templates without attachment context
-                if is_partial_success:
-                    html_body = render_daily_run_partial_success_html(context)
-                    text_body = render_daily_run_partial_success_text(context)
-                elif event.trading_success:
-                    html_body = render_daily_run_success_html(context)
-                    text_body = render_daily_run_success_text(context)
-                # Retry without attachment
-                result = send_email(
-                    to_addresses=to_addresses,
-                    subject=subject,
-                    html_body=html_body,
-                    text_body=text_body,
-                    attachments=None,
-                )
 
             if result.get("status") == "sent":
                 self._log_event_context(
                     event,
                     f"Trading notification sent via SES (message_id={result.get('message_id')}, "
-                    f"status={status}, partial_success={is_partial_success}, attachment={context['tearsheet_attached']})",
+                    f"status={status}, partial_success={is_partial_success})",
                 )
             else:
                 self._log_event_context(

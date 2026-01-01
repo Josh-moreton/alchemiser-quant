@@ -1432,7 +1432,7 @@ Resources:
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer        # Shared code (the_alchemiser.shared)
-        - !Ref DataLayer              # pandas, numpy, quantstats, alpaca-py (for tearsheets + account metrics)
+        - !Ref NotificationsLayer     # alpaca-py (for account metrics)
       Timeout: 60
       MemorySize: 512
       Environment:
