@@ -128,18 +128,18 @@ Parameters:
   # Data Function Configuration
   DataRefreshScheduleDev:
     Type: String
-    Default: "cron(0 4 ? * TUE-SAT *)"
-    Description: Data refresh schedule for dev (4 AM UTC, Tue-Sat)
+    Default: "cron(0 9 ? * TUE-SAT *)"
+    Description: Data refresh schedule for dev (9 AM UTC, Tue-Sat = 10 AM UK morning)
 
   DataRefreshScheduleStaging:
     Type: String
-    Default: "cron(0 3 ? * TUE-SAT *)"
-    Description: Data refresh schedule for staging (3 AM UTC, Tue-Sat, 1hr earlier for pre-prod validation)
+    Default: "cron(30 9 ? * TUE-SAT *)"
+    Description: Data refresh schedule for staging (9:30 AM UTC, Tue-Sat = 10:30 AM UK morning)
 
   DataRefreshScheduleProd:
     Type: String
-    Default: "cron(0 4 ? * TUE-SAT *)"
-    Description: Data refresh schedule for prod (4 AM UTC, Tue-Sat)
+    Default: "cron(0 10 ? * TUE-SAT *)"
+    Description: Data refresh schedule for prod (10 AM UTC, Tue-Sat = 11 AM UK morning)
 
   FetchCooldownMinutes:
     Type: Number
