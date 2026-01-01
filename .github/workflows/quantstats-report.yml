@@ -73,7 +73,8 @@ jobs:
             numpy \
             boto3 \
             alpaca-py \
-            pydantic
+            pydantic \
+            ipython
 
       - name: Generate QuantStats reports
         env:
