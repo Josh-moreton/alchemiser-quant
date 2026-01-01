@@ -1,0 +1,2 @@
+# Shared layer has no external dependencies
+# All Python dependencies are in function-specific layers (StrategyLayer, PortfolioLayer, etc.)

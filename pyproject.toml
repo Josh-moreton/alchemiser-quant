@@ -4,22 +4,14 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "8.8.3"
-description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
-readme = "README.md"
-authors = [ "Josh Moreton <josh@example.com>",]
-license = "MIT"
-classifiers = [ "Development Status :: 4 - Beta", "Intended Audience :: Financial and Insurance Industry", "License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12",]
-[[tool.poetry.packages]]
-include = "the_alchemiser"
+version = "9.0.0"
+package-mode = false  # Dependency management only - no package installation
 
-[[tool.poetry.include]]
-path = "the_alchemiser/config/*.json"
-format = "sdist"
-
-[[tool.poetry.include]]
-path = "the_alchemiser/config/*.json"
-format = "wheel"
+# This is an AWS Lambda microservices project deployed via SAM.
+# Poetry is used only for:
+#   1. Managing dependencies (poetry.lock)
+#   2. Dev tools (pytest, mypy, ruff)
+# Lambda functions are NOT installed as a Python package.
 
 [tool.ruff]
 target-version = "py312"
@@ -30,12 +22,12 @@ extend-exclude = [ ".git", ".mypy_cache", ".ruff_cache", ".venv", "__pycache__",
 python_version = "3.12"
 strict = true
 plugins = [ "pydantic.mypy",]
-files = [ "the_alchemiser",]
+files = [ "functions/", "layers/shared/",]
 show_error_codes = true
 pretty = true
 color_output = true
 cache_dir = ".mypy_cache"
-exclude = [ "scripts/", "tests/",]
+exclude = [ "scripts/", "tests/", ".aws-sam/",]
 [[tool.mypy.overrides]]
 module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*" ]
 ignore_missing_imports = true
@@ -46,42 +38,20 @@ include_external_packages = false
 unmatched_ignore_imports_alerting = "warn"
 
 # =============================================================================
-# ARCHITECTURE: Microservices with Shared Foundation
+# ARCHITECTURE: AWS Lambda Microservices with Shared Layer
 # =============================================================================
-# AWS Lambda deployment enforces runtime isolation. These rules catch mistakes
-# early and prevent package bloat from accidental cross-imports.
+# Each Lambda function in functions/ is self-contained and deployed independently.
+# Shared code in layers/shared/the_alchemiser/shared/ must not import from
+# function-specific code.
 #
-# Business Lambdas: coordinator_v2, strategy_v2, aggregator_v2, portfolio_v2,
-#                   execution_v2, notifications_v2, metrics_v2
-# Foundation: shared, data_v2
+# Lambda Functions: functions/*
+# Shared Layer: layers/shared/the_alchemiser/shared/
 # =============================================================================
 
-[[tool.importlinter.contracts]]
-name = "Foundation cannot import business modules"
-type = "forbidden"
-source_modules = ["the_alchemiser.shared", "the_alchemiser.data_v2"]
-forbidden_modules = [
-    "the_alchemiser.coordinator_v2",
-    "the_alchemiser.strategy_v2",
-    "the_alchemiser.aggregator_v2",
-    "the_alchemiser.portfolio_v2",
-    "the_alchemiser.execution_v2",
-    "the_alchemiser.notifications_v2",
-    "the_alchemiser.metrics_v2",
-]
-
-[[tool.importlinter.contracts]]
-name = "Business modules are independent"
-type = "independence"
-modules = [
-    "the_alchemiser.coordinator_v2",
-    "the_alchemiser.strategy_v2",
-    "the_alchemiser.aggregator_v2",
-    "the_alchemiser.portfolio_v2",
-    "the_alchemiser.execution_v2",
-    "the_alchemiser.notifications_v2",
-    "the_alchemiser.metrics_v2",
-]
+# Note: Import linter currently disabled as it's designed for monolithic packages.
+# Lambda isolation is enforced at deployment time by SAM - each function only
+# packages its own code + shared layer. Cross-function imports are impossible
+# at runtime.
 
 [tool.bandit]
 exclude_dirs = [ "tests/", ".venv/", "build/", "dist/",]

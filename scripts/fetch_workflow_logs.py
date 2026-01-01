@@ -49,6 +49,9 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
+
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)

@@ -107,6 +107,8 @@ flowchart LR
 | **Execution** | `alchemiser-{stage}-execution` | `execution_v2.lambda_handler` | SQS Queue (from EventBridge) | EventBridge: `TradeExecuted`, `WorkflowCompleted/Failed` |
 | **Notifications** | `alchemiser-{stage}-notifications` | `notifications_v2.lambda_handler` | EventBridge: `TradeExecuted`, `WorkflowFailed` | SNS → Email |
 
+Note: Each Lambda now ships its own source under `functions/<name>/` (set as the SAM `CodeUri`). Shared runtime code is provided by the `layers/shared/` layer (referenced in the template as `SharedCodeLayer`). Handlers in the functions use `lambda_handler.lambda_handler` at deploy-time when functions are flattened into `functions/<name>/` directories.
+
 ### Module Structure
 
 ```

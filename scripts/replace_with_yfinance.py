@@ -19,10 +19,10 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Setup imports for Lambda layers architecture
+import _setup_imports  # noqa: F401
 
-from the_alchemiser.data_v2.market_data_store import MarketDataStore
+from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -82,8 +82,8 @@ def fetch_yfinance_data(symbol: str, start_date: str, end_date: str) -> pd.DataF
         df = df.reset_index()
         df = df.rename(columns={"Date": "timestamp"})
 
-        # Ensure timestamp is datetime
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        # Ensure timestamp is datetime with UTC timezone (to match Alpaca data format)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
 
         # Select only required columns
         df = df[["timestamp", "open", "high", "low", "close", "volume"]]
