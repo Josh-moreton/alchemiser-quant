@@ -450,7 +450,6 @@ def _handle_data_lake_update(detail: dict[str, Any], correlation_id: str) -> dic
     total_symbols = detail.get("total_symbols", 0)
     success_count = detail.get("symbols_updated_count", 0)
     failed_count = detail.get("symbols_failed_count", 0)
-    overall_success = detail.get("success", False)
 
     logger.info(
         "Processing DataLakeUpdateCompleted",

@@ -251,7 +251,7 @@ class SESEmailPublisher:
         )
         return default_addresses, routing_note
 
-    def _add_safety_banner(self, body: str, note: str, is_html: bool) -> str:
+    def _add_safety_banner(self, body: str, note: str, *, is_html: bool) -> str:
         """Add a safety banner to email body indicating recipient override.
 
         Args:

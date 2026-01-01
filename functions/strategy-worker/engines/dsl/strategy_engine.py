@@ -514,7 +514,7 @@ class DslStrategyEngine:
                     "success_count": success_count,
                     "failure_count": len(failed_files),
                     "failed_files": [f for f, _ in failed_files],
-                    "errors": {f: e for f, e in failed_files},
+                    "errors": dict(failed_files),
                 },
             )
 

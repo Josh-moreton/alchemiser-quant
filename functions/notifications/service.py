@@ -297,8 +297,8 @@ class NotificationService:
                 start_dt = date_parser.isoparse(start_time_utc)
                 end_dt = date_parser.isoparse(end_time_utc)
                 duration_seconds = int((end_dt - start_dt).total_seconds())
-            except Exception:
-                pass  # Keep default 0 if parsing fails
+            except Exception as e:
+                self.logger.warning(f"Failed to parse timing data: {e}")
 
         # Extract data freshness from execution_data (propagated from strategy workers)
         data_freshness_raw = execution_data.get("data_freshness", {})
