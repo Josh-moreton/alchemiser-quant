@@ -11,11 +11,13 @@ Each event triggers exactly one notification, eliminating race conditions.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
+from quantstats_tearsheet_service import QuantStatsTearsheetService, TearsheetGenerationResult
 from service import NotificationService
 from strategy_report_service import generate_performance_report_url
 
@@ -27,6 +29,9 @@ from the_alchemiser.shared.events.schemas import (
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.repositories.dynamodb_trade_ledger_repository import (
+    DynamoDBTradeLedgerRepository,
+)
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -140,9 +145,12 @@ def _handle_all_trades_completed(detail: dict[str, Any], correlation_id: str) ->
     # Generate strategy performance report and get presigned URL
     report_url = _generate_strategy_report(correlation_id)
 
+    # Generate QuantStats tearsheets
+    tearsheet_info = _generate_quantstats_tearsheets(correlation_id, container)
+
     # Build TradingNotificationRequested from AllTradesCompleted event
     notification_event = _build_trading_notification_from_aggregated(
-        detail, correlation_id, container, report_url
+        detail, correlation_id, container, report_url, tearsheet_info
     )
 
     # Create NotificationService and process the event
@@ -171,6 +179,7 @@ def _build_trading_notification_from_aggregated(
     correlation_id: str,
     container: ApplicationContainer,
     report_url: str | None = None,
+    tearsheet_info: TearsheetGenerationResult | None = None,
 ) -> TradingNotificationRequested:
     """Build TradingNotificationRequested from AllTradesCompleted event.
 
@@ -182,6 +191,7 @@ def _build_trading_notification_from_aggregated(
         correlation_id: Correlation ID for tracing
         container: Application container for config access
         report_url: Optional presigned URL for strategy performance CSV report
+        tearsheet_info: Optional QuantStats tearsheet generation result
 
     Returns:
         TradingNotificationRequested event ready for processing
@@ -261,6 +271,16 @@ def _build_trading_notification_from_aggregated(
     # Add report URL to execution_data if available
     if report_url:
         execution_data["strategy_performance_report_url"] = report_url
+
+    # Add tearsheet info to execution_data if available
+    if tearsheet_info:
+        execution_data["tearsheet_info"] = {
+            "success": tearsheet_info.success,
+            "portfolio_s3_key": tearsheet_info.portfolio_s3_key,
+            "portfolio_html_content": tearsheet_info.portfolio_html_content,
+            "strategy_count": len(tearsheet_info.strategy_s3_keys),
+            "error_message": tearsheet_info.error_message,
+        }
 
     # Extract capital deployed percentage (already captured by TradeAggregator)
     capital_deployed_pct = _extract_capital_deployed_pct(all_trades_detail)
@@ -465,6 +485,86 @@ def _generate_strategy_report(correlation_id: str) -> str | None:
         # Don't fail the notification if report generation fails
         logger.warning(
             f"Failed to generate strategy performance report: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        return None
+
+
+def _generate_quantstats_tearsheets(
+    correlation_id: str, container: ApplicationContainer
+) -> TearsheetGenerationResult | None:
+    """Generate QuantStats tearsheets for portfolio and per-strategy performance.
+
+    Args:
+        correlation_id: Correlation ID for tracing
+        container: Application container for dependency injection
+
+    Returns:
+        TearsheetGenerationResult with S3 keys and HTML content, or None if generation fails
+
+    """
+    try:
+        # Get configuration from environment
+        bucket_name = os.environ.get("PERFORMANCE_REPORTS_BUCKET")
+        table_name = os.environ.get("TRADE_LEDGER__TABLE_NAME")
+
+        if not bucket_name:
+            logger.warning(
+                "PERFORMANCE_REPORTS_BUCKET not configured, skipping tearsheet generation",
+                extra={"correlation_id": correlation_id},
+            )
+            return None
+
+        if not table_name:
+            logger.warning(
+                "TRADE_LEDGER__TABLE_NAME not configured, skipping tearsheet generation",
+                extra={"correlation_id": correlation_id},
+            )
+            return None
+
+        # Initialize trade ledger repository
+        trade_ledger_repository = DynamoDBTradeLedgerRepository(table_name)
+
+        # Initialize tearsheet service
+        tearsheet_service = QuantStatsTearsheetService(
+            repository=trade_ledger_repository,
+            bucket_name=bucket_name,
+            initial_capital=Decimal("100000"),  # Default initial capital
+        )
+
+        # Generate tearsheets
+        logger.info(
+            "Generating QuantStats tearsheets",
+            extra={"correlation_id": correlation_id},
+        )
+
+        result = tearsheet_service.generate_tearsheets(correlation_id)
+
+        if result.success:
+            logger.info(
+                "QuantStats tearsheets generated successfully",
+                extra={
+                    "correlation_id": correlation_id,
+                    "portfolio_s3_key": result.portfolio_s3_key,
+                    "strategy_count": len(result.strategy_s3_keys),
+                },
+            )
+        else:
+            logger.info(
+                f"QuantStats tearsheet generation skipped: {result.error_message}",
+                extra={"correlation_id": correlation_id},
+            )
+
+        return result
+
+    except Exception as e:
+        # Don't fail the notification if tearsheet generation fails
+        logger.warning(
+            f"Failed to generate QuantStats tearsheets: {e}",
+            exc_info=True,
             extra={
                 "correlation_id": correlation_id,
                 "error_type": type(e).__name__,

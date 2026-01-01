@@ -11,6 +11,10 @@ Replaces SNS email sending for better control over formatting, branding, and del
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import TYPE_CHECKING
 
 import boto3
@@ -22,6 +26,22 @@ if TYPE_CHECKING:
     from mypy_boto3_ses import SESClient
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class EmailAttachment:
+    """Email attachment data container.
+
+    Attributes:
+        filename: Name of the attachment file (e.g., "report.pdf")
+        content: Binary content of the attachment
+        content_type: MIME content type (e.g., "text/html", "application/pdf")
+
+    """
+
+    filename: str
+    content: bytes
+    content_type: str
 
 
 class SESEmailPublisher:
@@ -87,6 +107,7 @@ class SESEmailPublisher:
         text_body: str,
         cc_addresses: list[str] | None = None,
         bcc_addresses: list[str] | None = None,
+        attachments: list[EmailAttachment] | None = None,
     ) -> dict[str, str]:
         """Send an email via SES.
 
@@ -97,6 +118,7 @@ class SESEmailPublisher:
             text_body: Plain text version of email body
             cc_addresses: Optional CC recipients
             bcc_addresses: Optional BCC recipients
+            attachments: Optional list of email attachments
 
         Returns:
             dict with 'message_id' on success, or 'error' on failure
@@ -117,6 +139,19 @@ class SESEmailPublisher:
         # Routing note is logged but no longer injected into email body
         # Users know which environment they're in from the subject line
 
+        # If attachments are present, use MIME multipart and send_raw_email
+        if attachments:
+            return self._send_email_with_attachments(
+                to_addresses=actual_to,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                cc_addresses=cc_addresses,
+                bcc_addresses=bcc_addresses,
+                attachments=attachments,
+            )
+
+        # Otherwise, use simple send_email API (backward compatible)
         # Build SES message
         destination = {"ToAddresses": actual_to}
         if cc_addresses:
@@ -187,6 +222,127 @@ class SESEmailPublisher:
                     "error_type": type(e).__name__,
                     "to_addresses": actual_to,
                     "subject_preview": subject[:100],
+                    "stage": self.stage,
+                },
+            )
+
+            return {"error": type(e).__name__, "message": str(e), "status": "failed"}
+
+    def _send_email_with_attachments(
+        self,
+        to_addresses: list[str],
+        subject: str,
+        html_body: str,
+        text_body: str,
+        cc_addresses: list[str] | None = None,
+        bcc_addresses: list[str] | None = None,
+        attachments: list[EmailAttachment] | None = None,
+    ) -> dict[str, str]:
+        """Send email with attachments using MIME multipart and send_raw_email.
+
+        Args:
+            to_addresses: List of recipient email addresses (already routing-safe)
+            subject: Email subject line
+            html_body: HTML version of email body
+            text_body: Plain text version of email body
+            cc_addresses: Optional CC recipients
+            bcc_addresses: Optional BCC recipients
+            attachments: List of email attachments
+
+        Returns:
+            dict with 'message_id' on success, or 'error' on failure
+
+        """
+        try:
+            # Create MIME multipart message
+            msg = MIMEMultipart("mixed")
+            msg["Subject"] = subject
+            msg["From"] = self._format_source()
+            msg["To"] = ", ".join(to_addresses)
+
+            if cc_addresses:
+                msg["Cc"] = ", ".join(cc_addresses)
+
+            if self.reply_to_address:
+                msg["Reply-To"] = self.reply_to_address
+
+            # Create alternative part for HTML and plain text
+            msg_body = MIMEMultipart("alternative")
+            text_part = MIMEText(text_body, "plain", "utf-8")
+            html_part = MIMEText(html_body, "html", "utf-8")
+            msg_body.attach(text_part)
+            msg_body.attach(html_part)
+            msg.attach(msg_body)
+
+            # Add attachments
+            if attachments:
+                for attachment in attachments:
+                    part = MIMEApplication(attachment.content)
+                    part.add_header(
+                        "Content-Disposition",
+                        "attachment",
+                        filename=attachment.filename,
+                    )
+                    part.add_header("Content-Type", attachment.content_type)
+                    msg.attach(part)
+
+            # Build destination list
+            destinations = to_addresses.copy()
+            if cc_addresses:
+                destinations.extend(cc_addresses)
+            if bcc_addresses:
+                destinations.extend(bcc_addresses)
+
+            # Send via SES send_raw_email
+            response = self._client.send_raw_email(
+                Source=self._format_source(),
+                Destinations=destinations,
+                RawMessage={"Data": msg.as_string()},
+                ConfigurationSetName=self.configuration_set if self.configuration_set else None,
+            )
+
+            message_id = response.get("MessageId", "unknown")
+
+            logger.info(
+                "Email with attachments sent via SES",
+                extra={
+                    "message_id": message_id,
+                    "to_addresses": to_addresses,
+                    "subject_preview": subject[:100],
+                    "attachment_count": len(attachments) if attachments else 0,
+                    "stage": self.stage,
+                },
+            )
+
+            return {"message_id": message_id, "status": "sent"}
+
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            error_message = e.response["Error"]["Message"]
+
+            logger.error(
+                f"SES send_raw_email failed ({error_code}): {error_message}",
+                extra={
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "to_addresses": to_addresses,
+                    "subject_preview": subject[:100],
+                    "attachment_count": len(attachments) if attachments else 0,
+                    "stage": self.stage,
+                },
+            )
+
+            return {"error": error_code, "message": error_message, "status": "failed"}
+
+        except Exception as e:
+            logger.error(
+                f"Failed to send email with attachments via SES: {e}",
+                exc_info=True,
+                extra={
+                    "error_type": type(e).__name__,
+                    "to_addresses": to_addresses,
+                    "subject_preview": subject[:100],
+                    "attachment_count": len(attachments) if attachments else 0,
                     "stage": self.stage,
                 },
             )
@@ -291,6 +447,7 @@ def send_email(
     text_body: str,
     cc_addresses: list[str] | None = None,
     bcc_addresses: list[str] | None = None,
+    attachments: list[EmailAttachment] | None = None,
 ) -> dict[str, str]:
     """Send an email via SES (convenience function).
 
@@ -301,6 +458,7 @@ def send_email(
         text_body: Plain text version of email body
         cc_addresses: Optional CC recipients
         bcc_addresses: Optional BCC recipients
+        attachments: Optional list of email attachments
 
     Returns:
         dict with 'message_id' on success, or 'error' on failure
@@ -313,4 +471,5 @@ def send_email(
         text_body=text_body,
         cc_addresses=cc_addresses,
         bcc_addresses=bcc_addresses,
+        attachments=attachments,
     )
