@@ -102,8 +102,13 @@ class ClosedLot:
     fully_closed_at: datetime | None = None
 
 
-def get_alpaca_client():
-    """Get Alpaca trading client."""
+def get_alpaca_client(paper: bool = True):
+    """Get Alpaca trading client.
+
+    Args:
+        paper: Whether to use paper trading API (default True for safety)
+
+    """
     import os
 
     from alpaca.trading.client import TradingClient
@@ -126,7 +131,7 @@ def get_alpaca_client():
             print("Set ALPACA_KEY and ALPACA_SECRET environment variables")
             sys.exit(1)
 
-    return TradingClient(api_key=api_key, secret_key=secret_key, paper=False)
+    return TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
 
 
 def fetch_filled_orders(
@@ -473,17 +478,21 @@ def main() -> int:
 
     table_name = f"alchemiser-{args.stage}-trade-ledger"
 
+    # Determine paper mode based on stage (only prod uses live API)
+    paper_mode = args.stage != "prod"
+
     print("=" * 60)
     print("Strategy Lots Backfill")
     print("=" * 60)
     print(f"Stage: {args.stage}")
     print(f"Table: {table_name}")
+    print(f"Alpaca API: {'PAPER' if paper_mode else 'LIVE'}")
     print(f"Date range: {start_date.date()} to {end_date.date()}")
     print(f"Mode: {'EXECUTE' if args.execute else 'DRY RUN'}")
     print("=" * 60)
 
-    # Get Alpaca client
-    client = get_alpaca_client()
+    # Get Alpaca client (paper=True for dev/staging, paper=False for prod)
+    client = get_alpaca_client(paper=paper_mode)
 
     # Fetch orders
     orders = fetch_filled_orders(client, start_date, end_date)
