@@ -413,8 +413,8 @@ class SESEmailPublisher:
             RFC 5322 formatted source if from_name is set, otherwise bare email
 
         Examples:
-            With name: "The Alchemiser" <notifications@rwxt.org>
-            Without name: notifications@rwxt.org
+            With name: "The Alchemiser" <noreply@mail.octarine.capital>
+            Without name: noreply@mail.octarine.capital
 
         """
         if self.from_name:
