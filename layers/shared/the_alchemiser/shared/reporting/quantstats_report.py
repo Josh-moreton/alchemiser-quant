@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 # QuantStats imports
-import quantstats as qs  # type: ignore[import-untyped]
+import quantstats as qs
 
 from the_alchemiser.shared.logging import get_logger
 

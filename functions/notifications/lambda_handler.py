@@ -201,9 +201,7 @@ def _build_trading_notification_from_aggregated(
 
     # Get symbols categorized by failure type
     failed_symbols = all_trades_detail.get("failed_symbols", [])
-    non_fractionable_skipped_symbols = all_trades_detail.get(
-        "non_fractionable_skipped_symbols", []
-    )
+    non_fractionable_skipped_symbols = all_trades_detail.get("non_fractionable_skipped_symbols", [])
 
     # Determine trading success status with partial success logic:
     # - SUCCESS: All trades succeeded (no failures)
@@ -235,6 +233,9 @@ def _build_trading_notification_from_aggregated(
     # Get data freshness (propagated from strategy workers if available)
     data_freshness = all_trades_detail.get("data_freshness", {})
 
+    # Get P&L metrics (fetched by TradeAggregator from Alpaca)
+    pnl_metrics = all_trades_detail.get("pnl_metrics", {})
+
     # Build execution data for email template with all enriched data
     execution_data: dict[str, Any] = {
         "orders_executed": aggregated_data.get("orders_executed", []),
@@ -250,6 +251,8 @@ def _build_trading_notification_from_aggregated(
         "end_time_utc": completed_at,
         # Data freshness
         "data_freshness": data_freshness,
+        # P&L metrics (monthly and yearly)
+        "pnl_metrics": pnl_metrics,
         # Partial success context
         "is_partial_success": is_partial_success,
         "non_fractionable_skipped_symbols": non_fractionable_skipped_symbols,

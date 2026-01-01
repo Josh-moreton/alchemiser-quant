@@ -57,10 +57,10 @@ build-DataLayer:
 		structlog \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
-	
+
 	# Cleanup
 	rm -f /tmp/awswrangler-layer.zip
-	
+
 	@echo "✅ Data layer build complete"
 	@du -sh "$(ARTIFACTS_DIR)/python" 2>/dev/null || du -sh "$(ARTIFACTS_DIR)" || true
 

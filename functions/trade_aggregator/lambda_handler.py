@@ -159,6 +159,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Capture capital deployed percentage and portfolio snapshot
         capital_deployed_pct, portfolio_snapshot = _capture_portfolio_state(correlation_id)
 
+        # Fetch P&L metrics (monthly and yearly) after trades complete
+        pnl_metrics = _fetch_pnl_metrics(correlation_id)
+
         # Get timing info from run metadata
         started_at = run_metadata.get("created_at", "")
         completed_at = datetime.now(UTC).isoformat()
@@ -201,6 +204,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             completed_at=completed_at,
             portfolio_snapshot=portfolio_snapshot,
             data_freshness=data_freshness or {},
+            pnl_metrics=pnl_metrics,
         )
 
         # Publish to EventBridge (triggers Notifications Lambda)
@@ -430,3 +434,93 @@ def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
     """
     capital_pct, _ = _capture_portfolio_state(correlation_id)
     return capital_pct
+
+
+def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
+    """Fetch P&L metrics from Alpaca for email notifications.
+
+    Fetches monthly and yearly P&L using the PnLService. This is called after
+    all trades complete so the data reflects the current portfolio state.
+
+    Gracefully handles errors - P&L is informational and shouldn't block notifications.
+
+    Args:
+        correlation_id: Correlation ID for tracing.
+
+    Returns:
+        Dict with monthly_pnl and yearly_pnl data, or empty dicts on failure.
+        Each contains: total_pnl (float), total_pnl_pct (float), period (str),
+        start_date (str), end_date (str).
+
+    """
+    empty_pnl: dict[str, Any] = {
+        "monthly_pnl": {},
+        "yearly_pnl": {},
+    }
+
+    try:
+        from the_alchemiser.shared.services.pnl_service import PnLService
+
+        pnl_service = PnLService(correlation_id=correlation_id)
+
+        # Fetch monthly P&L (current month)
+        monthly_pnl: dict[str, Any] = {}
+        try:
+            monthly_data = pnl_service.get_monthly_pnl(months_back=1)
+            monthly_pnl = {
+                "period": monthly_data.period,
+                "start_date": monthly_data.start_date,
+                "end_date": monthly_data.end_date,
+                "total_pnl": float(monthly_data.total_pnl) if monthly_data.total_pnl else None,
+                "total_pnl_pct": (
+                    float(monthly_data.total_pnl_pct) if monthly_data.total_pnl_pct else None
+                ),
+            }
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch monthly P&L: {e}",
+                extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
+            )
+
+        # Fetch yearly P&L (1 year / YTD-ish)
+        yearly_pnl: dict[str, Any] = {}
+        try:
+            yearly_data = pnl_service.get_period_pnl("1A")
+            yearly_pnl = {
+                "period": yearly_data.period,
+                "start_date": yearly_data.start_date,
+                "end_date": yearly_data.end_date,
+                "total_pnl": float(yearly_data.total_pnl) if yearly_data.total_pnl else None,
+                "total_pnl_pct": (
+                    float(yearly_data.total_pnl_pct) if yearly_data.total_pnl_pct else None
+                ),
+            }
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch yearly P&L: {e}",
+                extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
+            )
+
+        logger.info(
+            "📈 P&L metrics fetched successfully",
+            extra={
+                "correlation_id": correlation_id,
+                "monthly_pnl_pct": monthly_pnl.get("total_pnl_pct"),
+                "yearly_pnl_pct": yearly_pnl.get("total_pnl_pct"),
+            },
+        )
+
+        return {
+            "monthly_pnl": monthly_pnl,
+            "yearly_pnl": yearly_pnl,
+        }
+
+    except Exception as e:
+        logger.warning(
+            f"Failed to initialize PnLService: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        return empty_pnl

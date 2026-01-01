@@ -55,12 +55,6 @@ Parameters:
     Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
 
-  EmailPassword:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Email SMTP password for dev notifications (optional)
-
   # Margin/Leverage configuration
   EquityDeploymentPct:
     Type: String
@@ -90,12 +84,6 @@ Parameters:
     Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint for staging (typically paper trading)
 
-  StagingEmailPassword:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Email SMTP password for staging notifications (optional)
-
   StagingEquityDeploymentPct:
     Type: String
     Default: "1.0"
@@ -118,12 +106,6 @@ Parameters:
     Type: String
     Default: https://api.alpaca.markets
     Description: Alpaca API endpoint for production
-
-  ProdEmailPassword:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Email SMTP password for production notifications (optional)
 
   # Data Function Configuration
   DataRefreshScheduleDev:
@@ -179,13 +161,6 @@ Globals:
         ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
         ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
         ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
-        # Email Configuration
-        EMAIL__SMTP_SERVER: smtp.mail.me.com
-        EMAIL__SMTP_PORT: 587
-        EMAIL__FROM_EMAIL: joshuamoreton1@icloud.com
-        EMAIL__TO_EMAIL: notifications@rwxt.org
-        EMAIL__NEUTRAL_MODE: true
-        EMAIL__PASSWORD: !If [ IsProduction, !Ref ProdEmailPassword, !If [ IsStaging, !Ref StagingEmailPassword, !Ref EmailPassword ] ]
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
@@ -608,7 +583,7 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  # Notifications Layer: pydantic + structlog (minimal footprint)
+  # Notifications Layer: pydantic + structlog + alpaca-py (lightweight)
   NotificationsLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -616,7 +591,7 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-notifications-deps"
         - !Sub "alchemiser-${Stage}-notifications-deps"
-      Description: Notifications Lambda dependencies (pydantic, structlog)
+      Description: Notifications Lambda dependencies (pydantic, structlog, alpaca-py)
       ContentUri: layers/notifications/
       CompatibleRuntimes:
         - python3.12
@@ -1457,7 +1432,7 @@ Resources:
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer        # Shared code (the_alchemiser.shared)
-        - !Ref NotificationsLayer     # Dependencies (pydantic, structlog)
+        - !Ref NotificationsLayer     # alpaca-py (for account metrics)
       Timeout: 60
       MemorySize: 512
       Environment:
@@ -1468,9 +1443,9 @@ Resources:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           NOTIFICATION_DEDUP_TABLE_NAME: !Ref NotificationDedupTable
           # SES Configuration
-          SES_FROM_ADDRESS: notifications@rwxt.org
+          SES_FROM_ADDRESS: noreply@mail.octarine.capital
           SES_FROM_NAME: "The Alchemiser"
-          SES_REPLY_TO_ADDRESS: notifications@rwxt.org
+          SES_REPLY_TO_ADDRESS: noreply@mail.octarine.capital
           SES_REGION: !Ref AWS::Region
           # Environment-safe routing (override recipients in non-prod)
           NOTIFICATIONS_TO_PROD: notifications@rwxt.org
