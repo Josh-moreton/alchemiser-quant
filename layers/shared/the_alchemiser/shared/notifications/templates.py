@@ -12,6 +12,72 @@ from datetime import UTC, datetime
 from typing import Any
 
 
+def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) -> str:
+    """Format P&L metrics as an HTML section.
+
+    Args:
+        monthly_pnl: Monthly P&L data dict with total_pnl, total_pnl_pct, period.
+        yearly_pnl: Yearly P&L data dict with total_pnl, total_pnl_pct, period.
+
+    Returns:
+        HTML snippet for P&L section, or empty string if no data.
+
+    """
+    if not monthly_pnl and not yearly_pnl:
+        return ""
+
+    def format_pnl_value(pnl: float | None, pct: float | None) -> str:
+        if pnl is None:
+            return "N/A"
+        sign = "+" if pnl >= 0 else ""
+        color = "#28a745" if pnl >= 0 else "#dc3545"
+        pct_str = f" ({sign}{pct:.2f}%)" if pct is not None else ""
+        return f'<span style="color: {color};">{sign}${pnl:,.2f}{pct_str}</span>'
+
+    monthly_str = format_pnl_value(monthly_pnl.get("total_pnl"), monthly_pnl.get("total_pnl_pct"))
+    yearly_str = format_pnl_value(yearly_pnl.get("total_pnl"), yearly_pnl.get("total_pnl_pct"))
+
+    return f"""
+        <div style="background-color: #e8f4f8; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">📈 Portfolio Performance</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Past Month:</strong> {monthly_str}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Past Year:</strong> {yearly_str}</p>
+        </div>
+"""
+
+
+def _format_pnl_text(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) -> str:
+    """Format P&L metrics as a plain text section.
+
+    Args:
+        monthly_pnl: Monthly P&L data dict with total_pnl, total_pnl_pct, period.
+        yearly_pnl: Yearly P&L data dict with total_pnl, total_pnl_pct, period.
+
+    Returns:
+        Plain text snippet for P&L section, or empty string if no data.
+
+    """
+    if not monthly_pnl and not yearly_pnl:
+        return ""
+
+    def format_pnl_value(pnl: float | None, pct: float | None) -> str:
+        if pnl is None:
+            return "N/A"
+        sign = "+" if pnl >= 0 else ""
+        pct_str = f" ({sign}{pct:.2f}%)" if pct is not None else ""
+        return f"{sign}${pnl:,.2f}{pct_str}"
+
+    monthly_str = format_pnl_value(monthly_pnl.get("total_pnl"), monthly_pnl.get("total_pnl_pct"))
+    yearly_str = format_pnl_value(yearly_pnl.get("total_pnl"), yearly_pnl.get("total_pnl_pct"))
+
+    return f"""
+PORTFOLIO PERFORMANCE
+---------------------
+• Past Month: {monthly_str}
+• Past Year: {yearly_str}
+"""
+
+
 def format_subject(
     component: str,
     status: str,
@@ -178,6 +244,10 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     candle_age = data_freshness.get("age_days", 0)
     freshness_gate = data_freshness.get("gate_status", "UNKNOWN")
 
+    # Extract P&L metrics
+    monthly_pnl = context.get("monthly_pnl", {})
+    yearly_pnl = context.get("yearly_pnl", {})
+
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
 
@@ -215,10 +285,15 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     if not top_positions:
         body += "                <li>No positions</li>\n"
 
-    body += f"""
+    body += """
             </ul>
         </div>
+"""
 
+    # Add P&L section if data available
+    body += _format_pnl_html(monthly_pnl, yearly_pnl)
+
+    body += f"""
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
             <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
@@ -294,6 +369,10 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     candle_age = data_freshness.get("age_days", 0)
     freshness_gate = data_freshness.get("gate_status", "UNKNOWN")
 
+    # Extract P&L metrics
+    monthly_pnl = context.get("monthly_pnl", {})
+    yearly_pnl = context.get("yearly_pnl", {})
+
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
 
@@ -318,6 +397,9 @@ PORTFOLIO SNAPSHOT (POST-RUN)
 
     if not top_positions:
         body += "  - No positions\n"
+
+    # Add P&L section if data available
+    body += _format_pnl_text(monthly_pnl, yearly_pnl)
 
     body += f"""
 DATA FRESHNESS USED
@@ -387,6 +469,10 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     # Partial success specific
     non_fractionable_skipped = context.get("non_fractionable_skipped_symbols", [])
 
+    # Extract P&L metrics
+    monthly_pnl = context.get("monthly_pnl", {})
+    yearly_pnl = context.get("yearly_pnl", {})
+
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
 
@@ -447,10 +533,15 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     if not top_positions:
         body += "                <li>No positions</li>\n"
 
-    body += f"""
+    body += """
             </ul>
         </div>
+"""
 
+    # Add P&L section if data available
+    body += _format_pnl_html(monthly_pnl, yearly_pnl)
+
+    body += f"""
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
             <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
@@ -532,6 +623,10 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
     # Partial success specific
     non_fractionable_skipped = context.get("non_fractionable_skipped_symbols", [])
 
+    # Extract P&L metrics
+    monthly_pnl = context.get("monthly_pnl", {})
+    yearly_pnl = context.get("yearly_pnl", {})
+
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
 
@@ -578,6 +673,9 @@ and the target quantity rounded to zero:
 
     if not top_positions:
         body += "  - No positions\n"
+
+    # Add P&L section if data available
+    body += _format_pnl_text(monthly_pnl, yearly_pnl)
 
     body += f"""
 DATA FRESHNESS USED

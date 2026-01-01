@@ -321,6 +321,11 @@ class NotificationService:
             "gate_status": data_freshness_raw.get("gate_status", "PASS"),
         }
 
+        # Extract P&L metrics from execution_data (fetched by TradeAggregator)
+        pnl_metrics_raw = execution_data.get("pnl_metrics", {})
+        monthly_pnl = pnl_metrics_raw.get("monthly_pnl", {})
+        yearly_pnl = pnl_metrics_raw.get("yearly_pnl", {})
+
         # Determine status for template
         if is_partial_success:
             status = "PARTIAL_SUCCESS"
@@ -351,6 +356,9 @@ class NotificationService:
             "net_exposure": execution_data.get("net_exposure", 0),
             "top_positions": execution_data.get("top_positions", []),
             "data_freshness": data_freshness,
+            # P&L metrics (from Alpaca via TradeAggregator)
+            "monthly_pnl": monthly_pnl,
+            "yearly_pnl": yearly_pnl,
             "warnings": [],
             "logs_url": self._build_logs_url(event.correlation_id),
             # Partial success specific
@@ -637,7 +645,7 @@ The system is now operating normally.
         </tr>
         <tr>
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Failed</strong></td>
-            <td style="padding: 10px; border: 1px solid #dee2e6; color: {'#dc3545' if failed_count > 0 else '#28a745'};">{failed_count}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; color: {"#dc3545" if failed_count > 0 else "#28a745"};">{failed_count}</td>
         </tr>
         <tr style="background-color: #f8f9fa;">
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Duration</strong></td>
@@ -660,7 +668,7 @@ The system is now operating normally.
 
             text_body = f"""
 DATA LAKE REFRESH {event.status}
-{'=' * 40}
+{"=" * 40}
 
 Environment: {self.stage}
 Total Symbols: {total_symbols}

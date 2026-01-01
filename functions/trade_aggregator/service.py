@@ -208,6 +208,8 @@ class TradeAggregatorService:
             "skipped_trades": int(item.get("skipped_trades", {}).get("N", "0")),
             "status": item.get("status", {}).get("S", "UNKNOWN"),
             "created_at": item.get("created_at", {}).get("S", ""),
+            # Data freshness stored as JSON string in DynamoDB
+            "data_freshness": item.get("data_freshness", {}).get("S", ""),
         }
 
     def get_all_trade_results(self, run_id: str) -> list[dict[str, Any]]:

@@ -451,6 +451,12 @@ class AllTradesCompleted(BaseEvent):
         description="Data freshness info: latest_timestamp, age_days, gate_status",
     )
 
+    # P&L metrics (fetched from Alpaca after trades complete)
+    pnl_metrics: dict[str, Any] = Field(
+        default_factory=dict,
+        description="P&L metrics: monthly_pnl and yearly_pnl with total_pnl, total_pnl_pct",
+    )
+
     @field_validator("capital_deployed_pct", mode="before")
     @classmethod
     def convert_capital_deployed_pct_to_decimal(cls, v: object) -> Decimal | None:
