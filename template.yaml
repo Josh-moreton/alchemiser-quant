@@ -450,6 +450,39 @@ Resources:
         - Key: Service
           Value: rebalance-plans
 
+  # ========== NOTIFICATION DEDUPLICATION TABLE ==========
+  # DynamoDB table for failure deduplication and recovery tracking
+  # Stores dedup state to prevent notification spam and enable recovery emails
+  NotificationDedupTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notification-dedup"
+        - !Sub "alchemiser-${Stage}-notification-dedup"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: notification-dedup
+
   # ========== MARKET DATA FETCH REQUESTS TABLE (PER-STAGE) ==========
   # DynamoDB table for deduplicating concurrent fetch requests from Data Lambda
   # Prevents multiple fetch attempts when data is detected as missing/stale
@@ -1433,6 +1466,18 @@ Resources:
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          NOTIFICATION_DEDUP_TABLE_NAME: !Ref NotificationDedupTable
+          # SES Configuration
+          SES_FROM_ADDRESS: notifications@rwxt.org
+          SES_REPLY_TO_ADDRESS: notifications@rwxt.org
+          SES_REGION: !Ref AWS::Region
+          # Environment-safe routing (override recipients in non-prod)
+          NOTIFICATIONS_TO_PROD: notifications@rwxt.org
+          NOTIFICATIONS_TO_NONPROD: notifications@rwxt.org
+          # Safety: non-prod environments must explicitly enable real emails
+          ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
+          # Dedup configuration
+          DEDUP_QUIET_PERIOD_MINUTES: "120"
       Events:
         # AllTradesCompleted from TradeAggregator (one event per run, no racing)
         AllTradesCompletedEvent:
@@ -1498,6 +1543,21 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - !Sub "${PerformanceReportsBucket.Arn}/*"
+              # SES permissions for email sending
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+              # Notification dedup table access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt NotificationDedupTable.Arn
 
   # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
   # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization
@@ -2064,6 +2124,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-RebalancePlanTable"
         - !Sub "alchemiser-${Stage}-RebalancePlanTable"
+
+  NotificationDedupTableName:
+    Description: "DynamoDB table for notification deduplication and recovery tracking"
+    Value: !Ref NotificationDedupTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-NotificationDedupTable"
+        - !Sub "alchemiser-${Stage}-NotificationDedupTable"
 
   ExecutionFifoQueueUrl:
     Description: "SQS Standard queue for parallel per-trade execution"
