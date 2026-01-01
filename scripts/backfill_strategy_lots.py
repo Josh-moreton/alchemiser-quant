@@ -210,6 +210,13 @@ def fetch_filled_orders(
     for strategy, count in sorted(strategy_counts.items()):
         print(f"  {strategy}: {count}")
 
+    # Show sample client_order_ids for debugging
+    sample_ids = [o.client_order_id for o in filled_orders[:10] if o.client_order_id]
+    if sample_ids:
+        print("\nSample client_order_ids (first 10):")
+        for cid in sample_ids:
+            print(f"  {cid}")
+
     return filled_orders
 
 
