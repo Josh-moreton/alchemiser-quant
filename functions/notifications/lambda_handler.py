@@ -174,6 +174,9 @@ def _build_trading_notification_from_aggregated(
 ) -> TradingNotificationRequested:
     """Build TradingNotificationRequested from AllTradesCompleted event.
 
+    Implements partial success logic: if all failures are due to non-fractionable
+    assets rounding to zero, classify as partial success rather than failure.
+
     Args:
         all_trades_detail: The detail payload from AllTradesCompleted event
         correlation_id: Correlation ID for tracing
@@ -193,12 +196,34 @@ def _build_trading_notification_from_aggregated(
     failed_trades = all_trades_detail.get("failed_trades", 0)
     skipped_trades = all_trades_detail.get("skipped_trades", 0)
 
-    # Trading is successful if there are trades and none failed
-    # Skipped trades don't count as failures
-    trading_success = total_trades > 0 and failed_trades == 0
-
     # Get pre-aggregated execution data
     aggregated_data = all_trades_detail.get("aggregated_execution_data", {})
+
+    # Get symbols categorized by failure type
+    failed_symbols = all_trades_detail.get("failed_symbols", [])
+    non_fractionable_skipped_symbols = all_trades_detail.get(
+        "non_fractionable_skipped_symbols", []
+    )
+
+    # Determine trading success status with partial success logic:
+    # - SUCCESS: All trades succeeded (no failures)
+    # - PARTIAL_SUCCESS: Some failures, but ALL failures are non-fractionable skips
+    # - FAILURE: Some actual failures (not just non-fractionable skips)
+    has_actual_failures = len(failed_symbols) > 0
+    has_non_fractionable_skips = len(non_fractionable_skipped_symbols) > 0
+
+    if total_trades > 0 and failed_trades == 0:
+        # No failures at all - full success
+        trading_success = True
+        is_partial_success = False
+    elif total_trades > 0 and not has_actual_failures and has_non_fractionable_skips:
+        # All failures are non-fractionable skips - partial success
+        trading_success = True  # Mark as success for template selection
+        is_partial_success = True
+    else:
+        # Actual failures exist - failure
+        trading_success = False
+        is_partial_success = False
 
     # Get portfolio snapshot (always fetched from Alpaca by TradeAggregator)
     portfolio_snapshot = all_trades_detail.get("portfolio_snapshot", {})
@@ -225,6 +250,9 @@ def _build_trading_notification_from_aggregated(
         "end_time_utc": completed_at,
         # Data freshness
         "data_freshness": data_freshness,
+        # Partial success context
+        "is_partial_success": is_partial_success,
+        "non_fractionable_skipped_symbols": non_fractionable_skipped_symbols,
     }
 
     # Add report URL to execution_data if available
@@ -234,9 +262,17 @@ def _build_trading_notification_from_aggregated(
     # Extract capital deployed percentage (already captured by TradeAggregator)
     capital_deployed_pct = _extract_capital_deployed_pct(all_trades_detail)
 
-    # Get failed symbols for error reporting
-    failed_symbols = all_trades_detail.get("failed_symbols", [])
-    error_message = f"Failed symbols: {', '.join(failed_symbols)}" if failed_symbols else None
+    # Build error message - include non-fractionable skips info for partial success
+    if is_partial_success:
+        error_message = (
+            f"Partial success: {len(non_fractionable_skipped_symbols)} symbol(s) skipped "
+            f"due to non-fractionable quantity rounding to zero: "
+            f"{', '.join(non_fractionable_skipped_symbols)}"
+        )
+    elif failed_symbols:
+        error_message = f"Failed symbols: {', '.join(failed_symbols)}"
+    else:
+        error_message = None
 
     return TradingNotificationRequested(
         correlation_id=correlation_id,

@@ -29,6 +29,8 @@ from the_alchemiser.shared.notifications.templates import (
     format_subject,
     render_daily_run_failure_html,
     render_daily_run_failure_text,
+    render_daily_run_partial_success_html,
+    render_daily_run_partial_success_text,
     render_daily_run_success_html,
     render_daily_run_success_text,
 )
@@ -265,6 +267,9 @@ class NotificationService:
     def _handle_trading_notification(self, event: TradingNotificationRequested) -> None:
         """Handle trading notification event.
 
+        Supports three outcomes: SUCCESS, PARTIAL_SUCCESS (non-fractionable skips only),
+        and FAILURE (actual trade failures).
+
         Args:
             event: The trading notification event
 
@@ -287,6 +292,10 @@ class NotificationService:
         # Build template context for success/failure email
         execution_data = event.execution_data or {}
         execution_summary = execution_data.get("execution_summary", {})
+
+        # Check if this is a partial success (non-fractionable skips only)
+        is_partial_success = execution_data.get("is_partial_success", False)
+        non_fractionable_skipped = execution_data.get("non_fractionable_skipped_symbols", [])
 
         # Extract timing from execution_data (populated by TradeAggregator)
         start_time_utc = execution_data.get("start_time_utc", "")
@@ -312,8 +321,16 @@ class NotificationService:
             "gate_status": data_freshness_raw.get("gate_status", "PASS"),
         }
 
+        # Determine status for template
+        if is_partial_success:
+            status = "PARTIAL_SUCCESS"
+        elif event.trading_success:
+            status = "SUCCESS"
+        else:
+            status = "FAILURE"
+
         context = {
-            "status": "SUCCESS" if event.trading_success else "FAILURE",
+            "status": status,
             "env": self.stage,
             "mode": event.trading_mode,
             "run_id": event.correlation_id,
@@ -336,15 +353,22 @@ class NotificationService:
             "data_freshness": data_freshness,
             "warnings": [],
             "logs_url": self._build_logs_url(event.correlation_id),
+            # Partial success specific
+            "non_fractionable_skipped_symbols": non_fractionable_skipped,
         }
 
         try:
-            # Render templates
-            if event.trading_success:
+            # Render templates based on status
+            if is_partial_success:
+                # Partial success: non-fractionable skips only, rest succeeded
+                html_body = render_daily_run_partial_success_html(context)
+                text_body = render_daily_run_partial_success_text(context)
+            elif event.trading_success:
+                # Full success
                 html_body = render_daily_run_success_html(context)
                 text_body = render_daily_run_success_text(context)
             else:
-                # For failures, add error details
+                # Actual failures
                 context.update(
                     {
                         "failed_step": "execution",
@@ -368,7 +392,6 @@ class NotificationService:
                 text_body = render_daily_run_failure_text(context)
 
             # Build subject
-            status = "SUCCESS" if event.trading_success else "FAILURE"
             subject = format_subject(
                 component="Daily Run",
                 status=status,
@@ -390,7 +413,8 @@ class NotificationService:
             if result.get("status") == "sent":
                 self._log_event_context(
                     event,
-                    f"Trading notification sent via SES (message_id={result.get('message_id')}, success={event.trading_success})",
+                    f"Trading notification sent via SES (message_id={result.get('message_id')}, "
+                    f"status={status}, partial_success={is_partial_success})",
                 )
             else:
                 self._log_event_context(

@@ -194,6 +194,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             aggregated_execution_data=aggregated_data,
             capital_deployed_pct=capital_deployed_pct,
             failed_symbols=aggregated_data.get("failed_symbols", []),
+            non_fractionable_skipped_symbols=aggregated_data.get(
+                "non_fractionable_skipped_symbols", []
+            ),
             started_at=started_at,
             completed_at=completed_at,
             portfolio_snapshot=portfolio_snapshot,

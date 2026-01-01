@@ -328,12 +328,17 @@ class TradeAggregatorService:
     ) -> dict[str, Any]:
         """Aggregate trade results into summary for AllTradesCompleted event.
 
+        Separates actual failures from expected skips (non-fractionable assets
+        where quantity rounds to zero). This enables partial success emails
+        when only non-fractionable skips occurred.
+
         Args:
             run_metadata: Run metadata from DynamoDB.
             trade_results: List of individual trade results.
 
         Returns:
-            Aggregated execution data dict.
+            Aggregated execution data dict with failed_symbols and
+            non_fractionable_skipped_symbols separated.
 
         """
         total_trades = run_metadata.get("total_trades", len(trade_results))
@@ -344,6 +349,10 @@ class TradeAggregatorService:
         total_value = Decimal("0")
         orders_executed: list[dict[str, Any]] = []
         failed_symbols: list[str] = []
+        non_fractionable_skipped_symbols: list[str] = []
+
+        # Pattern to identify non-fractionable skips in error messages
+        non_fractionable_pattern = "rounds to zero"
 
         for trade in trade_results:
             trade_amount = trade.get("trade_amount", Decimal("0"))
@@ -362,8 +371,19 @@ class TradeAggregatorService:
 
             if trade.get("status") == "FAILED":
                 symbol = trade.get("symbol", "unknown")
-                if symbol not in failed_symbols:
-                    failed_symbols.append(symbol)
+                error_message = trade.get("error_message", "") or ""
+
+                # Categorize: non-fractionable skip vs actual failure
+                if non_fractionable_pattern in error_message.lower():
+                    if symbol not in non_fractionable_skipped_symbols:
+                        non_fractionable_skipped_symbols.append(symbol)
+                        logger.debug(
+                            f"Categorized {symbol} as non-fractionable skip",
+                            extra={"error_message": error_message},
+                        )
+                else:
+                    if symbol not in failed_symbols:
+                        failed_symbols.append(symbol)
 
         return {
             "orders_executed": orders_executed,
@@ -374,4 +394,5 @@ class TradeAggregatorService:
                 "total_value": str(total_value),
             },
             "failed_symbols": failed_symbols,
+            "non_fractionable_skipped_symbols": non_fractionable_skipped_symbols,
         }
