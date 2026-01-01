@@ -302,6 +302,18 @@ class DynamoDBTradeLedgerRepository:
             trades_by_symbol[symbol].append(item)
         return trades_by_symbol
 
+    def _is_valid_trade_for_fifo(self, trade: dict[str, Any]) -> bool:
+        """Check if a trade has required fields for FIFO P&L calculation.
+
+        Args:
+            trade: Trade item from DynamoDB
+
+        Returns:
+            True if trade has quantity and price fields, False otherwise
+
+        """
+        return trade.get("quantity") is not None and trade.get("price") is not None
+
     def _match_trades_fifo(self, symbol_trades: list[dict[str, Any]]) -> Decimal:
         """Match SELL trades against BUY trades using FIFO for a single symbol.
 
@@ -312,15 +324,35 @@ class DynamoDBTradeLedgerRepository:
             Total realized P&L from matched buy-sell pairs for this symbol
 
         """
-        # Separate into buy and sell queues
+        # Separate into buy and sell queues, filtering out trades without required fields
         buy_queue: list[dict[str, Any]] = []
         sell_queue: list[dict[str, Any]] = []
+        skipped_count = 0
 
         for trade in symbol_trades:
+            # Skip trades missing quantity or price (legacy data or schema mismatch)
+            if not self._is_valid_trade_for_fifo(trade):
+                skipped_count += 1
+                logger.warning(
+                    "Skipping trade missing quantity/price for FIFO matching",
+                    order_id=trade.get("order_id"),
+                    symbol=trade.get("symbol"),
+                    direction=trade.get("direction"),
+                    has_quantity=trade.get("quantity") is not None,
+                    has_price=trade.get("price") is not None,
+                )
+                continue
+
             if trade["direction"] == "BUY":
                 buy_queue.append(trade)
             else:
                 sell_queue.append(trade)
+
+        if skipped_count > 0:
+            logger.info(
+                f"Skipped {skipped_count} trades without quantity/price data",
+                symbol=symbol_trades[0].get("symbol") if symbol_trades else "unknown",
+            )
 
         # Match sells against buys using FIFO
         realized_pnl = Decimal("0")
@@ -331,36 +363,32 @@ class DynamoDBTradeLedgerRepository:
             buy_trade = buy_queue[buy_idx]
             sell_trade = sell_queue[sell_idx]
 
-            # Extract and validate quantities and prices
-            buy_qty_raw = buy_trade.get("quantity")
-            sell_qty_raw = sell_trade.get("quantity")
-            buy_price_raw = buy_trade.get("price")
-            sell_price_raw = sell_trade.get("price")
-
-            if buy_qty_raw is None or sell_qty_raw is None:
-                raise ValueError(
-                    f"Missing quantity in trade data: buy={buy_qty_raw}, sell={sell_qty_raw}"
-                )
-            if buy_price_raw is None or sell_price_raw is None:
-                raise ValueError(
-                    f"Missing price in trade data: buy={buy_price_raw}, sell={sell_price_raw}"
-                )
-
-            buy_qty = Decimal(buy_qty_raw)
-            sell_qty = Decimal(sell_qty_raw)
-            buy_price = Decimal(buy_price_raw)
-            sell_price = Decimal(sell_price_raw)
+            # Extract quantities and prices (validated above)
+            buy_qty = Decimal(buy_trade["quantity"])
+            sell_qty = Decimal(sell_trade["quantity"])
+            buy_price = Decimal(buy_trade["price"])
+            sell_price = Decimal(sell_trade["price"])
 
             # Enforce 1:1 matching by quantity
             if buy_qty != sell_qty:
-                raise ValueError(
-                    f"Trade quantity mismatch in FIFO matching: buy_qty={buy_qty}, sell_qty={sell_qty}. "
-                    "Trades must be matched 1:1 by quantity. Ensure input data is pre-aggregated or weighted appropriately."
+                # Log warning but continue with partial matching to avoid blocking reports
+                logger.warning(
+                    "Trade quantity mismatch in FIFO matching, using minimum quantity",
+                    buy_qty=str(buy_qty),
+                    sell_qty=str(sell_qty),
+                    buy_order_id=buy_trade.get("order_id"),
+                    sell_order_id=sell_trade.get("order_id"),
                 )
-
-            realized_pnl += (sell_price - buy_price) * buy_qty
-            buy_idx += 1
-            sell_idx += 1
+                # Use smaller quantity for P&L calculation
+                matched_qty = min(buy_qty, sell_qty)
+                realized_pnl += (sell_price - buy_price) * matched_qty
+                # Advance both indices since we can't do partial lot tracking
+                buy_idx += 1
+                sell_idx += 1
+            else:
+                realized_pnl += (sell_price - buy_price) * buy_qty
+                buy_idx += 1
+                sell_idx += 1
 
         return realized_pnl
 
