@@ -394,6 +394,9 @@ class TradeAggregatorService:
                 "succeeded": succeeded,
                 "failed": failed,
                 "total_value": str(total_value),
+                "symbols_evaluated": total_trades,  # Approximation: total planned trades
+                "eligible_signals": total_trades,  # Approximation: all planned trades are eligible signals
+                "blocked_by_risk": failed,  # Approximation: failed trades = blocked by risk (conservative estimate)
             },
             "failed_symbols": failed_symbols,
             "non_fractionable_skipped_symbols": non_fractionable_skipped_symbols,

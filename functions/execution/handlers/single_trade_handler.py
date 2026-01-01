@@ -1300,13 +1300,18 @@ class SingleTradeHandler:
             return
 
         try:
-            # No quote data available in this context - executor was cleaned up
-            # TODO: Consider passing executor or quote data if needed
+            # Extract strategy attribution from TradeMessage metadata
+            # This carries the strategy_attribution dict from the original RebalancePlan
+            strategy_attribution = None
+            if trade_message.metadata:
+                strategy_attribution = trade_message.metadata.get("strategy_attribution")
+
             self.trade_ledger.record_filled_order(
                 order_result=order_result,
                 correlation_id=correlation_id,
-                rebalance_plan=None,  # TODO: Pass rebalance plan if needed for attribution
+                rebalance_plan=None,
                 quote_at_fill=None,
+                strategy_attribution=strategy_attribution,
             )
 
             self.logger.info(

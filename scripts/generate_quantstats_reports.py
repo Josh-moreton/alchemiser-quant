@@ -74,10 +74,10 @@ def main() -> int:
     logger.info(f"  Days lookback: {days_lookback}")
 
     # Import modules after validation (faster failure on missing config)
-    from quantstats.benchmark_service import BenchmarkService
-    from quantstats.report_generator import ReportGenerator
-    from quantstats.returns_builder import ReturnsBuilder
-    from quantstats.s3_uploader import (
+    from quantstats_reports.benchmark_service import BenchmarkService
+    from quantstats_reports.report_generator import ReportGenerator
+    from quantstats_reports.returns_builder import ReturnsBuilder
+    from quantstats_reports.s3_uploader import (
         ManifestEntry,
         ReportsManifest,
         S3Uploader,

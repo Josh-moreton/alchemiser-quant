@@ -83,6 +83,7 @@ class TradeLedgerService:
         correlation_id: str,
         rebalance_plan: RebalancePlan | None = None,
         quote_at_fill: QuoteModel | None = None,
+        strategy_attribution: dict[str, dict[str, float]] | None = None,
     ) -> TradeLedgerEntry | None:
         """Record a filled order to the trade ledger.
 
@@ -95,6 +96,9 @@ class TradeLedgerService:
             correlation_id: Correlation ID for traceability
             rebalance_plan: Optional rebalance plan with strategy attribution metadata
             quote_at_fill: Optional market quote at time of fill
+            strategy_attribution: Optional direct strategy attribution from TradeMessage
+                metadata. Format: {symbol: {strategy_name: weight_float}}
+                Takes precedence over rebalance_plan metadata when provided.
 
         Returns:
             TradeLedgerEntry if order was filled and recorded, None otherwise
@@ -106,7 +110,7 @@ class TradeLedgerService:
 
         # Extract strategy attribution (with client_order_id fallback)
         strategy_names, strategy_weights = self._extract_strategy_attribution(
-            order_result.symbol, rebalance_plan, order_result
+            order_result.symbol, rebalance_plan, order_result, strategy_attribution
         )
 
         # Extract and validate quote data
@@ -312,17 +316,21 @@ class TradeLedgerService:
         symbol: str,
         rebalance_plan: RebalancePlan | None,
         order_result: OrderResult | None = None,
+        direct_attribution: dict[str, dict[str, float]] | None = None,
     ) -> tuple[list[str], dict[str, Decimal] | None]:
-        """Extract strategy attribution from rebalance plan metadata or client_order_id.
+        """Extract strategy attribution from direct attribution, rebalance plan, or client_order_id.
 
         Attempts attribution in order:
-        1. Rebalance plan metadata (has full multi-strategy weights)
-        2. Client order ID parsing (fallback for single-strategy attribution)
+        1. Direct attribution dict (from TradeMessage.metadata)
+        2. Rebalance plan metadata (has full multi-strategy weights)
+        3. Client order ID parsing (fallback for single-strategy attribution)
 
         Args:
             symbol: Trading symbol
             rebalance_plan: Optional rebalance plan with strategy metadata
             order_result: Optional order result with client_order_id for fallback
+            direct_attribution: Optional direct strategy attribution dict from
+                TradeMessage.metadata. Format: {symbol: {strategy_name: weight_float}}
 
         Returns:
             Tuple of (strategy_names, strategy_weights)
@@ -331,7 +339,27 @@ class TradeLedgerService:
         # Normalize symbol for lookup
         symbol_upper = symbol.strip().upper()
 
-        # Try rebalance plan metadata first (has full multi-strategy weights)
+        # Try direct attribution first (from TradeMessage.metadata)
+        if direct_attribution:
+            symbol_attr = direct_attribution.get(symbol_upper, {}) or direct_attribution.get(
+                symbol, {}
+            )
+            if symbol_attr:
+                strategy_names = list(symbol_attr.keys())
+                strategy_weights = {
+                    name: Decimal(str(weight)) for name, weight in symbol_attr.items()
+                }
+                logger.debug(
+                    "Strategy attribution from direct attribution",
+                    extra={
+                        "symbol": symbol_upper,
+                        "strategies": strategy_names,
+                        "source": "direct_attribution",
+                    },
+                )
+                return strategy_names, strategy_weights
+
+        # Try rebalance plan metadata second (has full multi-strategy weights)
         if rebalance_plan and rebalance_plan.metadata:
             strategy_attr = rebalance_plan.metadata.get("strategy_attribution", {})
             # Try exact match and uppercase fallback
