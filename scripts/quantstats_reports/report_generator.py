@@ -8,10 +8,20 @@ using the QuantStats library.
 
 from __future__ import annotations
 
-import io
 import logging
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+# Configure matplotlib to use a system-available font before importing quantstats
+# This prevents "Font family 'Arial' not found" warnings on Linux/CI systems
+import matplotlib
+
+matplotlib.use("Agg")  # Use non-interactive backend for headless environments
+import matplotlib.pyplot as plt
+
+# Use DejaVu Sans which is available on most systems including Ubuntu
+plt.rcParams["font.family"] = "DejaVu Sans"
 
 import pandas as pd
 import quantstats as qs
@@ -108,14 +118,15 @@ class ReportGenerator:
         )
 
         try:
-            # Generate HTML to string buffer
-            output = io.StringIO()
+            # Generate HTML to a temporary file (qs.reports.html expects a file path, not StringIO)
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as tmp:
+                tmp_path = tmp.name
 
             if benchmark_returns is not None and not benchmark_returns.empty:
                 qs.reports.html(
                     returns,
                     benchmark=benchmark_returns,
-                    output=output,
+                    output=tmp_path,
                     title=title,
                     rf=self._rf,
                     periods_per_year=self._periods,
@@ -124,14 +135,17 @@ class ReportGenerator:
                 # No benchmark - generate without comparison
                 qs.reports.html(
                     returns,
-                    output=output,
+                    output=tmp_path,
                     title=title,
                     rf=self._rf,
                     periods_per_year=self._periods,
                 )
 
-            html_content = output.getvalue()
-            output.close()
+            # Read the generated HTML content
+            html_content = Path(tmp_path).read_text(encoding="utf-8")
+
+            # Clean up temp file
+            Path(tmp_path).unlink(missing_ok=True)
 
             # Optionally save to file
             if output_path:
