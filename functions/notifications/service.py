@@ -177,7 +177,7 @@ class NotificationService:
         }
 
         # Check if we should send this failure email (dedup)
-        component = "Daily Run"  # Default for now; can be extracted from event later
+        component = "daily run"  # Default for now; can be extracted from event later
         failed_step = event.error_title  # Use title as failed step
         run_id = event.correlation_id
 
@@ -401,7 +401,7 @@ class NotificationService:
 
             # Build subject
             subject = format_subject(
-                component="Daily Run",
+                component="daily run",
                 status=status,
                 env=self.stage,
                 run_id=event.correlation_id,
@@ -493,7 +493,7 @@ The system is now operating normally.
 """
 
         subject = format_subject(
-            component="Daily Run",
+            component="daily run",
             status="RECOVERED",
             env=self.stage,
             run_id=event.correlation_id,

@@ -87,24 +87,20 @@ def format_subject(
 ) -> str:
     """Format email subject line following strict spec.
 
-    Format: Alchemiser <Component> — <STATUS> — <YYYY-MM-DD> — <env> — run_id=<run_id>
+    Format: Alchemiser <env> <component> - <STATUS>
 
     Args:
-        component: Component name (e.g., "Daily Run", "Data Lake Update")
+        component: Component name (e.g., "daily run", "data lake update")
         status: Status (SUCCESS, SUCCESS_WITH_WARNINGS, FAILURE, RECOVERED)
         env: Environment (dev/staging/prod)
-        run_id: Run ID (short form, e.g., "8f3c1a")
-        run_date: Optional run date (defaults to today)
+        run_id: Unused; retained for backward compatibility
+        run_date: Unused; retained for backward compatibility
 
     Returns:
         Formatted subject line
 
     """
-    if run_date is None:
-        run_date = datetime.now(UTC)
-
-    date_str = run_date.strftime("%Y-%m-%d")
-    return f"Alchemiser {component} — {status} — {date_str} — {env} — run_id={run_id}"
+    return f"Alchemiser {env} {component} - {status}"
 
 
 def render_html_header(component: str, status: str) -> str:
