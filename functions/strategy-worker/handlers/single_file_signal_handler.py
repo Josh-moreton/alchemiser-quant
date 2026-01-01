@@ -57,8 +57,21 @@ class SingleFileSignalHandler:
         try:
             strategies_path = importlib_resources.files("the_alchemiser.shared.strategies")
         except (ModuleNotFoundError, AttributeError):
-            # Fallback for local development
-            strategies_path = Path(__file__).parent.parent / "strategies"
+            # Fallback for local development - navigate from functions/strategy-worker/handlers/
+            # to project root, then to layer path
+            strategies_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "layers"
+                / "shared"
+                / "the_alchemiser"
+                / "shared"
+                / "strategies"
+            )
+            if not strategies_path.exists():
+                raise FileNotFoundError(
+                    f"Strategies directory not found at: {strategies_path}. "
+                    "Ensure the layer structure exists."
+                )
             logger.warning("Using local strategies path (not Lambda layer)")
 
         # Get market data adapter from container (with live bar injection if configured)

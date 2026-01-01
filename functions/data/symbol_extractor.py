@@ -159,17 +159,28 @@ def extract_symbols_from_config(
                     symbol_count=len(symbols),
                 )
             else:
-                logger.warning(
-                    "Strategy file not found",
+                # Fail loudly - missing strategy files indicate deployment/config issues
+                logger.error(
+                    "Strategy file not found - cannot extract symbols",
                     strategy=strategy_file,
                     path=str(file_path),
                 )
+                raise FileNotFoundError(
+                    f"Strategy file not found: {strategy_file} at {file_path}"
+                )
+        except FileNotFoundError:
+            # Re-raise file not found errors (don't swallow them)
+            raise
         except Exception as e:
-            logger.warning(
-                "Failed to extract symbols from strategy",
+            # Fail loudly - extraction failures indicate malformed strategy files
+            logger.error(
+                "Failed to extract symbols from strategy - file may be malformed",
                 strategy=strategy_file,
                 error=str(e),
             )
+            raise RuntimeError(
+                f"Failed to extract symbols from strategy {strategy_file}: {e}"
+            ) from e
 
     return all_symbols
 
@@ -193,38 +204,59 @@ def get_all_configured_symbols() -> set[str]:
         config_path = importlib_resources.files(config_package)
         strategies_path = importlib_resources.files(strategies_package)
     except (ModuleNotFoundError, AttributeError) as e:
+        # Fail loudly - missing layer packages means deployment is broken
+        # An empty symbol set would skip all data refresh, which is catastrophic
         logger.error(
-            "Failed to locate shared layer packages",
+            "Failed to locate shared layer packages - cannot extract symbols",
             error=str(e),
             config_package=config_package,
             strategies_package=strategies_package,
         )
-        return set()
+        raise RuntimeError(
+            f"Cannot locate shared layer packages ({config_package}, {strategies_package}): {e}"
+        ) from e
 
     # Process both dev and prod configs
+    configs_processed = 0
+    config_errors: list[str] = []
+    
     for config_name in ["strategy.dev.json", "strategy.prod.json"]:
         config_file = config_path / config_name
         try:
             if config_file.is_file():
                 symbols = extract_symbols_from_config(config_file, strategies_path)
                 all_symbols.update(symbols)
+                configs_processed += 1
                 logger.info(
                     "Processed config file",
                     config=config_name,
                     total_symbols=len(symbols),
                 )
             else:
-                logger.warning(
+                # Log as error but continue - at least one config should exist
+                error_msg = f"Config file not found: {config_name} at {config_file}"
+                config_errors.append(error_msg)
+                logger.error(
                     "Config file not found",
                     config=config_name,
                     path=str(config_file),
                 )
         except Exception as e:
-            logger.warning(
+            # Fail loudly on config processing errors
+            logger.error(
                 "Failed to process config file",
                 config=config_name,
                 error=str(e),
             )
+            raise RuntimeError(
+                f"Failed to process config file {config_name}: {e}"
+            ) from e
+
+    # Ensure at least one config was processed successfully
+    if configs_processed == 0:
+        raise RuntimeError(
+            f"No strategy config files found. Errors: {'; '.join(config_errors)}"
+        )
 
     logger.info(
         "Total unique symbols extracted",
