@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from core.portfolio_service import PortfolioServiceV2
+
 from the_alchemiser.shared.errors.exceptions import (
     DataProviderError,
     MarketDataError,
@@ -45,8 +47,6 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
 )
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trade_message import TradeMessage
-
-from core.portfolio_service import PortfolioServiceV2
 
 # Module name constant for consistent logging and error reporting
 MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
@@ -929,6 +929,7 @@ class PortfolioAnalysisHandler:
                     correlation_id=original_event.correlation_id,
                     causation_id=original_event.event_id,
                     alpaca_equity=alpaca_equity,
+                    data_freshness=original_event.data_freshness,
                 )
 
             # Emit RebalancePlanned event to internal event bus (for lambda_handler capture)
@@ -944,6 +945,7 @@ class PortfolioAnalysisHandler:
                 allocation_comparison=allocation_comparison,
                 trades_required=trades_required,
                 metadata=rebalance_plan.metadata or {},
+                data_freshness=original_event.data_freshness,
             )
             self.event_bus.publish(rebalance_planned_event)
             self.logger.debug(
@@ -994,6 +996,7 @@ class PortfolioAnalysisHandler:
         causation_id: str,
         *,
         alpaca_equity: Decimal | None = None,
+        data_freshness: dict[str, Any] | None = None,
     ) -> None:
         """Decompose rebalance plan and enqueue to SQS Standard queue for parallel execution.
 
@@ -1012,6 +1015,7 @@ class PortfolioAnalysisHandler:
             correlation_id: Workflow correlation ID.
             causation_id: Event that caused this operation.
             alpaca_equity: Alpaca account equity for circuit breaker calculation.
+            data_freshness: Data freshness info from strategy phase.
 
         """
         import boto3
@@ -1122,6 +1126,7 @@ class PortfolioAnalysisHandler:
             run_timestamp=run_timestamp,
             enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
             max_equity_limit_usd=max_equity_limit_usd,  # Circuit breaker limit
+            data_freshness=data_freshness,  # Propagate for email notifications
         )
 
         # Enqueue trades to FIFO SQS queue (parallel execution with exactly-once processing)

@@ -24,6 +24,7 @@ from core.smart_execution_strategy import ExecutionConfig
 from models.execution_result import (
     ExecutionResult,
 )
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors import (
     ConfigurationError,

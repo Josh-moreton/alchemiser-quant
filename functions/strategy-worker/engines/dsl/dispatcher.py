@@ -12,11 +12,10 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import structlog
-
-from the_alchemiser.shared.schemas.ast_node import ASTNode
-
 from engines.dsl.context import DslContext
 from engines.dsl.types import DslEvaluationError, DSLValue
+
+from the_alchemiser.shared.schemas.ast_node import ASTNode
 
 logger = structlog.get_logger(__name__)
 

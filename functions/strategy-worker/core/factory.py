@@ -9,11 +9,12 @@ strategy orchestrators with market data adapters.
 
 from __future__ import annotations
 
+from adapters.market_data_adapter import StrategyMarketDataAdapter
+from core.orchestrator import SingleStrategyOrchestrator
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors import ConfigurationError, ValidationError
 from the_alchemiser.shared.logging import get_logger
-from adapters.market_data_adapter import StrategyMarketDataAdapter
-from core.orchestrator import SingleStrategyOrchestrator
 
 logger = get_logger(__name__)
 

@@ -15,13 +15,12 @@ from decimal import Decimal
 from typing import Any, Literal, cast
 
 import structlog
-
-from the_alchemiser.shared.schemas.ast_node import ASTNode
-from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
-
 from engines.dsl.context import DecisionNode, DslContext
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.types import DslEvaluationError, DSLValue
+
+from the_alchemiser.shared.schemas.ast_node import ASTNode
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 
 # Initialize structured logger
 logger = structlog.get_logger(__name__)

@@ -97,6 +97,7 @@ class ExecutionRunService:
         *,
         enqueue_sells_only: bool = False,
         max_equity_limit_usd: Decimal | None = None,
+        data_freshness: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a new execution run with optional two-phase execution.
 
@@ -118,6 +119,7 @@ class ExecutionRunService:
             enqueue_sells_only: If True, only SELL trades are enqueued now.
             max_equity_limit_usd: Maximum allowed equity deployment (circuit breaker limit).
                 Calculated as portfolio_equity * EQUITY_DEPLOYMENT_PCT.
+            data_freshness: Data freshness info from strategy phase.
 
         Returns:
             Run metadata dict.
@@ -174,6 +176,12 @@ class ExecutionRunService:
                 "trade_ids": {"L": [{"S": msg.trade_id} for msg in trade_messages]},
             },
         )
+
+        # Store data freshness as JSON if provided
+        if data_freshness:
+            import json
+
+            item["data_freshness"] = {"S": json.dumps(data_freshness)}
 
         self._client.put_item(TableName=self._table_name, Item=item)
 

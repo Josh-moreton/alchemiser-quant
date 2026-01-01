@@ -16,6 +16,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from config import TradeAggregatorSettings
+from service import TradeAggregatorService
+
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import AllTradesCompleted, WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
@@ -23,9 +26,6 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     unwrap_eventbridge_event,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-
-from config import TradeAggregatorSettings
-from service import TradeAggregatorService
 
 # Initialize logging on cold start
 configure_application_logging()
@@ -156,8 +156,26 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Aggregate trade results
         aggregated_data = aggregator_service.aggregate_trade_results(run_metadata, trade_results)
 
-        # Capture capital deployed percentage
-        capital_deployed_pct = _capture_capital_deployed_pct(correlation_id)
+        # Capture capital deployed percentage and portfolio snapshot
+        capital_deployed_pct, portfolio_snapshot = _capture_portfolio_state(correlation_id)
+
+        # Get timing info from run metadata
+        started_at = run_metadata.get("created_at", "")
+        completed_at = datetime.now(UTC).isoformat()
+
+        # Get data freshness from run metadata (stored as JSON string)
+        import json
+
+        data_freshness_raw = run_metadata.get("data_freshness")
+        data_freshness = None
+        if data_freshness_raw:
+            try:
+                data_freshness = json.loads(data_freshness_raw)
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Failed to parse data_freshness from run metadata",
+                    extra={"run_id": run_id, "data_freshness_raw": data_freshness_raw},
+                )
 
         # Build and publish AllTradesCompleted event
         all_trades_event = AllTradesCompleted(
@@ -176,6 +194,10 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             aggregated_execution_data=aggregated_data,
             capital_deployed_pct=capital_deployed_pct,
             failed_symbols=aggregated_data.get("failed_symbols", []),
+            started_at=started_at,
+            completed_at=completed_at,
+            portfolio_snapshot=portfolio_snapshot,
+            data_freshness=data_freshness,
         )
 
         # Publish to EventBridge (triggers Notifications Lambda)
@@ -268,8 +290,131 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         }
 
 
+def _capture_portfolio_state(correlation_id: str) -> tuple[Decimal | None, dict[str, Any]]:
+    """Capture portfolio state from Alpaca account.
+
+    Called once per run after all trades complete. Returns both capital deployed
+    percentage and full portfolio snapshot for email notifications.
+
+    Args:
+        correlation_id: Correlation ID for tracing.
+
+    Returns:
+        Tuple of (capital_deployed_pct, portfolio_snapshot dict).
+        portfolio_snapshot contains: equity, cash, gross_exposure, net_exposure, top_positions
+
+    """
+    empty_snapshot: dict[str, Any] = {
+        "equity": 0,
+        "cash": 0,
+        "gross_exposure": 0,
+        "net_exposure": 0,
+        "top_positions": [],
+    }
+
+    try:
+        # Create minimal container for Alpaca access
+        container = ApplicationContainer.create_for_notifications("production")
+        alpaca_manager = container.infrastructure.alpaca_manager()
+        account = alpaca_manager.get_account_object()
+
+        if not account:
+            logger.warning(
+                "Failed to fetch account for portfolio state capture",
+                extra={"correlation_id": correlation_id},
+            )
+            return None, empty_snapshot
+
+        equity = Decimal(str(account.equity))
+        cash = Decimal(str(account.cash)) if account.cash else Decimal("0")
+        long_market_value = (
+            Decimal(str(account.long_market_value)) if account.long_market_value else Decimal("0")
+        )
+        short_market_value = (
+            Decimal(str(account.short_market_value)) if account.short_market_value else Decimal("0")
+        )
+
+        # Calculate exposures
+        if equity > 0:
+            gross_exposure = (long_market_value + abs(short_market_value)) / equity
+            net_exposure = (long_market_value - abs(short_market_value)) / equity
+            capital_deployed_pct = (long_market_value / equity) * Decimal("100")
+        else:
+            gross_exposure = Decimal("0")
+            net_exposure = Decimal("0")
+            capital_deployed_pct = None
+
+        # Fetch positions for top positions list
+        top_positions: list[dict[str, Any]] = []
+        try:
+            positions = alpaca_manager.get_positions()
+            if positions and equity > 0:
+                # Sort by market value descending
+                sorted_positions = sorted(
+                    positions,
+                    key=lambda p: abs(float(p.market_value)) if p.market_value else 0,
+                    reverse=True,
+                )
+                for pos in sorted_positions[:5]:  # Top 5 positions
+                    market_value = (
+                        Decimal(str(pos.market_value)) if pos.market_value else Decimal("0")
+                    )
+                    weight = (market_value / equity) * Decimal("100")
+                    top_positions.append(
+                        {
+                            "symbol": pos.symbol,
+                            "weight": float(weight.quantize(Decimal("0.1"))),
+                            "market_value": float(market_value),
+                            "qty": float(pos.qty) if pos.qty else 0,
+                        }
+                    )
+        except Exception as pos_error:
+            logger.warning(
+                f"Failed to fetch positions for top positions list: {pos_error}",
+                extra={"correlation_id": correlation_id},
+            )
+
+        portfolio_snapshot: dict[str, Any] = {
+            "equity": float(equity),
+            "cash": float(cash),
+            "gross_exposure": float(gross_exposure.quantize(Decimal("0.01"))),
+            "net_exposure": float(net_exposure.quantize(Decimal("0.01"))),
+            "top_positions": top_positions,
+        }
+
+        logger.info(
+            f"📊 Portfolio captured: equity=${equity:,.2f}, cash=${cash:,.2f}, "
+            f"gross={gross_exposure:.2f}x, positions={len(top_positions)}",
+            extra={
+                "correlation_id": correlation_id,
+                "capital_deployed_pct": str(capital_deployed_pct)
+                if capital_deployed_pct
+                else "N/A",
+                "equity": str(equity),
+                "cash": str(cash),
+            },
+        )
+
+        return (
+            capital_deployed_pct.quantize(Decimal("0.01")) if capital_deployed_pct else None,
+            portfolio_snapshot,
+        )
+
+    except Exception as e:
+        logger.warning(
+            f"Failed to capture portfolio state: {e}",
+            extra={
+                "correlation_id": correlation_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        return None, empty_snapshot
+
+
 def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
     """Capture capital deployed percentage from Alpaca account.
+
+    DEPRECATED: Use _capture_portfolio_state instead which returns both metrics.
 
     Called once per run after all trades complete.
 
@@ -280,52 +425,5 @@ def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
         Capital deployed as a percentage (0-100), or None if calculation fails.
 
     """
-    try:
-        # Create minimal container for Alpaca access
-        container = ApplicationContainer.create_for_notifications("production")
-        alpaca_manager = container.infrastructure.alpaca_manager()
-        account = alpaca_manager.get_account_object()
-
-        if not account:
-            logger.warning(
-                "Failed to fetch account for capital deployed calculation",
-                extra={"correlation_id": correlation_id},
-            )
-            return None
-
-        equity = Decimal(str(account.equity))
-        long_market_value = (
-            Decimal(str(account.long_market_value)) if account.long_market_value else Decimal("0")
-        )
-
-        if equity <= 0:
-            logger.warning(
-                "Account equity is zero or negative",
-                extra={"correlation_id": correlation_id, "equity": str(equity)},
-            )
-            return None
-
-        capital_deployed_pct = (long_market_value / equity) * Decimal("100")
-
-        logger.info(
-            f"📊 Capital deployed: {capital_deployed_pct:.2f}% "
-            f"(positions: ${long_market_value:,.2f} / equity: ${equity:,.2f})",
-            extra={
-                "correlation_id": correlation_id,
-                "capital_deployed_pct": str(capital_deployed_pct),
-                "long_market_value": str(long_market_value),
-                "equity": str(equity),
-            },
-        )
-
-        return capital_deployed_pct.quantize(Decimal("0.01"))
-
-    except Exception as e:
-        logger.warning(
-            f"Failed to calculate capital deployed percentage: {e}",
-            extra={
-                "correlation_id": correlation_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        return None
+    capital_pct, _ = _capture_portfolio_state(correlation_id)
+    return capital_pct

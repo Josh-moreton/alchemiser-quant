@@ -18,17 +18,17 @@ import uuid
 from decimal import Decimal
 from typing import Literal, cast
 
+from engines.dsl.context import DslContext
+from engines.dsl.dispatcher import DslDispatcher
+from engines.dsl.operators.control_flow import create_indicator_with_symbol
+from engines.dsl.types import DslEvaluationError, DSLValue
+
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import (
     IndicatorRequest,
     PortfolioFragment,
 )
-
-from engines.dsl.context import DslContext
-from engines.dsl.dispatcher import DslDispatcher
-from engines.dsl.types import DslEvaluationError, DSLValue
-from engines.dsl.operators.control_flow import create_indicator_with_symbol
 
 logger = get_logger(__name__)
 

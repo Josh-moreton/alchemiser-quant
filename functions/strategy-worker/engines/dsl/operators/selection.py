@@ -15,12 +15,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.ast_node import ASTNode
-
 from engines.dsl.context import DslContext
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.types import DslEvaluationError
+
+from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.ast_node import ASTNode
 
 logger = get_logger(__name__)
 

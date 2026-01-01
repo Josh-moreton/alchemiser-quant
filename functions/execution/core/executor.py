@@ -10,7 +10,6 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, TypedDict
 
 import structlog
-
 from core.market_order_executor import MarketOrderExecutor
 from core.order_finalizer import OrderFinalizer
 from core.phase_executor import PhaseExecutor
@@ -36,6 +35,7 @@ from utils.execution_validator import (
     ExecutionValidator,
 )
 from utils.position_utils import PositionUtils
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors import (
     OrderExecutionError,

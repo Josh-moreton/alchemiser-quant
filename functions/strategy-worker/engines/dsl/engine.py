@@ -14,7 +14,10 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from importlib.abc import Traversable
 from pathlib import Path
-from typing import Union
+
+from engines.dsl.dsl_evaluator import DslEvaluator
+from engines.dsl.sexpr_parser import SexprParseError, SexprParser
+from errors import StrategyV2Error
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.events.base import BaseEvent
@@ -31,10 +34,6 @@ from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from errors import StrategyV2Error
-
-from engines.dsl.dsl_evaluator import DslEvaluator
-from engines.dsl.sexpr_parser import SexprParseError, SexprParser
 
 
 class DslEngine(EventHandler):
@@ -46,7 +45,7 @@ class DslEngine(EventHandler):
 
     def __init__(
         self,
-        strategy_config_path: Union[str, Path, Traversable, None] = None,
+        strategy_config_path: str | Path | Traversable | None = None,
         event_bus: EventBus | None = None,
         indicator_service: IndicatorPort | None = None,
         market_data_adapter: MarketDataPort | None = None,
@@ -65,7 +64,9 @@ class DslEngine(EventHandler):
         self.logger = get_logger(__name__)
         self.event_bus = event_bus
         # Store as-is (can be str, Path, or Traversable for Lambda layer)
-        self.strategy_config_path = strategy_config_path if strategy_config_path is not None else Path(".")
+        self.strategy_config_path = (
+            strategy_config_path if strategy_config_path is not None else Path()
+        )
 
         # Track processed events for idempotency
         self._processed_events: set[str] = set()
@@ -288,27 +289,30 @@ class DslEngine(EventHandler):
                 # Read file content and parse directly
                 file_content = strategy_file.read_text(encoding="utf-8")
                 return self.parser.parse(file_content)
-            else:
-                # Local filesystem: use Path operations
-                base_path = Path(self.strategy_config_path) if isinstance(self.strategy_config_path, str) else self.strategy_config_path
-                full_path = base_path / strategy_config_path
-                if not full_path.exists():
-                    # Try as absolute path
-                    full_path = Path(strategy_config_path)
+            # Local filesystem: use Path operations
+            base_path = (
+                Path(self.strategy_config_path)
+                if isinstance(self.strategy_config_path, str)
+                else self.strategy_config_path
+            )
+            full_path = base_path / strategy_config_path
+            if not full_path.exists():
+                # Try as absolute path
+                full_path = Path(strategy_config_path)
 
-                if not full_path.exists():
-                    raise DslEngineError(
-                        f"Strategy file not found: {strategy_config_path}",
-                        correlation_id=None,
-                        strategy_path=strategy_config_path,
-                    )
-
-                self.logger.debug(
-                    "Parsing strategy file",
-                    extra={"component": "dsl_engine", "strategy_file": str(full_path)},
+            if not full_path.exists():
+                raise DslEngineError(
+                    f"Strategy file not found: {strategy_config_path}",
+                    correlation_id=None,
+                    strategy_path=strategy_config_path,
                 )
 
-                return self.parser.parse_file(str(full_path))
+            self.logger.debug(
+                "Parsing strategy file",
+                extra={"component": "dsl_engine", "strategy_file": str(full_path)},
+            )
+
+            return self.parser.parse_file(str(full_path))
 
         except SexprParseError as e:
             raise DslEngineError(

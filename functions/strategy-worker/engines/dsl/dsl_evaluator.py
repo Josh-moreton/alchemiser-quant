@@ -14,13 +14,6 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.shared.events.bus import EventBus
-from the_alchemiser.shared.schemas.ast_node import ASTNode
-from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
-from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-from the_alchemiser.shared.schemas.trace import Trace
-from the_alchemiser.shared.types.indicator_port import IndicatorPort
-
 from engines.dsl.context import DslContext
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.events import DslEventPublisher
@@ -30,6 +23,13 @@ from engines.dsl.operators.indicators import register_indicator_operators
 from engines.dsl.operators.portfolio import register_portfolio_operators
 from engines.dsl.operators.selection import register_selection_operators
 from engines.dsl.types import DslEvaluationError, DSLValue
+
+from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.schemas.ast_node import ASTNode
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
+from the_alchemiser.shared.schemas.trace import Trace
+from the_alchemiser.shared.types.indicator_port import IndicatorPort
 
 __all__ = [
     "DslEvaluationError",

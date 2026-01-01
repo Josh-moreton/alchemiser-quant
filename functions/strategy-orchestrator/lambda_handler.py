@@ -19,6 +19,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from coordinator_settings import CoordinatorSettings
+from strategy_invoker import StrategyInvoker
+
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.events import WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
@@ -28,9 +31,6 @@ from the_alchemiser.shared.logging import configure_application_logging, get_log
 from the_alchemiser.shared.services.aggregation_session_service import (
     AggregationSessionService,
 )
-
-from coordinator_settings import CoordinatorSettings
-from strategy_invoker import StrategyInvoker
 
 # Initialize logging on cold start
 configure_application_logging()

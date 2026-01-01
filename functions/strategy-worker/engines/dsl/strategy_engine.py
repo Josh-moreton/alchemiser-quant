@@ -15,15 +15,16 @@ from decimal import Decimal
 from importlib import resources as importlib_resources
 from importlib.abc import Traversable
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
+
+from engines.dsl.engine import DslEngine
+from errors import ConfigurationError, StrategyExecutionError
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.strategy_signal import StrategySignal
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from engines.dsl.engine import DslEngine
-from errors import ConfigurationError, StrategyExecutionError
 
 # Module-level constants for maintainability
 DEFAULT_STRATEGY_FILE = "KLM.clj"
@@ -31,7 +32,7 @@ DEFAULT_STRATEGY_FILE = "KLM.clj"
 REASONING_TRUNCATION_SUFFIX_LENGTH = 20
 
 
-def _get_strategies_path() -> Union[Traversable, Path]:
+def _get_strategies_path() -> Traversable | Path:
     """Get strategies directory path (Lambda layer or local).
 
     Returns:
@@ -46,7 +47,9 @@ def _get_strategies_path() -> Union[Traversable, Path]:
         # __file__ = functions/strategy-worker/engines/dsl/strategy_engine.py
         # Project root is 5 levels up
         project_root = Path(__file__).parent.parent.parent.parent.parent
-        strategies_path = project_root / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+        strategies_path = (
+            project_root / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+        )
         if not strategies_path.exists():
             raise RuntimeError(
                 f"Cannot find strategies directory at {strategies_path}. "
@@ -378,7 +381,7 @@ class DslStrategyEngine:
         for f in dsl_files:
             file_path = strategies_path / f
             # Handle both Path (.exists()) and Traversable (.is_file())
-            if hasattr(file_path, 'exists'):
+            if hasattr(file_path, "exists"):
                 file_exists = file_path.exists()
             else:
                 # Traversable uses is_file()

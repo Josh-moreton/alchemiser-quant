@@ -21,14 +21,14 @@ from __future__ import annotations
 
 import uuid
 
+from engines.dsl.context import DslContext
+from engines.dsl.dispatcher import DslDispatcher
+from engines.dsl.types import DslEvaluationError
+
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
-
-from engines.dsl.context import DslContext
-from engines.dsl.dispatcher import DslDispatcher
-from engines.dsl.types import DslEvaluationError
 
 logger = get_logger(__name__)
 

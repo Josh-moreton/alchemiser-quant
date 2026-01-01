@@ -8,12 +8,11 @@ the Strategy Orchestrator. This module provides local testing support.
 
 from __future__ import annotations
 
+from adapters.transports import StrategyTransports, build_strategy_transports
 from dependency_injector import providers
 
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-
-from adapters.transports import StrategyTransports, build_strategy_transports
 
 logger = get_logger(__name__)
 

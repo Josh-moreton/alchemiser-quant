@@ -14,7 +14,6 @@ from typing import Protocol, runtime_checkable
 
 from the_alchemiser.shared.errors import StrategyExecutionError
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 

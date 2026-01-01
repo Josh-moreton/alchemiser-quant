@@ -271,16 +271,15 @@ class SESEmailPublisher:
 </div>
 """
             return banner + body
-        else:
-            banner = f"""
-{'=' * 80}
+        banner = f"""
+{"=" * 80}
 ⚠️  NON-PRODUCTION ENVIRONMENT
-{'=' * 80}
+{"=" * 80}
 {note}
-{'=' * 80}
+{"=" * 80}
 
 """
-            return banner + body
+        return banner + body
 
     def _format_source(self) -> str:
         """Format Source field for SES using RFC 5322 format.

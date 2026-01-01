@@ -15,11 +15,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Protocol
 
-from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-
 from errors import ConfigurationError, StrategyExecutionError
 from models.context import StrategyContext
+
+from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 
 class MarketDataAdapterProtocol(Protocol):

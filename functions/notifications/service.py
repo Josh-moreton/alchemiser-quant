@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
-    DataLakeNotificationRequested,
     ErrorNotificationRequested,
     SystemNotificationRequested,
     TradingNotificationRequested,
@@ -57,7 +56,9 @@ class NotificationService:
         # Get environment configuration
         self.stage = os.environ.get("APP__STAGE", "dev")
         self.prod_recipients = os.environ.get("NOTIFICATIONS_TO_PROD", "notifications@rwxt.org")
-        self.nonprod_recipients = os.environ.get("NOTIFICATIONS_TO_NONPROD", "notifications@rwxt.org")
+        self.nonprod_recipients = os.environ.get(
+            "NOTIFICATIONS_TO_NONPROD", "notifications@rwxt.org"
+        )
 
         # Deduplication manager
         self.dedup_manager = get_dedup_manager()
@@ -172,7 +173,7 @@ class NotificationService:
         # Check if we should send this failure email (dedup)
         component = "Daily Run"  # Default for now; can be extracted from event later
         failed_step = event.error_title  # Use title as failed step
-        run_id = event.correlation_id[:6]
+        run_id = event.correlation_id
 
         should_send = self.dedup_manager.should_send_failure_email(
             component=component,
@@ -273,7 +274,7 @@ class NotificationService:
             recovery_info = self.dedup_manager.check_recovery(
                 component="Daily Run",
                 env=self.stage,
-                run_id=event.correlation_id[:6],
+                run_id=event.correlation_id,
             )
 
             if recovery_info:
@@ -283,6 +284,30 @@ class NotificationService:
         execution_data = event.execution_data or {}
         execution_summary = execution_data.get("execution_summary", {})
 
+        # Extract timing from execution_data (populated by TradeAggregator)
+        start_time_utc = execution_data.get("start_time_utc", "")
+        end_time_utc = execution_data.get("end_time_utc", "") or datetime.now(UTC).isoformat()
+
+        # Calculate duration if both timestamps available
+        duration_seconds = 0
+        if start_time_utc and end_time_utc:
+            try:
+                from dateutil import parser as date_parser
+
+                start_dt = date_parser.isoparse(start_time_utc)
+                end_dt = date_parser.isoparse(end_time_utc)
+                duration_seconds = int((end_dt - start_dt).total_seconds())
+            except Exception:
+                pass  # Keep default 0 if parsing fails
+
+        # Extract data freshness from execution_data (propagated from strategy workers)
+        data_freshness_raw = execution_data.get("data_freshness", {})
+        data_freshness = {
+            "latest_timestamp": data_freshness_raw.get("latest_timestamp", "N/A"),
+            "age_days": data_freshness_raw.get("age_days", 0),
+            "gate_status": data_freshness_raw.get("gate_status", "PASS"),
+        }
+
         context = {
             "status": "SUCCESS" if event.trading_success else "FAILURE",
             "env": self.stage,
@@ -290,10 +315,12 @@ class NotificationService:
             "run_id": event.correlation_id,
             "correlation_id": event.correlation_id,
             "version_git_sha": os.environ.get("GIT_SHA", "unknown"),
-            "strategy_version": os.environ.get("STRATEGY_VERSION", "unknown"),  # TODO: prefer sourcing from event/config instead of env default
-            "start_time_utc": "N/A",  # Not in current event; needs enhancement
-            "end_time_utc": datetime.now(UTC).isoformat(),
-            "duration_seconds": 0,  # Not tracked yet
+            "strategy_version": os.environ.get(
+                "STRATEGY_VERSION", "unknown"
+            ),  # TODO: prefer sourcing from event/config instead of env default
+            "start_time_utc": start_time_utc or "N/A",
+            "end_time_utc": end_time_utc,
+            "duration_seconds": duration_seconds,
             "symbols_evaluated": execution_summary.get("symbols_evaluated", 0),
             "eligible_signals_count": execution_summary.get("eligible_signals", 0),
             "blocked_by_risk_count": execution_summary.get("blocked_by_risk", 0),
@@ -301,16 +328,13 @@ class NotificationService:
             "orders_filled": event.orders_succeeded,
             "orders_cancelled": 0,  # Not tracked yet
             "orders_rejected": event.orders_placed - event.orders_succeeded,
-            "equity": execution_summary.get("equity", 0),
-            "cash": execution_summary.get("cash", 0),
-            "gross_exposure": execution_summary.get("gross_exposure", 0),
-            "net_exposure": execution_summary.get("net_exposure", 0),
-            "top_positions": execution_summary.get("top_positions", []),
-            "data_freshness": {
-                "latest_timestamp": "N/A",  # Needs enhancement
-                "age_days": 0,
-                "gate_status": "PASS",  # Placeholder
-            },
+            # Portfolio snapshot from execution_data (fetched from Alpaca by TradeAggregator)
+            "equity": execution_data.get("equity", 0),
+            "cash": execution_data.get("cash", 0),
+            "gross_exposure": execution_data.get("gross_exposure", 0),
+            "net_exposure": execution_data.get("net_exposure", 0),
+            "top_positions": execution_data.get("top_positions", []),
+            "data_freshness": data_freshness,
             "warnings": [],
             "logs_url": self._build_logs_url(event.correlation_id),
         }
@@ -322,23 +346,25 @@ class NotificationService:
                 text_body = render_daily_run_success_text(context)
             else:
                 # For failures, add error details
-                context.update({
-                    "failed_step": "execution",
-                    "impact": "Trades did not execute successfully",
-                    "exception_type": event.error_code or "TradingFailure",
-                    "exception_message": event.error_message or "Trading execution failed",
-                    "stack_trace": event.error_message or "",
-                    "retry_attempts": 0,
-                    "last_attempt_time_utc": datetime.now(UTC).isoformat(),
-                    "last_successful_run_id": "N/A",
-                    "last_successful_run_time_utc": "N/A",
-                    "quick_actions": [
-                        "Check Alpaca account status and buying power",
-                        "Verify market is open (Mon-Fri 9:30 AM - 4:00 PM ET)",
-                        "Check for rejected orders in trade ledger",
-                        "Review risk controls and position limits",
-                    ],
-                })
+                context.update(
+                    {
+                        "failed_step": "execution",
+                        "impact": "Trades did not execute successfully",
+                        "exception_type": event.error_code or "TradingFailure",
+                        "exception_message": event.error_message or "Trading execution failed",
+                        "stack_trace": event.error_message or "",
+                        "retry_attempts": 0,
+                        "last_attempt_time_utc": datetime.now(UTC).isoformat(),
+                        "last_successful_run_id": "N/A",
+                        "last_successful_run_time_utc": "N/A",
+                        "quick_actions": [
+                            "Check Alpaca account status and buying power",
+                            "Verify market is open (Mon-Fri 9:30 AM - 4:00 PM ET)",
+                            "Check for rejected orders in trade ledger",
+                            "Review risk controls and position limits",
+                        ],
+                    }
+                )
                 html_body = render_daily_run_failure_html(context)
                 text_body = render_daily_run_failure_text(context)
 
@@ -348,7 +374,7 @@ class NotificationService:
                 component="Daily Run",
                 status=status,
                 env=self.stage,
-                run_id=event.correlation_id[:6],
+                run_id=event.correlation_id,
             )
 
             # Get recipient addresses
@@ -381,7 +407,9 @@ class NotificationService:
                 "error",
             )
 
-    def _send_recovery_email(self, recovery_info: dict, event: TradingNotificationRequested) -> None:
+    def _send_recovery_email(
+        self, recovery_info: dict, event: TradingNotificationRequested
+    ) -> None:
         """Send RECOVERED email after previous failures cleared.
 
         Args:
@@ -399,17 +427,19 @@ class NotificationService:
 
         # Build simple recovery message (can be enhanced with template later)
         recovered_keys = recovery_info.get("recovered_keys", [])
-        recovery_details = "\n".join([
-            f"• {key['dedup_key']}: {key['repeat_count']} occurrences from {key['first_seen_time']} to {key['last_seen_time']}"
-            for key in recovered_keys
-        ])
+        recovery_details = "\n".join(
+            [
+                f"• {key['dedup_key']}: {key['repeat_count']} occurrences from {key['first_seen_time']} to {key['last_seen_time']}"
+                for key in recovered_keys
+            ]
+        )
 
         html_body = f"""
 <!DOCTYPE html>
 <html>
 <body style="font-family: sans-serif; padding: 20px;">
     <h2 style="color: #17a2b8;">✅ System Recovered</h2>
-    <p>Previous failures have been resolved in run <strong>{event.correlation_id[:6]}</strong>.</p>
+    <p>Previous failures have been resolved in run <strong>{event.correlation_id}</strong>.</p>
     <h3>Recovered Failures:</h3>
     <ul>
         {"".join([f"<li>{key['dedup_key']}: {key['repeat_count']} occurrences</li>" for key in recovered_keys])}
@@ -423,7 +453,7 @@ class NotificationService:
 SYSTEM RECOVERED
 ================
 
-Previous failures have been resolved in run {event.correlation_id[:6]}.
+Previous failures have been resolved in run {event.correlation_id}.
 
 Recovered Failures:
 {recovery_details}
@@ -435,7 +465,7 @@ The system is now operating normally.
             component="Daily Run",
             status="RECOVERED",
             env=self.stage,
-            run_id=event.correlation_id[:6],
+            run_id=event.correlation_id,
         )
 
         try:
@@ -516,8 +546,7 @@ The system is now operating normally.
         """
         if self.stage == "prod":
             return [addr.strip() for addr in self.prod_recipients.split(",")]
-        else:
-            return [addr.strip() for addr in self.nonprod_recipients.split(",")]
+        return [addr.strip() for addr in self.nonprod_recipients.split(",")]
 
     def _build_logs_url(self, correlation_id: str) -> str:
         """Build CloudWatch Logs Insights URL filtered by correlation ID.
@@ -532,5 +561,6 @@ The system is now operating normally.
         region = os.environ.get("AWS_REGION", "us-east-1")
         # TODO: Implement complete URL builder with correlation_id filter, proper timestamp range,
         # and URL encoding for production use. Current placeholder URL doesn't include query parameters.
-        return f"https://console.aws.amazon.com/cloudwatch/home?region={region}#logsV2:logs-insights"
-
+        return (
+            f"https://console.aws.amazon.com/cloudwatch/home?region={region}#logsV2:logs-insights"
+        )

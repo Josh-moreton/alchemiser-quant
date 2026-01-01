@@ -17,6 +17,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from handlers.single_file_signal_handler import SingleFileSignalHandler
+from wiring import register_strategy
+
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import (
     PartialSignalGenerated,
@@ -26,8 +29,6 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-from handlers.single_file_signal_handler import SingleFileSignalHandler
-from wiring import register_strategy
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -123,6 +124,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             consolidated_portfolio=result["consolidated_portfolio"],
             signal_count=result["signal_count"],
             metadata={"single_file_mode": True},
+            data_freshness=result.get("data_freshness"),
         )
 
         # Publish to EventBridge (triggers Aggregator)

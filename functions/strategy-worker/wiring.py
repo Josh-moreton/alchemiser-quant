@@ -48,12 +48,13 @@ def register_strategy(container: ApplicationContainer) -> None:
         >>> orchestrator = container.strategy_orchestrator()
 
     """
+    from core.orchestrator import SingleStrategyOrchestrator
+    from core.registry import StrategyRegistry
+
     from the_alchemiser.shared.data_v2.cached_market_data_adapter import (
         CachedMarketDataAdapter,
     )
     from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
-    from core.orchestrator import SingleStrategyOrchestrator
-    from core.registry import StrategyRegistry
 
     # Register strategy registry (singleton - shared state for registered strategies)
     container.strategy_registry = providers.Singleton(StrategyRegistry)

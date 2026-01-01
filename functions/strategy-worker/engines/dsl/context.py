@@ -14,12 +14,12 @@ from datetime import UTC, datetime
 from decimal import Decimal, DecimalException
 from typing import TYPE_CHECKING, Any, TypedDict
 
+from engines.dsl.types import DSLValue
+
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
-
-from engines.dsl.types import DSLValue
 
 if TYPE_CHECKING:
     from engines.dsl.events import DslEventPublisher

@@ -16,6 +16,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from aggregator_settings import AggregatorSettings
+from portfolio_merger import PortfolioMerger
+
 from the_alchemiser.shared.events import SignalGenerated, WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
@@ -25,9 +28,6 @@ from the_alchemiser.shared.logging import configure_application_logging, get_log
 from the_alchemiser.shared.services.aggregation_session_service import (
     AggregationSessionService,
 )
-
-from aggregator_settings import AggregatorSettings
-from portfolio_merger import PortfolioMerger
 
 # Initialize logging on cold start
 configure_application_logging()
@@ -154,6 +154,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Calculate total signal count
         total_signal_count = sum(p.get("signal_count", 0) for p in all_partial_signals)
 
+        # Aggregate data freshness from all partial signals (use worst case)
+        aggregated_data_freshness = _aggregate_data_freshness(all_partial_signals)
+
         # Create lightweight portfolio for EventBridge (strip strategy_contributions)
         # Portfolio Lambda only needs target_allocations and metadata
         lightweight_portfolio = {
@@ -185,6 +188,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "strategies_aggregated": len(all_partial_signals),
                 "aggregation_mode": "multi_node",
             },
+            data_freshness=aggregated_data_freshness,
         )
 
         # Publish to EventBridge (triggers Portfolio Lambda)
@@ -273,3 +277,59 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "error": str(e),
             },
         }
+
+
+def _aggregate_data_freshness(partial_signals: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate data freshness info from all partial signals.
+
+    Uses worst-case approach: reports the oldest data timestamp and
+    FAIL gate status if any partial signal failed freshness check.
+
+    Args:
+        partial_signals: List of partial signal dicts from DynamoDB
+
+    Returns:
+        Aggregated data freshness dict with latest_timestamp, age_days, gate_status
+
+    """
+    if not partial_signals:
+        return {
+            "latest_timestamp": "N/A",
+            "age_days": 0,
+            "gate_status": "UNKNOWN",
+        }
+
+    oldest_timestamp = None
+    max_age_days = 0
+    any_failed = False
+
+    for partial in partial_signals:
+        freshness = partial.get("data_freshness", {})
+        if not freshness:
+            continue
+
+        timestamp = freshness.get("latest_timestamp")
+        age_days = freshness.get("age_days", 0)
+        gate_status = freshness.get("gate_status", "UNKNOWN")
+
+        # Track oldest timestamp (worst case)
+        if (
+            timestamp
+            and timestamp != "N/A"
+            and (oldest_timestamp is None or timestamp < oldest_timestamp)
+        ):
+            oldest_timestamp = timestamp
+
+        # Track max age
+        if age_days > max_age_days:
+            max_age_days = age_days
+
+        # Track any failures
+        if gate_status == "FAIL":
+            any_failed = True
+
+    return {
+        "latest_timestamp": oldest_timestamp or "N/A",
+        "age_days": max_age_days,
+        "gate_status": "FAIL" if any_failed else "PASS",
+    }

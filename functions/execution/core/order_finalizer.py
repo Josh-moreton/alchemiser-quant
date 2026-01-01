@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from models.execution_result import OrderResult
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors.exceptions import TradingClientError
 from the_alchemiser.shared.logging import get_logger

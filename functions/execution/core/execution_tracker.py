@@ -10,6 +10,7 @@ structured fields for machine-readable output.
 from __future__ import annotations
 
 from models.execution_result import ExecutionResult
+
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
