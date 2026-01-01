@@ -123,13 +123,13 @@ validate-s3:
 format:
 	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
 	@echo "  → Running Ruff formatter (handles whitespace, line endings, style)..."
-	poetry run ruff format the_alchemiser/
+	poetry run ruff format functions/ layers/shared/the_alchemiser/
 	@echo "  → Running Ruff auto-fix (safe fixes for lints)..."
-	poetry run ruff check --fix the_alchemiser/
+	poetry run ruff check --fix functions/ layers/shared/the_alchemiser/
 
 type-check:
 	@echo "🔍 Running MyPy type checking (matching VS Code configuration)..."
-	poetry run mypy the_alchemiser/ --config-file=pyproject.toml
+	poetry run mypy functions/ layers/shared/the_alchemiser/ --config-file=pyproject.toml
 
 import-check:
 	@echo "🔍 Checking module dependency rules..."
