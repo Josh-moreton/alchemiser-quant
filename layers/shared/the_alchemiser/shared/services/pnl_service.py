@@ -289,6 +289,8 @@ class PnLService:
             # Validate and extract required fields
             timestamps = history.get("timestamp", [])
             equity_values = history.get("equity", [])
+            profit_loss_values = history.get("profit_loss", [])
+            profit_loss_pct_values = history.get("profit_loss_pct", [])
 
             # Type guard: ensure all are lists
             if not isinstance(timestamps, list) or not isinstance(equity_values, list):
@@ -310,8 +312,13 @@ class PnLService:
                 )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
-            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
-            daily_data = self._build_daily_data(timestamps, equity_values)
+            # Use Alpaca's provided P&L values directly
+            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(
+                equity_values, profit_loss_values, profit_loss_pct_values
+            )
+            daily_data = self._build_daily_data(
+                timestamps, equity_values, profit_loss_values, profit_loss_pct_values
+            )
 
             return PnLData(
                 period=period,
@@ -347,12 +354,17 @@ class PnLService:
             ) from e
 
     def _calculate_totals(
-        self, equity_values: list[float] | list[int]
+        self,
+        equity_values: list[float] | list[int],
+        profit_loss_values: list[float] | list[int],
+        profit_loss_pct_values: list[float] | list[int],
     ) -> tuple[Decimal | None, Decimal | None, Decimal | None, Decimal | None]:
-        """Calculate start/end values and total P&L metrics from equity series.
+        """Extract start/end equity and total P&L from Alpaca's provided arrays.
 
         Args:
             equity_values: List of equity values from Alpaca (floats or ints).
+            profit_loss_values: List of P&L values from Alpaca (cumulative from base_value).
+            profit_loss_pct_values: List of P&L percentage values from Alpaca.
 
         Returns:
             Tuple of (start_value, end_value, total_pnl, total_pnl_pct).
@@ -361,25 +373,22 @@ class PnLService:
         if not equity_values:
             return None, None, None, None
 
-        # Use Money for precise P&L calculations
+        # Use Money for precise value handling
         start_money = Money.from_decimal(Decimal(str(equity_values[0])), "USD")
         end_money = Money.from_decimal(Decimal(str(equity_values[-1])), "USD")
 
+        # Use Alpaca's provided P&L values directly (last value is cumulative for period)
         total_pnl: Decimal | None = None
         total_pnl_pct: Decimal | None = None
 
-        # Calculate total P&L using Money for currency-aware arithmetic
-        if end_money >= start_money:
-            total_pnl_money = end_money.subtract(start_money)
-            total_pnl = total_pnl_money.to_decimal()
-        else:
-            # When end < start (loss), compute as -(start - end)
-            total_pnl_money = start_money.subtract(end_money)
-            total_pnl = -total_pnl_money.to_decimal()
+        if profit_loss_values and len(profit_loss_values) > 0:
+            # Alpaca's profit_loss is cumulative from base_value, last entry is total
+            total_pnl = Decimal(str(profit_loss_values[-1]))
 
-        # Calculate percentage with Money precision
-        if not start_money.is_zero():
-            total_pnl_pct = (total_pnl / start_money.to_decimal()) * PERCENTAGE_MULTIPLIER
+        if profit_loss_pct_values and len(profit_loss_pct_values) > 0:
+            # Alpaca's profit_loss_pct is cumulative percentage, last entry is total
+            # Alpaca returns as decimal (e.g., 0.05 for 5%), convert to percentage
+            total_pnl_pct = Decimal(str(profit_loss_pct_values[-1])) * PERCENTAGE_MULTIPLIER
 
         return start_money.to_decimal(), end_money.to_decimal(), total_pnl, total_pnl_pct
 
@@ -387,64 +396,72 @@ class PnLService:
         self,
         timestamps: list[int] | list[float],
         equity_values: list[float] | list[int],
+        profit_loss_values: list[float] | list[int],
+        profit_loss_pct_values: list[float] | list[int],
     ) -> list[DailyPnLEntry]:
-        """Convert raw history arrays into per-day entries.
+        """Convert raw history arrays into per-day entries using Alpaca's P&L data.
 
         Notes:
-        - Compute DAILY changes directly from the equity series to avoid ambiguity,
-          as some providers return profit_loss/profit_loss_pct cumulative to base value.
-        - Daily P&L = equity[i] - equity[i-1] (0 for first day)
-        - Daily %   = (Daily P&L / equity[i-1]) * 100 (0 for first day or if prior is 0)
-        - Uses Money for precise daily P&L calculations.
+        - Uses Alpaca's profit_loss and profit_loss_pct arrays directly.
+        - Alpaca's values are cumulative from base_value, so we compute daily changes.
+        - Daily P&L = profit_loss[i] - profit_loss[i-1] (or profit_loss[0] for first day)
+        - Daily %   = computed from daily P&L and previous equity
 
         Args:
             timestamps: Unix timestamps (seconds since epoch).
             equity_values: Daily equity values.
+            profit_loss_values: Cumulative P&L values from Alpaca.
+            profit_loss_pct_values: Cumulative P&L percentage values from Alpaca.
 
         Returns:
             List of DailyPnLEntry objects.
 
         """
         daily: list[DailyPnLEntry] = []
-        eq_len = len(equity_values)
-        ts_len = len(timestamps)
-        n = min(eq_len, ts_len)
+        n = min(len(timestamps), len(equity_values))
         if n == 0:
             return daily
 
-        prev_money: Money | None = None
+        # Ensure P&L arrays are available, default to empty if not
+        pnl_list = profit_loss_values if profit_loss_values else []
+
+        prev_cumulative_pnl: Decimal | None = None
+        prev_equity: Decimal | None = None
+
         for i in range(n):
             ts = timestamps[i]
-            curr_money = Money.from_decimal(Decimal(str(equity_values[i])), "USD")
-            # Validate timestamp is a reasonable Unix timestamp (assume UTC)
+            curr_equity = Decimal(str(equity_values[i]))
             date_str = datetime.fromtimestamp(ts, tz=UTC).date().isoformat()
 
-            if prev_money is None:
-                daily_pnl = Decimal("0")
-                daily_pct = Decimal("0")
+            # Get cumulative P&L from Alpaca (if available)
+            if i < len(pnl_list) and pnl_list[i] is not None:
+                curr_cumulative_pnl = Decimal(str(pnl_list[i]))
             else:
-                # Use Money for precise daily P&L calculation
-                if curr_money >= prev_money:
-                    daily_pnl_money = curr_money.subtract(prev_money)
-                    daily_pnl = daily_pnl_money.to_decimal()
-                else:
-                    # Loss: compute as -(prev - curr)
-                    daily_pnl_money = prev_money.subtract(curr_money)
-                    daily_pnl = -daily_pnl_money.to_decimal()
+                curr_cumulative_pnl = Decimal("0")
 
-                if not prev_money.is_zero():
-                    daily_pct = (daily_pnl / prev_money.to_decimal()) * PERCENTAGE_MULTIPLIER
-                else:
-                    daily_pct = Decimal("0")
+            # Calculate daily P&L as change in cumulative P&L
+            if prev_cumulative_pnl is None:
+                # First day: daily P&L is the cumulative value itself
+                daily_pnl = curr_cumulative_pnl
+            else:
+                daily_pnl = curr_cumulative_pnl - prev_cumulative_pnl
+
+            # Calculate daily percentage from daily P&L and previous equity
+            if prev_equity is not None and prev_equity != Decimal("0"):
+                daily_pct = (daily_pnl / prev_equity) * PERCENTAGE_MULTIPLIER
+            else:
+                daily_pct = Decimal("0")
 
             entry = DailyPnLEntry(
                 date=date_str,
-                equity=curr_money.to_decimal(),
+                equity=curr_equity,
                 profit_loss=daily_pnl,
                 profit_loss_pct=daily_pct,
             )
             daily.append(entry)
-            prev_money = curr_money
+
+            prev_cumulative_pnl = curr_cumulative_pnl
+            prev_equity = curr_equity
 
         return daily
 
