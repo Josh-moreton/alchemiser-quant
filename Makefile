@@ -78,45 +78,6 @@ help:
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade
 
-# P&L Analysis Commands
-run-pnl-weekly:
-	@echo "📊 Running weekly P&L analysis..."
-	poetry run python -m the_alchemiser pnl --weekly
-
-run-pnl-monthly:
-	@echo "📊 Running monthly P&L analysis..."
-	poetry run python -m the_alchemiser pnl --monthly
-
-run-pnl-detailed:
-	@echo "📊 Running detailed monthly P&L analysis..."
-	poetry run python -m the_alchemiser pnl --monthly --detailed
-
-# Market Analysis Commands
-hourly-gain-analysis:
-	@echo "📊 Running hourly gain/loss analysis..."
-	@YEARS=$${years:-10}; \
-	SYMBOLS=$${symbols:-SPY QQQ}; \
-	poetry run python scripts/hourly_gain_analysis.py --years $$YEARS --symbols $$SYMBOLS
-
-# Validate S3 market data against yfinance
-# Usage: make validate-s3                                    # All symbols
-#        make validate-s3 symbols=AAPL,MSFT,GOOGL            # Specific symbols
-#        make validate-s3 limit=50                           # First 50
-#        make validate-s3 limit=100 detailed=1               # With detailed JSON report
-#        make validate-s3 bucket=my-bucket region=us-west-2  # Custom S3
-validate-s3:
-	@echo "🔍 Validating S3 market data against yfinance..."
-	@ARGS=""; \
-	if [ -n "$(symbols)" ]; then ARGS="$$ARGS --symbols $(symbols)"; fi; \
-	if [ -n "$(limit)" ]; then ARGS="$$ARGS --limit $(limit)"; fi; \
-	if [ -n "$(output)" ]; then ARGS="$$ARGS --output $(output)"; else ARGS="$$ARGS --output s3_validation_report.csv"; fi; \
-	if [ -n "$(detailed)" ]; then ARGS="$$ARGS --detailed s3_validation_discrepancies.json"; fi; \
-	if [ -n "$(bucket)" ]; then ARGS="$$ARGS --bucket $(bucket)"; fi; \
-	if [ -n "$(region)" ]; then ARGS="$$ARGS --region $(region)"; fi; \
-	poetry run python scripts/validate_s3_against_yfinance.py $$ARGS && \
-	echo "" && \
-	echo "✅ Validation complete! Report: s3_validation_report.csv"
-
 # Status command removed - use programmatic access via TradingSystem class
 
 # Development
@@ -247,16 +208,7 @@ bump-major:
 		git push origin HEAD; \
 	fi
 
-# Seed S3 from Alpaca (requires API credentials)
-# Usage: make seed-data
-seed-data:
-	@echo "🌱 Seeding S3 from Alpaca..."
-	@if [ -z "$${ALPACA__KEY:-$$ALPACA_KEY}" ] || [ -z "$${ALPACA__SECRET:-$$ALPACA_SECRET}" ]; then \
-		echo "❌ Alpaca credentials not set!"; \
-		echo "Set ALPACA__KEY and ALPACA__SECRET in your .env or environment"; \
-		exit 1; \
-	fi
-	poetry run python scripts/seed_market_data.py
+# (P&L, hourly gain analysis, and data sync/deploy targets removed)
 
 # ============================================================================
 # STRATEGY LEDGER
@@ -481,25 +433,8 @@ deploy-prod:
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
 
 # Shared Data Infrastructure - triggers GitHub Actions workflow
-deploy-data:
-	@echo "📦 Deploying shared data infrastructure via GitHub Actions..."
-	@if ! command -v gh >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI (gh) is not installed!"; \
-		echo "💡 Install with: brew install gh"; \
-		exit 1; \
-	fi; \
-	if ! gh auth status >/dev/null 2>&1; then \
-		echo "❌ GitHub CLI is not authenticated!"; \
-		echo "💡 Run: gh auth login"; \
-		exit 1; \
-	fi; \
-	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	echo "📍 Current branch: $$CURRENT_BRANCH"; \
-	echo "🚀 Triggering deploy-shared-data workflow on branch $$CURRENT_BRANCH..."; \
-	gh workflow run deploy-shared-data.yml --ref $$CURRENT_BRANCH --field confirm=deploy; \
-	echo ""; \
-	echo "✅ Workflow triggered! Check status at:"; \
-	echo "   https://github.com/$$(gh repo view --json nameWithOwner -q .nameWithOwner)/actions/workflows/deploy-shared-data.yml"
+# Shared Data Infrastructure - triggers GitHub Actions workflow
+# (Data deployment via GitHub Actions removed)
 
 # Test Data Quality Monitor Lambda
 # Usage: make data-quality
