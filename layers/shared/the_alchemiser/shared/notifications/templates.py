@@ -273,7 +273,6 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     equity = context.get("equity", 0)
     cash = context.get("cash", 0)
     gross_exposure = context.get("gross_exposure", 0)
-    net_exposure = context.get("net_exposure", 0)
     top_positions = context.get("top_positions", [])
 
     data_freshness = context.get("data_freshness", {})
@@ -311,7 +310,7 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
-            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Gross exposure:</strong> {gross_exposure:.2f}x | <strong>Net exposure:</strong> {net_exposure:.2f}x</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exposure:</strong> {gross_exposure:.2f}x</p>
             <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
             <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
 """
@@ -398,7 +397,6 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     equity = context.get("equity", 0)
     cash = context.get("cash", 0)
     gross_exposure = context.get("gross_exposure", 0)
-    net_exposure = context.get("net_exposure", 0)
     top_positions = context.get("top_positions", [])
 
     data_freshness = context.get("data_freshness", {})
@@ -425,7 +423,7 @@ SUMMARY
 PORTFOLIO SNAPSHOT (POST-RUN)
 ------------------------------
 • Equity: ${equity:,.2f} | Cash: ${cash:,.2f}
-• Gross exposure: {gross_exposure:.2f}x | Net exposure: {net_exposure:.2f}x
+• Exposure: {gross_exposure:.2f}x
 • Top positions:
 """
 
@@ -495,7 +493,6 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     equity = context.get("equity", 0)
     cash = context.get("cash", 0)
     gross_exposure = context.get("gross_exposure", 0)
-    net_exposure = context.get("net_exposure", 0)
     top_positions = context.get("top_positions", [])
 
     data_freshness = context.get("data_freshness", {})
@@ -559,7 +556,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
-            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Gross exposure:</strong> {gross_exposure:.2f}x | <strong>Net exposure:</strong> {net_exposure:.2f}x</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exposure:</strong> {gross_exposure:.2f}x</p>
             <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
             <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
 """
@@ -649,7 +646,6 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
     equity = context.get("equity", 0)
     cash = context.get("cash", 0)
     gross_exposure = context.get("gross_exposure", 0)
-    net_exposure = context.get("net_exposure", 0)
     top_positions = context.get("top_positions", [])
 
     data_freshness = context.get("data_freshness", {})
@@ -701,7 +697,7 @@ and the target quantity rounded to zero:
     body += f"""PORTFOLIO SNAPSHOT (POST-RUN)
 ------------------------------
 • Equity: ${equity:,.2f} | Cash: ${cash:,.2f}
-• Gross exposure: {gross_exposure:.2f}x | Net exposure: {net_exposure:.2f}x
+• Exposure: {gross_exposure:.2f}x
 • Top positions:
 """
 
