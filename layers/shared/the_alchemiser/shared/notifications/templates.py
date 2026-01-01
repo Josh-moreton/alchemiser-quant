@@ -11,6 +11,47 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from dateutil import parser as date_parser
+
+
+def _format_timestamp_for_display(timestamp_str: str) -> str:
+    """Format ISO 8601 timestamp as human-readable display (e.g., "1st Jan 2026 at 5:43:57pm").
+
+    Args:
+        timestamp_str: ISO 8601 formatted timestamp string or empty string.
+
+    Returns:
+        Formatted timestamp like "1st Jan 2026 at 5:43:57pm", or original input if parsing fails.
+
+    """
+    if not timestamp_str or timestamp_str == "N/A":
+        return timestamp_str
+
+    try:
+        dt = date_parser.isoparse(timestamp_str)
+        # Format: "1st Jan 2026 at 5:43:57pm"
+        day = dt.day
+        month = dt.strftime("%b")  # Jan, Feb, etc.
+        year = dt.year
+
+        # Format day with suffix (1st, 2nd, 3rd, 4th, etc.)
+        if day in (1, 21, 31):
+            day_suffix = "st"
+        elif day in (2, 22):
+            day_suffix = "nd"
+        elif day in (3, 23):
+            day_suffix = "rd"
+        else:
+            day_suffix = "th"
+
+        # Format time with 12-hour format and am/pm
+        time_str = dt.strftime("%-I:%M:%S%p").lower()  # 5:43:57pm
+
+        return f"{day}{day_suffix} {month} {year} at {time_str}"
+    except Exception:
+        # If parsing fails, return original string
+        return timestamp_str
+
 
 def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) -> str:
     """Format P&L metrics as an HTML section.
@@ -216,8 +257,8 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     mode = context.get("mode", "PAPER")
     run_id = context.get("run_id", "unknown")
 
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
     symbols_evaluated = context.get("symbols_evaluated", 0)
@@ -341,8 +382,8 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     mode = context.get("mode", "PAPER")
     run_id = context.get("run_id", "unknown")
 
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
     symbols_evaluated = context.get("symbols_evaluated", 0)
@@ -438,8 +479,8 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     mode = context.get("mode", "PAPER")
     run_id = context.get("run_id", "unknown")
 
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
     symbols_evaluated = context.get("symbols_evaluated", 0)
@@ -592,8 +633,8 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
     mode = context.get("mode", "PAPER")
     run_id = context.get("run_id", "unknown")
 
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
     symbols_evaluated = context.get("symbols_evaluated", 0)
@@ -717,10 +758,10 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
     stack_trace = context.get("stack_trace", "")[:2000]  # Truncate long traces
 
     retry_attempts = context.get("retry_attempts", 0)
-    last_attempt_time = context.get("last_attempt_time_utc", "")
+    last_attempt_time = _format_timestamp_for_display(context.get("last_attempt_time_utc", ""))
 
     last_successful_run = context.get("last_successful_run_id", "N/A")
-    last_successful_time = context.get("last_successful_run_time_utc", "N/A")
+    last_successful_time = _format_timestamp_for_display(context.get("last_successful_run_time_utc", "N/A"))
 
     quick_actions = context.get("quick_actions", [])
     logs_url = context.get("logs_url", "#")
@@ -796,10 +837,10 @@ def render_daily_run_failure_text(context: dict[str, Any]) -> str:
     stack_trace = context.get("stack_trace", "")[:2000]
 
     retry_attempts = context.get("retry_attempts", 0)
-    last_attempt_time = context.get("last_attempt_time_utc", "")
+    last_attempt_time = _format_timestamp_for_display(context.get("last_attempt_time_utc", ""))
 
     last_successful_run = context.get("last_successful_run_id", "N/A")
-    last_successful_time = context.get("last_successful_run_time_utc", "N/A")
+    last_successful_time = _format_timestamp_for_display(context.get("last_successful_run_time_utc", "N/A"))
 
     quick_actions = context.get("quick_actions", [])
     logs_url = context.get("logs_url", "#")
@@ -864,8 +905,8 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
     symbols_updated_count = context.get("symbols_updated_count", 0)
     total_bars_fetched = context.get("total_bars_fetched", 0)
     data_source = context.get("data_source", "alpaca_api")
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
@@ -933,8 +974,8 @@ def render_data_lake_success_text(context: dict[str, Any]) -> str:
     symbols_updated_count = context.get("symbols_updated_count", 0)
     total_bars_fetched = context.get("total_bars_fetched", 0)
     data_source = context.get("data_source", "alpaca_api")
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
@@ -984,8 +1025,8 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
     symbols_failed_count = context.get("symbols_failed_count", 0)
     total_bars_fetched = context.get("total_bars_fetched", 0)
     data_source = context.get("data_source", "alpaca_api")
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
@@ -1061,8 +1102,8 @@ def render_data_lake_partial_text(context: dict[str, Any]) -> str:
     symbols_failed_count = context.get("symbols_failed_count", 0)
     total_bars_fetched = context.get("total_bars_fetched", 0)
     data_source = context.get("data_source", "alpaca_api")
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
@@ -1114,8 +1155,8 @@ def render_data_lake_failure_html(context: dict[str, Any]) -> str:
     failed_symbols = context.get("failed_symbols", [])
     symbols_failed_count = context.get("symbols_failed_count", 0)
     data_source = context.get("data_source", "alpaca_api")
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
     error_message = context.get("error_message", "Data refresh failed")
     logs_url = context.get("logs_url", "#")
@@ -1193,8 +1234,8 @@ def render_data_lake_failure_text(context: dict[str, Any]) -> str:
     failed_symbols = context.get("failed_symbols", [])
     symbols_failed_count = context.get("symbols_failed_count", 0)
     data_source = context.get("data_source", "alpaca_api")
-    start_time = context.get("start_time_utc", "")
-    end_time = context.get("end_time_utc", "")
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
     error_message = context.get("error_message", "Data refresh failed")
     logs_url = context.get("logs_url", "#")
