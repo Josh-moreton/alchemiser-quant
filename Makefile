@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean run-pnl-weekly run-pnl-monthly run-pnl-detailed hourly-gain-analysis validate-s3 format type-check import-check migration-check deploy-dev deploy-prod deploy-data data-quality bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -9,27 +9,6 @@ export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
 # Default target
 help:
 	@echo "🧪 The Alchemiser - Development Commands"
-	@echo ""
-	@echo "P&L Analysis Commands:"
-	@echo "  run-pnl-weekly  Show weekly P&L report"
-	@echo "  run-pnl-monthly Show monthly P&L report"
-	@echo "  run-pnl-detailed Show detailed monthly P&L report"
-	@echo ""
-	@echo "Market Analysis:"
-	@echo "  hourly-gain-analysis              Analyze hourly gain/loss for SPY & QQQ (10 years)"
-	@echo "  hourly-gain-analysis years=5      Custom lookback period"
-	@echo "  hourly-gain-analysis symbols=...  Custom symbols (space-separated)"
-	@echo ""
-	@echo "Data Validation:"
-	@echo "  validate-s3                        Validate S3 data against yfinance (all symbols)"
-	@echo "  validate-s3 symbols=AAPL,MSFT     Validate specific symbols"
-	@echo "  validate-s3 limit=50               Validate first 50 symbols"
-	@echo "  validate-s3 limit=100 detailed=1  Validate with detailed discrepancies JSON"
-	@echo ""
-	@echo "Data Management:"
-	@echo "  sync-data                            Sync all symbols from S3 to local"
-	@echo "  sync-data force=1                   Force re-download all data"
-	@echo "  seed-data                            Seed S3 from Alpaca (requires API keys)"
 	@echo ""
 	@echo "Strategy Ledger Management:"
 	@echo "  strategy-add                         Add strategy to ledger interactively"
@@ -61,11 +40,6 @@ help:
 	@echo "  deploy-staging  Deploy to STAGING (creates staging tag, triggers CI/CD)"
 	@echo "  deploy-prod     Deploy to PROD (creates release tag, triggers CI/CD)"
 	@echo "  deploy-prod v=x.y.z  Deploy specific version to PROD"
-	@echo ""
-	@echo "Shared Data Infrastructure:"
-	@echo "  deploy-data              Deploy shared datalake via GitHub Actions"
-	@echo "                           (triggers workflow_dispatch manually)"
-	@echo "  data-quality        Test data quality monitor Lambda (invokes in AWS)"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
@@ -207,8 +181,6 @@ bump-major:
 		echo "📤 Pushing commit to origin (current branch)..."; \
 		git push origin HEAD; \
 	fi
-
-# (P&L, hourly gain analysis, and data sync/deploy targets removed)
 
 # ============================================================================
 # STRATEGY LEDGER
@@ -431,41 +403,3 @@ deploy-prod:
 		--notes "Production release $$TAG"; \
 	echo "✅ Production release $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
-
-# Shared Data Infrastructure - triggers GitHub Actions workflow
-# Shared Data Infrastructure - triggers GitHub Actions workflow
-# (Data deployment via GitHub Actions removed)
-
-# Test Data Quality Monitor Lambda
-# Usage: make data-quality
-#        make data-quality stage=prod
-data-quality:
-	@echo "🧪 Testing data quality monitor Lambda..."
-	@STAGE=$${stage:-dev}; \
-	if [ "$$STAGE" = "dev" ]; then \
-		FUNCTION_NAME="alchemiser-shared-data-quality-monitor"; \
-		REGION="us-east-1"; \
-	else \
-		FUNCTION_NAME="alchemiser-shared-data-quality-monitor-$$STAGE"; \
-		REGION="us-east-1"; \
-	fi; \
-	echo "📍 Function: $$FUNCTION_NAME"; \
-	echo "📍 Region: $$REGION"; \
-	echo ""; \
-	echo "🚀 Invoking Lambda..."; \
-	if aws lambda invoke \
-		--function-name "$$FUNCTION_NAME" \
-		--region "$$REGION" \
-		--log-type Tail \
-		/tmp/dqm-response.json 2>&1 | grep -q "StatusCode"; then \
-		echo "✅ Lambda invoked successfully!"; \
-		echo ""; \
-		echo "📋 Response:"; \
-		cat /tmp/dqm-response.json | jq . 2>/dev/null || cat /tmp/dqm-response.json; \
-		echo ""; \
-		rm -f /tmp/dqm-response.json; \
-	else \
-		echo "❌ Failed to invoke Lambda"; \
-		echo "💡 Make sure the function is deployed and you have AWS credentials configured"; \
-		exit 1; \
-	fi
