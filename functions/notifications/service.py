@@ -317,11 +317,6 @@ class NotificationService:
             "env": self.stage,
             "mode": event.trading_mode,
             "run_id": event.correlation_id,
-            "correlation_id": event.correlation_id,
-            "version_git_sha": os.environ.get("GIT_SHA", "unknown"),
-            "strategy_version": os.environ.get(
-                "STRATEGY_VERSION", "unknown"
-            ),  # TODO: prefer sourcing from event/config instead of env default
             "start_time_utc": start_time_utc or "N/A",
             "end_time_utc": end_time_utc,
             "duration_seconds": duration_seconds,

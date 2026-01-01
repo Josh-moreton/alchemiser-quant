@@ -152,9 +152,6 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     env = context.get("env", "unknown")
     mode = context.get("mode", "PAPER")
     run_id = context.get("run_id", "unknown")
-    corr_id = context.get("correlation_id", run_id)
-    version = context.get("version_git_sha", "unknown")[:7]
-    strategy_version = context.get("strategy_version", "unknown")
 
     start_time = context.get("start_time_utc", "")
     end_time = context.get("end_time_utc", "")
@@ -190,10 +187,7 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
             <table style="width: 100%; border-collapse: collapse;">
                 <tr><td style="padding: 5px;"><strong>Env:</strong></td><td style="padding: 5px;">{env}</td>
                     <td style="padding: 5px;"><strong>Mode:</strong></td><td style="padding: 5px;">{mode}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Run ID:</strong></td><td style="padding: 5px;">{run_id}</td>
-                    <td style="padding: 5px;"><strong>Corr ID:</strong></td><td style="padding: 5px;">{corr_id}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Version:</strong></td><td style="padding: 5px;">{version}</td>
-                    <td style="padding: 5px;"><strong>Strategy:</strong></td><td style="padding: 5px;">{strategy_version}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 5px;">{run_id}</td></tr>
                 <tr><td style="padding: 5px;"><strong>Started:</strong></td><td colspan="3" style="padding: 5px;">{start_time}</td></tr>
                 <tr><td style="padding: 5px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 5px;">{end_time}</td></tr>
                 <tr><td style="padding: 5px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 5px;">{duration}s</td></tr>
@@ -274,9 +268,6 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     env = context.get("env", "unknown")
     mode = context.get("mode", "PAPER")
     run_id = context.get("run_id", "unknown")
-    corr_id = context.get("correlation_id", run_id)
-    version = context.get("version_git_sha", "unknown")[:7]
-    strategy_version = context.get("strategy_version", "unknown")
 
     start_time = context.get("start_time_utc", "")
     end_time = context.get("end_time_utc", "")
@@ -306,8 +297,7 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     logs_url = context.get("logs_url", "#")
 
     body = f"""
-Env: {env} | Mode: {mode}
-Run: {run_id} (corr_id={corr_id}) | Version: {version} | Strategy: {strategy_version}
+Env: {env} | Mode: {mode} | Run ID: {run_id}
 Time: {start_time} → {end_time} ({duration}s)
 
 SUMMARY
@@ -364,7 +354,6 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
     # Extract context values
     env = context.get("env", "unknown")
     run_id = context.get("run_id", "unknown")
-    corr_id = context.get("correlation_id", run_id)
     failed_step = context.get("failed_step", "unknown")
     impact = context.get("impact", "Unknown impact")
 
@@ -398,7 +387,7 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #495057;">Context</h3>
-            <p><strong>Env:</strong> {env} | <strong>Run ID:</strong> {run_id} | <strong>Corr ID:</strong> {corr_id}</p>
+            <p><strong>Env:</strong> {env} | <strong>Run ID:</strong> {run_id}</p>
             <p><strong>Retry attempts:</strong> {retry_attempts} | <strong>Last attempt:</strong> {last_attempt_time}</p>
             <p><strong>Last successful run:</strong> {last_successful_run} at {last_successful_time}</p>
         </div>
@@ -444,7 +433,6 @@ def render_daily_run_failure_text(context: dict[str, Any]) -> str:
     # Extract context values
     env = context.get("env", "unknown")
     run_id = context.get("run_id", "unknown")
-    corr_id = context.get("correlation_id", run_id)
     failed_step = context.get("failed_step", "unknown")
     impact = context.get("impact", "Unknown impact")
 
@@ -477,7 +465,7 @@ Stack Trace:
 
 CONTEXT
 -------
-Env: {env} | Run ID: {run_id} | Corr ID: {corr_id}
+Env: {env} | Run ID: {run_id}
 Retry attempts: {retry_attempts} | Last attempt: {last_attempt_time}
 Last successful run: {last_successful_run} at {last_successful_time}
 
