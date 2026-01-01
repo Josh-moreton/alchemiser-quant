@@ -14,6 +14,7 @@ from typing import Any
 
 from handlers.portfolio_analysis_handler import PortfolioAnalysisHandler
 from wiring import register_portfolio
+
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import (
     BaseEvent,

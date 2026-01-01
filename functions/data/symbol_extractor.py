@@ -12,7 +12,7 @@ import json
 import re
 from importlib import resources as importlib_resources
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
 
@@ -165,9 +165,7 @@ def extract_symbols_from_config(
                     strategy=strategy_file,
                     path=str(file_path),
                 )
-                raise FileNotFoundError(
-                    f"Strategy file not found: {strategy_file} at {file_path}"
-                )
+                raise FileNotFoundError(f"Strategy file not found: {strategy_file} at {file_path}")
         except FileNotFoundError:
             # Re-raise file not found errors (don't swallow them)
             raise
@@ -219,7 +217,7 @@ def get_all_configured_symbols() -> set[str]:
     # Process both dev and prod configs
     configs_processed = 0
     config_errors: list[str] = []
-    
+
     for config_name in ["strategy.dev.json", "strategy.prod.json"]:
         config_file = config_path / config_name
         try:
@@ -248,15 +246,11 @@ def get_all_configured_symbols() -> set[str]:
                 config=config_name,
                 error=str(e),
             )
-            raise RuntimeError(
-                f"Failed to process config file {config_name}: {e}"
-            ) from e
+            raise RuntimeError(f"Failed to process config file {config_name}: {e}") from e
 
     # Ensure at least one config was processed successfully
     if configs_processed == 0:
-        raise RuntimeError(
-            f"No strategy config files found. Errors: {'; '.join(config_errors)}"
-        )
+        raise RuntimeError(f"No strategy config files found. Errors: {'; '.join(config_errors)}")
 
     logger.info(
         "Total unique symbols extracted",

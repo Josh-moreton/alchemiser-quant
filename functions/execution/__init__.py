@@ -29,6 +29,13 @@ Note:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .core.execution_manager import ExecutionManager as ExecutionManager
+    from .models.execution_result import ExecutionResult as ExecutionResult
+    from .services.trade_ledger import TradeLedgerService as TradeLedgerService
+
 
 def __getattr__(name: str) -> object:
     """Lazy attribute access for legacy exports.

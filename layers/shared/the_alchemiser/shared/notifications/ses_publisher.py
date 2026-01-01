@@ -62,7 +62,11 @@ class SESEmailPublisher:
             configuration_set: SES configuration set name
 
         """
-        self.from_address = from_address or os.environ.get("SES_FROM_ADDRESS")
+        _from_address = from_address or os.environ.get("SES_FROM_ADDRESS")
+        if not _from_address:
+            raise ValueError("SES_FROM_ADDRESS environment variable is required")
+        self.from_address: str = _from_address
+
         self.from_name = from_name or os.environ.get("SES_FROM_NAME")
         self.reply_to_address = reply_to_address or os.environ.get("SES_REPLY_TO_ADDRESS")
         self.region = region or os.environ.get("SES_REGION", "us-east-1")
@@ -72,9 +76,6 @@ class SESEmailPublisher:
         # Environment-safe routing
         self.allow_real_emails = os.environ.get("ALLOW_REAL_EMAILS", "false").lower() == "true"
         self.override_to = os.environ.get("NOTIFICATIONS_OVERRIDE_TO")
-
-        if not self.from_address:
-            raise ValueError("SES_FROM_ADDRESS environment variable is required")
 
         self._client: SESClient = boto3.client("ses", region_name=self.region)
 
@@ -251,7 +252,7 @@ class SESEmailPublisher:
         )
         return default_addresses, routing_note
 
-    def _add_safety_banner(self, body: str, note: str, is_html: bool) -> str:
+    def _add_safety_banner(self, body: str, note: str, *, is_html: bool) -> str:
         """Add a safety banner to email body indicating recipient override.
 
         Args:
@@ -271,16 +272,15 @@ class SESEmailPublisher:
 </div>
 """
             return banner + body
-        else:
-            banner = f"""
-{'=' * 80}
+        banner = f"""
+{"=" * 80}
 ⚠️  NON-PRODUCTION ENVIRONMENT
-{'=' * 80}
+{"=" * 80}
 {note}
-{'=' * 80}
+{"=" * 80}
 
 """
-            return banner + body
+        return banner + body
 
     def _format_source(self) -> str:
         """Format Source field for SES using RFC 5322 format.

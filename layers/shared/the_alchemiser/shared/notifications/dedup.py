@@ -24,7 +24,7 @@ from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
-    from mypy_boto3_dynamodb.type_defs import GetItemOutputTypeDef, PutItemOutputTypeDef
+    from mypy_boto3_dynamodb.type_defs import GetItemOutputTypeDef
 
 logger = get_logger(__name__)
 
@@ -61,15 +61,15 @@ class NotificationDedupManager:
             region: AWS region
 
         """
-        self.table_name = table_name or os.environ.get("NOTIFICATION_DEDUP_TABLE_NAME")
-        self.quiet_period_minutes = (
-            quiet_period_minutes
-            or int(os.environ.get("DEDUP_QUIET_PERIOD_MINUTES", "120"))
+        _table_name = table_name or os.environ.get("NOTIFICATION_DEDUP_TABLE_NAME")
+        if not _table_name:
+            raise ValueError("NOTIFICATION_DEDUP_TABLE_NAME environment variable is required")
+        self.table_name: str = _table_name
+
+        self.quiet_period_minutes = quiet_period_minutes or int(
+            os.environ.get("DEDUP_QUIET_PERIOD_MINUTES", "120")
         )
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
-
-        if not self.table_name:
-            raise ValueError("NOTIFICATION_DEDUP_TABLE_NAME environment variable is required")
 
         self._client: DynamoDBClient = boto3.client("dynamodb", region_name=self.region)
 
@@ -205,11 +205,12 @@ class NotificationDedupManager:
                 return None
 
             # Mark all as RECOVERED and return summary
-            recovery_info = {
+            recovered_keys: list[dict[str, Any]] = []
+            recovery_info: dict[str, Any] = {
                 "component": component,
                 "env": env,
                 "recovering_run_id": run_id,
-                "recovered_keys": [],
+                "recovered_keys": recovered_keys,
             }
 
             for item in items:
@@ -221,12 +222,14 @@ class NotificationDedupManager:
                 # Mark as RECOVERED
                 self._mark_recovered(dedup_key, run_id)
 
-                recovery_info["recovered_keys"].append({
-                    "dedup_key": dedup_key,
-                    "first_seen_time": first_seen,
-                    "last_seen_time": last_seen,
-                    "repeat_count": repeat_count,
-                })
+                recovered_keys.append(
+                    {
+                        "dedup_key": dedup_key,
+                        "first_seen_time": first_seen,
+                        "last_seen_time": last_seen,
+                        "repeat_count": repeat_count,
+                    }
+                )
 
                 logger.info(
                     "Recovery detected - marking as RECOVERED",
@@ -237,7 +240,7 @@ class NotificationDedupManager:
                     },
                 )
 
-            return recovery_info if recovery_info["recovered_keys"] else None
+            return recovery_info if recovered_keys else None
 
         except Exception as e:
             logger.error(
@@ -326,7 +329,9 @@ class NotificationDedupManager:
         message = re.sub(r"run_id=[0-9a-f]{6,}", "run_id=<RUN_ID>", message, flags=re.IGNORECASE)
 
         # Remove request IDs
-        message = re.sub(r"request[_-]id[=:]\S+", "request_id=<REQUEST_ID>", message, flags=re.IGNORECASE)
+        message = re.sub(
+            r"request[_-]id[=:]\S+", "request_id=<REQUEST_ID>", message, flags=re.IGNORECASE
+        )
 
         return message.strip()
 
@@ -406,9 +411,7 @@ class NotificationDedupManager:
                 TableName=self.table_name,
                 Key={"PK": {"S": dedup_key}},
                 UpdateExpression=(
-                    "SET last_seen_time_utc = :now, "
-                    "last_run_id = :run_id "
-                    "ADD repeat_count :one"
+                    "SET last_seen_time_utc = :now, last_run_id = :run_id ADD repeat_count :one"
                 ),
                 ExpressionAttributeValues={
                     ":now": {"S": now_utc},

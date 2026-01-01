@@ -14,18 +14,16 @@ from __future__ import annotations
 import os
 import time
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
-
-from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.services.market_data_service import MarketDataService
-from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
-
 from bad_data_marker_service import BadDataMarkerService
 from symbol_extractor import get_all_configured_symbols
+
+from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
+from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.services.market_data_service import MarketDataService
 
 if TYPE_CHECKING:
     pass

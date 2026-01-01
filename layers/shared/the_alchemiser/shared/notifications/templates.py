@@ -38,7 +38,7 @@ def format_subject(
         run_date = datetime.now(UTC)
 
     date_str = run_date.strftime("%Y-%m-%d")
-    return f"Alchemiser {component} — {status} — {date_str} — {env} — run_id={run_id[:6]}"
+    return f"Alchemiser {component} — {status} — {date_str} — {env} — run_id={run_id}"
 
 
 def render_html_header(component: str, status: str) -> str:
@@ -176,9 +176,9 @@ def render_text_header(component: str, status: str) -> str:
 
     """
     return f"""
-{'=' * 80}
+{"=" * 80}
     THE ALCHEMISER - {component.upper()}
-{'=' * 80}
+{"=" * 80}
 Status: {status}
 """
 
@@ -191,10 +191,10 @@ def render_text_footer() -> str:
 
     """
     return f"""
-{'-' * 80}
+{"-" * 80}
 The Alchemiser Quantitative Trading System
 Automated notification - do not reply
-{'-' * 80}
+{"-" * 80}
 """
 
 
@@ -214,8 +214,8 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     # Extract context values
     env = context.get("env", "unknown")
     mode = context.get("mode", "PAPER")
-    run_id = context.get("run_id", "unknown")[:6]
-    corr_id = context.get("correlation_id", run_id)[:6]
+    run_id = context.get("run_id", "unknown")
+    corr_id = context.get("correlation_id", run_id)
     version = context.get("version_git_sha", "unknown")[:7]
     strategy_version = context.get("strategy_version", "unknown")
 
@@ -289,8 +289,8 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #495057;">Data Freshness</h3>
-            <p><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d) 
-            <span style="color: {'#28a745' if freshness_gate == 'PASS' else '#dc3545'}; font-weight: bold;">
+            <p><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
+            <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
                 DATA_FRESHNESS_GATE={freshness_gate}
             </span></p>
         </div>
@@ -336,8 +336,8 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     # Extract context values (same as HTML version)
     env = context.get("env", "unknown")
     mode = context.get("mode", "PAPER")
-    run_id = context.get("run_id", "unknown")[:6]
-    corr_id = context.get("correlation_id", run_id)[:6]
+    run_id = context.get("run_id", "unknown")
+    corr_id = context.get("correlation_id", run_id)
     version = context.get("version_git_sha", "unknown")[:7]
     strategy_version = context.get("strategy_version", "unknown")
 
@@ -426,8 +426,8 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
-    corr_id = context.get("correlation_id", run_id)[:6]
+    run_id = context.get("run_id", "unknown")
+    corr_id = context.get("correlation_id", run_id)
     failed_step = context.get("failed_step", "unknown")
     impact = context.get("impact", "Unknown impact")
 
@@ -506,8 +506,8 @@ def render_daily_run_failure_text(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
-    corr_id = context.get("correlation_id", run_id)[:6]
+    run_id = context.get("run_id", "unknown")
+    corr_id = context.get("correlation_id", run_id)
     failed_step = context.get("failed_step", "unknown")
     impact = context.get("impact", "Unknown impact")
 
@@ -578,7 +578,7 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
+    run_id = context.get("run_id", "unknown")
     total_symbols = context.get("total_symbols", 0)
     symbols_updated = context.get("symbols_updated", [])
     symbols_updated_count = context.get("symbols_updated_count", 0)
@@ -647,7 +647,7 @@ def render_data_lake_success_text(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
+    run_id = context.get("run_id", "unknown")
     total_symbols = context.get("total_symbols", 0)
     symbols_updated = context.get("symbols_updated", [])
     symbols_updated_count = context.get("symbols_updated_count", 0)
@@ -671,7 +671,7 @@ DATA REFRESH SUMMARY
 
 UPDATED SYMBOLS
 ---------------
-{', '.join(symbols_updated)}
+{", ".join(symbols_updated)}
 
 LINKS
 -----
@@ -696,7 +696,7 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
+    run_id = context.get("run_id", "unknown")
     total_symbols = context.get("total_symbols", 0)
     symbols_updated = context.get("symbols_updated", [])
     failed_symbols = context.get("failed_symbols", [])
@@ -733,7 +733,7 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8d7da; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
             <h3 style="margin-top: 0; color: #721c24;">Failed Symbols</h3>
-            <p>{', '.join(failed_symbols) if failed_symbols else 'None'}</p>
+            <p>{", ".join(failed_symbols) if failed_symbols else "None"}</p>
         </div>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
@@ -773,7 +773,7 @@ def render_data_lake_partial_text(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
+    run_id = context.get("run_id", "unknown")
     total_symbols = context.get("total_symbols", 0)
     symbols_updated = context.get("symbols_updated", [])
     failed_symbols = context.get("failed_symbols", [])
@@ -800,11 +800,11 @@ Time: {start_time} → {end_time} ({duration:.1f}s)
 
 FAILED SYMBOLS
 --------------
-{', '.join(failed_symbols) if failed_symbols else 'None'}
+{", ".join(failed_symbols) if failed_symbols else "None"}
 
 SUCCESSFULLY UPDATED SYMBOLS
 -----------------------------
-{', '.join(symbols_updated)}
+{", ".join(symbols_updated)}
 
 LINKS
 -----
@@ -829,7 +829,7 @@ def render_data_lake_failure_html(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
+    run_id = context.get("run_id", "unknown")
     total_symbols = context.get("total_symbols", 0)
     failed_symbols = context.get("failed_symbols", [])
     symbols_failed_count = context.get("symbols_failed_count", 0)
@@ -908,7 +908,7 @@ def render_data_lake_failure_text(context: dict[str, Any]) -> str:
 
     # Extract context values
     env = context.get("env", "unknown")
-    run_id = context.get("run_id", "unknown")[:6]
+    run_id = context.get("run_id", "unknown")
     total_symbols = context.get("total_symbols", 0)
     failed_symbols = context.get("failed_symbols", [])
     symbols_failed_count = context.get("symbols_failed_count", 0)
@@ -932,7 +932,7 @@ DATA REFRESH FAILED
 
 FAILED SYMBOLS
 --------------
-{', '.join(failed_symbols)}
+{", ".join(failed_symbols)}
 
 QUICK ACTIONS
 -------------
@@ -952,8 +952,8 @@ LINKS
 # Public API
 __all__ = [
     "format_subject",
-    "render_daily_run_success_html",
-    "render_daily_run_success_text",
     "render_daily_run_failure_html",
     "render_daily_run_failure_text",
+    "render_daily_run_success_html",
+    "render_daily_run_success_text",
 ]

@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from service import NotificationService
 from strategy_report_service import generate_performance_report_url
+
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events.eventbridge_publisher import unwrap_eventbridge_event
 from the_alchemiser.shared.events.schemas import (
@@ -199,10 +200,31 @@ def _build_trading_notification_from_aggregated(
     # Get pre-aggregated execution data
     aggregated_data = all_trades_detail.get("aggregated_execution_data", {})
 
-    # Build execution data for email template
+    # Get portfolio snapshot (always fetched from Alpaca by TradeAggregator)
+    portfolio_snapshot = all_trades_detail.get("portfolio_snapshot", {})
+
+    # Get timing info
+    started_at = all_trades_detail.get("started_at", "")
+    completed_at = all_trades_detail.get("completed_at", "")
+
+    # Get data freshness (propagated from strategy workers if available)
+    data_freshness = all_trades_detail.get("data_freshness", {})
+
+    # Build execution data for email template with all enriched data
     execution_data: dict[str, Any] = {
         "orders_executed": aggregated_data.get("orders_executed", []),
         "execution_summary": aggregated_data.get("execution_summary", {}),
+        # Portfolio snapshot for email template
+        "equity": portfolio_snapshot.get("equity", 0),
+        "cash": portfolio_snapshot.get("cash", 0),
+        "gross_exposure": portfolio_snapshot.get("gross_exposure", 0),
+        "net_exposure": portfolio_snapshot.get("net_exposure", 0),
+        "top_positions": portfolio_snapshot.get("top_positions", []),
+        # Timing info
+        "start_time_utc": started_at,
+        "end_time_utc": completed_at,
+        # Data freshness
+        "data_freshness": data_freshness,
     }
 
     # Add report URL to execution_data if available
@@ -428,7 +450,6 @@ def _handle_data_lake_update(detail: dict[str, Any], correlation_id: str) -> dic
     total_symbols = detail.get("total_symbols", 0)
     success_count = detail.get("symbols_updated_count", 0)
     failed_count = detail.get("symbols_failed_count", 0)
-    overall_success = detail.get("success", False)
 
     logger.info(
         "Processing DataLakeUpdateCompleted",

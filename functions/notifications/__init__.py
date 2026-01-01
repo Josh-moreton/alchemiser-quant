@@ -20,11 +20,34 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from .service import NotificationService
-from .strategy_report_service import (
-    StrategyPerformanceReportService,
-    generate_performance_report_url,
-)
+    from .service import NotificationService as NotificationService
+    from .strategy_report_service import (
+        StrategyPerformanceReportService as StrategyPerformanceReportService,
+    )
+    from .strategy_report_service import (
+        generate_performance_report_url as generate_performance_report_url,
+    )
+
+
+def __getattr__(name: str) -> object:
+    """Lazy attribute access for exports.
+
+    Avoids importing modules at package import time while preserving the
+    public API for type checkers.
+    """
+    if name == "NotificationService":
+        from .service import NotificationService
+
+        return NotificationService
+    if name == "StrategyPerformanceReportService":
+        from .strategy_report_service import StrategyPerformanceReportService
+
+        return StrategyPerformanceReportService
+    if name == "generate_performance_report_url":
+        from .strategy_report_service import generate_performance_report_url
+
+        return generate_performance_report_url
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def register_notification_handlers(container: ApplicationContainer) -> None:
@@ -42,6 +65,8 @@ def register_notification_handlers(container: ApplicationContainer) -> None:
         Exception: If service initialization or handler registration fails
 
     """
+    from .service import NotificationService
+
     notification_service = NotificationService(container)
     notification_service.register_handlers()
 

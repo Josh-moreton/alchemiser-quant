@@ -12,9 +12,9 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.errors.exceptions import DataProviderError
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 
 if TYPE_CHECKING:
     import datetime as dt_module

@@ -20,6 +20,7 @@ from typing import Any
 
 from handlers.single_trade_handler import SingleTradeHandler
 from wiring import register_execution
+
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager

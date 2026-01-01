@@ -13,6 +13,7 @@ from utils.execution_validator import (
     ExecutionValidator,
     OrderValidationResult,
 )
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.errors import (
     BuyingPowerError,

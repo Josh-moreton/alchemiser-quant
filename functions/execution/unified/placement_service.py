@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from utils.execution_validator import ExecutionValidator
+
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.utils.order_id_utils import generate_client_order_id
 

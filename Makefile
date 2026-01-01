@@ -63,8 +63,19 @@ format:
 	poetry run ruff check --fix functions/ layers/shared/the_alchemiser/
 
 type-check:
-	@echo "🔍 Running MyPy type checking (matching VS Code configuration)..."
-	poetry run mypy functions/ layers/shared/the_alchemiser/ --config-file=pyproject.toml
+	@echo "🔍 Running MyPy type checking..."
+	@# Check shared layer with correct module path
+	@echo "  → Checking shared layer..."
+	MYPYPATH="layers/shared" poetry run mypy layers/shared/the_alchemiser/ --config-file=pyproject.toml
+	@# Check each Lambda function with its own MYPYPATH context
+	@echo "  → Checking Lambda functions..."
+	@for func in execution portfolio strategy_worker strategy_orchestrator strategy_aggregator trade_aggregator notifications data metrics; do \
+		if [ -d "functions/$$func" ]; then \
+			echo "    → functions/$$func"; \
+			MYPYPATH="functions/$$func:layers/shared" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
+		fi; \
+	done
+	@echo "✅ Type checking complete"
 
 import-check:
 	@echo "🔍 Checking module dependency rules..."

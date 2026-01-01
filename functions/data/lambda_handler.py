@@ -19,6 +19,9 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from data_refresh_service import DataRefreshService
+from fetch_request_service import FetchRequestService
+
 from the_alchemiser.shared.events import (
     DataLakeUpdateCompleted,
     MarketDataFetchCompleted,
@@ -28,9 +31,6 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-
-from data_refresh_service import DataRefreshService
-from fetch_request_service import FetchRequestService
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
@@ -383,7 +383,9 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 start_time_utc=start_time.isoformat(),
                 end_time_utc=end_time.isoformat(),
                 duration_seconds=duration,
-                error_message=f"Failed symbols: {', '.join(failed_symbols)}" if failed_symbols else None,
+                error_message=f"Failed symbols: {', '.join(failed_symbols)}"
+                if failed_symbols
+                else None,
                 error_details={"failed_symbols": failed_symbols} if failed_symbols else {},
             )
             publish_to_eventbridge(update_event)
@@ -413,10 +415,12 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         }
 
         if failed_count > 0:
-            response_body.update({
-                "failed": failed_count,
-                "failed_symbols": failed_symbols,
-            })
+            response_body.update(
+                {
+                    "failed": failed_count,
+                    "failed_symbols": failed_symbols,
+                }
+            )
 
         if status_code == 200:
             response_body["status"] = "success"

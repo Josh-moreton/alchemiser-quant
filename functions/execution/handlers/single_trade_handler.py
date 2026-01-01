@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any
 from core.smart_execution_strategy import ExecutionConfig
 from models.execution_result import OrderResult
 from services.trade_ledger import TradeLedgerService
+
 from the_alchemiser.shared.constants import EXECUTION_HANDLERS_MODULE
 from the_alchemiser.shared.errors import (
     ExecutionManagerError,
@@ -59,6 +60,7 @@ from the_alchemiser.shared.services.execution_run_service import (
 
 if TYPE_CHECKING:
     from core.executor import Executor
+
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 

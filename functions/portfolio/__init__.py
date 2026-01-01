@@ -27,8 +27,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from the_alchemiser.portfolio_v2.adapters.transports import EventTransport
     from the_alchemiser.shared.config.container import ApplicationContainer
+
+    from .adapters.transports import EventTransport
+    from .core import PortfolioServiceV2 as PortfolioServiceV2
+    from .core import RebalancePlanCalculator as RebalancePlanCalculator
 
 
 # Event-driven public API

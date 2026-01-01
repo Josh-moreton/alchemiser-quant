@@ -22,6 +22,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from models.settlement_details import SettlementDetails
+
 from the_alchemiser.shared.errors import (
     DataProviderError,
     TradingClientError,

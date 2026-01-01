@@ -39,6 +39,7 @@ from the_alchemiser.shared.utils.order_id_utils import parse_client_order_id
 
 if TYPE_CHECKING:
     from models.execution_result import OrderResult
+
     from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
     from the_alchemiser.shared.types.market_data import QuoteModel
 

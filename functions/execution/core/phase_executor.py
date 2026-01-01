@@ -11,9 +11,9 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, Protocol
 
 import structlog
-
 from models.execution_result import OrderResult
 from utils.execution_validator import ExecutionValidator
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem

@@ -988,7 +988,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: functions/strategy-worker/
+      CodeUri: functions/strategy_worker/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
@@ -1062,7 +1062,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: functions/strategy-orchestrator/
+      CodeUri: functions/strategy_orchestrator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
       Layers:
@@ -1126,7 +1126,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: functions/strategy-aggregator/
+      CodeUri: functions/strategy_aggregator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyAggregatorExecutionRole.Arn
       Layers:
@@ -1387,7 +1387,7 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: functions/trade-aggregator/
+      CodeUri: functions/trade_aggregator/
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt TradeAggregatorExecutionRole.Arn
       Layers:
