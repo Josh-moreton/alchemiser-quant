@@ -8,7 +8,7 @@ Templates support variable substitution and shared partials (header/footer).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -35,7 +35,7 @@ def format_subject(
 
     """
     if run_date is None:
-        run_date = datetime.now()
+        run_date = datetime.now(UTC)
 
     date_str = run_date.strftime("%Y-%m-%d")
     return f"Alchemiser {component} — {status} — {date_str} — {env} — run_id={run_id[:6]}"

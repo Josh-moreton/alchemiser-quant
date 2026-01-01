@@ -289,7 +289,7 @@ class NotificationService:
             "run_id": event.correlation_id,
             "correlation_id": event.correlation_id,
             "version_git_sha": os.environ.get("GIT_SHA", "unknown"),
-            "strategy_version": "v2.3",  # Placeholder; extract from actual config
+            "strategy_version": os.environ.get("STRATEGY_VERSION", "unknown"),  # TODO: prefer sourcing from event/config instead of env default
             "start_time_utc": "N/A",  # Not in current event; needs enhancement
             "end_time_utc": datetime.now(UTC).isoformat(),
             "duration_seconds": 0,  # Not tracked yet
@@ -529,6 +529,7 @@ The system is now operating normally.
 
         """
         region = os.environ.get("AWS_REGION", "us-east-1")
-        # This is a placeholder - actual URL would need proper encoding
+        # TODO: Implement complete URL builder with correlation_id filter, proper timestamp range,
+        # and URL encoding for production use. Current placeholder URL doesn't include query parameters.
         return f"https://console.aws.amazon.com/cloudwatch/home?region={region}#logsV2:logs-insights"
 
