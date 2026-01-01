@@ -1501,6 +1501,16 @@ Resources:
                 - prefix: "alchemiser."
               detail-type:
                 - "WorkflowFailed"
+        # DataLakeUpdateCompleted from Data Lambda (market data refresh success)
+        DataLakeUpdateCompletedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.data"
+              detail-type:
+                - "DataLakeUpdateCompleted"
     Metadata:
       BuildMethod: python3.12
       # BuildProperties removed - SAM auto-includes everything in CodeUri

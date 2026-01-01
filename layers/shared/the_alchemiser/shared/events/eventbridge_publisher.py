@@ -41,6 +41,7 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "WorkflowFailed": ("dynamic", "WorkflowFailed"),  # Source from source_module
     "TradingNotificationRequested": ("notifications", "TradingNotificationRequested"),
     "ErrorNotificationRequested": ("notifications", "ErrorNotificationRequested"),
+    "DataLakeUpdateCompleted": ("data", "DataLakeUpdateCompleted"),  # From Data Lambda
 }
 
 # Mapping from source_module prefix to EventBridge source suffix
