@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
+    DataLakeNotificationRequested,
     ErrorNotificationRequested,
     SystemNotificationRequested,
     TradingNotificationRequested,

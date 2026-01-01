@@ -32,6 +32,7 @@ class SESEmailPublisher:
 
     Environment Variables:
         SES_FROM_ADDRESS: Email sender address (required)
+        SES_FROM_NAME: Display name for email sender (optional, e.g., "The Alchemiser")
         SES_REPLY_TO_ADDRESS: Reply-to address (optional)
         SES_REGION: AWS region for SES (default: us-east-1)
         SES_CONFIGURATION_SET: SES configuration set for tracking (optional)
@@ -46,6 +47,7 @@ class SESEmailPublisher:
     def __init__(
         self,
         from_address: str | None = None,
+        from_name: str | None = None,
         reply_to_address: str | None = None,
         region: str | None = None,
         configuration_set: str | None = None,
@@ -54,12 +56,14 @@ class SESEmailPublisher:
 
         Args:
             from_address: Sender email address (falls back to env var)
+            from_name: Display name for sender (falls back to env var)
             reply_to_address: Reply-to address (falls back to env var)
             region: AWS region for SES
             configuration_set: SES configuration set name
 
         """
         self.from_address = from_address or os.environ.get("SES_FROM_ADDRESS")
+        self.from_name = from_name or os.environ.get("SES_FROM_NAME")
         self.reply_to_address = reply_to_address or os.environ.get("SES_REPLY_TO_ADDRESS")
         self.region = region or os.environ.get("SES_REGION", "us-east-1")
         self.configuration_set = configuration_set or os.environ.get("SES_CONFIGURATION_SET")
@@ -131,7 +135,7 @@ class SESEmailPublisher:
 
         # Build SendEmail request
         send_params = {
-            "Source": self.from_address,
+            "Source": self._format_source(),
             "Destination": destination,
             "Message": message,
         }
@@ -277,6 +281,22 @@ class SESEmailPublisher:
 
 """
             return banner + body
+
+    def _format_source(self) -> str:
+        """Format Source field for SES using RFC 5322 format.
+
+        Returns:
+            RFC 5322 formatted source if from_name is set, otherwise bare email
+
+        Examples:
+            With name: "The Alchemiser" <notifications@rwxt.org>
+            Without name: notifications@rwxt.org
+
+        """
+        if self.from_name:
+            # RFC 5322: "Display Name" <email@domain.com>
+            return f'"{self.from_name}" <{self.from_address}>'
+        return self.from_address
 
 
 # Module-level singleton

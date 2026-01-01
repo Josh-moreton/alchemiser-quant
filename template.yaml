@@ -1469,6 +1469,7 @@ Resources:
           NOTIFICATION_DEDUP_TABLE_NAME: !Ref NotificationDedupTable
           # SES Configuration
           SES_FROM_ADDRESS: notifications@rwxt.org
+          SES_FROM_NAME: "The Alchemiser"
           SES_REPLY_TO_ADDRESS: notifications@rwxt.org
           SES_REGION: !Ref AWS::Region
           # Environment-safe routing (override recipients in non-prod)

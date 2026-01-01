@@ -496,6 +496,392 @@ LINKS
     return header + body + footer
 
 
+def render_data_lake_success_html(context: dict[str, Any]) -> str:
+    """Render HTML for Data Lake Update SUCCESS email.
+
+    Args:
+        context: Template context with update data
+
+    Returns:
+        Complete HTML email body
+
+    """
+    header = render_html_header("Data Lake Update", "SUCCESS")
+    footer = render_html_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    run_id = context.get("run_id", "unknown")[:6]
+    total_symbols = context.get("total_symbols", 0)
+    symbols_updated = context.get("symbols_updated", [])
+    symbols_updated_count = context.get("symbols_updated_count", 0)
+    total_bars_fetched = context.get("total_bars_fetched", 0)
+    data_source = context.get("data_source", "alpaca_api")
+    start_time = context.get("start_time_utc", "")
+    end_time = context.get("end_time_utc", "")
+    duration = context.get("duration_seconds", 0)
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+    <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #495057;">Identity & Timing</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 5px;"><strong>Env:</strong></td><td style="padding: 5px;">{env}</td>
+                    <td style="padding: 5px;"><strong>Run ID:</strong></td><td style="padding: 5px;">{run_id}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Started:</strong></td><td colspan="3" style="padding: 5px;">{start_time}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 5px;">{end_time}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 5px;">{duration:.1f}s</td></tr>
+            </table>
+        </div>
+
+        <div style="background-color: #e7f5e9; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+            <h3 style="margin-top: 0; color: #155724;">Data Refresh Summary</h3>
+            <p><strong>Total symbols processed:</strong> {total_symbols}</p>
+            <p><strong>Successfully updated:</strong> {symbols_updated_count}</p>
+            <p><strong>Total bars fetched:</strong> {total_bars_fetched}</p>
+            <p><strong>Data source:</strong> {data_source}</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #495057;">Updated Symbols</h3>
+            <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">
+"""
+
+    for symbol in symbols_updated:
+        body += f"                <li>{symbol}</li>\n"
+
+    body += f"""
+            </ul>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
+            <h3 style="margin-top: 0; color: #495057;">Links</h3>
+            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+        </div>
+    </div>
+"""
+
+    return header + body + footer
+
+
+def render_data_lake_success_text(context: dict[str, Any]) -> str:
+    """Render plain text for Data Lake Update SUCCESS email.
+
+    Args:
+        context: Template context with update data
+
+    Returns:
+        Complete plain text email body
+
+    """
+    header = render_text_header("Data Lake Update", "SUCCESS")
+    footer = render_text_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    run_id = context.get("run_id", "unknown")[:6]
+    total_symbols = context.get("total_symbols", 0)
+    symbols_updated = context.get("symbols_updated", [])
+    symbols_updated_count = context.get("symbols_updated_count", 0)
+    total_bars_fetched = context.get("total_bars_fetched", 0)
+    data_source = context.get("data_source", "alpaca_api")
+    start_time = context.get("start_time_utc", "")
+    end_time = context.get("end_time_utc", "")
+    duration = context.get("duration_seconds", 0)
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+Env: {env} | Run: {run_id}
+Time: {start_time} → {end_time} ({duration:.1f}s)
+
+DATA REFRESH SUMMARY
+--------------------
+• Total symbols processed: {total_symbols}
+• Successfully updated: {symbols_updated_count}
+• Total bars fetched: {total_bars_fetched}
+• Data source: {data_source}
+
+UPDATED SYMBOLS
+---------------
+{', '.join(symbols_updated)}
+
+LINKS
+-----
+• Logs: {logs_url}
+"""
+
+    return header + body + footer
+
+
+def render_data_lake_partial_html(context: dict[str, Any]) -> str:
+    """Render HTML for Data Lake Update SUCCESS_WITH_WARNINGS email (partial success).
+
+    Args:
+        context: Template context with update data
+
+    Returns:
+        Complete HTML email body
+
+    """
+    header = render_html_header("Data Lake Update", "SUCCESS_WITH_WARNINGS")
+    footer = render_html_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    run_id = context.get("run_id", "unknown")[:6]
+    total_symbols = context.get("total_symbols", 0)
+    symbols_updated = context.get("symbols_updated", [])
+    failed_symbols = context.get("failed_symbols", [])
+    symbols_updated_count = context.get("symbols_updated_count", 0)
+    symbols_failed_count = context.get("symbols_failed_count", 0)
+    total_bars_fetched = context.get("total_bars_fetched", 0)
+    data_source = context.get("data_source", "alpaca_api")
+    start_time = context.get("start_time_utc", "")
+    end_time = context.get("end_time_utc", "")
+    duration = context.get("duration_seconds", 0)
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+    <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #495057;">Identity & Timing</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 5px;"><strong>Env:</strong></td><td style="padding: 5px;">{env}</td>
+                    <td style="padding: 5px;"><strong>Run ID:</strong></td><td style="padding: 5px;">{run_id}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Started:</strong></td><td colspan="3" style="padding: 5px;">{start_time}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 5px;">{end_time}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 5px;">{duration:.1f}s</td></tr>
+            </table>
+        </div>
+
+        <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+            <h3 style="margin-top: 0; color: #856404;">⚠️ Partial Success</h3>
+            <p><strong>Total symbols processed:</strong> {total_symbols}</p>
+            <p><strong>Successfully updated:</strong> {symbols_updated_count}</p>
+            <p><strong>Failed:</strong> {symbols_failed_count}</p>
+            <p><strong>Total bars fetched:</strong> {total_bars_fetched}</p>
+            <p><strong>Data source:</strong> {data_source}</p>
+        </div>
+
+        <div style="background-color: #f8d7da; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
+            <h3 style="margin-top: 0; color: #721c24;">Failed Symbols</h3>
+            <p>{', '.join(failed_symbols) if failed_symbols else 'None'}</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #495057;">Successfully Updated Symbols</h3>
+            <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">
+"""
+
+    for symbol in symbols_updated:
+        body += f"                <li>{symbol}</li>\n"
+
+    body += f"""
+            </ul>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
+            <h3 style="margin-top: 0; color: #495057;">Links</h3>
+            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+        </div>
+    </div>
+"""
+
+    return header + body + footer
+
+
+def render_data_lake_partial_text(context: dict[str, Any]) -> str:
+    """Render plain text for Data Lake Update SUCCESS_WITH_WARNINGS email.
+
+    Args:
+        context: Template context with update data
+
+    Returns:
+        Complete plain text email body
+
+    """
+    header = render_text_header("Data Lake Update", "SUCCESS_WITH_WARNINGS")
+    footer = render_text_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    run_id = context.get("run_id", "unknown")[:6]
+    total_symbols = context.get("total_symbols", 0)
+    symbols_updated = context.get("symbols_updated", [])
+    failed_symbols = context.get("failed_symbols", [])
+    symbols_updated_count = context.get("symbols_updated_count", 0)
+    symbols_failed_count = context.get("symbols_failed_count", 0)
+    total_bars_fetched = context.get("total_bars_fetched", 0)
+    data_source = context.get("data_source", "alpaca_api")
+    start_time = context.get("start_time_utc", "")
+    end_time = context.get("end_time_utc", "")
+    duration = context.get("duration_seconds", 0)
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+Env: {env} | Run: {run_id}
+Time: {start_time} → {end_time} ({duration:.1f}s)
+
+⚠️ PARTIAL SUCCESS
+------------------
+• Total symbols processed: {total_symbols}
+• Successfully updated: {symbols_updated_count}
+• Failed: {symbols_failed_count}
+• Total bars fetched: {total_bars_fetched}
+• Data source: {data_source}
+
+FAILED SYMBOLS
+--------------
+{', '.join(failed_symbols) if failed_symbols else 'None'}
+
+SUCCESSFULLY UPDATED SYMBOLS
+-----------------------------
+{', '.join(symbols_updated)}
+
+LINKS
+-----
+• Logs: {logs_url}
+"""
+
+    return header + body + footer
+
+
+def render_data_lake_failure_html(context: dict[str, Any]) -> str:
+    """Render HTML for Data Lake Update FAILURE email.
+
+    Args:
+        context: Template context with failure data
+
+    Returns:
+        Complete HTML email body
+
+    """
+    header = render_html_header("Data Lake Update", "FAILURE")
+    footer = render_html_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    run_id = context.get("run_id", "unknown")[:6]
+    total_symbols = context.get("total_symbols", 0)
+    failed_symbols = context.get("failed_symbols", [])
+    symbols_failed_count = context.get("symbols_failed_count", 0)
+    data_source = context.get("data_source", "alpaca_api")
+    start_time = context.get("start_time_utc", "")
+    end_time = context.get("end_time_utc", "")
+    duration = context.get("duration_seconds", 0)
+    error_message = context.get("error_message", "Data refresh failed")
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+    <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #495057;">Identity & Timing</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 5px;"><strong>Env:</strong></td><td style="padding: 5px;">{env}</td>
+                    <td style="padding: 5px;"><strong>Run ID:</strong></td><td style="padding: 5px;">{run_id}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Started:</strong></td><td colspan="3" style="padding: 5px;">{start_time}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 5px;">{end_time}</td></tr>
+                <tr><td style="padding: 5px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 5px;">{duration:.1f}s</td></tr>
+            </table>
+        </div>
+
+        <div style="background-color: #f8d7da; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
+            <h3 style="margin-top: 0; color: #721c24;">Data Refresh Failed</h3>
+            <p><strong>Total symbols processed:</strong> {total_symbols}</p>
+            <p><strong>All failed:</strong> {symbols_failed_count}</p>
+            <p><strong>Data source:</strong> {data_source}</p>
+            <p><strong>Error:</strong> {error_message}</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #495057;">Failed Symbols</h3>
+            <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">
+"""
+
+    for symbol in failed_symbols:
+        body += f"                <li>{symbol}</li>\n"
+
+    body += f"""
+            </ul>
+        </div>
+
+        <div style="background-color: #d1ecf1; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #17a2b8;">
+            <h3 style="margin-top: 0; color: #0c5460;">Quick Actions</h3>
+            <ul style="margin-bottom: 0;">
+                <li>Check CloudWatch Logs for detailed error traces</li>
+                <li>Verify Alpaca API connectivity and rate limits</li>
+                <li>Check if market data is available for these symbols</li>
+                <li>Review S3 bucket permissions and quotas</li>
+            </ul>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
+            <h3 style="margin-top: 0; color: #495057;">Links</h3>
+            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs (filtered by run_id)</a></p>
+        </div>
+    </div>
+"""
+
+    return header + body + footer
+
+
+def render_data_lake_failure_text(context: dict[str, Any]) -> str:
+    """Render plain text for Data Lake Update FAILURE email.
+
+    Args:
+        context: Template context with failure data
+
+    Returns:
+        Complete plain text email body
+
+    """
+    header = render_text_header("Data Lake Update", "FAILURE")
+    footer = render_text_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    run_id = context.get("run_id", "unknown")[:6]
+    total_symbols = context.get("total_symbols", 0)
+    failed_symbols = context.get("failed_symbols", [])
+    symbols_failed_count = context.get("symbols_failed_count", 0)
+    data_source = context.get("data_source", "alpaca_api")
+    start_time = context.get("start_time_utc", "")
+    end_time = context.get("end_time_utc", "")
+    duration = context.get("duration_seconds", 0)
+    error_message = context.get("error_message", "Data refresh failed")
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+Env: {env} | Run: {run_id}
+Time: {start_time} → {end_time} ({duration:.1f}s)
+
+DATA REFRESH FAILED
+-------------------
+• Total symbols processed: {total_symbols}
+• All failed: {symbols_failed_count}
+• Data source: {data_source}
+• Error: {error_message}
+
+FAILED SYMBOLS
+--------------
+{', '.join(failed_symbols)}
+
+QUICK ACTIONS
+-------------
+• Check CloudWatch Logs for detailed error traces
+• Verify Alpaca API connectivity and rate limits
+• Check if market data is available for these symbols
+• Review S3 bucket permissions and quotas
+
+LINKS
+-----
+• Logs (filtered by run_id): {logs_url}
+"""
+
+    return header + body + footer
+
+
 # Public API
 __all__ = [
     "format_subject",
