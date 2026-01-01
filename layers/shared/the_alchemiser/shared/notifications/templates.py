@@ -61,7 +61,8 @@ def render_html_header(component: str, status: str) -> str:
     }
     color = status_colors.get(status, "#6c757d")
 
-    # Using emoji-based logo - email clients don't reliably support base64 data URIs
+    # Logo hosted on GitHub (raw URL for direct image access)
+    logo_url = "https://raw.githubusercontent.com/Josh-moreton/alchemiser-quant/main/logo.png"
 
     return f"""
 <!DOCTYPE html>
@@ -73,9 +74,7 @@ def render_html_header(component: str, status: str) -> str:
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-        <div style="width: 60px; height: 60px; margin: 0 auto 10px auto; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 32px;">⚗️</span>
-        </div>
+        <img src="{logo_url}" alt="The Alchemiser" style="width: 60px; height: 60px; margin-bottom: 10px; border-radius: 12px;">
         <h1 style="color: white; margin: 0; font-size: 28px;">The Alchemiser</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">{component}</p>
     </div>
