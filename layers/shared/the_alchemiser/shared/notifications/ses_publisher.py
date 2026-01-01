@@ -114,10 +114,8 @@ class SESEmailPublisher:
         # Apply environment-safe routing
         actual_to, routing_note = self._apply_routing_safety(to_addresses)
 
-        # Add safety banner if recipient override is active
-        if routing_note:
-            html_body = self._add_safety_banner(html_body, routing_note, is_html=True)
-            text_body = self._add_safety_banner(text_body, routing_note, is_html=False)
+        # Routing note is logged but no longer injected into email body
+        # Users know which environment they're in from the subject line
 
         # Build SES message
         destination = {"ToAddresses": actual_to}
@@ -251,36 +249,6 @@ class SESEmailPublisher:
             },
         )
         return default_addresses, routing_note
-
-    def _add_safety_banner(self, body: str, note: str, *, is_html: bool) -> str:
-        """Add a safety banner to email body indicating recipient override.
-
-        Args:
-            body: Original email body
-            note: Safety note text
-            is_html: True if HTML body, False if plain text
-
-        Returns:
-            Email body with safety banner prepended
-
-        """
-        if is_html:
-            banner = f"""
-<div style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
-    <strong>⚠️ NON-PRODUCTION ENVIRONMENT</strong><br>
-    {note}
-</div>
-"""
-            return banner + body
-        banner = f"""
-{"=" * 80}
-⚠️  NON-PRODUCTION ENVIRONMENT
-{"=" * 80}
-{note}
-{"=" * 80}
-
-"""
-        return banner + body
 
     def _format_source(self) -> str:
         """Format Source field for SES using RFC 5322 format.

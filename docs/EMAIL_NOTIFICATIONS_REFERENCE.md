@@ -269,29 +269,23 @@ All emails implement environment-safe routing to prevent accidental prod emails 
 
 ### Production (`APP__STAGE=prod`)
 - **Recipients**: `NOTIFICATIONS_TO_PROD` (e.g., `team@company.com`)
-- **Safety Banner**: None
 - **Behavior**: Send to real recipients
 
 ### Non-Production (`APP__STAGE=dev` or `staging`)
 - **Default Recipients**: `NOTIFICATIONS_TO_NONPROD` (safe override address)
-- **Safety Banner**: Yellow warning box prepended to email
-  ```
-  ⚠️ NON-PRODUCTION ENVIRONMENT
-  NOTE: Recipient override active (stage=dev).
-  Original recipients suppressed: team@company.com
-  ```
 - **Behavior**: Send to override address UNLESS:
   - `ALLOW_REAL_EMAILS=true` is explicitly set (not recommended)
   - `NOTIFICATIONS_OVERRIDE_TO` is set (custom override)
+- **Note**: Environment is visible in the email subject line
 
 ### Configuration Matrix
 
-| Environment | `ALLOW_REAL_EMAILS` | `NOTIFICATIONS_OVERRIDE_TO` | Actual Recipients | Safety Banner |
-|-------------|---------------------|----------------------------|-------------------|---------------|
-| `prod` | Any | Any | `NOTIFICATIONS_TO_PROD` | No |
-| `dev` | `false` (default) | Not set | `NOTIFICATIONS_TO_NONPROD` | Yes |
-| `dev` | `false` | `custom@test.com` | `custom@test.com` | Yes |
-| `dev` | `true` | Any | `NOTIFICATIONS_TO_PROD` | No (⚠️ dangerous) |
+| Environment | `ALLOW_REAL_EMAILS` | `NOTIFICATIONS_OVERRIDE_TO` | Actual Recipients |
+|-------------|---------------------|----------------------------|-------------------|
+| `prod` | Any | Any | `NOTIFICATIONS_TO_PROD` |
+| `dev` | `false` (default) | Not set | `NOTIFICATIONS_TO_NONPROD` |
+| `dev` | `false` | `custom@test.com` | `custom@test.com` |
+| `dev` | `true` | Any | `NOTIFICATIONS_TO_PROD` (⚠️ dangerous) |
 
 **Recommendation**: Always use default routing in non-prod. Never set `ALLOW_REAL_EMAILS=true` in dev/staging.
 

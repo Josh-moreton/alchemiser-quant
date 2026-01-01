@@ -61,71 +61,7 @@ def render_html_header(component: str, status: str) -> str:
     }
     color = status_colors.get(status, "#6c757d")
 
-    # Logo as base64-encoded PNG for email embedding
-    logo_data_uri = (
-        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAABGdBTUEAALGPC/xhBQAAACBjSFJN"
-        "AAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAeGVYSWZNTQAqAAAACAAEARIA"
-        "AwAAAAEAAQAAARoABQAAAAEAAAA+ARsABQAAAAEAAABGh2kABAAAAAEAAABOAAAAAAAAAEgAAAAB"
-        "AAAASAAAAAEAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAyKADAAQAAAABAAAAyAAAAAB0xZMiAAAA"
-        "CXBIWXMAAAsTAAALEwEAmpwYAAAClGlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPHg6eG1wbWV0"
-        "YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNi4wLjAiPgogICA8"
-        "cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRh"
-        "eC1ucyMiPgogICAgICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgICAgICAgICB4"
-        "bWxuczp0aWZmPSJodHRwOi8vbnMuYWRvYmUuY29tL3RpZmYvMS4wLyIKICAgICAgICAgICAgeG1s"
-        "bnM6ZXhpZj0iaHR0cDovL25zLmFkb2JlLmNvbS9leGlmLzEuMC8iPgogICAgICAgICA8dGlmZjpZ"
-        "UmVzb2x1dGlvbj43MjwvdGlmZjpZUmVzb2x1dGlvbj4KICAgICAgICAgPHRpZmY6WFJlc29sdXRp"
-        "b24+NzI8L3RpZmY6WFJlc29sdXRpb24+CiAgICAgICAgIDx0aWZmOk9yaWVudGF0aW9uPjE8L3Rp"
-        "ZmY6T3JpZW50YXRpb24+CiAgICAgICAgIDxleGlmOlBpeGVsWERpbWVuc2lvbj43MjE8L2V4aWY6"
-        "UGl4ZWxYRGltZW5zaW9uPgogICAgICAgICA8ZXhpZjpDb2xvclNwYWNlPjE8L2V4aWY6Q29sb3JT"
-        "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"
-        "qYgNVDqoReXHRlqYwoyGBZFB29BbnpzxmYfRBBhtp4CeA88FbggpxohTEEJ4vbjQSSjn4EaXOLTss"
-        "YAw2BpFCClLsmIS7ItXV2NcKe/QCOuJTS2YeQ1AxLrD7K5Wu/jfw5JE1mo203vXc8Tc96fjy83SP"
-        "Qc1+Ze04CJqXTwezldOenvP41QwYEO592HSF8Gi0TJvpmRWaUTPtYJilaB0k46d5wxYZiZ42bBOl"
-        "4tpD/OYMoqHpcirF/askj4CHBFcCuPTIJQADQwyiYNYIrOhEkkb/FuNmaDPtx4Ns/QvtrvrDbd0T"
-        "Be9t/LGz6rq/8pGzLwzzB44P43COFh5M6O0KtaXLPyAxF62d0V+hOugdJK6w5O8/8RR8tvnJeLQE"
-        "a5+8ywzzkoXRsO00rFgwdC1i2l6kUUwPcB4maOQyApJBhJxEAOJAYDIgFn5Q0EYZJgrbLICSYqTN"
-        "uRkx7+IpC/82+TKYqIsCikC80ulsuvAhVM4Jmmr9uSJ6DFMf+qJWErFypZ0v//T0l4TegfdjVTDD"
-        "Pte4rYBdVcawI83CRWe1Ln7OO/k6M2/m6iU2lcOKOVOOB72DhPhoycJDX4othegM2K08GqPsDsaM"
-        "0QRJQIFG5AZW7kTBCSARItl0pCsAQCPtckhFDnMWpewgcs/LkcgRlSIZyze5KCyWyYtlsGyJ19F0"
-        "dysfeABDNg08L1Rrp+QXhEX2fJuUlkr1yEm+YGbPsWHU40oiL8wvef7rwuCiv8WL8Hhkp8XREIp1"
-        "4PJyM12y9L35e07/BCUnr72ON2VzyognrUfWeGCwLO1BG2gbaADaSCX/7CtuSRYMHxlG8d45H05k"
-        "IIb/PMMzw7MjmQqE04jI0sCDNr79BxblyStBiCSTAwaD9FMJ0tKnq22mo2jKhrgiKIkD/0Enc+Pq"
-        "Fwplnem0Hhmf0TMtFtESJm7BcBJo4gtt1dbP7z63+uEf/d2+7JlFmWwgyX9+6GutPW1NpXfg90N/"
-        "//NCA6XE82zQFBfkqBfVx1bwKbaXqWPny23br092bb102/f/9e8H/z5skRzvG6YfzzAn7qQ/6gbk"
-        "OjzfSb/suc9J5s07Mm80MUHGJa/1NcSiW3UpwhHE+p+DidCWBY0SiCyW8ziI5aIpTCGhVFFYjKR4"
-        "kUMgcTEZczkGIRIAksXHL+W2gMH0xE1650FqciABqFg+IxFANCYGUOyrh61cudz7d5OZHZ6YrwS0"
-        "k2p09LXh5pvetnRz3IjE1VohtGkHE+45znCIGWeL1bjFUgyJhGKFrcgeFf05V4S5wT5rDaMs31Fh"
-        "v5imK3f+v+0troEY/P7rtVzMchrcGdhpKEkJyoA0Xs77KlG9PJaXWoJegpuvSxQBERABERABERAB"
-        "ERABERABERABERABERABERABERABERABERABERABERABERABERABERABERABERABERABERABERABER"
-        "ABERABERABERABERABERCBchL4DbPREQ5/e4xUAAAAAElFTkSuQmCC"
-    )
+    # Using emoji-based logo - email clients don't reliably support base64 data URIs
 
     return f"""
 <!DOCTYPE html>
@@ -137,7 +73,9 @@ def render_html_header(component: str, status: str) -> str:
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-        <img src="{logo_data_uri}" alt="The Alchemiser" style="width: 60px; height: 60px; margin-bottom: 10px;">
+        <div style="width: 60px; height: 60px; margin: 0 auto 10px auto; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 32px;">⚗️</span>
+        </div>
         <h1 style="color: white; margin: 0; font-size: 28px;">The Alchemiser</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">{component}</p>
     </div>
