@@ -73,13 +73,13 @@ def render_html_header(component: str, status: str) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alchemiser {component} — {status}</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-        <img src="{logo_url}" alt="The Alchemiser" style="width: 60px; height: 60px; margin-bottom: 10px; border-radius: 12px;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">The Alchemiser</h1>
-        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">{component}</p>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.5; color: #333; max-width: 700px; margin: 0 auto; padding: 15px; font-size: 13px;">
+    <div style="padding: 15px 0; border-bottom: 2px solid #e9ecef; text-align: center; margin-bottom: 15px;">
+        <img src="{logo_url}" alt="The Alchemiser" style="width: 40px; height: 40px; margin-bottom: 8px; border-radius: 8px;">
+        <h1 style="color: #333; margin: 0; font-size: 18px; font-weight: 600;">The Alchemiser</h1>
+        <p style="color: #666; margin: 4px 0 0 0; font-size: 13px;">{component}</p>
     </div>
-    <div style="background-color: {color}; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold;">
+    <div style="background-color: {color}; color: white; padding: 10px; text-align: center; font-size: 14px; font-weight: bold; border-radius: 4px;">
         {status}
     </div>
 """
@@ -93,9 +93,9 @@ def render_html_footer() -> str:
 
     """
     return """
-    <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e9ecef; text-align: center; color: #6c757d; font-size: 14px;">
-        <p>The Alchemiser Quantitative Trading System</p>
-        <p style="margin: 5px 0;">Automated notification - do not reply</p>
+    <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #e9ecef; text-align: center; color: #6c757d; font-size: 11px;">
+        <p style="margin: 0;">The Alchemiser Quantitative Trading System</p>
+        <p style="margin: 3px 0 0 0;">Automated notification - do not reply</p>
     </div>
 </body>
 </html>
@@ -182,31 +182,31 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     logs_url = context.get("logs_url", "#")
 
     body = f"""
-    <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Identity & Timing</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr><td style="padding: 5px;"><strong>Env:</strong></td><td style="padding: 5px;">{env}</td>
-                    <td style="padding: 5px;"><strong>Mode:</strong></td><td style="padding: 5px;">{mode}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 5px;">{run_id}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Started:</strong></td><td colspan="3" style="padding: 5px;">{start_time}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 5px;">{end_time}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 5px;">{duration}s</td></tr>
+    <div style="padding: 15px 0;">
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Identity & Timing</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <tr><td style="padding: 3px;"><strong>Env:</strong></td><td style="padding: 3px;">{env}</td>
+                    <td style="padding: 3px;"><strong>Mode:</strong></td><td style="padding: 3px;">{mode}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 3px;">{run_id}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Started:</strong></td><td colspan="3" style="padding: 3px;">{start_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 3px;">{end_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 3px;">{duration}s</td></tr>
             </table>
         </div>
 
-        <div style="background-color: #e7f5e9; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-            <h3 style="margin-top: 0; color: #155724;">Outcome Summary</h3>
-            <p><strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
-            <p><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
+        <div style="background-color: #e7f5e9; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #28a745;">
+            <h4 style="margin: 0 0 8px 0; color: #155724; font-size: 13px;">Outcome Summary</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
         </div>
 
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Portfolio Snapshot (Post-Run)</h3>
-            <p><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
-            <p><strong>Gross exposure:</strong> {gross_exposure:.2f}x | <strong>Net exposure:</strong> {net_exposure:.2f}x</p>
-            <p><strong>Top positions:</strong></p>
-            <ul style="margin-top: 5px;">
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Gross exposure:</strong> {gross_exposure:.2f}x | <strong>Net exposure:</strong> {net_exposure:.2f}x</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
+            <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
 """
 
     for pos in top_positions[:3]:
@@ -219,9 +219,9 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
             </ul>
         </div>
 
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Data Freshness</h3>
-            <p><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
+            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
             <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
                 DATA_FRESHNESS_GATE={freshness_gate}
             </span></p>
@@ -230,9 +230,9 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
 
     if warnings:
         body += """
-        <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404;">⚠️ Warnings</h3>
-            <ul style="margin-bottom: 0;">
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Warnings</h4>
+            <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
 """
         for warning in warnings:
             body += f"                <li>{warning}</li>\n"
@@ -242,9 +242,9 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
 """
 
     body += f"""
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
-            <h3 style="margin-top: 0; color: #495057;">Links</h3>
-            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Links</h4>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
         </div>
     </div>
 """
@@ -391,30 +391,30 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     logs_url = context.get("logs_url", "#")
 
     body = f"""
-    <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Identity & Timing</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr><td style="padding: 5px;"><strong>Env:</strong></td><td style="padding: 5px;">{env}</td>
-                    <td style="padding: 5px;"><strong>Mode:</strong></td><td style="padding: 5px;">{mode}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 5px;">{run_id}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Started:</strong></td><td colspan="3" style="padding: 5px;">{start_time}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 5px;">{end_time}</td></tr>
-                <tr><td style="padding: 5px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 5px;">{duration}s</td></tr>
+    <div style="padding: 15px 0;">
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Identity & Timing</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <tr><td style="padding: 3px;"><strong>Env:</strong></td><td style="padding: 3px;">{env}</td>
+                    <td style="padding: 3px;"><strong>Mode:</strong></td><td style="padding: 3px;">{mode}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 3px;">{run_id}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Started:</strong></td><td colspan="3" style="padding: 3px;">{start_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 3px;">{end_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 3px;">{duration}s</td></tr>
             </table>
         </div>
 
-        <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404;">⚠️ Partial Success</h3>
-            <p>Most trades executed successfully, but some positions were skipped due to non-fractionable assets.</p>
-            <p><strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
-            <p><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Partial Success</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;">Most trades executed successfully, but some positions were skipped due to non-fractionable assets.</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
         </div>
 
-        <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404;">📊 Skipped Positions (Non-Fractionable)</h3>
-            <p>The following symbols were skipped because they don't support fractional shares and the target quantity rounded to zero:</p>
-            <ul style="margin-bottom: 10px;">
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">📊 Skipped Positions (Non-Fractionable)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;">The following symbols were skipped because they don't support fractional shares and the target quantity rounded to zero:</p>
+            <ul style="margin: 4px 0 8px 0; padding-left: 20px; font-size: 11px;">
 """
 
     for symbol in non_fractionable_skipped:
@@ -425,7 +425,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
 
     body += """
             </ul>
-            <p style="font-style: italic; color: #856404; margin-bottom: 0;">
+            <p style="font-style: italic; color: #856404; margin: 0; font-size: 11px;">
                 💡 <strong>Tip:</strong> Consider increasing your total portfolio value or adjusting strategy weights to ensure these assets meet the minimum 1-share threshold.
             </p>
         </div>
@@ -433,12 +433,12 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
 """
 
     body += f"""
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Portfolio Snapshot (Post-Run)</h3>
-            <p><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
-            <p><strong>Gross exposure:</strong> {gross_exposure:.2f}x | <strong>Net exposure:</strong> {net_exposure:.2f}x</p>
-            <p><strong>Top positions:</strong></p>
-            <ul style="margin-top: 5px;">
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Gross exposure:</strong> {gross_exposure:.2f}x | <strong>Net exposure:</strong> {net_exposure:.2f}x</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
+            <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
 """
 
     for pos in top_positions[:3]:
@@ -451,9 +451,9 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
             </ul>
         </div>
 
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Data Freshness</h3>
-            <p><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
+            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
             <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
                 DATA_FRESHNESS_GATE={freshness_gate}
             </span></p>
@@ -462,9 +462,9 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
 
     if warnings:
         body += """
-        <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404;">⚠️ Warnings</h3>
-            <ul style="margin-bottom: 0;">
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Warnings</h4>
+            <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
 """
         for warning in warnings:
             body += f"                <li>{warning}</li>\n"
@@ -474,9 +474,9 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
 """
 
     body += f"""
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
-            <h3 style="margin-top: 0; color: #495057;">Links</h3>
-            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Links</h4>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
         </div>
     </div>
 """
@@ -597,6 +597,9 @@ LINKS
 """
 
     return header + body + footer
+
+
+def render_daily_run_failure_html(context: dict[str, Any]) -> str:
     """Render HTML for Daily Run FAILURE email.
 
     Args:
@@ -629,30 +632,30 @@ LINKS
     logs_url = context.get("logs_url", "#")
 
     body = f"""
-    <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
-        <div style="background-color: #f8d7da; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
-            <h3 style="margin-top: 0; color: #721c24;">What Failed + Impact</h3>
-            <p><strong>Failed Step:</strong> {failed_step}</p>
-            <p><strong>Impact:</strong> {impact}</p>
+    <div style="padding: 15px 0;">
+        <div style="background-color: #f8d7da; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #dc3545;">
+            <h4 style="margin: 0 0 8px 0; color: #721c24; font-size: 11px;">What Failed + Impact</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Failed Step:</strong> {failed_step}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Impact:</strong> {impact}</p>
         </div>
 
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Error Signature</h3>
-            <p><strong>Exception Type:</strong> {exception_type}</p>
-            <p><strong>Message:</strong> {exception_message}</p>
-            <pre style="background-color: #e9ecef; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px;">{stack_trace}</pre>
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 11px;">Error Signature</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exception Type:</strong> {exception_type}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Message:</strong> {exception_message}</p>
+            <pre style="background-color: #e9ecef; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 10px; margin: 4px 0 0 0;">{stack_trace}</pre>
         </div>
 
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #495057;">Context</h3>
-            <p><strong>Env:</strong> {env} | <strong>Run ID:</strong> {run_id}</p>
-            <p><strong>Retry attempts:</strong> {retry_attempts} | <strong>Last attempt:</strong> {last_attempt_time}</p>
-            <p><strong>Last successful run:</strong> {last_successful_run} at {last_successful_time}</p>
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 11px;">Context</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Env:</strong> {env} | <strong>Run ID:</strong> {run_id}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Retry attempts:</strong> {retry_attempts} | <strong>Last attempt:</strong> {last_attempt_time}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Last successful run:</strong> {last_successful_run} at {last_successful_time}</p>
         </div>
 
-        <div style="background-color: #d1ecf1; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #17a2b8;">
-            <h3 style="margin-top: 0; color: #0c5460;">Quick Actions</h3>
-            <ul style="margin-bottom: 0;">
+        <div style="background-color: #d1ecf1; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 11px;">Quick Actions</h4>
+            <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
 """
 
     for action in quick_actions[:5]:
@@ -665,9 +668,9 @@ LINKS
             </ul>
         </div>
 
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
-            <h3 style="margin-top: 0; color: #495057;">Links</h3>
-            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs (filtered by run_id)</a></p>
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 11px;">Links</h4>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs (filtered by run_id)</a></p>
         </div>
     </div>
 """
