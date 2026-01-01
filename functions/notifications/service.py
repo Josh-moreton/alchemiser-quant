@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
+    DataLakeNotificationRequested,
     ErrorNotificationRequested,
     SystemNotificationRequested,
     TradingNotificationRequested,
@@ -98,6 +99,8 @@ class NotificationService:
                 self._handle_trading_notification(event)
             elif isinstance(event, SystemNotificationRequested):
                 self._handle_system_notification(event)
+            elif isinstance(event, DataLakeNotificationRequested):
+                self._handle_data_lake_notification(event)
             else:
                 self.logger.debug(
                     f"NotificationService ignoring event type: {event.event_type}",
@@ -137,6 +140,7 @@ class NotificationService:
             "ErrorNotificationRequested",
             "TradingNotificationRequested",
             "SystemNotificationRequested",
+            "DataLakeNotificationRequested",
         ]
 
     def _log_event_context(self, event: BaseEvent, message: str, level: str = "info") -> None:
@@ -534,6 +538,145 @@ The system is now operating normally.
             self._log_event_context(
                 event,
                 f"Failed to send system notification ({type(e).__name__}): {e}",
+                "error",
+            )
+
+    def _handle_data_lake_notification(self, event: DataLakeNotificationRequested) -> None:
+        """Handle data lake notification event.
+
+        Sends notification about market data refresh results.
+
+        Args:
+            event: The data lake notification event
+
+        """
+        context = event.data_lake_context
+        self._log_event_context(
+            event,
+            f"Processing data lake notification: status={event.status}, "
+            f"updated={context.get('symbols_updated_count', 0)}, "
+            f"failed={context.get('symbols_failed_count', 0)}",
+        )
+
+        try:
+            total_symbols = context.get("total_symbols", 0)
+            updated_count = context.get("symbols_updated_count", 0)
+            failed_count = context.get("symbols_failed_count", 0)
+            duration_seconds = context.get("duration_seconds", 0)
+            failed_symbols = context.get("failed_symbols", [])
+
+            # Format duration
+            if duration_seconds >= 60:
+                duration_str = f"{duration_seconds // 60}m {duration_seconds % 60}s"
+            else:
+                duration_str = f"{duration_seconds}s"
+
+            # Determine status emoji and color
+            if event.status == "SUCCESS":
+                status_emoji = "✅"
+                status_color = "#28a745"
+            elif event.status == "SUCCESS_WITH_WARNINGS":
+                status_emoji = "⚠️"
+                status_color = "#ffc107"
+            else:
+                status_emoji = "❌"
+                status_color = "#dc3545"
+
+            # Build failed symbols list (if any)
+            failed_list_html = ""
+            failed_list_text = ""
+            if failed_symbols:
+                failed_list_html = (
+                    "<h4>Failed Symbols:</h4><ul>"
+                    + "".join([f"<li>{sym}</li>" for sym in failed_symbols[:20]])
+                    + ("</ul><p><em>...and more</em></p>" if len(failed_symbols) > 20 else "</ul>")
+                )
+                failed_list_text = (
+                    "\nFailed Symbols:\n"
+                    + "\n".join([f"  - {sym}" for sym in failed_symbols[:20]])
+                    + ("\n  ...and more" if len(failed_symbols) > 20 else "")
+                )
+
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 600px;">
+    <h2 style="color: {status_color};">{status_emoji} Data Lake Refresh {event.status}</h2>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr style="background-color: #f8f9fa;">
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Environment</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6;">{self.stage}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Total Symbols</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6;">{total_symbols}</td>
+        </tr>
+        <tr style="background-color: #f8f9fa;">
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Updated</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; color: #28a745;">{updated_count}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Failed</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; color: {'#dc3545' if failed_count > 0 else '#28a745'};">{failed_count}</td>
+        </tr>
+        <tr style="background-color: #f8f9fa;">
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Duration</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6;">{duration_str}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Correlation ID</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">{event.correlation_id}</td>
+        </tr>
+    </table>
+
+    {failed_list_html}
+
+    <p style="color: #6c757d; font-size: 12px; margin-top: 30px;">
+        This notification was sent by The Alchemiser data refresh service.
+    </p>
+</body>
+</html>
+"""
+
+            text_body = f"""
+DATA LAKE REFRESH {event.status}
+{'=' * 40}
+
+Environment: {self.stage}
+Total Symbols: {total_symbols}
+Updated: {updated_count}
+Failed: {failed_count}
+Duration: {duration_str}
+Correlation ID: {event.correlation_id}
+{failed_list_text}
+"""
+
+            subject = f"[{self.stage.upper()}] {status_emoji} Data Lake Refresh {event.status}"
+
+            result = send_email(
+                to_addresses=self._get_recipients(),
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+
+            if result.get("status") == "sent":
+                self._log_event_context(
+                    event,
+                    f"Data lake notification sent via SES (message_id={result.get('message_id')})",
+                )
+            else:
+                self._log_event_context(
+                    event,
+                    f"Failed to send data lake notification: {result.get('error')}",
+                    "error",
+                )
+
+        except Exception as e:
+            self._log_event_context(
+                event,
+                f"Failed to send data lake notification ({type(e).__name__}): {e}",
                 "error",
             )
 
