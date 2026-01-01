@@ -427,6 +427,12 @@ class AllTradesCompleted(BaseEvent):
         default_factory=list, description="List of symbols that failed execution"
     )
 
+    # Non-fractionable skips (expected, not failures)
+    non_fractionable_skipped_symbols: list[str] = Field(
+        default_factory=list,
+        description="Symbols skipped because non-fractionable quantity rounded to zero",
+    )
+
     # Timing fields for notifications
     started_at: str | None = Field(default=None, description="Run start time in ISO format (UTC)")
     completed_at: str | None = Field(
