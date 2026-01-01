@@ -109,9 +109,9 @@ def get_alpaca_client():
     from alpaca.trading.client import TradingClient
 
     api_key = os.environ.get("ALPACA_KEY")
-    api_secret = os.environ.get("ALPACA_SECRET")
+    secret_key = os.environ.get("ALPACA_SECRET")
 
-    if not api_key or not api_secret:
+    if not api_key or not secret_key:
         # Try AWS Secrets Manager
         try:
             secrets = boto3.client("secretsmanager")
@@ -120,13 +120,13 @@ def get_alpaca_client():
 
             secret = json.loads(response["SecretString"])
             api_key = secret.get("api_key")
-            api_secret = secret.get("api_secret")
+            secret_key = secret.get("api_secret")
         except Exception as e:
             print(f"ERROR: Could not get Alpaca credentials: {e}")
             print("Set ALPACA_KEY and ALPACA_SECRET environment variables")
             sys.exit(1)
 
-    return TradingClient(api_key=api_key, api_secret=api_secret, paper=False)
+    return TradingClient(api_key=api_key, secret_key=secret_key, paper=False)
 
 
 def fetch_filled_orders(
