@@ -44,7 +44,7 @@ def _get_strategies_path() -> Traversable | Path:
         return importlib_resources.files("the_alchemiser.shared.strategies")
     except (ModuleNotFoundError, AttributeError):
         # Fallback for local development - navigate from function to project root
-        # __file__ = functions/strategy-worker/engines/dsl/strategy_engine.py
+        # __file__ = functions/strategy_worker/engines/dsl/strategy_engine.py
         # Project root is 5 levels up
         project_root = Path(__file__).parent.parent.parent.parent.parent
         strategies_path = (

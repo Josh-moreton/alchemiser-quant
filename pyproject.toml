@@ -23,13 +23,16 @@ python_version = "3.12"
 strict = true
 plugins = [ "pydantic.mypy",]
 files = [ "functions/", "layers/shared/",]
+explicit_package_bases = true
 show_error_codes = true
 pretty = true
 color_output = true
 cache_dir = ".mypy_cache"
-exclude = [ "scripts/", "tests/", ".aws-sam/",]
+exclude = [ "scripts/", "tests/", ".aws-sam/", "__main__\\.py$",]
+
+# External libraries without type stubs
 [[tool.mypy.overrides]]
-module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*" ]
+module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*", "dateutil.*", "quantstats.*", "awswrangler.*", "mypy_boto3_ses.*" ]
 ignore_missing_imports = true
 
 [tool.importlinter]

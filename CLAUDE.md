@@ -340,7 +340,7 @@ import _setup_imports  # Shared layer
 
 # Also add strategy function code
 import sys
-strategy_function_path = _setup_imports.PROJECT_ROOT / "functions" / "strategy-worker"
+strategy_function_path = _setup_imports.PROJECT_ROOT / "functions" / "strategy_worker"
 sys.path.insert(0, str(strategy_function_path))
 
 from the_alchemiser.shared.logging import get_logger  # From layer

@@ -720,7 +720,7 @@ partial_signal = PartialSignalGenerated(
 # 4. Aggregator receives and publishes merged signal
 merged_signal = SignalGenerated(
     correlation_id=correlation_id,           # ← Same ID through system
-    causation_id="strategy-worker-1,2,3",    # ← All 3 workers contributed
+    causation_id="strategy_worker-1,2,3",    # ← All 3 workers contributed
     ...
 )
 

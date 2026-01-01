@@ -58,7 +58,7 @@ class SingleFileSignalHandler:
         try:
             strategies_path = importlib_resources.files("the_alchemiser.shared.strategies")
         except (ModuleNotFoundError, AttributeError):
-            # Fallback for local development - navigate from functions/strategy-worker/handlers/
+            # Fallback for local development - navigate from functions/strategy_worker/handlers/
             # to project root, then to layer path
             strategies_path = (
                 Path(__file__).parent.parent.parent.parent

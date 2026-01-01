@@ -61,12 +61,12 @@ REGION = "us-east-1"
 
 # Lambda function names (without stage prefix)
 LAMBDA_FUNCTIONS = [
-    "strategy-orchestrator",
-    "strategy-worker",
+    "strategy_orchestrator",
+    "strategy_worker",
     "signal-aggregator",
     "portfolio",
     "execution",
-    "trade-aggregator",
+    "trade_aggregator",
     "notifications",
     "metrics",
 ]
@@ -127,7 +127,7 @@ def find_most_recent_workflow(
         The correlation_id of the most recent workflow, or None if not found
 
     """
-    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
+    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy_orchestrator"
 
     end_time = datetime.now(UTC)
     # Start with a narrow window (last 2 hours) to find recent workflows faster
@@ -229,7 +229,7 @@ def detect_workflow_time_range(
         Tuple of (start_time, end_time) for the workflow
 
     """
-    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
+    orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy_orchestrator"
 
     end_time = datetime.now(UTC)
     search_start = end_time - timedelta(hours=hours_back)

@@ -59,8 +59,8 @@ from the_alchemiser.shared.schemas.asset_info import AssetInfo
 configure_application_logging()
 logger = get_logger(__name__)
 
-STRATEGIES_DIR = project_root / "functions" / "strategy-worker" / "strategies"
-CONFIG_DIR = project_root / "functions" / "strategy-worker" / "config"
+STRATEGIES_DIR = project_root / "functions" / "strategy_worker" / "strategies"
+CONFIG_DIR = project_root / "functions" / "strategy_worker" / "config"
 
 
 def extract_symbols_from_dsl(file_path: Path) -> set[str]:
