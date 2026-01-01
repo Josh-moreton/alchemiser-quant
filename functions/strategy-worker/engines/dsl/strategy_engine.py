@@ -42,8 +42,17 @@ def _get_strategies_path() -> Union[Traversable, Path]:
         # Try Lambda layer first (returns Traversable, don't convert to Path)
         return importlib_resources.files("the_alchemiser.shared.strategies")
     except (ModuleNotFoundError, AttributeError):
-        # Fallback for local development
-        return Path(__file__).parent.parent.parent / "strategies"
+        # Fallback for local development - navigate from function to project root
+        # __file__ = functions/strategy-worker/engines/dsl/strategy_engine.py
+        # Project root is 5 levels up
+        project_root = Path(__file__).parent.parent.parent.parent.parent
+        strategies_path = project_root / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+        if not strategies_path.exists():
+            raise RuntimeError(
+                f"Cannot find strategies directory at {strategies_path}. "
+                "Ensure the shared layer structure exists."
+            )
+        return strategies_path
 
 
 class DslStrategyEngine:
@@ -368,7 +377,13 @@ class DslStrategyEngine:
         strategies_path = _get_strategies_path()
         for f in dsl_files:
             file_path = strategies_path / f
-            if not file_path.exists():
+            # Handle both Path (.exists()) and Traversable (.is_file())
+            if hasattr(file_path, 'exists'):
+                file_exists = file_path.exists()
+            else:
+                # Traversable uses is_file()
+                file_exists = file_path.is_file()
+            if not file_exists:
                 raise ConfigurationError(f"DSL file not found: {f}", file_path=str(file_path))
 
         # Validate and normalize weights using Decimal for precision
@@ -461,10 +476,15 @@ class DslStrategyEngine:
         Returns:
             List of evaluation results for each file (preserves order)
 
+        Raises:
+            StrategyExecutionError: If all files fail to evaluate.
+
         """
         results: list[
             tuple[dict[str, Decimal] | None, str, Decimal, Decimal, list[dict[str, Any]] | None]
         ] = []
+        failed_files: list[tuple[str, str]] = []  # (filename, error_message)
+
         for f in dsl_files:
             try:
                 result = self._evaluate_file(f, correlation_id, normalized_file_weights)
@@ -478,7 +498,30 @@ class DslStrategyEngine:
                         "error_type": type(e).__name__,
                     },
                 )
+                failed_files.append((f, str(e)))
                 results.append((None, "", Decimal("0"), Decimal("0"), None))
+
+        # Log summary of partial failures if any occurred
+        if failed_files:
+            success_count = len(dsl_files) - len(failed_files)
+            self.logger.warning(
+                f"Partial strategy evaluation: {success_count}/{len(dsl_files)} files succeeded",
+                extra={
+                    "correlation_id": correlation_id,
+                    "success_count": success_count,
+                    "failure_count": len(failed_files),
+                    "failed_files": [f for f, _ in failed_files],
+                    "errors": {f: e for f, e in failed_files},
+                },
+            )
+
+            # If ALL files failed, raise an error - partial results are invalid
+            if success_count == 0:
+                raise StrategyExecutionError(
+                    f"All {len(dsl_files)} DSL files failed to evaluate: "
+                    + ", ".join(f"{f}: {e}" for f, e in failed_files)
+                )
+
         return results
 
     def _build_decision_reasoning(

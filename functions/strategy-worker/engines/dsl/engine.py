@@ -333,6 +333,9 @@ class DslEngine(EventHandler):
         Returns:
             Resolved path to strategy file
 
+        Raises:
+            DslEngineError: If strategy file cannot be resolved
+
         """
         # If config_path is provided, use it directly
         if config_path and config_path.strip():
@@ -343,16 +346,26 @@ class DslEngine(EventHandler):
             f"{strategy_id}.clj",
             f"{strategy_id} original.clj",
             f"strategies/{strategy_id}.clj",
-            "Nuclear.clj",  # Default fallback
         ]
 
         for path in possible_paths:
-            full_path = Path(self.strategy_config_path) / path
-            if full_path.exists():
-                return str(full_path)
+            # Handle both Traversable (Lambda layer) and Path (local)
+            if isinstance(self.strategy_config_path, Traversable):
+                file_path = self.strategy_config_path.joinpath(path)
+                if file_path.is_file():
+                    return path
+            else:
+                full_path = Path(self.strategy_config_path) / path
+                if full_path.exists():
+                    return str(full_path)
 
-        # Last resort - return the first option and let parsing handle the error
-        return possible_paths[0]
+        # Fail loudly - no hardcoded fallback to prevent silently evaluating wrong strategy
+        raise DslEngineError(
+            f"Cannot resolve strategy path for strategy_id '{strategy_id}'. "
+            f"Tried: {possible_paths}",
+            correlation_id=None,
+            strategy_id=strategy_id,
+        )
 
     def _publish_completion_events(
         self,
