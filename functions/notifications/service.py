@@ -1,13 +1,15 @@
 """Business Unit: notifications | Status: current.
 
-Notification service for event-driven notifications via SNS.
+Notification service for event-driven notifications via SES.
 
-This service consumes notification events and publishes to SNS for email delivery.
-SNS handles the actual email sending via subscribed email addresses.
+This service consumes notification events and sends templated HTML + plain text emails
+via Amazon SES with deduplication and recovery tracking.
 """
 
 from __future__ import annotations
 
+import os
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -15,19 +17,28 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
+    DataLakeNotificationRequested,
     ErrorNotificationRequested,
     SystemNotificationRequested,
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.notifications.sns_publisher import publish_notification
+from the_alchemiser.shared.notifications.dedup import get_dedup_manager
+from the_alchemiser.shared.notifications.ses_publisher import send_email
+from the_alchemiser.shared.notifications.templates import (
+    format_subject,
+    render_daily_run_failure_html,
+    render_daily_run_failure_text,
+    render_daily_run_success_html,
+    render_daily_run_success_text,
+)
 
 
 class NotificationService:
-    """Event-driven notification service.
+    """Event-driven notification service using Amazon SES.
 
-    Consumes notification events and sends appropriate emails using existing
-    email infrastructure. Designed to be deployable as independent Lambda.
+    Consumes notification events and sends appropriate emails using SES
+    with HTML + plain text templates, deduplication, and recovery tracking.
     """
 
     def __init__(self, container: ApplicationContainer) -> None:
@@ -42,6 +53,14 @@ class NotificationService:
         self.event_bus = container.services.event_bus()
         # Track processed events for idempotency (in-memory for Lambda)
         self._processed_events: set[str] = set()
+
+        # Get environment configuration
+        self.stage = os.environ.get("APP__STAGE", "dev")
+        self.prod_recipients = os.environ.get("NOTIFICATIONS_TO_PROD", "notifications@rwxt.org")
+        self.nonprod_recipients = os.environ.get("NOTIFICATIONS_TO_NONPROD", "notifications@rwxt.org")
+
+        # Deduplication manager
+        self.dedup_manager = get_dedup_manager()
 
     def register_handlers(self) -> None:
         """Register event handlers with the event bus."""
@@ -142,25 +161,94 @@ class NotificationService:
             event: The error notification event
 
         """
-        self._log_event_context(event, f"Sending error notification: {event.error_title}")
+        self._log_event_context(event, f"Processing error notification: {event.error_title}")
+
+        # Extract error details for dedup
+        error_details = {
+            "exception_type": event.error_code or "Unknown",
+            "exception_message": event.error_report,
+        }
+
+        # Check if we should send this failure email (dedup)
+        component = "Daily Run"  # Default for now; can be extracted from event later
+        failed_step = event.error_title  # Use title as failed step
+        run_id = event.correlation_id[:6]
+
+        should_send = self.dedup_manager.should_send_failure_email(
+            component=component,
+            env=self.stage,
+            failed_step=failed_step,
+            error_details=error_details,
+            run_id=run_id,
+        )
+
+        if not should_send:
+            self._log_event_context(
+                event,
+                "Failure email suppressed by deduplication",
+                "info",
+            )
+            return
 
         try:
-            # Build subject with error code if available
-            if event.error_code:
-                subject = f"[FAILURE][{event.error_priority}][{event.error_code}] Alchemiser Error"
+            # Build template context for failure email
+            context = {
+                "status": "FAILURE",
+                "env": self.stage,
+                "run_id": event.correlation_id,
+                "correlation_id": event.correlation_id,
+                "failed_step": failed_step,
+                "impact": "Workflow did not complete successfully",
+                "exception_type": event.error_code or "Unknown",
+                "exception_message": event.error_report[:500],  # Truncate for email
+                "stack_trace": event.error_report,
+                "retry_attempts": 0,  # Not tracked yet
+                "last_attempt_time_utc": event.timestamp.isoformat(),
+                "last_successful_run_id": "N/A",
+                "last_successful_run_time_utc": "N/A",
+                "quick_actions": [
+                    "Check CloudWatch Logs for detailed stack trace",
+                    "Verify Alpaca API connectivity and credentials",
+                    "Check market data freshness in S3",
+                    "Review recent code changes",
+                ],
+                "logs_url": self._build_logs_url(event.correlation_id),
+            }
+
+            # Render templates
+            html_body = render_daily_run_failure_html(context)
+            text_body = render_daily_run_failure_text(context)
+
+            # Build subject
+            subject = format_subject(
+                component=component,
+                status="FAILURE",
+                env=self.stage,
+                run_id=run_id,
+            )
+
+            # Get recipient addresses
+            to_addresses = self._get_recipients()
+
+            # Send via SES
+            result = send_email(
+                to_addresses=to_addresses,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+
+            if result.get("status") == "sent":
+                self._log_event_context(
+                    event,
+                    f"Error notification sent via SES (message_id={result.get('message_id')})",
+                )
             else:
-                subject = f"[FAILURE][{event.error_priority}] Alchemiser Error"
-
-            # Build plain text message for SNS
-            message = self._build_error_message(event)
-
-            # Publish to SNS
-            success = publish_notification(subject=subject, message=message)
-
-            if success:
-                self._log_event_context(event, "Error notification published to SNS")
-            else:
-                self._log_event_context(event, "Failed to publish error notification", "error")
+                self._log_event_context(
+                    event,
+                    f"Failed to send error notification: {result.get('error')}",
+                    "error",
+                )
 
         except Exception as e:
             self._log_event_context(
@@ -177,26 +265,114 @@ class NotificationService:
 
         """
         self._log_event_context(
-            event, f"Sending trading notification: success={event.trading_success}"
+            event, f"Processing trading notification: success={event.trading_success}"
         )
 
+        # Check for recovery (if this is a success after previous failures)
+        if event.trading_success:
+            recovery_info = self.dedup_manager.check_recovery(
+                component="Daily Run",
+                env=self.stage,
+                run_id=event.correlation_id[:6],
+            )
+
+            if recovery_info:
+                self._send_recovery_email(recovery_info, event)
+
+        # Build template context for success/failure email
+        execution_data = event.execution_data or {}
+        execution_summary = execution_data.get("execution_summary", {})
+
+        context = {
+            "status": "SUCCESS" if event.trading_success else "FAILURE",
+            "env": self.stage,
+            "mode": event.trading_mode,
+            "run_id": event.correlation_id,
+            "correlation_id": event.correlation_id,
+            "version_git_sha": os.environ.get("GIT_SHA", "unknown"),
+            "strategy_version": os.environ.get("STRATEGY_VERSION", "unknown"),  # TODO: prefer sourcing from event/config instead of env default
+            "start_time_utc": "N/A",  # Not in current event; needs enhancement
+            "end_time_utc": datetime.now(UTC).isoformat(),
+            "duration_seconds": 0,  # Not tracked yet
+            "symbols_evaluated": execution_summary.get("symbols_evaluated", 0),
+            "eligible_signals_count": execution_summary.get("eligible_signals", 0),
+            "blocked_by_risk_count": execution_summary.get("blocked_by_risk", 0),
+            "orders_placed": event.orders_placed,
+            "orders_filled": event.orders_succeeded,
+            "orders_cancelled": 0,  # Not tracked yet
+            "orders_rejected": event.orders_placed - event.orders_succeeded,
+            "equity": execution_summary.get("equity", 0),
+            "cash": execution_summary.get("cash", 0),
+            "gross_exposure": execution_summary.get("gross_exposure", 0),
+            "net_exposure": execution_summary.get("net_exposure", 0),
+            "top_positions": execution_summary.get("top_positions", []),
+            "data_freshness": {
+                "latest_timestamp": "N/A",  # Needs enhancement
+                "age_days": 0,
+                "gate_status": "PASS",  # Placeholder
+            },
+            "warnings": [],
+            "logs_url": self._build_logs_url(event.correlation_id),
+        }
+
         try:
-            # Build subject line
-            subject = self._build_trading_subject(event)
+            # Render templates
+            if event.trading_success:
+                html_body = render_daily_run_success_html(context)
+                text_body = render_daily_run_success_text(context)
+            else:
+                # For failures, add error details
+                context.update({
+                    "failed_step": "execution",
+                    "impact": "Trades did not execute successfully",
+                    "exception_type": event.error_code or "TradingFailure",
+                    "exception_message": event.error_message or "Trading execution failed",
+                    "stack_trace": event.error_message or "",
+                    "retry_attempts": 0,
+                    "last_attempt_time_utc": datetime.now(UTC).isoformat(),
+                    "last_successful_run_id": "N/A",
+                    "last_successful_run_time_utc": "N/A",
+                    "quick_actions": [
+                        "Check Alpaca account status and buying power",
+                        "Verify market is open (Mon-Fri 9:30 AM - 4:00 PM ET)",
+                        "Check for rejected orders in trade ledger",
+                        "Review risk controls and position limits",
+                    ],
+                })
+                html_body = render_daily_run_failure_html(context)
+                text_body = render_daily_run_failure_text(context)
 
-            # Build plain text message for SNS
-            message = self._build_trading_message(event)
+            # Build subject
+            status = "SUCCESS" if event.trading_success else "FAILURE"
+            subject = format_subject(
+                component="Daily Run",
+                status=status,
+                env=self.stage,
+                run_id=event.correlation_id[:6],
+            )
 
-            # Publish to SNS
-            success = publish_notification(subject=subject, message=message)
+            # Get recipient addresses
+            to_addresses = self._get_recipients()
 
-            if success:
+            # Send via SES
+            result = send_email(
+                to_addresses=to_addresses,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+
+            if result.get("status") == "sent":
                 self._log_event_context(
                     event,
-                    f"Trading notification published to SNS (success={event.trading_success})",
+                    f"Trading notification sent via SES (message_id={result.get('message_id')}, success={event.trading_success})",
                 )
             else:
-                self._log_event_context(event, "Failed to publish trading notification", "error")
+                self._log_event_context(
+                    event,
+                    f"Failed to send trading notification: {result.get('error')}",
+                    "error",
+                )
 
         except Exception as e:
             self._log_event_context(
@@ -205,107 +381,81 @@ class NotificationService:
                 "error",
             )
 
-    def _build_trading_subject(self, event: TradingNotificationRequested) -> str:
-        """Build email subject for trading notification.
+    def _send_recovery_email(self, recovery_info: dict, event: TradingNotificationRequested) -> None:
+        """Send RECOVERED email after previous failures cleared.
 
         Args:
-            event: Trading notification event
-
-        Returns:
-            Email subject line
+            recovery_info: Recovery information from dedup manager
+            event: The successful trading event that triggered recovery
 
         """
-        status_tag = "SUCCESS" if event.trading_success else "FAILURE"
-        if not event.trading_success and event.error_code:
-            return f"[{status_tag}][{event.error_code}] Alchemiser {event.trading_mode.upper()}"
-        return f"[{status_tag}] Alchemiser {event.trading_mode.upper()} Trading"
+        self.logger.info(
+            "Sending RECOVERED notification",
+            extra={
+                "correlation_id": event.correlation_id,
+                "recovered_count": len(recovery_info.get("recovered_keys", [])),
+            },
+        )
 
-    def _build_trading_message(self, event: TradingNotificationRequested) -> str:
-        """Build plain text message for trading notification.
+        # Build simple recovery message (can be enhanced with template later)
+        recovered_keys = recovery_info.get("recovered_keys", [])
+        recovery_details = "\n".join([
+            f"• {key['dedup_key']}: {key['repeat_count']} occurrences from {key['first_seen_time']} to {key['last_seen_time']}"
+            for key in recovered_keys
+        ])
 
-        Args:
-            event: Trading notification event
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; padding: 20px;">
+    <h2 style="color: #17a2b8;">✅ System Recovered</h2>
+    <p>Previous failures have been resolved in run <strong>{event.correlation_id[:6]}</strong>.</p>
+    <h3>Recovered Failures:</h3>
+    <ul>
+        {"".join([f"<li>{key['dedup_key']}: {key['repeat_count']} occurrences</li>" for key in recovered_keys])}
+    </ul>
+    <p>The system is now operating normally.</p>
+</body>
+</html>
+"""
 
-        Returns:
-            Plain text message for SNS
+        text_body = f"""
+SYSTEM RECOVERED
+================
 
-        """
-        status = "SUCCESS" if event.trading_success else "FAILURE"
+Previous failures have been resolved in run {event.correlation_id[:6]}.
 
-        # Format capital deployed percentage (show N/A if not available)
-        if event.capital_deployed_pct is not None:
-            capital_deployed_str = f"{event.capital_deployed_pct:.2f}%"
-        else:
-            capital_deployed_str = "N/A"
+Recovered Failures:
+{recovery_details}
 
-        # Calculate orders actually executed (excluding skips)
-        orders_executed = event.orders_placed - event.orders_skipped
+The system is now operating normally.
+"""
 
-        lines = [
-            "THE ALCHEMISER - TRADING REPORT",
-            "=" * 40,
-            "",
-            f"Status: {status}",
-            f"Mode: {event.trading_mode.upper()}",
-            f"Orders Placed: {event.orders_placed}",
-            f"Orders Executed: {orders_executed}",
-            f"Orders Skipped: {event.orders_skipped}",
-            f"Capital Deployed: {capital_deployed_str}",
-            "",
-            f"Correlation ID: {event.correlation_id}",
-            f"Timestamp: {event.timestamp}",
-        ]
+        subject = format_subject(
+            component="Daily Run",
+            status="RECOVERED",
+            env=self.stage,
+            run_id=event.correlation_id[:6],
+        )
 
-        if not event.trading_success and event.error_message:
-            lines.extend(["", "Error Details:", event.error_message])
-
-        # Add strategy performance report link if available
-        report_url = event.execution_data.get("strategy_performance_report_url")
-        if report_url:
-            lines.extend(
-                [
-                    "",
-                    "-" * 40,
-                    "STRATEGY PERFORMANCE REPORT",
-                    "-" * 40,
-                    "Download CSV (link valid for 7 days):",
-                    report_url,
-                ]
+        try:
+            result = send_email(
+                to_addresses=self._get_recipients(),
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
             )
 
-        return "\n".join(lines)
-
-    def _build_error_message(self, event: ErrorNotificationRequested) -> str:
-        """Build plain text message for error notification.
-
-        Args:
-            event: Error notification event
-
-        Returns:
-            Plain text message for SNS
-
-        """
-        lines = [
-            "THE ALCHEMISER - ERROR REPORT",
-            "=" * 40,
-            "",
-            f"Severity: {event.error_severity}",
-            f"Priority: {event.error_priority}",
-            f"Title: {event.error_title}",
-            "",
-            "Details:",
-            "-" * 40,
-            event.error_report,
-            "-" * 40,
-            "",
-            f"Correlation ID: {event.correlation_id}",
-            f"Timestamp: {event.timestamp}",
-        ]
-
-        if event.error_code:
-            lines.insert(4, f"Error Code: {event.error_code}")
-
-        return "\n".join(lines)
+            if result.get("status") == "sent":
+                self.logger.info(
+                    f"Recovery notification sent (message_id={result.get('message_id')})",
+                    extra={"correlation_id": event.correlation_id},
+                )
+        except Exception as e:
+            self.logger.error(
+                f"Failed to send recovery notification: {e}",
+                extra={"correlation_id": event.correlation_id},
+            )
 
     def _handle_system_notification(self, event: SystemNotificationRequested) -> None:
         """Handle system notification event.
@@ -314,18 +464,41 @@ class NotificationService:
             event: The system notification event
 
         """
-        self._log_event_context(event, f"Sending system notification: {event.notification_type}")
+        self._log_event_context(event, f"Processing system notification: {event.notification_type}")
 
         try:
-            # Use text_content for SNS (plain text only)
-            message = event.text_content or "System notification (no content provided)"
+            # Use text_content for plain text body
+            text_body = event.text_content or "System notification (no content provided)"
 
-            success = publish_notification(subject=event.subject, message=message)
+            # Create simple HTML wrapper for text content
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; padding: 20px;">
+    <h2>System Notification</h2>
+    <pre style="background-color: #f8f9fa; padding: 15px; border-radius: 4px;">{text_body}</pre>
+</body>
+</html>
+"""
 
-            if success:
-                self._log_event_context(event, "System notification published to SNS")
+            result = send_email(
+                to_addresses=self._get_recipients(),
+                subject=event.subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+
+            if result.get("status") == "sent":
+                self._log_event_context(
+                    event,
+                    f"System notification sent via SES (message_id={result.get('message_id')})",
+                )
             else:
-                self._log_event_context(event, "Failed to publish system notification", "error")
+                self._log_event_context(
+                    event,
+                    f"Failed to send system notification: {result.get('error')}",
+                    "error",
+                )
 
         except Exception as e:
             self._log_event_context(
@@ -333,3 +506,31 @@ class NotificationService:
                 f"Failed to send system notification ({type(e).__name__}): {e}",
                 "error",
             )
+
+    def _get_recipients(self) -> list[str]:
+        """Get recipient email addresses based on environment.
+
+        Returns:
+            List of recipient email addresses
+
+        """
+        if self.stage == "prod":
+            return [addr.strip() for addr in self.prod_recipients.split(",")]
+        else:
+            return [addr.strip() for addr in self.nonprod_recipients.split(",")]
+
+    def _build_logs_url(self, correlation_id: str) -> str:
+        """Build CloudWatch Logs Insights URL filtered by correlation ID.
+
+        Args:
+            correlation_id: Correlation ID for filtering
+
+        Returns:
+            CloudWatch Logs URL
+
+        """
+        region = os.environ.get("AWS_REGION", "us-east-1")
+        # TODO: Implement complete URL builder with correlation_id filter, proper timestamp range,
+        # and URL encoding for production use. Current placeholder URL doesn't include query parameters.
+        return f"https://console.aws.amazon.com/cloudwatch/home?region={region}#logsV2:logs-insights"
+

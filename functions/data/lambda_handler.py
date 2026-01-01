@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.shared.events import (
+    DataLakeUpdateCompleted,
     MarketDataFetchCompleted,
     WorkflowFailed,
 )
@@ -282,11 +283,15 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
     # Generate correlation ID for this workflow
     correlation_id = event.get("correlation_id") or f"data-refresh-{uuid.uuid4()}"
 
+    # Capture start time for metrics
+    start_time = datetime.now(UTC)
+
     logger.info(
         "Data Lambda invoked - starting data refresh",
         extra={
             "correlation_id": correlation_id,
             "event_source": event.get("source", "schedule"),
+            "start_time_utc": start_time.isoformat(),
         },
     )
 
@@ -328,6 +333,11 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         success_count = sum(results.values())
         failed_count = total - success_count
         failed_symbols = [s for s, ok in results.items() if not ok]
+        success_symbols = [s for s, ok in results.items() if ok]
+
+        # Calculate duration
+        end_time = datetime.now(UTC)
+        duration = (end_time - start_time).total_seconds()
 
         logger.info(
             "Data refresh completed",
@@ -337,43 +347,87 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 "success_count": success_count,
                 "failed_count": failed_count,
                 "failed_symbols": failed_symbols,
+                "duration_seconds": duration,
             },
         )
 
-        # Return success even if some symbols failed
-        # (individual failures are logged and can be retried)
+        # Determine status code and success flag
         if failed_count == 0:
-            return {
-                "statusCode": 200,
-                "body": {
-                    "status": "success",
+            status_code = 200
+            overall_success = True
+        elif success_count > 0:
+            status_code = 206  # Partial success
+            overall_success = False
+        else:
+            status_code = 500  # All failed
+            overall_success = False
+
+        # Publish DataLakeUpdateCompleted event for notifications
+        try:
+            update_event = DataLakeUpdateCompleted(
+                correlation_id=correlation_id,
+                causation_id=correlation_id,
+                event_id=f"data-lake-update-{uuid.uuid4()}",
+                timestamp=end_time,
+                source_module="data_v2",
+                source_component="lambda_handler",
+                success=overall_success,
+                status_code=status_code,
+                total_symbols=total,
+                symbols_updated=success_symbols,
+                failed_symbols=failed_symbols,
+                symbols_updated_count=success_count,
+                symbols_failed_count=failed_count,
+                total_bars_fetched=0,  # TODO: Track if needed
+                data_source="alpaca_api",
+                start_time_utc=start_time.isoformat(),
+                end_time_utc=end_time.isoformat(),
+                duration_seconds=duration,
+                error_message=f"Failed symbols: {', '.join(failed_symbols)}" if failed_symbols else None,
+                error_details={"failed_symbols": failed_symbols} if failed_symbols else {},
+            )
+            publish_to_eventbridge(update_event)
+
+            logger.info(
+                "DataLakeUpdateCompleted event published",
+                extra={
                     "correlation_id": correlation_id,
-                    "total_symbols": total,
-                    "refreshed": success_count,
+                    "event_id": update_event.event_id,
+                    "overall_success": overall_success,
                 },
-            }
-        if success_count > 0:
-            return {
-                "statusCode": 206,  # Partial Content
-                "body": {
-                    "status": "partial_success",
+            )
+        except Exception as pub_error:
+            logger.error(
+                "Failed to publish DataLakeUpdateCompleted event",
+                extra={
                     "correlation_id": correlation_id,
-                    "total_symbols": total,
-                    "refreshed": success_count,
-                    "failed": failed_count,
-                    "failed_symbols": failed_symbols,
+                    "error": str(pub_error),
                 },
-            }
-        # All symbols failed
-        return {
-            "statusCode": 500,
-            "body": {
-                "status": "failed",
-                "correlation_id": correlation_id,
-                "total_symbols": total,
+            )
+
+        # Return response based on status
+        response_body: dict[str, Any] = {
+            "correlation_id": correlation_id,
+            "total_symbols": total,
+            "refreshed": success_count,
+        }
+
+        if failed_count > 0:
+            response_body.update({
                 "failed": failed_count,
                 "failed_symbols": failed_symbols,
-            },
+            })
+
+        if status_code == 200:
+            response_body["status"] = "success"
+        elif status_code == 206:
+            response_body["status"] = "partial_success"
+        else:
+            response_body["status"] = "failed"
+
+        return {
+            "statusCode": status_code,
+            "body": response_body,
         }
 
     except Exception as e:

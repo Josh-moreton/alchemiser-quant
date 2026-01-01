@@ -21,6 +21,7 @@ from strategy_report_service import generate_performance_report_url
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events.eventbridge_publisher import unwrap_eventbridge_event
 from the_alchemiser.shared.events.schemas import (
+    DataLakeNotificationRequested,
     ErrorNotificationRequested,
     TradingNotificationRequested,
 )
@@ -74,6 +75,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_all_trades_completed(detail, correlation_id)
         if detail_type == "WorkflowFailed":
             return _handle_workflow_failed(detail, correlation_id, source)
+        if detail_type == "DataLakeUpdateCompleted":
+            return _handle_data_lake_update(detail, correlation_id)
 
         logger.debug(
             f"Ignoring unsupported event type: {detail_type}",
@@ -407,3 +410,93 @@ def _generate_strategy_report(correlation_id: str) -> str | None:
             },
         )
         return None
+
+
+def _handle_data_lake_update(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle DataLakeUpdateCompleted event.
+
+    Sends detailed notification about data lake refresh with metrics.
+
+    Args:
+        detail: The detail payload from DataLakeUpdateCompleted event
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    total_symbols = detail.get("total_symbols", 0)
+    success_count = detail.get("symbols_updated_count", 0)
+    failed_count = detail.get("symbols_failed_count", 0)
+    overall_success = detail.get("success", False)
+
+    logger.info(
+        "Processing DataLakeUpdateCompleted",
+        extra={
+            "correlation_id": correlation_id,
+            "total_symbols": total_symbols,
+            "success_count": success_count,
+            "failed_count": failed_count,
+        },
+    )
+
+    container = ApplicationContainer.create_for_notifications("production")
+    notification_event = _build_data_lake_notification(detail, correlation_id, container)
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    return {
+        "statusCode": 200,
+        "body": f"Data lake notification sent for correlation_id: {correlation_id}",
+    }
+
+
+def _build_data_lake_notification(
+    update_detail: dict[str, Any],
+    correlation_id: str,
+    container: ApplicationContainer,
+) -> DataLakeNotificationRequested:
+    """Build DataLakeNotificationRequested from DataLakeUpdateCompleted event.
+
+    Args:
+        update_detail: The detail payload from DataLakeUpdateCompleted event
+        correlation_id: Correlation ID for tracing
+        container: Application container for config access
+
+    Returns:
+        DataLakeNotificationRequested event ready for processing
+
+    """
+    status_code = update_detail.get("status_code", 500)
+    if status_code == 200:
+        status = "SUCCESS"
+    elif status_code == 206:
+        status = "SUCCESS_WITH_WARNINGS"
+    else:
+        status = "FAILURE"
+
+    data_lake_context = {
+        "total_symbols": update_detail.get("total_symbols", 0),
+        "symbols_updated": update_detail.get("symbols_updated", []),
+        "failed_symbols": update_detail.get("failed_symbols", []),
+        "symbols_updated_count": update_detail.get("symbols_updated_count", 0),
+        "symbols_failed_count": update_detail.get("symbols_failed_count", 0),
+        "total_bars_fetched": update_detail.get("total_bars_fetched", 0),
+        "data_source": update_detail.get("data_source", "alpaca_api"),
+        "start_time_utc": update_detail.get("start_time_utc", ""),
+        "end_time_utc": update_detail.get("end_time_utc", ""),
+        "duration_seconds": update_detail.get("duration_seconds", 0),
+        "error_message": update_detail.get("error_message"),
+        "error_details": update_detail.get("error_details", {}),
+    }
+
+    return DataLakeNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=update_detail.get("event_id", correlation_id),
+        event_id=f"data-lake-notification-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        status=status,
+        data_lake_context=data_lake_context,
+    )

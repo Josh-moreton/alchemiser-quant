@@ -559,6 +559,28 @@ class SystemNotificationRequested(BaseEvent):
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
 
 
+class DataLakeNotificationRequested(BaseEvent):
+    """Event emitted when a data lake update notification should be sent.
+
+    Contains data lake refresh results and metrics for email notifications.
+    Supports SUCCESS, SUCCESS_WITH_WARNINGS, and FAILURE statuses.
+    """
+
+    event_type: str = Field(
+        default="DataLakeNotificationRequested", description=EVENT_TYPE_DESCRIPTION
+    )
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Data lake notification fields
+    status: str = Field(..., description="Update status (SUCCESS, SUCCESS_WITH_WARNINGS, FAILURE)")
+    data_lake_context: dict[str, Any] = Field(..., description="Data lake update context for templates")
+    recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+
 # Market Data Events (for shared data infrastructure)
 
 
@@ -618,4 +640,48 @@ class MarketDataFetchCompleted(BaseEvent):
     error_message: str | None = Field(default=None, description="Error message if fetch failed")
     was_deduplicated: bool = Field(
         default=False, description="True if request was skipped due to recent fetch"
+    )
+
+
+class DataLakeUpdateCompleted(BaseEvent):
+    """Event emitted when scheduled data lake refresh completes.
+
+    Published by DataFunction after processing all configured symbols in the daily
+    refresh job. Contains detailed metrics for notification emails.
+
+    This is distinct from MarketDataFetchCompleted which tracks individual
+    on-demand symbol fetches.
+    """
+
+    event_type: str = Field(default="DataLakeUpdateCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Outcome fields
+    success: bool = Field(..., description="Overall success (true if all symbols succeeded)")
+    status_code: int = Field(..., description="Lambda status code (200/206/500)")
+
+    # Symbol metrics
+    total_symbols: int = Field(..., description="Total symbols processed")
+    symbols_updated: list[str] = Field(default_factory=list, description="Successfully updated symbols")
+    failed_symbols: list[str] = Field(default_factory=list, description="Symbols that failed to update")
+    symbols_updated_count: int = Field(..., description="Count of successful updates")
+    symbols_failed_count: int = Field(..., description="Count of failed updates")
+
+    # Data metrics
+    total_bars_fetched: int = Field(default=0, description="Total bars fetched across all symbols")
+    data_source: str = Field(default="alpaca_api", description="Data source (alpaca_api, etc)")
+
+    # Timing metrics
+    start_time_utc: str = Field(..., description="Refresh start time (ISO format)")
+    end_time_utc: str = Field(..., description="Refresh end time (ISO format)")
+    duration_seconds: float = Field(..., description="Total duration in seconds")
+
+    # Error details (populated on partial/full failure)
+    error_message: str | None = Field(default=None, description="Error message if failed")
+    error_details: dict[str, Any] = Field(
+        default_factory=dict, description="Detailed error information per symbol"
     )

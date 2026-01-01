@@ -4,8 +4,6 @@ Lambda handler for metrics publishing microservice.
 
 Consumes TradeExecuted events from EventBridge and publishes per-strategy
 realized P&L metrics to CloudWatch for dashboard visualization.
-
-This Lambda runs only in production.
 """
 
 from __future__ import annotations
