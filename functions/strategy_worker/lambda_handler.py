@@ -124,7 +124,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             consolidated_portfolio=result["consolidated_portfolio"],
             signal_count=result["signal_count"],
             metadata={"single_file_mode": True},
-            data_freshness=result.get("data_freshness"),
+            data_freshness=result.get("data_freshness") or {},
         )
 
         # Publish to EventBridge (triggers Aggregator)

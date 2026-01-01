@@ -197,7 +197,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             started_at=started_at,
             completed_at=completed_at,
             portfolio_snapshot=portfolio_snapshot,
-            data_freshness=data_freshness,
+            data_freshness=data_freshness or {},
         )
 
         # Publish to EventBridge (triggers Notifications Lambda)

@@ -61,14 +61,15 @@ class NotificationDedupManager:
             region: AWS region
 
         """
-        self.table_name = table_name or os.environ.get("NOTIFICATION_DEDUP_TABLE_NAME")
+        _table_name = table_name or os.environ.get("NOTIFICATION_DEDUP_TABLE_NAME")
+        if not _table_name:
+            raise ValueError("NOTIFICATION_DEDUP_TABLE_NAME environment variable is required")
+        self.table_name: str = _table_name
+
         self.quiet_period_minutes = quiet_period_minutes or int(
             os.environ.get("DEDUP_QUIET_PERIOD_MINUTES", "120")
         )
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
-
-        if not self.table_name:
-            raise ValueError("NOTIFICATION_DEDUP_TABLE_NAME environment variable is required")
 
         self._client: DynamoDBClient = boto3.client("dynamodb", region_name=self.region)
 
@@ -204,11 +205,12 @@ class NotificationDedupManager:
                 return None
 
             # Mark all as RECOVERED and return summary
-            recovery_info = {
+            recovered_keys: list[dict[str, Any]] = []
+            recovery_info: dict[str, Any] = {
                 "component": component,
                 "env": env,
                 "recovering_run_id": run_id,
-                "recovered_keys": [],
+                "recovered_keys": recovered_keys,
             }
 
             for item in items:
@@ -220,7 +222,7 @@ class NotificationDedupManager:
                 # Mark as RECOVERED
                 self._mark_recovered(dedup_key, run_id)
 
-                recovery_info["recovered_keys"].append(
+                recovered_keys.append(
                     {
                         "dedup_key": dedup_key,
                         "first_seen_time": first_seen,
@@ -238,7 +240,7 @@ class NotificationDedupManager:
                     },
                 )
 
-            return recovery_info if recovery_info["recovered_keys"] else None
+            return recovery_info if recovered_keys else None
 
         except Exception as e:
             logger.error(

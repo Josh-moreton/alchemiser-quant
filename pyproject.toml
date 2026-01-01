@@ -28,7 +28,7 @@ show_error_codes = true
 pretty = true
 color_output = true
 cache_dir = ".mypy_cache"
-exclude = [ "scripts/", "tests/", ".aws-sam/", "__main__\\.py$",]
+exclude = [ "scripts/", "tests/", ".aws-sam/", "__main__\\.py$", "functions/[^/]+/__init__\\.py$",]
 
 # External libraries without type stubs
 [[tool.mypy.overrides]]

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -408,7 +408,7 @@ class NotificationService:
             )
 
     def _send_recovery_email(
-        self, recovery_info: dict, event: TradingNotificationRequested
+        self, recovery_info: dict[str, Any], event: TradingNotificationRequested
     ) -> None:
         """Send RECOVERED email after previous failures cleared.
 
