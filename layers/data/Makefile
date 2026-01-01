@@ -57,10 +57,26 @@ build-DataLayer:
 		structlog \
 		-t "$(ARTIFACTS_DIR)/python" \
 		--upgrade
-	
+
+	# Add QuantStats (pandas/numpy already in awswrangler)
+	@echo "➕ Adding quantstats and dependencies..."
+	$(PIP) install -q \
+		quantstats==0.0.77 \
+		--no-deps \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade
+	$(PIP) install -q \
+		scipy \
+		matplotlib \
+		yfinance \
+		tabulate \
+		seaborn \
+		-t "$(ARTIFACTS_DIR)/python" \
+		--upgrade
+
 	# Cleanup
 	rm -f /tmp/awswrangler-layer.zip
-	
-	@echo "✅ Data layer build complete"
+
+	@echo "✅ Data layer build complete (includes quantstats)"
 	@du -sh "$(ARTIFACTS_DIR)/python" 2>/dev/null || du -sh "$(ARTIFACTS_DIR)" || true
 
