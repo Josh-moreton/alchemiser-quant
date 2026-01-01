@@ -22,6 +22,19 @@ Usage:
 
 from __future__ import annotations
 
+# Configure matplotlib BEFORE any imports that use it (quantstats, etc.)
+# This prevents "Font family 'Arial' not found" warnings on Linux/CI systems
+import matplotlib
+
+matplotlib.use("Agg")  # Use non-interactive backend for headless environments
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = "DejaVu Sans"
+# Suppress font manager warnings
+import logging as _logging
+
+_logging.getLogger("matplotlib.font_manager").setLevel(_logging.ERROR)
+
 import logging
 import os
 import sys

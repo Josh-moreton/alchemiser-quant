@@ -4,6 +4,9 @@ QuantStats tearsheet report generation wrapper.
 
 Generates professional HTML tearsheet reports with benchmark comparison
 using the QuantStats library.
+
+Note: matplotlib font configuration is done in generate_quantstats_reports.py
+BEFORE any imports to prevent "Font family 'Arial' not found" warnings.
 """
 
 from __future__ import annotations
@@ -12,16 +15,6 @@ import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-
-# Configure matplotlib to use a system-available font before importing quantstats
-# This prevents "Font family 'Arial' not found" warnings on Linux/CI systems
-import matplotlib
-
-matplotlib.use("Agg")  # Use non-interactive backend for headless environments
-import matplotlib.pyplot as plt
-
-# Use DejaVu Sans which is available on most systems including Ubuntu
-plt.rcParams["font.family"] = "DejaVu Sans"
 
 import pandas as pd
 import quantstats as qs
