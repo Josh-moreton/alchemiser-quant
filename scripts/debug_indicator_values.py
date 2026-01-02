@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: Scripts | Status: current.
 
 Debug script to check indicator values for specific symbols.
 Helps diagnose why filter conditions might be evaluating differently than Composer.
