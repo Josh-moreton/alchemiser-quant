@@ -467,6 +467,11 @@ def main() -> None:
         action="store_true",
         help="Don't auto-open URLs in browser",
     )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Ignore previous validations and start fresh (creates new CSV)",
+    )
 
     args = parser.parse_args()
 
@@ -572,10 +577,19 @@ def main() -> None:
 
     # Load existing validations (for resume capability)
     csv_path = get_csv_path(validation_date)
-    validated_strategies = load_validated_strategies(csv_path)
+
+    if args.fresh:
+        # Delete existing CSV if --fresh flag is set
+        if csv_path.exists():
+            csv_path.unlink()
+            print("\n🔄 Fresh validation requested - cleared previous results")
+        validated_strategies: set[str] = set()
+    else:
+        validated_strategies = load_validated_strategies(csv_path)
 
     if validated_strategies:
         print(f"\nResuming validation ({len(validated_strategies)} already completed)")
+        print("  (Use --fresh to start over)")
     else:
         print("\nStarting fresh validation")
 
