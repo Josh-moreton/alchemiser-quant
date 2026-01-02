@@ -324,38 +324,34 @@ def display_signal(
     print()
 
     if strategy:
-        print(f"  Display name: {strategy.get('display_name', 'N/A')}")
-        print(f"  Composer URL: {strategy.get('source_url', 'N/A')}")
+        print(f"Composer URL: {strategy.get('source_url', 'N/A')}")
     else:
-        print("  ⚠️  WARNING: Strategy not found in ledger")
-        print("  Composer URL: (unknown)")
+        print("⚠️  Strategy not found in ledger - Composer URL: (unknown)")
 
-    print()
-    print(f"  Allocation: {signal['allocation']} ({float(signal['allocation']) * 100:.2f}%)")
-    print(f"  Signal count: {signal['signal_count']}")
-    print()
+    # Extract target allocations from consolidated_portfolio
+    target_allocations = signal["consolidated_portfolio"].get("target_allocations", {})
 
-    # Display consolidated portfolio
-    print("  Consolidated Portfolio:")
-    portfolio_json = json.dumps(signal["consolidated_portfolio"], indent=4)
-    for line in portfolio_json.split("\n"):
-        print(f"  {line}")
+    if target_allocations:
+        print(f"\nTarget Allocations ({signal['signal_count']} positions):")
 
-    print()
+        # Un-scale allocations to show as standalone 100% portfolio (to match Composer)
+        # The allocations are scaled by the strategy weight, so divide to get original
+        allocation_weight = signal["allocation"]
 
-    # Display signals data (truncate if too long)
-    print("  Raw Signals Data:")
-    signals_json = json.dumps(signal["signals_data"], indent=4)
-    lines = signals_json.split("\n")
+        # Sort by allocation descending
+        sorted_allocations = sorted(
+            target_allocations.items(),
+            key=lambda x: Decimal(str(x[1])),
+            reverse=True
+        )
 
-    if len(lines) > 50:
-        # Show first 50 lines + truncation notice
-        for line in lines[:50]:
-            print(f"  {line}")
-        print(f"  ... (truncated, {len(lines) - 50} more lines)")
+        for symbol, weight in sorted_allocations:
+            # Un-scale: divide by strategy allocation to get original 100% portfolio
+            original_weight = Decimal(str(weight)) / allocation_weight
+            weight_pct = float(original_weight) * 100
+            print(f"  {symbol:<8} {weight_pct:>6.2f}%")
     else:
-        for line in lines:
-            print(f"  {line}")
+        print("\n⚠️  No target allocations found")
 
     print()
 
