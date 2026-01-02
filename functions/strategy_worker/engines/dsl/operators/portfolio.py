@@ -43,6 +43,8 @@ def collect_assets_from_value(value: DSLValue) -> list[str]:
     """Recursively extract all asset symbols from a DSLValue.
 
     Handles `PortfolioFragment`, single symbol strings, and nested lists.
+    NOTE: This discards weight information - use collect_weights_from_value
+    when you need to preserve weights.
     """
     if isinstance(value, PortfolioFragment):
         return list(value.weights.keys())
@@ -54,6 +56,28 @@ def collect_assets_from_value(value: DSLValue) -> list[str]:
             symbols.extend(collect_assets_from_value(item))
         return symbols
     return []
+
+
+def collect_weights_from_value(value: DSLValue) -> dict[str, Decimal]:
+    """Recursively extract all asset weights from a DSLValue.
+
+    Handles `PortfolioFragment`, single symbol strings, and nested lists.
+    Preserves weight information from PortfolioFragments.
+    For bare symbols, assigns weight of 1.0 (to be normalized later).
+    For lists, merges weights by addition.
+    """
+    if isinstance(value, PortfolioFragment):
+        return dict(value.weights)
+    if isinstance(value, str):
+        return {value: Decimal("1.0")}
+    if isinstance(value, list):
+        merged: dict[str, Decimal] = {}
+        for item in value:
+            item_weights = collect_weights_from_value(item)
+            for sym, w in item_weights.items():
+                merged[sym] = merged.get(sym, Decimal("0")) + w
+        return merged
+    return {}
 
 
 def parse_selection(sel_expr: ASTNode | None, context: DslContext) -> tuple[bool, int | None]:
@@ -115,19 +139,42 @@ def select_symbols(
     order: Literal["top", "bottom"],
     limit: int | None,
     context: DslContext,
-) -> list[DSLValue]:
+) -> PortfolioFragment:
     """Score, sort, and select symbols based on selection parameters.
 
     order: "top" sorts descending (highest first); "bottom" ascending.
     limit: optional number of items to return.
+
+    Returns a PortfolioFragment with equal weights for selected symbols.
     """
     scored = score_candidates(symbols, condition_expr, context)
     if not scored:
-        return []
+        return PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="filter",
+            weights={},
+        )
     scored.sort(key=lambda x: x[1], reverse=(order == "top"))
     if limit is not None and limit >= 0:
         scored = scored[:limit]
-    return cast(list[DSLValue], [sym for sym, _ in scored])
+
+    # Create equal-weighted fragment for selected symbols
+    selected_symbols = [sym for sym, _ in scored]
+    if not selected_symbols:
+        return PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="filter",
+            weights={},
+        )
+
+    weight_per_asset = Decimal("1") / Decimal(str(len(selected_symbols)))
+    weights = {sym: weight_per_asset for sym in selected_symbols}
+
+    return PortfolioFragment(
+        fragment_id=str(uuid.uuid4()),
+        source_step="filter",
+        weights=weights,
+    )
 
 
 def _normalize_fragment_weights(value: DSLValue, context: DslContext) -> dict[str, Decimal]:
@@ -182,36 +229,49 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
 
 
 def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
-    """Evaluate weight-equal - allocate equal weight to all assets using Decimal arithmetic."""
+    """Evaluate weight-equal - allocate equal weight to all assets using Decimal arithmetic.
+
+    IMPORTANT: When weight-equal receives already-weighted PortfolioFragments
+    (e.g., from weight-specified or other weighting operators), it preserves
+    those weights rather than flattening to equal weights. This allows nested
+    weighting to work correctly.
+
+    When it receives bare symbols or lists of symbols, it applies equal weighting.
+
+    Behavior:
+    - Single PortfolioFragment arg: pass through unchanged (preserve weights)
+    - Multiple fragments: merge weights by addition, then normalize
+    - Bare symbols: assign equal weights
+    - Mixed: fragments preserve their relative weights, symbols get equal share
+    """
     if not args:
         raise DslEvaluationError(
             "weight-equal requires at least one asset argument. "
             "DSL strategies must always produce a non-empty allocation."
         )
 
-    # Collect all assets from all arguments
-    all_assets: list[str] = []
+    # Collect all weights from all arguments, preserving fragment weights
+    all_weights: dict[str, Decimal] = {}
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-        all_assets.extend(collect_assets_from_value(result))
+        arg_weights = collect_weights_from_value(result)
+        for sym, w in arg_weights.items():
+            all_weights[sym] = all_weights.get(sym, Decimal("0")) + w
 
-    if not all_assets:
+    if not all_weights:
         raise DslEvaluationError(
             "DSL weight-equal received no assets after evaluation. "
             "Strategies must always produce a non-empty allocation."
         )
 
-    # Deduplicate while preserving order
-    unique_assets: list[str] = []
-    seen: set[str] = set()
-    for asset in all_assets:
-        if asset not in seen:
-            unique_assets.append(asset)
-            seen.add(asset)
-
-    # Use Decimal division instead of float division (CRITICAL FIX)
-    weight_per_asset = Decimal("1") / Decimal(str(len(unique_assets)))
-    weights = dict.fromkeys(unique_assets, weight_per_asset)
+    # Normalize weights to sum to 1.0
+    total = sum(all_weights.values())
+    if total > Decimal("0"):
+        weights = {sym: w / total for sym, w in all_weights.items()}
+    else:
+        # Fallback: equal weighting if total is 0 (shouldn't happen)
+        weight_per_asset = Decimal("1") / Decimal(str(len(all_weights)))
+        weights = dict.fromkeys(all_weights.keys(), weight_per_asset)
 
     return PortfolioFragment(
         fragment_id=str(uuid.uuid4()),
@@ -445,47 +505,30 @@ def weight_inverse_volatility(args: list[ASTNode], context: DslContext) -> Portf
 
 
 def group(args: list[ASTNode], context: DslContext) -> DSLValue:
-    """Evaluate group - aggregate results from body expressions using Decimal arithmetic.
+    """Evaluate group - logical grouping that passes through results unchanged.
 
-    Groups act as composition blocks in the DSL. We evaluate each body
-    expression and combine any resulting portfolio fragments by summing
-    weights. If no weights are produced by the body, we fall back to the
-    result of the last expression to preserve compatibility.
+    Groups are purely organisational containers in the DSL that provide
+    naming/documentation for sub-expressions. They evaluate their body
+    expressions sequentially and return the last result unchanged,
+    following Clojure's do-block semantics where only the final form's
+    value is returned.
+
+    IMPORTANT: Groups do NOT merge or modify weights. They simply pass
+    through whatever the body expressions produce. Weight manipulation
+    should be done explicitly via weight-equal, weight-specified, etc.
     """
     if len(args) < 2:
         raise DslEvaluationError("group requires at least 2 arguments")
 
-    _name = args[0]  # Group name (unused in evaluation)
+    _name = args[0]  # Group name (unused in evaluation, for documentation only)
     body = args[1:]
 
-    combined: dict[str, Decimal] = {}
+    # Evaluate each expression sequentially, return the last result
     last_result: DSLValue = None
-
-    def _merge_weights_from(value: DSLValue) -> None:
-        if isinstance(value, PortfolioFragment):
-            for sym, w in value.weights.items():
-                combined[sym] = combined.get(sym, Decimal("0")) + w
-        elif isinstance(value, list):
-            for item in value:
-                _merge_weights_from(item)
-        elif isinstance(value, str):
-            combined[value] = combined.get(value, Decimal("0")) + Decimal("1.0")
-
-    # Evaluate each expression and merge any weights found
     for expr in body:
-        res = context.evaluate_node(expr, context.correlation_id, context.trace)
-        last_result = res
-        _merge_weights_from(res)
+        last_result = context.evaluate_node(expr, context.correlation_id, context.trace)
 
-    # If we gathered any weights, return as a fragment; else, return last result
-    if combined:
-        return PortfolioFragment(
-            fragment_id=str(uuid.uuid4()),
-            source_step="group",
-            weights=combined,
-        )
-
-    # No combined weights produced: if single body item, return its result; otherwise last
+    # Pass through the last result unchanged - no weight merging
     return (
         last_result
         if last_result is not None
@@ -511,8 +554,11 @@ def asset(args: list[ASTNode], context: DslContext) -> str:
 # ---------- Filter operator ----------
 
 
-def filter_assets(args: list[ASTNode], context: DslContext) -> DSLValue:
-    """Filter assets based on condition and optional selection."""
+def filter_assets(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
+    """Filter assets based on condition and optional selection.
+
+    Returns a PortfolioFragment with equal weights for the selected assets.
+    """
     if len(args) not in (2, 3):
         raise DslEvaluationError(
             "filter requires 2 or 3 arguments: condition, [selection], portfolio"
@@ -525,7 +571,11 @@ def filter_assets(args: list[ASTNode], context: DslContext) -> DSLValue:
     portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
     candidates = collect_assets_from_value(portfolio_val)
     if not candidates:
-        return []
+        return PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="filter",
+            weights={},
+        )
 
     take_top, take_n = parse_selection(selection_expr, context)
     order: Literal["top", "bottom"] = "top" if take_top else "bottom"
