@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
-from typing import Literal, cast
+from typing import Literal
 
 from engines.dsl.context import DslContext
 from engines.dsl.dispatcher import DslDispatcher
@@ -168,7 +168,7 @@ def select_symbols(
         )
 
     weight_per_asset = Decimal("1") / Decimal(str(len(selected_symbols)))
-    weights = {sym: weight_per_asset for sym in selected_symbols}
+    weights = dict.fromkeys(selected_symbols, weight_per_asset)
 
     return PortfolioFragment(
         fragment_id=str(uuid.uuid4()),
@@ -275,6 +275,7 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
 
     This prevents weight accumulation in deeply nested structures where
     the same asset (e.g., BIL) appears in multiple branches.
+
     """
     if not args:
         raise DslEvaluationError(
@@ -499,7 +500,7 @@ def _calculate_inverse_weights(
             # Apply fourth-root dampening: (1/vol)^0.25
             # This prevents extreme concentration while preserving volatility ranking
             # Matches Composer's observed implementation
-            dampened_inverse = inverse_vol ** DAMPENING_EXPONENT
+            dampened_inverse = inverse_vol**DAMPENING_EXPONENT
 
             inverse_weights[asset] = dampened_inverse
             total_inverse += dampened_inverse
@@ -512,7 +513,9 @@ def _calculate_inverse_weights(
         return {}
 
     # Normalize weights to sum to 1 using Decimal division
-    normalized = {asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()}
+    normalized = {
+        asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()
+    }
 
     # Log the dampening effect for transparency
     logger.debug(
@@ -651,7 +654,7 @@ def _unwrap_single_element_list(value: DSLValue) -> DSLValue:
     return value
 
 
-def _normalize_portfolio_items(value: list) -> list[PortfolioFragment]:
+def _normalize_portfolio_items(value: list[DSLValue]) -> list[PortfolioFragment]:
     """Normalize a list of portfolio items by unwrapping nested lists.
 
     Groups may return lists containing single PortfolioFragments. This
@@ -859,12 +862,8 @@ def filter_assets(args: list[ASTNode], context: DslContext) -> PortfolioFragment
     is_portfolio, normalized_portfolios = _is_portfolio_list(portfolio_val)
     if is_portfolio:
         # Portfolio mode: treat each PortfolioFragment as a unit to score/select
-        logger.info(
-            "DSL filter: PORTFOLIO MODE with %d portfolios", len(normalized_portfolios)
-        )
-        return _select_portfolios(
-            normalized_portfolios, condition_expr, order, take_n, context
-        )
+        logger.info("DSL filter: PORTFOLIO MODE with %d portfolios", len(normalized_portfolios))
+        return _select_portfolios(normalized_portfolios, condition_expr, order, take_n, context)
 
     logger.info("DSL filter: INDIVIDUAL ASSET MODE")
     # Individual asset mode: extract symbols and filter them

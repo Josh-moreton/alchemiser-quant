@@ -8,7 +8,7 @@ Templates support variable substitution and shared partials (header/footer).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from dateutil import parser as date_parser
@@ -757,7 +757,9 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
     last_attempt_time = _format_timestamp_for_display(context.get("last_attempt_time_utc", ""))
 
     last_successful_run = context.get("last_successful_run_id", "N/A")
-    last_successful_time = _format_timestamp_for_display(context.get("last_successful_run_time_utc", "N/A"))
+    last_successful_time = _format_timestamp_for_display(
+        context.get("last_successful_run_time_utc", "N/A")
+    )
 
     quick_actions = context.get("quick_actions", [])
     logs_url = context.get("logs_url", "#")
@@ -836,7 +838,9 @@ def render_daily_run_failure_text(context: dict[str, Any]) -> str:
     last_attempt_time = _format_timestamp_for_display(context.get("last_attempt_time_utc", ""))
 
     last_successful_run = context.get("last_successful_run_id", "N/A")
-    last_successful_time = _format_timestamp_for_display(context.get("last_successful_run_time_utc", "N/A"))
+    last_successful_time = _format_timestamp_for_display(
+        context.get("last_successful_run_time_utc", "N/A")
+    )
 
     quick_actions = context.get("quick_actions", [])
     logs_url = context.get("logs_url", "#")
