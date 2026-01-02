@@ -630,10 +630,191 @@ def asset(args: list[ASTNode], context: DslContext) -> str:
 # ---------- Filter operator ----------
 
 
+def _unwrap_single_element_list(value: DSLValue) -> DSLValue:
+    """Recursively unwrap single-element lists.
+
+    DSL evaluation sometimes produces nested lists like [[PortfolioFragment]]
+    when the syntax uses brackets around single expressions. This function
+    unwraps those to get the actual value.
+    """
+    while isinstance(value, list) and len(value) == 1:
+        value = value[0]
+    return value
+
+
+def _normalize_portfolio_items(value: list) -> list[PortfolioFragment]:
+    """Normalize a list of portfolio items by unwrapping nested lists.
+
+    Groups may return lists containing single PortfolioFragments. This
+    normalizes all items to be direct PortfolioFragments.
+
+    Returns empty list if normalization fails.
+    """
+    normalized: list[PortfolioFragment] = []
+    for item in value:
+        unwrapped = _unwrap_single_element_list(item)
+        if isinstance(unwrapped, PortfolioFragment):
+            normalized.append(unwrapped)
+        else:
+            # Item is not a PortfolioFragment after unwrapping - not a portfolio list
+            return []
+    return normalized
+
+
+def _is_portfolio_list(value: DSLValue) -> tuple[bool, list[PortfolioFragment]]:
+    """Check if the value is a list of PortfolioFragments (groups).
+
+    Returns a tuple of (is_portfolio_list, normalized_fragments).
+    Handles nested lists by unwrapping single-element wrappers.
+    """
+    if not isinstance(value, list):
+        return False, []
+    if not value:
+        return False, []
+
+    normalized = _normalize_portfolio_items(value)
+    if normalized:
+        return True, normalized
+    return False, []
+
+
+def _score_portfolio(
+    fragment: PortfolioFragment,
+    condition_expr: ASTNode,
+    context: DslContext,
+) -> float | None:
+    """Calculate a weighted-average score for a portfolio fragment.
+
+    For each symbol in the portfolio, evaluates the condition and computes
+    the portfolio-level metric as a weighted average of individual scores.
+
+    Returns None if scoring fails for all symbols.
+    """
+    weights = fragment.weights
+    if not weights:
+        return None
+
+    # Score each symbol and compute weighted average
+    total_weight = Decimal("0")
+    weighted_sum = Decimal("0")
+
+    for sym, weight in weights.items():
+        try:
+            metric_expr = create_indicator_with_symbol(condition_expr, sym)
+            metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
+            metric_val = (
+                float(metric_val)
+                if isinstance(metric_val, int | float)
+                else float(context.as_decimal(metric_val))
+            )
+            weighted_sum += weight * Decimal(str(metric_val))
+            total_weight += weight
+        except (ValueError, TypeError, DslEvaluationError) as exc:
+            logger.warning(
+                "DSL filter: portfolio scoring failed for symbol %s: %s",
+                sym,
+                exc,
+            )
+
+    if total_weight > Decimal("0"):
+        return float(weighted_sum / total_weight)
+    return None
+
+
+def _select_portfolios(
+    portfolios: list[PortfolioFragment],
+    condition_expr: ASTNode,
+    order: Literal["top", "bottom"],
+    limit: int | None,
+    context: DslContext,
+) -> PortfolioFragment:
+    """Score, sort, and select portfolios as units.
+
+    Treats each PortfolioFragment as a single entity to score, using the
+    weighted-average of the condition metric across its holdings.
+
+    order: "top" sorts descending (highest first); "bottom" ascending.
+    limit: optional number of portfolios to select.
+
+    Returns the merged weights of all selected portfolios.
+    """
+    # Score each portfolio as a unit
+    scored: list[tuple[PortfolioFragment, float]] = []
+    for idx, portfolio in enumerate(portfolios):
+        score = _score_portfolio(portfolio, condition_expr, context)
+        if score is not None:
+            scored.append((portfolio, score))
+            logger.debug(
+                "DSL filter: portfolio %d scored %.4f with %d symbols",
+                idx,
+                score,
+                len(portfolio.weights),
+            )
+
+    if not scored:
+        logger.warning("DSL filter: no portfolios could be scored")
+        return PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="filter",
+            weights={},
+        )
+
+    # Sort portfolios by score
+    scored.sort(key=lambda x: x[1], reverse=(order == "top"))
+
+    logger.info(
+        "DSL filter: scored %d portfolios, order=%s, limit=%s",
+        len(scored),
+        order,
+        limit,
+    )
+    for idx, (pf, score) in enumerate(scored[:5]):
+        logger.info(
+            "DSL filter: portfolio %d: score=%.4f, symbols=%s",
+            idx,
+            score,
+            list(pf.weights.keys())[:3],
+        )
+
+    # Select top/bottom N portfolios
+    if limit is not None and limit >= 0:
+        scored = scored[:limit]
+        logger.info("DSL filter: after limit=%d, have %d portfolios", limit, len(scored))
+
+    # Merge the selected portfolios with equal weight
+    if len(scored) == 1:
+        # Single portfolio: return its weights directly
+        return PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="filter",
+            weights=dict(scored[0][0].weights),
+        )
+
+    # Multiple portfolios: merge with equal weight per portfolio
+    merged: dict[str, Decimal] = {}
+    portfolio_weight = Decimal("1") / Decimal(str(len(scored)))
+
+    for portfolio, _score in scored:
+        for sym, sym_weight in portfolio.weights.items():
+            contribution = portfolio_weight * sym_weight
+            merged[sym] = merged.get(sym, Decimal("0")) + contribution
+
+    return PortfolioFragment(
+        fragment_id=str(uuid.uuid4()),
+        source_step="filter",
+        weights=merged,
+    )
+
+
 def filter_assets(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
     """Filter assets based on condition and optional selection.
 
-    Returns a PortfolioFragment with equal weights for the selected assets.
+    Supports two modes:
+    1. Individual assets: scores each symbol, selects top/bottom N symbols
+    2. Portfolios (groups): scores each portfolio as a unit using weighted
+       average of the condition, selects top/bottom N portfolios
+
+    Returns a PortfolioFragment with the selected holdings.
     """
     if len(args) not in (2, 3):
         raise DslEvaluationError(
@@ -645,6 +826,37 @@ def filter_assets(args: list[ASTNode], context: DslContext) -> PortfolioFragment
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
     portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
+
+    take_top, take_n = parse_selection(selection_expr, context)
+    order: Literal["top", "bottom"] = "top" if take_top else "bottom"
+
+    # Debug: log what we received
+    logger.info(
+        "DSL filter: portfolio_val type=%s, is_list=%s",
+        type(portfolio_val).__name__,
+        isinstance(portfolio_val, list),
+    )
+    if isinstance(portfolio_val, list):
+        logger.info(
+            "DSL filter: list has %d items, types: %s, first item: %s",
+            len(portfolio_val),
+            [type(item).__name__ for item in portfolio_val[:5]],  # First 5 types
+            repr(portfolio_val[0])[:100] if portfolio_val else "N/A",  # First item
+        )
+
+    # Check if we're filtering portfolios (groups) or individual assets
+    is_portfolio, normalized_portfolios = _is_portfolio_list(portfolio_val)
+    if is_portfolio:
+        # Portfolio mode: treat each PortfolioFragment as a unit to score/select
+        logger.info(
+            "DSL filter: PORTFOLIO MODE with %d portfolios", len(normalized_portfolios)
+        )
+        return _select_portfolios(
+            normalized_portfolios, condition_expr, order, take_n, context
+        )
+
+    logger.info("DSL filter: INDIVIDUAL ASSET MODE")
+    # Individual asset mode: extract symbols and filter them
     candidates = collect_assets_from_value(portfolio_val)
     if not candidates:
         return PortfolioFragment(
@@ -653,8 +865,6 @@ def filter_assets(args: list[ASTNode], context: DslContext) -> PortfolioFragment
             weights={},
         )
 
-    take_top, take_n = parse_selection(selection_expr, context)
-    order: Literal["top", "bottom"] = "top" if take_top else "bottom"
     return select_symbols(condition_expr, candidates, order, take_n, context)
 
 
