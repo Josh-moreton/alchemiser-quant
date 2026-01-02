@@ -1,5 +1,5 @@
 (defsymphony
- "Golden Tech Rotation 2x"
+ "Golden Rotation 2x"
  {:asset-class "EQUITIES", :rebalance-threshold 0.05}
  (weight-equal
   [(if
@@ -8,8 +8,8 @@
      (stdev-return "GLD" {:window 100}))
     [(weight-equal
       [(asset
-        "QQQ"
-        "Invesco Capital Management LLC - Invesco QQQ Trust Series 1")])]
+        "BIL"
+        "SPDR Series Trust - State Street SPDR Bloomberg 1-3 Month T-Bill ETF")])]
     [(weight-equal
       [(if
         (>
