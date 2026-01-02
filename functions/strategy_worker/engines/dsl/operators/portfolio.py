@@ -225,6 +225,30 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
     return consolidated
 
 
+def _flatten_to_weight_dicts(value: DSLValue) -> list[dict[str, Decimal]]:
+    """Convert a DSLValue into a list of normalized weight dictionaries.
+
+    When weight-equal receives a single argument that evaluates to a list,
+    each item in that list should be treated as a separate child for
+    equal weighting purposes. This function handles the flattening.
+
+    For a PortfolioFragment or string, returns a single-item list.
+    For a list, returns each item as a separate normalized weight dict.
+    """
+    if isinstance(value, PortfolioFragment):
+        frag = value.normalize_weights()
+        return [dict(frag.weights)]
+    if isinstance(value, str):
+        return [{value: Decimal("1.0")}]
+    if isinstance(value, list):
+        result: list[dict[str, Decimal]] = []
+        for item in value:
+            # Recursively flatten nested lists
+            result.extend(_flatten_to_weight_dicts(item))
+        return result
+    return []
+
+
 # ---------- Operators ----------
 
 
@@ -237,6 +261,10 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
 
     This is the correct Composer behavior: weight-equal distributes weight
     equally among its children, regardless of how many assets each child contains.
+
+    IMPORTANT: When a single argument evaluates to a list, each item in that
+    list is treated as a separate child for equal weighting. This handles the
+    common pattern: (weight-equal [(group ...) (group ...) ...])
 
     Example:
         (weight-equal [child1, child2])
@@ -254,17 +282,19 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
             "DSL strategies must always produce a non-empty allocation."
         )
 
-    # Evaluate all arguments first
+    # Evaluate all arguments and flatten lists into separate children
     evaluated_children: list[dict[str, Decimal]] = []
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-        child_weights = collect_weights_from_value(result)
-        if child_weights:
-            # Normalize child weights to sum to 1.0 before scaling
-            child_total = sum(child_weights.values())
-            if child_total > Decimal("0"):
-                child_weights = {sym: w / child_total for sym, w in child_weights.items()}
-            evaluated_children.append(child_weights)
+        # Flatten the result - if it's a list, each item becomes a separate child
+        child_weight_dicts = _flatten_to_weight_dicts(result)
+        for child_weights in child_weight_dicts:
+            if child_weights:
+                # Normalize child weights to sum to 1.0 before scaling
+                child_total = sum(child_weights.values())
+                if child_total > Decimal("0"):
+                    child_weights = {sym: w / child_total for sym, w in child_weights.items()}
+                evaluated_children.append(child_weights)
 
     if not evaluated_children:
         raise DslEvaluationError(
@@ -417,6 +447,22 @@ def _calculate_inverse_weights(
 ) -> dict[str, Decimal]:
     """Calculate and normalize inverse volatility weights using Decimal arithmetic.
 
+    IMPORTANT: Composer.trade's inverse volatility implementation produces weights
+    much closer to equal-weight than true mathematical inverse volatility would give.
+    For example, with BIL (0.01% vol), DRV (1.6% vol), LABU (4.3% vol):
+    - True inverse volatility: BIL ~99%, DRV ~0.8%, LABU ~0.3%
+    - Composer produces:       BIL ~65%, DRV ~20%, LABU ~15%
+
+    To match Composer's actual behavior, we apply a fourth-root dampening transformation:
+    weight ∝ (1/volatility)^0.25
+
+    This:
+    - Still favors lower volatility assets (inverse relationship preserved)
+    - Prevents extreme weight concentration that true 1/vol would cause
+    - Matches Composer's observed outputs very closely
+    - Is essentially a "soft" inverse volatility that respects the ranking
+      but doesn't let extreme volatility differences dominate
+
     Args:
         assets: List of asset symbols
         window: Window parameter for volatility calculation
@@ -426,18 +472,28 @@ def _calculate_inverse_weights(
         Dictionary of normalized weights (as Decimal)
 
     """
+    # Dampening exponent: 0.25 (fourth root) matches Composer's apparent behavior
+    # True inverse volatility would use 1.0, equal weight would use 0.0
+    DAMPENING_EXPONENT = Decimal("0.25")
+
     inverse_weights: dict[str, Decimal] = {}
     total_inverse = Decimal("0")
 
-    # Calculate inverse volatility weights
+    # Calculate dampened inverse volatility weights
     for asset in assets:
         volatility = _get_volatility_for_asset(asset, window, context)
         if volatility is not None:
-            # Convert float volatility to Decimal before division
+            # Convert float volatility to Decimal
             vol_decimal = Decimal(str(volatility))
             inverse_vol = Decimal("1") / vol_decimal
-            inverse_weights[asset] = inverse_vol
-            total_inverse += inverse_vol
+
+            # Apply fourth-root dampening: (1/vol)^0.25
+            # This prevents extreme concentration while preserving volatility ranking
+            # Matches Composer's observed implementation
+            dampened_inverse = inverse_vol ** DAMPENING_EXPONENT
+
+            inverse_weights[asset] = dampened_inverse
+            total_inverse += dampened_inverse
 
     # Handle case where no valid volatilities were obtained
     if not inverse_weights or total_inverse < Decimal("1e-10"):
@@ -447,7 +503,18 @@ def _calculate_inverse_weights(
         return {}
 
     # Normalize weights to sum to 1 using Decimal division
-    return {asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()}
+    normalized = {asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()}
+
+    # Log the dampening effect for transparency
+    logger.debug(
+        "DSL weight-inverse-volatility: Applied fourth-root dampening to match Composer behavior",
+        extra={
+            "assets": assets,
+            "weights": {k: float(v) for k, v in normalized.items()},
+        },
+    )
+
+    return normalized
 
 
 def _extract_window(args: list[ASTNode], context: DslContext) -> float:

@@ -13,16 +13,16 @@
     "gold.clj"
   ],
   "allocations": {
-    "nuclear_feaver.clj": 0.09,
-    "beam_chain.clj": 0.09,
-    "beefier_3x.clj": 0.09,
-    "chicken_rice.clj": 0.09,
-    "nova_ibit.clj": 0.09,
-    "rains_em_dancer.clj": 0.09,
-    "simons_kmlm.clj": 0.09,
-    "ftl_starburst.clj": 0.09,
-    "bento_collection.clj": 0.09,
+    "nuclear_feaver.clj": 0.04,
+    "beam_chain.clj": 0.1,
+    "beefier_3x.clj": 0.1,
+    "chicken_rice.clj": 0.1,
+    "nova_ibit.clj": 0.1,
+    "rains_em_dancer.clj": 0.1,
+    "simons_kmlm.clj": 0.1,
+    "ftl_starburst.clj": 0.6,
+    "bento_collection.clj": 0.1,
     "sisyphus_lowvol.clj": 0.1,
-    "gold.clj": 0.09
+    "gold.clj": 0.1
   }
 }
