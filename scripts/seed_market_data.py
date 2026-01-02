@@ -41,11 +41,16 @@ load_dotenv()
 # Setup imports for Lambda layers architecture
 import _setup_imports  # noqa: F401
 
-from the_alchemiser.shared.data_v2.data_refresh_service import (
+# Add functions/data to path for DataRefreshService
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "functions" / "data"))
+
+from data_refresh_service import (
     DEFAULT_INITIAL_LOOKBACK_DAYS,
     DataRefreshService,
 )
-from the_alchemiser.shared.data_v2.symbol_extractor import get_all_configured_symbols
+from symbol_extractor import get_all_configured_symbols
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 
 configure_application_logging()
