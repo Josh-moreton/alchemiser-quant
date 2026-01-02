@@ -760,6 +760,7 @@ def _select_portfolios(
         )
 
     # Sort portfolios by score
+    # "top" = sort descending (highest first), "bottom" = sort ascending (lowest first)
     scored.sort(key=lambda x: x[1], reverse=(order == "top"))
 
     logger.info(
@@ -770,10 +771,11 @@ def _select_portfolios(
     )
     for idx, (pf, score) in enumerate(scored[:5]):
         logger.info(
-            "DSL filter: portfolio %d: score=%.4f, symbols=%s",
+            "DSL filter: portfolio %d: score=%.4f, symbols=%s, symbol_count=%d",
             idx,
             score,
-            list(pf.weights.keys())[:3],
+            list(pf.weights.keys())[:5],
+            len(pf.weights),
         )
 
     # Select top/bottom N portfolios

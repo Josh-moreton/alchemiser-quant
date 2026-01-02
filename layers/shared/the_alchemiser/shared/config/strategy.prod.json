@@ -7,7 +7,6 @@
     "nova_ibit.clj",
     "rains_em_dancer.clj",
     "simons_kmlm.clj",
-    "ftl_starburst.clj",
     "bento_collection.clj",
     "sisyphus_lowvol.clj",
     "gold.clj"
@@ -19,8 +18,7 @@
     "chicken_rice.clj": 0.1,
     "nova_ibit.clj": 0.1,
     "rains_em_dancer.clj": 0.1,
-    "simons_kmlm.clj": 0.1,
-    "ftl_starburst.clj": 0.06,
+    "simons_kmlm.clj": 0.16,
     "bento_collection.clj": 0.1,
     "sisyphus_lowvol.clj": 0.1,
     "gold.clj": 0.1
