@@ -229,20 +229,24 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
 
 
 def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
-    """Evaluate weight-equal - allocate equal weight to all assets using Decimal arithmetic.
+    """Evaluate weight-equal - allocate equal weight to all children.
 
-    IMPORTANT: When weight-equal receives already-weighted PortfolioFragments
-    (e.g., from weight-specified or other weighting operators), it preserves
-    those weights rather than flattening to equal weights. This allows nested
-    weighting to work correctly.
+    Each child (argument) of weight-equal receives an equal share of the total
+    weight (1/n where n = number of children). The child's internal weights
+    are scaled by this share.
 
-    When it receives bare symbols or lists of symbols, it applies equal weighting.
+    This is the correct Composer behavior: weight-equal distributes weight
+    equally among its children, regardless of how many assets each child contains.
 
-    Behavior:
-    - Single PortfolioFragment arg: pass through unchanged (preserve weights)
-    - Multiple fragments: merge weights by addition, then normalize
-    - Bare symbols: assign equal weights
-    - Mixed: fragments preserve their relative weights, symbols get equal share
+    Example:
+        (weight-equal [child1, child2])
+        - child1 evaluates to {A: 100%}
+        - child2 evaluates to {B: 60%, C: 40%}
+        - Result: child1 gets 50%, child2 gets 50%
+        - Final: {A: 50%, B: 30%, C: 20%}
+
+    This prevents weight accumulation in deeply nested structures where
+    the same asset (e.g., BIL) appears in multiple branches.
     """
     if not args:
         raise DslEvaluationError(
@@ -250,33 +254,38 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
             "DSL strategies must always produce a non-empty allocation."
         )
 
-    # Collect all weights from all arguments, preserving fragment weights
-    all_weights: dict[str, Decimal] = {}
+    # Evaluate all arguments first
+    evaluated_children: list[dict[str, Decimal]] = []
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-        arg_weights = collect_weights_from_value(result)
-        for sym, w in arg_weights.items():
-            all_weights[sym] = all_weights.get(sym, Decimal("0")) + w
+        child_weights = collect_weights_from_value(result)
+        if child_weights:
+            # Normalize child weights to sum to 1.0 before scaling
+            child_total = sum(child_weights.values())
+            if child_total > Decimal("0"):
+                child_weights = {sym: w / child_total for sym, w in child_weights.items()}
+            evaluated_children.append(child_weights)
 
-    if not all_weights:
+    if not evaluated_children:
         raise DslEvaluationError(
             "DSL weight-equal received no assets after evaluation. "
             "Strategies must always produce a non-empty allocation."
         )
 
-    # Normalize weights to sum to 1.0
-    total = sum(all_weights.values())
-    if total > Decimal("0"):
-        weights = {sym: w / total for sym, w in all_weights.items()}
-    else:
-        # Fallback: equal weighting if total is 0 (shouldn't happen)
-        weight_per_asset = Decimal("1") / Decimal(str(len(all_weights)))
-        weights = dict.fromkeys(all_weights.keys(), weight_per_asset)
+    # Each child gets equal weight
+    child_share = Decimal("1") / Decimal(str(len(evaluated_children)))
+
+    # Scale each child's weights by their share and merge
+    all_weights: dict[str, Decimal] = {}
+    for child_weights in evaluated_children:
+        for sym, w in child_weights.items():
+            scaled_weight = w * child_share
+            all_weights[sym] = all_weights.get(sym, Decimal("0")) + scaled_weight
 
     return PortfolioFragment(
         fragment_id=str(uuid.uuid4()),
         source_step="weight_equal",
-        weights=weights,
+        weights=all_weights,
     )
 
 
