@@ -1,0 +1,5 @@
+# Regime layer dependencies
+# These are required for HMM-based regime classification
+
+hmmlearn>=0.3.0
+scipy>=1.10.0

@@ -4,8 +4,9 @@ Lambda handler for Strategy Coordinator microservice.
 
 The Coordinator orchestrates parallel execution of DSL strategy files by:
 1. Reading strategy configuration (DSL files and allocations)
-2. Creating an aggregation session in DynamoDB
-3. Invoking Strategy Lambda once per DSL file (async)
+2. Optionally adjusting allocations based on current market regime
+3. Creating an aggregation session in DynamoDB
+4. Invoking Strategy Lambda once per DSL file (async)
 
 This enables horizontal scaling where each strategy file runs in its
 own Lambda invocation, with results aggregated by the Aggregator Lambda.
@@ -14,6 +15,7 @@ own Lambda invocation, with results aggregated by the Aggregator Lambda.
 from __future__ import annotations
 
 import math
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -36,6 +38,97 @@ from the_alchemiser.shared.services.aggregation_session_service import (
 configure_application_logging()
 
 logger = get_logger(__name__)
+
+
+def _get_regime_adjusted_allocations(
+    base_allocations: dict[str, Decimal],
+    table_name: str,
+    correlation_id: str,
+) -> tuple[dict[str, Decimal], dict[str, Any]]:
+    """Get regime-adjusted allocations if regime data is available.
+
+    Args:
+        base_allocations: Original allocations from strategy config
+        table_name: DynamoDB table name for regime state
+        correlation_id: Correlation ID for logging
+
+    Returns:
+        Tuple of (adjusted_allocations, regime_info_dict)
+        Falls back to base_allocations if regime unavailable
+
+    """
+    regime_info: dict[str, Any] = {"enabled": False, "regime": None, "adjusted": False}
+
+    try:
+        from the_alchemiser.shared.regime import RegimeWeightAdjuster
+        from the_alchemiser.shared.regime.repository import RegimeStateRepository
+
+        # Check if regime is stale (older than 24 hours)
+        repo = RegimeStateRepository(table_name=table_name)
+        if repo.is_regime_stale(max_age_hours=24):
+            logger.warning(
+                "Regime state is stale or missing, using base allocations",
+                extra={"correlation_id": correlation_id},
+            )
+            regime_info["stale"] = True
+            return base_allocations, regime_info
+
+        # Get current regime
+        regime_state = repo.get_current_regime()
+        if regime_state is None:
+            logger.warning(
+                "No regime state found, using base allocations",
+                extra={"correlation_id": correlation_id},
+            )
+            return base_allocations, regime_info
+
+        regime_info["regime"] = regime_state.regime.value
+        regime_info["probability"] = str(regime_state.probability)
+        regime_info["bull_probability"] = str(regime_state.bull_probability)
+        regime_info["timestamp"] = regime_state.timestamp.isoformat()
+
+        # Load weight adjuster with packaged config
+        adjuster = RegimeWeightAdjuster.from_packaged_config("regime_weights.json")
+
+        # Compute adjusted allocations
+        adjusted = adjuster.compute_adjusted_allocations(base_allocations, regime_state)
+
+        # Log adjustment summary
+        summary = adjuster.get_regime_summary(base_allocations, regime_state)
+        regime_info["enabled"] = True
+        regime_info["adjusted"] = True
+        regime_info["adjustment_method"] = summary.get("adjustment_method")
+
+        logger.info(
+            "Applied regime-based weight adjustment",
+            extra={
+                "correlation_id": correlation_id,
+                "regime": regime_state.regime.value,
+                "probability": str(regime_state.probability),
+                "base_total": str(sum(base_allocations.values())),
+                "adjusted_total": str(sum(adjusted.values())),
+                "changes": summary.get("changes"),
+            },
+        )
+
+        return adjusted, regime_info
+
+    except ImportError as e:
+        logger.warning(
+            "Regime module not available, using base allocations",
+            extra={"correlation_id": correlation_id, "error": str(e)},
+        )
+        regime_info["error"] = f"ImportError: {e}"
+        return base_allocations, regime_info
+
+    except Exception as e:
+        logger.error(
+            "Failed to apply regime adjustment, using base allocations",
+            extra={"correlation_id": correlation_id, "error": str(e)},
+            exc_info=True,
+        )
+        regime_info["error"] = str(e)
+        return base_allocations, regime_info
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
@@ -90,28 +183,58 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         if not dsl_files:
             raise ValueError("No DSL strategy files configured")
 
-        # Build strategy configs list with Decimal for precision
-        strategy_configs: list[tuple[str, Decimal]] = [
-            (dsl_file, Decimal(str(dsl_allocations.get(dsl_file, 0.0)))) for dsl_file in dsl_files
-        ]
+        # Build base allocations dict with Decimal for precision
+        base_allocations: dict[str, Decimal] = {
+            dsl_file: Decimal(str(dsl_allocations.get(dsl_file, 0.0)))
+            for dsl_file in dsl_files
+        }
 
-        # Validate allocations sum to ~1.0 using math.isclose per coding guidelines
-        total_allocation = float(sum(alloc for _, alloc in strategy_configs))
-        if not math.isclose(total_allocation, 1.0, rel_tol=0.01):
+        # Validate base allocations sum to ~1.0 using math.isclose per coding guidelines
+        base_total = float(sum(base_allocations.values()))
+        if not math.isclose(base_total, 1.0, rel_tol=0.01):
             logger.warning(
-                "Strategy allocations don't sum to 1.0",
+                "Base strategy allocations don't sum to 1.0",
                 extra={
-                    "total_allocation": total_allocation,
+                    "total_allocation": base_total,
                     "allocations": dsl_allocations,
                 },
             )
 
+        # Apply regime-based weight adjustment if enabled
+        regime_info: dict[str, Any] = {"enabled": False}
+        enable_regime = os.environ.get("ENABLE_REGIME_WEIGHTING", "false").lower() == "true"
+        regime_table = os.environ.get("REGIME_STATE_TABLE_NAME", "")
+
+        if enable_regime and regime_table:
+            final_allocations, regime_info = _get_regime_adjusted_allocations(
+                base_allocations=base_allocations,
+                table_name=regime_table,
+                correlation_id=correlation_id,
+            )
+        else:
+            final_allocations = base_allocations
+            if not enable_regime:
+                logger.debug("Regime weighting disabled via ENABLE_REGIME_WEIGHTING")
+            elif not regime_table:
+                logger.debug("Regime weighting disabled: REGIME_STATE_TABLE_NAME not set")
+
+        # Build strategy configs from final allocations
+        strategy_configs: list[tuple[str, Decimal]] = [
+            (dsl_file, final_allocations.get(dsl_file, Decimal("0")))
+            for dsl_file in dsl_files
+        ]
+
+        # Log final allocations
+        final_total = float(sum(alloc for _, alloc in strategy_configs))
         logger.info(
             "Loaded strategy configuration",
             extra={
                 "dsl_files": dsl_files,
                 "total_strategies": len(dsl_files),
-                "total_allocation": total_allocation,
+                "base_total": base_total,
+                "final_total": final_total,
+                "regime_adjusted": regime_info.get("adjusted", False),
+                "regime": regime_info.get("regime"),
             },
         )
 
@@ -155,6 +278,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "strategies_invoked": len(request_ids),
                 "strategy_files": dsl_files,
                 "timeout_at": session["timeout_at"],
+                "regime_adjustment": {
+                    "enabled": regime_info.get("enabled", False),
+                    "regime": regime_info.get("regime"),
+                    "adjusted": regime_info.get("adjusted", False),
+                },
             },
         }
 
