@@ -67,9 +67,7 @@ class RegimeState(BaseModel):
     )
     timestamp: datetime = Field(description="Regime classification timestamp")
     spy_close: Decimal = Field(description="SPY closing price at classification time")
-    lookback_days: int = Field(
-        default=20, ge=1, description="Lookback window for HMM features"
-    )
+    lookback_days: int = Field(default=20, ge=1, description="Lookback window for HMM features")
     model_score: Decimal | None = Field(
         default=None, description="HMM log-likelihood score (optional)"
     )
@@ -131,9 +129,7 @@ class StrategyRegimeMetrics(BaseModel):
 
     @field_validator("sharpe_by_regime", "weight_multiplier_by_regime", mode="before")
     @classmethod
-    def _coerce_dict_values_to_decimal(
-        cls, v: dict[str, Any] | None
-    ) -> dict[RegimeType, Decimal]:
+    def _coerce_dict_values_to_decimal(cls, v: dict[str, Any] | None) -> dict[RegimeType, Decimal]:
         """Convert dict values to Decimal and keys to RegimeType."""
         if v is None:
             return {}

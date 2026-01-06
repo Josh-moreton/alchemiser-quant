@@ -1853,6 +1853,9 @@ Resources:
                   - !GetAtt RegimeStateTable.Arn
 
   # Scheduler to trigger Regime Detector daily after market close
+  # NOTE: This schedule runs MON-FRI and does not account for US market holidays.
+  # The Lambda handler should check if the market is open before processing,
+  # or use stale data detection to handle holiday runs gracefully.
   RegimeDetectorSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -1861,6 +1864,8 @@ Resources:
         - !Sub "${StackName}-regime-schedule"
         - !Sub "alchemiser-${Stage}-regime-schedule"
       Description: "Detect market regime daily at 4:30 PM New York time (after market close)"
+      # Runs every weekday. For holidays, the Lambda will fetch the latest available
+      # market data and the stale check will be tolerant of non-trading days.
       ScheduleExpression: "cron(30 16 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:

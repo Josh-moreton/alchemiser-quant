@@ -33,7 +33,7 @@ __all__ = [
     "RegimeState",
     "RegimeStateRepository",
     "RegimeType",
-    "RegimeWeightConfig",
     "RegimeWeightAdjuster",
+    "RegimeWeightConfig",
     "StrategyRegimeMetrics",
 ]

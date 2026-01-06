@@ -1,5 +1,9 @@
 # Regime layer dependencies
 # These are required for HMM-based regime classification
+#
+# SECURITY NOTE: Dependencies are pinned to exact versions to prevent
+# supply-chain attacks. Update versions deliberately after vetting.
+# Consider using pip-compile with --generate-hashes for additional security.
 
-hmmlearn>=0.3.0
-scipy>=1.10.0
+hmmlearn==0.3.3
+scipy==1.14.1

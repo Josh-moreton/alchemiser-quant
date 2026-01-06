@@ -21,13 +21,15 @@ The adjuster enforces:
 from __future__ import annotations
 
 import json
-import math
+import logging
 from decimal import ROUND_HALF_UP, Decimal
 from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import Any
 
 from .schemas import RegimeState, RegimeType, RegimeWeightConfig, StrategyRegimeMetrics
+
+logger = logging.getLogger(__name__)
 
 
 class RegimeWeightAdjuster:
@@ -93,8 +95,9 @@ class RegimeWeightAdjuster:
             with cfg_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             return cls._from_dict(data)
-        except (FileNotFoundError, json.JSONDecodeError):
-            # Return default config if file not found
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            # Log the error before returning default config
+            logger.warning("Failed to load regime weight config, using defaults: %s", e)
             return cls(RegimeWeightConfig())
 
     @classmethod
@@ -154,10 +157,10 @@ class RegimeWeightAdjuster:
 
         if method == "multiplier":
             return self._apply_multiplier_adjustment(base_allocations, current_regime)
-        elif method == "hybrid":
+        if method == "hybrid":
             return self._apply_hybrid_adjustment(base_allocations, current_regime)
-        else:  # sharpe_weighted (default)
-            return self._apply_sharpe_weighted_adjustment(base_allocations, current_regime)
+        # sharpe_weighted (default)
+        return self._apply_sharpe_weighted_adjustment(base_allocations, current_regime)
 
     def _apply_sharpe_weighted_adjustment(
         self,
@@ -199,7 +202,10 @@ class RegimeWeightAdjuster:
         # Compute Sharpe-weighted allocations
         raw_weights: dict[str, Decimal] = {}
         for strategy_file, sharpe in sharpe_values.items():
-            # Blend with base allocation: 50% Sharpe-based, 50% base
+            # Blend with base allocation: 50% Sharpe-based, 50% base.
+            # The 50/50 split was chosen as a conservative starting point that
+            # respects the original allocation while allowing regime-based tilts.
+            # This can be made configurable via RegimeWeightConfig if needed.
             base_weight = base_allocations[strategy_file]
             sharpe_weight = sharpe / total_sharpe
             blended = (base_weight + sharpe_weight) / Decimal("2")
@@ -232,9 +238,7 @@ class RegimeWeightAdjuster:
 
             if strategy_file in self.config.strategies:
                 metrics = self.config.strategies[strategy_file]
-                multiplier = metrics.weight_multiplier_by_regime.get(
-                    current_regime, Decimal("1.0")
-                )
+                multiplier = metrics.weight_multiplier_by_regime.get(current_regime, Decimal("1.0"))
 
             adjusted[strategy_file] = base_weight * multiplier
 
@@ -259,9 +263,7 @@ class RegimeWeightAdjuster:
 
         """
         # First pass: Sharpe weighting
-        sharpe_adjusted = self._apply_sharpe_weighted_adjustment(
-            base_allocations, current_regime
-        )
+        sharpe_adjusted = self._apply_sharpe_weighted_adjustment(base_allocations, current_regime)
 
         # Second pass: Multiplier overlay
         return self._apply_multiplier_adjustment(sharpe_adjusted, current_regime)
@@ -310,13 +312,11 @@ class RegimeWeightAdjuster:
             equal_weight = (Decimal("1") / Decimal(n)).quantize(
                 self.WEIGHT_QUANTIZE, rounding=ROUND_HALF_UP
             )
-            return {k: equal_weight for k in allocations}
+            return dict.fromkeys(allocations, equal_weight)
 
         normalized: dict[str, Decimal] = {}
         for strategy_file, weight in allocations.items():
-            norm_weight = (weight / total).quantize(
-                self.WEIGHT_QUANTIZE, rounding=ROUND_HALF_UP
-            )
+            norm_weight = (weight / total).quantize(self.WEIGHT_QUANTIZE, rounding=ROUND_HALF_UP)
             normalized[strategy_file] = norm_weight
 
         # Adjust for rounding errors - ensure sum is exactly 1.0
@@ -350,9 +350,7 @@ class RegimeWeightAdjuster:
         for strategy_file in base_allocations:
             base = base_allocations[strategy_file]
             adj = adjusted.get(strategy_file, Decimal("0"))
-            pct_change = (
-                float((adj - base) / base * 100) if base > 0 else 0.0
-            )
+            pct_change = float((adj - base) / base * 100) if base > 0 else 0.0
             changes[strategy_file] = {
                 "base_weight": str(base),
                 "adjusted_weight": str(adj),

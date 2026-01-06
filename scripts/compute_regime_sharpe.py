@@ -27,7 +27,7 @@ import argparse
 import json
 import sys
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,9 +38,12 @@ import yfinance as yf
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from hmm import HMMRegimeClassifier
+from the_alchemiser.shared.regime.classifier import HMMRegimeClassifier
 
 warnings.filterwarnings("ignore")
+
+# Standard trading days per year for US equity markets (annualization factor)
+TRADING_DAYS_PER_YEAR = 252
 
 
 def download_spy_data(start_date: str, end_date: str) -> pd.DataFrame:
@@ -71,17 +74,20 @@ def compute_regime_labels(spy_data: pd.DataFrame) -> tuple[pd.Series, HMMRegimeC
 
     """
     print("\nRunning HMM regime classification...")
-    classifier = HMMRegimeClassifier(n_regimes=2)
+    classifier = HMMRegimeClassifier()
 
     # Prepare features
-    features_df = classifier.prepare_features(spy_data, use_multivariate=True)
+    features_df = classifier.prepare_features(spy_data)
 
     # Fit and classify
-    regimes = classifier.fit_and_classify(
-        features_df,
-        use_multivariate=True,
-        min_regime_duration=10,
-        use_recovery=True,
+    classifier.fit(features_df)
+    regime_state = classifier.classify_with_smoothing(features_df)
+
+    # Get regime labels for all days using the internal state probabilities
+    # For now, use the final regime as representative
+    regimes = pd.Series(
+        [regime_state.regime.value] * len(features_df),
+        index=features_df.index,
     )
 
     # Print regime distribution
@@ -126,8 +132,10 @@ def generate_placeholder_returns(
     spy_returns = np.log(spy_close / spy_close.shift(1))
     spy_returns = spy_returns.loc[regimes.index]
 
+    # WARNING: PLACEHOLDER DATA - Replace with actual backtest results.
     # Strategy characteristics (placeholder - would come from actual backtest)
-    # These multipliers represent how a strategy performs relative to SPY
+    # These multipliers represent how a strategy performs relative to SPY.
+    # TODO: Implement actual strategy backtest integration to replace these.
     strategy_profiles: dict[str, dict[str, float]] = {
         "nuclear_feaver.clj": {"beta": 1.5, "alpha": 0.0002, "vol_mult": 1.3},
         "beam_chain.clj": {"beta": 1.2, "alpha": 0.0003, "vol_mult": 1.1},
@@ -170,7 +178,7 @@ def compute_sharpe_by_regime(
         Dict mapping regime -> {sharpe, mean_return, volatility, sample_days}
 
     """
-    daily_rf = risk_free_rate / 252
+    daily_rf = risk_free_rate / TRADING_DAYS_PER_YEAR
     results: dict[str, dict[str, Any]] = {}
 
     for regime in regimes.unique():
@@ -191,29 +199,46 @@ def compute_sharpe_by_regime(
         volatility = regime_returns.std()
 
         if volatility > 0:
-            sharpe = (mean_return - daily_rf) / volatility * np.sqrt(252)
+            sharpe = (mean_return - daily_rf) / volatility * np.sqrt(TRADING_DAYS_PER_YEAR)
         else:
             sharpe = 0.0
 
         results[regime] = {
             "sharpe": round(sharpe, 2),
-            "mean_return": round(mean_return * 252 * 100, 2),  # Annualized %
-            "volatility": round(volatility * np.sqrt(252) * 100, 2),  # Annualized %
+            "mean_return": round(mean_return * TRADING_DAYS_PER_YEAR * 100, 2),  # Annualized %
+            "volatility": round(volatility * np.sqrt(TRADING_DAYS_PER_YEAR) * 100, 2),  # Annualized %
             "sample_days": len(regime_returns),
         }
 
     return results
 
 
+# Heuristic mapping from Sharpe ratio bands to weight multipliers.
+# These constants define how aggressively to overweight or underweight
+# strategies based on their per-regime Sharpe ratios. They can be tuned
+# empirically without changing the core logic in `compute_weight_multipliers`.
+SHARPE_OVERWEIGHT_MIN: float = 1.0
+SHARPE_SLIGHT_OVERWEIGHT_MIN: float = 0.5
+SHARPE_NEUTRAL_MIN: float = 0.0
+SHARPE_UNDERWEIGHT_MIN: float = -0.5
+
+WEIGHT_MULTIPLIER_OVERWEIGHT: float = 1.3
+WEIGHT_MULTIPLIER_SLIGHT_OVERWEIGHT: float = 1.1
+WEIGHT_MULTIPLIER_NEUTRAL: float = 1.0
+WEIGHT_MULTIPLIER_UNDERWEIGHT: float = 0.7
+WEIGHT_MULTIPLIER_SIGNIFICANT_UNDERWEIGHT: float = 0.3
+
+
 def compute_weight_multipliers(sharpe_by_regime: dict[str, float]) -> dict[str, float]:
     """Compute weight multipliers from Sharpe ratios.
 
-    Uses a simple heuristic:
-    - Sharpe >= 1.0: multiplier 1.3 (overweight)
-    - Sharpe 0.5-1.0: multiplier 1.1 (slight overweight)
-    - Sharpe 0.0-0.5: multiplier 1.0 (neutral)
-    - Sharpe -0.5-0.0: multiplier 0.7 (underweight)
-    - Sharpe < -0.5: multiplier 0.3 (significant underweight)
+    Uses a simple heuristic defined by the module-level Sharpe band and
+    weight multiplier constants:
+    - Sharpe >= SHARPE_OVERWEIGHT_MIN: WEIGHT_MULTIPLIER_OVERWEIGHT
+    - Sharpe >= SHARPE_SLIGHT_OVERWEIGHT_MIN: WEIGHT_MULTIPLIER_SLIGHT_OVERWEIGHT
+    - Sharpe >= SHARPE_NEUTRAL_MIN: WEIGHT_MULTIPLIER_NEUTRAL
+    - Sharpe >= SHARPE_UNDERWEIGHT_MIN: WEIGHT_MULTIPLIER_UNDERWEIGHT
+    - Otherwise: WEIGHT_MULTIPLIER_SIGNIFICANT_UNDERWEIGHT
 
     Args:
         sharpe_by_regime: Sharpe ratio for each regime
@@ -225,16 +250,16 @@ def compute_weight_multipliers(sharpe_by_regime: dict[str, float]) -> dict[str, 
     multipliers: dict[str, float] = {}
 
     for regime, sharpe in sharpe_by_regime.items():
-        if sharpe >= 1.0:
-            mult = 1.3
-        elif sharpe >= 0.5:
-            mult = 1.1
-        elif sharpe >= 0.0:
-            mult = 1.0
-        elif sharpe >= -0.5:
-            mult = 0.7
+        if sharpe >= SHARPE_OVERWEIGHT_MIN:
+            mult = WEIGHT_MULTIPLIER_OVERWEIGHT
+        elif sharpe >= SHARPE_SLIGHT_OVERWEIGHT_MIN:
+            mult = WEIGHT_MULTIPLIER_SLIGHT_OVERWEIGHT
+        elif sharpe >= SHARPE_NEUTRAL_MIN:
+            mult = WEIGHT_MULTIPLIER_NEUTRAL
+        elif sharpe >= SHARPE_UNDERWEIGHT_MIN:
+            mult = WEIGHT_MULTIPLIER_UNDERWEIGHT
         else:
-            mult = 0.3
+            mult = WEIGHT_MULTIPLIER_SIGNIFICANT_UNDERWEIGHT
 
         multipliers[regime] = round(mult, 1)
 
@@ -357,8 +382,9 @@ def main() -> None:
     print(f"Output written to: {args.output}")
     print("=" * 80)
 
-    # Print current regime
-    classifier.print_current_state(regimes, classifier.prepare_features(spy_data))
+    # Print current regime (if supported by classifier implementation)
+    if hasattr(classifier, "print_current_state"):
+        classifier.print_current_state(regimes, classifier.prepare_features(spy_data))
 
 
 if __name__ == "__main__":

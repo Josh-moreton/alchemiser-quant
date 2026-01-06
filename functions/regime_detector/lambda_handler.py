@@ -16,7 +16,6 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from typing import Any
 
 import pandas as pd
@@ -31,6 +30,35 @@ from the_alchemiser.shared.regime.repository import RegimeStateRepository
 configure_application_logging()
 
 logger = get_logger(__name__)
+
+
+def _convert_bars_to_dataframe(bars: list[Any]) -> pd.DataFrame:
+    """Convert Alpaca bar objects to a DataFrame.
+
+    Args:
+        bars: List of Alpaca Bar objects
+
+    Returns:
+        DataFrame with Date index and OHLC columns
+
+    """
+    data = []
+    for bar in bars:
+        data.append(
+            {
+                "Date": bar.timestamp,
+                "Open": float(bar.open),
+                "High": float(bar.high),
+                "Low": float(bar.low),
+                "Close": float(bar.close),
+                "Volume": int(bar.volume),
+            }
+        )
+
+    df = pd.DataFrame(data)
+    df.set_index("Date", inplace=True)
+    df.sort_index(inplace=True)
+    return df
 
 
 def get_spy_data_from_alpaca(days: int = 365) -> pd.DataFrame:
@@ -70,23 +98,8 @@ def get_spy_data_from_alpaca(days: int = 365) -> pd.DataFrame:
 
     bars = client.get_stock_bars(request)
 
-    # Convert to DataFrame
-    data = []
-    for bar in bars["SPY"]:
-        data.append(
-            {
-                "Date": bar.timestamp,
-                "Open": float(bar.open),
-                "High": float(bar.high),
-                "Low": float(bar.low),
-                "Close": float(bar.close),
-                "Volume": int(bar.volume),
-            }
-        )
-
-    df = pd.DataFrame(data)
-    df.set_index("Date", inplace=True)
-    df.sort_index(inplace=True)
+    # Convert to DataFrame using helper function
+    df = _convert_bars_to_dataframe(bars["SPY"])
 
     logger.info(
         "Fetched SPY data from Alpaca",
@@ -182,12 +195,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
         }
 
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
         logger.error(
             "Regime Detector Lambda failed",
             extra={
                 "correlation_id": correlation_id,
                 "error": str(e),
+                "exception_type": type(e).__name__,
             },
             exc_info=True,
         )
@@ -207,7 +221,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 error_details={"exception_type": type(e).__name__},
             )
             publish_to_eventbridge(failure_event)
-        except Exception as pub_error:
+        except (RuntimeError, ValueError) as pub_error:
             logger.error(
                 "Failed to publish WorkflowFailed event",
                 extra={"error": str(pub_error)},

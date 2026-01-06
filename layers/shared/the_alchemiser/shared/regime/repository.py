@@ -9,7 +9,7 @@ to get the current market regime for weight adjustment.
 
 from __future__ import annotations
 
-import json
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -18,6 +18,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 from .schemas import RegimeState, RegimeType
+
+logger = logging.getLogger(__name__)
 
 
 class RegimeStateRepository:
@@ -73,7 +75,11 @@ class RegimeStateRepository:
 
             return self._deserialize_regime_state(item)
 
-        except ClientError:
+        except ClientError as e:
+            logger.warning(
+                "Failed to get current regime from DynamoDB: %s",
+                e.response.get("Error", {}).get("Message", str(e)),
+            )
             return None
 
     def put_regime_state(self, regime_state: RegimeState) -> None:
@@ -144,8 +150,12 @@ class RegimeStateRepository:
                     if state:
                         results.append(state)
 
-            except ClientError:
-                pass
+            except ClientError as e:
+                logger.warning(
+                    "Failed to query regime history for %s: %s",
+                    pk,
+                    e.response.get("Error", {}).get("Message", str(e)),
+                )
 
             current += timedelta(days=1)
 
@@ -190,14 +200,11 @@ class RegimeStateRepository:
                 timestamp=datetime.fromisoformat(item["timestamp"]),
                 spy_close=Decimal(item["spy_close"]),
                 lookback_days=int(item.get("lookback_days", 20)),
-                model_score=(
-                    Decimal(item["model_score"])
-                    if item.get("model_score")
-                    else None
-                ),
+                model_score=(Decimal(item["model_score"]) if item.get("model_score") else None),
                 schema_version=item.get("schema_version", "1.0.0"),
             )
-        except (KeyError, ValueError, TypeError):
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning("Failed to deserialize regime state from DynamoDB item: %s", e)
             return None
 
     def is_regime_stale(self, max_age_hours: int = 24) -> bool:

@@ -121,7 +121,7 @@ def _get_regime_adjusted_allocations(
         regime_info["error"] = f"ImportError: {e}"
         return base_allocations, regime_info
 
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
         logger.error(
             "Failed to apply regime adjustment, using base allocations",
             extra={"correlation_id": correlation_id, "error": str(e)},
@@ -150,6 +150,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """
     # Generate correlation ID for this workflow
     correlation_id = event.get("correlation_id") or f"workflow-{uuid.uuid4()}"
+
+    # Validate correlation_id is non-empty
+    if not correlation_id or not correlation_id.strip():
+        correlation_id = f"workflow-{uuid.uuid4()}"
+
     session_id = correlation_id  # Use correlation_id as session_id
 
     logger.info(
@@ -185,8 +190,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         # Build base allocations dict with Decimal for precision
         base_allocations: dict[str, Decimal] = {
-            dsl_file: Decimal(str(dsl_allocations.get(dsl_file, 0.0)))
-            for dsl_file in dsl_files
+            dsl_file: Decimal(str(dsl_allocations.get(dsl_file, 0.0))) for dsl_file in dsl_files
         }
 
         # Validate base allocations sum to ~1.0 using math.isclose per coding guidelines
@@ -214,14 +218,25 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         else:
             final_allocations = base_allocations
             if not enable_regime:
-                logger.debug("Regime weighting disabled via ENABLE_REGIME_WEIGHTING")
+                logger.info(
+                    "Regime weighting disabled: ENABLE_REGIME_WEIGHTING is not 'true'",
+                    extra={
+                        "enable_regime_weighting": enable_regime,
+                        "regime_state_table_configured": bool(regime_table),
+                    },
+                )
             elif not regime_table:
-                logger.debug("Regime weighting disabled: REGIME_STATE_TABLE_NAME not set")
+                logger.info(
+                    "Regime weighting disabled: REGIME_STATE_TABLE_NAME environment variable not set",
+                    extra={
+                        "enable_regime_weighting": enable_regime,
+                        "regime_state_table_configured": bool(regime_table),
+                    },
+                )
 
         # Build strategy configs from final allocations
         strategy_configs: list[tuple[str, Decimal]] = [
-            (dsl_file, final_allocations.get(dsl_file, Decimal("0")))
-            for dsl_file in dsl_files
+            (dsl_file, final_allocations.get(dsl_file, Decimal("0"))) for dsl_file in dsl_files
         ]
 
         # Log final allocations

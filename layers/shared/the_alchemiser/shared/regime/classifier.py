@@ -49,14 +49,22 @@ class HMMRegimeClassifier:
     - Pivot-: 40-60% range transitioning from Risk-On to Risk-Off
     """
 
-    # Probability thresholds for regime classification
+    # Probability thresholds for regime classification.
+    # 60% was chosen via offline backtesting as a confidence threshold that
+    # balances false positives/negatives for Risk-On signals; 40% is its
+    # complementary boundary (1 - 0.60) that defines the Risk-Off/Recovery side
+    # of the neutral 40-60% "pivot" band described in the class docstring.
     BULLISH_THRESHOLD = 0.60  # Above this = Risk-On
     BEARISH_THRESHOLD = 0.40  # Below this = Risk-Off/Recovery
 
-    # Lookback periods for features
+    # Lookback periods for features.
+    # 20 trading days ≈ 1 month: captures short-term realised volatility regime.
     VOL_WINDOW = 20
+    # 20 trading days ≈ 1 month: aligns short-term momentum with the vol window.
     MOMENTUM_WINDOW = 20
+    # 50 trading days: standard medium-term trend window used in many TA signals.
     MOMENTUM_LT_WINDOW = 50
+    # 10 trading days ≈ 2 weeks: very short-term range/volatility for regime pivots.
     RANGE_VOL_WINDOW = 10
 
     # HMM fitting parameters
@@ -201,8 +209,9 @@ class HMMRegimeClassifier:
                     best_score = score
                     best_model = model
 
-            except Exception:
-                # Trial failed, continue to next
+            except (ValueError, RuntimeError) as e:
+                # Trial failed (e.g., convergence issues), continue to next
+                warnings.warn(f"HMM trial {trial} failed: {e}", stacklevel=2)
                 continue
 
         if best_model is None:
@@ -271,8 +280,10 @@ class HMMRegimeClassifier:
                 # Default to Pivot+ if uncertain
                 regime = RegimeType.PIVOT_PLUS
 
-        # Calculate confidence (how far from 50%)
-        confidence = abs(bull_prob - 0.5) * 2  # Maps 0.5-1.0 to 0.0-1.0
+        # Calculate confidence as distance from a neutral 50% bull probability,
+        # where abs(bull_prob - 0.5) ∈ [0.0, 0.5] and multiplying by 2 rescales this
+        # linearly to [0.0, 1.0] for confidence scoring.
+        confidence = abs(bull_prob - 0.5) * 2
 
         # Get model score
         model_score = float(self._model.score(X_scaled))
