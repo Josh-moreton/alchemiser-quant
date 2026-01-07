@@ -762,17 +762,19 @@ def _score_portfolio(
     if not weights:
         return None
 
-    # Composer parity: some indicators are used in a portfolio-scoring context
-    # (e.g. (filter (max-drawdown {:window 15}) (select-top 1) [portfolioA portfolioB]))
-    # where the intent is to *minimize* the metric while still using select-top.
-    # We treat those metrics as "lower is better" by negating them during
-    # portfolio scoring ONLY when the DSL form does not include an explicit
-    # symbol argument.
+    # Composer parity: max-drawdown is a "lower is better" metric, but Composer
+    # uses select-top to mean "pick the best" (i.e., lowest drawdown).
+    # We negate max-drawdown scores so select-top picks the portfolio with the
+    # LOWEST drawdown (safest). This only applies when the DSL form does not
+    # include an explicit symbol argument.
+    # NOTE: stdev-return and stdev-price are NOT inverted - select-top with
+    # volatility metrics picks the HIGHEST volatility, which is valid for some
+    # strategies (e.g., beam_chain uses stdev-return to pick most volatile portfolios).
     is_list = condition_expr.is_list() and bool(condition_expr.children)
     op_name = condition_expr.children[0].get_symbol_name() if is_list else None
     has_explicit_symbol_arg = bool(is_list and len(condition_expr.children) >= 3)
     should_invert_for_portfolio = bool(
-        op_name in {"max-drawdown", "stdev-return", "stdev-price"} and not has_explicit_symbol_arg
+        op_name in {"max-drawdown"} and not has_explicit_symbol_arg
     )
 
     # Score each symbol and compute weighted average

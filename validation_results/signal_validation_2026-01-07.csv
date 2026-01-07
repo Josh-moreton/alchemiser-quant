@@ -1,4 +1,12 @@
 validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
-2026-01-07,workflow-183c69cd-508d-44da-ad81-cf755d087b2f,bento_collection,bento_collection.clj,no,"BIL 88%, LABU & SARK on Composer",2026-01-07T20:54:15.567128+00:00
-2026-01-07,workflow-183c69cd-508d-44da-ad81-cf755d087b2f,ftl_starburst,ftl_starburst.clj,no,simulated holdings stored in separate file for examination,2026-01-07T20:55:35.698649+00:00
-2026-01-07,workflow-183c69cd-508d-44da-ad81-cf755d087b2f,nova_ibit,nova_ibit.clj,no,I thought we fixed this with our examinations? THis should be going down the SHV path not a bucket of stock,2026-01-07T20:56:31.928305+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,beam_chain,beam_chain.clj,no,This is now wrong after our latest commit!,2026-01-07T21:09:23.766054+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,beefier_3x,beefier_3x.clj,yes,,2026-01-07T21:09:36.042674+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,bento_collection,bento_collection.clj,no,BIL LABU SARK,2026-01-07T21:09:56.324038+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,chicken_rice,chicken_rice.clj,yes,,2026-01-07T21:10:09.103871+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,ftl_starburst,ftl_starburst.clj,no,use external file to see actual allocatiuns,2026-01-07T21:10:42.163096+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,gold,gold.clj,yes,,2026-01-07T21:10:55.976832+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,nova_ibit,nova_ibit.clj,yes,,2026-01-07T21:11:09.947037+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,nuclear_feaver,nuclear_feaver.clj,yes,,2026-01-07T21:11:13.378692+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,rains_em_dancer,rains_em_dancer.clj,yes,,2026-01-07T21:11:17.004140+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,simons_kmlm,simons_kmlm.clj,yes,,2026-01-07T21:11:19.958329+00:00
+2026-01-07,workflow-b7e04e1f-7c92-4da2-8a6a-5f8c56d4d26c,sisyphus_lowvol,sisyphus_lowvol.clj,yes,,2026-01-07T21:11:31.299969+00:00
