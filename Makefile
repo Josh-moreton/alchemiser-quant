@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -27,6 +27,9 @@ help:
 	@echo "  validate-signals                     Validate latest signals vs Composer.trade"
 	@echo "  validate-signals stage=prod          Validate prod signals"
 	@echo "  validate-signals fresh=1             Start fresh (ignore previous validations)"
+	@echo "  debug-strategy s=<name>              Debug strategy with full condition tracing"
+	@echo "  debug-strategy list=1                List all available strategies"
+	@echo "  debug-strategy-historical s=<name> as-of=<date>  Debug with historical data cutoff"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs                       Fetch logs from most recent workflow (dev)"
@@ -266,6 +269,53 @@ validate-signals:
 	if [ -n "$(fresh)" ]; then ARGS="$$ARGS --fresh"; fi; \
 	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
 	poetry run python scripts/validate_signals.py $$ARGS
+
+# Debug a strategy with full condition tracing
+# Usage: make debug-strategy s=simons_kmlm        # Debug specific strategy
+#        make debug-strategy s=chicken_rice       # Debug another strategy
+#        make debug-strategy list=1               # List all available strategies
+debug-strategy:
+	@if [ -n "$(list)" ]; then \
+		echo "📋 Listing available strategies..."; \
+		poetry run python scripts/debug_strategy.py --list; \
+	elif [ -z "$(s)" ]; then \
+		echo "❌ Usage: make debug-strategy s=<strategy_name>"; \
+		echo "         make debug-strategy list=1"; \
+		exit 1; \
+	else \
+		echo "🔬 Debugging strategy: $(s)"; \
+		poetry run python scripts/debug_strategy.py $(s); \
+	fi
+
+# Test all strategies with historical (Jan 5) and live (Jan 6 + per-indicator) modes
+# Usage: make test-all-strategies
+#        make test-all-strategies detailed=1
+#        make test-all-strategies historical-only=1
+#        make test-all-strategies s=simons_kmlm
+test-all-strategies:
+	@ARGS=""; \
+	if [ -n "$(s)" ]; then ARGS="$$ARGS --strategy $(s)"; fi; \
+	if [ -n "$(detailed)" ]; then ARGS="$$ARGS --detailed"; fi; \
+	if [ -n "$(historical-only)" ]; then ARGS="$$ARGS --historical-only"; fi; \
+	if [ -n "$(live-only)" ]; then ARGS="$$ARGS --live-only"; fi; \
+	poetry run python scripts/test_all_strategies.py $$ARGS
+
+# Debug strategy with historical data cutoff
+# Usage: make debug-strategy-historical s=simons_kmlm as-of=yesterday
+#        make debug-strategy-historical s=simons_kmlm as-of=2026-01-06
+debug-strategy-historical:
+	@if [ -z "$(s)" ]; then \
+		echo "❌ Usage: make debug-strategy-historical s=<strategy_name> as-of=<date>"; \
+		echo "         as-of can be: YYYY-MM-DD, 'yesterday', 'today'"; \
+		exit 1; \
+	elif [ -z "$(as-of)" ]; then \
+		echo "❌ Usage: make debug-strategy-historical s=<strategy_name> as-of=<date>"; \
+		echo "         as-of can be: YYYY-MM-DD, 'yesterday', 'today'"; \
+		exit 1; \
+	else \
+		echo "🔬 Debugging strategy: $(s) (as-of $(as-of))"; \
+		poetry run python scripts/debug_strategy_historical.py $(s) --as-of "$(as-of)"; \
+	fi
 
 # ============================================================================
 # OBSERVABILITY

@@ -40,6 +40,7 @@ class SingleFileSignalHandler:
         container: ApplicationContainer,
         dsl_file: str,
         allocation: Decimal,
+        debug_mode: bool = False,
     ) -> None:
         """Initialize the single-file signal handler.
 
@@ -47,11 +48,13 @@ class SingleFileSignalHandler:
             container: Application container for dependency injection.
             dsl_file: DSL strategy file name (e.g., '1-KMLM.clj').
             allocation: Weight allocation for this file (0-1).
+            debug_mode: If True, enables detailed condition tracing for debugging.
 
         """
         self.container = container
         self.dsl_file = dsl_file
         self.allocation = allocation
+        self.debug_mode = debug_mode
         self.logger = logger
 
         # Resolve strategies directory using importlib.resources (Lambda layer)
@@ -82,6 +85,7 @@ class SingleFileSignalHandler:
         self.dsl_engine = DslEngine(
             strategy_config_path=strategies_path,
             market_data_adapter=self.market_data_adapter,
+            debug_mode=self.debug_mode,
         )
 
         self.logger.info(
@@ -89,6 +93,7 @@ class SingleFileSignalHandler:
             extra={
                 "dsl_file": dsl_file,
                 "allocation": str(allocation),
+                "debug_mode": debug_mode,
             },
         )
 

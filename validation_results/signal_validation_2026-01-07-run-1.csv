@@ -1,0 +1,7 @@
+validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
+2026-01-07,workflow-da890b10-1b01-4cf1-900d-e3ea9a28c5f0,beam_chain,beam_chain.clj,yes,,2026-01-07T11:53:10.296395+00:00
+2026-01-07,workflow-da890b10-1b01-4cf1-900d-e3ea9a28c5f0,beefier_3x,beefier_3x.clj,yes,,2026-01-07T11:53:17.993258+00:00
+2026-01-07,workflow-da890b10-1b01-4cf1-900d-e3ea9a28c5f0,bento_collection,bento_collection.clj,no,This is now wrong. It was correct BEFORE our changes,2026-01-07T11:53:47.182072+00:00
+2026-01-07,workflow-da890b10-1b01-4cf1-900d-e3ea9a28c5f0,chicken_rice,chicken_rice.clj,yes,,2026-01-07T11:57:07.001811+00:00
+2026-01-07,workflow-da890b10-1b01-4cf1-900d-e3ea9a28c5f0,ftl_starburst,ftl_starburst.clj,no,"still quite wrong, needs its own investigation debug script as its so large",2026-01-07T11:57:36.667171+00:00
+2026-01-07,workflow-da890b10-1b01-4cf1-900d-e3ea9a28c5f0,gold,gold.clj,yes,,2026-01-07T11:57:46.837298+00:00

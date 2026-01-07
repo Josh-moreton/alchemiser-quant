@@ -43,6 +43,40 @@ def _validate_binary_args(args: list[ASTNode], operator: str) -> None:
         raise DslEvaluationError(f"{operator} requires exactly 2 arguments")
 
 
+def _ast_to_expr_string(node: ASTNode) -> str:
+    """Convert AST node to a human-readable expression string.
+
+    Args:
+        node: AST node to convert
+
+    Returns:
+        String representation of the expression
+
+    """
+    if node.is_atom():
+        return str(node.get_atom_value())
+    if node.is_symbol():
+        return node.get_symbol_name() or "?"
+    if node.is_list() and node.children:
+        first = node.children[0]
+        if first.is_symbol():
+            func_name = first.get_symbol_name() or "?"
+            # Special case for indicator calls like (rsi "SPY" {:window 10})
+            if func_name in ("rsi", "moving-average", "max-drawdown", "current-price"):
+                if len(node.children) >= 2:
+                    symbol = node.children[1]
+                    if symbol.is_atom():
+                        sym_val = symbol.get_atom_value()
+                        if len(node.children) >= 3:
+                            # Has params
+                            params = node.children[2]
+                            if params.is_list():
+                                return f"{func_name}({sym_val})"
+                        return f"{func_name}({sym_val})"
+            return f"({func_name} ...)"
+    return "<expr>"
+
+
 def greater_than(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate > - greater than comparison.
 
@@ -65,6 +99,16 @@ def greater_than(args: list[ASTNode], context: DslContext) -> bool:
     left_decimal = context.as_decimal(left_v)
     right_decimal = context.as_decimal(right_v)
     result = left_decimal > right_decimal
+
+    # Add debug trace if debug mode is enabled
+    context.add_debug_trace(
+        operator=">",
+        left_expr=_ast_to_expr_string(args[0]),
+        left_value=float(left_decimal),
+        right_expr=_ast_to_expr_string(args[1]),
+        right_value=float(right_decimal),
+        result=result,
+    )
 
     logger.debug(
         "DSL comparison: greater_than",
@@ -101,6 +145,16 @@ def less_than(args: list[ASTNode], context: DslContext) -> bool:
     right_decimal = context.as_decimal(right_v)
     result = left_decimal < right_decimal
 
+    # Add debug trace if debug mode is enabled
+    context.add_debug_trace(
+        operator="<",
+        left_expr=_ast_to_expr_string(args[0]),
+        left_value=float(left_decimal),
+        right_expr=_ast_to_expr_string(args[1]),
+        right_value=float(right_decimal),
+        result=result,
+    )
+
     logger.debug(
         "DSL comparison: less_than",
         operator="<",
@@ -136,6 +190,16 @@ def greater_equal(args: list[ASTNode], context: DslContext) -> bool:
     right_decimal = context.as_decimal(right_v)
     result = left_decimal >= right_decimal
 
+    # Add debug trace if debug mode is enabled
+    context.add_debug_trace(
+        operator=">=",
+        left_expr=_ast_to_expr_string(args[0]),
+        left_value=float(left_decimal),
+        right_expr=_ast_to_expr_string(args[1]),
+        right_value=float(right_decimal),
+        result=result,
+    )
+
     logger.debug(
         "DSL comparison: greater_equal",
         operator=">=",
@@ -170,6 +234,16 @@ def less_equal(args: list[ASTNode], context: DslContext) -> bool:
     left_decimal = context.as_decimal(left_v)
     right_decimal = context.as_decimal(right_v)
     result = left_decimal <= right_decimal
+
+    # Add debug trace if debug mode is enabled
+    context.add_debug_trace(
+        operator="<=",
+        left_expr=_ast_to_expr_string(args[0]),
+        left_value=float(left_decimal),
+        right_expr=_ast_to_expr_string(args[1]),
+        right_value=float(right_decimal),
+        result=result,
+    )
 
     logger.debug(
         "DSL comparison: less_equal",

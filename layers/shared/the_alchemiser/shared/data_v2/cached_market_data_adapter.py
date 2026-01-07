@@ -6,11 +6,10 @@ This adapter implements the MarketDataPort interface using S3 Parquet storage
 as the primary data source. When cache misses occur, it can optionally delegate
 to a configurable fallback adapter (e.g., direct Alpaca API calls).
 
-Live Bar Injection (Optional):
+Live Bar Injection:
     When `append_live_bar=True`, the adapter fetches today's current bar from
-    Alpaca Snapshot API and appends it to the historical data series. This
-    enables indicators to use the most recent price action (e.g., a 200-day SMA
-    uses 199 historical days + today's current price as the 200th data point).
+    Alpaca Snapshot API and appends it to historical data requests. This enables
+    real-time signal generation using current intraday prices.
 
     The live bar includes today's OHLCV data:
     - Open: Today's opening price
@@ -18,24 +17,15 @@ Live Bar Injection (Optional):
     - Close: Current/latest price
     - Volume: Today's cumulative volume
 
-    Live bars are cached per-symbol for the duration of the Lambda run to
-    minimize API calls when multiple indicators request the same symbol.
-
-    In production, this feature should be DISABLED by configuring
-    `append_live_bar=False` in the wiring layer (e.g., Strategy Lambda wiring).
-    The production wiring sets `append_live_bar=False`, so indicators use only
-    historical data from S3 Parquet (e.g., a 200-day SMA uses the last 200
-    days of close prices from cache).
-
 Architecture:
     S3 Cache (Parquet) -> CachedMarketDataAdapter
            ↓
-     Historical bars only
+     Optional live bar append (Alpaca Snapshot API)
            ↓
     IndicatorService <- DSL Strategy Engine <- Strategy Lambda
 
     Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda reads from S3 cache using only historical data.
+    Strategy Lambda runs at 3:45 PM ET with live bar injection enabled.
 """
 
 from __future__ import annotations
@@ -387,7 +377,7 @@ class CachedMarketDataAdapter(MarketDataPort):
             bars_count=len(bars),
         )
 
-        # Append today's live bar if enabled
+        # Append today's live bar if enabled (global setting for get_bars)
         if self._append_live_bar and self._live_bar_provider is not None:
             bars = self._append_todays_bar(bars, symbol_str)
 
