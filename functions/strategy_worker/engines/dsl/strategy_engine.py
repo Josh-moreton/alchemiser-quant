@@ -9,13 +9,19 @@ for integration with the multi-strategy orchestrator.
 
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from importlib import resources as importlib_resources
-from importlib.abc import Traversable
 from pathlib import Path
 from typing import Any
+
+# Python 3.14 moved Traversable from importlib.abc to importlib.resources.abc
+if sys.version_info >= (3, 14):
+    from importlib.resources.abc import Traversable
+else:
+    from importlib.abc import Traversable
 
 from engines.dsl.engine import DslEngine
 from errors import ConfigurationError, StrategyExecutionError

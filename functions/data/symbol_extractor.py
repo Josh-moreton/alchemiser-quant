@@ -17,7 +17,12 @@ from typing import TYPE_CHECKING
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
-    from importlib.abc import Traversable
+    # Python 3.14 moved Traversable from importlib.abc to importlib.resources.abc
+    import sys
+    if sys.version_info >= (3, 14):
+        from importlib.resources.abc import Traversable
+    else:
+        from importlib.abc import Traversable
 
 logger = get_logger(__name__)
 

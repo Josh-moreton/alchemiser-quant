@@ -8,10 +8,11 @@ into the main ApplicationContainer. Follows single composition root pattern.
 The strategy module reads market data directly from S3 Parquet cache.
 Data must be pre-populated by the scheduled Data Lambda refresh.
 
-Historical Data Only:
-    Indicators use only historical data from S3 Parquet files. For example,
-    a 200-day SMA uses the last 200 days of close prices from the cache,
-    without appending today's live price.
+Live Bar Injection:
+    When running during market hours (before close), today's current price
+    is fetched from Alpaca Snapshot API and appended as a synthetic bar.
+    This ensures indicators use the most recent price data, matching how
+    Composer.trade evaluates strategies at 3:45 PM before market close.
 """
 
 from __future__ import annotations
@@ -62,14 +63,15 @@ def register_strategy(container: ApplicationContainer) -> None:
     # Register market data store (reads from S3 Parquet)
     container.market_data_store = providers.Singleton(MarketDataStore)
 
-    # Register market data adapter using only historical data from parquet
-    # No live bar injection - indicators use only cached historical data
+    # Register market data adapter with live bar injection enabled
+    # This appends today's current price from Alpaca Snapshot API to historical data
+    # so indicators use the most recent price, matching Composer.trade at 3:45 PM
     container.strategy_market_data_adapter = providers.Factory(
         CachedMarketDataAdapter,
         market_data_store=container.market_data_store,
         fallback_adapter=None,
         enable_live_fallback=False,
-        append_live_bar=False,
+        append_live_bar=True,
     )
 
     # Register strategy orchestrator (uses market data adapter)

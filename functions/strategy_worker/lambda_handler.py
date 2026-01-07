@@ -57,6 +57,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     allocation = Decimal(str(event.get("allocation", "0")))
     strategy_number = event.get("strategy_number", 0)
     total_strategies = event.get("total_strategies", 1)
+    debug_mode = event.get("debug_mode", False)
 
     # Validate required fields
     if not session_id or not dsl_file:
@@ -85,6 +86,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "allocation": str(allocation),
             "strategy_number": strategy_number,
             "total_strategies": total_strategies,
+            "debug_mode": debug_mode,
         },
     )
 
@@ -99,6 +101,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             container=container,
             dsl_file=dsl_file,
             allocation=allocation,
+            debug_mode=debug_mode,
         )
 
         # Generate signals for this single file

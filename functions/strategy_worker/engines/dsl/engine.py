@@ -9,11 +9,17 @@ and produces portfolio allocations using event-driven architecture with DTO inte
 
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from importlib.abc import Traversable
 from pathlib import Path
+
+# Python 3.14 moved Traversable from importlib.abc to importlib.resources.abc
+if sys.version_info >= (3, 14):
+    from importlib.resources.abc import Traversable
+else:
+    from importlib.abc import Traversable
 
 from engines.dsl.dsl_evaluator import DslEvaluator
 from engines.dsl.sexpr_parser import SexprParseError, SexprParser
@@ -49,6 +55,7 @@ class DslEngine(EventHandler):
         event_bus: EventBus | None = None,
         indicator_service: IndicatorPort | None = None,
         market_data_adapter: MarketDataPort | None = None,
+        debug_mode: bool = False,
     ) -> None:
         """Initialize DSL engine.
 
@@ -57,12 +64,14 @@ class DslEngine(EventHandler):
             event_bus: Optional event bus for pub/sub
             indicator_service: Optional pre-configured indicator service (for testing)
             market_data_adapter: Optional injected market data adapter (from DI container)
+            debug_mode: If True, enables detailed condition tracing for debugging
 
         """
         from indicators.indicator_service import IndicatorService
 
         self.logger = get_logger(__name__)
         self.event_bus = event_bus
+        self.debug_mode = debug_mode
         # Store as-is (can be str, Path, or Traversable for Lambda layer)
         self.strategy_config_path = (
             strategy_config_path if strategy_config_path is not None else Path()
@@ -84,11 +93,13 @@ class DslEngine(EventHandler):
                     CachedMarketDataAdapter,
                 )
 
-                market_data_adapter = CachedMarketDataAdapter()
+                # Enable live bar injection to append current price from Alpaca
+                # This matches Composer.trade behavior at 3:45 PM before market close
+                market_data_adapter = CachedMarketDataAdapter(append_live_bar=True)
             # IndicatorService computes indicators locally using pandas/numpy
             self.indicator_service = IndicatorService(market_data_service=market_data_adapter)
 
-        self.evaluator = DslEvaluator(self.indicator_service, event_bus)
+        self.evaluator = DslEvaluator(self.indicator_service, event_bus, debug_mode=self.debug_mode)
 
         # Subscribe to events if event bus provided
         if self.event_bus:

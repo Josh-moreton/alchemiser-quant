@@ -45,16 +45,23 @@ class DslEvaluator:
     registry with indicator service integration and event publishing.
     """
 
-    def __init__(self, indicator_service: IndicatorPort, event_bus: EventBus | None = None) -> None:
+    def __init__(
+        self,
+        indicator_service: IndicatorPort,
+        event_bus: EventBus | None = None,
+        debug_mode: bool = False,
+    ) -> None:
         """Initialize DSL evaluator.
 
         Args:
             indicator_service: Service for computing indicators (IndicatorPort)
             event_bus: Optional event bus for publishing events
+            debug_mode: If True, enables detailed condition tracing for debugging
 
         """
         self.indicator_service = indicator_service
         self.event_bus = event_bus
+        self.debug_mode = debug_mode
         self.event_publisher = DslEventPublisher(event_bus)
 
         # Initialize dispatcher and register all operators
@@ -63,6 +70,8 @@ class DslEvaluator:
 
         # Shared decision path for all contexts during evaluation (stored as dicts for serialization)
         self.decision_path: list[dict[str, Any]] = []
+        # Shared debug traces for all contexts during evaluation
+        self.debug_traces: list[dict[str, Any]] = []
 
     def _register_all_operators(self) -> None:
         """Register all DSL operators with the dispatcher."""
@@ -98,8 +107,9 @@ class DslEvaluator:
             )
 
         try:
-            # Clear decision path for new evaluation
+            # Clear decision path and debug traces for new evaluation
             self.decision_path = []
+            self.debug_traces = []
 
             # Add trace entry for evaluation start
             trace = trace.add_entry(
@@ -308,9 +318,11 @@ class DslEvaluator:
             correlation_id=correlation_id,
             trace=trace,
             evaluate_node=self._evaluate_node,
+            debug_mode=self.debug_mode,
         )
-        # Share decision_path with context so all contexts accumulate to the same list
+        # Share decision_path and debug_traces with context so all contexts accumulate to the same list
         context.decision_path = self.decision_path
+        context.debug_traces = self.debug_traces
 
         # Function application: (func arg1 arg2 ...)
         first_child = node.children[0]
