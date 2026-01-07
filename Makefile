@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -22,6 +22,11 @@ help:
 	@echo "  strategy-check-fractionable         Check fractionability (uses strategy.dev.json)"
 	@echo "  strategy-check-fractionable config=strategy.prod.json"
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
+	@echo ""
+	@echo "Daily Validation:"
+	@echo "  validate-signals                     Validate latest signals vs Composer.trade"
+	@echo "  validate-signals stage=prod          Validate prod signals"
+	@echo "  validate-signals fresh=1             Start fresh (ignore previous validations)"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs                       Fetch logs from most recent workflow (dev)"
@@ -244,6 +249,23 @@ strategy-check-fractionable:
 	if [ -n "$(show-all)" ]; then ARGS="$$ARGS --show-all"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all-strategies"; fi; \
 	poetry run python scripts/check_fractionable_assets.py $$ARGS
+
+# ============================================================================
+# DAILY VALIDATION
+# ============================================================================
+
+# Validate strategy signals against Composer.trade
+# Usage: make validate-signals                    # Validate latest dev session
+#        make validate-signals stage=prod         # Validate latest prod session
+#        make validate-signals fresh=1            # Start fresh validation
+#        make validate-signals session=<id>       # Validate specific session
+validate-signals:
+	@echo "🔍 Validating signals against Composer.trade..."
+	@ARGS=""; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
+	if [ -n "$(fresh)" ]; then ARGS="$$ARGS --fresh"; fi; \
+	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
+	poetry run python scripts/validate_signals.py $$ARGS
 
 # ============================================================================
 # OBSERVABILITY

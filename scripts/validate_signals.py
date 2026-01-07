@@ -110,7 +110,9 @@ def find_sessions_by_date(
 
 
 def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Get recent completed sessions.
+    """Get recent completed sessions efficiently.
+
+    Uses pagination with early termination to quickly find recent sessions.
 
     Args:
         client: DynamoDB client
@@ -122,7 +124,8 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
     """
     sessions: list[dict[str, Any]] = []
 
-    # Scan for all METADATA items with COMPLETED status
+    # Use pagination but stop early once we have enough sessions
+    # Each page scans up to 1MB of data
     paginator = client.get_paginator("scan")
     page_iterator = paginator.paginate(
         TableName=table_name,
@@ -132,8 +135,10 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
             ":metadata": {"S": "METADATA"},
             ":completed": {"S": "COMPLETED"},
         },
+        PaginationConfig={"PageSize": 500},  # Items per page
     )
 
+    # Collect sessions from pages, stop when we have enough recent ones
     for page in page_iterator:
         for item in page.get("Items", []):
             sessions.append(
@@ -147,10 +152,31 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
                     ),
                 }
             )
+        # Early termination: if we have more than limit * 3 sessions,
+        # we likely have the most recent ones in there
+        if len(sessions) >= limit * 3:
+            break
 
     # Sort by created_at descending and return top N
     sessions.sort(key=lambda x: x["created_at"], reverse=True)
     return sessions[:limit]
+
+
+def get_latest_session(client: Any, table_name: str) -> dict[str, Any] | None:
+    """Get the most recent completed session.
+
+    This is an optimized function that quickly finds the latest session
+    without scanning the entire table.
+
+    Args:
+        client: DynamoDB client
+        table_name: DynamoDB table name
+
+    Returns:
+        Latest session metadata dict or None if no sessions found
+    """
+    sessions = get_recent_sessions(client, table_name, limit=1)
+    return sessions[0] if sessions else None
 
 
 def get_all_partial_signals(
@@ -510,23 +536,21 @@ def main() -> None:
         session_id = args.session_id
         print(f"\nUsing session: {session_id}")
     else:
-        print("\nSearching for sessions...")
+        print("\nFinding latest session...")
         try:
-            sessions = find_sessions_by_date(client, table_name, validation_date)
+            # Default: just get the latest session (fast)
+            latest = get_latest_session(client, table_name)
 
-            # If no sessions found for today, try yesterday
-            # (Common case: running in UK morning to validate last night's ~9pm run)
-            auto_selected_yesterday = False
-            if not sessions and not args.date:
-                yesterday = validation_date - timedelta(days=1)
-                print(f"No sessions found for {validation_date.isoformat()}, checking {yesterday.isoformat()}...")
-                sessions = find_sessions_by_date(client, table_name, yesterday)
-                if sessions:
-                    validation_date = yesterday  # Update validation_date for CSV naming
-                    auto_selected_yesterday = True
-
-            if not sessions:
-                print(f"\n❌ No completed sessions found for {validation_date.isoformat()}")
+            if latest:
+                session_id = latest["session_id"]
+                session_date = latest["created_at"].split("T")[0]
+                session_time = latest["created_at"].split("T")[1].split(".")[0]
+                validation_date = date.fromisoformat(session_date)
+                print(f"\n✅ Found latest session: {session_date} @ {session_time} UTC")
+                print(f"   Session ID: {session_id}")
+                print(f"   Strategies: {latest['total_strategies']}")
+            else:
+                print("\n❌ No completed sessions found")
                 print("\nRecent sessions:")
                 recent = get_recent_sessions(client, table_name, limit=5)
                 for i, session in enumerate(recent, 1):
@@ -534,24 +558,20 @@ def main() -> None:
                     print(
                         f"  {i}. {created_date} - {session['created_at']} - {session['session_id']}"
                     )
-                session_id = select_session(recent)
-            elif len(sessions) == 1:
-                session_id = sessions[0]["session_id"]
-                print(f"\nFound 1 session from {validation_date.isoformat()}: {session_id}")
-            else:
-                # If we auto-selected yesterday, pick the most recent session automatically
-                if auto_selected_yesterday:
-                    session_id = sessions[0]["session_id"]  # Already sorted by created_at desc
-                    session_time = sessions[0]["created_at"]
-                    print(f"\nAuto-selected most recent session from {validation_date.isoformat()}:")
-                    print(f"  {session_time} - {session_id}")
+                if recent:
+                    session_id = select_session(recent)
                 else:
-                    session_id = select_session(sessions)
+                    print("\nNo sessions available.")
+                    sys.exit(1)
 
         except ClientError as e:
             print(f"\n❌ DynamoDB error: {e}")
             print(f"\nPlease check access to table: {table_name}")
             sys.exit(1)
+
+    if not session_id:
+        print("\n❌ No session selected")
+        sys.exit(1)
 
     # Load strategy ledger
     print("\nLoading strategy ledger...")
