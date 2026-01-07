@@ -1,0 +1,3 @@
+combination_id,matches_expected,rsi_live,allocation,error
+0,False,False,SQQQ:1.0000,
+1,False,True,TLT:1.0000,

@@ -36,7 +36,6 @@ Icon?
 
 # Data outputs and logs
 *.log
-*.csv
 logs/
 
 # Environment variables
