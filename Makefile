@@ -287,6 +287,19 @@ debug-strategy:
 		poetry run python scripts/debug_strategy.py $(s); \
 	fi
 
+# Test all strategies with historical (Jan 5) and live (Jan 6 + per-indicator) modes
+# Usage: make test-all-strategies
+#        make test-all-strategies detailed=1
+#        make test-all-strategies historical-only=1
+#        make test-all-strategies s=simons_kmlm
+test-all-strategies:
+	@ARGS=""; \
+	if [ -n "$(s)" ]; then ARGS="$$ARGS --strategy $(s)"; fi; \
+	if [ -n "$(detailed)" ]; then ARGS="$$ARGS --detailed"; fi; \
+	if [ -n "$(historical-only)" ]; then ARGS="$$ARGS --historical-only"; fi; \
+	if [ -n "$(live-only)" ]; then ARGS="$$ARGS --live-only"; fi; \
+	poetry run python scripts/test_all_strategies.py $$ARGS
+
 # Debug strategy with historical data cutoff
 # Usage: make debug-strategy-historical s=simons_kmlm as-of=yesterday
 #        make debug-strategy-historical s=simons_kmlm as-of=2026-01-06

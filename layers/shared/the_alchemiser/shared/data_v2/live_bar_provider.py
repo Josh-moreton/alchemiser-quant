@@ -128,6 +128,7 @@ class LiveBarProvider:
                 return None
 
             # Construct BarModel from snapshot daily_bar
+            # Mark as incomplete since this is today's partial bar (close-so-far)
             bar = BarModel(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),  # Mark as current time
@@ -136,6 +137,7 @@ class LiveBarProvider:
                 low=Decimal(str(daily_bar.low)),
                 close=Decimal(str(daily_bar.close)),
                 volume=int(daily_bar.volume),
+                is_incomplete=True,  # Partial bar: today's data is not yet complete
             )
 
             # Cache for subsequent calls
@@ -216,6 +218,7 @@ class LiveBarProvider:
                     low=Decimal(str(daily_bar.low)),
                     close=Decimal(str(daily_bar.close)),
                     volume=int(daily_bar.volume),
+                    is_incomplete=True,  # Partial bar: today's data is not yet complete
                 )
 
                 self._cache[symbol] = bar

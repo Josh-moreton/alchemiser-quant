@@ -9,10 +9,9 @@ The strategy module reads market data directly from S3 Parquet cache.
 Data must be pre-populated by the scheduled Data Lambda refresh.
 
 Live Bar Injection:
-    When running during market hours (before close), today's current price
-    is fetched from Alpaca Snapshot API and appended as a synthetic bar.
-    This ensures indicators use the most recent price data, matching how
-    Composer.trade evaluates strategies at 3:45 PM before market close.
+    When append_live_bar=True, the adapter appends today's current bar from
+    Alpaca Snapshot API to all historical data. This enables real-time signal
+    generation at 3:45 PM ET using current intraday prices.
 """
 
 from __future__ import annotations
@@ -35,9 +34,10 @@ def register_strategy(container: ApplicationContainer) -> None:
     Market data is read directly from S3 Parquet cache by CachedMarketDataAdapter.
     Data must be pre-populated by the scheduled Data Lambda refresh.
 
-    Indicators use only historical data from parquet files - today's live price
-    is NOT appended. For example, a 200-day SMA uses the last 200 days of
-    close prices from the cache.
+    Live Bar Injection:
+        When append_live_bar=True, today's current bar from Alpaca Snapshot API
+        is appended to all historical data. This enables real-time signal
+        generation at 3:45 PM ET using current intraday prices.
 
     Args:
         container: The main ApplicationContainer instance
@@ -64,14 +64,13 @@ def register_strategy(container: ApplicationContainer) -> None:
     container.market_data_store = providers.Singleton(MarketDataStore)
 
     # Register market data adapter with live bar injection enabled
-    # This appends today's current price from Alpaca Snapshot API to historical data
-    # so indicators use the most recent price, matching Composer.trade at 3:45 PM
+    # This appends today's current bar to all indicator computations
     container.strategy_market_data_adapter = providers.Factory(
         CachedMarketDataAdapter,
         market_data_store=container.market_data_store,
         fallback_adapter=None,
         enable_live_fallback=False,
-        append_live_bar=True,
+        append_live_bar=True,  # Enable live bar injection for real-time signals
     )
 
     # Register strategy orchestrator (uses market data adapter)

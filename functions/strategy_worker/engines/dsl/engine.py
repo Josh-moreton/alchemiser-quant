@@ -93,8 +93,7 @@ class DslEngine(EventHandler):
                     CachedMarketDataAdapter,
                 )
 
-                # Enable live bar injection to append current price from Alpaca
-                # This matches Composer.trade behavior at 3:45 PM before market close
+                # Enable live bar injection for real-time signal generation
                 market_data_adapter = CachedMarketDataAdapter(append_live_bar=True)
             # IndicatorService computes indicators locally using pandas/numpy
             self.indicator_service = IndicatorService(market_data_service=market_data_adapter)

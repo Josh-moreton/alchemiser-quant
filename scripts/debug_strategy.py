@@ -99,7 +99,6 @@ def run_debug_strategy(strategy_name: str) -> dict:
     print()
 
     # Create market data adapter with live bar injection enabled
-    # This fetches current price from Alpaca and appends to historical data
     market_data_adapter = CachedMarketDataAdapter(append_live_bar=True)
 
     # Create DSL engine with debug mode
