@@ -183,7 +183,7 @@ class TestIndicatorClassification:
         """Test should_use_live_bar returns correct value per indicator."""
         # Indicators that use live bar (today's data)
         assert should_use_live_bar("current_price") is True
-        assert should_use_live_bar("rsi") is True  # Confirmed via simons_kmlm testing
+        assert should_use_live_bar("rsi") is False  # RSI too volatile with intraday data
         assert should_use_live_bar("max_drawdown") is True
 
         # These indicators should NOT use live bar (T-1 data only)
