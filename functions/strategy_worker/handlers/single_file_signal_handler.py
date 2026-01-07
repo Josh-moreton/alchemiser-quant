@@ -40,6 +40,7 @@ class SingleFileSignalHandler:
         container: ApplicationContainer,
         dsl_file: str,
         allocation: Decimal,
+        *,
         debug_mode: bool = False,
     ) -> None:
         """Initialize the single-file signal handler.

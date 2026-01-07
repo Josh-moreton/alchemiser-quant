@@ -63,16 +63,10 @@ class LiveBarProvider:
 
         """
         self._api_key = (
-            api_key
-            or os.environ.get("ALPACA_KEY")
-            or os.environ.get("ALPACA__KEY")
-            or ""
+            api_key or os.environ.get("ALPACA_KEY") or os.environ.get("ALPACA__KEY") or ""
         )
         self._secret_key = (
-            secret_key
-            or os.environ.get("ALPACA_SECRET")
-            or os.environ.get("ALPACA__SECRET")
-            or ""
+            secret_key or os.environ.get("ALPACA_SECRET") or os.environ.get("ALPACA__SECRET") or ""
         )
         self._client: StockHistoricalDataClient | None = None
         self._cache: dict[str, BarModel] = {}

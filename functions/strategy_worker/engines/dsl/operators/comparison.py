@@ -62,17 +62,19 @@ def _ast_to_expr_string(node: ASTNode) -> str:
         if first.is_symbol():
             func_name = first.get_symbol_name() or "?"
             # Special case for indicator calls like (rsi "SPY" {:window 10})
-            if func_name in ("rsi", "moving-average", "max-drawdown", "current-price"):
-                if len(node.children) >= 2:
-                    symbol = node.children[1]
-                    if symbol.is_atom():
-                        sym_val = symbol.get_atom_value()
-                        if len(node.children) >= 3:
-                            # Has params
-                            params = node.children[2]
-                            if params.is_list():
-                                return f"{func_name}({sym_val})"
-                        return f"{func_name}({sym_val})"
+            if (
+                func_name in ("rsi", "moving-average", "max-drawdown", "current-price")
+                and len(node.children) >= 2
+            ):
+                symbol = node.children[1]
+                if symbol.is_atom():
+                    sym_val = symbol.get_atom_value()
+                    if len(node.children) >= 3:
+                        # Has params
+                        params = node.children[2]
+                        if params.is_list():
+                            return f"{func_name}({sym_val})"
+                    return f"{func_name}({sym_val})"
             return f"({func_name} ...)"
     return "<expr>"
 

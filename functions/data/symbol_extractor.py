@@ -19,6 +19,7 @@ from the_alchemiser.shared.logging import get_logger
 if TYPE_CHECKING:
     # Python 3.14 moved Traversable from importlib.abc to importlib.resources.abc
     import sys
+
     if sys.version_info >= (3, 14):
         from importlib.resources.abc import Traversable
     else:

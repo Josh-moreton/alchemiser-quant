@@ -107,6 +107,7 @@ class FilterCandidate(TypedDict, total=False):
 
     Notes:
         This is debug/trace data, not domain state.
+
     """
 
     candidate_id: str
@@ -148,6 +149,7 @@ class DslContext:
         correlation_id: str,
         trace: Trace,
         evaluate_node: Callable[[ASTNode, str, Trace], DSLValue],
+        *,
         debug_mode: bool = False,
     ) -> None:
         """Initialize DSL context.
@@ -182,9 +184,10 @@ class DslContext:
         self,
         operator: str,
         left_expr: str,
-        left_value: Any,
+        left_value: DSLValue,
         right_expr: str,
-        right_value: Any,
+        right_value: DSLValue,
+        *,
         result: bool,
         indicator_calls: list[dict[str, Any]] | None = None,
     ) -> None:

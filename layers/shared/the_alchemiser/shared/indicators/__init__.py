@@ -10,8 +10,8 @@ from .partial_bar_config import (
     InputRequirement,
     PartialBarEligibility,
     PartialBarIndicatorConfig,
-    get_indicator_config,
     get_all_indicator_configs,
+    get_indicator_config,
     is_eligible_for_partial_bar,
 )
 
@@ -19,7 +19,7 @@ __all__ = [
     "InputRequirement",
     "PartialBarEligibility",
     "PartialBarIndicatorConfig",
-    "get_indicator_config",
     "get_all_indicator_configs",
+    "get_indicator_config",
     "is_eligible_for_partial_bar",
 ]

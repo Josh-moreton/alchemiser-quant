@@ -55,6 +55,7 @@ class DslEngine(EventHandler):
         event_bus: EventBus | None = None,
         indicator_service: IndicatorPort | None = None,
         market_data_adapter: MarketDataPort | None = None,
+        *,
         debug_mode: bool = False,
     ) -> None:
         """Initialize DSL engine.
