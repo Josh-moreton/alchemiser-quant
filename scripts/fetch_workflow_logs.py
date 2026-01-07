@@ -115,7 +115,7 @@ def find_most_recent_workflow(
     logs_client: Any,
     stage: str,
     hours_back: int = 48,
-) -> str | None:
+) -> tuple[str, datetime] | None:
     """Find the most recent workflow run from the strategy orchestrator.
 
     Args:
@@ -124,7 +124,7 @@ def find_most_recent_workflow(
         hours_back: Maximum hours to search back
 
     Returns:
-        The correlation_id of the most recent workflow, or None if not found
+        Tuple of (correlation_id, timestamp) of the most recent workflow, or None if not found
 
     """
     orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
@@ -196,9 +196,10 @@ def find_most_recent_workflow(
                             correlation_ids[cid] = ts
 
             if correlation_ids:
-                # Return the most recent one
+                # Return the most recent one (correlation_id, timestamp)
                 most_recent = max(correlation_ids.items(), key=lambda x: x[1])
-                return most_recent[0]
+                workflow_ts = datetime.fromtimestamp(most_recent[1] / 1000, tz=UTC)
+                return (most_recent[0], workflow_ts)
 
         except logs_client.exceptions.ResourceNotFoundException:
             print(f"   {colour('⚠️  Orchestrator log group not found', 'yellow')}")
@@ -969,13 +970,13 @@ Examples:
         # Auto-detect most recent workflow
         print(f"\n{colour('🔍 Finding most recent workflow run...', 'bold')}")
         logs_client = boto3.client("logs", region_name=REGION)
-        correlation_id = find_most_recent_workflow(
+        result = find_most_recent_workflow(
             logs_client,
             args.stage,
             hours_back=args.hours_back,
         )
 
-        if not correlation_id:
+        if not result:
             print(f"\n{colour('❌', 'red')} No recent workflow runs found in {args.stage}")
             print("   Tips:")
             print("   - Try a different --stage (dev or prod)")
@@ -983,7 +984,10 @@ Examples:
             print("   - Provide a specific --correlation-id")
             return 1
 
+        correlation_id, workflow_ts = result
+        ts_str = workflow_ts.strftime("%Y-%m-%d %H:%M:%S UTC")
         print(f"   {colour('✓', 'green')} Found: {colour(correlation_id, 'cyan')}")
+        print(f"   {colour('📅', 'cyan')} Timestamp: {colour(ts_str, 'green')}")
 
     print(f"\n{colour('🔍 Fetching logs for workflow:', 'bold')}")
     print(f"   Correlation ID: {colour(correlation_id, 'cyan')}")
