@@ -58,12 +58,22 @@ class LiveBarProvider:
         """Initialize live bar provider.
 
         Args:
-            api_key: Alpaca API key. Reads from ALPACA__KEY env var if not provided.
-            secret_key: Alpaca secret key. Reads from ALPACA__SECRET env var if not provided.
+            api_key: Alpaca API key. Reads from ALPACA_KEY or ALPACA__KEY env var if not provided.
+            secret_key: Alpaca secret key. Reads from ALPACA_SECRET or ALPACA__SECRET env var if not provided.
 
         """
-        self._api_key = api_key or os.environ.get("ALPACA__KEY", "")
-        self._secret_key = secret_key or os.environ.get("ALPACA__SECRET", "")
+        self._api_key = (
+            api_key
+            or os.environ.get("ALPACA_KEY")
+            or os.environ.get("ALPACA__KEY")
+            or ""
+        )
+        self._secret_key = (
+            secret_key
+            or os.environ.get("ALPACA_SECRET")
+            or os.environ.get("ALPACA__SECRET")
+            or ""
+        )
         self._client: StockHistoricalDataClient | None = None
         self._cache: dict[str, BarModel] = {}
 

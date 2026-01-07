@@ -14,7 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from engines.dsl.context import DslContext
+from engines.dsl.context import DebugTrace, DslContext, FilterTrace
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.events import DslEventPublisher
 from engines.dsl.operators.comparison import register_comparison_operators
@@ -49,6 +49,7 @@ class DslEvaluator:
         self,
         indicator_service: IndicatorPort,
         event_bus: EventBus | None = None,
+        *,
         debug_mode: bool = False,
     ) -> None:
         """Initialize DSL evaluator.
@@ -71,7 +72,9 @@ class DslEvaluator:
         # Shared decision path for all contexts during evaluation (stored as dicts for serialization)
         self.decision_path: list[dict[str, Any]] = []
         # Shared debug traces for all contexts during evaluation
-        self.debug_traces: list[dict[str, Any]] = []
+        self.debug_traces: list[DebugTrace] = []
+        # Shared filter traces for all contexts during evaluation
+        self.filter_traces: list[FilterTrace] = []
 
     def _register_all_operators(self) -> None:
         """Register all DSL operators with the dispatcher."""
@@ -110,6 +113,7 @@ class DslEvaluator:
             # Clear decision path and debug traces for new evaluation
             self.decision_path = []
             self.debug_traces = []
+            self.filter_traces = []
 
             # Add trace entry for evaluation start
             trace = trace.add_entry(
@@ -323,6 +327,7 @@ class DslEvaluator:
         # Share decision_path and debug_traces with context so all contexts accumulate to the same list
         context.decision_path = self.decision_path
         context.debug_traces = self.debug_traces
+        context.filter_traces = self.filter_traces
 
         # Function application: (func arg1 arg2 ...)
         first_child = node.children[0]

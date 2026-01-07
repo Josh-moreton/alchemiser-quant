@@ -18,7 +18,7 @@ import uuid
 from decimal import Decimal
 from typing import Literal
 
-from engines.dsl.context import DslContext
+from engines.dsl.context import DslContext, FilterCandidate, FilterTrace
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.operators.control_flow import create_indicator_with_symbol
 from engines.dsl.types import DslEvaluationError, DSLValue
@@ -37,6 +37,32 @@ STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
 
 
 # ---------- Shared helpers ----------
+
+
+def _describe_filter_condition(condition_expr: ASTNode, context: DslContext) -> dict[str, object]:
+    """Create a compact, structured description of a filter condition.
+
+    Intended for debug tracing only.
+    """
+    if not condition_expr.is_list() or not condition_expr.children:
+        return {"type": "unknown"}
+
+    head = condition_expr.children[0]
+    func_name = head.get_symbol_name() if head.is_symbol() else None
+    desc: dict[str, object] = {"type": "indicator", "func": func_name or "unknown"}
+
+    # Many filter conditions are of the form: (indicator {:window N})
+    if len(condition_expr.children) > 1:
+        try:
+            params_val = context.evaluate_node(
+                condition_expr.children[1], context.correlation_id, context.trace
+            )
+            if isinstance(params_val, dict):
+                desc["params"] = params_val
+        except (DslEvaluationError, ValueError, TypeError) as exc:  # Debug-only: never fail eval
+            logger.debug("DSL filter: failed to evaluate condition params for tracing: %s", exc)
+
+    return desc
 
 
 def collect_assets_from_value(value: DSLValue) -> list[str]:
@@ -155,11 +181,35 @@ def select_symbols(
             weights={},
         )
     scored.sort(key=lambda x: x[1], reverse=(order == "top"))
+    full_sorted = list(scored)
     if limit is not None and limit >= 0:
         scored = scored[:limit]
 
     # Create equal-weighted fragment for selected symbols
     selected_symbols = [sym for sym, _ in scored]
+
+    # Trace ranking/selection for parity debugging
+    symbol_trace: FilterTrace = {
+        "mode": "symbol",
+        "order": order,
+        "limit": limit,
+        "condition": _describe_filter_condition(condition_expr, context),
+        "scored_candidates": [
+            FilterCandidate(
+                candidate_id=sym,
+                candidate_type="symbol",
+                candidate_name=None,
+                score=float(score),
+                rank=rank,
+                symbol_count=1,
+                symbols_sample=[sym],
+            )
+            for rank, (sym, score) in enumerate(full_sorted)
+        ],
+        "selected_candidate_ids": list(selected_symbols),
+    }
+    context.add_filter_trace(symbol_trace)
+
     if not selected_symbols:
         return PortfolioFragment(
             fragment_id=str(uuid.uuid4()),
@@ -608,7 +658,9 @@ def group(args: list[ASTNode], context: DslContext) -> DSLValue:
     if len(args) < 2:
         raise DslEvaluationError("group requires at least 2 arguments")
 
-    _name = args[0]  # Group name (unused in evaluation, for documentation only)
+    # Group name is used for debugging/traceability only.
+    group_name_val = context.evaluate_node(args[0], context.correlation_id, context.trace)
+    group_name = group_name_val if isinstance(group_name_val, str) else str(group_name_val)
     body = args[1:]
 
     # Evaluate each expression sequentially, return the last result
@@ -616,12 +668,16 @@ def group(args: list[ASTNode], context: DslContext) -> DSLValue:
     for expr in body:
         last_result = context.evaluate_node(expr, context.correlation_id, context.trace)
 
-    # Pass through the last result unchanged - no weight merging
-    return (
-        last_result
-        if last_result is not None
-        else PortfolioFragment(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
-    )
+    # Pass through the last result unchanged - no weight merging.
+    # If the result is a PortfolioFragment, attach the group name to metadata for tracing.
+    if last_result is None:
+        return PortfolioFragment(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
+
+    if isinstance(last_result, PortfolioFragment):
+        merged_metadata = {**last_result.metadata, "group_name": group_name}
+        return last_result.model_copy(update={"metadata": merged_metadata})
+
+    return last_result
 
 
 def asset(args: list[ASTNode], context: DslContext) -> str:
@@ -706,6 +762,19 @@ def _score_portfolio(
     if not weights:
         return None
 
+    # Composer parity: some indicators are used in a portfolio-scoring context
+    # (e.g. (filter (max-drawdown {:window 15}) (select-top 1) [portfolioA portfolioB]))
+    # where the intent is to *minimize* the metric while still using select-top.
+    # We treat those metrics as "lower is better" by negating them during
+    # portfolio scoring ONLY when the DSL form does not include an explicit
+    # symbol argument.
+    is_list = condition_expr.is_list() and bool(condition_expr.children)
+    op_name = condition_expr.children[0].get_symbol_name() if is_list else None
+    has_explicit_symbol_arg = bool(is_list and len(condition_expr.children) >= 3)
+    should_invert_for_portfolio = bool(
+        op_name in {"max-drawdown", "stdev-return", "stdev-price"} and not has_explicit_symbol_arg
+    )
+
     # Score each symbol and compute weighted average
     total_weight = Decimal("0")
     weighted_sum = Decimal("0")
@@ -719,6 +788,8 @@ def _score_portfolio(
                 if isinstance(metric_val, int | float)
                 else float(context.as_decimal(metric_val))
             )
+            if should_invert_for_portfolio:
+                metric_val = -metric_val
             weighted_sum += weight * Decimal(str(metric_val))
             total_weight += weight
         except (ValueError, TypeError, DslEvaluationError) as exc:
@@ -775,6 +846,24 @@ def _select_portfolios(
     # "top" = sort descending (highest first), "bottom" = sort ascending (lowest first)
     scored.sort(key=lambda x: x[1], reverse=(order == "top"))
 
+    # Trace ranking/selection for parity debugging (capture full sorted list)
+    scored_candidates: list[FilterCandidate] = []
+    for rank, (pf, score) in enumerate(scored):
+        meta_name = pf.metadata.get("group_name")
+        candidate_name = meta_name if isinstance(meta_name, str) else None
+        symbols = list(pf.weights.keys())
+        scored_candidates.append(
+            FilterCandidate(
+                candidate_id=pf.fragment_id,
+                candidate_type="portfolio",
+                candidate_name=candidate_name,
+                score=float(score),
+                symbol_count=len(symbols),
+                symbols_sample=symbols[:10],
+                rank=rank,
+            )
+        )
+
     logger.info(
         "DSL filter: scored %d portfolios, order=%s, limit=%s",
         len(scored),
@@ -794,6 +883,16 @@ def _select_portfolios(
     if limit is not None and limit >= 0:
         scored = scored[:limit]
         logger.info("DSL filter: after limit=%d, have %d portfolios", limit, len(scored))
+
+    portfolio_trace: FilterTrace = {
+        "mode": "portfolio",
+        "order": order,
+        "limit": limit,
+        "condition": _describe_filter_condition(condition_expr, context),
+        "scored_candidates": scored_candidates,
+        "selected_candidate_ids": [pf.fragment_id for pf, _score in scored],
+    }
+    context.add_filter_trace(portfolio_trace)
 
     # Merge the selected portfolios with equal weight
     if len(scored) == 1:

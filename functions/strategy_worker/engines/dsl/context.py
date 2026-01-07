@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal, DecimalException
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from engines.dsl.types import DSLValue
 
@@ -102,6 +102,37 @@ class DebugTrace(TypedDict, total=False):
     indicator_calls: list[dict[str, Any]]
 
 
+class FilterCandidate(TypedDict, total=False):
+    """Candidate item scored during a DSL filter.
+
+    Notes:
+        This is debug/trace data, not domain state.
+    """
+
+    candidate_id: str
+    candidate_type: Literal["symbol", "portfolio"]
+    candidate_name: str | None
+    score: float
+    rank: int
+    symbol_count: int
+    symbols_sample: list[str]
+
+
+class FilterTrace(TypedDict, total=False):
+    """Trace entry for a DSL filter evaluation.
+
+    Captures ranking inputs/outputs so we can diagnose Composer parity issues.
+    """
+
+    mode: Literal["symbol", "portfolio"]
+    order: Literal["top", "bottom"]
+    limit: int | None
+    condition: dict[str, Any]
+    scored_candidates: list[FilterCandidate]
+    selected_candidate_ids: list[str]
+    timestamp: str
+
+
 class DslContext:
     """Context object for DSL operator evaluation.
 
@@ -144,6 +175,8 @@ class DslContext:
         self.decision_path: list[dict[str, Any]] = []
         # Debug traces for detailed condition logging (when debug_mode=True)
         self.debug_traces: list[DebugTrace] = []
+        # Filter traces for ranking/selection debugging (when debug_mode=True)
+        self.filter_traces: list[FilterTrace] = []
 
     def add_debug_trace(
         self,
@@ -236,6 +269,24 @@ class DslContext:
                 )
                 return Decimal("0")
         return Decimal("0")
+
+    def add_filter_trace(self, trace_entry: FilterTrace) -> None:
+        """Add a filter trace entry.
+
+        Only records traces when debug_mode is enabled.
+
+        Args:
+            trace_entry: Structured filter trace data
+
+        """
+        if not self.debug_mode:
+            return
+
+        # Ensure we always stamp a timestamp for ordering.
+        if "timestamp" not in trace_entry:
+            trace_entry["timestamp"] = datetime.now(UTC).isoformat()
+
+        self.filter_traces.append(trace_entry)
 
     def coerce_param_value(self, val: DSLValue) -> float | int | Decimal | str:
         """Coerce a parameter value to an appropriate primitive type.

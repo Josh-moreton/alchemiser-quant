@@ -201,6 +201,17 @@ class DslEngine(EventHandler):
                     }
                 )
 
+            # Attach filter traces when debug mode is enabled
+            if self.debug_mode and self.evaluator.filter_traces:
+                trace = trace.model_copy(
+                    update={
+                        "metadata": {
+                            **trace.metadata,
+                            "filter_traces": self.evaluator.filter_traces,
+                        }
+                    }
+                )
+
             self.logger.debug(
                 "DSL strategy evaluation completed successfully",
                 extra={
