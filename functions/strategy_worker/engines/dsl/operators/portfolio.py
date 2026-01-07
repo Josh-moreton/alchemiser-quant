@@ -773,9 +773,7 @@ def _score_portfolio(
     is_list = condition_expr.is_list() and bool(condition_expr.children)
     op_name = condition_expr.children[0].get_symbol_name() if is_list else None
     has_explicit_symbol_arg = bool(is_list and len(condition_expr.children) >= 3)
-    should_invert_for_portfolio = bool(
-        op_name in {"max-drawdown"} and not has_explicit_symbol_arg
-    )
+    should_invert_for_portfolio = bool(op_name in {"max-drawdown"} and not has_explicit_symbol_arg)
 
     # Score each symbol and compute weighted average
     total_weight = Decimal("0")
