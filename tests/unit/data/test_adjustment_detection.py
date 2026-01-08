@@ -8,10 +8,8 @@ Tests verify that:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from decimal import Decimal
 
-import pandas as pd
 import pytest
 
 from the_alchemiser.shared.data_v2.market_data_store import AdjustmentInfo

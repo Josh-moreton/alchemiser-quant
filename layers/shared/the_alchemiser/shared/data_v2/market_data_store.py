@@ -39,7 +39,7 @@ class AdjustmentInfo:
     Attributes:
         adjusted_dates: List of dates (YYYY-MM-DD strings) where adjustments were detected
         adjustment_count: Number of bars adjusted
-        max_pct_change: Maximum percentage change detected (0-100 scale)
+        max_pct_change: Maximum percentage change detected (as percentage, e.g., 5.5 means 5.5%)
 
     """
 

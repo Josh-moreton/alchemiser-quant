@@ -401,7 +401,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 failed_symbols=failed_symbols,
                 symbols_updated_count=success_count,
                 symbols_failed_count=failed_count,
-                total_bars_fetched=0,  # TODO: Track if needed
+                total_bars_fetched=0,  # Not tracked - would require summing new_bars across all symbols
                 data_source="alpaca_api",
                 # Adjustment fields (NEW)
                 symbols_adjusted=symbols_adjusted_list,
