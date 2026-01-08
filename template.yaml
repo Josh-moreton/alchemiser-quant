@@ -145,6 +145,7 @@ Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
   IsStaging: !Equals [ !Ref Stage, staging ]
   IsProduction: !Equals [ !Ref Stage, prod ]
+  IsNotProduction: !Not [ !Equals [ !Ref Stage, prod ] ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
@@ -1721,27 +1722,24 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
 
-  # Scheduler to trigger Strategy Orchestrator (workflow entry point)
-  # Orchestrator fans out to Strategy Workers for parallel execution
+  # Production-only fallback schedule at 3:45 PM ET Mon-Fri.
+  # Dev/staging rely solely on the Schedule Manager for dynamic scheduling,
+  # so we can verify the early close handling works correctly.
+  # On early close days, the dynamic schedule fires earlier (e.g., 12:45 PM).
   StrategySchedule:
     Type: AWS::Scheduler::Schedule
+    Condition: IsProduction
     Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-strategy-schedule"
-        - !Sub "alchemiser-${Stage}-strategy-schedule"
-      Description: "Execute trading strategy daily at ~3:45 PM New York time"
+      Name: !Sub "alchemiser-${Stage}-strategy-schedule-fallback"
+      Description: "Production fallback schedule - dynamic scheduling handles early closes"
       ScheduleExpression: "cron(45 15 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow: !If
-        - IsProduction
-        - Mode: "OFF"
-        - Mode: FLEXIBLE
-          MaximumWindowInMinutes: 10
+      FlexibleTimeWindow:
+        Mode: "OFF"
       Target:
         Arn: !GetAtt StrategyOrchestratorFunction.Arn
         RoleArn: !GetAtt StrategySchedulerRole.Arn
-        Input: '{"mode": "trade"}'
+        Input: '{"mode": "trade", "scheduled_by": "fallback_schedule"}'
         RetryPolicy:
           MaximumRetryAttempts: 1
 
@@ -1763,6 +1761,130 @@ Resources:
                 Resource:
                   - !GetAtt StrategyFunction.Arn
                   - !GetAtt StrategyOrchestratorFunction.Arn
+
+  # ========== SCHEDULE MANAGER (Dynamic Early Close Handling) ==========
+  # This Lambda runs early each trading day to create a one-time schedule
+  # for the Strategy Orchestrator, accounting for early close days.
+
+  ScheduleManagerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-schedule-manager"
+        - !Sub "alchemiser-${Stage}-schedule-manager"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/schedule_manager/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt ScheduleManagerExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref NotificationsLayer
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          ORCHESTRATOR_FUNCTION_ARN: !GetAtt StrategyOrchestratorFunction.Arn
+          SCHEDULER_ROLE_ARN: !GetAtt StrategySchedulerRole.Arn
+          SCHEDULE_GROUP_NAME: "default"
+          MINUTES_BEFORE_CLOSE: "15"
+          # Alpaca credentials for calendar API
+          ALPACA__KEY: !If
+            - IsProduction
+            - !Ref ProdAlpacaKey
+            - !If
+              - IsStaging
+              - !Ref StagingAlpacaKey
+              - !Ref AlpacaKey
+          ALPACA__SECRET: !If
+            - IsProduction
+            - !Ref ProdAlpacaSecret
+            - !If
+              - IsStaging
+              - !Ref StagingAlpacaSecret
+              - !Ref AlpacaSecret
+          ALPACA__ENDPOINT: !If
+            - IsProduction
+            - "https://api.alpaca.markets"
+            - !If
+              - IsStaging
+              - !Ref StagingAlpacaEndpoint
+              - !Ref AlpacaEndpoint
+    Metadata:
+      BuildMethod: python3.12
+
+  ScheduleManagerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ScheduleManagerPolicy
+          PolicyDocument:
+            Statement:
+              # Permission to create/delete EventBridge Scheduler rules
+              - Effect: Allow
+                Action:
+                  - scheduler:CreateSchedule
+                  - scheduler:DeleteSchedule
+                  - scheduler:GetSchedule
+                Resource:
+                  - !Sub "arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/trading-execution-*"
+              # Permission to pass role to scheduler
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt StrategySchedulerRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: scheduler.amazonaws.com
+
+  # Morning schedule to trigger Schedule Manager (checks calendar and sets up today's execution)
+  ScheduleManagerSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-schedule-manager"
+        - !Sub "alchemiser-${Stage}-schedule-manager"
+      Description: "Run Schedule Manager at 9:00 AM ET to set up today's trading schedule"
+      ScheduleExpression: "cron(0 9 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt ScheduleManagerFunction.Arn
+        RoleArn: !GetAtt ScheduleManagerSchedulerRole.Arn
+        Input: '{"source": "morning_schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  ScheduleManagerSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeScheduleManager
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt ScheduleManagerFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE

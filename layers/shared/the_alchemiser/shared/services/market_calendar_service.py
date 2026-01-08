@@ -2,15 +2,14 @@
 
 Market Calendar Service.
 
-This service provides market calendar checks to determine if trading should
-occur on a given day, and what the market hours are (including early closes).
+This service provides market calendar information to determine if today is
+an early close day and what time the market closes.
 
 Key Features:
 - Check if today is a trading day
-- Get market open/close times for a specific date
-- Handle early market closes (e.g., half-day before holidays)
+- Get market close time for a specific date
+- Detect early market closes (e.g., half-day before holidays)
 - Thread-safe caching of calendar data
-- Rate limiting and timeout handling
 
 The service uses Alpaca's calendar API to fetch market schedule data.
 """
@@ -19,13 +18,10 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import UTC, date, datetime, time as dt_time
+from datetime import UTC, date, datetime, time as dt_time, timedelta
 from typing import TYPE_CHECKING, NamedTuple
 
-from the_alchemiser.shared.errors.exceptions import (
-    DataProviderError,
-    TradingClientError,
-)
+from the_alchemiser.shared.errors.exceptions import TradingClientError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.utils.api_helpers import with_rate_limiting, with_timeout
 
@@ -33,6 +29,9 @@ if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
 
 logger = get_logger(__name__)
+
+# Standard market hours (Eastern Time)
+STANDARD_CLOSE_TIME = dt_time(16, 0)  # 4:00 PM ET
 
 
 class MarketDay(NamedTuple):
@@ -73,7 +72,7 @@ class MarketCalendarService:
         self._cache_lock = threading.Lock()
 
     @with_rate_limiting
-    @with_timeout(15.0)  # Using literal value as decorator parameters are evaluated at definition time
+    @with_timeout(15.0)
     def _fetch_calendar_from_api(
         self, start_date: date, end_date: date
     ) -> list[MarketDay]:
@@ -88,11 +87,9 @@ class MarketCalendarService:
 
         Raises:
             TradingClientError: If API call fails
-            DataProviderError: If calendar data is incomplete
 
         """
         try:
-            # Alpaca's get_calendar accepts start and end as date/datetime strings
             calendar_data = self._trading_client.get_calendar(
                 start=start_date.isoformat(),
                 end=end_date.isoformat(),
@@ -111,7 +108,7 @@ class MarketCalendarService:
                 open_str = str(getattr(day, "open", ""))
                 close_str = str(getattr(day, "close", ""))
 
-                if not open_str or not close_str:
+                if not open_str or not close_str or open_str == "None" or close_str == "None":
                     logger.warning(
                         "Calendar day missing open/close times",
                         date=day_date_str,
@@ -122,9 +119,8 @@ class MarketCalendarService:
                 open_time = dt_time.fromisoformat(open_str)
                 close_time = dt_time.fromisoformat(close_str)
 
-                # Check for early close (typical market close is 4:00 PM ET = 16:00)
-                # Early closes are typically 1:00 PM ET = 13:00
-                is_early_close = close_time.hour < 16
+                # Early close = any close before standard 4:00 PM
+                is_early_close = close_time < STANDARD_CLOSE_TIME
 
                 result.append(
                     MarketDay(
@@ -137,25 +133,11 @@ class MarketCalendarService:
 
             return result
 
-        except AttributeError as e:
-            raise DataProviderError(
-                f"Calendar data missing required fields: {e}",
-                context={"error": str(e)},
-            ) from e
         except Exception as e:
             raise TradingClientError(f"Failed to fetch market calendar: {e}") from e
 
     def _refresh_cache_if_needed(self, target_date: date) -> None:
-        """Refresh calendar cache if expired or doesn't contain target date.
-
-        Args:
-            target_date: Date to ensure is in cache
-
-        Raises:
-            TradingClientError: If API call fails
-            DataProviderError: If calendar data is incomplete
-
-        """
+        """Refresh calendar cache if expired or doesn't contain target date."""
         with self._cache_lock:
             current_time = time.time()
             cache_expired = (current_time - self._cache_timestamp) > self.CACHE_TTL
@@ -163,10 +145,6 @@ class MarketCalendarService:
             date_not_in_cache = date_str not in self._calendar_cache
 
             if cache_expired or date_not_in_cache:
-                # Fetch calendar for a 30-day window around target date
-                # This reduces API calls while keeping data fresh
-                from datetime import timedelta
-
                 start_date = target_date - timedelta(days=15)
                 end_date = target_date + timedelta(days=15)
 
@@ -174,13 +152,10 @@ class MarketCalendarService:
                     "Refreshing market calendar cache",
                     start_date=start_date.isoformat(),
                     end_date=end_date.isoformat(),
-                    cache_expired=cache_expired,
-                    date_not_in_cache=date_not_in_cache,
                 )
 
                 calendar_days = self._fetch_calendar_from_api(start_date, end_date)
 
-                # Update cache
                 self._calendar_cache.clear()
                 for day in calendar_days:
                     self._calendar_cache[day.date.isoformat()] = day
@@ -206,7 +181,6 @@ class MarketCalendarService:
 
         Raises:
             TradingClientError: If API call fails
-            DataProviderError: If calendar data is incomplete
 
         """
         if target_date is None:
@@ -235,13 +209,7 @@ class MarketCalendarService:
 
             return market_day
 
-        except (TradingClientError, DataProviderError) as e:
-            logger.error(
-                "Failed to get market day",
-                error=str(e),
-                error_type=type(e).__name__,
-                **log_context,
-            )
+        except TradingClientError:
             raise
 
     def is_trading_day(
@@ -256,98 +224,83 @@ class MarketCalendarService:
         Returns:
             True if market is open on that date, False otherwise
 
-        Raises:
-            TradingClientError: If API call fails
-            DataProviderError: If calendar data is incomplete
-
         """
         market_day = self.get_market_day(target_date, correlation_id=correlation_id)
         return market_day is not None
 
-    def should_trade_now(
-        self,
-        *,
-        check_time: datetime | None = None,
-        minutes_before_close: int = 15,
-        correlation_id: str | None = None,
-    ) -> tuple[bool, str]:
-        """Check if trading should occur at a given time.
-
-        This method checks:
-        1. If today is a trading day
-        2. If current time is within trading hours
-        3. If there's enough time before market close
+    def get_close_time(
+        self, target_date: date | None = None, *, correlation_id: str | None = None
+    ) -> dt_time | None:
+        """Get the market close time for a specific date.
 
         Args:
-            check_time: Time to check (defaults to now in UTC)
-            minutes_before_close: Minimum minutes before close to allow trading
+            target_date: Date to check (defaults to today)
             correlation_id: Optional correlation ID for tracing
 
         Returns:
-            Tuple of (should_trade: bool, reason: str)
-
-        Raises:
-            TradingClientError: If API call fails
-            DataProviderError: If calendar data is incomplete
+            Close time if market is open, None if closed
 
         """
-        if check_time is None:
-            check_time = datetime.now(UTC)
+        market_day = self.get_market_day(target_date, correlation_id=correlation_id)
+        return market_day.close_time if market_day else None
 
-        check_date = check_time.date()
+    def is_early_close(
+        self, target_date: date | None = None, *, correlation_id: str | None = None
+    ) -> bool:
+        """Check if a given date is an early close day.
 
-        log_context = {
-            "check_time": check_time.isoformat(),
-            "minutes_before_close": minutes_before_close,
-        }
-        if correlation_id:
-            log_context["correlation_id"] = correlation_id
+        Args:
+            target_date: Date to check (defaults to today)
+            correlation_id: Optional correlation ID for tracing
 
-        # Check if today is a trading day
-        market_day = self.get_market_day(check_date, correlation_id=correlation_id)
+        Returns:
+            True if market closes early on that date, False otherwise
 
-        if market_day is None:
-            reason = f"Market is closed on {check_date.isoformat()}"
-            logger.info("Trading should not occur - market closed", **log_context)
-            return False, reason
+        """
+        market_day = self.get_market_day(target_date, correlation_id=correlation_id)
+        return market_day.is_early_close if market_day else False
 
-        # Market is open - check if we're within trading hours
-        # Convert check_time to time component for comparison
-        check_time_only = check_time.time()
+    def get_execution_time(
+        self,
+        target_date: date | None = None,
+        *,
+        minutes_before_close: int = 15,
+        correlation_id: str | None = None,
+    ) -> datetime | None:
+        """Get the optimal execution time for a given trading day.
 
-        if check_time_only < market_day.open_time:
-            reason = (
-                f"Before market open (opens at {market_day.open_time.isoformat()})"
-            )
-            logger.info(
-                "Trading should not occur - before market open", **log_context
-            )
-            return False, reason
+        Returns the time at which trading should be triggered, accounting for
+        early closes. This is `minutes_before_close` before market close.
 
-        # Calculate time until close
-        from datetime import timedelta
+        Args:
+            target_date: Date to check (defaults to today)
+            minutes_before_close: How many minutes before close to execute
+            correlation_id: Optional correlation ID for tracing
 
-        close_dt = datetime.combine(check_date, market_day.close_time, tzinfo=UTC)
-        time_until_close = close_dt - check_time
+        Returns:
+            Datetime in ET for execution, or None if not a trading day
 
-        if time_until_close < timedelta(minutes=minutes_before_close):
-            reason = (
-                f"Too close to market close "
-                f"(closes at {market_day.close_time.isoformat()}, "
-                f"{int(time_until_close.total_seconds() / 60)} minutes remaining)"
-            )
-            logger.info(
-                "Trading should not occur - too close to close",
-                time_until_close_minutes=int(time_until_close.total_seconds() / 60),
-                **log_context,
-            )
-            return False, reason
+        """
+        market_day = self.get_market_day(target_date, correlation_id=correlation_id)
+        if not market_day:
+            return None
 
-        # All checks passed
+        if target_date is None:
+            target_date = datetime.now(UTC).date()
+
+        # Combine date with close time, then subtract buffer
+        # Note: Close time is in ET (Eastern Time)
+        close_datetime = datetime.combine(target_date, market_day.close_time)
+        execution_time = close_datetime - timedelta(minutes=minutes_before_close)
+
         logger.info(
-            "Trading should occur",
-            is_early_close=market_day.is_early_close,
+            "Calculated execution time",
+            target_date=target_date.isoformat(),
             close_time=market_day.close_time.isoformat(),
-            **log_context,
+            is_early_close=market_day.is_early_close,
+            execution_time=execution_time.isoformat(),
+            minutes_before_close=minutes_before_close,
+            **({"correlation_id": correlation_id} if correlation_id else {}),
         )
-        return True, "Market is open and sufficient time before close"
+
+        return execution_time

@@ -152,7 +152,6 @@ sequenceDiagram
         SO-->>Sched: Skip execution (reason logged)
     else Market Open & Sufficient Time
         SO->>SO: Create aggregation session
-        SO->>SO: Create aggregation session
         SO->>SW: Invoke async (DSL file 1)
         SO->>SW: Invoke async (DSL file 2)
         SO->>SW: Invoke async (DSL file N)

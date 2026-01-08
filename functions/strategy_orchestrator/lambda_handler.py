@@ -22,7 +22,6 @@ from typing import Any
 from coordinator_settings import CoordinatorSettings
 from strategy_invoker import StrategyInvoker
 
-from the_alchemiser.shared.brokers.alpaca_utils import create_trading_client
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.events import WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
@@ -31,9 +30,6 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.shared.services.aggregation_session_service import (
     AggregationSessionService,
-)
-from the_alchemiser.shared.services.market_calendar_service import (
-    MarketCalendarService,
 )
 
 # Initialize logging on cold start
@@ -62,6 +58,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     # Generate correlation ID for this workflow
     correlation_id = event.get("correlation_id") or f"workflow-{uuid.uuid4()}"
     session_id = correlation_id  # Use correlation_id as session_id
+    scheduled_by = event.get("scheduled_by", "direct")
 
     logger.info(
         "Coordinator Lambda invoked - orchestrating parallel strategy execution",
@@ -69,6 +66,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "correlation_id": correlation_id,
             "session_id": session_id,
             "event_source": event.get("source", "schedule"),
+            "scheduled_by": scheduled_by,
         },
     )
 
@@ -86,55 +84,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             raise ValueError(
                 "STRATEGY_FUNCTION_NAME environment variable is required for multi-node mode"
             )
-
-        # Check market calendar before proceeding
-        logger.info("Checking market calendar", extra={"correlation_id": correlation_id})
-        
-        # Create trading client for market calendar check
-        alpaca_key = app_settings.alpaca.key
-        alpaca_secret = app_settings.alpaca.secret
-        
-        if not alpaca_key or not alpaca_secret:
-            raise ValueError("Alpaca API credentials not configured (ALPACA__KEY and ALPACA__SECRET required)")
-        
-        trading_client = create_trading_client(
-            api_key=alpaca_key,
-            secret_key=alpaca_secret,
-            paper=app_settings.alpaca.endpoint != "https://api.alpaca.markets",
-        )
-        calendar_service = MarketCalendarService(trading_client)
-
-        # Check if today is a trading day and if we should trade now
-        should_trade, reason = calendar_service.should_trade_now(
-            correlation_id=correlation_id,
-            minutes_before_close=15,  # Require 15 minutes before close
-        )
-
-        if not should_trade:
-            logger.info(
-                "Skipping strategy execution - market calendar check failed",
-                extra={
-                    "correlation_id": correlation_id,
-                    "reason": reason,
-                },
-            )
-            return {
-                "statusCode": 200,
-                "body": {
-                    "status": "skipped",
-                    "correlation_id": correlation_id,
-                    "reason": reason,
-                    "message": "Strategy execution skipped due to market calendar",
-                },
-            }
-
-        logger.info(
-            "Market calendar check passed - proceeding with execution",
-            extra={
-                "correlation_id": correlation_id,
-                "reason": reason,
-            },
-        )
 
         # Get DSL files and allocations
         dsl_files = app_settings.strategy.dsl_files

@@ -11,14 +11,11 @@ Tests verify that:
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, time, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
-from the_alchemiser.shared.errors.exceptions import (
-    DataProviderError,
-    TradingClientError,
-)
+from the_alchemiser.shared.errors.exceptions import TradingClientError
 from the_alchemiser.shared.services.market_calendar_service import (
     MarketCalendarService,
     MarketDay,
