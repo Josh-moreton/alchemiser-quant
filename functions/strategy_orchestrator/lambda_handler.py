@@ -58,6 +58,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     # Generate correlation ID for this workflow
     correlation_id = event.get("correlation_id") or f"workflow-{uuid.uuid4()}"
     session_id = correlation_id  # Use correlation_id as session_id
+    scheduled_by = event.get("scheduled_by", "direct")
 
     logger.info(
         "Coordinator Lambda invoked - orchestrating parallel strategy execution",
@@ -65,6 +66,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "correlation_id": correlation_id,
             "session_id": session_id,
             "event_source": event.get("source", "schedule"),
+            "scheduled_by": scheduled_by,
         },
     )
 
