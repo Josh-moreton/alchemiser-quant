@@ -1,26 +1,20 @@
 {
   "files": [
     "nuclear_feaver.clj",
-    "beam_chain.clj",
     "beefier_3x.clj",
-    "chicken_rice.clj",
     "nova_ibit.clj",
     "rains_em_dancer.clj",
     "simons_kmlm.clj",
     "tqqq_ftlt.clj",
-    "sisyphus_lowvol.clj",
     "gold.clj"
   ],
   "allocations": {
-    "nuclear_feaver.clj": 0.1,
-    "beam_chain.clj": 0.1,
-    "beefier_3x.clj": 0.1,
-    "chicken_rice.clj": 0.1,
-    "nova_ibit.clj": 0.1,
-    "rains_em_dancer.clj": 0.1,
-    "simons_kmlm.clj": 0.1,
-    "tqqq_ftlt.clj": 0.1,
-    "sisyphus_lowvol.clj": 0.1,
-    "gold.clj": 0.1
+    "nuclear_feaver.clj": 0.09,
+    "beefier_3x.clj": 0.10,
+    "nova_ibit.clj": 0.14,
+    "rains_em_dancer.clj": 0.2,
+    "simons_kmlm.clj": 0.07,
+    "tqqq_ftlt.clj": 0.2,
+    "gold.clj": 0.2
   }
 }
