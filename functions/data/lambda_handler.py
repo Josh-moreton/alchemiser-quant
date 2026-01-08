@@ -304,6 +304,11 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         full_seed = event.get("full_seed", False)
         process_markers = event.get("process_markers", True)  # Default: process bad data markers
 
+        # Initialize tracking variables
+        results_dict: dict[str, bool] = {}
+        adjustments_dict: dict[str, dict[str, Any]] = {}
+        symbols_adjusted_list: list[str] = []
+
         if specific_symbols:
             # Refresh only specified symbols
             logger.info(
@@ -315,25 +320,41 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
             )
 
             if full_seed:
-                results = service.seed_initial_data(specific_symbols)
+                results_dict = service.seed_initial_data(specific_symbols)
             else:
-                results = {}
                 for symbol in specific_symbols:
-                    results[symbol] = service.refresh_symbol(symbol)
+                    success, metadata = service.refresh_symbol(symbol)
+                    results_dict[symbol] = success
+                    if metadata.get("adjusted", False):
+                        adjustments_dict[symbol] = metadata
+                        symbols_adjusted_list.append(symbol)
         else:
             # Refresh all symbols from strategy configs
             # Use refresh_all_with_markers to also process bad data markers
             if process_markers:
-                results = service.refresh_all_with_markers()
+                refresh_data = service.refresh_all_with_markers()
             else:
-                results = service.refresh_all_symbols()
+                refresh_data = service.refresh_all_symbols()
+
+            # Extract data from the refresh result
+            results_dict = refresh_data["results"]
+            adjustments_dict = refresh_data["adjustments"]
+            symbols_adjusted_list = refresh_data["symbols_adjusted"]
 
         # Calculate statistics
-        total = len(results)
-        success_count = sum(results.values())
+        total = len(results_dict)
+        success_count = sum(results_dict.values())
         failed_count = total - success_count
-        failed_symbols = [s for s, ok in results.items() if not ok]
-        success_symbols = [s for s, ok in results.items() if ok]
+        failed_symbols = [s for s, ok in results_dict.items() if not ok]
+        success_symbols = [s for s, ok in results_dict.items() if ok]
+
+        # Calculate adjustment statistics
+        adjustment_count = sum(adj.get("adjustment_count", 0) for adj in adjustments_dict.values())
+        adjusted_dates_by_symbol = {
+            symbol: adj.get("adjusted_dates", [])
+            for symbol, adj in adjustments_dict.items()
+            if adj.get("adjusted_dates")
+        }
 
         # Calculate duration
         end_time = datetime.now(UTC)
@@ -347,6 +368,8 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 "success_count": success_count,
                 "failed_count": failed_count,
                 "failed_symbols": failed_symbols,
+                "adjusted_count": len(symbols_adjusted_list),
+                "adjusted_symbols": symbols_adjusted_list,
                 "duration_seconds": duration,
             },
         )
@@ -378,8 +401,13 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 failed_symbols=failed_symbols,
                 symbols_updated_count=success_count,
                 symbols_failed_count=failed_count,
-                total_bars_fetched=0,  # TODO: Track if needed
+                total_bars_fetched=0,  # Not tracked - would require summing new_bars across all symbols
                 data_source="alpaca_api",
+                # Adjustment fields (NEW)
+                symbols_adjusted=symbols_adjusted_list,
+                adjustment_count=adjustment_count,
+                adjusted_dates_by_symbol=adjusted_dates_by_symbol,
+                # Timing
                 start_time_utc=start_time.isoformat(),
                 end_time_utc=end_time.isoformat(),
                 duration_seconds=duration,
@@ -396,6 +424,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                     "correlation_id": correlation_id,
                     "event_id": update_event.event_id,
                     "overall_success": overall_success,
+                    "adjustments_detected": len(symbols_adjusted_list) > 0,
                 },
             )
         except Exception as pub_error:

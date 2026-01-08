@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -30,6 +30,26 @@ logger = get_logger(__name__)
 
 # Module constant for cache directory
 CACHE_DIR = Path(tempfile.gettempdir()) / "alchemiser_market_data"
+
+
+@dataclass(frozen=True)
+class AdjustmentInfo:
+    """Information about retroactive price adjustments detected during data refresh.
+
+    Attributes:
+        adjusted_dates: List of dates (YYYY-MM-DD strings) where adjustments were detected
+        adjustment_count: Number of bars adjusted
+        max_pct_change: Maximum percentage change detected (as percentage, e.g., 5.5 means 5.5%)
+
+    """
+
+    adjusted_dates: list[str] = field(default_factory=list)
+    adjustment_count: int = 0
+    max_pct_change: float = 0.0
+
+    def __bool__(self) -> bool:
+        """Return True if any adjustments were detected."""
+        return self.adjustment_count > 0
 
 
 @dataclass(frozen=True)
@@ -330,7 +350,7 @@ class MarketDataStore:
         *,
         force_replace: bool = False,
         adjustment_threshold: Decimal = Decimal("0.005"),
-    ) -> bool:
+    ) -> tuple[bool, AdjustmentInfo | None]:
         """Append new bars with adjustment-aware update logic.
 
         Automatically detects and replaces bars when prices have been
@@ -343,19 +363,20 @@ class MarketDataStore:
             adjustment_threshold: Price change % to consider an adjustment (default 0.5%)
 
         Returns:
-            True if successful, False otherwise
+            Tuple of (success: bool, adjustment_info: AdjustmentInfo | None)
+            adjustment_info is None if no adjustments detected
 
         """
         if new_bars.empty:
             logger.debug("No new bars to append", symbol=symbol)
-            return True
+            return True, None
 
         # Read existing data
         existing_df = self.read_symbol_data(symbol, use_cache=False)
 
         if existing_df is None or force_replace:
             # No existing data or forced replacement
-            return self.write_symbol_data(symbol, new_bars)
+            return self.write_symbol_data(symbol, new_bars), None
 
         # Ensure timestamp column exists in both
         if "timestamp" not in existing_df.columns or "timestamp" not in new_bars.columns:
@@ -363,7 +384,7 @@ class MarketDataStore:
                 "Missing timestamp column for deduplication",
                 symbol=symbol,
             )
-            return False
+            return False, None
 
         # Convert timestamps for comparison (normalize to UTC to avoid tz-naive/tz-aware mismatch)
         existing_df["timestamp"] = pd.to_datetime(existing_df["timestamp"], utc=True)
@@ -381,6 +402,7 @@ class MarketDataStore:
         # Detect retroactive price adjustments in overlapping dates
         overlapping_dates = new_dates_set & existing_dates
         dates_to_update: set[Any] = set()
+        max_pct_change = 0.0
 
         for date in overlapping_dates:
             existing_close = Decimal(str(existing_by_date.loc[date]["close"]))
@@ -395,13 +417,15 @@ class MarketDataStore:
 
             if pct_change > adjustment_threshold:
                 dates_to_update.add(date)
+                pct_change_float = float(pct_change * 100)
+                max_pct_change = max(max_pct_change, pct_change_float)
                 logger.info(
                     "Detected retroactive price adjustment",
                     symbol=symbol,
                     date=str(date),
                     old_close=float(existing_close),
                     new_close=float(new_close),
-                    pct_change_pct=float(pct_change * 100),
+                    pct_change_pct=pct_change_float,
                 )
 
         # Combine: truly new dates + dates needing adjustment
@@ -409,7 +433,7 @@ class MarketDataStore:
 
         if not dates_to_include:
             logger.debug("All bars already up to date", symbol=symbol)
-            return True
+            return True, None
 
         # Filter new bars to include
         new_bars_to_add = new_bars[new_bars["timestamp"].dt.date.isin(dates_to_include)]
@@ -430,7 +454,18 @@ class MarketDataStore:
             final_rows=len(combined_df),
         )
 
-        return self.write_symbol_data(symbol, combined_df)
+        # Create adjustment info if any adjustments detected
+        adjustment_info = None
+        if dates_to_update:
+            adjusted_dates_str = [str(d) for d in sorted(dates_to_update)]
+            adjustment_info = AdjustmentInfo(
+                adjusted_dates=adjusted_dates_str,
+                adjustment_count=len(dates_to_update),
+                max_pct_change=max_pct_change,
+            )
+
+        success = self.write_symbol_data(symbol, combined_df)
+        return success, adjustment_info
 
     def download_to_cache(self, symbols: list[str]) -> dict[str, bool]:
         """Download multiple symbols to local cache.
