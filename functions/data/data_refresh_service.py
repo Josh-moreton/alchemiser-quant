@@ -11,7 +11,6 @@ are automatically re-fetched with full history to get adjusted prices.
 
 from __future__ import annotations
 
-import os
 import time
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -21,6 +20,7 @@ from bad_data_marker_service import BadDataMarkerService
 from symbol_extractor import get_all_configured_symbols
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.config import Settings
 from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.market_data_service import MarketDataService
@@ -73,9 +73,14 @@ class DataRefreshService:
         self.bad_data_marker_service = bad_data_marker_service or BadDataMarkerService()
 
         if alpaca_manager is None:
+            settings = Settings()
+            alpaca_key = settings.alpaca.key
+            alpaca_secret = settings.alpaca.secret
+            if not alpaca_key or not alpaca_secret:
+                raise ValueError("Alpaca API credentials not configured")
             alpaca_manager = AlpacaManager(
-                api_key=os.environ.get("ALPACA__KEY", ""),
-                secret_key=os.environ.get("ALPACA__SECRET", ""),
+                api_key=alpaca_key,
+                secret_key=alpaca_secret,
                 paper=True,  # Data API works same for paper/live
             )
         self.alpaca_manager = alpaca_manager
