@@ -83,6 +83,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         consolidated_portfolio = detail.get("consolidated_portfolio", {})
         signals_data = detail.get("signals_data", {})
         signal_count = detail.get("signal_count", 0)
+        data_freshness = detail.get("data_freshness", {})
 
         # Store partial signal and get updated completion count
         completed_count = session_service.store_partial_signal(
@@ -92,6 +93,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             consolidated_portfolio=consolidated_portfolio,
             signals_data=signals_data,
             signal_count=signal_count,
+            data_freshness=data_freshness,
         )
 
         # Get session to check total
@@ -157,11 +159,16 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Aggregate data freshness from all partial signals (use worst case)
         aggregated_data_freshness = _aggregate_data_freshness(all_partial_signals)
 
-        # Create lightweight portfolio for EventBridge (strip strategy_contributions)
-        # Portfolio Lambda only needs target_allocations and metadata
-        lightweight_portfolio = {
+        # Serialize portfolio for EventBridge including strategy_contributions
+        # Strategy contributions are essential for per-strategy P&L attribution
+        # Payload size is minimal: ~15 strategies * ~50 symbols = ~2KB well under 256KB limit
+        portfolio_for_event = {
             "target_allocations": {
                 k: str(v) for k, v in merged_portfolio.target_allocations.items()
+            },
+            "strategy_contributions": {
+                strategy: {symbol: str(weight) for symbol, weight in allocations.items()}
+                for strategy, allocations in merged_portfolio.strategy_contributions.items()
             },
             "correlation_id": merged_portfolio.correlation_id,
             "timestamp": merged_portfolio.timestamp.isoformat(),
@@ -169,7 +176,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "source_strategies": merged_portfolio.source_strategies,
             "schema_version": merged_portfolio.schema_version,
             "is_partial": merged_portfolio.is_partial,
-            # Omit strategy_contributions to reduce payload size
         }
 
         # Build consolidated SignalGenerated event
@@ -181,7 +187,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             source_module="aggregator_v2",
             source_component="SignalAggregator",
             signals_data=merged_signals_data,
-            consolidated_portfolio=lightweight_portfolio,
+            consolidated_portfolio=portfolio_for_event,
             signal_count=total_signal_count,
             metadata={
                 "aggregation_session_id": session_id,

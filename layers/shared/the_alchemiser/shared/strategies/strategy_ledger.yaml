@@ -755,3 +755,59 @@ gold:
   - GLL
   - QQQ
   - UGL
+tqqq_ftlt:
+  strategy_name: tqqq_ftlt
+  display_name: BT 1Nov16-22Nov22 AR 1317.2% DD 37.7% Daily TQQQ For The Long Term
+    V4.2.5a  16d CR 11d + 12d Rule | Garen Mod selectively replaced SQQQ -> SOXS &
+    TQQQ -> SOXL
+  source_url: https://app.composer.trade/symphony/U50t7BMMbFKANtLdYHNj/details
+  filename: tqqq_ftlt.clj
+  date_updated: '2026-01-08'
+  assets:
+  - AA
+  - ACLS
+  - ALGN
+  - AMD
+  - AR
+  - ASML
+  - AVGO
+  - BIL
+  - BSV
+  - DAC
+  - DVAX
+  - ENPH
+  - EQT
+  - EXPO
+  - GNRC
+  - INFY
+  - JKHY
+  - JYNT
+  - LULU
+  - MNST
+  - MOS
+  - MU
+  - NVDA
+  - OXY
+  - PAYC
+  - PCH
+  - QCOM
+  - ROST
+  - SFM
+  - SHY
+  - SIMO
+  - SON
+  - SOXL
+  - SOXS
+  - SPXL
+  - SQM
+  - SQQQ
+  - TECL
+  - TPR
+  - TQQQ
+  - TSLA
+  - TSM
+  - UVXY
+  - VRTX
+  frontrunners:
+  - QQQ
+  - SPY

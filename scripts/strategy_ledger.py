@@ -44,9 +44,23 @@ from typing import Any
 
 import yaml
 
-# Strategy files directory
-STRATEGIES_DIR = Path(__file__).parent.parent / "the_alchemiser" / "strategy_v2" / "strategies"
-CONFIG_DIR = Path(__file__).parent.parent / "the_alchemiser" / "config"
+# Strategy files directory (refactored to shared layer)
+STRATEGIES_DIR = (
+    Path(__file__).parent.parent
+    / "layers"
+    / "shared"
+    / "the_alchemiser"
+    / "shared"
+    / "strategies"
+)
+CONFIG_DIR = (
+    Path(__file__).parent.parent
+    / "layers"
+    / "shared"
+    / "the_alchemiser"
+    / "shared"
+    / "config"
+)
 LEDGER_FILE = STRATEGIES_DIR / "strategy_ledger.yaml"
 
 
@@ -68,16 +82,18 @@ def save_ledger(ledger: dict[str, Any]) -> None:
 def extract_strategy_name(content: str) -> str | None:
     """Extract strategy name from defsymphony declaration.
 
-    Format: (defsymphony "Strategy Name" ...)
+    Format: (defsymphony "Strategy Name" ...) or with newline after defsymphony
     """
-    match = re.search(r'\(defsymphony\s+"([^"]+)"', content)
+    # Use re.DOTALL to handle newlines between defsymphony and the string
+    match = re.search(r'\(defsymphony\s+"([^"]+)"', content, re.DOTALL)
     return match.group(1) if match else None
 
 
 def extract_assets(content: str) -> set[str]:
     """Extract all asset tickers from (asset "TICKER" ...) declarations."""
     # Match (asset "TICKER" ...) - captures the ticker symbol
-    pattern = re.compile(r'\(asset\s+"([A-Z/]{1,5})"')
+    # Allow 1-10 chars: uppercase letters, numbers, dots, slashes (for BRK.B, BTC/USD, etc.)
+    pattern = re.compile(r'\(asset\s+"([A-Z0-9./]{1,10})"')
     return set(pattern.findall(content))
 
 

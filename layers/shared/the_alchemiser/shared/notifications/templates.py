@@ -910,6 +910,11 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
+    # Adjustment data (NEW)
+    symbols_adjusted = context.get("symbols_adjusted", [])
+    adjustment_count = context.get("adjustment_count", 0)
+    adjusted_dates_by_symbol = context.get("adjusted_dates_by_symbol", {})
+
     body = f"""
     <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
@@ -930,7 +935,37 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
             <p><strong>Total bars fetched:</strong> {total_bars_fetched}</p>
             <p><strong>Data source:</strong> {data_source}</p>
         </div>
+"""
 
+    # Add adjustment section if adjustments detected (NEW)
+    if symbols_adjusted:
+        body += f"""
+        <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+            <h3 style="margin-top: 0; color: #856404;">📊 Price Adjustments Detected</h3>
+            <p><strong>{len(symbols_adjusted)} symbol(s)</strong> had retroactive price adjustments (splits, dividends, etc.).</p>
+            <p><strong>Total bars adjusted:</strong> {adjustment_count}</p>
+            <div style="margin-top: 10px;">
+                <strong>Affected symbols:</strong>
+                <ul style="margin-top: 5px;">
+"""
+        for symbol in sorted(symbols_adjusted):
+            dates = adjusted_dates_by_symbol.get(symbol, [])
+            date_count = len(dates)
+            date_sample = ", ".join(dates[:3]) if dates else "N/A"
+            if date_count > 3:
+                date_sample += f" ... ({date_count - 3} more)"
+            body += f"                    <li><strong>{symbol}</strong>: {date_count} bar(s) adjusted ({date_sample})</li>\n"
+
+        body += """
+                </ul>
+            </div>
+            <p style="font-style: italic; color: #856404; margin-top: 10px;">
+                ℹ️ Historical data has been updated with adjusted prices. All indicators and backtests will now use consistent pricing.
+            </p>
+        </div>
+"""
+
+    body += f"""
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #495057;">Updated Symbols</h3>
             <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">
@@ -979,6 +1014,11 @@ def render_data_lake_success_text(context: dict[str, Any]) -> str:
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
+    # Adjustment data (NEW)
+    symbols_adjusted = context.get("symbols_adjusted", [])
+    adjustment_count = context.get("adjustment_count", 0)
+    adjusted_dates_by_symbol = context.get("adjusted_dates_by_symbol", {})
+
     body = f"""
 Env: {env} | Run: {run_id}
 Time: {start_time} → {end_time} ({duration:.1f}s)
@@ -989,7 +1029,32 @@ DATA REFRESH SUMMARY
 • Successfully updated: {symbols_updated_count}
 • Total bars fetched: {total_bars_fetched}
 • Data source: {data_source}
+"""
 
+    # Add adjustment section if adjustments detected (NEW)
+    if symbols_adjusted:
+        body += f"""
+PRICE ADJUSTMENTS DETECTED
+--------------------------
+{len(symbols_adjusted)} symbol(s) had retroactive price adjustments (splits, dividends).
+Total bars adjusted: {adjustment_count}
+
+Affected symbols:
+"""
+        for symbol in sorted(symbols_adjusted):
+            dates = adjusted_dates_by_symbol.get(symbol, [])
+            date_count = len(dates)
+            date_sample = ", ".join(dates[:3]) if dates else "N/A"
+            if date_count > 3:
+                date_sample += f" ... ({date_count - 3} more)"
+            body += f"  • {symbol}: {date_count} bar(s) adjusted ({date_sample})\n"
+
+        body += """
+ℹ️ Historical data has been updated with adjusted prices. All indicators
+   and backtests will now use consistent pricing.
+"""
+
+    body += f"""
 UPDATED SYMBOLS
 ---------------
 {", ".join(symbols_updated)}
@@ -1030,6 +1095,11 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
     duration = context.get("duration_seconds", 0)
     logs_url = context.get("logs_url", "#")
 
+    # Adjustment data (NEW)
+    symbols_adjusted = context.get("symbols_adjusted", [])
+    adjustment_count = context.get("adjustment_count", 0)
+    adjusted_dates_by_symbol = context.get("adjusted_dates_by_symbol", {})
+
     body = f"""
     <div style="background-color: white; padding: 30px; border-radius: 0 0 8px 8px;">
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
@@ -1056,7 +1126,37 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
             <h3 style="margin-top: 0; color: #721c24;">Failed Symbols</h3>
             <p>{", ".join(failed_symbols) if failed_symbols else "None"}</p>
         </div>
+"""
 
+    # Add adjustment section if adjustments detected (NEW)
+    if symbols_adjusted:
+        body += f"""
+        <div style="background-color: #d1ecf1; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #17a2b8;">
+            <h3 style="margin-top: 0; color: #0c5460;">📊 Price Adjustments Detected</h3>
+            <p><strong>{len(symbols_adjusted)} symbol(s)</strong> had retroactive price adjustments (splits, dividends, etc.).</p>
+            <p><strong>Total bars adjusted:</strong> {adjustment_count}</p>
+            <div style="margin-top: 10px;">
+                <strong>Affected symbols:</strong>
+                <ul style="margin-top: 5px;">
+"""
+        for symbol in sorted(symbols_adjusted):
+            dates = adjusted_dates_by_symbol.get(symbol, [])
+            date_count = len(dates)
+            date_sample = ", ".join(dates[:3]) if dates else "N/A"
+            if date_count > 3:
+                date_sample += f" ... ({date_count - 3} more)"
+            body += f"                    <li><strong>{symbol}</strong>: {date_count} bar(s) adjusted ({date_sample})</li>\n"
+
+        body += """
+                </ul>
+            </div>
+            <p style="font-style: italic; color: #0c5460; margin-top: 10px;">
+                ℹ️ Historical data has been updated with adjusted prices for these symbols.
+            </p>
+        </div>
+"""
+
+    body += f"""
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #495057;">Successfully Updated Symbols</h3>
             <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">
