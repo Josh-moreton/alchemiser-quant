@@ -51,8 +51,8 @@ class MarketCalendarService:
     trading should occur on a given day and what the market hours are.
     """
 
-    API_TIMEOUT = 15.0  # Timeout for API calls in seconds
     CACHE_TTL = 3600.0  # Cache calendar data for 1 hour
+    _API_TIMEOUT = 15.0  # Timeout for API calls in seconds
 
     def __init__(self, trading_client: TradingClient) -> None:
         """Initialize the market calendar service.
@@ -73,7 +73,7 @@ class MarketCalendarService:
         self._cache_lock = threading.Lock()
 
     @with_rate_limiting
-    @with_timeout(15.0)
+    @with_timeout(15.0)  # Using literal value as decorator parameters are evaluated at definition time
     def _fetch_calendar_from_api(
         self, start_date: date, end_date: date
     ) -> list[MarketDay]:

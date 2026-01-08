@@ -394,8 +394,6 @@ if not should_trade:
 
 ### Environment Variables
 
-### Environment Variables
-
 ```bash
 # Required for live trading
 ALPACA_API_KEY=your_api_key
