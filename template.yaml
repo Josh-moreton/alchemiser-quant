@@ -1790,28 +1790,7 @@ Resources:
           SCHEDULER_ROLE_ARN: !GetAtt StrategySchedulerRole.Arn
           SCHEDULE_GROUP_NAME: "default"
           MINUTES_BEFORE_CLOSE: "15"
-          # Alpaca credentials for calendar API
-          ALPACA__KEY: !If
-            - IsProduction
-            - !Ref ProdAlpacaKey
-            - !If
-              - IsStaging
-              - !Ref StagingAlpacaKey
-              - !Ref AlpacaKey
-          ALPACA__SECRET: !If
-            - IsProduction
-            - !Ref ProdAlpacaSecret
-            - !If
-              - IsStaging
-              - !Ref StagingAlpacaSecret
-              - !Ref AlpacaSecret
-          ALPACA__ENDPOINT: !If
-            - IsProduction
-            - "https://api.alpaca.markets"
-            - !If
-              - IsStaging
-              - !Ref StagingAlpacaEndpoint
-              - !Ref AlpacaEndpoint
+          # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
     Metadata:
       BuildMethod: python3.12
 
