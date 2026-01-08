@@ -132,9 +132,11 @@ class AlpacaSettings(BaseModel):
 
     slippage_bps: int = 5
     enable_websocket_orders: bool = True
-    # Credentials - typically loaded from .env file or environment variables
-    key: str | None = Field(default=None, alias="ALPACA_KEY")
-    secret: str | None = Field(default=None, alias="ALPACA_SECRET")
+    # Credentials - loaded from environment variables via nested delimiter
+    # ALPACA__KEY and ALPACA__SECRET map to alpaca.key and alpaca.secret
+    # with env_nested_delimiter="__" in Settings.model_config
+    key: str | None = None
+    secret: str | None = None
 
     @property
     def effective_deployment_pct(self) -> float:
