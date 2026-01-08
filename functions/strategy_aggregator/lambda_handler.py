@@ -83,6 +83,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         consolidated_portfolio = detail.get("consolidated_portfolio", {})
         signals_data = detail.get("signals_data", {})
         signal_count = detail.get("signal_count", 0)
+        data_freshness = detail.get("data_freshness", {})
 
         # Store partial signal and get updated completion count
         completed_count = session_service.store_partial_signal(
@@ -92,6 +93,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             consolidated_portfolio=consolidated_portfolio,
             signals_data=signals_data,
             signal_count=signal_count,
+            data_freshness=data_freshness,
         )
 
         # Get session to check total

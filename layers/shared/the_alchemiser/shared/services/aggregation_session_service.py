@@ -141,6 +141,7 @@ class AggregationSessionService:
         consolidated_portfolio: dict[str, Any],
         signals_data: dict[str, Any],
         signal_count: int,
+        data_freshness: dict[str, Any] | None = None,
     ) -> int:
         """Store a partial signal and increment completion counter.
 
@@ -154,6 +155,7 @@ class AggregationSessionService:
             consolidated_portfolio: Partial portfolio data.
             signals_data: Signal data from this file.
             signal_count: Number of signals generated.
+            data_freshness: Data freshness info (latest_timestamp, age_days, gate_status).
 
         Returns:
             Updated completed_strategies count.
@@ -175,6 +177,7 @@ class AggregationSessionService:
                 "signal_count": {"N": str(signal_count)},
                 "consolidated_portfolio": {"S": json.dumps(consolidated_portfolio, default=str)},
                 "signals_data": {"S": json.dumps(signals_data, default=str)},
+                "data_freshness": {"S": json.dumps(data_freshness or {}, default=str)},
             },
         )
         try:
@@ -282,6 +285,7 @@ class AggregationSessionService:
                     "signal_count": int(item["signal_count"]["N"]),
                     "consolidated_portfolio": json.loads(item["consolidated_portfolio"]["S"]),
                     "signals_data": json.loads(item["signals_data"]["S"]),
+                    "data_freshness": json.loads(item.get("data_freshness", {}).get("S", "{}")),
                 }
             )
 
