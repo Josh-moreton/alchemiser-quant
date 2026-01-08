@@ -230,9 +230,9 @@ class SingleFileSignalHandler:
 
         Returns:
             Dictionary with data freshness info:
-                - last_data_timestamp: ISO timestamp of most recent data
-                - data_age_hours: Age of data in hours
-                - freshness_status: "PASS" or "FAIL"
+                - latest_timestamp: ISO timestamp of most recent data
+                - age_days: Age of data in days
+                - gate_status: "PASS" or "FAIL"
                 - symbols_checked: Number of symbols checked
                 - stale_symbols: List of symbols with stale data
 
@@ -264,17 +264,17 @@ class SingleFileSignalHandler:
                 except Exception:
                     stale_symbols.append(symbol)
 
-            # Calculate data age in hours
-            data_age_hours = 0.0
+            # Calculate data age in days
+            age_days = 0
             if oldest_timestamp:
-                data_age_hours = (now - oldest_timestamp).total_seconds() / 3600.0
+                age_days = (now - oldest_timestamp).days
 
-            freshness_status = "FAIL" if stale_symbols else "PASS"
+            gate_status = "FAIL" if stale_symbols else "PASS"
 
             freshness_info: dict[str, Any] = {
-                "last_data_timestamp": oldest_timestamp.isoformat() if oldest_timestamp else None,
-                "data_age_hours": round(data_age_hours, 1),
-                "freshness_status": freshness_status,
+                "latest_timestamp": oldest_timestamp.isoformat() if oldest_timestamp else None,
+                "age_days": age_days,
+                "gate_status": gate_status,
                 "symbols_checked": len(symbols),
                 "stale_symbols": stale_symbols,
             }
@@ -286,7 +286,7 @@ class SingleFileSignalHandler:
                         "correlation_id": correlation_id,
                         "dsl_file": self.dsl_file,
                         "stale_symbols": stale_symbols,
-                        "freshness_status": freshness_status,
+                        "gate_status": gate_status,
                     },
                 )
 
@@ -302,9 +302,9 @@ class SingleFileSignalHandler:
                 },
             )
             return {
-                "last_data_timestamp": None,
-                "data_age_hours": 0.0,
-                "freshness_status": "UNKNOWN",
+                "latest_timestamp": None,
+                "age_days": 0,
+                "gate_status": "UNKNOWN",
                 "symbols_checked": len(symbols),
                 "stale_symbols": [],
             }
