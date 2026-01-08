@@ -15,7 +15,7 @@ The Alchemiser is deployed as **AWS Lambda microservices** communicating via Eve
 ```mermaid
 flowchart LR
     subgraph Trigger["⏰ Trigger"]
-        SCHED[EventBridge Schedule<br/>3:30 PM ET M-F]
+        SCHED[EventBridge Schedule<br/>3:45 PM ET M-F<br/>Market Calendar Aware]
     end
 
     subgraph Strategy["🎯 Strategy Layer"]
@@ -89,6 +89,7 @@ flowchart LR
 
 | Step | Component | Action |
 |------|-----------|--------|
+| 0 | **Market Calendar Check** | Orchestrator checks if market is open and has sufficient time before close |
 | 1 | **Strategy Orchestrator** | Triggered by schedule, creates aggregation session, invokes workers async |
 | 2 | **Strategy Workers** | Execute `.clj` DSL files in parallel, fetch data from S3 datalake + Alpaca |
 | 3 | **Signal Aggregator** | Merges partial signals into single consolidated portfolio |
@@ -142,13 +143,20 @@ sequenceDiagram
     participant SNS as SNS Topic
     participant A as Alpaca API
 
-    Note over Sched,A: Daily Trading Workflow (3:30 PM ET) - Multi-Node Mode
+    Note over Sched,A: Daily Trading Workflow (3:45 PM ET) - Multi-Node Mode
 
     Sched->>SO: Trigger (cron)
-    SO->>SO: Create aggregation session
-    SO->>SW: Invoke async (DSL file 1)
-    SO->>SW: Invoke async (DSL file 2)
-    SO->>SW: Invoke async (DSL file N)
+    SO->>A: Check market calendar
+    A-->>SO: Trading hours + early close check
+    alt Market Closed or Too Late
+        SO-->>Sched: Skip execution (reason logged)
+    else Market Open & Sufficient Time
+        SO->>SO: Create aggregation session
+        SO->>SO: Create aggregation session
+        SO->>SW: Invoke async (DSL file 1)
+        SO->>SW: Invoke async (DSL file 2)
+        SO->>SW: Invoke async (DSL file N)
+    end
     
     par Parallel Strategy Execution
         SW->>A: Fetch market data
@@ -360,6 +368,31 @@ pytest tests/notifications_v2/
 ```
 
 ## Configuration
+
+### Market Calendar
+
+The system integrates with Alpaca's market calendar API to:
+- **Skip non-trading days**: Automatically skips weekends and holidays
+- **Handle early closes**: Detects half-day trading sessions (e.g., day before holidays)
+- **Prevent late executions**: Ensures at least 15 minutes before market close to complete trades
+
+The Strategy Orchestrator checks the market calendar before dispatching any strategy workers:
+
+```python
+# Market calendar check happens in orchestrator before strategy execution
+should_trade, reason = calendar_service.should_trade_now(
+    correlation_id=correlation_id,
+    minutes_before_close=15,  # Require 15 minutes before close
+)
+
+if not should_trade:
+    logger.info("Skipping strategy execution", reason=reason)
+    return {"status": "skipped", "reason": reason}
+```
+
+**Calendar data is cached for 1 hour** to minimize API calls while staying current with schedule changes.
+
+### Environment Variables
 
 ### Environment Variables
 
