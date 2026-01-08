@@ -260,8 +260,9 @@ class DataRefreshService:
 
             metadata["new_bars"] = len(new_bars)
 
-            # Populate adjustment metadata
-            if adjustment_info and adjustment_info.adjustment_count > 0:
+            # Only populate adjustment metadata if write succeeded
+            # (avoid misleading users about adjustments that weren't actually persisted)
+            if success and adjustment_info and adjustment_info.adjustment_count > 0:
                 metadata["adjusted"] = True
                 metadata["adjusted_dates"] = adjustment_info.adjusted_dates
                 metadata["adjustment_count"] = adjustment_info.adjustment_count
@@ -376,6 +377,10 @@ class DataRefreshService:
         )
 
         # Re-fetch all marked symbols with full history (to get adjusted prices)
+        # Note: seed_initial_data does full replacement, not append, so there are no
+        # "adjustments" to detect - we're replacing all historical data with fresh
+        # adjusted prices from the API. This is intentional: bad data markers indicate
+        # corrupted data that needs complete replacement rather than incremental update.
         results = self.seed_initial_data(list(marked_symbols), lookback_days)
 
         # Clear markers for successfully processed symbols
