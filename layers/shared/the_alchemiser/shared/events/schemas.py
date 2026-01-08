@@ -729,6 +729,19 @@ class DataLakeUpdateCompleted(BaseEvent):
     total_bars_fetched: int = Field(default=0, description="Total bars fetched across all symbols")
     data_source: str = Field(default="alpaca_api", description="Data source (alpaca_api, etc)")
 
+    # Adjustment tracking (NEW)
+    symbols_adjusted: list[str] = Field(
+        default_factory=list,
+        description="Symbols with retroactive price adjustments detected (splits, dividends)",
+    )
+    adjustment_count: int = Field(
+        default=0, description="Total number of bars adjusted across all symbols"
+    )
+    adjusted_dates_by_symbol: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Map of symbol to list of dates (YYYY-MM-DD) where adjustments were detected",
+    )
+
     # Timing metrics
     start_time_utc: str = Field(..., description="Refresh start time (ISO format)")
     end_time_utc: str = Field(..., description="Refresh end time (ISO format)")
