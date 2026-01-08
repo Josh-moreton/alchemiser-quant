@@ -960,12 +960,12 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
                 </ul>
             </div>
             <p style="font-style: italic; color: #856404; margin-top: 10px;">
-                ℹ️ Historical data has been updated with adjusted prices. All indicators and backtests will now use consistent pricing.
+                (i) Historical data has been updated with adjusted prices. All indicators and backtests will now use consistent pricing.
             </p>
         </div>
 """
 
-    body += f"""
+    body += """
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #495057;">Updated Symbols</h3>
             <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">
@@ -1050,8 +1050,8 @@ Affected symbols:
             body += f"  • {symbol}: {date_count} bar(s) adjusted ({date_sample})\n"
 
         body += """
-ℹ️ Historical data has been updated with adjusted prices. All indicators
-   and backtests will now use consistent pricing.
+(i) Historical data has been updated with adjusted prices. All indicators
+    and backtests will now use consistent pricing.
 """
 
     body += f"""
@@ -1151,12 +1151,12 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
                 </ul>
             </div>
             <p style="font-style: italic; color: #0c5460; margin-top: 10px;">
-                ℹ️ Historical data has been updated with adjusted prices for these symbols.
+                (i) Historical data has been updated with adjusted prices for these symbols.
             </p>
         </div>
 """
 
-    body += f"""
+    body += """
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #495057;">Successfully Updated Symbols</h3>
             <ul style="margin-top: 5px; column-count: 3; column-gap: 20px;">

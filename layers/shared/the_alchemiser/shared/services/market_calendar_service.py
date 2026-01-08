@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import UTC, date, datetime, time as dt_time, timedelta
+from datetime import UTC, date, datetime, timedelta
+from datetime import time as dt_time
 from typing import TYPE_CHECKING, NamedTuple
 
 from the_alchemiser.shared.errors.exceptions import TradingClientError
@@ -27,6 +28,8 @@ from the_alchemiser.shared.utils.api_helpers import with_rate_limiting, with_tim
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
+
+from alpaca.trading.requests import GetCalendarRequest
 
 logger = get_logger(__name__)
 
@@ -73,9 +76,7 @@ class MarketCalendarService:
 
     @with_rate_limiting
     @with_timeout(15.0)
-    def _fetch_calendar_from_api(
-        self, start_date: date, end_date: date
-    ) -> list[MarketDay]:
+    def _fetch_calendar_from_api(self, start_date: date, end_date: date) -> list[MarketDay]:
         """Fetch market calendar from API with rate limiting and timeout.
 
         Args:
@@ -90,10 +91,11 @@ class MarketCalendarService:
 
         """
         try:
-            calendar_data = self._trading_client.get_calendar(
-                start=start_date.isoformat(),
-                end=end_date.isoformat(),
+            filters = GetCalendarRequest(
+                start=start_date,
+                end=end_date,
             )
+            calendar_data = self._trading_client.get_calendar(filters)
 
             result: list[MarketDay] = []
             for day in calendar_data:

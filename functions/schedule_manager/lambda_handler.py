@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import boto3
@@ -75,13 +75,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         # Load settings and create calendar service
         app_settings = Settings()
-        
+
         alpaca_key = app_settings.alpaca.key
         alpaca_secret = app_settings.alpaca.secret
-        
+
         if not alpaca_key or not alpaca_secret:
             raise ValueError("Alpaca API credentials not configured")
-        
+
         trading_client = create_trading_client(
             api_key=alpaca_key,
             secret_key=alpaca_secret,
@@ -133,7 +133,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         # Create one-time EventBridge Scheduler rule
         schedule_name = f"trading-execution-{today.isoformat()}"
-        
+
         _create_one_time_schedule(
             schedule_name=schedule_name,
             execution_time=execution_time,

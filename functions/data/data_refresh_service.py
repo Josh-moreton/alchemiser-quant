@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import time
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from bad_data_marker_service import BadDataMarkerService

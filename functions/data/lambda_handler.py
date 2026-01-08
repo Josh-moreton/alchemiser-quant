@@ -176,7 +176,7 @@ def _handle_fetch_request(event: dict[str, Any]) -> dict[str, Any]:
             bars_fetched = lookback_days if success else 0  # Approximate
         else:
             # Existing symbol - refresh with latest bars
-            success = service.refresh_symbol(symbol)
+            success, _metadata = service.refresh_symbol(symbol)
             bars_fetched = 1 if success else 0  # Approximate - could be more
 
         # Publish completion event
