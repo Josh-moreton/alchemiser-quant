@@ -23,6 +23,17 @@ help:
 	@echo "  strategy-check-fractionable config=strategy.prod.json"
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
+	@echo "Data Quality Validation:"
+	@echo "  validate-dynamo                      Validate DynamoDB data for per-strategy metrics"
+	@echo "  validate-dynamo stage=dev            Validate dev environment data"
+	@echo "  validate-dynamo verbose=1            Show detailed validation output"
+	@echo "  validate-dynamo json=1               Output validation results as JSON"
+	@echo ""
+	@echo "Performance Reports:"
+	@echo "  quantstats                           Generate QuantStats reports (prod)"
+	@echo "  quantstats stage=dev                 Generate for dev environment"
+	@echo "  quantstats days=180                  Custom lookback period (default: 90)"
+	@echo ""
 	@echo "Daily Validation:"
 	@echo "  validate-signals                     Validate latest signals vs Composer.trade"
 	@echo "  validate-signals stage=prod          Validate prod signals"
@@ -252,6 +263,45 @@ strategy-check-fractionable:
 	if [ -n "$(show-all)" ]; then ARGS="$$ARGS --show-all"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all-strategies"; fi; \
 	poetry run python scripts/check_fractionable_assets.py $$ARGS
+
+# ============================================================================
+# DATA QUALITY VALIDATION
+# ============================================================================
+
+# Validate DynamoDB data quality for per-strategy performance metrics
+# Usage: make validate-dynamo                      # Validate prod data (default)
+#        make validate-dynamo stage=dev            # Validate dev data
+#        make validate-dynamo verbose=1            # Show detailed output
+#        make validate-dynamo json=1               # Output as JSON
+validate-dynamo:
+	@echo "🔍 Validating DynamoDB data quality..."
+	@ARGS=""; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
+	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
+	if [ -n "$(json)" ]; then ARGS="$$ARGS --json"; fi; \
+	poetry run python scripts/validate_dynamo_data.py $$ARGS
+
+# Generate QuantStats per-strategy performance reports
+# Usage: make quantstats                           # Generate prod reports (default)
+#        make quantstats stage=dev                 # Generate dev reports
+#        make quantstats days=180                  # Custom lookback period
+#        make quantstats local=1                   # Save locally (no S3 upload)
+quantstats:
+	@echo "📊 Generating QuantStats per-strategy reports..."
+	@STAGE=$${stage:-prod}; \
+	DAYS=$${days:-90}; \
+	TABLE="alchemiser-$$STAGE-trade-ledger"; \
+	BUCKET="alchemiser-$$STAGE-reports"; \
+	echo "  Stage: $$STAGE"; \
+	echo "  Table: $$TABLE"; \
+	echo "  Bucket: $$BUCKET"; \
+	echo "  Days lookback: $$DAYS"; \
+	TRADE_LEDGER_TABLE=$$TABLE \
+	REPORTS_BUCKET=$$BUCKET \
+	DAYS_LOOKBACK=$$DAYS \
+	ALPACA_KEY=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_key" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_KEY") \
+	ALPACA_SECRET=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_secret" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_SECRET") \
+	poetry run python scripts/generate_quantstats_reports.py
 
 # ============================================================================
 # DAILY VALIDATION
