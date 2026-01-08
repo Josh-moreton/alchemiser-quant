@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import boto3
 import pandas as pd
+import pyarrow.parquet as pq
 
 from the_alchemiser.shared.logging import get_logger
 
@@ -156,6 +157,65 @@ class MarketDataStore:
         """Get local cache path for symbol's data."""
         return CACHE_DIR / f"{symbol}_daily.parquet"
 
+    def _is_cache_valid(self, symbol: str, cache_path: Path) -> bool:
+        """Check if local cache is valid against S3 metadata.
+
+        Validates cache by comparing row count in cached file against
+        S3 metadata. This prevents warm Lambda invocations from using
+        stale data after S3 has been updated with new bars.
+
+        Args:
+            symbol: Ticker symbol
+            cache_path: Path to local cached parquet file
+
+        Returns:
+            True if cache is valid and can be used, False if stale
+
+        """
+        if not cache_path.exists():
+            return False
+
+        try:
+            # Get S3 metadata for comparison
+            s3_metadata = self.get_metadata(symbol)
+            if s3_metadata is None:
+                # No metadata in S3, cache is potentially stale
+                logger.warning(
+                    "No S3 metadata found, invalidating cache",
+                    symbol=symbol,
+                )
+                return False
+
+            # Read cached file row count (metadata only, not full file)
+            cached_metadata = pq.read_metadata(cache_path)
+            cached_row_count = cached_metadata.num_rows
+
+            # Compare row counts
+            if cached_row_count < s3_metadata.row_count:
+                logger.info(
+                    "Cache stale: S3 has newer data",
+                    symbol=symbol,
+                    cached_rows=cached_row_count,
+                    s3_rows=s3_metadata.row_count,
+                )
+                return False
+
+            logger.debug(
+                "Cache valid",
+                symbol=symbol,
+                cached_rows=cached_row_count,
+                s3_rows=s3_metadata.row_count,
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(
+                "Cache validation failed, will fetch from S3",
+                symbol=symbol,
+                error=str(e),
+            )
+            return False
+
     def get_metadata(self, symbol: str) -> SymbolMetadata | None:
         """Get metadata for a symbol's data file.
 
@@ -227,7 +287,7 @@ class MarketDataStore:
 
         Args:
             symbol: Ticker symbol
-            use_cache: If True, use local cache when available
+            use_cache: If True, use local cache when available (validates against S3 metadata)
 
         Returns:
             DataFrame with OHLCV data, or None if not found
@@ -235,12 +295,12 @@ class MarketDataStore:
         """
         cache_path = self._local_cache_path(symbol)
 
-        # Check local cache first
-        if use_cache and cache_path.exists():
+        # Check local cache first (with validation against S3 metadata)
+        if use_cache and self._is_cache_valid(symbol, cache_path):
             try:
                 df = pd.read_parquet(cache_path, engine="pyarrow")
                 logger.debug(
-                    "Read from cache",
+                    "Read from validated cache",
                     symbol=symbol,
                     rows=len(df),
                 )
