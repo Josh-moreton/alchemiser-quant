@@ -99,27 +99,52 @@ class MarketCalendarService:
 
             result: list[MarketDay] = []
             for day in calendar_data:
-                # Extract date
-                day_date_str = str(getattr(day, "date", ""))
-                if not day_date_str:
+                # Extract date - Alpaca returns date object or string
+                day_date_raw = getattr(day, "date", None)
+                if day_date_raw is None:
                     continue
 
-                day_date = date.fromisoformat(day_date_str)
+                # Handle both date objects and strings
+                if isinstance(day_date_raw, date):
+                    day_date = day_date_raw
+                else:
+                    day_date_str = str(day_date_raw)
+                    # Handle datetime strings like "2025-12-24 00:00:00"
+                    if " " in day_date_str:
+                        day_date_str = day_date_str.split(" ")[0]
+                    day_date = date.fromisoformat(day_date_str)
 
-                # Extract open/close times
-                open_str = str(getattr(day, "open", ""))
-                close_str = str(getattr(day, "close", ""))
+                # Extract open/close times - Alpaca returns time objects or strings
+                open_raw = getattr(day, "open", None)
+                close_raw = getattr(day, "close", None)
 
-                if not open_str or not close_str or open_str == "None" or close_str == "None":
+                if open_raw is None or close_raw is None:
                     logger.warning(
                         "Calendar day missing open/close times",
-                        date=day_date_str,
+                        date=day_date.isoformat(),
                     )
                     continue
 
-                # Parse times (format: "09:30" or "HH:MM")
-                open_time = dt_time.fromisoformat(open_str)
-                close_time = dt_time.fromisoformat(close_str)
+                # Handle both time objects and strings
+                if isinstance(open_raw, dt_time):
+                    open_time = open_raw
+                else:
+                    open_str = str(open_raw)
+                    # Handle datetime strings like "2025-12-24 09:30:00" -> extract time part
+                    if " " in open_str:
+                        open_str = open_str.split(" ")[1]
+                    # Handle "HH:MM:SS" or "HH:MM" format
+                    open_time = dt_time.fromisoformat(open_str)
+
+                if isinstance(close_raw, dt_time):
+                    close_time = close_raw
+                else:
+                    close_str = str(close_raw)
+                    # Handle datetime strings like "2025-12-24 16:00:00" -> extract time part
+                    if " " in close_str:
+                        close_str = close_str.split(" ")[1]
+                    # Handle "HH:MM:SS" or "HH:MM" format
+                    close_time = dt_time.fromisoformat(close_str)
 
                 # Early close = any close before standard 4:00 PM
                 is_early_close = close_time < STANDARD_CLOSE_TIME
