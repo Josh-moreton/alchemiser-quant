@@ -36,6 +36,31 @@ VALID_TIMEFRAME_UNITS = ["minute", "hour", "day", "week", "month"]
 VALID_DATA_FEEDS = ["iex", "sip"]
 
 
+def normalize_symbol_for_alpaca(symbol: str) -> str:
+    """Normalize a ticker symbol for Alpaca API compatibility.
+
+    Alpaca uses "." for share classes (e.g., "BRK.B"), while some data sources
+    and strategy DSL files use "/" (e.g., "BRK/B"). This function converts
+    "/" to "." for API compatibility.
+
+    Args:
+        symbol: Raw ticker symbol (e.g., "BRK/B", "AAPL")
+
+    Returns:
+        Normalized symbol for Alpaca API (e.g., "BRK.B", "AAPL")
+
+    Examples:
+        >>> normalize_symbol_for_alpaca("BRK/B")
+        'BRK.B'
+        >>> normalize_symbol_for_alpaca("AAPL")
+        'AAPL'
+        >>> normalize_symbol_for_alpaca("BF/A")
+        'BF.A'
+
+    """
+    return symbol.replace("/", ".")
+
+
 def _validate_credentials(api_key: str, secret_key: str) -> None:
     """Validate API credentials are non-empty.
 
@@ -509,4 +534,5 @@ __all__ = [
     "create_trading_stream",
     "get_alpaca_quote_type",
     "get_alpaca_trade_type",
+    "normalize_symbol_for_alpaca",
 ]

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel
+from the_alchemiser.shared.brokers.alpaca_utils import normalize_symbol_for_alpaca
 
 if TYPE_CHECKING:
     from alpaca.data.historical import StockHistoricalDataClient
@@ -111,14 +112,17 @@ class LiveBarProvider:
             from alpaca.data.requests import StockSnapshotRequest
 
             client = self._get_client()
-            request = StockSnapshotRequest(symbol_or_symbols=[symbol])
+            # Normalize symbol for Alpaca API (e.g., BRK/B -> BRK.B)
+            api_symbol = normalize_symbol_for_alpaca(symbol)
+            request = StockSnapshotRequest(symbol_or_symbols=[api_symbol])
             snapshots = client.get_stock_snapshot(request)
 
-            snapshot = snapshots.get(symbol)
+            snapshot = snapshots.get(api_symbol)
             if not snapshot:
                 logger.warning(
                     "No snapshot data for symbol",
                     symbol=symbol,
+                    api_symbol=api_symbol,
                 )
                 return None
 
@@ -199,23 +203,31 @@ class LiveBarProvider:
             from alpaca.data.requests import StockSnapshotRequest
 
             client = self._get_client()
-            request = StockSnapshotRequest(symbol_or_symbols=uncached_symbols)
+            # Normalize symbols for Alpaca API (e.g., BRK/B -> BRK.B)
+            # Create mapping from API symbol back to original symbol
+            api_to_original: dict[str, str] = {
+                normalize_symbol_for_alpaca(s): s for s in uncached_symbols
+            }
+            api_symbols = list(api_to_original.keys())
+
+            request = StockSnapshotRequest(symbol_or_symbols=api_symbols)
             snapshots = client.get_stock_snapshot(request)
 
             now = datetime.now(UTC)
 
-            for symbol in uncached_symbols:
-                snapshot = snapshots.get(symbol)
+            for api_symbol, original_symbol in api_to_original.items():
+                snapshot = snapshots.get(api_symbol)
                 if not snapshot or not snapshot.daily_bar:
                     logger.warning(
                         "No daily bar in snapshot for symbol",
-                        symbol=symbol,
+                        symbol=original_symbol,
+                        api_symbol=api_symbol,
                     )
                     continue
 
                 daily_bar = snapshot.daily_bar
                 bar = BarModel(
-                    symbol=symbol,
+                    symbol=original_symbol,  # Use original symbol in BarModel
                     timestamp=now,
                     open=Decimal(str(daily_bar.open)),
                     high=Decimal(str(daily_bar.high)),
@@ -225,8 +237,8 @@ class LiveBarProvider:
                     is_incomplete=True,  # Partial bar: today's data is not yet complete
                 )
 
-                self._cache[symbol] = bar
-                results[symbol] = bar
+                self._cache[original_symbol] = bar
+                results[original_symbol] = bar
 
             logger.info(
                 "Bulk fetched live bars from Alpaca",
