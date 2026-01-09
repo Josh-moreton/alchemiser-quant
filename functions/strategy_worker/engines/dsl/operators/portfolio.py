@@ -504,11 +504,14 @@ def _collect_groups_from_args(
                     # Mixed mode: has bare symbols, not grouped
                     return False, []
                 else:
+                    # Mixed or unexpected type inside list: not grouped mode
                     return False, []
         elif isinstance(result, str):
             # Bare symbol = not grouped mode
             return False, []
-        # Other types ignored
+        else:
+            # Any other unexpected type: fall back to flat mode
+            return False, []
 
     return bool(fragments), fragments
 
@@ -543,6 +546,34 @@ def _calculate_group_volatility(
     if total_weight > Decimal("0"):
         return float(weighted_vol_sum / total_weight)
     return None
+
+
+def _distribute_group_shares(
+    group_weights: list[tuple[PortfolioFragment, Decimal]], total_inverse: Decimal
+) -> dict[str, Decimal]:
+    """Distribute group-level weights to individual symbols.
+
+    Normalizes group weights and scales internal symbol weights by each
+    group's share of the total.
+
+    Args:
+        group_weights: List of (fragment, inverse_weight) tuples
+        total_inverse: Sum of all inverse weights for normalization
+
+    Returns:
+        Dictionary mapping symbols to their final weights
+
+    """
+    final_weights: dict[str, Decimal] = {}
+
+    for group, inverse_weight in group_weights:
+        group_share = inverse_weight / total_inverse
+        # Scale internal weights by group's share
+        for sym, sym_weight in group.weights.items():
+            contribution = group_share * sym_weight
+            final_weights[sym] = final_weights.get(sym, Decimal("0")) + contribution
+
+    return final_weights
 
 
 def _calculate_inverse_weights_grouped(
@@ -588,15 +619,7 @@ def _calculate_inverse_weights_grouped(
         logger.warning("DSL weight-inverse-volatility: No valid volatilities for any groups")
         return {}
 
-    # Normalize group weights, then distribute to symbols
-    final_weights: dict[str, Decimal] = {}
-
-    for group, inverse_weight in group_weights:
-        group_share = inverse_weight / total_inverse
-        # Scale internal weights by group's share
-        for sym, sym_weight in group.weights.items():
-            contribution = group_share * sym_weight
-            final_weights[sym] = final_weights.get(sym, Decimal("0")) + contribution
+    final_weights = _distribute_group_shares(group_weights, total_inverse)
 
     logger.debug(
         "DSL weight-inverse-volatility grouped: Applied group-level inverse-vol weights",
