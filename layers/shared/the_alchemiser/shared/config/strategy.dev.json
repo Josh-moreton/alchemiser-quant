@@ -1,20 +1,40 @@
 {
   "files": [
-    "nuclear_feaver.clj",
+    "beam_chain.clj",
     "beefier_3x.clj",
+    "bento_collection.clj",
+    "chicken_rice.clj",
+    "ftl_starburst.clj",
+    "ftlt_2x.clj",
+    "gold.clj",
     "nova_ibit.clj",
+    "nuclear_feaver.clj",
+    "rains_core_catalysts.clj",
     "rains_em_dancer.clj",
     "simons_kmlm.clj",
+    "sisyphus_lowvol.clj",
+    "slow_steady.clj",
     "tqqq_ftlt.clj",
-    "gold.clj"
+    "voxport.clj",
+    "wakanda.clj"
   ],
   "allocations": {
-    "nuclear_feaver.clj": 0.09,
-    "beefier_3x.clj": 0.10,
-    "nova_ibit.clj": 0.14,
-    "rains_em_dancer.clj": 0.2,
-    "simons_kmlm.clj": 0.07,
-    "tqqq_ftlt.clj": 0.2,
-    "gold.clj": 0.2
+    "beam_chain.clj": 0.06,
+    "beefier_3x.clj": 0.06,
+    "bento_collection.clj": 0.06,
+    "chicken_rice.clj": 0.06,
+    "ftl_starburst.clj": 0.06,
+    "ftlt_2x.clj": 0.06,
+    "gold.clj": 0.06,
+    "nova_ibit.clj": 0.06,
+    "nuclear_feaver.clj": 0.06,
+    "rains_core_catalysts.clj": 0.06,
+    "rains_em_dancer.clj": 0.06,
+    "simons_kmlm.clj": 0.06,
+    "sisyphus_lowvol.clj": 0.06,
+    "slow_steady.clj": 0.06,
+    "tqqq_ftlt.clj": 0.06,
+    "voxport.clj": 0.05,
+    "wakanda.clj": 0.05
   }
 }
