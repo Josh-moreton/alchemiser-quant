@@ -30,11 +30,14 @@ Architecture:
 
 from __future__ import annotations
 
+import json
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+import boto3
 import pandas as pd
 
 from the_alchemiser.shared.data_v2.live_bar_provider import LiveBarProvider
@@ -45,9 +48,15 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
+    from mypy_boto3_lambda import LambdaClient
+
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = get_logger(__name__)
+
+# Sync refresh configuration
+SYNC_REFRESH_MAX_RETRIES = 2
+SYNC_REFRESH_WAIT_SECONDS = 5.0
 
 
 def _parse_period_to_days(period: str) -> int:
@@ -104,6 +113,7 @@ class CachedMarketDataAdapter(MarketDataPort):
         enable_live_fallback: bool = False,
         append_live_bar: bool = False,
         live_bar_provider: LiveBarProvider | None = None,
+        enable_sync_refresh: bool = False,
     ) -> None:
         """Initialize cached market data adapter.
 
@@ -119,6 +129,9 @@ class CachedMarketDataAdapter(MarketDataPort):
                             and appends as the most recent bar for indicator computation.
             live_bar_provider: Optional LiveBarProvider instance. If None and
                               append_live_bar is True, creates a default provider.
+            enable_sync_refresh: Whether to synchronously invoke the Data Lambda to
+                                refresh stale/missing data. Only for live trading runs.
+                                Defaults to False to avoid blocking in backtests.
 
         """
         self.market_data_store = market_data_store or MarketDataStore()
@@ -127,6 +140,8 @@ class CachedMarketDataAdapter(MarketDataPort):
         self._enable_live_fallback = enable_live_fallback
         self._append_live_bar = append_live_bar
         self._live_bar_provider = live_bar_provider
+        self._enable_sync_refresh = enable_sync_refresh
+        self._lambda_client: LambdaClient | None = None  # Lazy-init for sync refresh
 
         # Lazy-init live bar provider if needed
         if append_live_bar and live_bar_provider is None:
@@ -137,6 +152,7 @@ class CachedMarketDataAdapter(MarketDataPort):
             has_fallback_adapter=fallback_adapter is not None,
             live_fallback_enabled=enable_live_fallback,
             append_live_bar=append_live_bar,
+            sync_refresh_enabled=enable_sync_refresh,
         )
 
     def _get_alpaca_manager(self) -> AlpacaManager:
@@ -151,6 +167,105 @@ class CachedMarketDataAdapter(MarketDataPort):
             )
             logger.info("Alpaca manager initialized for live fallback")
         return self._alpaca_manager
+
+    def _get_lambda_client(self) -> LambdaClient:
+        """Lazy-load Lambda client for sync refresh.
+
+        Returns:
+            boto3 Lambda client for invoking Data Lambda.
+
+        """
+        if self._lambda_client is None:
+            self._lambda_client = boto3.client("lambda")
+        return self._lambda_client
+
+    def _sync_refresh_symbol(self, symbol_str: str) -> bool:
+        """Invoke Data Lambda synchronously to refresh a single symbol.
+
+        This method invokes the Data Lambda directly (RequestResponse mode) to
+        fetch and store data for a missing/stale symbol. Used only during live
+        trading runs to ensure strategies have complete data.
+
+        Args:
+            symbol_str: Symbol to refresh
+
+        Returns:
+            True if refresh succeeded and S3 now has fresh data, False otherwise
+
+        """
+        data_function_name = os.environ.get("DATA_FUNCTION_NAME", "")
+        if not data_function_name:
+            # Try constructing from stage
+            stage = os.environ.get("STAGE", "dev")
+            data_function_name = f"alchemiser-{stage}-data"
+
+        logger.info(
+            "Invoking Data Lambda synchronously for symbol refresh",
+            symbol=symbol_str,
+            function_name=data_function_name,
+        )
+
+        try:
+            lambda_client = self._get_lambda_client()
+
+            # Build event payload matching MarketDataFetchRequested format
+            event_payload = {
+                "detail-type": "MarketDataFetchRequested",
+                "source": "alchemiser.strategy",
+                "detail": {
+                    "symbol": symbol_str,
+                    "requested_by": "sync_refresh",
+                    "correlation_id": f"sync-refresh-{symbol_str}",
+                },
+            }
+
+            response = lambda_client.invoke(
+                FunctionName=data_function_name,
+                InvocationType="RequestResponse",  # Synchronous
+                Payload=json.dumps(event_payload),
+            )
+
+            # Check response
+            status_code = response.get("StatusCode", 0)
+            if status_code != 200:
+                logger.error(
+                    "Data Lambda returned non-200 status",
+                    symbol=symbol_str,
+                    status_code=status_code,
+                )
+                return False
+
+            # Parse response payload
+            payload = response.get("Payload")
+            if payload:
+                result = json.loads(payload.read())
+                body = result.get("body", {})
+                if isinstance(body, str):
+                    body = json.loads(body)
+
+                if body.get("status") == "completed" or body.get("status") == "skipped":
+                    logger.info(
+                        "Sync refresh completed successfully",
+                        symbol=symbol_str,
+                        status=body.get("status"),
+                        bars_fetched=body.get("bars_fetched", 0),
+                    )
+                    return True
+
+            logger.warning(
+                "Sync refresh returned unexpected response",
+                symbol=symbol_str,
+            )
+            return False
+
+        except Exception as e:
+            logger.error(
+                "Sync refresh failed",
+                symbol=symbol_str,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return False
 
     def _fetch_from_live_api(
         self,
@@ -267,7 +382,40 @@ class CachedMarketDataAdapter(MarketDataPort):
             )
             return self._fallback_adapter.get_bars(symbol, period, timeframe)
 
-        # Priority 2: Direct Alpaca API fallback
+        # Priority 2: Sync refresh via Data Lambda (for live trading runs)
+        if self._enable_sync_refresh:
+            logger.info(
+                "Cache miss - attempting sync refresh via Data Lambda",
+                symbol=symbol_str,
+            )
+            for attempt in range(SYNC_REFRESH_MAX_RETRIES):
+                if self._sync_refresh_symbol(symbol_str):
+                    # Wait for S3 to be consistent, then retry read
+                    time.sleep(SYNC_REFRESH_WAIT_SECONDS)
+
+                    # Re-read from S3 cache (bypass local cache)
+                    df = self.market_data_store.read_symbol_data(symbol_str, use_cache=False)
+                    if df is not None and not df.empty:
+                        # Convert and return the refreshed data
+                        return self._dataframe_to_bars(df, symbol_str, lookback_days)
+
+                if attempt < SYNC_REFRESH_MAX_RETRIES - 1:
+                    logger.warning(
+                        "Sync refresh attempt failed, retrying",
+                        symbol=symbol_str,
+                        attempt=attempt + 1,
+                        max_retries=SYNC_REFRESH_MAX_RETRIES,
+                    )
+                    time.sleep(1.0)  # Brief pause before retry
+
+            logger.error(
+                "Sync refresh failed after all retries",
+                symbol=symbol_str,
+                attempts=SYNC_REFRESH_MAX_RETRIES,
+            )
+            # Fall through to other fallbacks
+
+        # Priority 3: Direct Alpaca API fallback
         if self._enable_live_fallback:
             logger.info(
                 "Cache miss - falling back to live Alpaca API",
@@ -281,6 +429,62 @@ class CachedMarketDataAdapter(MarketDataPort):
             symbol=symbol_str,
         )
         return []
+
+    def _dataframe_to_bars(
+        self, df: pd.DataFrame, symbol_str: str, lookback_days: int
+    ) -> list[BarModel]:
+        """Convert DataFrame to BarModel list, filtering by lookback period.
+
+        Creates a copy of the input DataFrame to avoid mutating caller's data.
+        Uses itertuples for efficient row iteration per coding guidelines.
+
+        Args:
+            df: DataFrame with OHLCV data
+            symbol_str: Symbol string for bar construction
+            lookback_days: Number of days to include
+
+        Returns:
+            List of BarModel objects filtered to lookback period
+
+        """
+        if "timestamp" not in df.columns:
+            return []
+
+        # Create copy to avoid mutating caller's DataFrame
+        df = df.copy()
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df = df.sort_values("timestamp")
+
+        # Filter to lookback period
+        cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
+        df = df[df["timestamp"] >= cutoff_date]
+
+        if df.empty:
+            return []
+
+        # Use itertuples for efficient iteration (faster than iterrows)
+        bars: list[BarModel] = []
+        for row in df.itertuples(index=False):
+            ts = row.timestamp
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            elif isinstance(ts, pd.Timestamp):
+                ts = ts.to_pydatetime()
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=UTC)
+
+            bar = BarModel(
+                symbol=symbol_str,
+                timestamp=ts,
+                open=Decimal(str(row.open)),
+                high=Decimal(str(row.high)),
+                low=Decimal(str(row.low)),
+                close=Decimal(str(row.close)),
+                volume=int(row.volume),
+            )
+            bars.append(bar)
+
+        return bars
 
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Fetch historical bars from S3 cache, with fallback on miss.

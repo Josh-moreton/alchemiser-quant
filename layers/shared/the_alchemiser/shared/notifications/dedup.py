@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import boto3
 from botocore.exceptions import ClientError
 
+from the_alchemiser.shared.config import DYNAMODB_RETRY_CONFIG
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
@@ -71,7 +72,11 @@ class NotificationDedupManager:
         )
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
 
-        self._client: DynamoDBClient = boto3.client("dynamodb", region_name=self.region)
+        self._client: DynamoDBClient = boto3.client(
+            "dynamodb",
+            region_name=self.region,
+            config=DYNAMODB_RETRY_CONFIG,
+        )
 
     def should_send_failure_email(
         self,

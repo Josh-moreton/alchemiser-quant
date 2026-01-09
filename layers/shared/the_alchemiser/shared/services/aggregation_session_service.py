@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 
+from the_alchemiser.shared.config import DYNAMODB_RETRY_CONFIG
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
@@ -55,7 +56,11 @@ class AggregationSessionService:
         """
         self._table_name = table_name
         self._region = region
-        self._client: DynamoDBClient = boto3.client("dynamodb", region_name=self._region)
+        self._client: DynamoDBClient = boto3.client(
+            "dynamodb",
+            region_name=self._region,
+            config=DYNAMODB_RETRY_CONFIG,
+        )
         logger.debug(
             "AggregationSessionService initialized",
             extra={"table_name": table_name},

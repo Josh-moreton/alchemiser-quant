@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "9.3.7"
+version = "9.4.0"
 package-mode = false  # Dependency management only - no package installation
 
 # This is an AWS Lambda microservices project deployed via SAM.
@@ -32,7 +32,7 @@ exclude = [ "scripts/", "tests/", ".aws-sam/", "__main__\\.py$", "functions/[^/]
 
 # External libraries without type stubs
 [[tool.mypy.overrides]]
-module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "tqdm.*", "yaml.*", "structlog.*", "dateutil.*", "quantstats.*", "awswrangler.*", "mypy_boto3_ses.*" ]
+module = [ "alpaca.*", "boto3.*", "botocore.*", "pandas.*", "numpy.*", "pyarrow.*", "tqdm.*", "yaml.*", "structlog.*", "dateutil.*", "quantstats.*", "awswrangler.*", "mypy_boto3_ses.*" ]
 ignore_missing_imports = true
 
 [tool.importlinter]
