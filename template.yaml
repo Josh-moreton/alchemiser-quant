@@ -980,6 +980,11 @@ Resources:
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # On-demand data fetching: sync refresh invokes Data Lambda when S3 cache is empty
+          DATA_FUNCTION_NAME: !Ref DataFunction
+          STAGE: !Ref Stage
+          # Sync refresh timeout: max wait for Data Lambda to fetch missing data (5 minutes)
+          SYNC_REFRESH_TIMEOUT_SECONDS: "300"
           # Enable live bar injection - appends today's current price to historical data
           # This allows indicators (e.g., 200-day SMA) to use the most recent price
 
@@ -1022,6 +1027,12 @@ Resources:
                 Resource:
                   - !GetAtt MarketDataBucket.Arn
                   - !Sub "${MarketDataBucket.Arn}/*"
+              # Lambda invoke permission for sync refresh (on-demand data fetching)
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataFunction.Arn
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running

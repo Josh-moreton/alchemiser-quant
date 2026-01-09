@@ -145,17 +145,35 @@ class MarketDataStore:
             self._s3_client = boto3.client("s3", region_name=self.region)
         return self._s3_client
 
+    def _sanitize_symbol_for_path(self, symbol: str) -> str:
+        """Sanitize symbol for use in S3 keys and file paths.
+
+        Replaces forward slashes with underscores to prevent symbols like
+        BRK/B from creating nested directory structures.
+
+        Args:
+            symbol: Raw ticker symbol (e.g., "BRK/B")
+
+        Returns:
+            Sanitized symbol safe for paths (e.g., "BRK_B")
+
+        """
+        return symbol.replace("/", "_")
+
     def _symbol_data_key(self, symbol: str) -> str:
         """Get S3 key for symbol's data file."""
-        return f"{symbol}/daily.parquet"
+        sanitized = self._sanitize_symbol_for_path(symbol)
+        return f"{sanitized}/daily.parquet"
 
     def _symbol_metadata_key(self, symbol: str) -> str:
         """Get S3 key for symbol's metadata file."""
-        return f"{symbol}/metadata.json"
+        sanitized = self._sanitize_symbol_for_path(symbol)
+        return f"{sanitized}/metadata.json"
 
     def _local_cache_path(self, symbol: str) -> Path:
         """Get local cache path for symbol's data."""
-        return CACHE_DIR / f"{symbol}_daily.parquet"
+        sanitized = self._sanitize_symbol_for_path(symbol)
+        return CACHE_DIR / f"{sanitized}_daily.parquet"
 
     def _is_cache_valid(self, symbol: str, cache_path: Path) -> bool:
         """Check if local cache is valid against S3 metadata.

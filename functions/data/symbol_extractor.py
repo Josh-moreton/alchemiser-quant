@@ -47,24 +47,26 @@ RESERVED_KEYWORDS = frozenset(
 )
 
 # Pattern to match ticker symbols in DSL files
-# Matches quoted strings that look like tickers (1-6 uppercase letters)
-TICKER_PATTERN = re.compile(r'"([A-Z]{1,6})"')
+# Matches quoted strings that look like tickers (uppercase letters/numbers with optional dots/hyphens/slashes)
+# Examples: AAPL, BRK.B, BRK/B, BF-B, BTC/USD
+SYMBOL_CHARS = r"[A-Z0-9][A-Z0-9./\-]{0,9}"
+TICKER_PATTERN = re.compile(rf'"({SYMBOL_CHARS})"')
 
 # Pattern to match asset declarations: (asset "SYMBOL" ...)
-ASSET_PATTERN = re.compile(r'\(asset\s+"([A-Z]{1,6})"')
+ASSET_PATTERN = re.compile(rf'\(asset\s+"({SYMBOL_CHARS})"')
 
 # Pattern to match indicator functions: (rsi "SYMBOL" ...), (cumulative-return "SYMBOL" ...), etc.
 INDICATOR_PATTERNS = [
-    re.compile(r'\(rsi\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(current-price\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(moving-average-price\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(moving-average-return\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(cumulative-return\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(exponential-moving-average-price\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(stdev-return\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(stdev-price\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(max-drawdown\s+"([A-Z]{1,6})"'),
-    re.compile(r'\(volatility\s+"([A-Z]{1,6})"'),
+    re.compile(rf'\(rsi\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(current-price\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(moving-average-price\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(moving-average-return\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(cumulative-return\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(exponential-moving-average-price\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(stdev-return\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(stdev-price\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(max-drawdown\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(volatility\s+"({SYMBOL_CHARS})"'),
 ]
 
 
