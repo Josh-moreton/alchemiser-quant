@@ -63,14 +63,16 @@ def register_strategy(container: ApplicationContainer) -> None:
     # Register market data store (reads from S3 Parquet)
     container.market_data_store = providers.Singleton(MarketDataStore)
 
-    # Register market data adapter with live bar injection enabled
+    # Register market data adapter with live bar injection and sync refresh enabled
     # This appends today's current bar to all indicator computations
+    # Sync refresh: On cache miss, invokes Data Lambda to fetch missing data
     container.strategy_market_data_adapter = providers.Factory(
         CachedMarketDataAdapter,
         market_data_store=container.market_data_store,
         fallback_adapter=None,
         enable_live_fallback=False,
         append_live_bar=True,  # Enable live bar injection for real-time signals
+        enable_sync_refresh=True,  # Enable on-demand data fetching via Data Lambda
     )
 
     # Register strategy orchestrator (uses market data adapter)

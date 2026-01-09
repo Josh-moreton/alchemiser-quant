@@ -230,9 +230,13 @@ def select_symbols(
 def _normalize_fragment_weights(value: DSLValue, context: DslContext) -> dict[str, Decimal]:
     """Convert a DSLValue into a normalized weights dict using Decimal arithmetic.
 
+    COMPOSER BEHAVIOR: Each PortfolioFragment is treated as a single unit.
+    When a list contains multiple PortfolioFragments, they are merged with
+    equal weight per fragment (not per symbol).
+
     - str → {symbol: Decimal("1.0")}
     - PortfolioFragment → normalized weights (already Decimal)
-    - list → merge recursively, then normalize to sum to 1 if total > 0
+    - list → each PortfolioFragment gets equal share, internal weights preserved
     """
     if isinstance(value, str):
         return {value: Decimal("1.0")}
@@ -240,15 +244,37 @@ def _normalize_fragment_weights(value: DSLValue, context: DslContext) -> dict[st
         frag = value.normalize_weights()
         return dict(frag.weights)  # Already Decimal after Phase 1
     if isinstance(value, list):
-        collected: dict[str, Decimal] = {}
+        # COMPOSER BEHAVIOR: Each item (fragment or symbol) gets equal share
+        # We don't recursively extract symbols from PortfolioFragments
+        items: list[dict[str, Decimal]] = []
         for item in value:
-            nested = _normalize_fragment_weights(item, context)
-            for sym, w in nested.items():
-                collected[sym] = collected.get(sym, Decimal("0")) + w
-        total = sum(collected.values()) if collected else Decimal("0")
-        if total > Decimal("0"):
-            return {sym: w / total for sym, w in collected.items()}
-        return collected
+            # Unwrap single-element lists (syntax artifact)
+            while isinstance(item, list) and len(item) == 1:
+                item = item[0]
+
+            if isinstance(item, PortfolioFragment):
+                frag = item.normalize_weights()
+                items.append(dict(frag.weights))
+            elif isinstance(item, str):
+                items.append({item: Decimal("1.0")})
+            elif isinstance(item, list):
+                # Nested list - recursively process but keep as one item
+                nested = _normalize_fragment_weights(item, context)
+                if nested:
+                    items.append(nested)
+            # Other types ignored
+
+        if not items:
+            return {}
+
+        # Each item gets equal share
+        item_share = Decimal("1") / Decimal(str(len(items)))
+        merged: dict[str, Decimal] = {}
+        for item_weights in items:
+            for sym, w in item_weights.items():
+                merged[sym] = merged.get(sym, Decimal("0")) + w * item_share
+
+        return merged
     return {}
 
 
@@ -278,12 +304,17 @@ def _process_weight_asset_pairs(pairs: list[ASTNode], context: DslContext) -> di
 def _flatten_to_weight_dicts(value: DSLValue) -> list[dict[str, Decimal]]:
     """Convert a DSLValue into a list of normalized weight dictionaries.
 
-    When weight-equal receives a single argument that evaluates to a list,
-    each item in that list should be treated as a separate child for
-    equal weighting purposes. This function handles the flattening.
+    COMPOSER BEHAVIOR: Each PortfolioFragment is treated as a SINGLE child
+    (atomic unit). Weight operators apply weights to groups, not to individual
+    symbols extracted from groups.
 
-    For a PortfolioFragment or string, returns a single-item list.
-    For a list, returns each item as a separate normalized weight dict.
+    For a PortfolioFragment: returns single-item list (the group's normalized weights)
+    For a string: returns single-item list with symbol at 100%
+    For a list: each PortfolioFragment/string in the list becomes ONE child
+                (no recursive extraction of symbols from PortfolioFragments)
+
+    This matches Composer.trade behavior where filter/sort operations pass
+    groups up to parent weight operators as single units.
     """
     if isinstance(value, PortfolioFragment):
         frag = value.normalize_weights()
@@ -293,8 +324,17 @@ def _flatten_to_weight_dicts(value: DSLValue) -> list[dict[str, Decimal]]:
     if isinstance(value, list):
         result: list[dict[str, Decimal]] = []
         for item in value:
-            # Recursively flatten nested lists
-            result.extend(_flatten_to_weight_dicts(item))
+            # COMPOSER BEHAVIOR: Don't recursively flatten PortfolioFragments
+            # Each item (fragment or symbol) becomes exactly one child
+            if isinstance(item, PortfolioFragment):
+                frag = item.normalize_weights()
+                result.append(dict(frag.weights))
+            elif isinstance(item, str):
+                result.append({item: Decimal("1.0")})
+            elif isinstance(item, list):
+                # Nested lists are still flattened (syntax artifact like [[group]])
+                result.extend(_flatten_to_weight_dicts(item))
+            # Other types (int, float, etc.) are ignored
         return result
     return []
 
@@ -396,7 +436,7 @@ def weight_specified(args: list[ASTNode], context: DslContext) -> PortfolioFragm
 
 
 def _collect_assets_from_args(args: list[ASTNode], context: DslContext) -> list[str]:
-    """Collect assets from DSL arguments.
+    """Collect assets from DSL arguments (flat mode - extracts individual symbols).
 
     Args:
         args: List of AST nodes (excluding window parameter)
@@ -423,6 +463,173 @@ def _collect_assets_from_args(args: list[ASTNode], context: DslContext) -> list[
         _extract_assets(result)
 
     return all_assets
+
+
+def _collect_groups_from_args(
+    args: list[ASTNode], context: DslContext
+) -> tuple[bool, list[PortfolioFragment]]:
+    """Collect PortfolioFragment groups from DSL arguments (grouped mode).
+
+    Returns (is_grouped_mode, list_of_fragments).
+    Grouped mode is True when all evaluated args are PortfolioFragments.
+
+    Args:
+        args: List of AST nodes (excluding window parameter)
+        context: DSL evaluation context
+
+    Returns:
+        Tuple of (is_grouped_mode, fragments)
+
+    """
+    fragments: list[PortfolioFragment] = []
+
+    for arg in args:
+        result = context.evaluate_node(arg, context.correlation_id, context.trace)
+
+        # Unwrap single-element lists (syntax artifact like [[group]])
+        while isinstance(result, list) and len(result) == 1:
+            result = result[0]
+
+        if isinstance(result, PortfolioFragment):
+            fragments.append(result)
+        elif isinstance(result, list):
+            # List of items - check if all are PortfolioFragments
+            for item in result:
+                # Unwrap nested single-element lists
+                while isinstance(item, list) and len(item) == 1:
+                    item = item[0]
+                if isinstance(item, PortfolioFragment):
+                    fragments.append(item)
+                elif isinstance(item, str):
+                    # Mixed mode: has bare symbols, not grouped
+                    return False, []
+                else:
+                    # Mixed or unexpected type inside list: not grouped mode
+                    return False, []
+        elif isinstance(result, str):
+            # Bare symbol = not grouped mode
+            return False, []
+        else:
+            # Any other unexpected type: fall back to flat mode
+            return False, []
+
+    return bool(fragments), fragments
+
+
+def _calculate_group_volatility(
+    fragment: PortfolioFragment, window: float, context: DslContext
+) -> float | None:
+    """Calculate weighted-average volatility for a PortfolioFragment group.
+
+    Args:
+        fragment: The portfolio fragment (group)
+        window: Window parameter for volatility calculation
+        context: DSL evaluation context
+
+    Returns:
+        Weighted-average volatility or None if no valid volatilities
+
+    """
+    weights = fragment.weights
+    if not weights:
+        return None
+
+    total_weight = Decimal("0")
+    weighted_vol_sum = Decimal("0")
+
+    for sym, weight in weights.items():
+        volatility = _get_volatility_for_asset(sym, window, context)
+        if volatility is not None:
+            weighted_vol_sum += weight * Decimal(str(volatility))
+            total_weight += weight
+
+    if total_weight > Decimal("0"):
+        return float(weighted_vol_sum / total_weight)
+    return None
+
+
+def _distribute_group_shares(
+    group_weights: list[tuple[PortfolioFragment, Decimal]], total_inverse: Decimal
+) -> dict[str, Decimal]:
+    """Distribute group-level weights to individual symbols.
+
+    Normalizes group weights and scales internal symbol weights by each
+    group's share of the total.
+
+    Args:
+        group_weights: List of (fragment, inverse_weight) tuples
+        total_inverse: Sum of all inverse weights for normalization
+
+    Returns:
+        Dictionary mapping symbols to their final weights
+
+    """
+    final_weights: dict[str, Decimal] = {}
+
+    for group, inverse_weight in group_weights:
+        group_share = inverse_weight / total_inverse
+        # Scale internal weights by group's share
+        for sym, sym_weight in group.weights.items():
+            contribution = group_share * sym_weight
+            final_weights[sym] = final_weights.get(sym, Decimal("0")) + contribution
+
+    return final_weights
+
+
+def _calculate_inverse_weights_grouped(
+    groups: list[PortfolioFragment], window: float, context: DslContext
+) -> dict[str, Decimal]:
+    """Calculate inverse volatility weights for groups (Composer behavior).
+
+    COMPOSER BEHAVIOR: Each group is treated as a single unit. We calculate
+    the weighted-average volatility for each group, then apply inverse-vol
+    weights to the groups themselves. Internal weights within each group
+    are preserved and scaled by the group's share.
+
+    Args:
+        groups: List of PortfolioFragment groups
+        window: Window parameter for volatility calculation
+        context: DSL evaluation context
+
+    Returns:
+        Dictionary of normalized weights (as Decimal)
+
+    """
+    DAMPENING_EXPONENT = Decimal("0.25")
+
+    # Calculate inverse volatility weight for each group
+    group_weights: list[tuple[PortfolioFragment, Decimal]] = []
+    total_inverse = Decimal("0")
+
+    for group in groups:
+        group_vol = _calculate_group_volatility(group, window, context)
+        if group_vol is not None and group_vol > 0:
+            vol_decimal = Decimal(str(group_vol))
+            inverse_vol = Decimal("1") / vol_decimal
+            dampened_inverse = inverse_vol**DAMPENING_EXPONENT
+            group_weights.append((group, dampened_inverse))
+            total_inverse += dampened_inverse
+            logger.debug(
+                "DSL weight-inverse-volatility grouped: group vol=%.6f, dampened_inverse=%.6f",
+                group_vol,
+                float(dampened_inverse),
+            )
+
+    if not group_weights or total_inverse < Decimal("1e-10"):
+        logger.warning("DSL weight-inverse-volatility: No valid volatilities for any groups")
+        return {}
+
+    final_weights = _distribute_group_shares(group_weights, total_inverse)
+
+    logger.debug(
+        "DSL weight-inverse-volatility grouped: Applied group-level inverse-vol weights",
+        extra={
+            "num_groups": len(group_weights),
+            "final_weights": {k: float(v) for k, v in final_weights.items()},
+        },
+    )
+
+    return final_weights
 
 
 def _get_volatility_for_asset(asset: str, window: float, context: DslContext) -> float | None:
@@ -610,11 +817,40 @@ def weight_inverse_volatility(args: list[ASTNode], context: DslContext) -> Portf
     """Evaluate weight-inverse-volatility - inverse volatility weighting.
 
     Format: (weight-inverse-volatility window [assets...])
+
+    COMPOSER BEHAVIOR: When children are PortfolioFragments (groups), the groups
+    are treated as atomic units. We calculate weighted-average volatility per group,
+    then apply inverse-vol weights to the groups. Internal weights are preserved.
+
+    When children are bare symbols, we apply inverse-vol to each symbol individually.
     """
     # Extract and validate window parameter
     window = _extract_window(args, context)
 
-    # Collect assets from remaining arguments
+    # Check if we're in grouped mode (all children are PortfolioFragments)
+    is_grouped, groups = _collect_groups_from_args(args[1:], context)
+
+    if is_grouped and groups:
+        # GROUPED MODE: Apply inverse-vol to groups, preserve internal weights
+        logger.info(
+            "DSL weight-inverse-volatility: GROUPED MODE with %d groups",
+            len(groups),
+        )
+        normalized_weights = _calculate_inverse_weights_grouped(groups, window, context)
+
+        if not normalized_weights:
+            raise DslEvaluationError(
+                f"DSL weight-inverse-volatility could not compute valid weights for {len(groups)} groups. "
+                "All volatility calculations failed."
+            )
+
+        return PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="weight_inverse_volatility",
+            weights=normalized_weights,
+        )
+
+    # FLAT MODE: Collect assets and apply inverse-vol to each symbol
     all_assets = _collect_assets_from_args(args[1:], context)
 
     if not all_assets:

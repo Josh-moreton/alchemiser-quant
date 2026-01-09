@@ -36,6 +36,7 @@ from the_alchemiser.shared.utils.alpaca_error_handler import (
     RequestException,
     RetryException,
 )
+from the_alchemiser.shared.brokers.alpaca_utils import normalize_symbol_for_alpaca
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
@@ -591,9 +592,11 @@ class MarketDataService(MarketDataPort):
             Quote object or None
 
         """
-        request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
+        # Normalize symbol for Alpaca API (e.g., BRK/B -> BRK.B)
+        api_symbol = normalize_symbol_for_alpaca(symbol)
+        request = StockLatestQuoteRequest(symbol_or_symbols=[api_symbol])
         quotes = self._repo.get_data_client().get_stock_latest_quote(request)
-        return quotes.get(symbol)
+        return quotes.get(api_symbol)
 
     def _handle_api_error(self, error: Exception, symbol: str) -> NoReturn:
         """Handle Alpaca API errors.
@@ -695,19 +698,22 @@ class MarketDataService(MarketDataPort):
         start_dt = datetime.fromisoformat(start_date)
         end_dt = datetime.fromisoformat(end_date)
 
+        # Normalize symbol for Alpaca API (e.g., BRK/B -> BRK.B)
+        api_symbol = normalize_symbol_for_alpaca(symbol)
+
         # Use Adjustment.ALL to get split/dividend adjusted prices
         # This ensures data is suitable for indicator calculation and backtesting
         request = StockBarsRequest(
-            symbol_or_symbols=symbol,
+            symbol_or_symbols=api_symbol,
             timeframe=resolved_timeframe,
             start=start_dt,
             end=end_dt,
             adjustment=Adjustment.ALL,
         )
 
-        # Make API call and extract bars
+        # Make API call and extract bars (use api_symbol for response lookup)
         response = self._repo.get_data_client().get_stock_bars(request)
-        bars_obj = self._extract_bars_from_response_core(response, symbol)
+        bars_obj = self._extract_bars_from_response_core(response, api_symbol)
 
         if not bars_obj:
             if self._should_raise_missing_data_error_core(start_date, end_date, timeframe, symbol):

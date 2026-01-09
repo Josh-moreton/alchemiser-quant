@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING
 
 import boto3
 import pandas as pd
+from botocore.config import Config
 
 from the_alchemiser.shared.data_v2.live_bar_provider import LiveBarProvider
 from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
@@ -57,6 +58,24 @@ logger = get_logger(__name__)
 # Sync refresh configuration
 SYNC_REFRESH_MAX_RETRIES = 2
 SYNC_REFRESH_WAIT_SECONDS = 5.0
+# Default timeout for sync refresh Lambda invocation (5 minutes)
+# Can be overridden via SYNC_REFRESH_TIMEOUT_SECONDS env var
+DEFAULT_SYNC_REFRESH_TIMEOUT_SECONDS = 300
+
+
+def _get_sync_refresh_timeout() -> int:
+    """Get sync refresh timeout from environment variable.
+
+    Returns:
+        Timeout in seconds for Data Lambda invocation
+
+    """
+    try:
+        return int(
+            os.environ.get("SYNC_REFRESH_TIMEOUT_SECONDS", DEFAULT_SYNC_REFRESH_TIMEOUT_SECONDS)
+        )
+    except (ValueError, TypeError):
+        return DEFAULT_SYNC_REFRESH_TIMEOUT_SECONDS
 
 
 def _parse_period_to_days(period: str) -> int:
@@ -169,14 +188,30 @@ class CachedMarketDataAdapter(MarketDataPort):
         return self._alpaca_manager
 
     def _get_lambda_client(self) -> LambdaClient:
-        """Lazy-load Lambda client for sync refresh.
+        """Lazy-load Lambda client for sync refresh with 5-minute timeout.
+
+        The timeout is configurable via SYNC_REFRESH_TIMEOUT_SECONDS env var.
+        Default is 300 seconds (5 minutes) to allow Data Lambda time to fetch
+        and store historical data for new symbols.
 
         Returns:
-            boto3 Lambda client for invoking Data Lambda.
+            boto3 Lambda client configured with read timeout for Data Lambda invocation.
 
         """
         if self._lambda_client is None:
-            self._lambda_client = boto3.client("lambda")
+            timeout_seconds = _get_sync_refresh_timeout()
+            # Configure boto3 with extended read timeout for sync refresh
+            # read_timeout must account for Data Lambda execution time
+            config = Config(
+                read_timeout=timeout_seconds + 30,  # Extra buffer for network latency
+                connect_timeout=10,
+                retries={"max_attempts": 0},  # No retries - we handle at higher level
+            )
+            self._lambda_client = boto3.client("lambda", config=config)
+            logger.info(
+                "Lambda client initialized for sync refresh",
+                read_timeout_seconds=timeout_seconds + 30,
+            )
         return self._lambda_client
 
     def _sync_refresh_symbol(self, symbol_str: str) -> bool:
@@ -185,6 +220,8 @@ class CachedMarketDataAdapter(MarketDataPort):
         This method invokes the Data Lambda directly (RequestResponse mode) to
         fetch and store data for a missing/stale symbol. Used only during live
         trading runs to ensure strategies have complete data.
+
+        Timeout is controlled by SYNC_REFRESH_TIMEOUT_SECONDS env var (default 300s).
 
         Args:
             symbol_str: Symbol to refresh
@@ -199,10 +236,12 @@ class CachedMarketDataAdapter(MarketDataPort):
             stage = os.environ.get("STAGE", "dev")
             data_function_name = f"alchemiser-{stage}-data"
 
+        timeout_seconds = _get_sync_refresh_timeout()
         logger.info(
             "Invoking Data Lambda synchronously for symbol refresh",
             symbol=symbol_str,
             function_name=data_function_name,
+            timeout_seconds=timeout_seconds,
         )
 
         try:
@@ -243,11 +282,15 @@ class CachedMarketDataAdapter(MarketDataPort):
                 if isinstance(body, str):
                     body = json.loads(body)
 
-                if body.get("status") == "completed" or body.get("status") == "skipped":
+                # Match Data Lambda response statuses:
+                # - "success": fetch completed with new bars
+                # - "deduplicated": another request handled it recently
+                status = body.get("status", "")
+                if status in ("success", "deduplicated"):
                     logger.info(
                         "Sync refresh completed successfully",
                         symbol=symbol_str,
-                        status=body.get("status"),
+                        status=status,
                         bars_fetched=body.get("bars_fetched", 0),
                     )
                     return True
@@ -430,6 +473,46 @@ class CachedMarketDataAdapter(MarketDataPort):
         )
         return []
 
+    def _validate_no_partial_bars(self, df: pd.DataFrame, symbol_str: str) -> pd.DataFrame:
+        """Validate and filter out any partial bars for today.
+
+        Alpaca's historical API should not return partial bars for today, but this
+        defensive validation ensures we never include incomplete intraday data in
+        historical series. Partial bars could skew indicator calculations.
+
+        A bar is considered partial if its timestamp is from today (market not yet
+        closed). The nightly data refresh only fetches complete daily bars.
+
+        Args:
+            df: DataFrame with OHLCV data (assumes 'timestamp' column is UTC datetime)
+            symbol_str: Symbol string for logging
+
+        Returns:
+            DataFrame with today's bars filtered out if market is still open
+
+        """
+        if df.empty:
+            return df
+
+        today = datetime.now(UTC).date()
+
+        # Check if there are any bars from today
+        today_mask = df["timestamp"].dt.date == today
+        today_count = today_mask.sum()
+
+        if today_count > 0:
+            # Log warning - this shouldn't happen with historical API
+            logger.warning(
+                "Filtering out partial bars from today (defensive validation)",
+                symbol=symbol_str,
+                today_bars_filtered=int(today_count),
+                today_date=today.isoformat(),
+            )
+            # Filter out today's bars
+            df = df[~today_mask]
+
+        return df
+
     def _dataframe_to_bars(
         self, df: pd.DataFrame, symbol_str: str, lookback_days: int
     ) -> list[BarModel]:
@@ -437,6 +520,7 @@ class CachedMarketDataAdapter(MarketDataPort):
 
         Creates a copy of the input DataFrame to avoid mutating caller's data.
         Uses itertuples for efficient row iteration per coding guidelines.
+        Validates that no partial bars for today are included.
 
         Args:
             df: DataFrame with OHLCV data
@@ -454,6 +538,9 @@ class CachedMarketDataAdapter(MarketDataPort):
         df = df.copy()
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
+
+        # Validate no partial bars from today (defensive check)
+        df = self._validate_no_partial_bars(df, symbol_str)
 
         # Filter to lookback period
         cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
@@ -539,6 +626,9 @@ class CachedMarketDataAdapter(MarketDataPort):
 
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
+
+        # Validate no partial bars from today (defensive check)
+        df = self._validate_no_partial_bars(df, symbol_str)
 
         # Filter to lookback period
         cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
