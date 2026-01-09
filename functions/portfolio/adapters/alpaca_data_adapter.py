@@ -15,6 +15,7 @@ Thread-safety depends on the AlpacaManager instance provided.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -262,23 +263,54 @@ class AlpacaDataAdapter:
             causation_id=causation_id,
         )
 
+        # Retry configuration for transient API failures
+        max_retries = 3
+        base_delay_seconds = 0.5
+
         try:
             prices = {}
 
             # Get prices individually using structured pricing approach
-            # Future enhancement: Migrate to batch API if available for better performance
+            # Includes retry logic for transient API failures (e.g., None responses)
             for symbol in valid_symbols:
-                raw_price = self._alpaca_manager.get_current_price(symbol)
+                raw_price = None
 
+                for attempt in range(max_retries):
+                    raw_price = self._alpaca_manager.get_current_price(symbol)
+
+                    if raw_price is not None and raw_price > 0:
+                        # Valid price received
+                        break
+
+                    # Transient failure - log and retry with backoff
+                    if attempt < max_retries - 1:
+                        delay = base_delay_seconds * (2**attempt)  # Exponential backoff
+                        logger.warning(
+                            "Transient price fetch failure, retrying",
+                            module=MODULE_NAME,
+                            action="get_current_prices",
+                            symbol=symbol,
+                            raw_price=raw_price,
+                            attempt=attempt + 1,
+                            max_retries=max_retries,
+                            delay_seconds=delay,
+                            correlation_id=correlation_id,
+                            causation_id=causation_id,
+                        )
+                        time.sleep(delay)
+
+                # After all retries, check if we got a valid price
                 if raw_price is None or raw_price <= 0:
-                    # Invalid price data from broker
-                    error_msg = f"Invalid price for {symbol}: {raw_price}"
+                    error_msg = (
+                        f"Invalid price for {symbol} after {max_retries} attempts: {raw_price}"
+                    )
                     logger.error(
-                        "Invalid price data",
+                        "Invalid price data after retries",
                         module=MODULE_NAME,
                         action="get_current_prices",
                         symbol=symbol,
                         raw_price=raw_price,
+                        attempts=max_retries,
                         correlation_id=correlation_id,
                         causation_id=causation_id,
                     )
@@ -287,6 +319,7 @@ class AlpacaDataAdapter:
                         context={
                             "symbol": symbol,
                             "raw_price": raw_price,
+                            "attempts": max_retries,
                             "operation": "get_current_prices",
                             "correlation_id": correlation_id,
                         },

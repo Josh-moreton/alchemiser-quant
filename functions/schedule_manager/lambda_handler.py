@@ -22,6 +22,8 @@ import boto3
 
 from the_alchemiser.shared.brokers.alpaca_utils import create_trading_client
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.events import WorkflowFailed
+from the_alchemiser.shared.events.eventbridge_publisher import publish_to_eventbridge
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.shared.services.market_calendar_service import (
     MarketCalendarService,
@@ -172,6 +174,34 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
             exc_info=True,
         )
+
+        # Publish WorkflowFailed to EventBridge for notification
+        try:
+            failure_event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=f"schedule-manager-{today.isoformat()}",
+                event_id=f"schedule-failed-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="coordinator_v2",
+                source_component="ScheduleManager",
+                workflow_type="schedule_creation",
+                failure_reason=str(e),
+                failure_step="schedule_creation",
+                error_details={
+                    "exception_type": type(e).__name__,
+                    "date": today.isoformat(),
+                },
+            )
+            publish_to_eventbridge(failure_event)
+            logger.info(
+                "Published WorkflowFailed event for schedule manager failure",
+                extra={"correlation_id": correlation_id},
+            )
+        except Exception as pub_error:
+            logger.error(
+                "Failed to publish WorkflowFailed event",
+                extra={"error": str(pub_error)},
+            )
 
         return {
             "statusCode": 500,
