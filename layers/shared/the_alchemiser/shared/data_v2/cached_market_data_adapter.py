@@ -282,11 +282,15 @@ class CachedMarketDataAdapter(MarketDataPort):
                 if isinstance(body, str):
                     body = json.loads(body)
 
-                if body.get("status") == "completed" or body.get("status") == "skipped":
+                # Match Data Lambda response statuses:
+                # - "success": fetch completed with new bars
+                # - "deduplicated": another request handled it recently
+                status = body.get("status", "")
+                if status in ("success", "deduplicated"):
                     logger.info(
                         "Sync refresh completed successfully",
                         symbol=symbol_str,
-                        status=body.get("status"),
+                        status=status,
                         bars_fetched=body.get("bars_fetched", 0),
                     )
                     return True

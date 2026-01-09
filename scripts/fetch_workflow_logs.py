@@ -69,6 +69,7 @@ LAMBDA_FUNCTIONS = [
     "trade-aggregator",
     "notifications",
     "metrics",
+    "data",
 ]
 
 # Log levels to include when filtering for issues
