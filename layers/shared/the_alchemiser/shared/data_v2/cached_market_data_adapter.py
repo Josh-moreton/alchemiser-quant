@@ -48,6 +48,8 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
+    from mypy_boto3_lambda import LambdaClient
+
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = get_logger(__name__)
@@ -55,7 +57,6 @@ logger = get_logger(__name__)
 # Sync refresh configuration
 SYNC_REFRESH_MAX_RETRIES = 2
 SYNC_REFRESH_WAIT_SECONDS = 5.0
-DATA_LAMBDA_TIMEOUT_SECONDS = 60
 
 
 def _parse_period_to_days(period: str) -> int:
@@ -140,7 +141,7 @@ class CachedMarketDataAdapter(MarketDataPort):
         self._append_live_bar = append_live_bar
         self._live_bar_provider = live_bar_provider
         self._enable_sync_refresh = enable_sync_refresh
-        self._lambda_client = None  # Lazy-init for sync refresh
+        self._lambda_client: LambdaClient | None = None  # Lazy-init for sync refresh
 
         # Lazy-init live bar provider if needed
         if append_live_bar and live_bar_provider is None:
@@ -167,14 +168,19 @@ class CachedMarketDataAdapter(MarketDataPort):
             logger.info("Alpaca manager initialized for live fallback")
         return self._alpaca_manager
 
-    def _get_lambda_client(self):
-        """Lazy-load Lambda client for sync refresh."""
+    def _get_lambda_client(self) -> LambdaClient:
+        """Lazy-load Lambda client for sync refresh.
+
+        Returns:
+            boto3 Lambda client for invoking Data Lambda.
+
+        """
         if self._lambda_client is None:
             self._lambda_client = boto3.client("lambda")
         return self._lambda_client
 
     def _sync_refresh_symbol(self, symbol_str: str) -> bool:
-        """Synchronously invoke Data Lambda to refresh a single symbol.
+        """Invoke Data Lambda synchronously to refresh a single symbol.
 
         This method invokes the Data Lambda directly (RequestResponse mode) to
         fetch and store data for a missing/stale symbol. Used only during live
@@ -427,10 +433,25 @@ class CachedMarketDataAdapter(MarketDataPort):
     def _dataframe_to_bars(
         self, df: pd.DataFrame, symbol_str: str, lookback_days: int
     ) -> list[BarModel]:
-        """Convert DataFrame to BarModel list, filtering by lookback period."""
+        """Convert DataFrame to BarModel list, filtering by lookback period.
+
+        Creates a copy of the input DataFrame to avoid mutating caller's data.
+        Uses itertuples for efficient row iteration per coding guidelines.
+
+        Args:
+            df: DataFrame with OHLCV data
+            symbol_str: Symbol string for bar construction
+            lookback_days: Number of days to include
+
+        Returns:
+            List of BarModel objects filtered to lookback period
+
+        """
         if "timestamp" not in df.columns:
             return []
 
+        # Create copy to avoid mutating caller's DataFrame
+        df = df.copy()
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
 
@@ -441,9 +462,10 @@ class CachedMarketDataAdapter(MarketDataPort):
         if df.empty:
             return []
 
+        # Use itertuples for efficient iteration (faster than iterrows)
         bars: list[BarModel] = []
-        for _, row in df.iterrows():
-            ts = row["timestamp"]
+        for row in df.itertuples(index=False):
+            ts = row.timestamp
             if isinstance(ts, str):
                 ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             elif isinstance(ts, pd.Timestamp):
@@ -454,11 +476,11 @@ class CachedMarketDataAdapter(MarketDataPort):
             bar = BarModel(
                 symbol=symbol_str,
                 timestamp=ts,
-                open=Decimal(str(row["open"])),
-                high=Decimal(str(row["high"])),
-                low=Decimal(str(row["low"])),
-                close=Decimal(str(row["close"])),
-                volume=int(row["volume"]),
+                open=Decimal(str(row.open)),
+                high=Decimal(str(row.high)),
+                low=Decimal(str(row.low)),
+                close=Decimal(str(row.close)),
+                volume=int(row.volume),
             )
             bars.append(bar)
 

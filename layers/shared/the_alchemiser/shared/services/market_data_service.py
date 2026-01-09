@@ -487,7 +487,23 @@ class MarketDataService(MarketDataPort):
                     data_type="current_price",
                 ) from e
 
-        # Should not reach here, but handle edge case
+        # Handle edge case: loop completed without returning (shouldn't happen in practice)
+        # If we captured an error during retries but didn't raise, log and raise it now
+        if last_error is not None:
+            self.logger.error(
+                "Failed to get current price after retries",
+                symbol=symbol,
+                retries=MAX_RETRIES,
+                error=str(last_error),
+                error_type=type(last_error).__name__,
+            )
+            raise MarketDataServiceError(
+                f"Failed to get current price for {symbol} after {MAX_RETRIES} retries",
+                symbol=symbol,
+                operation="get_current_price",
+            ) from last_error
+
+        # No error encountered but no price available (e.g., missing quote data)
         return None
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:

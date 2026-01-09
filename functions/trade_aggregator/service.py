@@ -15,28 +15,14 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import boto3
-from botocore.config import Config
 
+from the_alchemiser.shared.config import DYNAMODB_RETRY_CONFIG
 from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
 
 logger = get_logger(__name__)
-
-# DynamoDB retry configuration for transient failures
-# - max_attempts: 5 total attempts (1 initial + 4 retries)
-# - mode: adaptive uses exponential backoff with token bucket
-# - connect_timeout: 10 seconds for connection
-# - read_timeout: 30 seconds for response
-DYNAMODB_RETRY_CONFIG = Config(
-    retries={
-        "max_attempts": 5,
-        "mode": "adaptive",
-    },
-    connect_timeout=10,
-    read_timeout=30,
-)
 
 
 class TradeAggregatorService:
