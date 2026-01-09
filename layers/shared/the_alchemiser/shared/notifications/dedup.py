@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from the_alchemiser.shared.logging import get_logger
@@ -27,6 +28,20 @@ if TYPE_CHECKING:
     from mypy_boto3_dynamodb.type_defs import GetItemOutputTypeDef
 
 logger = get_logger(__name__)
+
+# DynamoDB retry configuration for transient failures
+# - max_attempts: 5 total attempts (1 initial + 4 retries)
+# - mode: adaptive uses exponential backoff with token bucket
+# - connect_timeout: 10 seconds for connection
+# - read_timeout: 30 seconds for response
+DYNAMODB_RETRY_CONFIG = Config(
+    retries={
+        "max_attempts": 5,
+        "mode": "adaptive",
+    },
+    connect_timeout=10,
+    read_timeout=30,
+)
 
 
 class NotificationDedupManager:
@@ -71,7 +86,11 @@ class NotificationDedupManager:
         )
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
 
-        self._client: DynamoDBClient = boto3.client("dynamodb", region_name=self.region)
+        self._client: DynamoDBClient = boto3.client(
+            "dynamodb",
+            region_name=self.region,
+            config=DYNAMODB_RETRY_CONFIG,
+        )
 
     def should_send_failure_email(
         self,

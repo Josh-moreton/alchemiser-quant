@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import boto3
+from botocore.config import Config
 
 from the_alchemiser.shared.logging import get_logger
 
@@ -33,6 +34,20 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.trade_message import TradeMessage
 
 logger = get_logger(__name__)
+
+# DynamoDB retry configuration for transient failures
+# - max_attempts: 5 total attempts (1 initial + 4 retries)
+# - mode: adaptive uses exponential backoff with token bucket
+# - connect_timeout: 10 seconds for connection
+# - read_timeout: 30 seconds for response
+DYNAMODB_RETRY_CONFIG = Config(
+    retries={
+        "max_attempts": 5,
+        "mode": "adaptive",
+    },
+    connect_timeout=10,
+    read_timeout=30,
+)
 
 
 class ExecutionRunService:
@@ -81,7 +96,11 @@ class ExecutionRunService:
         """
         self._table_name = table_name
         self._region = region
-        self._client: DynamoDBClient = boto3.client("dynamodb", region_name=self._region)
+        self._client: DynamoDBClient = boto3.client(
+            "dynamodb",
+            region_name=self._region,
+            config=DYNAMODB_RETRY_CONFIG,
+        )
         logger.debug(
             "ExecutionRunService initialized",
             extra={"table_name": table_name},

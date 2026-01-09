@@ -388,10 +388,11 @@ class MarketDataService(MarketDataPort):
             return None
 
     def get_current_price(self, symbol: str) -> float | None:
-        """Get current price for a symbol.
+        """Get current price for a symbol with retry logic.
 
         Returns the mid price between bid and ask, or None if not available.
         Uses centralized price discovery utility for consistent calculation.
+        Retries up to MAX_RETRIES times with exponential backoff for transient failures.
 
         Args:
             symbol: Stock symbol
@@ -400,7 +401,7 @@ class MarketDataService(MarketDataPort):
             Current price or None if not available
 
         Raises:
-            MarketDataServiceError: If Alpaca API returns an error
+            MarketDataServiceError: If Alpaca API returns an error after all retries
             MarketDataError: If price data parsing fails
 
         """
@@ -408,34 +409,86 @@ class MarketDataService(MarketDataPort):
             get_current_price_from_quote,
         )
 
-        try:
-            return get_current_price_from_quote(self._repo, symbol)
-        except (HTTPError, RetryException, RequestException) as e:
-            # Network/API errors - log and reraise
-            self.logger.error(
-                "API error while fetching current price",
-                symbol=symbol,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise MarketDataServiceError(
-                f"Failed to fetch current price for {symbol}: {e}",
-                symbol=symbol,
-                operation="get_current_price",
-            ) from e
-        except (ValueError, TypeError, AttributeError) as e:
-            # Data conversion errors - log and reraise
-            self.logger.error(
-                "Data conversion error while processing current price",
-                symbol=symbol,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise MarketDataError(
-                f"Price data error for {symbol}: {e}",
-                symbol=symbol,
-                data_type="current_price",
-            ) from e
+        last_error: Exception | None = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                price = get_current_price_from_quote(self._repo, symbol)
+
+                # If we got a valid price, return it
+                if price is not None:
+                    return price
+
+                # None response could be transient - retry with backoff
+                if attempt < MAX_RETRIES - 1:
+                    delay = BASE_SLEEP_SECONDS * (2**attempt)
+                    jitter = (randbelow(int(JITTER_DIVISOR)) / JITTER_DIVISOR) * JITTER_FACTOR
+                    sleep_time = delay + jitter
+                    self.logger.warning(
+                        "Transient price fetch failure (None), retrying",
+                        symbol=symbol,
+                        attempt=attempt + 1,
+                        max_retries=MAX_RETRIES,
+                        delay_seconds=sleep_time,
+                    )
+                    time.sleep(sleep_time)
+                    continue
+
+                # Final attempt returned None
+                self.logger.warning(
+                    "Price not available after retries",
+                    symbol=symbol,
+                    attempts=MAX_RETRIES,
+                )
+                return None
+
+            except (HTTPError, RetryException, RequestException) as e:
+                last_error = e
+                if attempt < MAX_RETRIES - 1:
+                    delay = BASE_SLEEP_SECONDS * (2**attempt)
+                    jitter = (randbelow(int(JITTER_DIVISOR)) / JITTER_DIVISOR) * JITTER_FACTOR
+                    sleep_time = delay + jitter
+                    self.logger.warning(
+                        "API error fetching price, retrying",
+                        symbol=symbol,
+                        error=str(e),
+                        attempt=attempt + 1,
+                        max_retries=MAX_RETRIES,
+                        delay_seconds=sleep_time,
+                    )
+                    time.sleep(sleep_time)
+                    continue
+
+                # Final attempt failed
+                self.logger.error(
+                    "API error while fetching current price after retries",
+                    symbol=symbol,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    attempts=MAX_RETRIES,
+                )
+                raise MarketDataServiceError(
+                    f"Failed to fetch current price for {symbol} after {MAX_RETRIES} attempts: {e}",
+                    symbol=symbol,
+                    operation="get_current_price",
+                ) from e
+
+            except (ValueError, TypeError, AttributeError) as e:
+                # Data conversion errors - don't retry, reraise immediately
+                self.logger.error(
+                    "Data conversion error while processing current price",
+                    symbol=symbol,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                raise MarketDataError(
+                    f"Price data error for {symbol}: {e}",
+                    symbol=symbol,
+                    data_type="current_price",
+                ) from e
+
+        # Should not reach here, but handle edge case
+        return None
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols.
