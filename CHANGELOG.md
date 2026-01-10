@@ -1,6 +1,18 @@
 ## [Unreleased]
 
 ### Fixed
+- **Double run bug**: Removed production fallback schedule that was causing duplicate strategy executions
+  - **Root Cause**: Production had both a dynamic schedule (3:45 PM ET via Schedule Manager) and a fallback schedule (3:50 PM ET). When the dynamic schedule succeeded, the fallback would still trigger 5 minutes later, creating a second workflow run
+  - **Solution**: Removed the `StrategySchedule` fallback resource from `template.yaml`. All environments (dev/staging/prod) now rely solely on the Schedule Manager for dynamic scheduling
+  - **Justification**: 
+    - Dev/staging already relied on Schedule Manager only and worked correctly
+    - The fallback was meant as a "safety net" but added unnecessary complexity
+    - If Schedule Manager fails, we get notified through normal WorkflowFailed event channels
+    - Simpler architecture is more maintainable
+  - **Impact**: Eliminates duplicate production runs that were wasting Lambda invocations and potentially interfering with proper trade execution
+  - **File Modified**: `template.yaml` (removed lines 1741-1756)
+  - **Note**: `StrategySchedulerRole` IAM role remains as it's still needed by the dynamic schedules created by Schedule Manager
+
 - **Portfolio planner buying power validation**: Fixed critical bug where rebalance plans could exceed available capital
   - Root cause: Target allocations were calculated using total portfolio value rather than deployable capital
   - Changed `_calculate_dollar_values()` to use deployable capital = (cash + expected full exit proceeds) * (1 - cash_reserve_pct)
