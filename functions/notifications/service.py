@@ -19,6 +19,7 @@ from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.schemas import (
     DataLakeNotificationRequested,
     ErrorNotificationRequested,
+    ScheduleNotificationRequested,
     SystemNotificationRequested,
     TradingNotificationRequested,
 )
@@ -32,6 +33,8 @@ from the_alchemiser.shared.notifications.templates import (
     render_daily_run_partial_success_text,
     render_daily_run_success_html,
     render_daily_run_success_text,
+    render_schedule_created_html,
+    render_schedule_created_text,
 )
 
 
@@ -99,6 +102,8 @@ class NotificationService:
                 self._handle_system_notification(event)
             elif isinstance(event, DataLakeNotificationRequested):
                 self._handle_data_lake_notification(event)
+            elif isinstance(event, ScheduleNotificationRequested):
+                self._handle_schedule_notification(event)
             else:
                 self.logger.debug(
                     f"NotificationService ignoring event type: {event.event_type}",
@@ -139,6 +144,7 @@ class NotificationService:
             "TradingNotificationRequested",
             "SystemNotificationRequested",
             "DataLakeNotificationRequested",
+            "ScheduleNotificationRequested",
         ]
 
     def _log_event_context(self, event: BaseEvent, message: str, level: str = "info") -> None:
@@ -325,6 +331,10 @@ class NotificationService:
             "logs_url": self._build_logs_url(event.correlation_id),
             # Partial success specific
             "non_fractionable_skipped_symbols": non_fractionable_skipped,
+            # Strategy evaluation metadata
+            "strategies_evaluated": execution_data.get("strategies_evaluated", 0),
+            # Rebalance plan summary for display
+            "rebalance_plan_summary": execution_data.get("rebalance_plan_summary", []),
         }
 
         try:
@@ -586,6 +596,81 @@ Correlation ID: {event.correlation_id}
             self._log_event_context(
                 event,
                 f"Failed to send data lake notification ({type(e).__name__}): {e}",
+                "error",
+            )
+
+    def _handle_schedule_notification(self, event: ScheduleNotificationRequested) -> None:
+        """Handle schedule notification event.
+
+        Sends notification about schedule creation, early close, or holiday skip.
+
+        Args:
+            event: The schedule notification event
+
+        """
+        context = event.schedule_context
+        status = context.get("status", "scheduled")
+        self._log_event_context(
+            event,
+            f"Processing schedule notification: status={status}, "
+            f"date={context.get('date', 'unknown')}, "
+            f"is_early_close={context.get('is_early_close', False)}",
+        )
+
+        try:
+            # Add environment to context if not already present
+            context["env"] = context.get("env", self.stage)
+
+            # Render templates
+            html_body = render_schedule_created_html(context)
+            text_body = render_schedule_created_text(context)
+
+            # Determine subject based on status
+            if status == "skipped_holiday":
+                component = "schedule skip"
+                display_status = "MARKET CLOSED"
+            elif status == "early_close":
+                component = "schedule set"
+                display_status = "EARLY CLOSE"
+            else:
+                component = "schedule set"
+                display_status = "SCHEDULED"
+
+            subject = format_subject(
+                component=component,
+                status=display_status,
+                env=self.stage,
+                run_id=event.correlation_id,
+            )
+
+            # Get recipient addresses
+            to_addresses = self._get_recipients()
+
+            # Send via SES
+            result = send_email(
+                to_addresses=to_addresses,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+
+            if result.get("status") == "sent":
+                self._log_event_context(
+                    event,
+                    f"Schedule notification sent via SES (message_id={result.get('message_id')}, "
+                    f"status={status})",
+                )
+            else:
+                self._log_event_context(
+                    event,
+                    f"Failed to send schedule notification: {result.get('error')}",
+                    "error",
+                )
+
+        except Exception as e:
+            self._log_event_context(
+                event,
+                f"Failed to send schedule notification ({type(e).__name__}): {e}",
                 "error",
             )
 

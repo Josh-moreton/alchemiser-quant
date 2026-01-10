@@ -215,6 +215,10 @@ class TradeAggregatorService:
             "created_at": item.get("created_at", {}).get("S", ""),
             # Data freshness stored as JSON string in DynamoDB
             "data_freshness": item.get("data_freshness", {}).get("S", ""),
+            # Strategies evaluated count (for email notifications)
+            "strategies_evaluated": int(item.get("strategies_evaluated", {}).get("N", "0")),
+            # Rebalance plan summary stored as JSON string (for email notifications)
+            "rebalance_plan_summary": item.get("rebalance_plan_summary", {}).get("S", ""),
         }
 
     def get_all_trade_results(self, run_id: str) -> list[dict[str, Any]]:

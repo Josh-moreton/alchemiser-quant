@@ -180,6 +180,21 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                     extra={"run_id": run_id, "data_freshness_raw": data_freshness_raw},
                 )
 
+        # Get strategies evaluated count (stored in DynamoDB by Portfolio Lambda)
+        strategies_evaluated = run_metadata.get("strategies_evaluated", 0)
+
+        # Get rebalance plan summary (stored as JSON string in DynamoDB)
+        rebalance_plan_summary_raw = run_metadata.get("rebalance_plan_summary")
+        rebalance_plan_summary: list[dict[str, Any]] = []
+        if rebalance_plan_summary_raw:
+            try:
+                rebalance_plan_summary = json.loads(rebalance_plan_summary_raw)
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Failed to parse rebalance_plan_summary from run metadata",
+                    extra={"run_id": run_id},
+                )
+
         # Build and publish AllTradesCompleted event
         all_trades_event = AllTradesCompleted(
             event_id=f"all-trades-completed-{uuid.uuid4()}",
@@ -205,6 +220,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             portfolio_snapshot=portfolio_snapshot,
             data_freshness=data_freshness or {},
             pnl_metrics=pnl_metrics,
+            strategies_evaluated=strategies_evaluated,
+            rebalance_plan_summary=rebalance_plan_summary,
         )
 
         # Publish to EventBridge (triggers Notifications Lambda)

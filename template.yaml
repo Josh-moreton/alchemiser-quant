@@ -1462,6 +1462,16 @@ Resources:
                 - "alchemiser.data"
               detail-type:
                 - "DataLakeUpdateCompleted"
+        # ScheduleCreated from Schedule Manager (schedule set, early close, or holiday skip)
+        ScheduleCreatedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.coordinator"
+              detail-type:
+                - "ScheduleCreated"
     Metadata:
       BuildMethod: python3.12
       # BuildProperties removed - SAM auto-includes everything in CodeUri
