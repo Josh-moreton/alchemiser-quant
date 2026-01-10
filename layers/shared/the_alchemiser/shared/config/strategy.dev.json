@@ -8,7 +8,6 @@
     "flextiger.clj",
     "fomo_nomo.clj",
     "fomo_nomo_lev.clj",
-    "ftl_starburst.clj",
     "ftl_starburst_gen2.clj",
     "gold.clj",
     "group_stuff.clj",
@@ -31,7 +30,6 @@
     "flextiger.clj": 0.05,
     "fomo_nomo.clj": 0.05,
     "fomo_nomo_lev.clj": 0.05,
-    "ftl_starburst.clj": 0.05,
     "ftl_starburst_gen2.clj": 0.05,
     "gold.clj": 0.05,
     "group_stuff.clj": 0.05,
@@ -39,10 +37,10 @@
     "nuclear_feaver.clj": 0.05,
     "pals_spell.clj": 0.05,
     "pepe.clj": 0.05,
-    "rains_em_dancer.clj": 0.04,
-    "simons_full_kmlm.clj": 0.04,
-    "simons_kmlm.clj": 0.04,
-    "sisyphus_lowvol.clj": 0.04,
-    "tqqq_ftlt.clj": 0.04
+    "rains_em_dancer.clj": 0.05,
+    "simons_full_kmlm.clj": 0.05,
+    "simons_kmlm.clj": 0.05,
+    "sisyphus_lowvol.clj": 0.05,
+    "tqqq_ftlt.clj": 0.05
   }
 }
