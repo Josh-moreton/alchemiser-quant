@@ -103,6 +103,8 @@ class ExecutionRunService:
         enqueue_sells_only: bool = False,
         max_equity_limit_usd: Decimal | None = None,
         data_freshness: dict[str, Any] | None = None,
+        strategies_evaluated: int | None = None,
+        rebalance_plan_summary: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Create a new execution run with optional two-phase execution.
 
@@ -125,6 +127,8 @@ class ExecutionRunService:
             max_equity_limit_usd: Maximum allowed equity deployment (circuit breaker limit).
                 Calculated as portfolio_equity * EQUITY_DEPLOYMENT_PCT.
             data_freshness: Data freshness info from strategy phase.
+            strategies_evaluated: Number of DSL strategy files evaluated.
+            rebalance_plan_summary: Serialized rebalance plan items for email display.
 
         Returns:
             Run metadata dict.
@@ -187,6 +191,16 @@ class ExecutionRunService:
             import json
 
             item["data_freshness"] = {"S": json.dumps(data_freshness)}
+
+        # Store strategies_evaluated count
+        if strategies_evaluated is not None:
+            item["strategies_evaluated"] = {"N": str(strategies_evaluated)}
+
+        # Store rebalance_plan_summary as JSON for email display
+        if rebalance_plan_summary:
+            import json
+
+            item["rebalance_plan_summary"] = {"S": json.dumps(rebalance_plan_summary)}
 
         self._client.put_item(TableName=self._table_name, Item=item)
 

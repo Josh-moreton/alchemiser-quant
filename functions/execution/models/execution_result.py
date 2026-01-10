@@ -34,7 +34,11 @@ class OrderResult(BaseModel):
     )
 
     schema_version: str = Field(default="1.2", description="Schema version")
-    symbol: str = Field(..., max_length=10, description="Trading symbol")
+    symbol: str = Field(
+        ...,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     action: Literal["BUY", "SELL"] = Field(..., description="BUY or SELL action")
     trade_amount: Decimal = Field(..., ge=Decimal("0"), description="Dollar amount traded")
     planned_trade_amount: Decimal | None = Field(

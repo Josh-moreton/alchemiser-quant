@@ -24,6 +24,7 @@ from the_alchemiser.shared.events.eventbridge_publisher import unwrap_eventbridg
 from the_alchemiser.shared.events.schemas import (
     DataLakeNotificationRequested,
     ErrorNotificationRequested,
+    ScheduleNotificationRequested,
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
@@ -78,6 +79,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_workflow_failed(detail, correlation_id, source)
         if detail_type == "DataLakeUpdateCompleted":
             return _handle_data_lake_update(detail, correlation_id)
+        if detail_type == "ScheduleCreated":
+            return _handle_schedule_created(detail, correlation_id)
 
         logger.debug(
             f"Ignoring unsupported event type: {detail_type}",
@@ -256,6 +259,10 @@ def _build_trading_notification_from_aggregated(
         # Partial success context
         "is_partial_success": is_partial_success,
         "non_fractionable_skipped_symbols": non_fractionable_skipped_symbols,
+        # Strategy evaluation metadata
+        "strategies_evaluated": all_trades_detail.get("strategies_evaluated", 0),
+        # Rebalance plan summary for email display
+        "rebalance_plan_summary": all_trades_detail.get("rebalance_plan_summary", []),
     }
 
     # Add report URL to execution_data if available
@@ -509,6 +516,85 @@ def _handle_data_lake_update(detail: dict[str, Any], correlation_id: str) -> dic
         "statusCode": 200,
         "body": f"Data lake notification sent for correlation_id: {correlation_id}",
     }
+
+
+def _handle_schedule_created(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle ScheduleCreated event.
+
+    Sends notification about schedule creation, early close, or holiday skip.
+
+    Args:
+        detail: The detail payload from ScheduleCreated event
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    status = detail.get("status", "scheduled")
+    date = detail.get("date", "unknown")
+    is_early_close = detail.get("is_early_close", False)
+
+    logger.info(
+        "Processing ScheduleCreated",
+        extra={
+            "correlation_id": correlation_id,
+            "status": status,
+            "date": date,
+            "is_early_close": is_early_close,
+        },
+    )
+
+    container = ApplicationContainer.create_for_notifications("production")
+    notification_event = _build_schedule_notification(detail, correlation_id, container)
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    return {
+        "statusCode": 200,
+        "body": f"Schedule notification sent for correlation_id: {correlation_id}",
+    }
+
+
+def _build_schedule_notification(
+    schedule_detail: dict[str, Any],
+    correlation_id: str,
+    container: ApplicationContainer,
+) -> ScheduleNotificationRequested:
+    """Build ScheduleNotificationRequested from ScheduleCreated event.
+
+    Args:
+        schedule_detail: The detail payload from ScheduleCreated event
+        correlation_id: Correlation ID for tracing
+        container: Application container for config access
+
+    Returns:
+        ScheduleNotificationRequested event ready for processing
+
+    """
+    from the_alchemiser.shared.events.schemas import ScheduleNotificationRequested
+
+    # Build schedule context for templates
+    schedule_context = {
+        "status": schedule_detail.get("status", "scheduled"),
+        "date": schedule_detail.get("date", "unknown"),
+        "execution_time": schedule_detail.get("execution_time"),
+        "market_close_time": schedule_detail.get("market_close_time"),
+        "is_early_close": schedule_detail.get("is_early_close", False),
+        "schedule_name": schedule_detail.get("schedule_name"),
+        "skip_reason": schedule_detail.get("skip_reason"),
+        "env": container.config.stage(),
+    }
+
+    return ScheduleNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=schedule_detail.get("event_id", correlation_id),
+        event_id=f"schedule-notification-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        schedule_context=schedule_context,
+    )
 
 
 def _build_data_lake_notification(

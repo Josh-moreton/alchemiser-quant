@@ -68,7 +68,12 @@ class Position(BaseModel):
         description=SCHEMA_VERSION_DESCRIPTION,
     )
 
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     quantity: Decimal = Field(..., description="Position quantity (can be negative for short)")
     average_cost: Decimal = Field(..., ge=0, description="Average cost basis")
     current_price: Decimal = Field(..., ge=0, description="Current market price")

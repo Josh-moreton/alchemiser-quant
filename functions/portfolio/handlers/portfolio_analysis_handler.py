@@ -924,12 +924,15 @@ class PortfolioAnalysisHandler:
 
             if trades_required:
                 # Decompose and enqueue trades to SQS for parallel per-trade execution
+                # Extract strategies count from event metadata for email notifications
+                strategies_evaluated = original_event.metadata.get("strategies_aggregated", 0)
                 self._enqueue_trades_for_per_trade_execution(
                     rebalance_plan=rebalance_plan,
                     correlation_id=original_event.correlation_id,
                     causation_id=original_event.event_id,
                     alpaca_equity=alpaca_equity,
                     data_freshness=original_event.data_freshness,
+                    strategies_evaluated=strategies_evaluated,
                 )
 
             # Emit RebalancePlanned event to internal event bus (for lambda_handler capture)
@@ -997,6 +1000,7 @@ class PortfolioAnalysisHandler:
         *,
         alpaca_equity: Decimal | None = None,
         data_freshness: dict[str, Any] | None = None,
+        strategies_evaluated: int = 0,
     ) -> None:
         """Decompose rebalance plan and enqueue to SQS Standard queue for parallel execution.
 
@@ -1016,6 +1020,7 @@ class PortfolioAnalysisHandler:
             causation_id: Event that caused this operation.
             alpaca_equity: Alpaca account equity for circuit breaker calculation.
             data_freshness: Data freshness info from strategy phase.
+            strategies_evaluated: Number of DSL strategy files evaluated.
 
         """
         import boto3
@@ -1118,6 +1123,20 @@ class PortfolioAnalysisHandler:
         # Create run state entry in DynamoDB with two-phase tracking
         # BUY trades are stored but not enqueued yet (status=WAITING)
         run_service = ExecutionRunService(table_name=_get_execution_runs_table_name())
+
+        # Build rebalance plan summary for email notifications (BUY/SELL only, not HOLD)
+        rebalance_plan_summary = [
+            {
+                "symbol": item.symbol,
+                "action": item.action,
+                "current_weight_pct": float(item.current_weight * 100),
+                "target_weight_pct": float(item.target_weight * 100),
+                "trade_amount": float(item.trade_amount),
+            }
+            for item in rebalance_plan.items
+            if item.action in ["BUY", "SELL"]
+        ]
+
         run_service.create_run(
             run_id=run_id,
             plan_id=rebalance_plan.plan_id,
@@ -1127,6 +1146,8 @@ class PortfolioAnalysisHandler:
             enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
             max_equity_limit_usd=max_equity_limit_usd,  # Circuit breaker limit
             data_freshness=data_freshness,  # Propagate for email notifications
+            strategies_evaluated=strategies_evaluated,  # For email notifications
+            rebalance_plan_summary=rebalance_plan_summary,  # For email notifications
         )
 
         # Enqueue trades to FIFO SQS queue (parallel execution with exactly-once processing)

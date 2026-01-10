@@ -36,7 +36,12 @@ class RebalancePlanItem(BaseModel):
 
     __schema_version__: str = CONTRACT_VERSION
 
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     current_weight: Decimal = Field(..., ge=0, le=1, description="Current portfolio weight (0-1)")
     target_weight: Decimal = Field(..., ge=0, le=1, description="Target portfolio weight (0-1)")
     weight_diff: Decimal = Field(..., description="Weight difference (target - current)")
