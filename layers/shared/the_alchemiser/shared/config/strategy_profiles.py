@@ -131,11 +131,14 @@ def get_strategy_profile(stage: str = "dev", use_dynamic: bool = True) -> Strate
 
             weights_table = os.environ.get("STRATEGY_WEIGHTS__TABLE_NAME")
             if weights_table:
-                from the_alchemiser.shared.repositories.dynamodb_strategy_weights_repository import (
-                    DynamoDBStrategyWeightsRepository,
+                # Import repository for loading dynamic weights
+                from the_alchemiser.shared.repositories import (
+                    dynamodb_strategy_weights_repository,
                 )
 
-                repo = DynamoDBStrategyWeightsRepository(weights_table)
+                repo = dynamodb_strategy_weights_repository.DynamoDBStrategyWeightsRepository(
+                    weights_table
+                )
                 dynamic_weights = repo.get_current_weights()
 
                 if dynamic_weights:

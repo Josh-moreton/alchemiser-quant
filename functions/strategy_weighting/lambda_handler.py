@@ -9,7 +9,6 @@ allocations to tilt capital toward better risk-adjusted performers.
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
@@ -240,8 +239,7 @@ def _apply_weight_adjustments(
         return baseline_allocations
 
     dynamic_weights = {
-        strategy_name: weight / total_weight
-        for strategy_name, weight in adjusted_weights.items()
+        strategy_name: weight / total_weight for strategy_name, weight in adjusted_weights.items()
     }
 
     logger.info(

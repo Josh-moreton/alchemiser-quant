@@ -93,9 +93,7 @@ class SharpeCalculator:
 
         return sharpe_ratios
 
-    def calculate_strategy_sharpe(
-        self, strategy_name: str, correlation_id: str
-    ) -> Decimal | None:
+    def calculate_strategy_sharpe(self, strategy_name: str, correlation_id: str) -> Decimal | None:
         """Calculate annualized Sharpe ratio for a single strategy.
 
         Sharpe Ratio = (Annualized Return - Risk Free Rate) / Annualized Volatility
