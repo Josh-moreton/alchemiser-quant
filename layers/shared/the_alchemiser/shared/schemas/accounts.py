@@ -294,7 +294,12 @@ class TradeEligibilityResult(BaseModel):
     eligible: bool = Field(..., description="Whether trade is eligible")
     reason: str | None = Field(None, description="Reason if not eligible")
     details: dict[str, Any] | None = Field(None, description="Additional validation details")
-    symbol: str | None = Field(None, min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
+    symbol: str | None = Field(
+        None,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     quantity: Decimal | None = Field(None, gt=0, description="Trade quantity")
     side: Literal["BUY", "SELL"] | None = Field(None, description="Trade side")
     estimated_cost: Decimal | None = Field(None, ge=0, description="Estimated trade cost")

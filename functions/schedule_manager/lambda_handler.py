@@ -39,6 +39,7 @@ ORCHESTRATOR_FUNCTION_ARN = os.environ.get("ORCHESTRATOR_FUNCTION_ARN", "")
 SCHEDULER_ROLE_ARN = os.environ.get("SCHEDULER_ROLE_ARN", "")
 SCHEDULE_GROUP_NAME = os.environ.get("SCHEDULE_GROUP_NAME", "default")
 MINUTES_BEFORE_CLOSE = int(os.environ.get("MINUTES_BEFORE_CLOSE", "15"))
+APP_STAGE = os.environ.get("APP__STAGE", "dev")
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
@@ -134,7 +135,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         )
 
         # Create one-time EventBridge Scheduler rule
-        schedule_name = f"trading-execution-{today.isoformat()}"
+        schedule_name = f"alchemiser-{APP_STAGE}-trading-execution-{today.isoformat()}"
 
         _create_one_time_schedule(
             schedule_name=schedule_name,

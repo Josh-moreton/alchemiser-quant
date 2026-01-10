@@ -72,7 +72,12 @@ class MarketBar(BaseModel):
 
     # Bar identification
     timestamp: datetime = Field(..., description="Bar timestamp")
-    symbol: str = Field(..., min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
+    symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     timeframe: str = Field(..., description="Timeframe (1D, 1H, 15Min, etc.)")
 
     # OHLCV data
