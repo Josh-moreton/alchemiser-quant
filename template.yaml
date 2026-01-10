@@ -1554,6 +1554,7 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:UpdateItem
                   - dynamodb:Query
+                  - dynamodb:Scan
                 Resource:
                   - !GetAtt NotificationDedupTable.Arn
 
