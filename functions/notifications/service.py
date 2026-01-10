@@ -3,7 +3,7 @@
 Notification service for event-driven notifications via SES.
 
 This service consumes notification events and sends templated HTML + plain text emails
-via Amazon SES with deduplication and recovery tracking.
+via Amazon SES.
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from the_alchemiser.shared.events.schemas import (
     TradingNotificationRequested,
 )
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.notifications.dedup import get_dedup_manager
 from the_alchemiser.shared.notifications.ses_publisher import send_email
 from the_alchemiser.shared.notifications.templates import (
     format_subject,
@@ -40,7 +39,7 @@ class NotificationService:
     """Event-driven notification service using Amazon SES.
 
     Consumes notification events and sends appropriate emails using SES
-    with HTML + plain text templates, deduplication, and recovery tracking.
+    with HTML + plain text templates.
     """
 
     def __init__(self, container: ApplicationContainer) -> None:
@@ -62,9 +61,6 @@ class NotificationService:
         self.nonprod_recipients = os.environ.get(
             "NOTIFICATIONS_TO_NONPROD", "notifications@rwxt.org"
         )
-
-        # Deduplication manager
-        self.dedup_manager = get_dedup_manager()
 
     def register_handlers(self) -> None:
         """Register event handlers with the event bus."""
@@ -170,32 +166,9 @@ class NotificationService:
         """
         self._log_event_context(event, f"Processing error notification: {event.error_title}")
 
-        # Extract error details for dedup
-        error_details = {
-            "exception_type": event.error_code or "Unknown",
-            "exception_message": event.error_report,
-        }
-
-        # Check if we should send this failure email (dedup)
-        component = "daily run"  # Default for now; can be extracted from event later
-        failed_step = event.error_title  # Use title as failed step
+        component = "daily run"
+        failed_step = event.error_title
         run_id = event.correlation_id
-
-        should_send = self.dedup_manager.should_send_failure_email(
-            component=component,
-            env=self.stage,
-            failed_step=failed_step,
-            error_details=error_details,
-            run_id=run_id,
-        )
-
-        if not should_send:
-            self._log_event_context(
-                event,
-                "Failure email suppressed by deduplication",
-                "info",
-            )
-            return
 
         try:
             # Build template context for failure email
@@ -277,17 +250,6 @@ class NotificationService:
         self._log_event_context(
             event, f"Processing trading notification: success={event.trading_success}"
         )
-
-        # Check for recovery (if this is a success after previous failures)
-        if event.trading_success:
-            recovery_info = self.dedup_manager.check_recovery(
-                component="Daily Run",
-                env=self.stage,
-                run_id=event.correlation_id,
-            )
-
-            if recovery_info:
-                self._send_recovery_email(recovery_info, event)
 
         # Build template context for success/failure email
         execution_data = event.execution_data or {}
@@ -436,86 +398,6 @@ class NotificationService:
                 event,
                 f"Failed to send trading notification ({type(e).__name__}): {e}",
                 "error",
-            )
-
-    def _send_recovery_email(
-        self, recovery_info: dict[str, Any], event: TradingNotificationRequested
-    ) -> None:
-        """Send RECOVERED email after previous failures cleared.
-
-        Args:
-            recovery_info: Recovery information from dedup manager
-            event: The successful trading event that triggered recovery
-
-        """
-        self.logger.info(
-            "Sending RECOVERED notification",
-            extra={
-                "correlation_id": event.correlation_id,
-                "recovered_count": len(recovery_info.get("recovered_keys", [])),
-            },
-        )
-
-        # Build simple recovery message (can be enhanced with template later)
-        recovered_keys = recovery_info.get("recovered_keys", [])
-        recovery_details = "\n".join(
-            [
-                f"• {key['dedup_key']}: {key['repeat_count']} occurrences from {key['first_seen_time']} to {key['last_seen_time']}"
-                for key in recovered_keys
-            ]
-        )
-
-        html_body = f"""
-<!DOCTYPE html>
-<html>
-<body style="font-family: sans-serif; padding: 20px;">
-    <h2 style="color: #17a2b8;">✅ System Recovered</h2>
-    <p>Previous failures have been resolved in run <strong>{event.correlation_id}</strong>.</p>
-    <h3>Recovered Failures:</h3>
-    <ul>
-        {"".join([f"<li>{key['dedup_key']}: {key['repeat_count']} occurrences</li>" for key in recovered_keys])}
-    </ul>
-    <p>The system is now operating normally.</p>
-</body>
-</html>
-"""
-
-        text_body = f"""
-SYSTEM RECOVERED
-================
-
-Previous failures have been resolved in run {event.correlation_id}.
-
-Recovered Failures:
-{recovery_details}
-
-The system is now operating normally.
-"""
-
-        subject = format_subject(
-            component="daily run",
-            status="RECOVERED",
-            env=self.stage,
-            run_id=event.correlation_id,
-        )
-
-        try:
-            result = send_email(
-                to_addresses=self._get_recipients(),
-                subject=subject,
-                html_body=html_body,
-                text_body=text_body,
-            )
-
-            if result.get("status") == "sent":
-                self.logger.info(
-                    f"Recovery notification sent (message_id={result.get('message_id')})",
-                    extra={"correlation_id": event.correlation_id},
-                )
-        except Exception as e:
-            self.logger.error(
-                f"Failed to send recovery notification: {e}",
-                extra={"correlation_id": event.correlation_id},
             )
 
     def _handle_system_notification(self, event: SystemNotificationRequested) -> None:
