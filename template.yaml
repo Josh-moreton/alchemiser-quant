@@ -1733,27 +1733,14 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
 
-  # Production-only fallback schedule at 3:50 PM ET Mon-Fri.
-  # This provides a 5-minute buffer after the dynamic schedule (3:45 PM).
-  # Dev/staging rely solely on the Schedule Manager for dynamic scheduling,
-  # so we can verify the early close handling works correctly.
-  # On early close days, the dynamic schedule fires earlier (e.g., 12:45 PM).
-  StrategySchedule:
-    Type: AWS::Scheduler::Schedule
-    Condition: IsProduction
-    Properties:
-      Name: !Sub "alchemiser-${Stage}-strategy-schedule-fallback"
-      Description: "Production fallback schedule - fires 5 min after dynamic schedule as safety net"
-      ScheduleExpression: "cron(50 15 ? * MON-FRI *)"
-      ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt StrategyOrchestratorFunction.Arn
-        RoleArn: !GetAtt StrategySchedulerRole.Arn
-        Input: '{"mode": "trade", "scheduled_by": "fallback_schedule"}'
-        RetryPolicy:
-          MaximumRetryAttempts: 1
+  # REMOVED: Production fallback schedule (was at 3:50 PM ET Mon-Fri)
+  # The fallback schedule was causing double runs when the dynamic schedule succeeded.
+  # All environments (dev/staging/prod) now rely solely on the Schedule Manager for dynamic scheduling.
+  # The Schedule Manager creates one-time schedules at 15 minutes before market close (accounting for early close days).
+  # If the Schedule Manager fails, we will be notified through normal WorkflowFailed event channels.
+  # Historical note: The fallback was intended as a "safety net" but added unnecessary complexity.
+  #
+  # StrategySchedule resource removed - see issue "Double run bug" for details.
 
   StrategySchedulerRole:
     Type: AWS::IAM::Role
