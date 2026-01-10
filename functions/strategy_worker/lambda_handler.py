@@ -12,6 +12,7 @@ for aggregation by the Aggregator Lambda.
 
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -29,6 +30,12 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+
+# Increase recursion limit for deeply nested DSL strategies.
+# Some strategies like ftl_starburst_gen2.clj have 288+ levels of nesting
+# which exceeds Python's default limit of 1000 when combined with evaluator
+# recursion. 10000 provides ample headroom for complex strategies.
+sys.setrecursionlimit(10000)
 
 # Initialize logging on cold start (must be before get_logger)
 configure_application_logging()
