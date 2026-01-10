@@ -25,7 +25,7 @@ class SettlementDetails(BaseModel):
     )
 
     schema_version: str = Field(default="1.0", description="Schema version")
-    symbol: str = Field(..., max_length=10, description="Trading symbol")
+    symbol: str = Field(..., max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
     side: Literal["BUY", "SELL"] = Field(..., description="Order side")
     settled_quantity: Decimal = Field(..., ge=Decimal("0"), description="Quantity settled")
     settlement_price: Decimal = Field(..., ge=Decimal("0"), description="Average fill price")

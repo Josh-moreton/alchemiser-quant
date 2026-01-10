@@ -36,7 +36,7 @@ class TechnicalIndicator(BaseModel):
     )
 
     # Identification
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(..., min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
     timestamp: datetime = Field(..., description="Indicator calculation timestamp")
     data_source: str | None = Field(default=None, description="Data source identifier")
 

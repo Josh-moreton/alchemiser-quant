@@ -45,7 +45,7 @@ class OrderRequest(BaseModel):
     strategy_id: str | None = Field(default=None, description="Strategy identifier if applicable")
 
     # Order details
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(..., min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
     side: Literal["BUY", "SELL"] = Field(..., description="Order side")
     quantity: Decimal = Field(..., gt=0, description="Order quantity")
     order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"] = Field(
@@ -214,7 +214,7 @@ class MarketData(BaseModel):
     timestamp: datetime = Field(..., description="Market data timestamp")
 
     # Market data identification
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(..., min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
     data_type: Literal["QUOTE", "TRADE", "BAR", "SNAPSHOT"] = Field(
         ..., description="Type of market data"
     )

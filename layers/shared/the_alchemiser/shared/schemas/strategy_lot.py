@@ -96,7 +96,7 @@ class StrategyLot(BaseModel):
         description="Unique lot identifier",
     )
     strategy_name: str = Field(..., min_length=1, description="Strategy that owns this lot")
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(..., min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
 
     # Entry details
     entry_order_id: str = Field(..., min_length=1, description="Broker order ID for entry")

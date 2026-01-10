@@ -75,7 +75,7 @@ class TradeMessage(BaseModel):
     )
 
     # ========== Trade content (from RebalancePlanItem) ==========
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(..., min_length=1, max_length=50, description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)")
     action: str = Field(..., description="Trading action (BUY or SELL)")
     trade_amount: Decimal = Field(
         ..., description="Dollar amount to trade (positive=buy, negative=sell)"
