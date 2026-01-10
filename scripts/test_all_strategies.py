@@ -45,19 +45,18 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
     from the_alchemiser.shared.value_objects.symbol import Symbol
 
-# The 11 strategies we're validating against Composer
+# The 10 strategies we're validating against Composer (matching strategy.dev.json)
 VALIDATION_STRATEGIES = [
     "beam_chain",
     "beefier_3x",
     "bento_collection",
-    "chicken_rice",
     "ftl_starburst",
     "gold",
-    "nova_ibit",
     "nuclear_feaver",
     "rains_em_dancer",
     "simons_kmlm",
     "sisyphus_lowvol",
+    "tqqq_ftlt",
 ]
 
 # Test dates
