@@ -9,6 +9,7 @@ strategy.prod.json).
 
 Architecture:
     - Primary: JSON config files (loaded by StrategySettings._get_stage_profile)
+    - Dynamic overlay: DynamoDB dynamic weights (loaded by get_strategy_profile)
     - Fallback: These Python constants (used when JSON load fails)
 
 Maintenance Policy:
@@ -23,6 +24,9 @@ Related:
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
+from decimal import Decimal
 
 # Strategy file name constants
 # These represent DSL strategy files (Clojure) that define trading logic
@@ -78,6 +82,88 @@ PROD_DSL_ALLOCATIONS: dict[str, float] = {
 }
 # Total: 1.0 (100%) - Validated by tests
 
+
+@dataclass
+class StrategyProfile:
+    """Container for strategy configuration profile.
+
+    Attributes:
+        files: List of DSL strategy filenames
+        allocations: Dict mapping strategy filename to allocation weight (0-1)
+        is_dynamic: True if allocations were loaded from dynamic weights table
+
+    """
+
+    files: list[str]
+    allocations: dict[str, Decimal]
+    is_dynamic: bool = False
+
+
+def get_strategy_profile(stage: str = "dev", use_dynamic: bool = True) -> StrategyProfile:
+    """Get strategy profile with optional dynamic weight overlay.
+
+    Resolution order:
+    1. Load baseline allocations from JSON config or fallback constants
+    2. If use_dynamic=True, overlay dynamic weights from DynamoDB (if available)
+    3. Return profile with final allocations
+
+    Args:
+        stage: Deployment stage ("dev", "staging", or "prod")
+        use_dynamic: If True, overlay dynamic weights from DynamoDB
+
+    Returns:
+        StrategyProfile with files and allocations
+
+    """
+    # Load baseline allocations from config (existing code path)
+    from .config import StrategySettings
+
+    settings = StrategySettings()
+
+    # Convert float allocations to Decimal for precision
+    baseline_allocations = {k: Decimal(str(v)) for k, v in settings.dsl_allocations.items()}
+    files = settings.dsl_files
+
+    # Overlay dynamic weights if enabled
+    if use_dynamic:
+        try:
+            import os
+
+            weights_table = os.environ.get("STRATEGY_WEIGHTS__TABLE_NAME")
+            if weights_table:
+                from the_alchemiser.shared.repositories.dynamodb_strategy_weights_repository import (
+                    DynamoDBStrategyWeightsRepository,
+                )
+
+                repo = DynamoDBStrategyWeightsRepository(weights_table)
+                dynamic_weights = repo.get_current_weights()
+
+                if dynamic_weights:
+                    # Overlay dynamic weights on baseline allocations
+                    # Only update strategies that exist in both baseline and dynamic weights
+                    for strategy_name, weight in dynamic_weights.items():
+                        if strategy_name in baseline_allocations:
+                            baseline_allocations[strategy_name] = weight
+
+                    return StrategyProfile(
+                        files=files,
+                        allocations=baseline_allocations,
+                        is_dynamic=True,
+                    )
+        except Exception as e:
+            # Log error but continue with baseline allocations
+            import logging
+
+            logging.warning(f"Failed to load dynamic weights, using baseline: {e}")
+
+    # Return baseline allocations (no dynamic overlay)
+    return StrategyProfile(
+        files=files,
+        allocations=baseline_allocations,
+        is_dynamic=False,
+    )
+
+
 # Public API
 __all__ = [
     # Development configuration
@@ -94,4 +180,7 @@ __all__ = [
     "STRATEGY_STARBURST",
     "STRATEGY_TQQQ_FLT",
     "STRATEGY_WHAT",
+    # Dynamic profile API
+    "StrategyProfile",
+    "get_strategy_profile",
 ]

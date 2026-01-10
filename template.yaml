@@ -529,6 +529,43 @@ Resources:
         - Key: Service
           Value: bad-data-markers
 
+  # ========== STRATEGY WEIGHTS TABLE (PER-STAGE) ==========
+  # DynamoDB table for storing dynamically adjusted strategy allocations
+  # Updated weekly based on Sharpe ratio analysis, TTL auto-expires old records
+  StrategyWeightsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-weights"
+        - !Sub "alchemiser-${Stage}-strategy-weights"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: strategy-weights
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1877,6 +1914,106 @@ Resources:
                 Resource:
                   - !GetAtt ScheduleManagerFunction.Arn
 
+  # ========== STRATEGY WEIGHTING LAMBDA (DYNAMIC ALLOCATION) ==========
+  # Adjusts strategy weights based on recent Sharpe ratios
+  # Runs weekly on Sundays at 6 PM ET to prepare for Monday trading
+  StrategyWeightingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-weighting"
+        - !Sub "alchemiser-${Stage}-strategy-weighting"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/strategy_weighting/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt StrategyWeightingExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog)
+      Timeout: 300  # 5 minutes for Sharpe calculation
+      MemorySize: 512
+      Environment:
+        Variables:
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          STRATEGY_WEIGHTS__TABLE_NAME: !Ref StrategyWeightsTable
+          LOOKBACK_DAYS: "90"  # 90-day lookback for Sharpe calculation
+    Metadata:
+      BuildMethod: python3.12
+
+  StrategyWeightingExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StrategyWeightingPolicy
+          PolicyDocument:
+            Statement:
+              # Read trade ledger for P&L history
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+                  - !Sub "${TradeLedgerTable.Arn}/index/*"
+              # Write dynamic weights to weights table
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt StrategyWeightsTable.Arn
+
+  # Weekly schedule to trigger Strategy Weighting Lambda (Sundays at 6 PM ET)
+  StrategyWeightingSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-weighting"
+        - !Sub "alchemiser-${Stage}-strategy-weighting"
+      Description: "Adjust strategy weights weekly based on Sharpe ratios (Sundays 6 PM ET)"
+      ScheduleExpression: "cron(0 18 ? * SUN *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyWeightingFunction.Arn
+        RoleArn: !GetAtt StrategyWeightingSchedulerRole.Arn
+        Input: '{"source": "weekly_schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  StrategyWeightingSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeStrategyWeighting
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt StrategyWeightingFunction.Arn
+
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -2277,6 +2414,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-BadDataMarkersTable"
         - !Sub "alchemiser-${Stage}-BadDataMarkersTable"
+
+  StrategyWeightsTableName:
+    Description: "DynamoDB table for dynamic strategy weights"
+    Value: !Ref StrategyWeightsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-StrategyWeightsTable"
+        - !Sub "alchemiser-${Stage}-StrategyWeightsTable"
 
   DataFunctionArn:
     Description: "ARN of per-stage data function"
