@@ -9,7 +9,7 @@ discrepancies with Composer.trade.
 
 Usage:
     poetry run python scripts/debug_strategy.py simons_kmlm
-    poetry run python scripts/debug_strategy.py chicken_rice
+    poetry run python scripts/debug_strategy.py beam_chain
     poetry run python scripts/debug_strategy.py --list  # List all strategies
 
 """

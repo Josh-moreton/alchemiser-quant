@@ -16,15 +16,15 @@ Usage:
     poetry run python scripts/trace_strategy_routes.py --list
 
     # Live mode (uses CachedMarketDataAdapter; optional live bar injection)
-    poetry run python scripts/trace_strategy_routes.py nova_ibit --out /tmp/nova.json
+    poetry run python scripts/trace_strategy_routes.py beam_chain --out /tmp/beam.json
 
     # Historical mode (cuts market data at date; no live bar injection)
-    poetry run python scripts/trace_strategy_routes.py nova_ibit --as-of 2026-01-06 --out /tmp/nova_2026-01-06.json
+    poetry run python scripts/trace_strategy_routes.py beam_chain --as-of 2026-01-06 --out /tmp/beam_2026-01-06.json
 
     # Toggle partial bar policy to probe Composer semantics
-    poetry run python scripts/trace_strategy_routes.py nova_ibit --policy composer
-    poetry run python scripts/trace_strategy_routes.py nova_ibit --policy all-live
-    poetry run python scripts/trace_strategy_routes.py nova_ibit --policy none-live
+    poetry run python scripts/trace_strategy_routes.py beam_chain --policy composer
+    poetry run python scripts/trace_strategy_routes.py beam_chain --policy all-live
+    poetry run python scripts/trace_strategy_routes.py beam_chain --policy none-live
 
 """
 
