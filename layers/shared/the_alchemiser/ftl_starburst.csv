@@ -1,0 +1,100 @@
+Composer Simulated Holdings
+Aug 10, 2024->Jan 9, 2026 | Assuming an initial investment of $10,000
+Current Price	Quantity	Market Value	Current Allocation	
+Symphony Cash Remainder
+US Dollar
+$1.00
+$4.73	0.0%	
+BIL
+State Street SPDR Bloomberg 1-3 Month T-Bill ETF
+$91.48
+0.892	$81.57	0.3%	
+COST
+Costco Wholesale Corp
+$924.88
+0.913	$844.04	3.4%	
+EDZ
+Direxion Daily Emerging Markets Bear 3x Shares
+$31.21
+87.000	$2,715.13	11.1%	
+FCG
+First Trust Natural Gas ETF
+$23.10
+8.827	$203.86	0.8%	
+FTLS
+First Trust Long/Short Equity ETF
+$71.55
+9.506	$680.16	2.8%	
+GE
+GE Aerospace
+$321.59
+2.028	$652.27	2.7%	
+GLD
+SPDR Gold Trust, SPDR Gold Shares
+$414.47
+0.295	$122.08	0.5%	
+LLY
+Eli Lilly & Co.
+$1,064.11
+0.561	$597.34	2.4%	
+NVO
+Novo-Nordisk A/S
+$58.82
+10.635	$625.56	2.6%	
+PSQ
+ProShares Short QQQ
+$29.64
+6.880	$203.94	0.8%	
+SHV
+iShares Trust iShares 0-1 Year Treasury Bond ETF
+$110.25
+9.248	$1,019.54	4.2%	
+SVXY
+ProShares Short VIX Short-Term Futures ETF
+$56.33
+10.852	$611.25	2.5%	
+TBF
+ProShares Short 20+ Year Treasury ETF
+$23.94
+42.570	$1,019.12	4.2%	
+TECL
+Direxion Daily Technology Bull 3x Shares
+$122.26
+6.663	$814.64	3.3%	
+TECS
+Direxion Daily Technology Bear 3x Shares
+$16.56
+164.180	$2,718.82	11.1%	
+TQQQ
+ProShares UltraPro QQQ
+$55.76
+182.848	$10,195.61	41.7%	
+UUP
+Invesco DB US Dollar Index Bullish Fund
+$27.32
+24.869	$679.43	2.8%	
+VIXM
+ProShares VIX Mid-Term Futures ETF
+$14.97
+45.372	$679.23	2.8%
+
+Our simulated holdings:
+Target Allocations (18 positions):
+  TECS      22.22%
+  EDZ       22.22%
+  TQQQ      20.83%
+  COST       5.88%
+  GE         5.51%
+  NVO        5.45%
+  LLY        5.39%
+  SHV        2.08%
+  TBF        2.08%
+  TECL       1.67%
+  UUP        1.39%
+  FTLS       1.39%
+  VIXM       1.39%
+  SVXY       1.25%
+  PSQ        0.42%
+  FCG        0.42%
+  GLD        0.25%
+  BIL        0.17%
