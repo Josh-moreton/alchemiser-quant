@@ -20,6 +20,7 @@ from alpaca.data.enums import Adjustment
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
+from the_alchemiser.shared.brokers.alpaca_utils import normalize_symbol_for_alpaca
 from the_alchemiser.shared.errors import (
     DataProviderError,
     MarketDataError,
@@ -36,7 +37,6 @@ from the_alchemiser.shared.utils.alpaca_error_handler import (
     RequestException,
     RetryException,
 )
-from the_alchemiser.shared.brokers.alpaca_utils import normalize_symbol_for_alpaca
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:

@@ -1,0 +1,21 @@
+validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,beam_chain,beam_chain.clj,yes,,2026-01-10T20:00:04.465793+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,beefier_3x,beefier_3x.clj,yes,,2026-01-10T20:00:28.029598+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,bento_collection,bento_collection.clj,yes,,2026-01-10T20:00:48.354538+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,beta_baller,beta_baller.clj,yes,,2026-01-10T20:01:03.409031+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,blatant_tech,blatant_tech.clj,yes,,2026-01-10T20:01:43.592873+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,flextiger,flextiger.clj,yes,,2026-01-10T20:02:05.695268+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,fomo_nomo,fomo_nomo.clj,no,"weights are out, see file",2026-01-10T20:03:57.351799+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,fomo_nomo_lev,fomo_nomo_lev.clj,no,"wrong, see file",2026-01-10T20:05:01.302877+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,ftl_starburst_gen2,ftl_starburst_gen2.clj,no,"signal is 100% NAIL, we're 100% TQQQ",2026-01-10T20:06:50.516596+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,gold,gold.clj,yes,,2026-01-10T20:07:01.102907+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,group_stuff,group_stuff.clj,yes,,2026-01-10T20:07:31.252833+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,lose_money,lose_money.clj,yes,,2026-01-10T20:07:43.533402+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,nuclear_feaver,nuclear_feaver.clj,yes,,2026-01-10T20:07:53.517987+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,pals_spell,pals_spell.clj,yes,,2026-01-10T20:08:03.046957+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,pepe,pepe.clj,yes,,2026-01-10T20:08:13.688309+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,rains_em_dancer,rains_em_dancer.clj,yes,,2026-01-10T20:08:26.326622+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,simons_full_kmlm,simons_full_kmlm.clj,yes,,2026-01-10T20:08:37.187180+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,simons_kmlm,simons_kmlm.clj,yes,,2026-01-10T20:08:54.921007+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,sisyphus_lowvol,sisyphus_lowvol.clj,yes,,2026-01-10T20:09:33.792552+00:00
+2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,tqqq_ftlt,tqqq_ftlt.clj,yes,,2026-01-10T20:09:51.077007+00:00

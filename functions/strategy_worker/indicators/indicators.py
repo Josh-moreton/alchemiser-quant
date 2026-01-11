@@ -451,9 +451,9 @@ class TechnicalIndicators:
     def max_drawdown(data: pd.Series, window: int) -> pd.Series:
         """Return rolling maximum drawdown over window (percentage magnitude).
 
-        For each point, computes max peak-to-trough decline within the last
-        `window` observations. This indicator measures the maximum loss from
-        a peak to a subsequent trough before a new peak is achieved.
+        For each point, computes the maximum decline from the first price
+        in the window to any subsequent trough. This matches Composer's
+        max-drawdown calculation methodology.
 
         Args:
             data (pd.Series): Price data series (typically closing prices).
@@ -470,11 +470,12 @@ class TechnicalIndicators:
             >>> prices = pd.Series([100, 105, 98, 102, 95, 110])
             >>> mdd = TechnicalIndicators.max_drawdown(prices, 3)
             >>> print(f"Max 3-day drawdown: {mdd.iloc[-1]:.1f}%")
-            Max 3-day drawdown: 6.7%
+            Max 3-day drawdown: 4.5%
 
         Note:
-            Formula: max((peak - trough) / peak) * 100 within rolling window.
-            Larger values indicate greater risk and volatility.
+            Composer methodology: measures decline from first price in window,
+            not from rolling cumulative max. This captures "how much have we
+            dropped from where we started N days ago" rather than peak-to-trough.
 
         """
         # Input validation
@@ -494,12 +495,13 @@ class TechnicalIndicators:
             return pd.Series([0] * len(data), index=data.index)
 
         try:
-            # Rolling window apply; use price series
+            # Rolling window apply using Composer's first-price methodology
             def mdd_window(x: pd.Series) -> float:
-                """Compute max drawdown within a rolling window.
+                """Compute max drawdown from first price in window.
 
-                Calculates the maximum peak-to-trough decline as a percentage
-                within the given window of prices.
+                Calculates the maximum decline from the first price in the
+                window to any subsequent price. This matches Composer's
+                max-drawdown behavior.
 
                 Args:
                     x: Price series within the rolling window.
@@ -508,9 +510,9 @@ class TechnicalIndicators:
                     Maximum drawdown as a positive percentage value.
 
                 """
-                # compute max drawdown within this window
-                roll_max = x.cummax()
-                drawdowns = (x / roll_max) - 1.0
+                # Composer method: measure from first price in window
+                first_price = x.iloc[0]
+                drawdowns = (x / first_price) - 1.0
                 return float(-drawdowns.min() * 100.0)
 
             return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)

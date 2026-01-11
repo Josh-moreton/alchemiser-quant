@@ -119,6 +119,138 @@ PORTFOLIO PERFORMANCE
 """
 
 
+def _format_data_freshness_for_display(data_freshness: dict[str, Any]) -> tuple[str, int, str]:
+    """Format data freshness info for email display.
+
+    Handles N/A cases by showing a user-friendly message instead of raw "N/A".
+    Formats ISO timestamps as readable dates.
+
+    Args:
+        data_freshness: Dict with latest_timestamp, age_days, gate_status, symbols_checked.
+
+    Returns:
+        Tuple of (formatted_latest, age_days, gate_status).
+        formatted_latest: Human-readable date like "Jan 9, 2026" or descriptive message.
+
+    """
+    latest_timestamp = data_freshness.get("latest_timestamp")
+    age_days = data_freshness.get("age_days", 0)
+    gate_status = data_freshness.get("gate_status", "UNKNOWN")
+    symbols_checked = data_freshness.get("symbols_checked", 0)
+
+    # Handle None/missing timestamp
+    if not latest_timestamp:
+        if symbols_checked > 0:
+            return f"No data ({symbols_checked} symbols checked)", age_days, gate_status
+        return "No data available", age_days, gate_status
+
+    # Format ISO timestamp to readable date (e.g., "Jan 9, 2026")
+    try:
+        dt = date_parser.isoparse(latest_timestamp)
+        formatted_date = dt.strftime("%b %-d, %Y")  # Jan 9, 2026
+        return formatted_date, age_days, gate_status
+    except Exception:
+        # If parsing fails, return original
+        return str(latest_timestamp), age_days, gate_status
+
+
+def _format_rebalance_plan_html(rebalance_plan_summary: list[dict[str, Any]]) -> str:
+    """Format rebalance plan summary as HTML table for email display.
+
+    Args:
+        rebalance_plan_summary: List of dicts with symbol, action, weights, trade_amount.
+
+    Returns:
+        HTML snippet for rebalance plan table, or empty string if no items.
+
+    """
+    if not rebalance_plan_summary:
+        return ""
+
+    rows_html = ""
+    for item in rebalance_plan_summary:
+        symbol = item.get("symbol", "?")
+        action = item.get("action", "?")
+        current_pct = item.get("current_weight_pct", 0)
+        target_pct = item.get("target_weight_pct", 0)
+        trade_amount = item.get("trade_amount", 0)
+
+        # Color coding for action
+        if action == "BUY":
+            action_color = "#28a745"  # Green
+            action_symbol = "⬆️"
+        else:
+            action_color = "#dc3545"  # Red
+            action_symbol = "⬇️"
+
+        # Format trade amount with sign
+        amount_sign = "+" if trade_amount > 0 else ""
+        amount_str = f"{amount_sign}${trade_amount:,.2f}"
+
+        rows_html += f"""
+                <tr>
+                    <td style="padding: 4px 8px; border: 1px solid #dee2e6;">{symbol}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #dee2e6; color: {action_color}; font-weight: bold;">{action_symbol} {action}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">{current_pct:.1f}%</td>
+                    <td style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">{target_pct:.1f}%</td>
+                    <td style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">{amount_str}</td>
+                </tr>"""
+
+    return f"""
+        <div style="background-color: #f0f8ff; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #007bff;">
+            <h4 style="margin: 0 0 8px 0; color: #004085; font-size: 13px;">📊 Rebalance Plan</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                    <tr style="background-color: #e9ecef;">
+                        <th style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: left;">Symbol</th>
+                        <th style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: left;">Action</th>
+                        <th style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">Current</th>
+                        <th style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">Target</th>
+                        <th style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">Trade $</th>
+                    </tr>
+                </thead>
+                <tbody>{rows_html}
+                </tbody>
+            </table>
+        </div>
+"""
+
+
+def _format_rebalance_plan_text(rebalance_plan_summary: list[dict[str, Any]]) -> str:
+    """Format rebalance plan summary as plain text for email display.
+
+    Args:
+        rebalance_plan_summary: List of dicts with symbol, action, weights, trade_amount.
+
+    Returns:
+        Plain text snippet for rebalance plan, or empty string if no items.
+
+    """
+    if not rebalance_plan_summary:
+        return ""
+
+    lines = ["REBALANCE PLAN", "-" * 60]
+    lines.append(f"{'Symbol':<8} {'Action':<6} {'Current':>8} {'Target':>8} {'Trade $':>12}")
+    lines.append("-" * 60)
+
+    for item in rebalance_plan_summary:
+        symbol = item.get("symbol", "?")
+        action = item.get("action", "?")
+        current_pct = item.get("current_weight_pct", 0)
+        target_pct = item.get("target_weight_pct", 0)
+        trade_amount = item.get("trade_amount", 0)
+
+        amount_sign = "+" if trade_amount > 0 else ""
+        amount_str = f"{amount_sign}${trade_amount:,.2f}"
+
+        lines.append(
+            f"{symbol:<8} {action:<6} {current_pct:>7.1f}% {target_pct:>7.1f}% {amount_str:>12}"
+        )
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 def format_subject(
     component: str,
     status: str,
@@ -261,6 +393,7 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
+    strategies_evaluated = context.get("strategies_evaluated", 0)
     symbols_evaluated = context.get("symbols_evaluated", 0)
     eligible = context.get("eligible_signals_count", 0)
     blocked = context.get("blocked_by_risk_count", 0)
@@ -275,14 +408,16 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     gross_exposure = context.get("gross_exposure", 0)
     top_positions = context.get("top_positions", [])
 
+    # Use helper to format data freshness nicely
     data_freshness = context.get("data_freshness", {})
-    latest_candle = data_freshness.get("latest_timestamp", "N/A")
-    candle_age = data_freshness.get("age_days", 0)
-    freshness_gate = data_freshness.get("gate_status", "UNKNOWN")
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
 
     # Extract P&L metrics
     monthly_pnl = context.get("monthly_pnl", {})
     yearly_pnl = context.get("yearly_pnl", {})
+
+    # Rebalance plan for display
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
 
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
@@ -303,7 +438,7 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #e7f5e9; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #28a745;">
             <h4 style="margin: 0 0 8px 0; color: #155724; font-size: 13px;">Outcome Summary</h4>
-            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Strategies evaluated:</strong> {strategies_evaluated} | <strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
             <p style="margin: 0; font-size: 11px;"><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
         </div>
 
@@ -329,10 +464,13 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     # Add P&L section if data available
     body += _format_pnl_html(monthly_pnl, yearly_pnl)
 
+    # Add Rebalance Plan section if data available
+    body += _format_rebalance_plan_html(rebalance_plan_summary)
+
     body += f"""
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
-            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
+            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> {latest_candle} (age {candle_age})
             <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
                 DATA_FRESHNESS_GATE={freshness_gate}
             </span></p>
@@ -385,6 +523,7 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
+    strategies_evaluated = context.get("strategies_evaluated", 0)
     symbols_evaluated = context.get("symbols_evaluated", 0)
     eligible = context.get("eligible_signals_count", 0)
     blocked = context.get("blocked_by_risk_count", 0)
@@ -399,14 +538,16 @@ def render_daily_run_success_text(context: dict[str, Any]) -> str:
     gross_exposure = context.get("gross_exposure", 0)
     top_positions = context.get("top_positions", [])
 
+    # Use helper to format data freshness nicely
     data_freshness = context.get("data_freshness", {})
-    latest_candle = data_freshness.get("latest_timestamp", "N/A")
-    candle_age = data_freshness.get("age_days", 0)
-    freshness_gate = data_freshness.get("gate_status", "UNKNOWN")
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
 
     # Extract P&L metrics
     monthly_pnl = context.get("monthly_pnl", {})
     yearly_pnl = context.get("yearly_pnl", {})
+
+    # Rebalance plan for display
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
 
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
@@ -417,7 +558,8 @@ Time: {start_time} → {end_time} ({duration}s)
 
 SUMMARY
 -------
-• Symbols evaluated: {symbols_evaluated} | Eligible: {eligible} | Blocked by risk: {blocked}
+• Strategies evaluated: {strategies_evaluated} | Symbols evaluated: {symbols_evaluated}
+• Eligible: {eligible} | Blocked by risk: {blocked}
 • Orders: placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}
 
 PORTFOLIO SNAPSHOT (POST-RUN)
@@ -436,10 +578,13 @@ PORTFOLIO SNAPSHOT (POST-RUN)
     # Add P&L section if data available
     body += _format_pnl_text(monthly_pnl, yearly_pnl)
 
+    # Add Rebalance Plan section if data available
+    body += _format_rebalance_plan_text(rebalance_plan_summary)
+
     body += f"""
 DATA FRESHNESS USED
 -------------------
-• Daily candles: latest={latest_candle} (age {candle_age}d) DATA_FRESHNESS_GATE={freshness_gate}
+• Daily candles: {latest_candle} (age {candle_age}) DATA_FRESHNESS_GATE={freshness_gate}
 """
 
     if warnings:
@@ -481,6 +626,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
+    strategies_evaluated = context.get("strategies_evaluated", 0)
     symbols_evaluated = context.get("symbols_evaluated", 0)
     eligible = context.get("eligible_signals_count", 0)
     blocked = context.get("blocked_by_risk_count", 0)
@@ -495,10 +641,9 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     gross_exposure = context.get("gross_exposure", 0)
     top_positions = context.get("top_positions", [])
 
+    # Use helper to format data freshness nicely
     data_freshness = context.get("data_freshness", {})
-    latest_candle = data_freshness.get("latest_timestamp", "N/A")
-    candle_age = data_freshness.get("age_days", 0)
-    freshness_gate = data_freshness.get("gate_status", "UNKNOWN")
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
 
     # Partial success specific
     non_fractionable_skipped = context.get("non_fractionable_skipped_symbols", [])
@@ -506,6 +651,9 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     # Extract P&L metrics
     monthly_pnl = context.get("monthly_pnl", {})
     yearly_pnl = context.get("yearly_pnl", {})
+
+    # Rebalance plan for display
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
 
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
@@ -527,7 +675,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
         <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
             <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Partial Success</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;">Most trades executed successfully, but some positions were skipped due to non-fractionable assets.</p>
-            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Strategies evaluated:</strong> {strategies_evaluated} | <strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
             <p style="margin: 0; font-size: 11px;"><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
         </div>
 
@@ -575,10 +723,13 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     # Add P&L section if data available
     body += _format_pnl_html(monthly_pnl, yearly_pnl)
 
+    # Add Rebalance Plan section if data available
+    body += _format_rebalance_plan_html(rebalance_plan_summary)
+
     body += f"""
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
-            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> latest={latest_candle} (age {candle_age}d)
+            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> {latest_candle} (age {candle_age})
             <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
                 DATA_FRESHNESS_GATE={freshness_gate}
             </span></p>
@@ -634,6 +785,7 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
     end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
     duration = context.get("duration_seconds", 0)
 
+    strategies_evaluated = context.get("strategies_evaluated", 0)
     symbols_evaluated = context.get("symbols_evaluated", 0)
     eligible = context.get("eligible_signals_count", 0)
     blocked = context.get("blocked_by_risk_count", 0)
@@ -648,10 +800,9 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
     gross_exposure = context.get("gross_exposure", 0)
     top_positions = context.get("top_positions", [])
 
+    # Use helper to format data freshness nicely
     data_freshness = context.get("data_freshness", {})
-    latest_candle = data_freshness.get("latest_timestamp", "N/A")
-    candle_age = data_freshness.get("age_days", 0)
-    freshness_gate = data_freshness.get("gate_status", "UNKNOWN")
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
 
     # Partial success specific
     non_fractionable_skipped = context.get("non_fractionable_skipped_symbols", [])
@@ -659,6 +810,9 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
     # Extract P&L metrics
     monthly_pnl = context.get("monthly_pnl", {})
     yearly_pnl = context.get("yearly_pnl", {})
+
+    # Rebalance plan for display
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
 
     warnings = context.get("warnings", [])
     logs_url = context.get("logs_url", "#")
@@ -673,7 +827,8 @@ Most trades executed successfully, but some positions were skipped.
 
 SUMMARY
 -------
-• Symbols evaluated: {symbols_evaluated} | Eligible: {eligible} | Blocked by risk: {blocked}
+• Strategies evaluated: {strategies_evaluated} | Symbols evaluated: {symbols_evaluated}
+• Eligible: {eligible} | Blocked by risk: {blocked}
 • Orders: placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}
 
 SKIPPED POSITIONS (NON-FRACTIONABLE)
@@ -710,10 +865,13 @@ and the target quantity rounded to zero:
     # Add P&L section if data available
     body += _format_pnl_text(monthly_pnl, yearly_pnl)
 
+    # Add Rebalance Plan section if data available
+    body += _format_rebalance_plan_text(rebalance_plan_summary)
+
     body += f"""
 DATA FRESHNESS USED
 -------------------
-• Daily candles: latest={latest_candle} (age {candle_age}d) DATA_FRESHNESS_GATE={freshness_gate}
+• Daily candles: {latest_candle} (age {candle_age}) DATA_FRESHNESS_GATE={freshness_gate}
 """
 
     if warnings:
@@ -1379,4 +1537,183 @@ __all__ = [
     "render_daily_run_partial_success_text",
     "render_daily_run_success_html",
     "render_daily_run_success_text",
+    "render_schedule_created_html",
+    "render_schedule_created_text",
 ]
+
+
+def render_schedule_created_html(context: dict[str, Any]) -> str:
+    """Render HTML for Schedule Created notification email.
+
+    Handles three scenarios:
+    - 'scheduled': Normal trading day schedule created
+    - 'early_close': Early close day (e.g., day before holidays)
+    - 'skipped_holiday': Market closed for holiday
+
+    Args:
+        context: Template context with schedule data
+
+    Returns:
+        Complete HTML email body
+
+    """
+    status = context.get("status", "scheduled")
+    env = context.get("env", "unknown")
+    date = context.get("date", "unknown")
+
+    # Determine display status and component name
+    if status == "skipped_holiday":
+        display_status = "MARKET CLOSED"
+        component = "Schedule Skip"
+    elif status == "early_close":
+        display_status = "EARLY CLOSE"
+        component = "Schedule Set"
+    else:
+        display_status = "SCHEDULED"
+        component = "Schedule Set"
+
+    header = render_html_header(component, display_status)
+    footer = render_html_footer()
+
+    execution_time = context.get("execution_time", "")
+    market_close_time = context.get("market_close_time", "")
+    schedule_name = context.get("schedule_name", "")
+    skip_reason = context.get("skip_reason", "")
+
+    # Format times for display
+    exec_display = _format_timestamp_for_display(execution_time) if execution_time else "N/A"
+    close_display = _format_timestamp_for_display(market_close_time) if market_close_time else "N/A"
+
+    if status == "skipped_holiday":
+        body = f"""
+    <div style="padding: 15px 0;">
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">📅 Market Closed</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Date:</strong> {date}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Reason:</strong> {skip_reason or "Holiday"}</p>
+            <p style="margin: 0; font-size: 11px; font-style: italic;">No trading schedule created. Normal operations will resume on the next trading day.</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Environment</h4>
+            <p style="margin: 0; font-size: 11px;"><strong>Env:</strong> {env}</p>
+        </div>
+    </div>
+"""
+    elif status == "early_close":
+        body = f"""
+    <div style="padding: 15px 0;">
+        <div style="background-color: #d1ecf1; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">⏰ Early Close Day</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Date:</strong> {date}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Market Close:</strong> {close_display} (early)</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Execution Time:</strong> {exec_display}</p>
+            <p style="margin: 0; font-size: 11px; font-style: italic;">⚠️ Trading will execute earlier than usual due to early market close.</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Schedule Details</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Schedule Name:</strong> {schedule_name}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Env:</strong> {env}</p>
+        </div>
+    </div>
+"""
+    else:
+        # Normal scheduled day
+        body = f"""
+    <div style="padding: 15px 0;">
+        <div style="background-color: #e7f5e9; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #28a745;">
+            <h4 style="margin: 0 0 8px 0; color: #155724; font-size: 13px;">✅ Trading Schedule Set</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Date:</strong> {date}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Market Close:</strong> {close_display}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Execution Time:</strong> {exec_display}</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Schedule Details</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Schedule Name:</strong> {schedule_name}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Env:</strong> {env}</p>
+        </div>
+    </div>
+"""
+
+    return header + body + footer
+
+
+def render_schedule_created_text(context: dict[str, Any]) -> str:
+    """Render plain text for Schedule Created notification email.
+
+    Args:
+        context: Template context with schedule data
+
+    Returns:
+        Complete plain text email body
+
+    """
+    status = context.get("status", "scheduled")
+    env = context.get("env", "unknown")
+    date = context.get("date", "unknown")
+
+    # Determine display status
+    if status == "skipped_holiday":
+        display_status = "MARKET CLOSED"
+        component = "Schedule Skip"
+    elif status == "early_close":
+        display_status = "EARLY CLOSE"
+        component = "Schedule Set"
+    else:
+        display_status = "SCHEDULED"
+        component = "Schedule Set"
+
+    header = render_text_header(component, display_status)
+    footer = render_text_footer()
+
+    execution_time = context.get("execution_time", "")
+    market_close_time = context.get("market_close_time", "")
+    schedule_name = context.get("schedule_name", "")
+    skip_reason = context.get("skip_reason", "")
+
+    exec_display = _format_timestamp_for_display(execution_time) if execution_time else "N/A"
+    close_display = _format_timestamp_for_display(market_close_time) if market_close_time else "N/A"
+
+    if status == "skipped_holiday":
+        body = f"""
+MARKET CLOSED
+-------------
+Date: {date}
+Reason: {skip_reason or "Holiday"}
+
+No trading schedule created. Normal operations will resume on the next trading day.
+
+Environment: {env}
+"""
+    elif status == "early_close":
+        body = f"""
+EARLY CLOSE DAY
+---------------
+Date: {date}
+Market Close: {close_display} (early)
+Execution Time: {exec_display}
+
+⚠️ Trading will execute earlier than usual due to early market close.
+
+SCHEDULE DETAILS
+----------------
+Schedule Name: {schedule_name}
+Environment: {env}
+"""
+    else:
+        body = f"""
+TRADING SCHEDULE SET
+--------------------
+Date: {date}
+Market Close: {close_display}
+Execution Time: {exec_display}
+
+SCHEDULE DETAILS
+----------------
+Schedule Name: {schedule_name}
+Environment: {env}
+"""
+
+    return header + body + footer

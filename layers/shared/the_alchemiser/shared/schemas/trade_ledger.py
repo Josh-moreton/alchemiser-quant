@@ -41,7 +41,12 @@ class TradeLedgerEntry(BaseModel):
     correlation_id: str = Field(..., min_length=1, description="Correlation ID for traceability")
 
     # Asset and direction
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     direction: Literal["BUY", "SELL"] = Field(..., description="Trade direction")
 
     # Quantity and pricing
@@ -209,7 +214,12 @@ class SignalLedgerEntry(BaseModel):
     )
 
     # Signal details
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     action: Literal["BUY", "SELL", "HOLD"] = Field(..., description="Trading action")
     target_allocation: Decimal = Field(..., ge=0, le=1, description="Target allocation (0-1)")
     signal_strength: Decimal | None = Field(

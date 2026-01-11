@@ -573,7 +573,7 @@ def main() -> int:
     sync_parser = subparsers.add_parser("sync", help="Sync ledger to DynamoDB for web UI access")
     sync_parser.add_argument(
         "--stage",
-        choices=["dev", "prod"],
+        choices=["dev", "staging", "prod"],
         default="dev",
         help="Deployment stage (default: dev)",
     )
@@ -582,7 +582,7 @@ def main() -> int:
     list_dynamo_parser = subparsers.add_parser("list-dynamo", help="List strategies from DynamoDB")
     list_dynamo_parser.add_argument(
         "--stage",
-        choices=["dev", "prod"],
+        choices=["dev", "staging", "prod"],
         default="dev",
         help="Deployment stage (default: dev)",
     )

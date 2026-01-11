@@ -457,6 +457,18 @@ class AllTradesCompleted(BaseEvent):
         description="P&L metrics: monthly_pnl and yearly_pnl with total_pnl, total_pnl_pct",
     )
 
+    # Strategy evaluation metadata (for email notifications)
+    strategies_evaluated: int = Field(
+        default=0,
+        description="Number of DSL strategy files evaluated in this run",
+    )
+
+    # Rebalance plan summary (for email notifications)
+    rebalance_plan_summary: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Summary of rebalance plan items: symbol, action, weights, trade_amount",
+    )
+
     @field_validator("capital_deployed_pct", mode="before")
     @classmethod
     def convert_capital_deployed_pct_to_decimal(cls, v: object) -> Decimal | None:
@@ -629,6 +641,72 @@ class DataLakeNotificationRequested(BaseEvent):
         ..., description="Data lake update context for templates"
     )
     recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+
+class ScheduleNotificationRequested(BaseEvent):
+    """Event emitted when a schedule notification should be sent.
+
+    Contains schedule creation details for email notifications.
+    Supports 'scheduled', 'early_close', and 'skipped_holiday' statuses.
+    """
+
+    event_type: str = Field(
+        default="ScheduleNotificationRequested", description=EVENT_TYPE_DESCRIPTION
+    )
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Schedule notification fields
+    schedule_context: dict[str, Any] = Field(
+        ..., description="Schedule context for templates (status, date, times, etc.)"
+    )
+    recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
+
+
+# Schedule Events (for schedule creation notifications)
+
+
+class ScheduleCreated(BaseEvent):
+    """Event emitted when the Schedule Manager creates a trading schedule.
+
+    Sent on successful schedule creation, early close days, or when
+    market is closed (holidays only, not weekends).
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="ScheduleCreated", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Schedule outcome
+    status: str = Field(
+        ...,
+        description="Schedule status: 'scheduled', 'skipped_holiday', 'early_close'",
+    )
+    date: str = Field(..., description="Trading date (ISO format YYYY-MM-DD)")
+
+    # Schedule details (populated when status='scheduled' or 'early_close')
+    execution_time: str | None = Field(
+        default=None, description="Scheduled execution time (ISO format)"
+    )
+    market_close_time: str | None = Field(
+        default=None, description="Market close time for the day (ISO format)"
+    )
+    is_early_close: bool = Field(default=False, description="Whether this is an early close day")
+    schedule_name: str | None = Field(
+        default=None, description="Name of the created EventBridge schedule"
+    )
+
+    # Skip reason (populated when status='skipped_holiday')
+    skip_reason: str | None = Field(
+        default=None, description="Reason for skipping (holiday name, etc.)"
+    )
 
 
 # Market Data Events (for shared data infrastructure)

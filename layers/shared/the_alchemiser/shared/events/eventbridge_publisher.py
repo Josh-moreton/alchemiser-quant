@@ -42,6 +42,7 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "TradingNotificationRequested": ("notifications", "TradingNotificationRequested"),
     "ErrorNotificationRequested": ("notifications", "ErrorNotificationRequested"),
     "DataLakeUpdateCompleted": ("data", "DataLakeUpdateCompleted"),  # From Data Lambda
+    "ScheduleCreated": ("coordinator", "ScheduleCreated"),  # From Schedule Manager
 }
 
 # Mapping from source_module prefix to EventBridge source suffix

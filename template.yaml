@@ -426,39 +426,6 @@ Resources:
         - Key: Service
           Value: rebalance-plans
 
-  # ========== NOTIFICATION DEDUPLICATION TABLE ==========
-  # DynamoDB table for failure deduplication and recovery tracking
-  # Stores dedup state to prevent notification spam and enable recovery emails
-  NotificationDedupTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-notification-dedup"
-        - !Sub "alchemiser-${Stage}-notification-dedup"
-      BillingMode: PAY_PER_REQUEST
-
-      AttributeDefinitions:
-        - AttributeName: PK
-          AttributeType: S
-
-      KeySchema:
-        - AttributeName: PK
-          KeyType: HASH
-
-      TimeToLiveSpecification:
-        AttributeName: ttl
-        Enabled: true
-
-      SSESpecification:
-        SSEEnabled: true
-
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: notification-dedup
-
   # ========== MARKET DATA FETCH REQUESTS TABLE (PER-STAGE) ==========
   # DynamoDB table for deduplicating concurrent fetch requests from Data Lambda
   # Prevents multiple fetch attempts when data is detected as missing/stale
@@ -1490,7 +1457,6 @@ Resources:
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
-          NOTIFICATION_DEDUP_TABLE_NAME: !Ref NotificationDedupTable
           # SES Configuration
           SES_FROM_ADDRESS: noreply@mail.octarine.capital
           SES_FROM_NAME: "The Alchemiser"
@@ -1501,8 +1467,6 @@ Resources:
           NOTIFICATIONS_TO_NONPROD: notifications@rwxt.org
           # Safety: non-prod environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
-          # Dedup configuration
-          DEDUP_QUIET_PERIOD_MINUTES: "120"
       Events:
         # AllTradesCompleted from TradeAggregator (one event per run, no racing)
         AllTradesCompletedEvent:
@@ -1535,6 +1499,16 @@ Resources:
                 - "alchemiser.data"
               detail-type:
                 - "DataLakeUpdateCompleted"
+        # ScheduleCreated from Schedule Manager (schedule set, early close, or holiday skip)
+        ScheduleCreatedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.coordinator"
+              detail-type:
+                - "ScheduleCreated"
     Metadata:
       BuildMethod: python3.12
       # BuildProperties removed - SAM auto-includes everything in CodeUri
@@ -1584,15 +1558,6 @@ Resources:
                   - ses:SendEmail
                   - ses:SendRawEmail
                 Resource: "*"
-              # Notification dedup table access
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:UpdateItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt NotificationDedupTable.Arn
 
   # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
   # Publishes per-strategy realized P&L metrics to CloudWatch for dashboard visualization
@@ -1770,27 +1735,14 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
 
-  # Production-only fallback schedule at 3:50 PM ET Mon-Fri.
-  # This provides a 5-minute buffer after the dynamic schedule (3:45 PM).
-  # Dev/staging rely solely on the Schedule Manager for dynamic scheduling,
-  # so we can verify the early close handling works correctly.
-  # On early close days, the dynamic schedule fires earlier (e.g., 12:45 PM).
-  StrategySchedule:
-    Type: AWS::Scheduler::Schedule
-    Condition: IsProduction
-    Properties:
-      Name: !Sub "alchemiser-${Stage}-strategy-schedule-fallback"
-      Description: "Production fallback schedule - fires 5 min after dynamic schedule as safety net"
-      ScheduleExpression: "cron(50 15 ? * MON-FRI *)"
-      ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt StrategyOrchestratorFunction.Arn
-        RoleArn: !GetAtt StrategySchedulerRole.Arn
-        Input: '{"mode": "trade", "scheduled_by": "fallback_schedule"}'
-        RetryPolicy:
-          MaximumRetryAttempts: 1
+  # REMOVED: Production fallback schedule (was at 3:50 PM ET Mon-Fri)
+  # The fallback schedule was causing double runs when the dynamic schedule succeeded.
+  # All environments (dev/staging/prod) now rely solely on the Schedule Manager for dynamic scheduling.
+  # The Schedule Manager creates one-time schedules at 15 minutes before market close (accounting for early close days).
+  # If the Schedule Manager fails, we will be notified through normal WorkflowFailed event channels.
+  # Historical note: The fallback was intended as a "safety net" but added unnecessary complexity.
+  #
+  # StrategySchedule resource removed - see issue "Double run bug" for details.
 
   StrategySchedulerRole:
     Type: AWS::IAM::Role
@@ -2360,15 +2312,6 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-RebalancePlanTable"
         - !Sub "alchemiser-${Stage}-RebalancePlanTable"
-
-  NotificationDedupTableName:
-    Description: "DynamoDB table for notification deduplication and recovery tracking"
-    Value: !Ref NotificationDedupTable
-    Export:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-NotificationDedupTable"
-        - !Sub "alchemiser-${Stage}-NotificationDedupTable"
 
   ExecutionFifoQueueUrl:
     Description: "SQS Standard queue for parallel per-trade execution"

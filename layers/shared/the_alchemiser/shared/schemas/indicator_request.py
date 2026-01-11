@@ -59,7 +59,12 @@ class IndicatorRequest(BaseModel):
     )
 
     # Indicator specification
-    symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
+    symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Trading symbol (supports extended notation like EQUITIES::SYMBOL//USD)",
+    )
     indicator_type: IndicatorType = Field(
         ..., description="Type of indicator (rsi, moving_average, etc.)"
     )
@@ -88,8 +93,14 @@ class IndicatorRequest(BaseModel):
 
         """
         normalized = v.strip().upper()
-        # Allow dots (BRK.B), hyphens (BF-B), and slashes (BRK/B) in symbols
-        if not normalized.replace(".", "").replace("-", "").replace("/", "").isalnum():
+        # Allow dots (BRK.B), hyphens (BF-B), slashes (BRK/B), and colons (EQUITIES::SYMBOL) in symbols
+        if (
+            not normalized.replace(".", "")
+            .replace("-", "")
+            .replace("/", "")
+            .replace(":", "")
+            .isalnum()
+        ):
             raise ValueError(f"Invalid symbol format: {v}")
         return normalized
 
