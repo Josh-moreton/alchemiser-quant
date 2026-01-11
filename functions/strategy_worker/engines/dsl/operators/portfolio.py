@@ -1033,7 +1033,7 @@ def _score_portfolio(
         1. Historical DSL evaluation - running the full decision tree for each
            day in the lookback window
         2. Point-in-time market data - data as it existed on each historical day
-        3. Caching - to avoid N× evaluation cost per group
+        3. Caching - to avoid Nx evaluation cost per group
 
     This is essentially embedding a mini-backtest engine inside the filter
     operator, which is a significant architectural change.
@@ -1108,8 +1108,7 @@ def _select_portfolios(
     """
     # Warn about known Composer parity limitation when filtering groups
     groups_with_names = [
-        p for p in portfolios
-        if p.metadata.get("group_name") and len(p.weights) == 1
+        p for p in portfolios if p.metadata.get("group_name") and len(p.weights) == 1
     ]
     if groups_with_names:
         logger.warning(
