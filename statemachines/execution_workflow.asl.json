@@ -1,12 +1,12 @@
 {
-  "Comment": "Alchemiser Trade Execution Workflow - Two-Phase (SELL → BUY) with Circuit Breakers",
+  "Comment": "Alchemiser Trade Execution Workflow - Two-Phase (SELL \u2192 BUY) with Circuit Breakers",
   "StartAt": "PrepareTrades",
   "States": {
     "PrepareTrades": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName.$": "$.prepareTradesFunctionName",
+        "FunctionName": "${PrepareTradesFunctionArn}",
         "Payload.$": "$"
       },
       "ResultSelector": {
@@ -17,7 +17,40 @@
         "correlationId.$": "$.Payload.correlationId"
       },
       "ResultPath": "$.tradePhases",
-      "Next": "ExecuteSellPhase"
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckIfSellTradesExist"
+    },
+    "CheckIfSellTradesExist": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.tradePhases.sellTrades[0]",
+          "IsPresent": true,
+          "Next": "ExecuteSellPhase"
+        }
+      ],
+      "Default": "CheckIfBuyTradesExist"
     },
     "ExecuteSellPhase": {
       "Type": "Map",
@@ -33,8 +66,54 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-              "FunctionName.$": "$.executeTradeFunctionName",
+              "FunctionName": "${ExecuteTradeSfnFunctionArn}",
               "Payload.$": "$"
+            },
+            "ResultSelector": {
+              "tradeId.$": "$.Payload.tradeId",
+              "symbol.$": "$.Payload.symbol",
+              "action.$": "$.Payload.action",
+              "status.$": "$.Payload.status",
+              "quantity.$": "$.Payload.quantity",
+              "averagePrice.$": "$.Payload.averagePrice",
+              "totalValue.$": "$.Payload.totalValue",
+              "orderId.$": "$.Payload.orderId",
+              "errorMessage.$": "$.Payload.errorMessage"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.error",
+                "Next": "MarkSellTradeFailed"
+              }
+            ],
+            "End": true
+          },
+          "MarkSellTradeFailed": {
+            "Type": "Pass",
+            "Parameters": {
+              "tradeId.$": "$.tradeId",
+              "symbol.$": "$.symbol",
+              "action.$": "$.action",
+              "status": "FAILED",
+              "quantity.$": "$.quantity",
+              "targetValue.$": "$.targetValue",
+              "errorMessage": "Trade execution failed"
             },
             "End": true
           }
@@ -47,15 +126,38 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName.$": "$.evaluateSellGuardFunctionName",
+        "FunctionName": "${EvaluateSellGuardFunctionArn}",
         "Payload": {
           "sellResults.$": "$.sellResults",
-          "failureThresholdUsd": 500,
+          "failureThresholdUsd.$": "$.failureThresholdUsd",
           "correlationId.$": "$.tradePhases.correlationId",
-          "runId.$": "$.tradePhases.runId"
+          "runId.$": "$.tradePhases.runId",
+          "failureThresholdUsd": "${SellFailureThreshold}"
         }
       },
       "ResultPath": "$.guardResult",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
       "Next": "CheckBuyPhaseGuard"
     },
     "CheckBuyPhaseGuard": {
@@ -67,13 +169,24 @@
           "Next": "BuyPhaseBlocked"
         }
       ],
-      "Default": "ExecuteBuyPhase"
+      "Default": "CheckIfBuyTradesExist"
+    },
+    "CheckIfBuyTradesExist": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.tradePhases.buyTrades[0]",
+          "IsPresent": true,
+          "Next": "ExecuteBuyPhase"
+        }
+      ],
+      "Default": "AggregateResults"
     },
     "BuyPhaseBlocked": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName.$": "$.notifyFailureFunctionName",
+        "FunctionName": "${NotifyFailureFunctionArn}",
         "Payload": {
           "reason": "BUY_PHASE_BLOCKED",
           "sellResults.$": "$.sellResults",
@@ -82,6 +195,19 @@
           "runId.$": "$.tradePhases.runId"
         }
       },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
       "End": true
     },
     "ExecuteBuyPhase": {
@@ -98,10 +224,23 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-              "FunctionName.$": "$.checkEquityLimitFunctionName",
+              "FunctionName": "${CheckEquityLimitFunctionArn}",
               "Payload.$": "$"
             },
             "ResultPath": "$.circuitBreakerResult",
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ],
             "Next": "EvaluateCircuitBreaker"
           },
           "EvaluateCircuitBreaker": {
@@ -119,16 +258,67 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-              "FunctionName.$": "$.executeTradeFunctionName",
+              "FunctionName": "${ExecuteTradeSfnFunctionArn}",
               "Payload.$": "$"
             },
+            "ResultSelector": {
+              "tradeId.$": "$.Payload.tradeId",
+              "symbol.$": "$.Payload.symbol",
+              "action.$": "$.Payload.action",
+              "status.$": "$.Payload.status",
+              "quantity.$": "$.Payload.quantity",
+              "averagePrice.$": "$.Payload.averagePrice",
+              "totalValue.$": "$.Payload.totalValue",
+              "orderId.$": "$.Payload.orderId",
+              "errorMessage.$": "$.Payload.errorMessage"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.error",
+                "Next": "MarkBuyTradeFailed"
+              }
+            ],
             "End": true
           },
           "SkipBuyTrade": {
             "Type": "Pass",
-            "Result": {
+            "Parameters": {
+              "tradeId.$": "$.tradeId",
+              "symbol.$": "$.symbol",
+              "action.$": "$.action",
               "status": "SKIPPED",
+              "quantity.$": "$.quantity",
+              "targetValue.$": "$.targetValue",
               "reason": "equity_limit_exceeded"
+            },
+            "End": true
+          },
+          "MarkBuyTradeFailed": {
+            "Type": "Pass",
+            "Parameters": {
+              "tradeId.$": "$.tradeId",
+              "symbol.$": "$.symbol",
+              "action.$": "$.action",
+              "status": "FAILED",
+              "quantity.$": "$.quantity",
+              "targetValue.$": "$.targetValue",
+              "errorMessage": "Trade execution failed"
             },
             "End": true
           }
@@ -141,7 +331,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName.$": "$.aggregateResultsFunctionName",
+        "FunctionName": "${AggregateResultsFunctionArn}",
         "Payload": {
           "sellResults.$": "$.sellResults",
           "buyResults.$": "$.buyResults",
@@ -151,19 +341,81 @@
         }
       },
       "ResultPath": "$.aggregation",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
       "Next": "SendNotification"
     },
     "SendNotification": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName.$": "$.notifyCompletionFunctionName",
+        "FunctionName": "${NotifyCompletionFunctionArn}",
         "Payload": {
           "aggregation.$": "$.aggregation.Payload",
           "correlationId.$": "$.tradePhases.correlationId",
           "runId.$": "$.tradePhases.runId"
         }
       },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "End": true
+    },
+    "WorkflowFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotifyFailureFunctionArn}",
+        "Payload": {
+          "reason": "WORKFLOW_FAILED",
+          "error.$": "$.error",
+          "correlationId.$": "$.tradePhases.correlationId",
+          "runId.$": "$.tradePhases.runId"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
       "End": true
     }
   }

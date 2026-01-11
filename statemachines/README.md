@@ -56,11 +56,12 @@ This directory contains AWS Step Functions state machine definitions for the Alc
 ### Key Features
 
 1. **Two-Phase Execution**: SELLs complete before BUYs to ensure cash availability
-2. **Guard Condition**: BUY phase blocked if SELL failures exceed $500
+2. **Guard Condition**: BUY phase blocked if SELL failures exceed configurable threshold (default $500)
 3. **Parallel Execution**: Up to 10 concurrent trades per phase
 4. **Circuit Breaker**: Equity deployment limit for BUY trades
-5. **Automatic Retries**: 3 retries with exponential backoff (2x multiplier)
+5. **Automatic Retries**: 3 retries with exponential backoff (2x multiplier) for transient failures
 6. **Error Handling**: Catch blocks route failures to notification Lambda
+7. **Empty Array Handling**: Gracefully handles portfolios with no SELL or no BUY trades
 
 ### Lambda Functions
 
@@ -94,15 +95,11 @@ State machine expects this input from Portfolio Lambda:
   "correlationId": "workflow-abc123",
   "runId": "run-xyz789",
   "planId": "plan-456",
-  "prepareTradesFunctionName": "alchemiser-dev-prepare-trades",
-  "evaluateSellGuardFunctionName": "alchemiser-dev-evaluate-sell-guard",
-  "checkEquityLimitFunctionName": "alchemiser-dev-check-equity-limit",
-  "executeTradeFunctionName": "alchemiser-dev-execute-trade-sfn",
-  "aggregateResultsFunctionName": "alchemiser-dev-aggregate-results",
-  "notifyCompletionFunctionName": "alchemiser-dev-notify-completion",
-  "notifyFailureFunctionName": "alchemiser-dev-notify-failure"
+  "failureThresholdUsd": 500
 }
 ```
+
+**Note**: Function ARNs are injected via CloudFormation DefinitionSubstitutions, not passed in input payload.
 
 ### Output Schema
 

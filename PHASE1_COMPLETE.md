@@ -8,22 +8,24 @@ Phase 1 of the Step Functions migration has been successfully implemented. All n
 
 ### 1. State Machine Definition
 - **File**: `statemachines/execution_workflow.asl.json`
-- **States**: 8 total (PrepareTrades, ExecuteSellPhase, EvaluateSellGuard, CheckBuyPhaseGuard, BuyPhaseBlocked, ExecuteBuyPhase, AggregateResults, SendNotification)
+- **States**: 12 total (PrepareTrades, CheckIfSellTradesExist, ExecuteSellPhase, EvaluateSellPhaseGuard, CheckBuyPhaseGuard, CheckIfBuyTradesExist, BuyPhaseBlocked, ExecuteBuyPhase, AggregateResults, SendNotification, WorkflowFailed)
 - **Features**:
   - Two-phase execution (SELL → BUY)
   - Parallel execution (max 10 concurrent per phase)
-  - Guard condition ($500 SELL failure threshold)
+  - Guard condition (configurable SELL failure threshold via CloudFormation parameter, default $500)
   - Circuit breaker (equity deployment limit)
-  - Automatic retries (3x with exponential backoff)
-  - Comprehensive error handling
+  - Automatic retries (3x with exponential backoff for transient Lambda failures)
+  - Comprehensive error handling with Catch blocks routing to WorkflowFailed state
+  - Empty array handling (gracefully handles portfolios with no SELL or no BUY trades)
+  - Function ARNs injected via CloudFormation DefinitionSubstitutions (not passed in input)
 
 ### 2. Lambda Functions (7 new)
 
-#### prepare_trades (127 lines)
+#### prepare_trades (100 lines)
 - **Purpose**: Splits rebalance plan into SELL/BUY arrays
 - **Input**: RebalancePlan from Portfolio Lambda
 - **Output**: Separate SELL and BUY trade arrays
-- **Key Logic**: Separates trades by action type, adds Step Functions config
+- **Key Logic**: Separates trades by action type (no function names added - ARNs from CloudFormation)
 
 #### evaluate_sell_guard (99 lines)
 - **Purpose**: Evaluates SELL phase guard condition

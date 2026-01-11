@@ -66,6 +66,12 @@ Parameters:
     Default: "1.0"
     Description: Equity deployment percentage for production (conservative default)
 
+  # Step Functions Execution Workflow Configuration
+  SellFailureThresholdUsd:
+    Type: Number
+    Default: 500
+    Description: Dollar threshold for SELL phase failures - BUY phase blocked if exceeded
+
   # Staging-only parameters (only used when Stage=staging)
   StagingAlpacaKey:
     Type: String
@@ -1602,6 +1608,7 @@ Resources:
         AggregateResultsFunctionArn: !GetAtt AggregateResultsFunction.Arn
         NotifyCompletionFunctionArn: !GetAtt NotifyCompletionFunction.Arn
         NotifyFailureFunctionArn: !GetAtt NotifyFailureFunction.Arn
+        SellFailureThreshold: !Ref SellFailureThresholdUsd
       Role: !GetAtt ExecutionWorkflowStateMachineRole.Arn
       Logging:
         Destinations:

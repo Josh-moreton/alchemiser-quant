@@ -9,7 +9,6 @@ available for purchases.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from the_alchemiser.shared.logging import get_logger
@@ -78,23 +77,10 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     for trade_msg in trade_messages:
         action = trade_msg.get("action", "").upper()
 
-        # Add function names for Step Functions Lambda invocations
-        trade_with_config = {
-            **trade_msg,
-            "executeTradeFunctionName": os.environ.get(
-                "EXECUTE_TRADE_FUNCTION_NAME",
-                f"alchemiser-{os.environ.get('STAGE', 'dev')}-execute-trade",
-            ),
-            "checkEquityLimitFunctionName": os.environ.get(
-                "CHECK_EQUITY_LIMIT_FUNCTION_NAME",
-                f"alchemiser-{os.environ.get('STAGE', 'dev')}-check-equity-limit",
-            ),
-        }
-
         if action == "SELL":
-            sell_trades.append(trade_with_config)
+            sell_trades.append(trade_msg)
         elif action == "BUY":
-            buy_trades.append(trade_with_config)
+            buy_trades.append(trade_msg)
         else:
             logger.warning(
                 "Unknown trade action, skipping",
