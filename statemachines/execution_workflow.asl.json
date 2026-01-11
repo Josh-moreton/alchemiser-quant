@@ -1,0 +1,170 @@
+{
+  "Comment": "Alchemiser Trade Execution Workflow - Two-Phase (SELL → BUY) with Circuit Breakers",
+  "StartAt": "PrepareTrades",
+  "States": {
+    "PrepareTrades": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName.$": "$.prepareTradesFunctionName",
+        "Payload.$": "$"
+      },
+      "ResultSelector": {
+        "sellTrades.$": "$.Payload.sellTrades",
+        "buyTrades.$": "$.Payload.buyTrades",
+        "runId.$": "$.Payload.runId",
+        "planId.$": "$.Payload.planId",
+        "correlationId.$": "$.Payload.correlationId"
+      },
+      "ResultPath": "$.tradePhases",
+      "Next": "ExecuteSellPhase"
+    },
+    "ExecuteSellPhase": {
+      "Type": "Map",
+      "ItemsPath": "$.tradePhases.sellTrades",
+      "MaxConcurrency": 10,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "ExecuteSingleSellTrade",
+        "States": {
+          "ExecuteSingleSellTrade": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName.$": "$.executeTradeFunctionName",
+              "Payload.$": "$"
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.sellResults",
+      "Next": "EvaluateSellPhaseGuard"
+    },
+    "EvaluateSellPhaseGuard": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName.$": "$.evaluateSellGuardFunctionName",
+        "Payload": {
+          "sellResults.$": "$.sellResults",
+          "failureThresholdUsd": 500,
+          "correlationId.$": "$.tradePhases.correlationId",
+          "runId.$": "$.tradePhases.runId"
+        }
+      },
+      "ResultPath": "$.guardResult",
+      "Next": "CheckBuyPhaseGuard"
+    },
+    "CheckBuyPhaseGuard": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.guardResult.Payload.buyPhaseAllowed",
+          "BooleanEquals": false,
+          "Next": "BuyPhaseBlocked"
+        }
+      ],
+      "Default": "ExecuteBuyPhase"
+    },
+    "BuyPhaseBlocked": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName.$": "$.notifyFailureFunctionName",
+        "Payload": {
+          "reason": "BUY_PHASE_BLOCKED",
+          "sellResults.$": "$.sellResults",
+          "guardResult.$": "$.guardResult",
+          "correlationId.$": "$.tradePhases.correlationId",
+          "runId.$": "$.tradePhases.runId"
+        }
+      },
+      "End": true
+    },
+    "ExecuteBuyPhase": {
+      "Type": "Map",
+      "ItemsPath": "$.tradePhases.buyTrades",
+      "MaxConcurrency": 10,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "CheckEquityCircuitBreaker",
+        "States": {
+          "CheckEquityCircuitBreaker": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName.$": "$.checkEquityLimitFunctionName",
+              "Payload.$": "$"
+            },
+            "ResultPath": "$.circuitBreakerResult",
+            "Next": "EvaluateCircuitBreaker"
+          },
+          "EvaluateCircuitBreaker": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.circuitBreakerResult.Payload.allowed",
+                "BooleanEquals": false,
+                "Next": "SkipBuyTrade"
+              }
+            ],
+            "Default": "ExecuteSingleBuyTrade"
+          },
+          "ExecuteSingleBuyTrade": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName.$": "$.executeTradeFunctionName",
+              "Payload.$": "$"
+            },
+            "End": true
+          },
+          "SkipBuyTrade": {
+            "Type": "Pass",
+            "Result": {
+              "status": "SKIPPED",
+              "reason": "equity_limit_exceeded"
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.buyResults",
+      "Next": "AggregateResults"
+    },
+    "AggregateResults": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName.$": "$.aggregateResultsFunctionName",
+        "Payload": {
+          "sellResults.$": "$.sellResults",
+          "buyResults.$": "$.buyResults",
+          "correlationId.$": "$.tradePhases.correlationId",
+          "runId.$": "$.tradePhases.runId",
+          "planId.$": "$.tradePhases.planId"
+        }
+      },
+      "ResultPath": "$.aggregation",
+      "Next": "SendNotification"
+    },
+    "SendNotification": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName.$": "$.notifyCompletionFunctionName",
+        "Payload": {
+          "aggregation.$": "$.aggregation.Payload",
+          "correlationId.$": "$.tradePhases.correlationId",
+          "runId.$": "$.tradePhases.runId"
+        }
+      },
+      "End": true
+    }
+  }
+}

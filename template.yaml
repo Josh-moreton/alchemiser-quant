@@ -1584,6 +1584,338 @@ Resources:
                   - cloudwatch:PutMetricData
                 Resource: "*"
 
+
+  # ========== STEP FUNCTIONS EXECUTION WORKFLOW (PHASE 1) ==========
+  # New Step Functions-based execution workflow for two-phase trade execution
+  # This runs in parallel with existing SQS-based execution during validation period
+  
+  ExecutionWorkflowStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "alchemiser-${Stage}-execution-workflow"
+      DefinitionUri: statemachines/execution_workflow.asl.json
+      DefinitionSubstitutions:
+        PrepareTradesFunctionArn: !GetAtt PrepareTradesFunction.Arn
+        EvaluateSellGuardFunctionArn: !GetAtt EvaluateSellGuardFunction.Arn
+        CheckEquityLimitFunctionArn: !GetAtt CheckEquityLimitFunction.Arn
+        ExecuteTradeSfnFunctionArn: !GetAtt ExecuteTradeSfnFunction.Arn
+        AggregateResultsFunctionArn: !GetAtt AggregateResultsFunction.Arn
+        NotifyCompletionFunctionArn: !GetAtt NotifyCompletionFunction.Arn
+        NotifyFailureFunctionArn: !GetAtt NotifyFailureFunction.Arn
+      Role: !GetAtt ExecutionWorkflowStateMachineRole.Arn
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt ExecutionWorkflowLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+
+  ExecutionWorkflowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/states/alchemiser-${Stage}-execution-workflow"
+      RetentionInDays: 30
+
+  ExecutionWorkflowStateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ExecutionWorkflowPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt PrepareTradesFunction.Arn
+                  - !GetAtt EvaluateSellGuardFunction.Arn
+                  - !GetAtt CheckEquityLimitFunction.Arn
+                  - !GetAtt ExecuteTradeSfnFunction.Arn
+                  - !GetAtt AggregateResultsFunction.Arn
+                  - !GetAtt NotifyCompletionFunction.Arn
+                  - !GetAtt NotifyFailureFunction.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
+                Resource: "*"
+
+  # Prepare Trades Lambda - Splits rebalance plan into SELL/BUY arrays
+  PrepareTradesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-prepare-trades"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/prepare_trades/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt PrepareTradesExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          EXECUTE_TRADE_FUNCTION_NAME: !Sub "alchemiser-${Stage}-execute-trade-sfn"
+          CHECK_EQUITY_LIMIT_FUNCTION_NAME: !Sub "alchemiser-${Stage}-check-equity-limit"
+    Metadata:
+      BuildMethod: python3.12
+
+  PrepareTradesExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Evaluate Sell Guard Lambda - Checks SELL failure threshold
+  EvaluateSellGuardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-evaluate-sell-guard"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/evaluate_sell_guard/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt EvaluateSellGuardExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 30
+      MemorySize: 256
+    Metadata:
+      BuildMethod: python3.12
+
+  EvaluateSellGuardExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Check Equity Limit Lambda - Circuit breaker for BUY phase
+  CheckEquityLimitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-check-equity-limit"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/check_equity_limit/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt CheckEquityLimitExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          EQUITY_DEPLOYMENT_PCT: !If [ IsProduction, !Ref ProdEquityDeploymentPct, !If [ IsStaging, !Ref StagingEquityDeploymentPct, !Ref EquityDeploymentPct ] ]
+    Metadata:
+      BuildMethod: python3.12
+
+  CheckEquityLimitExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Execute Trade (Step Functions) Lambda - Simplified single trade execution
+  ExecuteTradeSfnFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-execute-trade-sfn"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/execute_trade_sfn/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt ExecuteTradeSfnExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
+          TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+    Metadata:
+      BuildMethod: python3.12
+
+  ExecuteTradeSfnExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ExecuteTradeSfnPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TradeLedgerTable.Arn
+
+  # Aggregate Results Lambda - Collects SELL and BUY phase results
+  AggregateResultsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-aggregate-results"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/aggregate_results/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt AggregateResultsExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 60
+      MemorySize: 256
+    Metadata:
+      BuildMethod: python3.12
+
+  AggregateResultsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Notify Completion Lambda - Sends success notification
+  NotifyCompletionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-notify-completion"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/notify_completion/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt NotifyCompletionExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
+    Metadata:
+      BuildMethod: python3.12
+
+  NotifyCompletionExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: NotifyCompletionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref TradingNotificationsTopic
+
+  # Notify Failure Lambda - Sends failure notification
+  NotifyFailureFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "alchemiser-${Stage}-notify-failure"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/notify_failure/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt NotifyFailureExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
+    Metadata:
+      BuildMethod: python3.12
+
+  NotifyFailureExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: NotifyFailurePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref TradingNotificationsTopic
+
+  # ========== END STEP FUNCTIONS EXECUTION WORKFLOW ==========
+
+
   # ========== DATA LAMBDA FUNCTION (PER-STAGE) ==========
   # Market data fetching and S3 storage (replaces alchemiser-shared-data)
   # Each stage gets own data function with own S3 bucket
@@ -2166,6 +2498,16 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-ExecutionRunsTable"
         - !Sub "alchemiser-${Stage}-ExecutionRunsTable"
+
+
+  ExecutionWorkflowStateMachineArn:
+    Description: "Step Functions state machine ARN for execution workflow (Phase 1 - parallel validation)"
+    Value: !GetAtt ExecutionWorkflowStateMachine.Arn
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-ExecutionWorkflowStateMachine"
+        - !Sub "alchemiser-${Stage}-ExecutionWorkflowStateMachine"
 
   RebalancePlanTableName:
     Description: "DynamoDB table for rebalance plan auditability (90-day TTL)"
