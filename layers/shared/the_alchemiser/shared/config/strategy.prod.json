@@ -1,8 +1,6 @@
 {
   "files": [
-    "beam_chain.clj",
     "beefier_3x.clj",
-    "bento_collection.clj",
     "beta_baller.clj",
     "blatant_tech.clj",
     "flextiger.clj",
@@ -18,21 +16,19 @@
     "tqqq_ftlt.clj"
   ],
   "allocations": {
-    "beam_chain.clj": 0.116,
-    "beefier_3x.clj": 0.042,
-    "bento_collection.clj": 0.063,
-    "beta_baller.clj": 0.035,
-    "blatant_tech.clj": 0.070,
-    "flextiger.clj": 0.090,
-    "gold.clj": 0.086,
-    "group_stuff.clj": 0.044,
-    "lose_money.clj": 0.050,
-    "nuclear_feaver.clj": 0.035,
-    "pals_spell.clj": 0.065,
-    "pepe.clj": 0.035,
-    "rains_em_dancer.clj": 0.090,
-    "simons_full_kmlm.clj": 0.035,
-    "sisyphus_lowvol.clj": 0.074,
-    "tqqq_ftlt.clj": 0.070
+    "beefier_3x.clj": 0.0453,
+    "beta_baller.clj": 0.0377,
+    "blatant_tech.clj": 0.0755,
+    "flextiger.clj": 0.0970,
+    "gold.clj": 0.0928,
+    "group_stuff.clj": 0.0475,
+    "lose_money.clj": 0.0539,
+    "nuclear_feaver.clj": 0.0377,
+    "pals_spell.clj": 0.0701,
+    "pepe.clj": 0.0377,
+    "rains_em_dancer.clj": 0.0970,
+    "simons_full_kmlm.clj": 0.0377,
+    "sisyphus_lowvol.clj": 0.0798,
+    "tqqq_ftlt.clj": 0.0755
   }
 }

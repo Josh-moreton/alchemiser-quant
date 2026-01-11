@@ -993,6 +993,52 @@ def _score_portfolio(
     the portfolio-level metric as a weighted average of individual scores.
 
     Returns None if scoring fails for all symbols.
+
+    KNOWN LIMITATION (2026-01-11):
+    -----------------------------
+    When a `filter` operator is applied to `group` children (portfolios with
+    decision trees), this function scores each group by the metric of TODAY'S
+    SELECTED ASSET(s) only. This differs from Composer's behavior.
+
+    Composer's approach:
+        For each group in filter:
+            For each day in the lookback window (e.g., 10 days for stdev-return):
+                Evaluate the group's full decision tree with that day's data
+                Record what asset was selected that day
+                Get that day's return for that asset
+            Compute the metric (e.g., stdev) over those historical returns
+            Use that as the group's score
+
+    Our current approach:
+        For each group in filter:
+            Evaluate with today's data to get selected asset(s)
+            Look up that asset's pre-computed metric (e.g., stdev-return)
+            Use that as the group's score
+
+    Impact:
+        Groups that alternate between volatile and safe assets will have
+        different scores. For example, a group that picked SOXL yesterday
+        and BIL today would score very differently:
+        - Composer: Mixed return stream → moderate stdev
+        - Us: Just BIL's stdev → very low
+
+    Affected strategies (filters on groups, not raw assets):
+        - beam_chain: (filter (stdev-return 10) (select-top 8) [(group ...)])
+        - bento_collection: (filter (stdev-return 20) (select-top 1) [(group ...)])
+        - fomo_nomo: (filter (stdev-return 10) (select-top 3) [(group ...)])
+        - fomo_nomo_lev: (filter (stdev-return 10) (select-top 3) [(group ...)])
+        - ftl_starburst: (filter (moving-average-return 10) ...) + nested filters
+
+    Fix would require:
+        1. Historical DSL evaluation - running the full decision tree for each
+           day in the lookback window
+        2. Point-in-time market data - data as it existed on each historical day
+        3. Caching - to avoid N× evaluation cost per group
+
+    This is essentially embedding a mini-backtest engine inside the filter
+    operator, which is a significant architectural change.
+
+    See also: scripts/diagnose_cumret_methods.py for debugging tools.
     """
     weights = fragment.weights
     if not weights:
@@ -1056,7 +1102,25 @@ def _select_portfolios(
     limit: optional number of portfolios to select.
 
     Returns the merged weights of all selected portfolios.
+
+    NOTE: See _score_portfolio docstring for known limitation when filtering
+    groups with decision trees (Composer parity issue).
     """
+    # Warn about known Composer parity limitation when filtering groups
+    groups_with_names = [
+        p for p in portfolios
+        if p.metadata.get("group_name") and len(p.weights) == 1
+    ]
+    if groups_with_names:
+        logger.warning(
+            "DSL filter: filtering %d groups with decision trees. "
+            "KNOWN LIMITATION: scoring uses today's selected asset only, "
+            "not historical return stream. May diverge from Composer. "
+            "Affected groups: %s",
+            len(groups_with_names),
+            [p.metadata.get("group_name") for p in groups_with_names[:5]],
+        )
+
     # Score each portfolio as a unit
     scored: list[tuple[PortfolioFragment, float]] = []
     for idx, portfolio in enumerate(portfolios):

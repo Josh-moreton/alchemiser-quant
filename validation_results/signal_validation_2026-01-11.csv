@@ -1,0 +1,21 @@
+validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,beam_chain,beam_chain.clj,no,"We have IEF and KMLM, Composer has all that allocated to BIL",2026-01-11T10:26:17.208993+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,beefier_3x,beefier_3x.clj,yes,,2026-01-11T10:26:31.857524+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,bento_collection,bento_collection.clj,yes,,2026-01-11T10:26:41.973429+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,beta_baller,beta_baller.clj,yes,,2026-01-11T10:26:51.347323+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,blatant_tech,blatant_tech.clj,yes,,2026-01-11T10:27:17.007656+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,flextiger,flextiger.clj,yes,,2026-01-11T10:27:33.633371+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,fomo_nomo,fomo_nomo.clj,no,weights are wrong,2026-01-11T10:28:23.449860+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,fomo_nomo_lev,fomo_nomo_lev.clj,no,weights and tickers are wrong,2026-01-11T10:28:48.367695+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,ftl_starburst_gen2,ftl_starburst_gen2.clj,no,"We have NAIL, Composer has TQQQ",2026-01-11T10:29:14.855896+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,gold,gold.clj,yes,,2026-01-11T10:29:22.626380+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,group_stuff,group_stuff.clj,yes,,2026-01-11T10:29:44.497232+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,lose_money,lose_money.clj,yes,,2026-01-11T10:29:53.970912+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,nuclear_feaver,nuclear_feaver.clj,yes,,2026-01-11T10:29:56.672340+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,pals_spell,pals_spell.clj,yes,,2026-01-11T10:30:06.375405+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,pepe,pepe.clj,yes,,2026-01-11T10:30:17.104501+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,rains_em_dancer,rains_em_dancer.clj,yes,,2026-01-11T10:30:31.865287+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,simons_full_kmlm,simons_full_kmlm.clj,yes,,2026-01-11T10:30:39.725756+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,simons_kmlm,simons_kmlm.clj,yes,,2026-01-11T10:30:50.274314+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,sisyphus_lowvol,sisyphus_lowvol.clj,yes,,2026-01-11T10:31:14.491270+00:00
+2026-01-11,workflow-9d6cb7ec-2e07-4a10-9d66-b4e0bd4e79d2,tqqq_ftlt,tqqq_ftlt.clj,yes,,2026-01-11T10:31:25.536658+00:00
