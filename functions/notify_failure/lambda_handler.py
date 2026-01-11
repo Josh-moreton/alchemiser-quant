@@ -18,7 +18,7 @@ from the_alchemiser.shared.logging import get_logger
 logger = get_logger(__name__)
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Send failure notification via SNS.
 
     Args:
@@ -57,7 +57,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         failed_amount = payload.get("sellFailedAmount", "0")
         failed_count = payload.get("sellFailedCount", 0)
 
-        subject = f"⚠️ Trade Execution Failed - BUY Phase Blocked"
+        subject = "⚠️ Trade Execution Failed - BUY Phase Blocked"
         message = f"""
 Trade Execution Workflow Failed: BUY Phase Blocked
 

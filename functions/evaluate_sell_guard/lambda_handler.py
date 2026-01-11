@@ -18,7 +18,7 @@ from the_alchemiser.shared.logging import get_logger
 logger = get_logger(__name__)
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Evaluate SELL phase guard to determine if BUY phase should proceed.
 
     Args:
@@ -64,10 +64,9 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         status = payload.get("status", "UNKNOWN")
         total_value = payload.get("totalValue")
 
-        if total_value is not None:
-            value_decimal = Decimal(str(total_value))
-        else:
-            value_decimal = Decimal("0")
+        value_decimal = (
+            Decimal(str(total_value)) if total_value is not None else Decimal("0")
+        )
 
         if status == "FAILED":
             failed_amount += abs(value_decimal)

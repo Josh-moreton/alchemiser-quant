@@ -9,18 +9,15 @@ available for purchases.
 
 from __future__ import annotations
 
-import json
 import os
-from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.trade_message import TradeMessage
 
 logger = get_logger(__name__)
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Prepare trades for Step Functions execution.
 
     This Lambda is the first step in the execution workflow. It receives

@@ -17,7 +17,7 @@ from the_alchemiser.shared.logging import get_logger
 logger = get_logger(__name__)
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Aggregate trade execution results from SELL and BUY phases.
 
     Args:

@@ -13,14 +13,12 @@ import os
 from decimal import Decimal
 from typing import Any
 
-import boto3
-
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Check if BUY trade is allowed based on equity circuit breaker.
 
     This checks the cumulative value of BUY trades against the equity
