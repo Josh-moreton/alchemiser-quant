@@ -88,7 +88,7 @@ type-check:
 	MYPYPATH="layers/shared" poetry run mypy layers/shared/the_alchemiser/ --config-file=pyproject.toml
 	@# Check each Lambda function with its own MYPYPATH context
 	@echo "  → Checking Lambda functions..."
-	@for func in execution portfolio strategy_worker strategy_orchestrator strategy_aggregator trade_aggregator notifications data metrics; do \
+	@for func in execution portfolio strategy_worker strategy_orchestrator strategy_aggregator trade_aggregator notifications data metrics schedule_manager prepare_trades evaluate_sell_guard check_equity_limit execute_trade_sfn aggregate_results notify_completion notify_failure; do \
 		if [ -d "functions/$$func" ]; then \
 			echo "    → functions/$$func"; \
 			MYPYPATH="functions/$$func:layers/shared" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
