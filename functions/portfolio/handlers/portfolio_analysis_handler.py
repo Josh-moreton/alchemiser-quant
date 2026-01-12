@@ -46,46 +46,25 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlanItem,
 )
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-from the_alchemiser.shared.schemas.trade_message import TradeMessage
 
 # Module name constant for consistent logging and error reporting
 MODULE_NAME = "portfolio_v2.handlers.portfolio_analysis_handler"
 
 
-def _get_execution_fifo_queue_url() -> str:
-    """Get the SQS Standard queue URL for per-trade parallel execution.
-
-    Note: The env var is named EXECUTION_FIFO_QUEUE_URL for historical reasons,
-    but the actual queue is a Standard queue (not FIFO). This enables parallel
-    Lambda invocations for concurrent trade execution.
+def _get_step_functions_state_machine_arn() -> str:
+    """Get the Step Functions state machine ARN for trade execution.
 
     Returns:
-        Queue URL from environment variable.
+        State machine ARN from environment variable.
 
     Raises:
-        ValueError: If EXECUTION_FIFO_QUEUE_URL is not set.
+        ValueError: If EXECUTION_WORKFLOW_STATE_MACHINE_ARN is not set.
 
     """
-    url = os.environ.get("EXECUTION_FIFO_QUEUE_URL", "")
-    if not url:
-        raise ValueError("EXECUTION_FIFO_QUEUE_URL environment variable is not set")
-    return url
-
-
-def _get_execution_runs_table_name() -> str:
-    """Get the DynamoDB table name for execution runs.
-
-    Returns:
-        Table name from environment variable.
-
-    Raises:
-        ValueError: If EXECUTION_RUNS_TABLE_NAME is not set.
-
-    """
-    table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME", "")
-    if not table_name:
-        raise ValueError("EXECUTION_RUNS_TABLE_NAME environment variable is not set")
-    return table_name
+    arn = os.environ.get("EXECUTION_WORKFLOW_STATE_MACHINE_ARN", "")
+    if not arn:
+        raise ValueError("EXECUTION_WORKFLOW_STATE_MACHINE_ARN environment variable is not set")
+    return arn
 
 
 def _get_rebalance_plan_table_name() -> str | None:
@@ -1002,20 +981,16 @@ class PortfolioAnalysisHandler:
         data_freshness: dict[str, Any] | None = None,
         strategies_evaluated: int = 0,
     ) -> None:
-        """Decompose rebalance plan and enqueue to SQS Standard queue for parallel execution.
+        """Start Step Functions execution workflow for two-phase trade execution.
 
-        Two-Phase Parallel Execution Architecture:
-        1. Creates TradeMessage for each BUY/SELL item (skips HOLD)
-        2. Creates run state entry in DynamoDB (BUY trades stored with status=WAITING)
-        3. Enqueues only SELL trades to SQS Standard queue
-        4. Multiple Lambda invocations process SELLs in parallel (up to 10)
-        5. When last SELL completes, Execution Lambda enqueues BUY trades
-        6. Multiple Lambda invocations process BUYs in parallel
-
-        This uses enqueue timing (not FIFO) to ensure all sells complete before buys.
+        This method triggers the Step Functions state machine which handles:
+        1. SELL phase execution (parallel, max 10 concurrent)
+        2. SELL failure threshold guard check
+        3. BUY phase execution with equity circuit breaker
+        4. Result aggregation and notifications
 
         Args:
-            rebalance_plan: The rebalance plan to decompose.
+            rebalance_plan: The rebalance plan to execute.
             correlation_id: Workflow correlation ID.
             causation_id: Event that caused this operation.
             alpaca_equity: Alpaca account equity for circuit breaker calculation.
@@ -1023,252 +998,88 @@ class PortfolioAnalysisHandler:
             strategies_evaluated: Number of DSL strategy files evaluated.
 
         """
+        import json
+
         import boto3
 
-        from the_alchemiser.shared.services.execution_run_service import (
-            ExecutionRunService,
-        )
-
         run_id = str(uuid.uuid4())
-        run_timestamp = datetime.now(UTC)
 
-        # Build TradeMessages for each BUY/SELL item
-        trade_messages: list[TradeMessage] = []
+        # Build trade messages for Step Functions input
+        trade_messages: list[dict[str, Any]] = []
         for item in rebalance_plan.items:
             if item.action == "HOLD":
                 continue  # Skip HOLD items - no execution needed
 
-            # Compute sequence number (sells 1000-1999, buys 2000-2999)
-            sequence_number = TradeMessage.compute_sequence_number(item.action, item.priority)
-
-            # Determine if this is a complete exit (selling entire position)
-            # is_complete_exit and is_full_liquidation are equivalent for SELL actions
-            is_complete_exit = (
-                item.action == "SELL"
-                and item.target_weight == Decimal("0")
-                and item.current_weight > Decimal("0")
-            )
-            # is_full_liquidation: target_weight=0 regardless of action (for Executor logic)
+            # Determine if this is a full liquidation (target_weight=0)
             is_full_liquidation = item.target_weight == Decimal("0")
 
-            trade_message = TradeMessage(
-                run_id=run_id,
-                trade_id=str(uuid.uuid4()),
-                plan_id=rebalance_plan.plan_id,
-                correlation_id=correlation_id,
-                causation_id=causation_id,
-                strategy_id=rebalance_plan.strategy_id,
-                symbol=item.symbol,
-                action=item.action,
-                trade_amount=item.trade_amount,
-                current_weight=item.current_weight,
-                target_weight=item.target_weight,
-                target_value=item.target_value,
-                current_value=item.current_value,
-                priority=item.priority,
-                phase=item.action,  # Phase matches action for simplicity
-                sequence_number=sequence_number,
-                is_complete_exit=is_complete_exit,
-                is_full_liquidation=is_full_liquidation,
-                total_portfolio_value=rebalance_plan.total_portfolio_value,
-                total_run_trades=sum(
-                    1 for i in rebalance_plan.items if i.action in ["BUY", "SELL"]
-                ),
-                run_timestamp=run_timestamp,
-                metadata=rebalance_plan.metadata,
-            )
+            trade_message = {
+                "tradeId": str(uuid.uuid4()),
+                "symbol": item.symbol,
+                "action": item.action,
+                "quantity": None,  # Calculated at execution time by execute_trade_sfn
+                "targetValue": str(item.target_value),
+                "estimatedPrice": None,  # Will be fetched at execution time
+                "isFullLiquidation": is_full_liquidation,
+                "targetWeight": str(item.target_weight),
+                "strategyId": rebalance_plan.strategy_id,
+            }
             trade_messages.append(trade_message)
 
         if not trade_messages:
             self.logger.info(
-                "No trades to enqueue (all HOLD)",
+                "No trades to execute (all HOLD)",
                 extra={"correlation_id": correlation_id},
             )
             return
 
-        # Sort by sequence number (sells first, then buys)
-        trade_messages.sort(key=lambda m: m.sequence_number)
-
-        # Separate trades by phase for two-phase execution
-        sell_trades = [m for m in trade_messages if m.phase == "SELL"]
-        buy_trades = [m for m in trade_messages if m.phase == "BUY"]
-
-        # Calculate max equity deployment limit for circuit breaker
-        # max_equity_limit = alpaca_equity * EQUITY_DEPLOYMENT_PCT
-        # This prevents over-deployment if BUY trades would exceed this limit
-        # Uses Alpaca's authoritative equity value (not our calculated total_portfolio_value)
-        from the_alchemiser.shared.config.config import load_settings
-
-        settings = load_settings()
-        equity_deployment_pct = Decimal(str(settings.alpaca.effective_deployment_pct))
-
-        # Use Alpaca equity if provided, fallback to total_portfolio_value
-        circuit_breaker_equity = (
-            alpaca_equity if alpaca_equity else rebalance_plan.total_portfolio_value
-        )
-        max_equity_limit_usd = circuit_breaker_equity * equity_deployment_pct
-
-        self.logger.info(
-            "Calculated equity deployment limit for circuit breaker",
-            extra={
-                "run_id": run_id,
-                "correlation_id": correlation_id,
-                "alpaca_equity": str(alpaca_equity) if alpaca_equity else "N/A",
-                "circuit_breaker_equity": str(circuit_breaker_equity),
-                "equity_deployment_pct": str(equity_deployment_pct),
-                "max_equity_limit_usd": str(max_equity_limit_usd),
+        # Build Step Functions input payload
+        sfn_input = {
+            "rebalancePlan": {
+                "tradeMessages": trade_messages,
             },
-        )
+            "correlationId": correlation_id,
+            "runId": run_id,
+            "planId": rebalance_plan.plan_id,
+        }
 
-        # Create run state entry in DynamoDB with two-phase tracking
-        # BUY trades are stored but not enqueued yet (status=WAITING)
-        run_service = ExecutionRunService(table_name=_get_execution_runs_table_name())
+        # Start Step Functions execution
+        sfn_client = boto3.client("stepfunctions")
+        state_machine_arn = _get_step_functions_state_machine_arn()
 
-        # Build rebalance plan summary for email notifications (BUY/SELL only, not HOLD)
-        rebalance_plan_summary = [
-            {
-                "symbol": item.symbol,
-                "action": item.action,
-                "current_weight_pct": float(item.current_weight * 100),
-                "target_weight_pct": float(item.target_weight * 100),
-                "trade_amount": float(item.trade_amount),
-            }
-            for item in rebalance_plan.items
-            if item.action in ["BUY", "SELL"]
-        ]
-
-        run_service.create_run(
-            run_id=run_id,
-            plan_id=rebalance_plan.plan_id,
-            correlation_id=correlation_id,
-            trade_messages=trade_messages,
-            run_timestamp=run_timestamp,
-            enqueue_sells_only=True,  # Two-phase execution: SELLs first, then BUYs
-            max_equity_limit_usd=max_equity_limit_usd,  # Circuit breaker limit
-            data_freshness=data_freshness,  # Propagate for email notifications
-            strategies_evaluated=strategies_evaluated,  # For email notifications
-            rebalance_plan_summary=rebalance_plan_summary,  # For email notifications
-        )
-
-        # Enqueue trades to FIFO SQS queue (parallel execution with exactly-once processing)
-        # MessageDeduplicationId=trade_id prevents duplicate execution
-        # MessageGroupId=symbol enables parallel execution across different symbols
-        sqs_client = boto3.client("sqs")
-        queue_url = _get_execution_fifo_queue_url()
-        enqueued_count = 0
-
-        # Handle edge case: 0 SELLs means we skip the SELL phase entirely
-        # and go directly to BUY phase to avoid workflow getting stuck
-        if len(sell_trades) == 0 and len(buy_trades) > 0:
-            self.logger.info(
-                "No SELL trades - transitioning directly to BUY phase",
-                extra={
-                    "run_id": run_id,
-                    "correlation_id": correlation_id,
-                    "buy_count": len(buy_trades),
-                },
-            )
-            # Transition run state to BUY phase
-            run_service.transition_to_buy_phase(run_id)
-
-            try:
-                for msg in buy_trades:
-                    sqs_client.send_message(
-                        QueueUrl=queue_url,
-                        MessageBody=msg.to_sqs_message_body(),
-                        MessageDeduplicationId=msg.trade_id,  # Exactly-once per trade
-                        MessageGroupId=msg.symbol,  # Parallel execution across symbols
-                        MessageAttributes={
-                            "RunId": {"DataType": "String", "StringValue": run_id},
-                            "TradeId": {"DataType": "String", "StringValue": msg.trade_id},
-                            "Phase": {"DataType": "String", "StringValue": msg.phase},
-                        },
-                    )
-                    enqueued_count += 1
-
-                # Mark BUY trades as PENDING (they're now enqueued)
-                run_service.mark_buy_trades_pending(run_id, [t.trade_id for t in buy_trades])
-
-                self.logger.info(
-                    "Enqueued BUY trades directly (0 SELLs scenario)",
-                    extra={
-                        "run_id": run_id,
-                        "correlation_id": correlation_id,
-                        "buy_enqueued": len(buy_trades),
-                    },
-                )
-                return
-
-            except Exception as enqueue_error:
-                self.logger.error(
-                    f"SQS enqueue failed for BUY trades: {enqueue_error}",
-                    extra={
-                        "run_id": run_id,
-                        "correlation_id": correlation_id,
-                        "enqueued_count": enqueued_count,
-                        "total_buys": len(buy_trades),
-                    },
-                )
-                run_service.update_run_status(run_id, "FAILED")
-                raise
-
-        # Normal two-phase execution: enqueue SELL trades first
-        # BUY trades will be enqueued after SELL phase completes
         try:
-            for msg in sell_trades:
-                sqs_client.send_message(
-                    QueueUrl=queue_url,
-                    MessageBody=msg.to_sqs_message_body(),
-                    MessageDeduplicationId=msg.trade_id,  # Exactly-once per trade
-                    MessageGroupId=msg.symbol,  # Parallel execution across symbols
-                    MessageAttributes={
-                        "RunId": {"DataType": "String", "StringValue": run_id},
-                        "TradeId": {"DataType": "String", "StringValue": msg.trade_id},
-                        "Phase": {"DataType": "String", "StringValue": msg.phase},
-                    },
-                )
-                enqueued_count += 1
+            response = sfn_client.start_execution(
+                stateMachineArn=state_machine_arn,
+                name=f"execution-{run_id}",  # Must be unique per execution
+                input=json.dumps(sfn_input),
+            )
 
-        except Exception as enqueue_error:
-            # SQS enqueue failed - mark run as FAILED to prevent inconsistent state
-            self.logger.error(
-                f"SQS enqueue failed after {enqueued_count}/{len(sell_trades)} SELL messages: {enqueue_error}",
+            execution_arn = response["executionArn"]
+
+            self.logger.info(
+                "Started Step Functions execution workflow",
                 extra={
                     "run_id": run_id,
                     "correlation_id": correlation_id,
-                    "enqueued_count": enqueued_count,
-                    "total_sells": len(sell_trades),
-                    "total_buys": len(buy_trades),
-                    "error_type": type(enqueue_error).__name__,
-                    "error_details": str(enqueue_error),
+                    "execution_arn": execution_arn,
+                    "total_trades": len(trade_messages),
+                    "sell_count": sum(1 for t in trade_messages if t["action"] == "SELL"),
+                    "buy_count": sum(1 for t in trade_messages if t["action"] == "BUY"),
+                    "execution_mode": "step_functions",
                 },
             )
-            # Mark run as FAILED so it doesn't wait forever for missing trades
-            try:
-                run_service.update_run_status(run_id, "FAILED")
-                self.logger.info(
-                    f"Marked run {run_id} as FAILED due to SQS enqueue error",
-                    extra={"run_id": run_id, "correlation_id": correlation_id},
-                )
-            except Exception as status_error:
-                self.logger.error(
-                    f"Failed to mark run as FAILED: {status_error}",
-                    extra={"run_id": run_id, "correlation_id": correlation_id},
-                )
-            # Re-raise to surface the error
-            raise
 
-        self.logger.info(
-            "Enqueued SELL trades for parallel execution (BUYs waiting for SELL completion)",
-            extra={
-                "run_id": run_id,
-                "correlation_id": correlation_id,
-                "total_trades": len(trade_messages),
-                "sell_enqueued": len(sell_trades),
-                "buy_waiting": len(buy_trades),
-                "execution_mode": "two_phase_parallel",
-            },
-        )
+        except Exception as sfn_error:
+            self.logger.error(
+                f"Failed to start Step Functions execution: {sfn_error}",
+                extra={
+                    "run_id": run_id,
+                    "correlation_id": correlation_id,
+                    "state_machine_arn": state_machine_arn,
+                    "error_type": type(sfn_error).__name__,
+                },
+            )
+            raise
 
     def _extract_trade_values(self, item: RebalancePlanItem) -> tuple[str, str, float]:
         """Extract action, symbol, and trade amount from a rebalance item.
