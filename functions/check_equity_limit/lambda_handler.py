@@ -13,7 +13,10 @@ import os
 from decimal import Decimal
 from typing import Any
 
+import boto3
+
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.services.execution_run_service import ExecutionRunService
 
 logger = get_logger(__name__)
 
@@ -55,19 +58,110 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         },
     )
 
-    # In a real implementation, this would:
-    # 1. Query current account equity from Alpaca
-    # 2. Query cumulative BUY value so far from DynamoDB
-    # 3. Calculate if adding this trade would exceed limit
-    #
-    # For Phase 1, we'll use a simplified version that always allows trades
-    # The full circuit breaker logic will be ported from execution_run_service.py
+    try:
+        # Initialize ExecutionRunService to access run state
+        dynamodb = boto3.resource("dynamodb")
+        table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME")
 
-    # TODO: Implement full circuit breaker logic in Phase 2
-    # For now, always allow (existing execution path has this logic)
+        if not table_name:
+            logger.warning("EXECUTION_RUNS_TABLE_NAME not configured, allowing trade")
+            return {
+                "allowed": True,
+                "cumulative": "0",
+                "limit": str(equity_deployment_pct),
+                "reason": "table_not_configured",
+            }
 
-    return {
-        "allowed": True,
-        "cumulative": "0",
-        "limit": str(equity_deployment_pct),
-    }
+        table = dynamodb.Table(table_name)
+        run_service = ExecutionRunService(table=table)
+
+        # Get current run state
+        run = run_service.get_run(run_id)
+        if not run:
+            logger.warning(
+                "Run not found - blocking trade (fail-safe)",
+                extra={"run_id": run_id},
+            )
+            return {
+                "allowed": False,
+                "cumulative": "0",
+                "limit": str(equity_deployment_pct),
+                "reason": "run_not_found",
+            }
+
+        # Get max equity limit and cumulative BUY value
+        max_equity_limit = run.get("max_equity_limit_usd", Decimal("0"))
+        cumulative_buy = run.get("cumulative_buy_succeeded_value", Decimal("0"))
+
+        # If max_equity_limit is 0 or not set, circuit breaker is disabled
+        if max_equity_limit <= Decimal("0"):
+            logger.debug(
+                "Circuit breaker disabled (max_equity_limit not set)",
+                extra={"run_id": run_id},
+            )
+            return {
+                "allowed": True,
+                "cumulative": str(cumulative_buy),
+                "limit": "0",
+                "reason": "circuit_breaker_disabled",
+            }
+
+        # Calculate what the new cumulative would be
+        new_cumulative = cumulative_buy + abs(trade_value)
+        headroom = max_equity_limit - cumulative_buy
+
+        # Check if adding this trade would exceed the limit
+        if new_cumulative > max_equity_limit:
+            logger.warning(
+                "🚫 Equity circuit breaker TRIGGERED - BUY would exceed limit",
+                extra={
+                    "run_id": run_id,
+                    "max_equity_limit_usd": str(max_equity_limit),
+                    "cumulative_buy_succeeded_value": str(cumulative_buy),
+                    "proposed_buy_value": str(trade_value),
+                    "new_cumulative_if_executed": str(new_cumulative),
+                    "overage": str(new_cumulative - max_equity_limit),
+                },
+            )
+            return {
+                "allowed": False,
+                "cumulative": str(cumulative_buy),
+                "limit": str(max_equity_limit),
+                "reason": "would_exceed_limit",
+                "headroom": str(headroom),
+            }
+
+        logger.debug(
+            "Equity circuit breaker check passed",
+            extra={
+                "run_id": run_id,
+                "cumulative_buy": str(cumulative_buy),
+                "proposed_buy": str(trade_value),
+                "headroom": str(headroom),
+            },
+        )
+
+        return {
+            "allowed": True,
+            "cumulative": str(cumulative_buy),
+            "limit": str(max_equity_limit),
+            "reason": "within_limit",
+            "headroom": str(headroom),
+        }
+
+    except Exception as e:
+        logger.error(
+            f"Error checking equity circuit breaker: {e}",
+            exc_info=True,
+            extra={
+                "run_id": run_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        # On error, fail-safe: block the trade
+        return {
+            "allowed": False,
+            "cumulative": "0",
+            "limit": str(equity_deployment_pct),
+            "reason": f"error_{type(e).__name__}",
+        }

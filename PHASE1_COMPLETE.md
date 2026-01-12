@@ -33,17 +33,17 @@ Phase 1 of the Step Functions migration has been successfully implemented. All n
 - **Output**: buyPhaseAllowed boolean, failure metrics
 - **Key Logic**: Calculates failed SELL dollar amount, checks threshold
 
-#### check_equity_limit (75 lines)
+#### check_equity_limit (167 lines) - FULLY FUNCTIONAL
 - **Purpose**: Circuit breaker for BUY trades
-- **Input**: Individual BUY trade details
-- **Output**: allowed boolean, cumulative/limit values
-- **Key Logic**: Placeholder for Phase 2 (always allows for now)
+- **Input**: Individual BUY trade details, runId
+- **Output**: allowed boolean, cumulative/limit values, reason
+- **Key Logic**: Queries ExecutionRunsTable for cumulative BUY value, checks against max_equity_limit_usd
 
-#### execute_trade_sfn (94 lines)
+#### execute_trade_sfn (331 lines) - FULLY FUNCTIONAL
 - **Purpose**: Executes single trade via Alpaca API
-- **Input**: TradeMessage with symbol, action, quantity
-- **Output**: Trade result with status, price, order ID
-- **Key Logic**: Placeholder for Phase 2 (mock execution)
+- **Input**: TradeMessage with symbol, action, quantity/targetValue, estimatedPrice
+- **Output**: Trade result with status, price, orderId, actual quantity filled
+- **Key Logic**: Real Alpaca API integration with retry logic, shares calculation, full liquidation handling
 
 #### aggregate_results (141 lines)
 - **Purpose**: Collects and summarizes trade results
@@ -166,11 +166,11 @@ template.yaml
 ❌ No unit tests (will be added after deployment validation)
 ❌ No integration tests (will be added in Phase 2)
 
-### Placeholder Logic
-⚠️ `execute_trade_sfn`: Mock implementation (always succeeds)
-⚠️ `check_equity_limit`: Always allows trades (no circuit breaker yet)
+### Implementation Status
+✅ `execute_trade_sfn`: **FULLY IMPLEMENTED** - Real trade execution via Alpaca API with retry logic (331 lines)
+✅ `check_equity_limit`: **FULLY IMPLEMENTED** - Full circuit breaker with DynamoDB state tracking (167 lines)
 
-## Next Steps (Phase 2)
+## Phase 2 Complete - Ready for Deployment
 
 ### Prerequisites
 1. Deploy Phase 1 to dev environment: `make deploy-dev`
