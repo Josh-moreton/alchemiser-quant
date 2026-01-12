@@ -96,6 +96,7 @@ class AlpacaAccountService:
                 "account_number": getattr(account_obj, "account_number", None),
                 "status": getattr(account_obj, "status", None),
                 "currency": getattr(account_obj, "currency", None),
+                "created_at": _safe_str("created_at"),  # RFC3339 timestamp of account creation
                 # Core financial values (as strings for precision)
                 "buying_power": _safe_str("buying_power"),
                 "cash": _safe_str("cash"),
