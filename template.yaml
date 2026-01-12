@@ -1790,6 +1790,12 @@ Resources:
                 Condition:
                   StringEquals:
                     iam:PassedToService: scheduler.amazonaws.com
+              # Permission to publish events to EventBridge
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default"
 
   # Morning schedule to trigger Schedule Manager (checks calendar and sets up today's execution)
   ScheduleManagerSchedule:
