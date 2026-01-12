@@ -688,12 +688,46 @@ Octarine Capital Data Refresh Service
             correlation_id: Correlation ID for filtering
 
         Returns:
-            CloudWatch Logs URL
+            CloudWatch Logs URL with query parameters for filtering
 
         """
+        from urllib.parse import quote
+
         region = os.environ.get("AWS_REGION", "us-east-1")
-        # TODO: Implement complete URL builder with correlation_id filter, proper timestamp range,
-        # and URL encoding for production use. Current placeholder URL doesn't include query parameters.
+        stack_name = os.environ.get("STACK_NAME", f"alchemiser-{self.stage}")
+
+        # Build list of Lambda log groups to search
+        lambda_suffixes = [
+            "strategy-orchestrator",
+            "strategy-worker",
+            "signal-aggregator",
+            "portfolio",
+            "execution",
+            "trade-aggregator",
+            "notifications",
+        ]
+        log_groups = [f"/aws/lambda/{stack_name}-{suffix}" for suffix in lambda_suffixes]
+
+        # Build the Logs Insights query to filter by correlation_id
+        query = f'fields @timestamp, @message | filter @message like "{correlation_id}" | sort @timestamp desc | limit 200'
+
+        # URL-encode the query for the CloudWatch console
+        encoded_query = quote(query, safe="")
+
+        # Build source log groups parameter (CloudWatch uses ~'loggroup' format)
+        source_groups = "~".join([f"'{lg}'" for lg in log_groups])
+
+        # CloudWatch Logs Insights URL format uses a special encoding:
+        # The hash fragment contains query details with ~ as field separator
+        # Time range: last 3 hours (relative) to capture full workflow execution
         return (
-            f"https://console.aws.amazon.com/cloudwatch/home?region={region}#logsV2:logs-insights"
+            f"https://{region}.console.aws.amazon.com/cloudwatch/home?region={region}"
+            f"#logsV2:logs-insights$3FqueryDetail$3D~("
+            f"end~0"  # 0 = now (relative time)
+            f"~start~-10800"  # -10800 = 3 hours ago in seconds
+            f"~timeType~'RELATIVE'"
+            f"~unit~'seconds'"
+            f"~editorString~'{encoded_query}'"
+            f"~source~({source_groups})"
+            f")"
         )
