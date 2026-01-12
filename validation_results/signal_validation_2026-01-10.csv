@@ -7,7 +7,6 @@ validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
 2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,flextiger,flextiger.clj,yes,,2026-01-10T20:02:05.695268+00:00
 2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,fomo_nomo,fomo_nomo.clj,no,"weights are out, see file",2026-01-10T20:03:57.351799+00:00
 2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,fomo_nomo_lev,fomo_nomo_lev.clj,no,"wrong, see file",2026-01-10T20:05:01.302877+00:00
-2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,ftl_starburst,ftl_starburst.clj,no,see file,2026-01-10T20:06:22.564703+00:00
 2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,ftl_starburst_gen2,ftl_starburst_gen2.clj,no,"signal is 100% NAIL, we're 100% TQQQ",2026-01-10T20:06:50.516596+00:00
 2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,gold,gold.clj,yes,,2026-01-10T20:07:01.102907+00:00
 2026-01-10,workflow-8f167181-27c5-41e5-945c-efd5ad09b84f,group_stuff,group_stuff.clj,yes,,2026-01-10T20:07:31.252833+00:00

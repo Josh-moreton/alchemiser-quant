@@ -1,0 +1,13 @@
+validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,beta_baller,beta_baller.clj,yes,,2026-01-12T10:06:33.309556+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,blatant_tech,blatant_tech.clj,yes,,2026-01-12T10:07:00.668556+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,defence,defence.clj,yes,,2026-01-12T10:07:11.003003+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,gold,gold.clj,yes,,2026-01-12T10:07:21.579138+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,nuclear,nuclear.clj,yes,,2026-01-12T10:07:33.089516+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,pals_spell,pals_spell.clj,yes,,2026-01-12T10:08:01.000605+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,rains_concice_em,rains_concice_em.clj,yes,,2026-01-12T10:08:18.718611+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,rains_em_dancer,rains_em_dancer.clj,yes,,2026-01-12T10:08:28.555288+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,simons_full_kmlm,simons_full_kmlm.clj,yes,,2026-01-12T10:08:42.563881+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,sisyphus_lowvol,sisyphus_lowvol.clj,yes,,2026-01-12T10:09:11.307376+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,tqqq_ftlt_1,tqqq_ftlt_1.clj,yes,,2026-01-12T10:09:50.227655+00:00
+2026-01-12,workflow-6c4bfc64-d3db-431e-beb9-1ea22942fa0e,tqqq_ftlt_2,tqqq_ftlt_2.clj,yes,,2026-01-12T10:10:02.222449+00:00

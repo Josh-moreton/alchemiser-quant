@@ -123,12 +123,15 @@ class IndicatorService:
                 fallback_used=True,
             )
         else:
-            logger.debug(
-                "RSI computed",
+            # DEBUG: Enhanced logging for signal divergence investigation
+            logger.info(
+                "RSI_DEBUG: computed value",
                 module=MODULE_NAME,
                 symbol=symbol,
                 window=window,
-                rsi_value=rsi_value,
+                rsi_value=round(rsi_value, 4) if rsi_value else None,
+                last_5_prices=[round(float(p), 2) for p in prices.iloc[-5:].tolist()],
+                prices_count=len(prices),
             )
 
         # REM-007: Return None for price if no data, not $100.0
@@ -327,12 +330,19 @@ class IndicatorService:
             )
             raise DslEvaluationError(f"No cumulative return for {symbol} window={window}")
 
-        logger.debug(
-            "Cumulative return computed",
+        # DEBUG: Enhanced logging for signal divergence investigation
+        reference_price = float(prices.iloc[-window - 1]) if len(prices) > window else None
+        current_price = float(prices.iloc[-1]) if len(prices) > 0 else None
+        logger.info(
+            "CUMRET_DEBUG: computed value",
             module=MODULE_NAME,
             symbol=symbol,
             window=window,
-            value=latest,
+            cumulative_return_pct=round(latest, 4),
+            current_price=round(current_price, 2) if current_price else None,
+            reference_price=round(reference_price, 2) if reference_price else None,
+            prices_count=len(prices),
+            calculation_method="(current/reference - 1) * 100",
         )
 
         return TechnicalIndicator(
