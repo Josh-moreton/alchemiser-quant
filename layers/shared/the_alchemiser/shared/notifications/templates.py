@@ -176,10 +176,7 @@ def _format_rebalance_plan_html(rebalance_plan_summary: list[dict[str, Any]]) ->
         trade_amount = item.get("trade_amount", 0)
 
         # Color coding for action
-        if action == "BUY":
-            action_color = "#28a745"  # Green
-        else:
-            action_color = "#dc3545"  # Red
+        action_color = "#28a745" if action == "BUY" else "#dc3545"
 
         # Format trade amount with sign
         amount_sign = "+" if trade_amount > 0 else ""
