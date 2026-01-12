@@ -13,8 +13,6 @@ import os
 from decimal import Decimal
 from typing import Any
 
-import boto3
-
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.execution_run_service import ExecutionRunService
 
@@ -60,7 +58,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     try:
         # Initialize ExecutionRunService to access run state
-        dynamodb = boto3.resource("dynamodb")
         table_name = os.environ.get("EXECUTION_RUNS_TABLE_NAME")
 
         if not table_name:
@@ -72,8 +69,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "reason": "table_not_configured",
             }
 
-        table = dynamodb.Table(table_name)
-        run_service = ExecutionRunService(table=table)
+        run_service = ExecutionRunService(table_name=table_name)
 
         # Get current run state
         run = run_service.get_run(run_id)

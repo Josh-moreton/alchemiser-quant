@@ -13,7 +13,7 @@ import time
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.config import ApplicationContainer
+from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.errors import (
     ExecutionManagerError,
     MarketDataError,
@@ -101,9 +101,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         from functions.execution.core.executor import Executor
         from functions.execution.core.smart_execution_strategy import ExecutionConfig
 
-        # Create executor
-        executor = Executor(container=container)
+        # Create executor with alpaca_manager from container
+        alpaca_manager = container.infrastructure.alpaca_manager()
         config = ExecutionConfig()
+        executor = Executor(
+            alpaca_manager=alpaca_manager,
+            execution_config=config,
+        )
 
         # Calculate shares if not provided
         shares_to_trade = _calculate_shares(
