@@ -499,7 +499,7 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
                 extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
             )
 
-        # Fetch yearly P&L (1 year / YTD-ish)
+        # Fetch yearly P&L - Alpaca auto-adjusts to account inception if < 1 year old
         yearly_pnl: dict[str, Any] = {}
         try:
             yearly_data = pnl_service.get_period_pnl("1A")
