@@ -1,6 +1,5 @@
 {
   "files": [
-    "beta_baller.clj",
     "blatant_tech.clj",
     "defence.clj",
     "gold.clj",
@@ -14,9 +13,8 @@
     "tqqq_ftlt_2.clj"
   ],
   "allocations": {
-    "beta_baller.clj": 0.05,
     "blatant_tech.clj": 0.1,
-    "defence.clj": 0.05,
+    "defence.clj": 0.1,
     "gold.clj": 0.05,
     "nuclear.clj": 0.05,
     "pals_spell.clj": 0.1,
