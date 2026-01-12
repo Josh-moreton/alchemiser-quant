@@ -1780,7 +1780,7 @@ Resources:
                   - scheduler:DeleteSchedule
                   - scheduler:GetSchedule
                 Resource:
-                  - !Sub "arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/trading-execution-*"
+                  - !Sub "arn:aws:scheduler:${AWS::Region}:${AWS::AccountId}:schedule/default/*-trading-execution-*"
               # Permission to pass role to scheduler
               - Effect: Allow
                 Action:
