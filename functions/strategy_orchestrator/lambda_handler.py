@@ -98,14 +98,12 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         ]
 
         # Validate allocations sum to ~1.0 using math.isclose per coding guidelines
+        # Fail-fast: reject invalid configurations before creating sessions or invoking workers
         total_allocation = float(sum(alloc for _, alloc in strategy_configs))
         if not math.isclose(total_allocation, 1.0, rel_tol=0.01):
-            logger.warning(
-                "Strategy allocations don't sum to 1.0",
-                extra={
-                    "total_allocation": total_allocation,
-                    "allocations": dsl_allocations,
-                },
+            raise ValueError(
+                f"Strategy allocations must sum to 1.0, got {total_allocation:.4f}. "
+                f"Allocations: {dsl_allocations}"
             )
 
         logger.info(
