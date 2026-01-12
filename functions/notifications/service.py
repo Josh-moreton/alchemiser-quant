@@ -490,15 +490,12 @@ class NotificationService:
             else:
                 duration_str = f"{duration_seconds}s"
 
-            # Determine status emoji and color
+            # Determine status color (no emojis for institutional style)
             if event.status == "SUCCESS":
-                status_emoji = "✅"
                 status_color = "#28a745"
             elif event.status == "SUCCESS_WITH_WARNINGS":
-                status_emoji = "⚠️"
                 status_color = "#ffc107"
             else:
-                status_emoji = "❌"
                 status_color = "#dc3545"
 
             # Build failed symbols list (if any)
@@ -520,30 +517,26 @@ class NotificationService:
 <!DOCTYPE html>
 <html>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 600px;">
-    <h2 style="color: {status_color};">{status_emoji} Data Lake Refresh {event.status}</h2>
+    <h2 style="color: {status_color};">Data Lake Refresh - {event.status}</h2>
 
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
         <tr style="background-color: #f8f9fa;">
-            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Environment</strong></td>
-            <td style="padding: 10px; border: 1px solid #dee2e6;">{self.stage}</td>
-        </tr>
-        <tr>
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Total Symbols</strong></td>
             <td style="padding: 10px; border: 1px solid #dee2e6;">{total_symbols}</td>
         </tr>
-        <tr style="background-color: #f8f9fa;">
+        <tr>
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Updated</strong></td>
             <td style="padding: 10px; border: 1px solid #dee2e6; color: #28a745;">{updated_count}</td>
         </tr>
-        <tr>
+        <tr style="background-color: #f8f9fa;">
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Failed</strong></td>
             <td style="padding: 10px; border: 1px solid #dee2e6; color: {"#dc3545" if failed_count > 0 else "#28a745"};">{failed_count}</td>
         </tr>
-        <tr style="background-color: #f8f9fa;">
+        <tr>
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Duration</strong></td>
             <td style="padding: 10px; border: 1px solid #dee2e6;">{duration_str}</td>
         </tr>
-        <tr>
+        <tr style="background-color: #f8f9fa;">
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Correlation ID</strong></td>
             <td style="padding: 10px; border: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">{event.correlation_id}</td>
         </tr>
@@ -552,26 +545,27 @@ class NotificationService:
     {failed_list_html}
 
     <p style="color: #6c757d; font-size: 12px; margin-top: 30px;">
-        This notification was sent by The Alchemiser data refresh service.
+        Octarine Capital Data Refresh Service
     </p>
 </body>
 </html>
 """
 
             text_body = f"""
-DATA LAKE REFRESH {event.status}
+DATA LAKE REFRESH - {event.status}
 {"=" * 40}
 
-Environment: {self.stage}
 Total Symbols: {total_symbols}
 Updated: {updated_count}
 Failed: {failed_count}
 Duration: {duration_str}
 Correlation ID: {event.correlation_id}
 {failed_list_text}
+
+Octarine Capital Data Refresh Service
 """
 
-            subject = f"[{self.stage.upper()}] {status_emoji} Data Lake Refresh {event.status}"
+            subject = format_subject("Data Lake Refresh", event.status, self.stage)
 
             result = send_email(
                 to_addresses=self._get_recipients(),

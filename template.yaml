@@ -1422,7 +1422,7 @@ Resources:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # SES Configuration
           SES_FROM_ADDRESS: noreply@mail.octarine.capital
-          SES_FROM_NAME: "The Alchemiser"
+          SES_FROM_NAME: "Octarine Capital"
           SES_REPLY_TO_ADDRESS: noreply@mail.octarine.capital
           SES_REGION: !Ref AWS::Region
           # Environment-safe routing (override recipients in non-prod)

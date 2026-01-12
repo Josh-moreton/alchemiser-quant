@@ -80,7 +80,7 @@ def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
 
     return f"""
         <div style="background-color: #e8f4f8; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
-            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">📈 Portfolio Performance</h4>
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">Portfolio Performance</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Past Month:</strong> {monthly_str}</p>
             <p style="margin: 0; font-size: 11px;"><strong>Past Year:</strong> {yearly_str}</p>
         </div>
@@ -178,10 +178,8 @@ def _format_rebalance_plan_html(rebalance_plan_summary: list[dict[str, Any]]) ->
         # Color coding for action
         if action == "BUY":
             action_color = "#28a745"  # Green
-            action_symbol = "⬆️"
         else:
             action_color = "#dc3545"  # Red
-            action_symbol = "⬇️"
 
         # Format trade amount with sign
         amount_sign = "+" if trade_amount > 0 else ""
@@ -190,7 +188,7 @@ def _format_rebalance_plan_html(rebalance_plan_summary: list[dict[str, Any]]) ->
         rows_html += f"""
                 <tr>
                     <td style="padding: 4px 8px; border: 1px solid #dee2e6;">{symbol}</td>
-                    <td style="padding: 4px 8px; border: 1px solid #dee2e6; color: {action_color}; font-weight: bold;">{action_symbol} {action}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #dee2e6; color: {action_color}; font-weight: bold;">{action}</td>
                     <td style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">{current_pct:.1f}%</td>
                     <td style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">{target_pct:.1f}%</td>
                     <td style="padding: 4px 8px; border: 1px solid #dee2e6; text-align: right;">{amount_str}</td>
@@ -198,7 +196,7 @@ def _format_rebalance_plan_html(rebalance_plan_summary: list[dict[str, Any]]) ->
 
     return f"""
         <div style="background-color: #f0f8ff; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #007bff;">
-            <h4 style="margin: 0 0 8px 0; color: #004085; font-size: 13px;">📊 Rebalance Plan</h4>
+            <h4 style="margin: 0 0 8px 0; color: #004085; font-size: 13px;">Rebalance Plan</h4>
             <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                 <thead>
                     <tr style="background-color: #e9ecef;">
@@ -258,12 +256,14 @@ def format_subject(
     run_id: str,
     run_date: datetime | None = None,
 ) -> str:
-    """Format email subject line following strict spec.
+    """Format email subject line following institutional spec.
 
-    Format: Alchemiser <env> <component> - <STATUS>
+    Format:
+      - Production: "{Component} - {STATUS}"
+      - Non-production: "[DEV] {Component} - {STATUS}" or "[STAGING] {Component} - {STATUS}"
 
     Args:
-        component: Component name (e.g., "daily run", "data lake update")
+        component: Component name (e.g., "Daily Run", "Data Lake Refresh")
         status: Status (SUCCESS, SUCCESS_WITH_WARNINGS, FAILURE, RECOVERED)
         env: Environment (dev/staging/prod)
         run_id: Unused; retained for backward compatibility
@@ -273,7 +273,16 @@ def format_subject(
         Formatted subject line
 
     """
-    return f"Alchemiser {env} {component} - {status}"
+    # Capitalize component for consistency
+    component_title = component.title()
+
+    # Production emails have no environment prefix
+    if env == "prod":
+        return f"{component_title} - {status}"
+
+    # Non-production emails get environment prefix
+    env_prefix = f"[{env.upper()}]"
+    return f"{env_prefix} {component_title} - {status}"
 
 
 def render_html_header(component: str, status: str) -> str:
@@ -306,12 +315,12 @@ def render_html_header(component: str, status: str) -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alchemiser {component} — {status}</title>
+    <title>{component} - {status}</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.5; color: #333; max-width: 700px; margin: 0 auto; padding: 15px; font-size: 13px;">
     <div style="padding: 15px 0; border-bottom: 2px solid #e9ecef; text-align: center; margin-bottom: 15px;">
-        <img src="{logo_url}" alt="The Alchemiser" style="width: 40px; height: 40px; margin-bottom: 8px; border-radius: 8px;">
-        <h1 style="color: #333; margin: 0; font-size: 18px; font-weight: 600;">The Alchemiser</h1>
+        <img src="{logo_url}" alt="Octarine Capital" style="width: 40px; height: 40px; margin-bottom: 8px; border-radius: 8px;">
+        <h1 style="color: #333; margin: 0; font-size: 18px; font-weight: 600;">Octarine Capital</h1>
         <p style="color: #666; margin: 4px 0 0 0; font-size: 13px;">{component}</p>
     </div>
     <div style="background-color: {color}; color: white; padding: 10px; text-align: center; font-size: 14px; font-weight: bold; border-radius: 4px;">
@@ -329,7 +338,7 @@ def render_html_footer() -> str:
     """
     return """
     <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #e9ecef; text-align: center; color: #6c757d; font-size: 11px;">
-        <p style="margin: 0;">The Alchemiser Quantitative Trading System</p>
+        <p style="margin: 0;">Octarine Capital Quantitative Trading System</p>
         <p style="margin: 3px 0 0 0;">Automated notification - do not reply</p>
     </div>
 </body>
@@ -350,7 +359,7 @@ def render_text_header(component: str, status: str) -> str:
     """
     return f"""
 {"=" * 80}
-    THE ALCHEMISER - {component.upper()}
+    OCTARINE CAPITAL - {component.upper()}
 {"=" * 80}
 Status: {status}
 """
@@ -365,7 +374,7 @@ def render_text_footer() -> str:
     """
     return f"""
 {"-" * 80}
-The Alchemiser Quantitative Trading System
+Octarine Capital Quantitative Trading System
 Automated notification - do not reply
 {"-" * 80}
 """
@@ -480,7 +489,7 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     if warnings:
         body += """
         <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Warnings</h4>
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Warnings</h4>
             <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
 """
         for warning in warnings:
@@ -493,7 +502,7 @@ def render_daily_run_success_html(context: dict[str, Any]) -> str:
     body += f"""
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Links</h4>
-            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs</a></p>
         </div>
     </div>
 """
@@ -673,14 +682,14 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
         </div>
 
         <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Partial Success</h4>
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Partial Success</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;">Most trades executed successfully, but some positions were skipped due to non-fractionable assets.</p>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Strategies evaluated:</strong> {strategies_evaluated} | <strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
             <p style="margin: 0; font-size: 11px;"><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
         </div>
 
         <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">📊 Skipped Positions (Non-Fractionable)</h4>
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Skipped Positions (Non-Fractionable)</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;">The following symbols were skipped because they don't support fractional shares and the target quantity rounded to zero:</p>
             <ul style="margin: 4px 0 8px 0; padding-left: 20px; font-size: 11px;">
 """
@@ -694,7 +703,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     body += """
             </ul>
             <p style="font-style: italic; color: #856404; margin: 0; font-size: 11px;">
-                💡 <strong>Tip:</strong> Consider increasing your total portfolio value or adjusting strategy weights to ensure these assets meet the minimum 1-share threshold.
+                <strong>Note:</strong> Consider increasing your total portfolio value or adjusting strategy weights to ensure these assets meet the minimum 1-share threshold.
             </p>
         </div>
 
@@ -739,7 +748,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     if warnings:
         body += """
         <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">⚠️ Warnings</h4>
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Warnings</h4>
             <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
 """
         for warning in warnings:
@@ -752,7 +761,7 @@ def render_daily_run_partial_success_html(context: dict[str, Any]) -> str:
     body += f"""
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Links</h4>
-            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs</a></p>
         </div>
     </div>
 """
@@ -821,8 +830,8 @@ def render_daily_run_partial_success_text(context: dict[str, Any]) -> str:
 Env: {env} | Mode: {mode} | Run ID: {run_id}
 Time: {start_time} → {end_time} ({duration}s)
 
-⚠️ PARTIAL SUCCESS
-------------------
+PARTIAL SUCCESS
+---------------
 Most trades executed successfully, but some positions were skipped.
 
 SUMMARY
@@ -844,8 +853,8 @@ and the target quantity rounded to zero:
         body += "  • None\n"
 
     body += """
-💡 Tip: Consider increasing your total portfolio value or adjusting strategy
-   weights to ensure these assets meet the minimum 1-share threshold.
+Note: Consider increasing your total portfolio value or adjusting strategy
+      weights to ensure these assets meet the minimum 1-share threshold.
 
 """
 
@@ -961,7 +970,7 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
             <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 11px;">Links</h4>
-            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs (filtered by run_id)</a></p>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs (filtered by run_id)</a></p>
         </div>
     </div>
 """
@@ -1099,7 +1108,7 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
     if symbols_adjusted:
         body += f"""
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404;">📊 Price Adjustments Detected</h3>
+            <h3 style="margin-top: 0; color: #856404;">Price Adjustments Detected</h3>
             <p><strong>{len(symbols_adjusted)} symbol(s)</strong> had retroactive price adjustments (splits, dividends, etc.).</p>
             <p><strong>Total bars adjusted:</strong> {adjustment_count}</p>
             <div style="margin-top: 10px;">
@@ -1118,7 +1127,7 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
                 </ul>
             </div>
             <p style="font-style: italic; color: #856404; margin-top: 10px;">
-                (i) Historical data has been updated with adjusted prices. All indicators and backtests will now use consistent pricing.
+                Historical data has been updated with adjusted prices. All indicators and backtests will now use consistent pricing.
             </p>
         </div>
 """
@@ -1138,7 +1147,7 @@ def render_data_lake_success_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
             <h3 style="margin-top: 0; color: #495057;">Links</h3>
-            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs</a></p>
         </div>
     </div>
 """
@@ -1272,7 +1281,7 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
         </div>
 
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404;">⚠️ Partial Success</h3>
+            <h3 style="margin-top: 0; color: #856404;">Partial Success</h3>
             <p><strong>Total symbols processed:</strong> {total_symbols}</p>
             <p><strong>Successfully updated:</strong> {symbols_updated_count}</p>
             <p><strong>Failed:</strong> {symbols_failed_count}</p>
@@ -1290,7 +1299,7 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
     if symbols_adjusted:
         body += f"""
         <div style="background-color: #d1ecf1; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #17a2b8;">
-            <h3 style="margin-top: 0; color: #0c5460;">📊 Price Adjustments Detected</h3>
+            <h3 style="margin-top: 0; color: #0c5460;">Price Adjustments Detected</h3>
             <p><strong>{len(symbols_adjusted)} symbol(s)</strong> had retroactive price adjustments (splits, dividends, etc.).</p>
             <p><strong>Total bars adjusted:</strong> {adjustment_count}</p>
             <div style="margin-top: 10px;">
@@ -1309,7 +1318,7 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
                 </ul>
             </div>
             <p style="font-style: italic; color: #0c5460; margin-top: 10px;">
-                (i) Historical data has been updated with adjusted prices for these symbols.
+                Historical data has been updated with adjusted prices for these symbols.
             </p>
         </div>
 """
@@ -1329,7 +1338,7 @@ def render_data_lake_partial_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
             <h3 style="margin-top: 0; color: #495057;">Links</h3>
-            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs</a></p>
+            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs</a></p>
         </div>
     </div>
 """
@@ -1369,8 +1378,8 @@ def render_data_lake_partial_text(context: dict[str, Any]) -> str:
 Env: {env} | Run: {run_id}
 Time: {start_time} → {end_time} ({duration:.1f}s)
 
-⚠️ PARTIAL SUCCESS
-------------------
+PARTIAL SUCCESS
+---------------
 • Total symbols processed: {total_symbols}
 • Successfully updated: {symbols_updated_count}
 • Failed: {symbols_failed_count}
@@ -1464,7 +1473,7 @@ def render_data_lake_failure_html(context: dict[str, Any]) -> str:
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px;">
             <h3 style="margin-top: 0; color: #495057;">Links</h3>
-            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">📋 View Logs (filtered by run_id)</a></p>
+            <p><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs (filtered by run_id)</a></p>
         </div>
     </div>
 """
@@ -1588,7 +1597,7 @@ def render_schedule_created_html(context: dict[str, Any]) -> str:
         body = f"""
     <div style="padding: 15px 0;">
         <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">📅 Market Closed</h4>
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Market Closed</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Date:</strong> {date}</p>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Reason:</strong> {skip_reason or "Holiday"}</p>
             <p style="margin: 0; font-size: 11px; font-style: italic;">No trading schedule created. Normal operations will resume on the next trading day.</p>
@@ -1604,11 +1613,11 @@ def render_schedule_created_html(context: dict[str, Any]) -> str:
         body = f"""
     <div style="padding: 15px 0;">
         <div style="background-color: #d1ecf1; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
-            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">⏰ Early Close Day</h4>
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">Early Close Day</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Date:</strong> {date}</p>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Market Close:</strong> {close_display} (early)</p>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Execution Time:</strong> {exec_display}</p>
-            <p style="margin: 0; font-size: 11px; font-style: italic;">⚠️ Trading will execute earlier than usual due to early market close.</p>
+            <p style="margin: 0; font-size: 11px; font-style: italic;">Note: Trading will execute earlier than usual due to early market close.</p>
         </div>
 
         <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
@@ -1623,7 +1632,7 @@ def render_schedule_created_html(context: dict[str, Any]) -> str:
         body = f"""
     <div style="padding: 15px 0;">
         <div style="background-color: #e7f5e9; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #28a745;">
-            <h4 style="margin: 0 0 8px 0; color: #155724; font-size: 13px;">✅ Trading Schedule Set</h4>
+            <h4 style="margin: 0 0 8px 0; color: #155724; font-size: 13px;">Trading Schedule Set</h4>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Date:</strong> {date}</p>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Market Close:</strong> {close_display}</p>
             <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Execution Time:</strong> {exec_display}</p>
@@ -1695,7 +1704,7 @@ Date: {date}
 Market Close: {close_display} (early)
 Execution Time: {exec_display}
 
-⚠️ Trading will execute earlier than usual due to early market close.
+Note: Trading will execute earlier than usual due to early market close.
 
 SCHEDULE DETAILS
 ----------------
