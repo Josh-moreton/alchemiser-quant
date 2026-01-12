@@ -565,7 +565,9 @@ Correlation ID: {event.correlation_id}
 Octarine Capital Data Refresh Service
 """
 
-            subject = format_subject("Data Lake Refresh", event.status, self.stage)
+            subject = format_subject(
+                "Data Lake Refresh", event.status, self.stage, event.correlation_id[:6]
+            )
 
             result = send_email(
                 to_addresses=self._get_recipients(),
