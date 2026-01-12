@@ -64,6 +64,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     succeeded_trades = 0
     failed_trades = 0
     skipped_trades = 0
+    unknown_trades = 0
     total_value = Decimal("0")
 
     # Process SELL results
@@ -85,6 +86,16 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             failed_trades += 1
         elif status == "SKIPPED":
             skipped_trades += 1
+        else:
+            unknown_trades += 1
+            logger.warning(
+                "Unknown trade status encountered",
+                extra={
+                    "status": status,
+                    "trade_id": payload.get("tradeId"),
+                    "symbol": payload.get("symbol"),
+                },
+            )
 
     # Process BUY results
     buy_count = 0
@@ -105,6 +116,16 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             failed_trades += 1
         elif status == "SKIPPED":
             skipped_trades += 1
+        else:
+            unknown_trades += 1
+            logger.warning(
+                "Unknown trade status encountered",
+                extra={
+                    "status": status,
+                    "trade_id": payload.get("tradeId"),
+                    "symbol": payload.get("symbol"),
+                },
+            )
 
     # Create summary
     summary = (
@@ -112,6 +133,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         f"SELLs: {sell_count}, BUYs: {buy_count}. "
         f"Total value: ${total_value:.2f}"
     )
+    if unknown_trades > 0:
+        summary += f" ({unknown_trades} with unknown status)"
 
     logger.info(
         "Trade results aggregated",
@@ -122,6 +145,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "succeeded_trades": succeeded_trades,
             "failed_trades": failed_trades,
             "skipped_trades": skipped_trades,
+            "unknown_trades": unknown_trades,
             "total_value": str(total_value),
         },
     )
@@ -131,6 +155,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         "succeededTrades": succeeded_trades,
         "failedTrades": failed_trades,
         "skippedTrades": skipped_trades,
+        "unknownTrades": unknown_trades,
         "sellCount": sell_count,
         "buyCount": buy_count,
         "totalValue": str(total_value),

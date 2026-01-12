@@ -252,9 +252,9 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
 
 def _calculate_shares(
-    quantity: Any | None,
+    quantity: str | float | int | None,
     target_value: Decimal,
-    estimated_price: Any | None,
+    estimated_price: str | float | int | None,
     symbol: str,
     action: str,
     *,

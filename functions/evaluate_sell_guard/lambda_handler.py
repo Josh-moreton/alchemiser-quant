@@ -64,9 +64,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         status = payload.get("status", "UNKNOWN")
         total_value = payload.get("totalValue")
 
-        value_decimal = (
-            Decimal(str(total_value)) if total_value is not None else Decimal("0")
-        )
+        value_decimal = Decimal(str(total_value)) if total_value is not None else Decimal("0")
 
         if status == "FAILED":
             failed_amount += abs(value_decimal)

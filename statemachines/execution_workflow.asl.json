@@ -39,6 +39,19 @@
           "Next": "WorkflowFailed"
         }
       ],
+      "Next": "InitializeResults"
+    },
+    "InitializeResults": {
+      "Type": "Pass",
+      "Comment": "Initialize sellResults and buyResults to empty arrays to handle skipped phases",
+      "Result": [],
+      "ResultPath": "$.sellResults",
+      "Next": "InitializeBuyResults"
+    },
+    "InitializeBuyResults": {
+      "Type": "Pass",
+      "Result": [],
+      "ResultPath": "$.buyResults",
       "Next": "CheckIfSellTradesExist"
     },
     "CheckIfSellTradesExist": {
@@ -56,6 +69,20 @@
       "Type": "Map",
       "ItemsPath": "$.tradePhases.sellTrades",
       "MaxConcurrency": 10,
+      "ItemSelector": {
+        "tradeId.$": "$$.Map.Item.Value.tradeId",
+        "symbol.$": "$$.Map.Item.Value.symbol",
+        "action.$": "$$.Map.Item.Value.action",
+        "quantity.$": "$$.Map.Item.Value.quantity",
+        "targetValue.$": "$$.Map.Item.Value.targetValue",
+        "estimatedPrice.$": "$$.Map.Item.Value.estimatedPrice",
+        "isFullLiquidation.$": "$$.Map.Item.Value.isFullLiquidation",
+        "targetWeight.$": "$$.Map.Item.Value.targetWeight",
+        "strategyId.$": "$$.Map.Item.Value.strategyId",
+        "runId.$": "$.tradePhases.runId",
+        "correlationId.$": "$.tradePhases.correlationId",
+        "phase": "SELL"
+      },
       "ItemProcessor": {
         "ProcessorConfig": {
           "Mode": "INLINE"
@@ -129,7 +156,6 @@
         "FunctionName": "${EvaluateSellGuardFunctionArn}",
         "Payload": {
           "sellResults.$": "$.sellResults",
-          "failureThresholdUsd.$": "$.failureThresholdUsd",
           "correlationId.$": "$.tradePhases.correlationId",
           "runId.$": "$.tradePhases.runId",
           "failureThresholdUsd": "${SellFailureThreshold}"
@@ -214,6 +240,20 @@
       "Type": "Map",
       "ItemsPath": "$.tradePhases.buyTrades",
       "MaxConcurrency": 10,
+      "ItemSelector": {
+        "tradeId.$": "$$.Map.Item.Value.tradeId",
+        "symbol.$": "$$.Map.Item.Value.symbol",
+        "action.$": "$$.Map.Item.Value.action",
+        "quantity.$": "$$.Map.Item.Value.quantity",
+        "targetValue.$": "$$.Map.Item.Value.targetValue",
+        "estimatedPrice.$": "$$.Map.Item.Value.estimatedPrice",
+        "isFullLiquidation.$": "$$.Map.Item.Value.isFullLiquidation",
+        "targetWeight.$": "$$.Map.Item.Value.targetWeight",
+        "strategyId.$": "$$.Map.Item.Value.strategyId",
+        "runId.$": "$.tradePhases.runId",
+        "correlationId.$": "$.tradePhases.correlationId",
+        "phase": "BUY"
+      },
       "ItemProcessor": {
         "ProcessorConfig": {
           "Mode": "INLINE"
@@ -399,8 +439,8 @@
         "Payload": {
           "reason": "WORKFLOW_FAILED",
           "error.$": "$.error",
-          "correlationId.$": "$.tradePhases.correlationId",
-          "runId.$": "$.tradePhases.runId"
+          "correlationId.$": "$.correlationId",
+          "runId.$": "$.runId"
         }
       },
       "Retry": [

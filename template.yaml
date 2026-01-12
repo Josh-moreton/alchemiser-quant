@@ -1744,6 +1744,7 @@ Resources:
       Environment:
         Variables:
           EQUITY_DEPLOYMENT_PCT: !If [ IsProduction, !Ref ProdEquityDeploymentPct, !If [ IsStaging, !Ref StagingEquityDeploymentPct, !Ref EquityDeploymentPct ] ]
+          EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
     Metadata:
       BuildMethod: python3.12
 
@@ -1758,6 +1759,16 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CheckEquityLimitPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt ExecutionRunsTable.Arn
 
   # Execute Trade (Step Functions) Lambda - Simplified single trade execution
   ExecuteTradeSfnFunction:
