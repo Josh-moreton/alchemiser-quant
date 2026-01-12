@@ -11,6 +11,7 @@ Each event triggers exactly one notification, eliminating race conditions.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -583,7 +584,7 @@ def _build_schedule_notification(
         "is_early_close": schedule_detail.get("is_early_close", False),
         "schedule_name": schedule_detail.get("schedule_name"),
         "skip_reason": schedule_detail.get("skip_reason"),
-        "env": container.config.stage(),
+        "env": os.environ.get("APP__STAGE", "dev"),
     }
 
     return ScheduleNotificationRequested(
