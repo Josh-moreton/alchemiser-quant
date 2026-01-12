@@ -14,17 +14,17 @@
     "tqqq_ftlt_2.clj"
   ],
   "allocations": {
-    "beta_baller.clj": 0.015,
-    "blatant_tech.clj": 0.05,
+    "beta_baller.clj": 0.05,
+    "blatant_tech.clj": 0.1,
     "defence.clj": 0.05,
     "gold.clj": 0.05,
-    "nuclear.clj": 0.1,
+    "nuclear.clj": 0.05,
     "pals_spell.clj": 0.1,
-    "rains_concice_em.clj": 0.1,
-    "rains_em_dancer.clj": 0.1,
+    "rains_concice_em.clj": 0.05,
+    "rains_em_dancer.clj": 0.05,
     "simons_full_kmlm.clj": 0.1,
     "sisyphus_lowvol.clj": 0.1,
-    "tqqq_ftlt_1.clj": 0.1,
-    "tqqq_ftlt_2.clj": 0.1
+    "tqqq_ftlt_1.clj": 0.15,
+    "tqqq_ftlt_2.clj": 0.15
   }
 }
