@@ -429,3 +429,18 @@ rains_concice_em:
   - SPY
   - XLP
   - XLU
+tqqq_ftlt:
+  strategy_name: tqqq_ftlt
+  display_name: TQQQ For The Long Term V2 (242% RR/46.1% Max DD)
+  source_url: https://app.composer.trade/symphony/DzjCSC1i2iCfiHYdxUCG/details
+  filename: tqqq_ftlt.clj
+  date_updated: '2026-01-12'
+  assets:
+  - BSV
+  - SPXL
+  - SQQQ
+  - TECL
+  - TQQQ
+  - UVXY
+  frontrunners:
+  - SPY
