@@ -1754,6 +1754,7 @@ Resources:
           SCHEDULER_ROLE_ARN: !GetAtt StrategySchedulerRole.Arn
           SCHEDULE_GROUP_NAME: "default"
           MINUTES_BEFORE_CLOSE: "15"
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
           # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
     Metadata:
       BuildMethod: python3.12
@@ -1795,7 +1796,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default"
+                  - !GetAtt AlchemiserEventBus.Arn
 
   # Morning schedule to trigger Schedule Manager (checks calendar and sets up today's execution)
   ScheduleManagerSchedule:
