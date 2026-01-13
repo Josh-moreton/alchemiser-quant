@@ -317,8 +317,6 @@ def render_html_header(component: str, status: str) -> str:
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.5; color: #333; max-width: 700px; margin: 0 auto; padding: 15px; font-size: 13px;">
     <div style="padding: 15px 0; border-bottom: 2px solid #e9ecef; text-align: center; margin-bottom: 15px;">
         <img src="{logo_url}" alt="Octarine Capital" style="width: 120px; height: auto; margin-bottom: 8px;">
-        <h1 style="color: #333; margin: 0; font-size: 18px; font-weight: 600;">Octarine Capital</h1>
-        <p style="color: #666; margin: 4px 0 0 0; font-size: 13px;">{component}</p>
     </div>
     <div style="background-color: {color}; color: white; padding: 10px; text-align: center; font-size: 14px; font-weight: bold; border-radius: 4px;">
         {status}
@@ -355,8 +353,6 @@ def render_text_header(component: str, status: str) -> str:
 
     """
     return f"""
-{"=" * 80}
-    OCTARINE CAPITAL - {component.upper()}
 {"=" * 80}
 Status: {status}
 """
