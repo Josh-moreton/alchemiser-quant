@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical rebalance-weights
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -33,6 +33,11 @@ help:
 	@echo "  quantstats                           Generate QuantStats reports (prod)"
 	@echo "  quantstats stage=dev                 Generate for dev environment"
 	@echo "  quantstats days=180                  Custom lookback period (default: 90)"
+	@echo ""
+	@echo "Portfolio Management:"
+	@echo "  rebalance-weights                    Recalculate strategy weights (Calmar-tilt)"
+	@echo "  rebalance-weights dry-run=1          Preview without updating config"
+	@echo "  rebalance-weights csv=path/to.csv    Use specific CSV file"
 	@echo ""
 	@echo "Daily Validation:"
 	@echo "  validate-signals                     Validate latest signals vs Composer.trade"
@@ -121,94 +126,49 @@ version:
 
 bump-patch:
 	@echo "🔢 Bumping patch version..."
-	@# Check if there are unstaged changes
-	@if ! git diff --quiet; then \
-		echo ""; \
-		echo "⚠️  Warning: You have unstaged changes that won't be included in the version bump commit."; \
-		echo "💡 Stage them first with: git add <files>"; \
-		echo ""; \
-		read -p "Continue anyway? [y/N] " -n 1 -r; \
-		echo ""; \
-		if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
-			exit 1; \
-		fi; \
-	fi; \
-	OLD_VERSION=$$(poetry version -s); \
+	@OLD_VERSION=$$(poetry version -s); \
 	poetry version patch; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
-	CHANGED=0; \
+	echo "📦 Staging version file..."; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
-		CHANGED=1; \
-	fi; \
-	if [ $$CHANGED -eq 1 ]; then \
-		echo "📤 Pushing commit to origin (current branch)..."; \
+		echo "📤 Pushing to origin..."; \
 		git push origin HEAD; \
 	fi
 
 bump-minor:
 	@echo "🔢 Bumping minor version..."
-	@# Check if there are unstaged changes
-	@if ! git diff --quiet; then \
-		echo ""; \
-		echo "⚠️  Warning: You have unstaged changes that won't be included in the version bump commit."; \
-		echo "💡 Stage them first with: git add <files>"; \
-		echo ""; \
-		read -p "Continue anyway? [y/N] " -n 1 -r; \
-		echo ""; \
-		if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
-			exit 1; \
-		fi; \
-	fi; \
-	OLD_VERSION=$$(poetry version -s); \
+	@OLD_VERSION=$$(poetry version -s); \
 	poetry version minor; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
-	CHANGED=0; \
+	echo "📦 Staging version file..."; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
-		CHANGED=1; \
-	fi; \
-	if [ $$CHANGED -eq 1 ]; then \
-		echo "📤 Pushing commit to origin (current branch)..."; \
+		echo "📤 Pushing to origin..."; \
 		git push origin HEAD; \
 	fi
 
 bump-major:
 	@echo "🔢 Bumping major version..."
-	@# Check if there are unstaged changes
-	@if ! git diff --quiet; then \
-		echo ""; \
-		echo "⚠️  Warning: You have unstaged changes that won't be included in the version bump commit."; \
-		echo "💡 Stage them first with: git add <files>"; \
-		echo ""; \
-		read -p "Continue anyway? [y/N] " -n 1 -r; \
-		echo ""; \
-		if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
-			exit 1; \
-		fi; \
-	fi; \
-	OLD_VERSION=$$(poetry version -s); \
+	@OLD_VERSION=$$(poetry version -s); \
 	poetry version major; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
-	CHANGED=0; \
+	echo "📦 Staging version file..."; \
 	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
 		git commit -m "Bump version to $$NEW_VERSION"; \
-		CHANGED=1; \
-	fi; \
-	if [ $$CHANGED -eq 1 ]; then \
-		echo "📤 Pushing commit to origin (current branch)..."; \
+		echo "📤 Pushing to origin..."; \
 		git push origin HEAD; \
 	fi
 
@@ -302,6 +262,31 @@ quantstats:
 	ALPACA_KEY=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_key" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_KEY") \
 	ALPACA_SECRET=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_secret" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_SECRET") \
 	poetry run python scripts/generate_quantstats_reports.py
+
+# Recalculate strategy weights using Calmar-tilt formula
+# Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod
+#        make rebalance-weights dry-run=1          # Preview without updating (no deploy)
+#        make rebalance-weights csv=path/to.csv    # Use specific CSV
+#        make rebalance-weights alpha=0.5          # Custom alpha parameter
+#        make rebalance-weights f-min=0.5          # Custom floor multiplier
+#        make rebalance-weights f-max=2.0          # Custom cap multiplier
+rebalance-weights:
+	@echo "⚖️  Recalculating strategy weights using Calmar-tilt formula..."
+	@ARGS=""; \
+	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
+	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
+	if [ -n "$(alpha)" ]; then ARGS="$$ARGS --alpha $(alpha)"; fi; \
+	if [ -n "$(f-min)" ]; then ARGS="$$ARGS --f-min $(f-min)"; fi; \
+	if [ -n "$(f-max)" ]; then ARGS="$$ARGS --f-max $(f-max)"; fi; \
+	poetry run python scripts/rebalance_strategy_weights.py $$ARGS; \
+	if [ $$? -eq 0 ] && [ -z "$(dry-run)" ]; then \
+		echo ""; \
+		echo "🚀 Strategy weights updated successfully!"; \
+		echo "📦 Bumping version and deploying to production..."; \
+		echo ""; \
+		git add layers/shared/the_alchemiser/shared/config/strategy.prod.json; \
+		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
+	fi
 
 # ============================================================================
 # DAILY VALIDATION

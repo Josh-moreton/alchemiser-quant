@@ -481,8 +481,8 @@ def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
 def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
     """Fetch P&L metrics from Alpaca for email notifications.
 
-    Fetches monthly and yearly P&L using the PnLService. This is called after
-    all trades complete so the data reflects the current portfolio state.
+    Fetches the last 3 calendar months of P&L data (e.g., November, December,
+    January MTD) for display in email notifications.
 
     Gracefully handles errors - P&L is informational and shouldn't block notifications.
 
@@ -490,9 +490,9 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
         correlation_id: Correlation ID for tracing.
 
     Returns:
-        Dict with monthly_pnl and yearly_pnl data, or empty dicts on failure.
-        Each contains: total_pnl (float), total_pnl_pct (float), period (str),
-        start_date (str), end_date (str).
+        Dict with monthly_pnl containing a 'months' list of P&L data for display.
+        Each month dict contains: period (str), total_pnl (float), total_pnl_pct (float).
+        yearly_pnl is empty dict (kept for backward compatibility).
 
     """
     empty_pnl: dict[str, Any] = {
@@ -505,56 +505,44 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
 
         pnl_service = PnLService(correlation_id=correlation_id)
 
-        # Fetch monthly P&L (current month)
-        monthly_pnl: dict[str, Any] = {}
+        # Fetch last 3 calendar months (e.g., Nov, Dec, Jan MTD)
+        months_data: list[dict[str, Any]] = []
         try:
-            monthly_data = pnl_service.get_monthly_pnl(months_back=1)
-            monthly_pnl = {
-                "period": monthly_data.period,
-                "start_date": monthly_data.start_date,
-                "end_date": monthly_data.end_date,
-                "total_pnl": float(monthly_data.total_pnl) if monthly_data.total_pnl else None,
-                "total_pnl_pct": (
-                    float(monthly_data.total_pnl_pct) if monthly_data.total_pnl_pct else None
-                ),
-            }
+            pnl_list = pnl_service.get_last_n_calendar_months_pnl(n_months=3)
+            for pnl_data in pnl_list:
+                months_data.append({
+                    "period": pnl_data.period,
+                    "start_date": pnl_data.start_date,
+                    "end_date": pnl_data.end_date,
+                    "total_pnl": float(pnl_data.total_pnl) if pnl_data.total_pnl else None,
+                    "total_pnl_pct": (
+                        float(pnl_data.total_pnl_pct) if pnl_data.total_pnl_pct else None
+                    ),
+                })
         except Exception as e:
             logger.warning(
-                f"Failed to fetch monthly P&L: {e}",
+                f"Failed to fetch calendar month P&L: {e}",
                 extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
             )
 
-        # Fetch yearly P&L (1 year / YTD-ish)
-        yearly_pnl: dict[str, Any] = {}
-        try:
-            yearly_data = pnl_service.get_period_pnl("1A")
-            yearly_pnl = {
-                "period": yearly_data.period,
-                "start_date": yearly_data.start_date,
-                "end_date": yearly_data.end_date,
-                "total_pnl": float(yearly_data.total_pnl) if yearly_data.total_pnl else None,
-                "total_pnl_pct": (
-                    float(yearly_data.total_pnl_pct) if yearly_data.total_pnl_pct else None
-                ),
-            }
-        except Exception as e:
-            logger.warning(
-                f"Failed to fetch yearly P&L: {e}",
-                extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
-            )
-
+        # Log summary of fetched months
+        month_summaries = [
+            f"{m.get('period')}: {m.get('total_pnl_pct', 0):.2f}%"
+            for m in months_data
+            if m.get("total_pnl_pct") is not None
+        ]
         logger.info(
             "📈 P&L metrics fetched successfully",
             extra={
                 "correlation_id": correlation_id,
-                "monthly_pnl_pct": monthly_pnl.get("total_pnl_pct"),
-                "yearly_pnl_pct": yearly_pnl.get("total_pnl_pct"),
+                "months_count": len(months_data),
+                "months_summary": ", ".join(month_summaries) if month_summaries else "N/A",
             },
         )
 
         return {
-            "monthly_pnl": monthly_pnl,
-            "yearly_pnl": yearly_pnl,
+            "monthly_pnl": {"months": months_data},
+            "yearly_pnl": {},  # Kept for backward compatibility
         }
 
     except Exception as e:

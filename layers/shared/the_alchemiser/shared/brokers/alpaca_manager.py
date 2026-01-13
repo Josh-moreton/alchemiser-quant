@@ -885,10 +885,30 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         end_date: str | None = None,
         timeframe: str = "1Day",
         period: str | None = None,
+        pnl_reset: str | None = None,
+        intraday_reporting: str | None = None,
     ) -> dict[str, Any] | None:
-        """Get portfolio performance history."""
+        """Get portfolio performance history.
+
+        Args:
+            start_date: Start date (ISO format YYYY-MM-DD)
+            end_date: End date (ISO format YYYY-MM-DD)
+            timeframe: Timeframe for data points
+            period: Period string (1W, 1M, 3M, 1A)
+            pnl_reset: P&L reset mode - "no_reset" for cumulative values
+            intraday_reporting: Intraday reporting mode - "market_hours" or "extended_hours"
+
+        Returns:
+            Portfolio history data, or None if failed.
+
+        """
         return self._account_service.get_portfolio_history(
-            start_date=start_date, end_date=end_date, timeframe=timeframe, period=period
+            start_date=start_date,
+            end_date=end_date,
+            timeframe=timeframe,
+            period=period,
+            pnl_reset=pnl_reset,
+            intraday_reporting=intraday_reporting,
         )
 
     def get_activities(
@@ -899,6 +919,30 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     ) -> list[dict[str, Any]]:
         """Get account activities (trades, dividends, etc.)."""
         return self._account_service.get_activities(activity_type, start_date, end_date)
+
+    def get_non_trade_activities(
+        self,
+        start_date: str | None = None,
+        activity_types: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get non-trade account activities (deposits, withdrawals, dividends).
+
+        Args:
+            start_date: Start date (ISO format YYYY-MM-DD)
+            activity_types: List of activity types to filter (e.g., ["CSD", "CSW"])
+                           CSD = Cash Deposit, CSW = Cash Withdrawal
+
+        Returns:
+            List of activity records with id, activity_type, date, net_amount, status.
+
+        """
+        return self._account_service.get_non_trade_activities(
+            start_date=start_date,
+            activity_types=activity_types,
+            api_key=self._api_key,
+            secret_key=self._secret_key,
+            paper=self._paper,
+        )
 
     # OrderExecutor protocol implementation methods
 

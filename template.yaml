@@ -1597,6 +1597,11 @@ Resources:
           SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          # Stack name for CloudWatch Logs URL construction (matches Lambda naming pattern)
+          STACK_NAME: !If
+            - UseStackNameForResources
+            - !Ref StackName
+            - !Sub "alchemiser-${Stage}"
           # SES Configuration
           SES_FROM_ADDRESS: noreply@mail.octarine.capital
           SES_FROM_NAME: "Octarine Capital"
