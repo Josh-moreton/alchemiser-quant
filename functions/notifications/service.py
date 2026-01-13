@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -691,21 +692,26 @@ Octarine Capital Data Refresh Service
             CloudWatch Logs URL with query parameters for filtering
 
         """
-        from urllib.parse import quote
-
         region = os.environ.get("AWS_REGION", "us-east-1")
         stack_name = os.environ.get("STACK_NAME", f"alchemiser-{self.stage}")
 
-        # Build list of Lambda log groups to search
-        lambda_suffixes = [
-            "strategy-orchestrator",
-            "strategy-worker",
-            "signal-aggregator",
-            "portfolio",
-            "execution",
-            "trade-aggregator",
-            "notifications",
-        ]
+        # Prefer configuration via LAMBDA_LOG_SUFFIXES to avoid tight coupling to template.yaml.
+        # Fallback to the current default list to preserve existing behaviour.
+        configured_suffixes = os.environ.get("LAMBDA_LOG_SUFFIXES", "")
+        if configured_suffixes.strip():
+            lambda_suffixes = [
+                suffix.strip() for suffix in configured_suffixes.split(",") if suffix.strip()
+            ]
+        else:
+            lambda_suffixes = [
+                "strategy-orchestrator",
+                "strategy-worker",
+                "signal-aggregator",
+                "portfolio",
+                "execution",
+                "trade-aggregator",
+                "notifications",
+            ]
         log_groups = [f"/aws/lambda/{stack_name}-{suffix}" for suffix in lambda_suffixes]
 
         # Build the Logs Insights query to filter by correlation_id
@@ -727,7 +733,7 @@ Octarine Capital Data Refresh Service
             f"~start~-10800"  # -10800 = 3 hours ago in seconds
             f"~timeType~'RELATIVE'"
             f"~unit~'seconds'"
-            f"~editorString~'{encoded_query}'"
+            f"~editorString~{encoded_query}"
             f"~source~({source_groups})"
             f")"
         )
