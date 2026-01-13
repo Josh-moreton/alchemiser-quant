@@ -456,8 +456,8 @@ def _capture_capital_deployed_pct(correlation_id: str) -> Decimal | None:
 def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
     """Fetch P&L metrics from Alpaca for email notifications.
 
-    Fetches monthly and yearly P&L using the PnLService. This is called after
-    all trades complete so the data reflects the current portfolio state.
+    Uses Alpaca period strings ("1M", "1A") which automatically return data from
+    account inception for accounts younger than the requested period.
 
     Gracefully handles errors - P&L is informational and shouldn't block notifications.
 
@@ -480,10 +480,10 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
 
         pnl_service = PnLService(correlation_id=correlation_id)
 
-        # Fetch monthly P&L (current month)
+        # Fetch monthly P&L - Alpaca auto-adjusts to account inception if < 1 month old
         monthly_pnl: dict[str, Any] = {}
         try:
-            monthly_data = pnl_service.get_monthly_pnl(months_back=1)
+            monthly_data = pnl_service.get_period_pnl("1M")
             monthly_pnl = {
                 "period": monthly_data.period,
                 "start_date": monthly_data.start_date,
@@ -499,7 +499,7 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
                 extra={"correlation_id": correlation_id, "error_type": type(e).__name__},
             )
 
-        # Fetch yearly P&L (1 year / YTD-ish)
+        # Fetch yearly P&L - Alpaca auto-adjusts to account inception if < 1 year old
         yearly_pnl: dict[str, Any] = {}
         try:
             yearly_data = pnl_service.get_period_pnl("1A")
