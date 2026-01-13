@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "9.9.7"
+version = "9.9.8"
 package-mode = false  # Dependency management only - no package installation
 
 # This is an AWS Lambda microservices project deployed via SAM.
