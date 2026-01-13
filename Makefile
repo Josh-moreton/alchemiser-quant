@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical rebalance-weights
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -33,6 +33,9 @@ help:
 	@echo "  quantstats                           Generate QuantStats reports (prod)"
 	@echo "  quantstats stage=dev                 Generate for dev environment"
 	@echo "  quantstats days=180                  Custom lookback period (default: 90)"
+	@echo "  rebalance-weights                    Recalculate strategy weights (Calmar-tilt)"
+	@echo "  rebalance-weights dry-run=1          Preview without updating config"
+	@echo "  rebalance-weights csv=path/to.csv    Use specific CSV file"
 	@echo ""
 	@echo "Daily Validation:"
 	@echo "  validate-signals                     Validate latest signals vs Composer.trade"
@@ -302,6 +305,23 @@ quantstats:
 	ALPACA_KEY=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_key" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_KEY") \
 	ALPACA_SECRET=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_secret" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_SECRET") \
 	poetry run python scripts/generate_quantstats_reports.py
+
+# Recalculate strategy weights using Calmar-tilt formula
+# Usage: make rebalance-weights                    # Use latest CSV, update config
+#        make rebalance-weights dry-run=1          # Preview without updating
+#        make rebalance-weights csv=path/to.csv    # Use specific CSV
+#        make rebalance-weights alpha=0.5          # Custom alpha parameter
+#        make rebalance-weights f-min=0.5          # Custom floor multiplier
+#        make rebalance-weights f-max=2.0          # Custom cap multiplier
+rebalance-weights:
+	@echo "⚖️  Recalculating strategy weights using Calmar-tilt formula..."
+	@ARGS=""; \
+	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
+	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
+	if [ -n "$(alpha)" ]; then ARGS="$$ARGS --alpha $(alpha)"; fi; \
+	if [ -n "$(f-min)" ]; then ARGS="$$ARGS --f-min $(f-min)"; fi; \
+	if [ -n "$(f-max)" ]; then ARGS="$$ARGS --f-max $(f-max)"; fi; \
+	poetry run python scripts/rebalance_strategy_weights.py $$ARGS
 
 # ============================================================================
 # DAILY VALIDATION
