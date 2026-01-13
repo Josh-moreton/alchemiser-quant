@@ -1,0 +1,74 @@
+{
+  "blatant_tech.clj": {
+    "twelve_month_return": 0.20,
+    "twelve_month_max_drawdown": 0.15,
+    "calmar_ratio": 1.33,
+    "months_of_data": 12
+  },
+  "defence.clj": {
+    "twelve_month_return": 0.12,
+    "twelve_month_max_drawdown": 0.08,
+    "calmar_ratio": 1.50,
+    "months_of_data": 12
+  },
+  "gold.clj": {
+    "twelve_month_return": 0.08,
+    "twelve_month_max_drawdown": 0.10,
+    "calmar_ratio": 0.80,
+    "months_of_data": 12
+  },
+  "nuclear.clj": {
+    "twelve_month_return": 0.15,
+    "twelve_month_max_drawdown": 0.12,
+    "calmar_ratio": 1.25,
+    "months_of_data": 12
+  },
+  "pals_spell.clj": {
+    "twelve_month_return": 0.18,
+    "twelve_month_max_drawdown": 0.14,
+    "calmar_ratio": 1.29,
+    "months_of_data": 12
+  },
+  "rains_concise_em.clj": {
+    "twelve_month_return": 0.14,
+    "twelve_month_max_drawdown": 0.11,
+    "calmar_ratio": 1.27,
+    "months_of_data": 12
+  },
+  "rains_em_dancer.clj": {
+    "twelve_month_return": 0.16,
+    "twelve_month_max_drawdown": 0.13,
+    "calmar_ratio": 1.23,
+    "months_of_data": 12
+  },
+  "simons_full_kmlm.clj": {
+    "twelve_month_return": 0.22,
+    "twelve_month_max_drawdown": 0.16,
+    "calmar_ratio": 1.38,
+    "months_of_data": 12
+  },
+  "sisyphus_lowvol.clj": {
+    "twelve_month_return": 0.10,
+    "twelve_month_max_drawdown": 0.06,
+    "calmar_ratio": 1.67,
+    "months_of_data": 12
+  },
+  "tqqq_ftlt.clj": {
+    "twelve_month_return": 0.25,
+    "twelve_month_max_drawdown": 0.20,
+    "calmar_ratio": 1.25,
+    "months_of_data": 12
+  },
+  "tqqq_ftlt_1.clj": {
+    "twelve_month_return": 0.24,
+    "twelve_month_max_drawdown": 0.18,
+    "calmar_ratio": 1.33,
+    "months_of_data": 12
+  },
+  "tqqq_ftlt_2.clj": {
+    "twelve_month_return": 0.26,
+    "twelve_month_max_drawdown": 0.21,
+    "calmar_ratio": 1.24,
+    "months_of_data": 12
+  }
+}

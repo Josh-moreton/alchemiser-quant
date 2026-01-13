@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable weights-init weights-show weights-rebalance weights-history validate-signals debug-strategy debug-strategy-historical
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -22,6 +22,15 @@ help:
 	@echo "  strategy-check-fractionable         Check fractionability (uses strategy.dev.json)"
 	@echo "  strategy-check-fractionable config=strategy.prod.json"
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
+	@echo ""
+	@echo "Strategy Weights Management (Calmar-Tilted):"
+	@echo "  weights-init                         Initialize weights from base config (dev)"
+	@echo "  weights-init stage=prod             Initialize weights for production"
+	@echo "  weights-show                         Show current live weights (dev)"
+	@echo "  weights-show stage=prod             Show current live weights (prod)"
+	@echo "  weights-rebalance calmar=<file>     Force rebalance with updated Calmar metrics"
+	@echo "  weights-history                      Show weight adjustment history (dev)"
+	@echo "  weights-history stage=prod          Show weight adjustment history (prod)"
 	@echo ""
 	@echo "Data Quality Validation:"
 	@echo "  validate-dynamo                      Validate DynamoDB data for per-strategy metrics"
@@ -263,6 +272,61 @@ strategy-check-fractionable:
 	if [ -n "$(show-all)" ]; then ARGS="$$ARGS --show-all"; fi; \
 	if [ -n "$(all)" ]; then ARGS="$$ARGS --all-strategies"; fi; \
 	poetry run python scripts/check_fractionable_assets.py $$ARGS
+
+# ============================================================================
+# STRATEGY WEIGHTS MANAGEMENT (CALMAR-TILTED)
+# ============================================================================
+
+# Initialize strategy weights from base configuration with starter Calmar ratios
+# Usage: make weights-init                    # Initialize dev weights
+#        make weights-init stage=prod         # Initialize prod weights
+weights-init:
+	@echo "🎯 Initializing strategy weights with Calmar ratios..."
+	@STAGE=$${stage:-dev}; \
+	if [ "$$STAGE" = "prod" ]; then \
+		CONFIG="strategy.prod.json"; \
+	else \
+		CONFIG="strategy.dev.json"; \
+	fi; \
+	poetry run python scripts/strategy_weights.py init \
+		--config $$CONFIG \
+		--calmar starter_calmar.json \
+		--stage $$STAGE
+
+# Show current live strategy weights from DynamoDB
+# Usage: make weights-show                    # Show dev weights
+#        make weights-show stage=prod         # Show prod weights
+weights-show:
+	@echo "📊 Current strategy weights:"
+	@STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_weights.py show --stage $$STAGE
+
+# Force rebalance with updated Calmar metrics
+# Usage: make weights-rebalance calmar=updated_calmar.json
+#        make weights-rebalance calmar=updated_calmar.json stage=prod
+weights-rebalance:
+	@if [ -z "$(calmar)" ]; then \
+		echo "❌ Error: calmar parameter required"; \
+		echo "Usage: make weights-rebalance calmar=<file>"; \
+		exit 1; \
+	fi; \
+	echo "🔄 Rebalancing strategy weights..."; \
+	STAGE=$${stage:-dev}; \
+	poetry run python scripts/strategy_weights.py rebalance \
+		--calmar $(calmar) \
+		--stage $$STAGE
+
+# Show weight adjustment history
+# Usage: make weights-history                    # Show dev history
+#        make weights-history stage=prod         # Show prod history
+#        make weights-history limit=5            # Show last 5 versions
+weights-history:
+	@echo "📜 Strategy weights history:"
+	@STAGE=$${stage:-dev}; \
+	LIMIT=$${limit:-10}; \
+	poetry run python scripts/strategy_weights.py history \
+		--stage $$STAGE \
+		--limit $$LIMIT
 
 # ============================================================================
 # DATA QUALITY VALIDATION
