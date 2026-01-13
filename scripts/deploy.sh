@@ -154,9 +154,6 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
     fi
 
-    sam deploy
-    fi
-
     sam deploy \
         --no-fail-on-empty-changeset \
         --resolve-s3 \
