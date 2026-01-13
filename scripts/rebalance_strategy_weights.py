@@ -119,6 +119,7 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
 
 def calculate_calmar_tilt_weights(
     calmar_ratios: dict[str, Decimal],
+    config_files: set[str],
     alpha: Decimal = ALPHA,
     f_min: Decimal = F_MIN,
     f_max: Decimal = F_MAX,
@@ -128,8 +129,12 @@ def calculate_calmar_tilt_weights(
     Formula:
         w_i = Normalise(w_base × clip((Calmar_i / MedianCalmar)^α, f_min, f_max))
 
+    Strategies in config but missing from CSV get the base weight (1/N),
+    and the remaining allocation is distributed among CSV-based strategies.
+
     Args:
-        calmar_ratios: Dict of filename -> Calmar ratio
+        calmar_ratios: Dict of filename -> Calmar ratio (from CSV)
+        config_files: Set of all strategy filenames from config
         alpha: Dampening exponent (default 0.5 = square root)
         f_min: Minimum multiplier (default 0.5)
         f_max: Maximum multiplier (default 2.0)
@@ -137,14 +142,31 @@ def calculate_calmar_tilt_weights(
     Returns:
         Dict of filename -> normalized weight
     """
-    n = len(calmar_ratios)
-    if n == 0:
-        raise ValueError("No Calmar ratios provided")
+    # Total number of strategies (from config, not CSV)
+    n_total = len(config_files)
+    if n_total == 0:
+        raise ValueError("No strategies in config")
 
-    # Base weight = 1/N
-    w_base = Decimal("1") / Decimal(str(n))
+    # Base weight = 1/N (using total config strategies)
+    w_base = Decimal("1") / Decimal(str(n_total))
 
-    # Calculate median Calmar
+    # Identify missing strategies (in config but not in CSV)
+    csv_files = set(calmar_ratios.keys())
+    missing_strategies = config_files - csv_files
+
+    if missing_strategies:
+        print(f"\n⚠️  Strategies missing from CSV (will get base weight {float(w_base):.1%}):")
+        for s in sorted(missing_strategies):
+            print(f"    - {s}")
+
+    # Reserve base weight for missing strategies
+    reserved_weight = w_base * Decimal(str(len(missing_strategies)))
+    available_weight = Decimal("1") - reserved_weight
+
+    # Calculate median Calmar from CSV strategies
+    if not calmar_ratios:
+        raise ValueError("No Calmar ratios provided from CSV")
+
     calmar_values = list(calmar_ratios.values())
     median_calmar = Decimal(str(median([float(c) for c in calmar_values])))
 
@@ -152,17 +174,21 @@ def calculate_calmar_tilt_weights(
         raise ValueError("Median Calmar ratio is zero, cannot compute weights")
 
     print(f"\nCalmar-Tilt Calculation:")
-    print(f"  N strategies: {n}")
+    print(f"  N strategies (config): {n_total}")
+    print(f"  N strategies (CSV): {len(calmar_ratios)}")
+    print(f"  N missing (base weight): {len(missing_strategies)}")
     print(f"  Base weight (1/N): {float(w_base):.4f}")
+    print(f"  Reserved for missing: {float(reserved_weight):.4f}")
+    print(f"  Available for CSV strategies: {float(available_weight):.4f}")
     print(f"  Median Calmar: {float(median_calmar):.4f}")
     print(f"  Alpha (dampening): {float(alpha)}")
     print(f"  f_min (floor): {float(f_min)}")
     print(f"  f_max (cap): {float(f_max)}")
 
-    # Calculate raw weights with tilt
+    # Calculate raw weights with tilt for CSV strategies
     raw_weights: dict[str, Decimal] = {}
 
-    print("\n  Per-strategy calculation:")
+    print("\n  Per-strategy calculation (CSV strategies):")
     for filename, calmar in sorted(calmar_ratios.items()):
         # Ratio to median
         ratio = calmar / median_calmar
@@ -184,12 +210,22 @@ def calculate_calmar_tilt_weights(
             f"clipped={float(clipped):4.2f}, raw_w={float(raw_weight):.4f}"
         )
 
-    # Normalize to sum to 1
-    total = sum(raw_weights.values())
-    normalized_weights = {
-        filename: (w / total).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
-        for filename, w in raw_weights.items()
-    }
+    # Normalize CSV strategies to fill the available_weight
+    csv_total = sum(raw_weights.values())
+    normalized_weights: dict[str, Decimal] = {}
+
+    for filename, raw_w in raw_weights.items():
+        # Scale to fit within available_weight
+        scaled = (raw_w / csv_total) * available_weight
+        normalized_weights[filename] = scaled.quantize(
+            Decimal("0.001"), rounding=ROUND_HALF_UP
+        )
+
+    # Add missing strategies at base weight
+    for filename in missing_strategies:
+        normalized_weights[filename] = w_base.quantize(
+            Decimal("0.001"), rounding=ROUND_HALF_UP
+        )
 
     # Adjust for rounding errors to ensure exact sum of 1.0
     adjustment = Decimal("1") - sum(normalized_weights.values())
@@ -265,17 +301,19 @@ def main() -> int:
     for filename, calmar in sorted(calmar_ratios.items()):
         print(f"  {filename:25s}: {float(calmar):10.2f}")
 
-    # Calculate new weights
+    # Load current config
+    config = load_current_config()
+    old_allocations = config.get("allocations", {})
+    config_files = set(config.get("files", []))
+
+    # Calculate new weights (passing config_files so missing strategies get base weight)
     new_weights = calculate_calmar_tilt_weights(
         calmar_ratios,
+        config_files=config_files,
         alpha=Decimal(str(args.alpha)),
         f_min=Decimal(str(args.f_min)),
         f_max=Decimal(str(args.f_max)),
     )
-
-    # Load current config
-    config = load_current_config()
-    old_allocations = config.get("allocations", {})
 
     # Display comparison
     print("\n" + "=" * 70)
@@ -309,14 +347,10 @@ def main() -> int:
     print("-" * 70)
     print(f"  {'TOTAL':25s}: {float(total_old):6.1%} → {float(total_new):6.1%}")
 
-    # Check for missing strategies
-    config_files = set(config.get("files", []))
+    # Check for extra strategies in CSV not in config
     weight_files = set(new_weights.keys())
-    missing_in_csv = config_files - weight_files
-    extra_in_csv = weight_files - config_files
+    extra_in_csv = set(calmar_ratios.keys()) - config_files
 
-    if missing_in_csv:
-        print(f"\n⚠️  Strategies in config but not in CSV: {missing_in_csv}")
     if extra_in_csv:
         print(f"\n⚠️  Strategies in CSV but not in config: {extra_in_csv}")
 
