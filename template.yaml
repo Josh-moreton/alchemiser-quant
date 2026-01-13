@@ -1309,8 +1309,14 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:UpdateItem
                   - dynamodb:Query
+                  - dynamodb:Scan
                 Resource:
                   - !GetAtt AggregationSessionsTable.Arn
+              # CloudWatch permissions for stuck session metrics
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
 
   # ========== END MULTI-NODE STRATEGY SCALING ==========
 

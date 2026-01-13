@@ -689,6 +689,7 @@ def _handle_lambda_async_failure(
         "Processing Lambda async invocation failure",
         extra={
             "correlation_id": correlation_id,
+            "source": source,
             "function_name": function_name,
             "function_arn": function_arn,
             "condition": condition,

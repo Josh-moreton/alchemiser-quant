@@ -510,15 +510,17 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
         try:
             pnl_list = pnl_service.get_last_n_calendar_months_pnl(n_months=3)
             for pnl_data in pnl_list:
-                months_data.append({
-                    "period": pnl_data.period,
-                    "start_date": pnl_data.start_date,
-                    "end_date": pnl_data.end_date,
-                    "total_pnl": float(pnl_data.total_pnl) if pnl_data.total_pnl else None,
-                    "total_pnl_pct": (
-                        float(pnl_data.total_pnl_pct) if pnl_data.total_pnl_pct else None
-                    ),
-                })
+                months_data.append(
+                    {
+                        "period": pnl_data.period,
+                        "start_date": pnl_data.start_date,
+                        "end_date": pnl_data.end_date,
+                        "total_pnl": float(pnl_data.total_pnl) if pnl_data.total_pnl else None,
+                        "total_pnl_pct": (
+                            float(pnl_data.total_pnl_pct) if pnl_data.total_pnl_pct else None
+                        ),
+                    }
+                )
         except Exception as e:
             logger.warning(
                 f"Failed to fetch calendar month P&L: {e}",

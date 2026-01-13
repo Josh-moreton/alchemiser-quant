@@ -665,8 +665,11 @@ class AlpacaAccountService:
             # Use passed credentials or fall back to environment
             if not api_key or not secret_key:
                 import os
+
                 api_key = os.environ.get("ALPACA_KEY") or os.environ.get("APCA_API_KEY_ID")
-                secret_key = os.environ.get("ALPACA_SECRET") or os.environ.get("APCA_API_SECRET_KEY")
+                secret_key = os.environ.get("ALPACA_SECRET") or os.environ.get(
+                    "APCA_API_SECRET_KEY"
+                )
 
             if not api_key or not secret_key:
                 logger.warning(
@@ -702,8 +705,7 @@ class AlpacaAccountService:
             # Filter by activity types if specified
             if activity_types:
                 activities_data = [
-                    a for a in activities_data
-                    if a.get("activity_type") in activity_types
+                    a for a in activities_data if a.get("activity_type") in activity_types
                 ]
 
             # Extract relevant fields
