@@ -85,16 +85,60 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "STRATEGY_FUNCTION_NAME environment variable is required for multi-node mode"
             )
 
-        # Get DSL files and allocations
+        # Get DSL files and base allocations from config
         dsl_files = app_settings.strategy.dsl_files
-        dsl_allocations = app_settings.strategy.dsl_allocations
+        base_allocations = app_settings.strategy.dsl_allocations
 
         if not dsl_files:
             raise ValueError("No DSL strategy files configured")
 
+        # Load live weights from DynamoDB (with fallback to base allocations)
+        live_allocations = base_allocations  # Default to base if weights service unavailable
+
+        if coordinator_settings.strategy_weights_table_name:
+            try:
+                from the_alchemiser.shared.repositories.dynamodb_strategy_weights_repository import (
+                    DynamoDBStrategyWeightsRepository,
+                )
+                from the_alchemiser.shared.services.strategy_weight_service import (
+                    StrategyWeightService,
+                )
+
+                weights_repo = DynamoDBStrategyWeightsRepository(
+                    table_name=coordinator_settings.strategy_weights_table_name
+                )
+                weight_service = StrategyWeightService(repository=weights_repo)
+
+                # Get current live weights (falls back to base if not initialized)
+                live_weights = weight_service.get_current_weights(
+                    base_weights=base_allocations, correlation_id=correlation_id
+                )
+
+                # Convert Decimal to float for strategy_configs
+                live_allocations = {k: float(v) for k, v in live_weights.items()}
+
+                logger.info(
+                    "Loaded live strategy weights from DynamoDB",
+                    extra={
+                        "strategy_count": len(live_allocations),
+                        "using_live_weights": True,
+                    },
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to load live weights from DynamoDB, using base weights",
+                    extra={"error": str(e)},
+                )
+                live_allocations = base_allocations
+        else:
+            logger.info(
+                "Strategy weights table not configured, using base weights from config",
+                extra={"strategy_count": len(base_allocations)},
+            )
+
         # Build strategy configs list with Decimal for precision
         strategy_configs: list[tuple[str, Decimal]] = [
-            (dsl_file, Decimal(str(dsl_allocations.get(dsl_file, 0.0)))) for dsl_file in dsl_files
+            (dsl_file, Decimal(str(live_allocations.get(dsl_file, 0.0)))) for dsl_file in dsl_files
         ]
 
         # Validate allocations sum to ~1.0 using math.isclose per coding guidelines
@@ -103,7 +147,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         if not math.isclose(total_allocation, 1.0, rel_tol=0.01):
             raise ValueError(
                 f"Strategy allocations must sum to 1.0, got {total_allocation:.4f}. "
-                f"Allocations: {dsl_allocations}"
+                f"Allocations: {live_allocations}"
             )
 
         logger.info(

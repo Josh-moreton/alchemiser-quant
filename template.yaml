@@ -496,6 +496,57 @@ Resources:
         - Key: Service
           Value: bad-data-markers
 
+  # ========== STRATEGY WEIGHTS TABLE (PER-STAGE) ==========
+  # DynamoDB table for storing live strategy weights with Calmar-tilted adjustments
+  # Base weights come from strategy.prod.json, live weights adjusted monthly via Calmar ratio
+  StrategyWeightsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-weights"
+        - !Sub "alchemiser-${Stage}-strategy-weights"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      GlobalSecondaryIndexes:
+        # GSI1: Query by version for historical tracking
+        - IndexName: GSI1-VersionIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: strategy-weights
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1030,6 +1081,7 @@ Resources:
           AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
           AGGREGATION_TIMEOUT_SECONDS: "600"
+          STRATEGY_WEIGHTS_TABLE_NAME: !Ref StrategyWeightsTable
     Metadata:
       BuildMethod: python3.12
 
@@ -1061,6 +1113,13 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt AggregationSessionsTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt StrategyWeightsTable.Arn
+                  - !Sub "${StrategyWeightsTable.Arn}/index/*"
               # Permission to invoke Strategy Lambda for each file
               - Effect: Allow
                 Action:
@@ -2182,6 +2241,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-RebalancePlanTable"
         - !Sub "alchemiser-${Stage}-RebalancePlanTable"
+
+  StrategyWeightsTableName:
+    Description: "DynamoDB table for live strategy weights with Calmar-tilted adjustments"
+    Value: !Ref StrategyWeightsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-StrategyWeightsTable"
+        - !Sub "alchemiser-${Stage}-StrategyWeightsTable"
 
   ExecutionFifoQueueUrl:
     Description: "SQS Standard queue for parallel per-trade execution"
