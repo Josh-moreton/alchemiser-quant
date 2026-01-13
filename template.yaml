@@ -128,6 +128,13 @@ Parameters:
     Default: 15
     Description: Cooldown period (minutes) before allowing another fetch for same symbol
 
+  # Notification email configuration
+  # Set NOTIFICATION_EMAIL in each environment's secret store to the desired recipient
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email address for notifications (set per-environment in secret store)
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -1613,9 +1620,17 @@ Resources:
           SES_FROM_NAME: "Octarine Capital"
           SES_REPLY_TO_ADDRESS: noreply@mail.octarine.capital
           SES_REGION: !Ref AWS::Region
-          # Environment-safe routing (override recipients in non-prod)
-          NOTIFICATIONS_TO_PROD: notifications@rwxt.org
-          NOTIFICATIONS_TO_NONPROD: notifications@rwxt.org
+          # Environment-safe routing
+          # Configure NOTIFICATION_EMAIL per-environment in secret store
+          # Prod sends to this address; non-prod also uses this (each env sets its own value)
+          NOTIFICATIONS_TO_PROD: !If
+            - !Not [!Equals [!Ref NotificationEmail, ""]]
+            - !Ref NotificationEmail
+            - "notifications@rwxt.org"
+          NOTIFICATIONS_TO_NONPROD: !If
+            - !Not [!Equals [!Ref NotificationEmail, ""]]
+            - !Ref NotificationEmail
+            - "notifications@rwxt.org"
           # Safety: non-prod environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
       Events:

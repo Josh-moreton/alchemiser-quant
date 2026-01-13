@@ -120,6 +120,10 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
     fi
+    # Notification email (set per-environment in secret store)
+    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
+        PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
+    fi
 
     sam deploy \
         --no-fail-on-empty-changeset \
@@ -145,6 +149,13 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("StagingEmailPassword=$EMAIL_PASSWORD_PARAM")
     fi
+    # Notification email (set per-environment in secret store)
+    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
+        PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
+    fi
+
+    sam deploy
+    fi
 
     sam deploy \
         --no-fail-on-empty-changeset \
@@ -169,6 +180,10 @@ else
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
+    fi
+    # Notification email (set per-environment in secret store)
+    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
+        PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
     fi
 
     sam deploy \
