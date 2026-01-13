@@ -149,10 +149,8 @@ Mappings:
       TitleCase: "Ephemeral"
 
 Conditions:
-  IsDev: !Equals [ !Ref Stage, dev ]
   IsStaging: !Equals [ !Ref Stage, staging ]
   IsProduction: !Equals [ !Ref Stage, prod ]
-  IsNotProduction: !Not [ !Equals [ !Ref Stage, prod ] ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
