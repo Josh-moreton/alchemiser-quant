@@ -98,6 +98,31 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "Run not found or has no trades",
                 extra={"run_id": run_id, "trade_id": trade_id},
             )
+            # Publish WorkflowFailed for observability - this is an anomaly
+            # that indicates orphaned TradeExecuted events or data corruption
+            try:
+                failure_event = WorkflowFailed(
+                    correlation_id=correlation_id,
+                    causation_id=run_id or trade_id,
+                    event_id=f"workflow-failed-{uuid.uuid4()}",
+                    timestamp=datetime.now(UTC),
+                    source_module="trade_aggregator",
+                    source_component="lambda_handler",
+                    workflow_type="trade_aggregation",
+                    failure_reason="Run not found or has no trades - orphaned TradeExecuted event",
+                    failure_step="run_lookup",
+                    error_details={
+                        "exception_type": "RunNotFoundError",
+                        "run_id": run_id,
+                        "trade_id": trade_id,
+                    },
+                )
+                publish_to_eventbridge(failure_event)
+            except Exception as pub_error:
+                logger.error(
+                    "Failed to publish WorkflowFailed event for run_not_found",
+                    extra={"error": str(pub_error), "run_id": run_id},
+                )
             return {
                 "statusCode": 200,
                 "body": {"status": "error", "reason": "run_not_found"},

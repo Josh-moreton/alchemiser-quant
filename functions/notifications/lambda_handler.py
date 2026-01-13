@@ -82,6 +82,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_data_lake_update(detail, correlation_id)
         if detail_type == "ScheduleCreated":
             return _handle_schedule_created(detail, correlation_id)
+        if detail_type == "Lambda Function Invocation Result - Failure":
+            return _handle_lambda_async_failure(detail, correlation_id, source)
 
         logger.debug(
             f"Ignoring unsupported event type: {detail_type}",
@@ -647,3 +649,106 @@ def _build_data_lake_notification(
         status=status,
         data_lake_context=data_lake_context,
     )
+
+
+def _handle_lambda_async_failure(
+    detail: dict[str, Any], correlation_id: str, source: str
+) -> dict[str, Any]:
+    """Handle Lambda async invocation failure events from Lambda Destinations.
+
+    When StrategyOrchestratorFunction invokes StrategyFunction asynchronously and
+    all retries are exhausted (throttling, quota exceeded, timeout, crash), AWS
+    Lambda Destinations route the failure to EventBridge. This handler converts
+    that event into an error notification.
+
+    Args:
+        detail: The detail payload from Lambda Destination failure event
+        correlation_id: Correlation ID for tracing
+        source: Event source (typically "lambda")
+
+    Returns:
+        Response with status code and message
+
+    """
+    # Extract Lambda Destination failure context
+    request_context = detail.get("requestContext", {})
+    response_payload = detail.get("responsePayload", {})
+
+    function_arn = request_context.get("functionArn", "unknown")
+    condition = request_context.get("condition", "unknown")  # e.g., "RetriesExhausted"
+    request_id = request_context.get("requestId", "")
+
+    # Extract error details from response payload
+    error_type = response_payload.get("errorType", "UnknownError")
+    error_message = response_payload.get("errorMessage", "No error message available")
+
+    # Extract function name from ARN for cleaner display
+    function_name = function_arn.split(":")[-1] if ":" in function_arn else function_arn
+
+    logger.warning(
+        "Processing Lambda async invocation failure",
+        extra={
+            "correlation_id": correlation_id,
+            "function_name": function_name,
+            "function_arn": function_arn,
+            "condition": condition,
+            "error_type": error_type,
+            "request_id": request_id,
+        },
+    )
+
+    # Create minimal ApplicationContainer for notifications
+    container = ApplicationContainer.create_for_notifications("production")
+
+    # Build error notification for async Lambda failure
+    error_report = f"""
+Lambda Async Invocation Failure
+===============================
+
+Function: {function_name}
+Condition: {condition}
+Request ID: {request_id}
+Correlation ID: {correlation_id}
+
+Error Type: {error_type}
+Error Message: {error_message}
+
+Full Function ARN:
+{function_arn}
+
+This failure occurred after all AWS retry attempts were exhausted.
+The async invocation (likely from StrategyOrchestratorFunction) failed
+without the target function being able to publish a WorkflowFailed event.
+"""
+
+    notification_event = ErrorNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=request_id or correlation_id,
+        event_id=f"lambda-async-failure-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        error_severity="CRITICAL",
+        error_priority="HIGH",
+        error_title=f"Lambda Async Failure: {function_name} ({condition})",
+        error_report=error_report.strip(),
+        error_code=error_type,
+    )
+
+    # Create NotificationService and process the event
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    logger.info(
+        "Lambda async failure notification sent",
+        extra={
+            "correlation_id": correlation_id,
+            "function_name": function_name,
+            "condition": condition,
+        },
+    )
+
+    return {
+        "statusCode": 200,
+        "body": f"Lambda async failure notification sent for {function_name}",
+    }
