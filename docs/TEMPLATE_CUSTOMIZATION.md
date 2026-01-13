@@ -41,7 +41,7 @@ Both templates receive the same `context` dictionary with data.
 def render_html_header(component: str, status: str) -> str:
     # Returns:
     # - Gradient purple header with ⚗️ logo
-    # - Component name (e.g., "Daily Run")
+    # - Component name (e.g., "Your Daily Rebalance Summary")
     # - Status bar (color-coded: green/yellow/red/blue)
 ```
 
@@ -68,15 +68,15 @@ Similar functions exist for plain text emails.
 
 **Strict Format** (do not change without updating epic requirements):
 ```
-Alchemiser <Component> — <STATUS> — <YYYY-MM-DD> — <env> — run_id=<run_id>
+Your Daily Rebalance Summary — <STATUS> — <YYYY-MM-DD> — <env> — run_id=<run_id>
 ```
 
-Example: `Alchemiser Daily Run — SUCCESS — 2026-01-01 — prod — run_id=8f3c1a`
+Example: `Your Daily Rebalance Summary — SUCCESS — 2026-01-01 — prod — run_id=8f3c1a`
 
 **Function**:
 ```python
 format_subject(
-    component="Daily Run",
+    component="Your Daily Rebalance Summary",
     status="SUCCESS",
     env="prod",
     run_id="8f3c1a12",

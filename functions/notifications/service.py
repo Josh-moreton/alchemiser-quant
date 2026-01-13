@@ -173,7 +173,7 @@ class NotificationService:
         """
         self._log_event_context(event, f"Processing error notification: {event.error_title}")
 
-        component = "daily run"
+        component = "your daily rebalance summary"
         failed_step = event.error_title
         run_id = event.correlation_id
 
@@ -374,7 +374,7 @@ class NotificationService:
 
             # Build subject
             subject = format_subject(
-                component="daily run",
+                component="your daily rebalance summary",
                 status=status,
                 env=self.stage,
                 run_id=event.correlation_id,

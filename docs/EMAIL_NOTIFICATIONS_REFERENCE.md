@@ -6,13 +6,13 @@ This document catalogs all email notifications sent by the Octarine Capital trad
 
 | Email Type | Trigger Event | When Sent | Subject Format | Status Color | Dedup Applied |
 |------------|---------------|-----------|----------------|--------------|---------------|
-| **Daily Run SUCCESS** | `AllTradesCompleted` | All trades succeeded (failed_trades = 0) | `Daily Run - SUCCESS` | Green | No |
-| **Daily Run FAILURE** | `AllTradesCompleted` | Some trades failed (failed_trades > 0) | `Daily Run - FAILURE` | Red | No |
-| **Workflow Error** | `WorkflowFailed` | System/workflow failure (pre-execution) | `Daily Run - FAILURE` | Red | Yes (120 min quiet period) |
-| **System Recovered** | `AllTradesCompleted` (success) | Success after previous failures | `Daily Run - RECOVERED` | Blue | No |
+| **Daily Run SUCCESS** | `AllTradesCompleted` | All trades succeeded (failed_trades = 0) | `Your Daily Rebalance Summary - SUCCESS` | Green | No |
+| **Daily Run FAILURE** | `AllTradesCompleted` | Some trades failed (failed_trades > 0) | `Your Daily Rebalance Summary - FAILURE` | Red | No |
+| **Workflow Error** | `WorkflowFailed` | System/workflow failure (pre-execution) | `Your Daily Rebalance Summary - FAILURE` | Red | Yes (120 min quiet period) |
+| **System Recovered** | `AllTradesCompleted` (success) | Success after previous failures | `Your Daily Rebalance Summary - RECOVERED` | Blue | No |
 | **System Notification** | `SystemNotificationRequested` | Manual/administrative notifications | Custom subject | Gray | No |
 
-> **Note**: Non-production environments (dev, staging) include an environment prefix in the subject line, e.g., `[DEV] Daily Run - SUCCESS`.
+> **Note**: Non-production environments (dev, staging) include an environment prefix in the subject line, e.g., `[DEV] Your Daily Rebalance Summary - SUCCESS`.
 
 ---
 
@@ -34,11 +34,11 @@ This document catalogs all email notifications sent by the Octarine Capital trad
 **Subject**:
 ```
 # Production
-Daily Run - SUCCESS
+Your Daily Rebalance Summary - SUCCESS
 
 # Non-production (dev/staging)
-[DEV] Daily Run - SUCCESS
-[STAGING] Daily Run - SUCCESS
+[DEV] Your Daily Rebalance Summary - SUCCESS
+[STAGING] Your Daily Rebalance Summary - SUCCESS
 ```
 
 **Content Sections** (HTML + Plain Text):
@@ -97,10 +97,10 @@ Daily Run - SUCCESS
 **Subject**:
 ```
 # Production
-Daily Run - FAILURE
+Your Daily Rebalance Summary - FAILURE
 
 # Non-production
-[DEV] Daily Run - FAILURE
+[DEV] Your Daily Rebalance Summary - FAILURE
 ```
 
 **Content Sections** (HTML + Plain Text):
