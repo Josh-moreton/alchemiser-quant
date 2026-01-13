@@ -177,13 +177,13 @@ class StrategyWeightService:
         lambda_value = adjustment_lambda or current_weights.adjustment_lambda
 
         # Compute new target weights using Calmar-tilt formula
-        target_weights = self._compute_target_weights(
+        target_weights = self.compute_target_weights(
             base_weights=current_weights.base_weights,
             calmar_metrics=updated_calmar_metrics,
         )
 
         # Apply partial adjustment: w_new = w_old + λ × (w_target − w_old)
-        realized_weights = self._apply_partial_adjustment(
+        realized_weights = self.apply_partial_adjustment(
             current_realized=current_weights.realized_weights,
             target=target_weights,
             lambda_value=lambda_value,
@@ -225,7 +225,7 @@ class StrategyWeightService:
 
         return updated_weights
 
-    def _compute_target_weights(
+    def compute_target_weights(
         self,
         base_weights: dict[str, Decimal],
         calmar_metrics: dict[str, CalmarMetrics],
@@ -283,8 +283,8 @@ class StrategyWeightService:
                 ratio = calmar / median_calmar
 
             # Apply square-root dampening (α = 0.5)
-            # Convert to float for pow, then back to Decimal
-            tilt = Decimal(str(float(ratio) ** float(ALPHA)))
+            # Use Decimal.sqrt() for precision (α = 0.5 is square root)
+            tilt = ratio.sqrt()
 
             # Apply caps and floors
             tilt_clamped = max(F_MIN, min(F_MAX, tilt))
@@ -330,7 +330,7 @@ class StrategyWeightService:
 
         return normalized_weights
 
-    def _apply_partial_adjustment(
+    def apply_partial_adjustment(
         self,
         current_realized: dict[str, Decimal],
         target: dict[str, Decimal],

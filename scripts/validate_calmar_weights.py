@@ -75,7 +75,7 @@ def test_calmar_tilt_calculation() -> None:
     }
 
     # Compute target weights
-    target_weights = service._compute_target_weights(base_weights, calmar_metrics)
+    target_weights = service.compute_target_weights(base_weights, calmar_metrics)
 
     print(f"Base weights: {base_weights}")
     print(f"Calmar ratios: {[float(m.calmar_ratio) for m in calmar_metrics.values()]}")
@@ -138,7 +138,7 @@ def test_partial_adjustment() -> None:
     lambda_value = Decimal("0.1")
 
     # Apply partial adjustment
-    realized = service._apply_partial_adjustment(current_realized, target, lambda_value)
+    realized = service.apply_partial_adjustment(current_realized, target, lambda_value)
 
     print(f"Current: {current_realized}")
     print(f"Target: {target}")
@@ -220,7 +220,7 @@ def test_caps_and_floors() -> None:
         ),
     }
 
-    target_weights = service._compute_target_weights(base_weights, calmar_metrics)
+    target_weights = service.compute_target_weights(base_weights, calmar_metrics)
 
     print(f"Base weights: {base_weights}")
     print(f"Calmar ratios: {[float(m.calmar_ratio) for m in calmar_metrics.values()]}")

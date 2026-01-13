@@ -38,6 +38,67 @@ configure_application_logging()
 logger = get_logger(__name__)
 
 
+def load_strategy_allocations(
+    base_allocations: dict[str, float],
+    weights_table_name: str | None,
+    correlation_id: str,
+) -> dict[str, float]:
+    """Load strategy allocations from DynamoDB or fall back to base weights.
+    
+    Args:
+        base_allocations: Base allocations from config
+        weights_table_name: DynamoDB table name for weights (optional)
+        correlation_id: Correlation ID for logging
+        
+    Returns:
+        Dictionary of strategy allocations (live or base)
+        
+    """
+    # Default to base if weights service unavailable
+    live_allocations = base_allocations
+
+    if weights_table_name:
+        try:
+            from the_alchemiser.shared.repositories.dynamodb_strategy_weights_repository import (
+                DynamoDBStrategyWeightsRepository,
+            )
+            from the_alchemiser.shared.services.strategy_weight_service import (
+                StrategyWeightService,
+            )
+
+            weights_repo = DynamoDBStrategyWeightsRepository(table_name=weights_table_name)
+            weight_service = StrategyWeightService(repository=weights_repo)
+
+            # Get current live weights (falls back to base if not initialized)
+            live_weights = weight_service.get_current_weights(
+                base_weights=base_allocations, correlation_id=correlation_id
+            )
+
+            # Convert Decimal to float for strategy_configs
+            live_allocations = {k: float(v) for k, v in live_weights.items()}
+
+            logger.info(
+                "Loaded live strategy weights from DynamoDB",
+                extra={
+                    "strategy_count": len(live_allocations),
+                    "using_live_weights": True,
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to load live weights from DynamoDB, using base weights",
+                extra={"error": str(e)},
+            )
+            live_allocations = base_allocations
+    else:
+        logger.info(
+            "Strategy weights table not configured, using base weights from config",
+            extra={"strategy_count": len(base_allocations)},
+        )
+
+    return live_allocations
+
+
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle scheduled invocation to coordinate strategy execution.
 
@@ -93,48 +154,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             raise ValueError("No DSL strategy files configured")
 
         # Load live weights from DynamoDB (with fallback to base allocations)
-        live_allocations = base_allocations  # Default to base if weights service unavailable
-
-        if coordinator_settings.strategy_weights_table_name:
-            try:
-                from the_alchemiser.shared.repositories.dynamodb_strategy_weights_repository import (
-                    DynamoDBStrategyWeightsRepository,
-                )
-                from the_alchemiser.shared.services.strategy_weight_service import (
-                    StrategyWeightService,
-                )
-
-                weights_repo = DynamoDBStrategyWeightsRepository(
-                    table_name=coordinator_settings.strategy_weights_table_name
-                )
-                weight_service = StrategyWeightService(repository=weights_repo)
-
-                # Get current live weights (falls back to base if not initialized)
-                live_weights = weight_service.get_current_weights(
-                    base_weights=base_allocations, correlation_id=correlation_id
-                )
-
-                # Convert Decimal to float for strategy_configs
-                live_allocations = {k: float(v) for k, v in live_weights.items()}
-
-                logger.info(
-                    "Loaded live strategy weights from DynamoDB",
-                    extra={
-                        "strategy_count": len(live_allocations),
-                        "using_live_weights": True,
-                    },
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to load live weights from DynamoDB, using base weights",
-                    extra={"error": str(e)},
-                )
-                live_allocations = base_allocations
-        else:
-            logger.info(
-                "Strategy weights table not configured, using base weights from config",
-                extra={"strategy_count": len(base_allocations)},
-            )
+        live_allocations = load_strategy_allocations(
+            base_allocations=base_allocations,
+            weights_table_name=coordinator_settings.strategy_weights_table_name,
+            correlation_id=correlation_id,
+        )
 
         # Build strategy configs list with Decimal for precision
         strategy_configs: list[tuple[str, Decimal]] = [
