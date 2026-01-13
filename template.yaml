@@ -128,6 +128,13 @@ Parameters:
     Default: 15
     Description: Cooldown period (minutes) before allowing another fetch for same symbol
 
+  # Notification email configuration
+  # Set NOTIFICATION_EMAIL in each environment's secret store to the desired recipient
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email address for notifications (set per-environment in secret store)
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -142,13 +149,12 @@ Mappings:
       TitleCase: "Ephemeral"
 
 Conditions:
-  IsDev: !Equals [ !Ref Stage, dev ]
   IsStaging: !Equals [ !Ref Stage, staging ]
   IsProduction: !Equals [ !Ref Stage, prod ]
-  IsNotProduction: !Not [ !Equals [ !Ref Stage, prod ] ]
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
+  HasNotificationEmail: !Not [ !Equals [ !Ref NotificationEmail, "" ] ]
 
 Globals:
   Function:
@@ -845,6 +851,154 @@ Resources:
         - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
+  # CloudWatch Alarm for stuck aggregation sessions (PENDING > 30 mins)
+  # Detects scenarios where strategy workers fail silently (e.g., async invoke dropped)
+  # and the aggregation session never completes
+  StuckAggregationSessionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-stuck-aggregation-sessions"
+        - !Sub "alchemiser-${Stage}-stuck-aggregation-sessions"
+      AlarmDescription: "Alert when aggregation sessions stuck in PENDING state >30 mins (workers may have failed)"
+      MetricName: StuckAggregationSessions
+      Namespace: Alchemiser/Aggregation
+      Statistic: Maximum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref AggregationSessionsTable
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # ========== LAMBDA ERROR ALARMS ==========
+  # These alarms catch Lambda-level failures that bypass application error handling:
+  # - Timeouts (Lambda runtime terminates before try/except can catch)
+  # - Out of memory
+  # - Runtime crashes
+  # - Unhandled exceptions that escape the handler
+
+  # Strategy Orchestrator errors - critical: if this fails, no workers start
+  StrategyOrchestratorErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-orchestrator-errors"
+        - !Sub "alchemiser-${Stage}-orchestrator-errors"
+      AlarmDescription: "Alert when Strategy Orchestrator Lambda has errors (timeouts, crashes)"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StrategyOrchestratorFunction
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # Strategy Worker errors - catches timeout/crash when WorkflowFailed can't be published
+  StrategyWorkerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-worker-errors"
+        - !Sub "alchemiser-${Stage}-strategy-worker-errors"
+      AlarmDescription: "Alert when Strategy Worker Lambda has errors (timeouts, crashes)"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StrategyFunction
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # Strategy Aggregator errors - catches stalled aggregation scenarios
+  StrategyAggregatorErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-aggregator-errors"
+        - !Sub "alchemiser-${Stage}-aggregator-errors"
+      AlarmDescription: "Alert when Strategy Aggregator Lambda has errors"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StrategyAggregatorFunction
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # Portfolio Lambda errors - catches failures in rebalance planning
+  PortfolioErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-portfolio-errors"
+        - !Sub "alchemiser-${Stage}-portfolio-errors"
+      AlarmDescription: "Alert when Portfolio Lambda has errors"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref PortfolioFunction
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
+  # Notifications Lambda errors - CRITICAL: if this fails, no one knows
+  # Uses DLQAlertTopic since TradingNotificationsTopic depends on this Lambda
+  NotificationsErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notifications-errors"
+        - !Sub "alchemiser-${Stage}-notifications-errors"
+      AlarmDescription: "CRITICAL: Alert when Notifications Lambda fails (notifications won't be sent)"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300  # 5 minutes - give some buffer for transient issues
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref NotificationsFunction
+      AlarmActions:
+        - !Ref DLQAlertTopic
+      TreatMissingData: notBreaching
+
   # Note: ExecutionQueuePolicy removed - EventBridge no longer routes to SQS.
   # Portfolio handler sends TradeMessage objects directly to SQS via SDK.
 
@@ -957,6 +1111,22 @@ Resources:
 
     Metadata:
       BuildMethod: python3.12
+
+  # Lambda Destinations for StrategyFunction async invocation failures
+  # When StrategyOrchestratorFunction invokes workers asynchronously, failures
+  # (throttling, quota, timeouts, unhandled exceptions) are routed to EventBridge
+  # where WorkflowFailed rule triggers NotificationsFunction
+  # Note: Lambda Destinations automatically grants the Lambda service permission
+  # to publish to EventBridge - no additional IAM policy needed.
+  StrategyFunctionEventInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref StrategyFunction
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 2  # AWS default for async, explicit for clarity
+      DestinationConfig:
+        OnFailure:
+          Destination: !GetAtt AlchemiserEventBus.Arn
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
@@ -1132,8 +1302,14 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:UpdateItem
                   - dynamodb:Query
+                  - dynamodb:Scan
                 Resource:
                   - !GetAtt AggregationSessionsTable.Arn
+              # CloudWatch permissions for stuck session metrics
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
 
   # ========== END MULTI-NODE STRATEGY SCALING ==========
 
@@ -1430,9 +1606,17 @@ Resources:
           SES_FROM_NAME: "Octarine Capital"
           SES_REPLY_TO_ADDRESS: noreply@mail.octarine.capital
           SES_REGION: !Ref AWS::Region
-          # Environment-safe routing (override recipients in non-prod)
-          NOTIFICATIONS_TO_PROD: notifications@rwxt.org
-          NOTIFICATIONS_TO_NONPROD: notifications@rwxt.org
+          # Environment-safe routing
+          # Configure NOTIFICATION_EMAIL per-environment in secret store
+          # Prod sends to this address; non-prod also uses this (each env sets its own value)
+          NOTIFICATIONS_TO_PROD: !If
+            - HasNotificationEmail
+            - !Ref NotificationEmail
+            - "notifications@rwxt.org"
+          NOTIFICATIONS_TO_NONPROD: !If
+            - HasNotificationEmail
+            - !Ref NotificationEmail
+            - "notifications@rwxt.org"
           # Safety: non-prod environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
       Events:
@@ -1477,6 +1661,18 @@ Resources:
                 - "alchemiser.coordinator"
               detail-type:
                 - "ScheduleCreated"
+        # Lambda async invocation failures from Lambda Destinations
+        # Catches failures when StrategyOrchestratorFunction invokes StrategyFunction async
+        # and all retries are exhausted (throttling, quota, timeout, crash)
+        LambdaAsyncFailureEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "lambda"
+              detail-type:
+                - "Lambda Function Invocation Result - Failure"
     Metadata:
       BuildMethod: python3.12
       # BuildProperties removed - SAM auto-includes everything in CodeUri

@@ -78,6 +78,21 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         session_service = AggregationSessionService(table_name=settings.aggregation_table_name)
         portfolio_merger = PortfolioMerger(allocation_tolerance=settings.allocation_tolerance)
 
+        # Emit stuck sessions metric on each invocation for monitoring
+        # This feeds the StuckAggregationSessionsAlarm in CloudWatch
+        try:
+            stuck_count = session_service.emit_stuck_sessions_metric(max_age_minutes=30)
+            if stuck_count > 0:
+                logger.warning(
+                    f"Detected {stuck_count} stuck aggregation sessions",
+                    extra={"correlation_id": correlation_id, "stuck_count": stuck_count},
+                )
+        except Exception as metric_error:
+            logger.debug(
+                f"Failed to emit stuck sessions metric: {metric_error}",
+                extra={"correlation_id": correlation_id},
+            )
+
         # Extract partial signal data
         allocation = Decimal(str(detail.get("allocation", "0")))
         consolidated_portfolio = detail.get("consolidated_portfolio", {})

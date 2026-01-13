@@ -229,8 +229,9 @@ class PnLService:
                 )
                 # Still add an empty entry so we have consistent count
                 import calendar
+
                 month_name = calendar.month_name[target_month]
-                is_current = (target_year == today.year and target_month == today.month)
+                is_current = target_year == today.year and target_month == today.month
                 period_label = f"{month_name} {target_year}" + (" (MTD)" if is_current else "")
                 results.append(PnLData(period=period_label))
 
@@ -367,9 +368,7 @@ class PnLService:
 
             # Calculate total deposits to subtract from cumulative P&L
             # Deposits inflate equity but are NOT trading gains
-            net_deposits = self._calculate_net_deposits(
-                cash_activities, start_date, end_date
-            )
+            net_deposits = self._calculate_net_deposits(cash_activities, start_date, end_date)
 
             logger.debug(
                 "Fetched cash activities for P&L adjustment",
@@ -381,9 +380,7 @@ class PnLService:
                 module="pnl_service",
             )
 
-            return self._process_history_data(
-                history, period, start_date, end_date, net_deposits
-            )
+            return self._process_history_data(history, period, start_date, end_date, net_deposits)
 
         except DataProviderError:
             # Re-raise our typed errors
@@ -581,7 +578,9 @@ class PnLService:
 
         # Take the LAST cumulative P&L value and subtract deposits
         if profit_loss_values and len(profit_loss_values) > 0:
-            last_pnl = Decimal(str(profit_loss_values[-1])) if profit_loss_values[-1] else Decimal("0")
+            last_pnl = (
+                Decimal(str(profit_loss_values[-1])) if profit_loss_values[-1] else Decimal("0")
+            )
             # Subtract deposits to get TRUE trading P&L
             total_pnl = last_pnl - net_deposits
 
@@ -632,16 +631,22 @@ class PnLService:
                 daily_pnl = Decimal("0")
                 daily_pct = Decimal("0")
             else:
-                curr_cumulative = Decimal(str(profit_loss_values[i])) if (
-                    i < len(profit_loss_values) and profit_loss_values[i] is not None
-                ) else Decimal("0")
-                prev_cumulative = Decimal(str(profit_loss_values[i - 1])) if (
-                    (i - 1) < len(profit_loss_values) and profit_loss_values[i - 1] is not None
-                ) else Decimal("0")
+                curr_cumulative = (
+                    Decimal(str(profit_loss_values[i]))
+                    if (i < len(profit_loss_values) and profit_loss_values[i] is not None)
+                    else Decimal("0")
+                )
+                prev_cumulative = (
+                    Decimal(str(profit_loss_values[i - 1]))
+                    if ((i - 1) < len(profit_loss_values) and profit_loss_values[i - 1] is not None)
+                    else Decimal("0")
+                )
                 daily_pnl = curr_cumulative - prev_cumulative
 
                 # Calculate daily percentage from daily P&L and previous day's equity
-                prev_equity = Decimal(str(equity_values[i - 1])) if equity_values[i - 1] else Decimal("1")
+                prev_equity = (
+                    Decimal(str(equity_values[i - 1])) if equity_values[i - 1] else Decimal("1")
+                )
                 if prev_equity > Decimal("0"):
                     daily_pct = (daily_pnl / prev_equity) * PERCENTAGE_MULTIPLIER
                 else:

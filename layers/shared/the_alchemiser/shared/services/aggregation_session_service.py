@@ -327,3 +327,128 @@ class AggregationSessionService:
             "Updated session status",
             extra={"session_id": session_id, "status": status},
         )
+
+    def find_stuck_sessions(self, max_age_minutes: int = 30) -> list[dict[str, Any]]:
+        """Find sessions stuck in PENDING state for too long.
+
+        Scans for sessions that are still PENDING and were created
+        more than max_age_minutes ago. These indicate silent worker failures
+        (e.g., async invocation dropped, throttled, or crashed without publishing).
+
+        Args:
+            max_age_minutes: Maximum age in minutes before a session is considered stuck.
+
+        Returns:
+            List of stuck session metadata dicts.
+
+        """
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=max_age_minutes)
+
+        # Note: Could optimize with GSI on status if table grows significantly.
+        # Use pagination and projection to remain efficient as the table grows.
+        scan_kwargs: dict[str, Any] = {
+            "TableName": self._table_name,
+            "FilterExpression": "#status = :pending AND SK = :metadata",
+            "ExpressionAttributeNames": {"#status": "status"},
+            "ExpressionAttributeValues": {
+                ":pending": {"S": "PENDING"},
+                ":metadata": {"S": "METADATA"},
+            },
+            # Only fetch attributes we actually use to reduce read and network cost.
+            "ProjectionExpression": "session_id, correlation_id, total_strategies, "
+            "completed_strategies, #status, created_at, SK",
+        }
+
+        stuck_sessions: list[dict[str, Any]] = []
+
+        # Paginate through results in case table grows beyond 1MB per scan
+        response = self._client.scan(**scan_kwargs)
+        while True:
+            for item in response.get("Items", []):
+                created_at_str = item.get("created_at", {}).get("S", "")
+                if not created_at_str:
+                    continue
+
+                try:
+                    created_at = datetime.fromisoformat(created_at_str)
+                    if created_at < cutoff_time:
+                        stuck_sessions.append(
+                            {
+                                "session_id": item["session_id"]["S"],
+                                "correlation_id": item["correlation_id"]["S"],
+                                "total_strategies": int(item["total_strategies"]["N"]),
+                                "completed_strategies": int(
+                                    item["completed_strategies"]["N"]
+                                ),
+                                "status": item["status"]["S"],
+                                "created_at": created_at_str,
+                                "age_minutes": int(
+                                    (datetime.now(UTC) - created_at).total_seconds() / 60
+                                ),
+                            }
+                        )
+                except (ValueError, KeyError) as e:
+                    logger.warning(
+                        f"Failed to parse session created_at: {e}",
+                        extra={
+                            "session_id": item.get("session_id", {}).get("S", "unknown")
+                        },
+                    )
+
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+            response = self._client.scan(
+                ExclusiveStartKey=last_evaluated_key, **scan_kwargs
+            )
+
+        if stuck_sessions:
+            logger.warning(
+                f"Found {len(stuck_sessions)} stuck aggregation sessions (PENDING > {max_age_minutes} mins)",
+                extra={"stuck_session_count": len(stuck_sessions)},
+            )
+
+        return stuck_sessions
+
+    def emit_stuck_sessions_metric(self, max_age_minutes: int = 30) -> int:
+        """Find stuck sessions and emit CloudWatch metric.
+
+        This is called by the Strategy Aggregator Lambda on each invocation
+        to track stuck sessions over time. The StuckAggregationSessionsAlarm
+        monitors this metric.
+
+        Args:
+            max_age_minutes: Maximum age in minutes before a session is considered stuck.
+
+        Returns:
+            Count of stuck sessions found.
+
+        """
+        stuck_sessions = self.find_stuck_sessions(max_age_minutes)
+        count = len(stuck_sessions)
+
+        # Emit CloudWatch metric
+        try:
+            cloudwatch = boto3.client("cloudwatch")
+            cloudwatch.put_metric_data(
+                Namespace="Alchemiser/Aggregation",
+                MetricData=[
+                    {
+                        "MetricName": "StuckAggregationSessions",
+                        "Value": count,
+                        "Unit": "Count",
+                        "Dimensions": [
+                            {"Name": "TableName", "Value": self._table_name},
+                        ],
+                    }
+                ],
+            )
+            logger.debug(
+                f"Emitted StuckAggregationSessions metric: {count}",
+                extra={"stuck_session_count": count},
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit StuckAggregationSessions metric: {e}")
+
+        return count

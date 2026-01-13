@@ -70,6 +70,7 @@ def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
         HTML snippet for P&L section, or empty string if no data.
 
     """
+
     def format_pnl_value(pnl: float | None, pct: float | None) -> str:
         if pnl is None:
             return "N/A"
@@ -87,19 +88,16 @@ def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
         lines = []
         for month_data in months:
             period = month_data.get("period", "Unknown")
-            pnl_str = format_pnl_value(
-                month_data.get("total_pnl"),
-                month_data.get("total_pnl_pct")
-            )
+            pnl_str = format_pnl_value(month_data.get("total_pnl"), month_data.get("total_pnl_pct"))
             lines.append(
                 f'<p style="margin: 0 0 4px 0; font-size: 11px;">'
-                f'<strong>{period}:</strong> {pnl_str}</p>'
+                f"<strong>{period}:</strong> {pnl_str}</p>"
             )
 
         return f"""
         <div style="background-color: #e8f4f8; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
             <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">Portfolio Performance</h4>
-            {''.join(lines)}
+            {"".join(lines)}
         </div>
 """
 
@@ -136,6 +134,7 @@ def _format_pnl_text(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
         Plain text snippet for P&L section, or empty string if no data.
 
     """
+
     def format_pnl_value(pnl: float | None, pct: float | None) -> str:
         if pnl is None:
             return "N/A"
@@ -152,10 +151,7 @@ def _format_pnl_text(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
         lines = ["PORTFOLIO PERFORMANCE", "-" * 21]
         for month_data in months:
             period = month_data.get("period", "Unknown")
-            pnl_str = format_pnl_value(
-                month_data.get("total_pnl"),
-                month_data.get("total_pnl_pct")
-            )
+            pnl_str = format_pnl_value(month_data.get("total_pnl"), month_data.get("total_pnl_pct"))
             lines.append(f"• {period}: {pnl_str}")
 
         return "\n".join(lines) + "\n"
