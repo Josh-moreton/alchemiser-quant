@@ -56,17 +56,20 @@ def _format_timestamp_for_display(timestamp_str: str) -> str:
 def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) -> str:
     """Format P&L metrics as an HTML section.
 
+    Supports both legacy format (monthly_pnl/yearly_pnl) and new format
+    (monthly_pnl contains 'months' list for 3-month calendar display).
+
     Args:
-        monthly_pnl: Monthly P&L data dict with total_pnl, total_pnl_pct, period.
+        monthly_pnl: Monthly P&L data dict. Can contain:
+            - Legacy: total_pnl, total_pnl_pct, period
+            - New: 'months' list of dicts with period, total_pnl, total_pnl_pct
         yearly_pnl: Yearly P&L data dict with total_pnl, total_pnl_pct, period.
+            Ignored if monthly_pnl contains 'months' list.
 
     Returns:
         HTML snippet for P&L section, or empty string if no data.
 
     """
-    if not monthly_pnl and not yearly_pnl:
-        return ""
-
     def format_pnl_value(pnl: float | None, pct: float | None) -> str:
         if pnl is None:
             return "N/A"
@@ -74,6 +77,35 @@ def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
         color = "#28a745" if pnl >= 0 else "#dc3545"
         pct_str = f" ({sign}{pct:.2f}%)" if pct is not None else ""
         return f'<span style="color: {color};">{sign}${pnl:,.2f}{pct_str}</span>'
+
+    # Check for new 3-month calendar format
+    if monthly_pnl and "months" in monthly_pnl:
+        months = monthly_pnl.get("months", [])
+        if not months:
+            return ""
+
+        lines = []
+        for month_data in months:
+            period = month_data.get("period", "Unknown")
+            pnl_str = format_pnl_value(
+                month_data.get("total_pnl"),
+                month_data.get("total_pnl_pct")
+            )
+            lines.append(
+                f'<p style="margin: 0 0 4px 0; font-size: 11px;">'
+                f'<strong>{period}:</strong> {pnl_str}</p>'
+            )
+
+        return f"""
+        <div style="background-color: #e8f4f8; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">Portfolio Performance</h4>
+            {''.join(lines)}
+        </div>
+"""
+
+    # Legacy format: monthly + yearly
+    if not monthly_pnl and not yearly_pnl:
+        return ""
 
     monthly_str = format_pnl_value(monthly_pnl.get("total_pnl"), monthly_pnl.get("total_pnl_pct"))
     yearly_str = format_pnl_value(yearly_pnl.get("total_pnl"), yearly_pnl.get("total_pnl_pct"))
@@ -90,23 +122,47 @@ def _format_pnl_html(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) ->
 def _format_pnl_text(monthly_pnl: dict[str, Any], yearly_pnl: dict[str, Any]) -> str:
     """Format P&L metrics as a plain text section.
 
+    Supports both legacy format (monthly_pnl/yearly_pnl) and new format
+    (monthly_pnl contains 'months' list for 3-month calendar display).
+
     Args:
-        monthly_pnl: Monthly P&L data dict with total_pnl, total_pnl_pct, period.
+        monthly_pnl: Monthly P&L data dict. Can contain:
+            - Legacy: total_pnl, total_pnl_pct, period
+            - New: 'months' list of dicts with period, total_pnl, total_pnl_pct
         yearly_pnl: Yearly P&L data dict with total_pnl, total_pnl_pct, period.
+            Ignored if monthly_pnl contains 'months' list.
 
     Returns:
         Plain text snippet for P&L section, or empty string if no data.
 
     """
-    if not monthly_pnl and not yearly_pnl:
-        return ""
-
     def format_pnl_value(pnl: float | None, pct: float | None) -> str:
         if pnl is None:
             return "N/A"
         sign = "+" if pnl >= 0 else ""
         pct_str = f" ({sign}{pct:.2f}%)" if pct is not None else ""
         return f"{sign}${pnl:,.2f}{pct_str}"
+
+    # Check for new 3-month calendar format
+    if monthly_pnl and "months" in monthly_pnl:
+        months = monthly_pnl.get("months", [])
+        if not months:
+            return ""
+
+        lines = ["PORTFOLIO PERFORMANCE", "-" * 21]
+        for month_data in months:
+            period = month_data.get("period", "Unknown")
+            pnl_str = format_pnl_value(
+                month_data.get("total_pnl"),
+                month_data.get("total_pnl_pct")
+            )
+            lines.append(f"• {period}: {pnl_str}")
+
+        return "\n".join(lines) + "\n"
+
+    # Legacy format: monthly + yearly
+    if not monthly_pnl and not yearly_pnl:
+        return ""
 
     monthly_str = format_pnl_value(monthly_pnl.get("total_pnl"), monthly_pnl.get("total_pnl_pct"))
     yearly_str = format_pnl_value(yearly_pnl.get("total_pnl"), yearly_pnl.get("total_pnl_pct"))
