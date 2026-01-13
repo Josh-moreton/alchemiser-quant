@@ -212,7 +212,7 @@ All email sends are logged with structured data:
   "message": "Email sent via SES",
   "message_id": "abc123...",
   "to_addresses": ["notifications@rwxt.org"],
-  "subject_preview": "Your Daily Rebalance Summary — SUCCESS — 2026-01-01",
+  "subject_preview": "Your Daily Rebalance Summary",
   "routing_override": false,
   "stage": "prod"
 }

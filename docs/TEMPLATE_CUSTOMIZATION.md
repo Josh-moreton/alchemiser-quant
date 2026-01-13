@@ -67,17 +67,16 @@ Similar functions exist for plain text emails.
 ### Subject Line Format
 
 **Strict Format** (do not change without updating epic requirements):
-```
-Your Daily Rebalance Summary — <STATUS> — <YYYY-MM-DD> — <env> — run_id=<run_id>
-```
+- **SUCCESS**: `Your Daily Rebalance Summary`
+- **Other statuses**: `Your Daily Rebalance Summary — {STATUS}`
 
-Example: `Your Daily Rebalance Summary — SUCCESS — 2026-01-01 — prod — run_id=8f3c1a`
+Example: `Your Daily Rebalance Summary` (success) or `Your Daily Rebalance Summary — FAILURE`
 
 **Function**:
 ```python
 format_subject(
     component="Your Daily Rebalance Summary",
-    status="SUCCESS",
+    status="SUCCESS",  # Status only included if not SUCCESS
     env="prod",
     run_id="8f3c1a12",
     run_date=datetime.now()

@@ -308,11 +308,13 @@ def format_subject(
     """Format email subject line following institutional spec.
 
     Format:
-      - Production: "{Component} - {STATUS}"
-      - Non-production: "[DEV] {Component} - {STATUS}" or "[STAGING] {Component} - {STATUS}"
+      - Production SUCCESS: "{Component}"
+      - Production other: "{Component} - {STATUS}"
+      - Non-production SUCCESS: "[DEV] {Component}" or "[STAGING] {Component}"
+      - Non-production other: "[DEV] {Component} - {STATUS}" or "[STAGING] {Component} - {STATUS}"
 
     Args:
-        component: Component name (e.g., "Daily Run", "Data Lake Refresh")
+        component: Component name (e.g., "Your Daily Rebalance Summary", "Data Lake Refresh")
         status: Status (SUCCESS, SUCCESS_WITH_WARNINGS, FAILURE, RECOVERED)
         env: Environment (dev/staging/prod)
         run_id: Unused; retained for backward compatibility
@@ -325,13 +327,16 @@ def format_subject(
     # Capitalize component for consistency
     component_title = component.title()
 
+    # Only include status if it's not SUCCESS
+    status_suffix = "" if status == "SUCCESS" else f" - {status}"
+
     # Production emails have no environment prefix
     if env == "prod":
-        return f"{component_title} - {status}"
+        return f"{component_title}{status_suffix}"
 
     # Non-production emails get environment prefix
     env_prefix = f"[{env.upper()}]"
-    return f"{env_prefix} {component_title} - {status}"
+    return f"{env_prefix} {component_title}{status_suffix}"
 
 
 def render_html_header(component: str, status: str) -> str:

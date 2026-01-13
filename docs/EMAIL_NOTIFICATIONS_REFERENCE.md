@@ -6,13 +6,13 @@ This document catalogs all email notifications sent by the Octarine Capital trad
 
 | Email Type | Trigger Event | When Sent | Subject Format | Status Color | Dedup Applied |
 |------------|---------------|-----------|----------------|--------------|---------------|
-| **Daily Run SUCCESS** | `AllTradesCompleted` | All trades succeeded (failed_trades = 0) | `Your Daily Rebalance Summary - SUCCESS` | Green | No |
+| **Daily Run SUCCESS** | `AllTradesCompleted` | All trades succeeded (failed_trades = 0) | `Your Daily Rebalance Summary` | Green | No |
 | **Daily Run FAILURE** | `AllTradesCompleted` | Some trades failed (failed_trades > 0) | `Your Daily Rebalance Summary - FAILURE` | Red | No |
 | **Workflow Error** | `WorkflowFailed` | System/workflow failure (pre-execution) | `Your Daily Rebalance Summary - FAILURE` | Red | Yes (120 min quiet period) |
 | **System Recovered** | `AllTradesCompleted` (success) | Success after previous failures | `Your Daily Rebalance Summary - RECOVERED` | Blue | No |
 | **System Notification** | `SystemNotificationRequested` | Manual/administrative notifications | Custom subject | Gray | No |
 
-> **Note**: Non-production environments (dev, staging) include an environment prefix in the subject line, e.g., `[DEV] Your Daily Rebalance Summary - SUCCESS`.
+> **Note**: Non-production environments (dev, staging) include an environment prefix in the subject line, e.g., `[DEV] Your Daily Rebalance Summary` for success or `[DEV] Your Daily Rebalance Summary - FAILURE` for failures.
 
 ---
 
@@ -34,11 +34,11 @@ This document catalogs all email notifications sent by the Octarine Capital trad
 **Subject**:
 ```
 # Production
-Your Daily Rebalance Summary - SUCCESS
+Your Daily Rebalance Summary
 
 # Non-production (dev/staging)
-[DEV] Your Daily Rebalance Summary - SUCCESS
-[STAGING] Your Daily Rebalance Summary - SUCCESS
+[DEV] Your Daily Rebalance Summary
+[STAGING] Your Daily Rebalance Summary
 ```
 
 **Content Sections** (HTML + Plain Text):
