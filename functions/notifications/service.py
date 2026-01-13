@@ -34,10 +34,10 @@ from the_alchemiser.shared.notifications.templates import (
     render_daily_run_partial_success_text,
     render_daily_run_success_html,
     render_daily_run_success_text,
-    render_schedule_created_html,
-    render_schedule_created_text,
     render_html_footer,
     render_html_header,
+    render_schedule_created_html,
+    render_schedule_created_text,
     render_text_footer,
     render_text_header,
 )
@@ -65,10 +65,8 @@ class NotificationService:
 
         # Get environment configuration
         self.stage = os.environ.get("APP__STAGE", "dev")
-        self.prod_recipients = os.environ.get("NOTIFICATIONS_TO_PROD", "notifications@rwxt.org")
-        self.nonprod_recipients = os.environ.get(
-            "NOTIFICATIONS_TO_NONPROD", "notifications@rwxt.org"
-        )
+        # Single notification email - set per-environment via CI/CD
+        self.notification_email = os.environ.get("NOTIFICATION_EMAIL", "notifications@rwxt.org")
 
     def register_handlers(self) -> None:
         """Register event handlers with the event bus."""
@@ -524,7 +522,7 @@ class NotificationService:
             # Build HTML body with header and footer
             header = render_html_header("Data Lake Refresh", display_status)
             footer = render_html_footer()
-            
+
             html_content = f"""
     <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">Refresh Results</h3>
 
@@ -563,7 +561,7 @@ class NotificationService:
             # Build plain text body with header and footer
             text_header = render_text_header("Data Lake Refresh", display_status)
             text_footer = render_text_footer()
-            
+
             text_content = f"""
 Refresh Results
 {"=" * 50}
@@ -685,15 +683,13 @@ Correlation ID: {event.correlation_id}
             )
 
     def _get_recipients(self) -> list[str]:
-        """Get recipient email addresses based on environment.
+        """Get recipient email addresses.
 
         Returns:
-            List of recipient email addresses
+            List of recipient email addresses (from NOTIFICATION_EMAIL env var)
 
         """
-        if self.stage == "prod":
-            return [addr.strip() for addr in self.prod_recipients.split(",")]
-        return [addr.strip() for addr in self.nonprod_recipients.split(",")]
+        return [addr.strip() for addr in self.notification_email.split(",")]
 
     def _build_logs_url(self, correlation_id: str) -> str:
         """Build CloudWatch Logs Insights URL filtered by correlation ID.
