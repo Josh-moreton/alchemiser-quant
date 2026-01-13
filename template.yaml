@@ -156,6 +156,7 @@ Conditions:
   IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
+  HasNotificationEmail: !Not [ !Equals [ !Ref NotificationEmail, "" ] ]
 
 Globals:
   Function:
@@ -1624,11 +1625,11 @@ Resources:
           # Configure NOTIFICATION_EMAIL per-environment in secret store
           # Prod sends to this address; non-prod also uses this (each env sets its own value)
           NOTIFICATIONS_TO_PROD: !If
-            - !Not [!Equals [!Ref NotificationEmail, ""]]
+            - HasNotificationEmail
             - !Ref NotificationEmail
             - "notifications@rwxt.org"
           NOTIFICATIONS_TO_NONPROD: !If
-            - !Not [!Equals [!Ref NotificationEmail, ""]]
+            - HasNotificationEmail
             - !Ref NotificationEmail
             - "notifications@rwxt.org"
           # Safety: non-prod environments must explicitly enable real emails
