@@ -406,7 +406,7 @@ class PnLService:
         start_date: str,
         end_date: str,
     ) -> Decimal:
-        """Calculate net deposits (deposits - withdrawals) within the date range.
+        """Calculate total deposits (CSD) within the date range.
 
         Args:
             cash_activities: List of CSD/CSW activities from Alpaca
@@ -414,10 +414,10 @@ class PnLService:
             end_date: Period end date (YYYY-MM-DD)
 
         Returns:
-            Net deposit amount (positive = net deposits, negative = net withdrawals)
+            Total deposit amount to subtract from cumulative P&L.
 
         """
-        net_deposits = Decimal("0")
+        total_deposits = Decimal("0")
 
         for activity in cash_activities:
             activity_date = activity.get("date", "")[:10]  # YYYY-MM-DD
@@ -433,12 +433,10 @@ class PnLService:
             except (ValueError, ArithmeticError):
                 continue
 
-            if activity_type == "CSD":  # Cash Deposit
-                net_deposits += amount
-            elif activity_type == "CSW":  # Cash Withdrawal
-                net_deposits -= amount  # Withdrawals are negative to net deposits
+            if activity_type == "CSD":  # Cash Deposit - subtract from P&L
+                total_deposits += amount
 
-        return net_deposits
+        return total_deposits
 
     def _process_history_data(
         self,
@@ -545,16 +543,16 @@ class PnLService:
     ) -> tuple[Decimal | None, Decimal | None, Decimal | None, Decimal | None]:
         """Extract start/end equity and total P&L from Alpaca's CUMULATIVE arrays.
 
-        When using pnl_reset='no_reset', Alpaca returns CUMULATIVE profit_loss values
-        from base_value. To get period P&L:
-        - Period P&L = profit_loss[-1] - profit_loss[0] (cumulative change)
-        - TRUE Trading P&L = Period P&L - net_deposits (subtract deposits, add withdrawals)
+        With pnl_reset='no_reset', profit_loss[-1] is cumulative P&L from account inception.
+        To get TRUE trading P&L for the period:
+        - Take profit_loss[-1] (cumulative P&L including deposits)
+        - Subtract ALL deposits (CSD) in the period
 
         Args:
             equity_values: List of equity values from Alpaca.
             profit_loss_values: CUMULATIVE P&L values from Alpaca (with pnl_reset='no_reset').
             profit_loss_pct_values: CUMULATIVE P&L percentage values from Alpaca.
-            net_deposits: Net deposits in period (deposits - withdrawals) to subtract.
+            net_deposits: Total deposits in the period to subtract from P&L.
 
         Returns:
             Tuple of (start_value, end_value, total_pnl, total_pnl_pct).
@@ -570,31 +568,15 @@ class PnLService:
         total_pnl: Decimal | None = None
         total_pnl_pct: Decimal | None = None
 
-        # Calculate period P&L from CUMULATIVE values: last - first
-        if profit_loss_values and len(profit_loss_values) > 1:
-            first_pnl = Decimal(str(profit_loss_values[0])) if profit_loss_values[0] else Decimal("0")
+        # Take the LAST cumulative P&L value and subtract deposits
+        if profit_loss_values and len(profit_loss_values) > 0:
             last_pnl = Decimal(str(profit_loss_values[-1])) if profit_loss_values[-1] else Decimal("0")
-            # Cumulative P&L change during the period
-            cumulative_pnl = last_pnl - first_pnl
             # Subtract deposits to get TRUE trading P&L
-            # (deposits inflate equity but aren't trading gains)
-            total_pnl = cumulative_pnl - net_deposits
-        elif profit_loss_values and len(profit_loss_values) == 1:
-            # Only one data point
-            pnl_val = profit_loss_values[0]
-            if pnl_val is not None:
-                total_pnl = Decimal(str(pnl_val)) - net_deposits
+            total_pnl = last_pnl - net_deposits
 
         # Calculate percentage from TRUE P&L relative to starting equity
         if total_pnl is not None and start_money.to_decimal() > Decimal("0"):
-            # P&L percentage = (trading P&L / starting equity) * 100
             total_pnl_pct = (total_pnl / start_money.to_decimal()) * PERCENTAGE_MULTIPLIER
-        elif profit_loss_pct_values and len(profit_loss_pct_values) > 1:
-            # Fallback to cumulative percentage if we can't calculate from P&L
-            first_pct = profit_loss_pct_values[0] if profit_loss_pct_values[0] else 0
-            last_pct = profit_loss_pct_values[-1] if profit_loss_pct_values[-1] else 0
-            pct_change = Decimal(str(last_pct)) - Decimal(str(first_pct))
-            total_pnl_pct = pct_change * PERCENTAGE_MULTIPLIER
 
         return start_money.to_decimal(), end_money.to_decimal(), total_pnl, total_pnl_pct
 

@@ -937,7 +937,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         return self._account_service.get_non_trade_activities(
-            start_date=start_date, activity_types=activity_types
+            start_date=start_date,
+            activity_types=activity_types,
+            api_key=self._api_key,
+            secret_key=self._secret_key,
+            paper=self._paper,
         )
 
     # OrderExecutor protocol implementation methods

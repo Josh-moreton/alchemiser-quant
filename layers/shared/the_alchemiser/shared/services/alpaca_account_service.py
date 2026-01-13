@@ -632,6 +632,9 @@ class AlpacaAccountService:
         self,
         start_date: str | None = None,
         activity_types: list[str] | None = None,
+        api_key: str | None = None,
+        secret_key: str | None = None,
+        paper: bool = False,
     ) -> list[dict[str, Any]]:
         """Get non-trade account activities (deposits, withdrawals, dividends).
 
@@ -642,6 +645,9 @@ class AlpacaAccountService:
             start_date: Start date (ISO format YYYY-MM-DD), filters activities after this date
             activity_types: List of activity types to filter (e.g., ["CSD", "CSW", "DIV"])
                            CSD = Cash Deposit, CSW = Cash Withdrawal, DIV = Dividend
+            api_key: Alpaca API key (preferred, avoids SDK extraction issues)
+            secret_key: Alpaca secret key (preferred, avoids SDK extraction issues)
+            paper: True for paper trading, False for live trading
 
         Returns:
             List of activity records with id, activity_type, date, net_amount, status.
@@ -650,26 +656,21 @@ class AlpacaAccountService:
         import requests as http_requests
 
         try:
-            # Build API URL - use raw HTTP as SDK may not support category filter
-            # Determine endpoint from trading client
-            base_url = "https://api.alpaca.markets"
-            if hasattr(self._trading_client, "_base_url"):
-                base_url = str(self._trading_client._base_url).rstrip("/")
-            elif hasattr(self._trading_client, "base_url"):
-                base_url = str(self._trading_client.base_url).rstrip("/")
+            # Determine base URL based on paper/live mode
+            if paper:
+                base_url = "https://paper-api.alpaca.markets"
+            else:
+                base_url = "https://api.alpaca.markets"
 
-            # Get API keys from client (these are set during client creation)
-            api_key = getattr(self._trading_client, "_api_key", None)
-            secret_key = getattr(self._trading_client, "_secret_key", None)
-
+            # Use passed credentials or fall back to environment
             if not api_key or not secret_key:
-                # Try alternative attribute names
-                api_key = getattr(self._trading_client, "api_key", None)
-                secret_key = getattr(self._trading_client, "secret_key", None)
+                import os
+                api_key = os.environ.get("ALPACA_KEY") or os.environ.get("APCA_API_KEY_ID")
+                secret_key = os.environ.get("ALPACA_SECRET") or os.environ.get("APCA_API_SECRET_KEY")
 
             if not api_key or not secret_key:
                 logger.warning(
-                    "Could not extract API keys from trading client for activities fetch",
+                    "Could not get API keys for activities fetch",
                     module="alpaca_account_service",
                 )
                 return []
