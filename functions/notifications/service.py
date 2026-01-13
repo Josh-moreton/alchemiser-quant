@@ -8,9 +8,11 @@ via Amazon SES.
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -688,12 +690,53 @@ Octarine Capital Data Refresh Service
             correlation_id: Correlation ID for filtering
 
         Returns:
-            CloudWatch Logs URL
+            CloudWatch Logs URL with query parameters for correlation_id filter
 
         """
         region = os.environ.get("AWS_REGION", "us-east-1")
-        # TODO: Implement complete URL builder with correlation_id filter, proper timestamp range,
-        # and URL encoding for production use. Current placeholder URL doesn't include query parameters.
-        return (
-            f"https://console.aws.amazon.com/cloudwatch/home?region={region}#logsV2:logs-insights"
+
+        # Lambda function names for the current stage
+        lambda_functions = [
+            "strategy-orchestrator",
+            "strategy-worker",
+            "signal-aggregator",
+            "portfolio",
+            "execution",
+            "trade-aggregator",
+            "notifications",
+            "metrics",
+            "data",
+        ]
+
+        # Build log group names
+        log_groups = [f"/aws/lambda/alchemiser-{self.stage}-{fn}" for fn in lambda_functions]
+
+        # Build CloudWatch Logs Insights query
+        query = (
+            "fields @timestamp, @message, @logStream\n"
+            f'| filter correlation_id = "{correlation_id}"\n'
+            "| sort @timestamp asc"
         )
+
+        # Build query detail structure for CloudWatch Logs Insights URL
+        # Time range: last 6 hours (21600 seconds) relative to now
+        query_detail = {
+            "end": 0,  # 0 means "now"
+            "start": -21600,  # 6 hours ago (in seconds)
+            "timeType": "RELATIVE",
+            "unit": "seconds",
+            "editorString": query,
+            "source": log_groups,
+            "isLiveTail": False,
+        }
+
+        # CloudWatch Logs Insights URL format uses encoded JSON in the hash fragment
+        # Format: #logsV2:logs-insights$3FqueryDetail$3D~(encoded_json)
+        query_json = json.dumps(query_detail, separators=(",", ":"))
+
+        # Build the full URL with proper encoding
+        # Note: CloudWatch uses a custom encoding scheme in the URL hash
+        base_url = f"https://console.aws.amazon.com/cloudwatch/home?region={region}"
+        fragment = f"logsV2:logs-insights$3FqueryDetail$3D~{urlencode({'': query_json})[1:]}"
+
+        return f"{base_url}#{fragment}"
