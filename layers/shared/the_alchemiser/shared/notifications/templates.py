@@ -316,7 +316,7 @@ def render_html_header(component: str, status: str) -> str:
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.5; color: #333; max-width: 700px; margin: 0 auto; padding: 15px; font-size: 13px;">
     <div style="padding: 15px 0; border-bottom: 2px solid #e9ecef; text-align: center; margin-bottom: 15px;">
-        <img src="{logo_url}" alt="Octarine Capital" style="width: 40px; height: 40px; margin-bottom: 8px; border-radius: 8px;">
+        <img src="{logo_url}" alt="Octarine Capital" style="width: 120px; height: auto; margin-bottom: 8px;">
         <h1 style="color: #333; margin: 0; font-size: 18px; font-weight: 600;">Octarine Capital</h1>
         <p style="color: #666; margin: 4px 0 0 0; font-size: 13px;">{component}</p>
     </div>
