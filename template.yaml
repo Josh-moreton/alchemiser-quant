@@ -1116,6 +1116,8 @@ Resources:
   # When StrategyOrchestratorFunction invokes workers asynchronously, failures
   # (throttling, quota, timeouts, unhandled exceptions) are routed to EventBridge
   # where WorkflowFailed rule triggers NotificationsFunction
+  # Note: Lambda Destinations automatically grants the Lambda service permission
+  # to publish to EventBridge - no additional IAM policy needed.
   StrategyFunctionEventInvokeConfig:
     Type: AWS::Lambda::EventInvokeConfig
     Properties:
@@ -1125,21 +1127,6 @@ Resources:
       DestinationConfig:
         OnFailure:
           Destination: !GetAtt AlchemiserEventBus.Arn
-
-  # IAM policy for Lambda service to publish to EventBridge on async failure
-  StrategyFunctionDestinationPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: !Sub "strategy-function-destination-${Stage}"
-      Roles:
-        - !Ref StrategyExecutionRole
-      PolicyDocument:
-        Statement:
-          - Effect: Allow
-            Action:
-              - events:PutEvents
-            Resource:
-              - !GetAtt AlchemiserEventBus.Arn
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
