@@ -496,13 +496,10 @@ class NotificationService:
             # Determine status for display
             if event.status == "SUCCESS":
                 display_status = "SUCCESS"
-                status_color = "#28a745"
             elif event.status == "SUCCESS_WITH_WARNINGS":
                 display_status = "SUCCESS_WITH_WARNINGS"
-                status_color = "#ffc107"
             else:
                 display_status = "FAILURE"
-                status_color = "#dc3545"
 
             # Build failed symbols list (if any)
             failed_list_html = ""

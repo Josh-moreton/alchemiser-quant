@@ -634,6 +634,7 @@ class AlpacaAccountService:
         activity_types: list[str] | None = None,
         api_key: str | None = None,
         secret_key: str | None = None,
+        *,
         paper: bool = False,
     ) -> list[dict[str, Any]]:
         """Get non-trade account activities (deposits, withdrawals, dividends).
@@ -657,10 +658,7 @@ class AlpacaAccountService:
 
         try:
             # Determine base URL based on paper/live mode
-            if paper:
-                base_url = "https://paper-api.alpaca.markets"
-            else:
-                base_url = "https://api.alpaca.markets"
+            base_url = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
 
             # Use passed credentials or fall back to environment
             if not api_key or not secret_key:
