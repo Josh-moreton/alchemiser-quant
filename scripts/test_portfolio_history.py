@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 
 # Setup imports for Lambda layers architecture
 import _setup_imports  # noqa: F401

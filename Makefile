@@ -130,8 +130,8 @@ bump-patch:
 	poetry version patch; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
-	echo "📦 Staging all changes..."; \
-	git add -A; \
+	echo "📦 Staging version file..."; \
+	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
@@ -146,8 +146,8 @@ bump-minor:
 	poetry version minor; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
-	echo "📦 Staging all changes..."; \
-	git add -A; \
+	echo "📦 Staging version file..."; \
+	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \
@@ -162,8 +162,8 @@ bump-major:
 	poetry version major; \
 	NEW_VERSION=$$(poetry version -s); \
 	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
-	echo "📦 Staging all changes..."; \
-	git add -A; \
+	echo "📦 Staging version file..."; \
+	git add pyproject.toml; \
 	if git diff --cached --quiet; then \
 		echo "ℹ️  No changes to commit (version already at $$NEW_VERSION)"; \
 	else \

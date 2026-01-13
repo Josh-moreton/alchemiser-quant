@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Test script to verify the P&L calculation fix."""
 
-import sys
-sys.path.insert(0, "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/scripts")
 import _setup_imports  # noqa: F401
 
 from the_alchemiser.shared.config.config import load_settings

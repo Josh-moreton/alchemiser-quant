@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Debug December 2025 P&L data."""
 
-import sys
-sys.path.insert(0, "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/scripts")
 import _setup_imports  # noqa: F401
 
 from datetime import UTC, datetime
@@ -91,31 +89,44 @@ print(f"  equity[-1] - equity[0] = ${history.equity[-1]:,.2f} - ${history.equity
 print(f"  Percentage: {equity_pct:+.2f}%")
 print()
 
-# Method 2: Sum of daily P&L (pure trading P&L, excludes deposits)
-sum_pnl = sum(history.profit_loss)
-# For percentage, we need weighted daily returns OR simple sum of pct
-sum_pnl_pct = sum(p or 0 for p in history.profit_loss_pct) * 100
-print("Method 2: Sum of Daily P&L (TRADING P&L ONLY, excludes deposits)")
-print(f"  sum(profit_loss) = ${sum_pnl:+,.2f}")
-print(f"  sum(profit_loss_pct) = {sum_pnl_pct:+.2f}%")
+# Method 2: Use last cumulative P&L (per Alpaca docs, no-reset is cumulative)
+# With pnl_reset='no_reset', profit_loss[-1] is cumulative P&L from base_value
+cumulative_pnl = history.profit_loss[-1]
+cumulative_pnl_pct = cumulative_pnl / history.equity[0] * 100
+print("Method 2: Cumulative P&L (TRADING P&L, before adjusting for deposits)")
+print(f"  profit_loss[-1] = ${cumulative_pnl:+,.2f}")
+print(f"  Cumulative P&L % (vs equity[0]): {cumulative_pnl_pct:+.2f}%")
 print()
 
-# Method 3: Skip first day (which may include prior period gains)
-sum_pnl_skip_first = sum(history.profit_loss[1:])
-sum_pnl_pct_skip_first = sum(p or 0 for p in history.profit_loss_pct[1:]) * 100
-print("Method 3: Sum of Daily P&L (skip first day - in case it has prior gains)")
-print(f"  sum(profit_loss[1:]) = ${sum_pnl_skip_first:+,.2f}")
-print(f"  sum(profit_loss_pct[1:]) = {sum_pnl_pct_skip_first:+.2f}%")
+# Method 3: TRUE Trading P&L = cumulative P&L minus deposits
+# Fetch deposits from Alpaca API
+import requests
+base_url = "https://api.alpaca.markets"
+headers = {"APCA-API-KEY-ID": api_key, "APCA-API-SECRET-KEY": secret_key}
+resp_csd = requests.get(f"{base_url}/v2/account/activities/CSD", headers=headers)
+csd_data = resp_csd.json()
+
+# Sum December 2025 deposits only
+dec_deposits = sum(
+    float(act.get('net_amount', 0))
+    for act in csd_data
+    if act.get('date', '')[:7] == '2025-12'
+)
+print("Method 3: TRUE Trading P&L = cumulative P&L - deposits")
+print(f"  Deposits in December 2025: ${dec_deposits:+,.2f}")
+true_trading_pnl = cumulative_pnl - dec_deposits
+true_trading_pnl_pct = true_trading_pnl / history.equity[0] * 100
+print(f"  TRUE Trading P&L = ${cumulative_pnl:+,.2f} - ${dec_deposits:+,.2f} = ${true_trading_pnl:+,.2f}")
+print(f"  TRUE Trading P&L %: {true_trading_pnl_pct:+.2f}%")
 print()
 
-# Verify: equity change = deposits + trading P&L
-deposits = equity_change - sum_pnl_skip_first
-print(f"Verification: equity_change = deposits + trading_pnl")
-print(f"  ${equity_change:+,.2f} = ${deposits:+,.2f} + ${sum_pnl_skip_first:+,.2f}")
+# Verify: equity change = deposits + cumulative trading P&L
+print("Verification: equity_change = trading_pnl + deposits")
+print(f"  ${equity_change:+,.2f} ≈ ${true_trading_pnl:+,.2f} + ${dec_deposits:+,.2f}")
 print()
 
 print("=" * 70)
 print("CONCLUSION:")
-print("  For TRADING P&L (excludes deposits): sum(profit_loss[1:])")
-print(f"  December 2025 Trading P&L: ${sum_pnl_skip_first:+,.2f} ({sum_pnl_pct_skip_first:+.2f}%)")
+print("  For TRUE TRADING P&L: use profit_loss[-1] - deposits (CSD)")
+print(f"  December 2025 TRUE Trading P&L: ${true_trading_pnl:+,.2f} ({true_trading_pnl_pct:+.2f}%)")
 print("=" * 70)

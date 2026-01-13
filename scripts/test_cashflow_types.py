@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Test the cashflow_types parameter for portfolio history."""
 
-import sys
-sys.path.insert(0, "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/scripts")
 import _setup_imports  # noqa: F401
 
 from datetime import UTC, datetime

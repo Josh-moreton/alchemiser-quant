@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Deep dive into Alpaca P&L calculation to understand deposits."""
 
-import sys
-sys.path.insert(0, "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/scripts")
 import _setup_imports  # noqa: F401
 
 from datetime import UTC, datetime, timedelta
