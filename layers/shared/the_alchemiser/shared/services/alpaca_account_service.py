@@ -465,6 +465,8 @@ class AlpacaAccountService:
         end_date: str | None = None,
         timeframe: str = "1Day",
         period: str | None = None,
+        pnl_reset: str | None = None,
+        intraday_reporting: str | None = None,
     ) -> dict[str, Any] | None:
         """Get portfolio performance history.
 
@@ -473,6 +475,8 @@ class AlpacaAccountService:
             end_date: End date (ISO format YYYY-MM-DD)
             timeframe: Timeframe for data points (valid: 1Min, 5Min, 15Min, 1H, 1D)
             period: Period string (1W, 1M, 3M, 1A) - alternative to start/end dates
+            pnl_reset: P&L reset mode - "no_reset" for cumulative values, "per_day" (default)
+            intraday_reporting: Intraday reporting mode - "market_hours" or "extended_hours"
 
         Returns:
             Portfolio history data, or None if failed.
@@ -505,6 +509,12 @@ class AlpacaAccountService:
                     request_params["start"] = datetime.fromisoformat(start_date)
                 if end_date:
                     request_params["end"] = datetime.fromisoformat(end_date)
+
+            # Add optional parameters for P&L calculation
+            if pnl_reset:
+                request_params["pnl_reset"] = pnl_reset
+            if intraday_reporting:
+                request_params["intraday_reporting"] = intraday_reporting
 
             # Create request object
             if request_params:
@@ -611,6 +621,114 @@ class AlpacaAccountService:
             # Unexpected errors - log and return empty list
             logger.error(
                 "Failed to get activities due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
+            )
+            return []
+
+    def get_non_trade_activities(
+        self,
+        start_date: str | None = None,
+        activity_types: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get non-trade account activities (deposits, withdrawals, dividends).
+
+        Uses the Alpaca account activities API with category=non_trade_activity
+        to fetch cash movements that affect equity but aren't trades.
+
+        Args:
+            start_date: Start date (ISO format YYYY-MM-DD), filters activities after this date
+            activity_types: List of activity types to filter (e.g., ["CSD", "CSW", "DIV"])
+                           CSD = Cash Deposit, CSW = Cash Withdrawal, DIV = Dividend
+
+        Returns:
+            List of activity records with id, activity_type, date, net_amount, status.
+
+        """
+        import requests as http_requests
+
+        try:
+            # Build API URL - use raw HTTP as SDK may not support category filter
+            # Determine endpoint from trading client
+            base_url = "https://api.alpaca.markets"
+            if hasattr(self._trading_client, "_base_url"):
+                base_url = str(self._trading_client._base_url).rstrip("/")
+            elif hasattr(self._trading_client, "base_url"):
+                base_url = str(self._trading_client.base_url).rstrip("/")
+
+            # Get API keys from client (these are set during client creation)
+            api_key = getattr(self._trading_client, "_api_key", None)
+            secret_key = getattr(self._trading_client, "_secret_key", None)
+
+            if not api_key or not secret_key:
+                # Try alternative attribute names
+                api_key = getattr(self._trading_client, "api_key", None)
+                secret_key = getattr(self._trading_client, "secret_key", None)
+
+            if not api_key or not secret_key:
+                logger.warning(
+                    "Could not extract API keys from trading client for activities fetch",
+                    module="alpaca_account_service",
+                )
+                return []
+
+            headers = {
+                "accept": "application/json",
+                "APCA-API-KEY-ID": str(api_key),
+                "APCA-API-SECRET-KEY": str(secret_key),
+            }
+
+            params: dict[str, str] = {
+                "category": "non_trade_activity",
+                "direction": "desc",
+                "page_size": "100",
+            }
+
+            if start_date:
+                params["after"] = start_date
+
+            response = http_requests.get(
+                f"{base_url}/v2/account/activities",
+                headers=headers,
+                params=params,
+                timeout=30,
+            )
+            response.raise_for_status()
+            activities_data = response.json()
+
+            # Filter by activity types if specified
+            if activity_types:
+                activities_data = [
+                    a for a in activities_data
+                    if a.get("activity_type") in activity_types
+                ]
+
+            # Extract relevant fields
+            return [
+                {
+                    "id": str(a.get("id", "")),
+                    "activity_type": str(a.get("activity_type", "")),
+                    "date": str(a.get("date", ""))[:10],  # YYYY-MM-DD
+                    "net_amount": a.get("net_amount", "0"),
+                    "status": str(a.get("status", "")),
+                    "description": str(a.get("description", "")),
+                }
+                for a in activities_data
+            ]
+
+        except http_requests.exceptions.RequestException as e:
+            logger.error(
+                "Failed to get non-trade activities due to HTTP error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+            )
+            return []
+        except Exception as e:
+            logger.error(
+                "Failed to get non-trade activities due to unexpected error",
                 error=str(e),
                 error_type=type(e).__name__,
                 module="alpaca_account_service",
