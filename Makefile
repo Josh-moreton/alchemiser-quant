@@ -307,8 +307,8 @@ quantstats:
 	poetry run python scripts/generate_quantstats_reports.py
 
 # Recalculate strategy weights using Calmar-tilt formula
-# Usage: make rebalance-weights                    # Use latest CSV, update config
-#        make rebalance-weights dry-run=1          # Preview without updating
+# Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod
+#        make rebalance-weights dry-run=1          # Preview without updating (no deploy)
 #        make rebalance-weights csv=path/to.csv    # Use specific CSV
 #        make rebalance-weights alpha=0.5          # Custom alpha parameter
 #        make rebalance-weights f-min=0.5          # Custom floor multiplier
@@ -321,7 +321,14 @@ rebalance-weights:
 	if [ -n "$(alpha)" ]; then ARGS="$$ARGS --alpha $(alpha)"; fi; \
 	if [ -n "$(f-min)" ]; then ARGS="$$ARGS --f-min $(f-min)"; fi; \
 	if [ -n "$(f-max)" ]; then ARGS="$$ARGS --f-max $(f-max)"; fi; \
-	poetry run python scripts/rebalance_strategy_weights.py $$ARGS
+	poetry run python scripts/rebalance_strategy_weights.py $$ARGS; \
+	if [ $$? -eq 0 ] && [ -z "$(dry-run)" ]; then \
+		echo ""; \
+		echo "🚀 Strategy weights updated successfully!"; \
+		echo "📦 Proceeding to production deployment..."; \
+		echo ""; \
+		$(MAKE) deploy-prod; \
+	fi
 
 # ============================================================================
 # DAILY VALIDATION
