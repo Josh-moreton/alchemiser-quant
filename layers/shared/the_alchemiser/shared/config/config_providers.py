@@ -79,9 +79,6 @@ class ConfigProviders(containers.DeclarativeContainer):
             - Returns None if not configured (defaults to paper trading)
             - Environment variables: ALPACA_ENDPOINT or ALPACA__ENDPOINT
 
-        email_recipient: Email notification recipient address (str)
-            - Extracted from settings.email.to_email
-
         execution: Execution configuration settings (ExecutionSettings)
             - Extracted from settings.execution
 
@@ -120,9 +117,6 @@ class ConfigProviders(containers.DeclarativeContainer):
     alpaca_endpoint = providers.Factory(
         lambda creds: _safe_get_credential(creds, 2), creds=_alpaca_credentials
     )
-
-    # Email configuration
-    email_recipient = providers.Factory(lambda settings: settings.email.to_email, settings=settings)
 
     # Execution configuration
     execution = providers.Factory(lambda settings: settings.execution, settings=settings)
