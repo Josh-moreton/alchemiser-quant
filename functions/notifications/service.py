@@ -36,6 +36,10 @@ from the_alchemiser.shared.notifications.templates import (
     render_daily_run_success_text,
     render_schedule_created_html,
     render_schedule_created_text,
+    render_html_footer,
+    render_html_header,
+    render_text_footer,
+    render_text_header,
 )
 
 
@@ -491,12 +495,15 @@ class NotificationService:
             else:
                 duration_str = f"{duration_seconds}s"
 
-            # Determine status color (no emojis for institutional style)
+            # Determine status for display
             if event.status == "SUCCESS":
+                display_status = "SUCCESS"
                 status_color = "#28a745"
             elif event.status == "SUCCESS_WITH_WARNINGS":
+                display_status = "SUCCESS_WITH_WARNINGS"
                 status_color = "#ffc107"
             else:
+                display_status = "FAILURE"
                 status_color = "#dc3545"
 
             # Build failed symbols list (if any)
@@ -514,11 +521,12 @@ class NotificationService:
                     + ("\n  ...and more" if len(failed_symbols) > 20 else "")
                 )
 
-            html_body = f"""
-<!DOCTYPE html>
-<html>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 600px;">
-    <h2 style="color: {status_color};">Data Lake Refresh - {event.status}</h2>
+            # Build HTML body with header and footer
+            header = render_html_header("Data Lake Refresh", display_status)
+            footer = render_html_footer()
+            
+            html_content = f"""
+    <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">Refresh Results</h3>
 
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
         <tr style="background-color: #f8f9fa;">
@@ -538,33 +546,38 @@ class NotificationService:
             <td style="padding: 10px; border: 1px solid #dee2e6;">{duration_str}</td>
         </tr>
         <tr style="background-color: #f8f9fa;">
+            <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Data Source</strong></td>
+            <td style="padding: 10px; border: 1px solid #dee2e6;">{context.get("data_source", "alpaca_api")}</td>
+        </tr>
+        <tr>
             <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>Correlation ID</strong></td>
             <td style="padding: 10px; border: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">{event.correlation_id}</td>
         </tr>
     </table>
 
     {failed_list_html}
-
-    <p style="color: #6c757d; font-size: 12px; margin-top: 30px;">
-        Octarine Capital Data Refresh Service
-    </p>
-</body>
-</html>
 """
 
-            text_body = f"""
-DATA LAKE REFRESH - {event.status}
-{"=" * 40}
+            html_body = header + html_content + footer
+
+            # Build plain text body with header and footer
+            text_header = render_text_header("Data Lake Refresh", display_status)
+            text_footer = render_text_footer()
+            
+            text_content = f"""
+Refresh Results
+{"=" * 50}
 
 Total Symbols: {total_symbols}
 Updated: {updated_count}
 Failed: {failed_count}
 Duration: {duration_str}
+Data Source: {context.get("data_source", "alpaca_api")}
 Correlation ID: {event.correlation_id}
 {failed_list_text}
-
-Octarine Capital Data Refresh Service
 """
+
+            text_body = text_header + text_content + text_footer
 
             subject = format_subject(
                 "Data Lake Refresh", event.status, self.stage, event.correlation_id[:6]
