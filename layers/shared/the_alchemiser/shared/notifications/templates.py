@@ -304,6 +304,7 @@ def format_subject(
     env: str,
     run_id: str,
     run_date: datetime | None = None,
+    include_status: bool = True,
 ) -> str:
     """Format email subject line following institutional spec.
 
@@ -319,6 +320,7 @@ def format_subject(
         env: Environment (dev/staging/prod)
         run_id: Unused; retained for backward compatibility
         run_date: Unused; retained for backward compatibility
+        include_status: Whether to include status in subject line (default: True)
 
     Returns:
         Formatted subject line
@@ -327,8 +329,8 @@ def format_subject(
     # Capitalize component for consistency
     component_title = component.title()
 
-    # Only include status if it's not SUCCESS
-    status_suffix = "" if status == "SUCCESS" else f" - {status}"
+    # Only include status if enabled and it's not SUCCESS
+    status_suffix = "" if not include_status or status == "SUCCESS" else f" - {status}"
 
     # Production emails have no environment prefix
     if env == "prod":

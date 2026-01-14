@@ -635,23 +635,10 @@ Correlation ID: {event.correlation_id}
             html_body = render_schedule_created_html(context)
             text_body = render_schedule_created_text(context)
 
-            # Determine subject based on status
-            if status == "skipped_holiday":
-                component = "schedule skip"
-                display_status = "MARKET CLOSED"
-            elif status == "early_close":
-                component = "schedule set"
-                display_status = "EARLY CLOSE"
-            else:
-                component = "schedule set"
-                display_status = "SCHEDULED"
-
-            subject = format_subject(
-                component=component,
-                status=display_status,
-                env=self.stage,
-                run_id=event.correlation_id,
-            )
+            # Build subject - just component name, no status
+            component = "Schedule Skipped" if status == "skipped_holiday" else "Schedule Set"
+            env_prefix = "" if self.stage == "prod" else f"[{self.stage.upper()}] "
+            subject = f"{env_prefix}{component}"
 
             # Get recipient addresses
             to_addresses = self._get_recipients()
