@@ -644,7 +644,7 @@ Correlation ID: {event.correlation_id}
                 display_status = "EARLY CLOSE"
             else:
                 component = "schedule set"
-                display_status = "SCHEDULED"
+                display_status = "SUCCESS"
 
             subject = format_subject(
                 component=component,
