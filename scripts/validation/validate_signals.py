@@ -38,8 +38,8 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
-# Project root for paths
-PROJECT_ROOT = Path(__file__).parent.parent
+# Project root for paths (go up two levels: validation/ -> scripts/ -> project root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 LEDGER_PATH = (
     PROJECT_ROOT
     / "layers"

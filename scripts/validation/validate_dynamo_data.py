@@ -29,9 +29,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
-import _setup_imports  # noqa: F401
+# Add parent scripts directory to path for _setup_imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import _setup_imports  # noqa: F401, E402
 
 import boto3
 from botocore.exceptions import ClientError

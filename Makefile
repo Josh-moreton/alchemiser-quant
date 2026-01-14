@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-signals debug-strategy debug-strategy-historical rebalance-weights
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -23,11 +23,15 @@ help:
 	@echo "  strategy-check-fractionable config=strategy.prod.json"
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
-	@echo "Data Quality Validation:"
-	@echo "  validate-dynamo                      Validate DynamoDB data for per-strategy metrics"
+	@echo "Data Validation:"
+	@echo "  validate-data-lake                   Validate S3 data lake against yfinance"
+	@echo "  validate-data-lake symbols=SPY,QQQ   Validate specific symbols"
+	@echo "  validate-data-lake mark-bad=1        Mark failed symbols for refetch"
+	@echo "  validate-data-lake debug=1           Show detailed debug output"
+	@echo "  validate-dynamo                      Validate DynamoDB data quality"
 	@echo "  validate-dynamo stage=dev            Validate dev environment data"
-	@echo "  validate-dynamo verbose=1            Show detailed validation output"
-	@echo "  validate-dynamo json=1               Output validation results as JSON"
+	@echo "  validate-signals                     Validate signals vs Composer.trade"
+	@echo "  validate-signals stage=prod          Validate prod signals"
 	@echo ""
 	@echo "Performance Reports:"
 	@echo "  quantstats                           Generate QuantStats reports (prod)"
@@ -39,10 +43,7 @@ help:
 	@echo "  rebalance-weights dry-run=1          Preview without updating config"
 	@echo "  rebalance-weights csv=path/to.csv    Use specific CSV file"
 	@echo ""
-	@echo "Daily Validation:"
-	@echo "  validate-signals                     Validate latest signals vs Composer.trade"
-	@echo "  validate-signals stage=prod          Validate prod signals"
-	@echo "  validate-signals fresh=1             Start fresh (ignore previous validations)"
+	@echo "Strategy Debugging:"
 	@echo "  debug-strategy s=<name>              Debug strategy with full condition tracing"
 	@echo "  debug-strategy list=1                List all available strategies"
 	@echo "  debug-strategy-historical s=<name> as-of=<date>  Debug with historical data cutoff"
@@ -225,8 +226,23 @@ strategy-check-fractionable:
 	poetry run python scripts/check_fractionable_assets.py $$ARGS
 
 # ============================================================================
-# DATA QUALITY VALIDATION
+# DATA VALIDATION
 # ============================================================================
+
+# Validate S3 data lake against yfinance
+# Usage: make validate-data-lake                   # Validate all configured symbols
+#        make validate-data-lake symbols=SPY,QQQ   # Validate specific symbols
+#        make validate-data-lake mark-bad=1        # Mark failed symbols for refetch
+#        make validate-data-lake debug=1           # Show detailed debug output
+#        make validate-data-lake limit=5           # Limit symbols (for testing)
+validate-data-lake:
+	@echo "🔍 Validating S3 data lake against yfinance..."
+	@ARGS=""; \
+	if [ -n "$(symbols)" ]; then ARGS="$$ARGS --symbols $(symbols)"; fi; \
+	if [ -n "$(mark-bad)" ]; then ARGS="$$ARGS --mark-bad"; fi; \
+	if [ -n "$(debug)" ]; then ARGS="$$ARGS --debug"; fi; \
+	if [ -n "$(limit)" ]; then ARGS="$$ARGS --limit $(limit)"; fi; \
+	poetry run python scripts/validation/validate_data_lake.py $$ARGS
 
 # Validate DynamoDB data quality for per-strategy performance metrics
 # Usage: make validate-dynamo                      # Validate prod data (default)
@@ -239,7 +255,7 @@ validate-dynamo:
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; fi; \
 	if [ -n "$(verbose)" ]; then ARGS="$$ARGS --verbose"; fi; \
 	if [ -n "$(json)" ]; then ARGS="$$ARGS --json"; fi; \
-	poetry run python scripts/validate_dynamo_data.py $$ARGS
+	poetry run python scripts/validation/validate_dynamo_data.py $$ARGS
 
 # Generate QuantStats per-strategy performance reports
 # Usage: make quantstats                           # Generate prod reports (default)
@@ -288,10 +304,6 @@ rebalance-weights:
 		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
 	fi
 
-# ============================================================================
-# DAILY VALIDATION
-# ============================================================================
-
 # Validate strategy signals against Composer.trade
 # Usage: make validate-signals                    # Validate latest dev session
 #        make validate-signals stage=prod         # Validate latest prod session
@@ -303,7 +315,11 @@ validate-signals:
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
 	if [ -n "$(fresh)" ]; then ARGS="$$ARGS --fresh"; fi; \
 	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
-	poetry run python scripts/validate_signals.py $$ARGS
+	poetry run python scripts/validation/validate_signals.py $$ARGS
+
+# ============================================================================
+# STRATEGY DEBUGGING
+# ============================================================================
 
 # Debug a strategy with full condition tracing
 # Usage: make debug-strategy s=simons_kmlm        # Debug specific strategy
