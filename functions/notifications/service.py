@@ -575,7 +575,10 @@ Correlation ID: {event.correlation_id}
             text_body = text_header + text_content + text_footer
 
             subject = format_subject(
-                "Data Lake Refresh", event.status, self.stage, event.correlation_id[:6]
+                component="Data Lake Refresh",
+                status=event.status,
+                env=self.stage,
+                run_id=event.correlation_id[:6],
             )
 
             result = send_email(

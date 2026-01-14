@@ -304,6 +304,7 @@ def format_subject(
     env: str,
     run_id: str,
     run_date: datetime | None = None,
+    *,
     include_status: bool = True,
 ) -> str:
     """Format email subject line following institutional spec.
