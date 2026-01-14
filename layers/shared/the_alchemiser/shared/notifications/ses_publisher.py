@@ -28,7 +28,7 @@ class SESEmailPublisher:
     """AWS SES publisher for sending email notifications.
 
     Sends HTML + plain text emails via Amazon SES with environment-safe routing.
-    Non-prod environments can override recipients to prevent accidental emails to real users.
+    Each environment gets its own NOTIFICATION_EMAIL configured via CI/CD.
 
     Environment Variables:
         SES_FROM_ADDRESS: Email sender address (required)
@@ -36,10 +36,8 @@ class SESEmailPublisher:
         SES_REPLY_TO_ADDRESS: Reply-to address (optional)
         SES_REGION: AWS region for SES (default: us-east-1)
         SES_CONFIGURATION_SET: SES configuration set for tracking (optional)
-        NOTIFICATIONS_TO_PROD: Production recipient(s) (comma-separated)
-        NOTIFICATIONS_TO_NONPROD: Non-prod recipient(s) (comma-separated)
-        NOTIFICATIONS_OVERRIDE_TO: Force recipient override in non-prod (comma-separated)
-        ALLOW_REAL_EMAILS: Allow real recipient emails (true/false, default: false in non-prod)
+        NOTIFICATION_EMAIL: Recipient email address(es), set per-environment via CI/CD
+        NOTIFICATIONS_OVERRIDE_TO: Force recipient override (comma-separated, optional)
         APP__STAGE: Deployment stage (dev/staging/prod)
 
     """
@@ -194,29 +192,21 @@ class SESEmailPublisher:
             return {"error": type(e).__name__, "message": str(e), "status": "failed"}
 
     def _apply_routing_safety(self, to_addresses: list[str]) -> tuple[list[str], str | None]:
-        """Apply environment-safe routing to prevent emails to real users in non-prod.
+        """Apply environment-safe routing.
+
+        Each environment has its own NOTIFICATION_EMAIL configured via CI/CD,
+        so the passed-in addresses are already correct for the environment.
+        This method allows optional override for testing.
 
         Args:
-            to_addresses: Original recipient addresses
+            to_addresses: Recipient addresses (already environment-specific)
 
         Returns:
             Tuple of (actual_recipients, routing_note)
             routing_note is None if no override applied
 
         """
-        # Production always sends to real addresses
-        if self.stage == "prod":
-            return to_addresses, None
-
-        # Non-prod with explicit ALLOW_REAL_EMAILS=true
-        if self.allow_real_emails:
-            logger.warning(
-                "ALLOW_REAL_EMAILS=true in non-prod - sending to real addresses",
-                extra={"stage": self.stage, "to_addresses": to_addresses},
-            )
-            return to_addresses, None
-
-        # Non-prod with override configured
+        # Override configured - use it (for testing)
         if self.override_to:
             override_addresses = [addr.strip() for addr in self.override_to.split(",")]
             routing_note = (
@@ -224,7 +214,7 @@ class SESEmailPublisher:
                 f"Original recipients suppressed: {', '.join(to_addresses)}"
             )
             logger.info(
-                "Applying recipient override for non-prod safety",
+                "Applying recipient override",
                 extra={
                     "stage": self.stage,
                     "original_recipients": to_addresses,
@@ -233,22 +223,8 @@ class SESEmailPublisher:
             )
             return override_addresses, routing_note
 
-        # Fallback: use NOTIFICATIONS_TO_NONPROD
-        nonprod_default = os.environ.get("NOTIFICATIONS_TO_NONPROD", "notifications@rwxt.org")
-        default_addresses = [addr.strip() for addr in nonprod_default.split(",")]
-        routing_note = (
-            f"NOTE: Non-prod default routing active (stage={self.stage}). "
-            f"Original recipients suppressed: {', '.join(to_addresses)}"
-        )
-        logger.info(
-            "Applying non-prod default routing",
-            extra={
-                "stage": self.stage,
-                "original_recipients": to_addresses,
-                "default_recipients": default_addresses,
-            },
-        )
-        return default_addresses, routing_note
+        # Use passed-in addresses (already correct for environment via CI/CD)
+        return to_addresses, None
 
     def _format_source(self) -> str:
         """Format Source field for SES using RFC 5322 format.

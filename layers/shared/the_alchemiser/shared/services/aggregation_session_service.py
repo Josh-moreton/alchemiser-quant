@@ -377,9 +377,7 @@ class AggregationSessionService:
                                 "session_id": item["session_id"]["S"],
                                 "correlation_id": item["correlation_id"]["S"],
                                 "total_strategies": int(item["total_strategies"]["N"]),
-                                "completed_strategies": int(
-                                    item["completed_strategies"]["N"]
-                                ),
+                                "completed_strategies": int(item["completed_strategies"]["N"]),
                                 "status": item["status"]["S"],
                                 "created_at": created_at_str,
                                 "age_minutes": int(
@@ -390,18 +388,14 @@ class AggregationSessionService:
                 except (ValueError, KeyError) as e:
                     logger.warning(
                         f"Failed to parse session created_at: {e}",
-                        extra={
-                            "session_id": item.get("session_id", {}).get("S", "unknown")
-                        },
+                        extra={"session_id": item.get("session_id", {}).get("S", "unknown")},
                     )
 
             last_evaluated_key = response.get("LastEvaluatedKey")
             if not last_evaluated_key:
                 break
 
-            response = self._client.scan(
-                ExclusiveStartKey=last_evaluated_key, **scan_kwargs
-            )
+            response = self._client.scan(ExclusiveStartKey=last_evaluated_key, **scan_kwargs)
 
         if stuck_sessions:
             logger.warning(
