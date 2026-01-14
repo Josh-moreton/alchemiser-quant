@@ -38,7 +38,6 @@ class SESEmailPublisher:
         SES_CONFIGURATION_SET: SES configuration set for tracking (optional)
         NOTIFICATION_EMAIL: Recipient email address(es), set per-environment via CI/CD
         NOTIFICATIONS_OVERRIDE_TO: Force recipient override (comma-separated, optional)
-        ALLOW_REAL_EMAILS: Allow real recipient emails in non-prod (true/false)
         APP__STAGE: Deployment stage (dev/staging/prod)
 
     """
