@@ -767,26 +767,6 @@ Resources:
 
   # ========== TRADING NOTIFICATIONS SNS ==========
   # SNS Topic for trading notifications (trade results, workflow failures)
-  TradingNotificationsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-trading-notifications"
-        - !Sub "alchemiser-${Stage}-trading-notifications"
-      DisplayName: "Alchemiser Trading Notifications"
-
-  # Email subscription for trading notifications
-  TradingNotificationsEmailSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      TopicArn: !Ref TradingNotificationsTopic
-      Protocol: email
-      Endpoint: !If
-        - HasNotificationEmail
-        - !Ref NotificationEmail
-        - "notifications@rwxt.org"
-
   # CloudWatch Alarm for DLQ messages (triggers when messages hit DLQ)
   DLQMessageAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -1599,7 +1579,6 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
-          SNS_NOTIFICATION_TOPIC_ARN: !Ref TradingNotificationsTopic
           PERFORMANCE_REPORTS_BUCKET: !Ref PerformanceReportsBucket
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
           # Stack name for CloudWatch Logs URL construction (matches Lambda naming pattern)
@@ -1697,11 +1676,6 @@ Resources:
                   - events:PutEvents
                 Resource:
                   - !GetAtt AlchemiserEventBus.Arn
-              - Effect: Allow
-                Action:
-                  - sns:Publish
-                Resource:
-                  - !Ref TradingNotificationsTopic
               - Effect: Allow
                 Action:
                   - dynamodb:Query
