@@ -444,3 +444,39 @@ tqqq_ftlt:
   - UVXY
   frontrunners:
   - SPY
+rains_concise_em:
+  strategy_name: rains_concise_em
+  display_name: Rain's Concise EM Leverage -> Leveraged Sectors
+  source_url: https://app.composer.trade/symphony/HoGkCtYMVi1Um0ZQb6OA/details
+  filename: rains_concise_em.clj
+  date_updated: '2026-01-14'
+  assets:
+  - BKT
+  - CURE
+  - DRN
+  - EDC
+  - EDZ
+  - EVN
+  - PMM
+  - ROM
+  - TMF
+  - VBF
+  - XLF
+  frontrunners:
+  - BBH
+  - DBE
+  - DIA
+  - DLN
+  - EEM
+  - IEF
+  - IEI
+  - IGIB
+  - ISCB
+  - IWM
+  - MHD
+  - MMT
+  - PIM
+  - SHV
+  - SPY
+  - XLP
+  - XLU
