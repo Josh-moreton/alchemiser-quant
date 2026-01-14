@@ -209,7 +209,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works but today's incomplete return may skew volatility. "
         "If today has unusually high intraday range, stdev will spike. "
         "For short windows (6 days), this effect is pronounced.",
-        use_live_bar=False,  # Volatility too sensitive to incomplete returns
+        use_live_bar=True,  # Include live bar - window boundary effects are critical
         edge_cases=(
             "Flash crash or spike intraday inflates volatility reading",
             "Near market open, return is small (close-so-far ≈ open)",
