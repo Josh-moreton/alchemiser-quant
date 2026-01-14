@@ -1817,15 +1817,6 @@ Resources:
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
       Events:
-        # Scheduled data refresh (stage-specific times)
-        DataSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: !If
-              - IsProduction
-              - !Ref DataRefreshScheduleProd
-              - !If [ IsStaging, !Ref DataRefreshScheduleStaging, !Ref DataRefreshScheduleDev ]
-            Description: !Sub "Refresh market data for ${Stage}"
         # On-demand fetch requests from strategy lambdas
         MarketDataFetchRequested:
           Type: EventBridgeRule
@@ -2036,6 +2027,47 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource:
                   - !GetAtt ScheduleManagerFunction.Arn
+
+  # Data Lambda Schedule - uses EventBridge Scheduler for reliable scheduling
+  DataRefreshSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-refresh"
+        - !Sub "alchemiser-${Stage}-data-refresh"
+      Description: !Sub "Daily market data refresh for ${Stage}"
+      ScheduleExpression: !If
+        - IsProduction
+        - !Ref DataRefreshScheduleProd
+        - !If [ IsStaging, !Ref DataRefreshScheduleStaging, !Ref DataRefreshScheduleDev ]
+      ScheduleExpressionTimezone: "UTC"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt DataFunction.Arn
+        RoleArn: !GetAtt DataSchedulerRole.Arn
+        Input: '{"source": "schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  DataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeDataFunction
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
