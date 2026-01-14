@@ -636,7 +636,7 @@ Correlation ID: {event.correlation_id}
             text_body = render_schedule_created_text(context)
 
             # Build subject - just component name, no status
-            component = "Schedule Skip" if status == "skipped_holiday" else "Schedule Set"
+            component = "Schedule Skipped" if status == "skipped_holiday" else "Schedule Set"
             env_prefix = "" if self.stage == "prod" else f"[{self.stage.upper()}] "
             subject = f"{env_prefix}{component}"
 
