@@ -104,6 +104,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.YES,
         modification_notes="No modifications needed. Already works with partial bars "
         "because it simply returns the latest close value regardless of completeness.",
+        use_live_bar=True,  # Explicit: we have the live price, use it (2026-01-15)
         edge_cases=(
             "Stale price if market closed and cache not updated",
             "Pre-market/after-hours price may differ from regular session",
@@ -154,9 +155,9 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         current_behavior="Computes EMA using ewm(span=window). More weight on recent "
         "prices means partial bar has higher influence than in SMA.",
         eligible_for_partial_bar=PartialBarEligibility.CONDITIONAL,
-        modification_notes="Works but partial bar has higher weight due to exponential decay. "
-        "Short-term EMAs (8, 12) will show more intraday variance than long-term (50, 200).",
-        use_live_bar=False,  # EMA gives too much weight to partial bar
+        modification_notes="EMA is recursive: EMA_t = a*P_t + (1-a)*EMA_{t-1}. "
+        "More naturally updated intraday than SMA. If SMA uses live bar, EMA should too.",
+        use_live_bar=True,  # Use T-0 data - EMA is more naturally updated intraday than SMA (2026-01-15)
         edge_cases=(
             "EMA crossover signals may flip intraday then revert by close",
             "For EMA-8 vs SMA-10 comparisons, timing of evaluation matters significantly",
@@ -189,9 +190,9 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         current_behavior="Computes ((current_price / price_N_days_ago) - 1) * 100. "
         "Uses shift(window) to get historical reference price.",
         eligible_for_partial_bar=PartialBarEligibility.YES,
-        modification_notes="Works well with partial bar. Compares today's close-so-far "
-        "to the close from N days ago. This is the intended behavior for momentum signals.",
-        use_live_bar=False,  # Bento testing: T-1 data required for correct signals
+        modification_notes="Cumulative return at 15:45 is (P_t / P_start) - 1. "
+        "If we can use P_t for moving_average_return, we can use it here too.",
+        use_live_bar=True,  # Use T-0 data - same logic as other price-based indicators (2026-01-15)
         edge_cases=(
             "Reference price (N days ago) must be from a completed bar",
             "For window=60, comparing to price from ~3 months ago is stable",
@@ -225,9 +226,9 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         current_behavior="Computes rolling std of raw close prices. Today's "
         "close-so-far is included in the standard deviation calculation.",
         eligible_for_partial_bar=PartialBarEligibility.CONDITIONAL,
-        modification_notes="Works but today's price may increase variance reading. "
-        "Unlike stdev_return, this uses absolute prices so gap effects are included.",
-        use_live_bar=False,  # Price stdev too sensitive to partial bars
+        modification_notes="If we accept P_t for stdev_return, we should accept it "
+        "for stdev_price too. Excluding one while including the other is arbitrary.",
+        use_live_bar=True,  # Use T-0 data - consistent with stdev_return (2026-01-15)
         edge_cases=(
             "Large gap up/down increases price stdev immediately at open",
             "Trending price action may show lower stdev than mean-reverting action",
@@ -242,9 +243,9 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         current_behavior="Computes rolling max drawdown using cummax(). Today's "
         "close-so-far extends the price series for peak-to-trough calculation.",
         eligible_for_partial_bar=PartialBarEligibility.YES,
-        modification_notes="Works well with partial bar. If today's close-so-far is "
-        "below the rolling high, drawdown increases. If it sets a new high, drawdown "
-        "may decrease. This reflects real-time risk exposure.",
+        modification_notes="Drawdown at time t is (P_t / max(P_≤t)) - 1. Can be updated "
+        "with live price. Reflects real-time risk exposure as intended.",
+        use_live_bar=True,  # Explicit: use T-0 data for real-time risk exposure (2026-01-15)
         edge_cases=(
             "Intraday drawdown may exceed EOD drawdown if price recovers later",
             "New all-time high intraday resets drawdown to 0 even if price falls later",

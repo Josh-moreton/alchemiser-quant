@@ -1,18 +1,20 @@
 # Indicator Partial-Bar Classification Report
 
-Generated: 2026-01-07
+Generated: 2026-01-15
 Evaluation Timestamp: 15:45 ET (Eastern Time)
 
 ## Summary
 
 This report classifies all 9 technical indicators in the Alchemiser system by their suitability for partial-bar evaluation (using today's incomplete bar with close-so-far as the latest price).
 
+**Design Principle:** All indicators use the same 15:45 ET synthetic close (T-0 data). If we accept a synthetic close for SMA, there's no mathematical reason to exclude EMA, cumulative return, or any other deterministic function of price history. Consistency beats cleverness.
+
 ### Classification Legend
 
 | Eligibility | Description | Live Bar Used |
 |-------------|-------------|---------------|
 | ✅ YES | Indicator works correctly with partial bar close-so-far | Yes |
-| ⚠️ CONDITIONAL | Indicator works but with caveats (increased variance) | **No** (excluded by default) |
+| ⚠️ CONDITIONAL | Indicator works but with caveats (increased variance) | **Yes** (caveats noted) |
 | ❌ NO | Indicator requires completed bars only | No |
 
 ### Input Requirements Legend
@@ -33,11 +35,11 @@ This report classifies all 9 technical indicators in the Alchemiser system by th
 | 2 | Cumulative Return | `cumulative-return` | CLOSE_ONLY | ✅ YES | ✅ Yes | Computes (current/past - 1) * 100 over window |
 | 3 | Max Drawdown | `max-drawdown` | CLOSE_ONLY | ✅ YES | ✅ Yes | Rolling max peak-to-trough using cummax() |
 | 4 | Moving Average | `moving-average-price` | CLOSE_ONLY | ✅ YES | ✅ Yes | Simple moving average via rolling().mean() |
-| 5 | RSI | `rsi` | CLOSE_ONLY | ⚠️ CONDITIONAL | ❌ No | Wilder's RSI using ewm() for smoothing |
-| 6 | EMA | `exponential-moving-average-price` | CLOSE_ONLY | ⚠️ CONDITIONAL | ❌ No | Exponential moving average via ewm(span) |
-| 7 | Moving Average Return | `moving-average-return` | CLOSE_ONLY | ⚠️ CONDITIONAL | ❌ No | Rolling mean of pct_change() * 100 |
-| 8 | Stdev Return | `stdev-return` | CLOSE_ONLY | ⚠️ CONDITIONAL | ❌ No | Rolling std of pct_change() * 100 |
-| 9 | Stdev Price | `stdev-price` | CLOSE_ONLY | ⚠️ CONDITIONAL | ❌ No | Rolling std of raw close prices |
+| 5 | RSI | `rsi` | CLOSE_ONLY | ⚠️ CONDITIONAL | ✅ Yes | Wilder's RSI using ewm() for smoothing |
+| 6 | EMA | `exponential-moving-average-price` | CLOSE_ONLY | ⚠️ CONDITIONAL | ✅ Yes | Exponential moving average via ewm(span) |
+| 7 | Moving Average Return | `moving-average-return` | CLOSE_ONLY | ⚠️ CONDITIONAL | ✅ Yes | Rolling mean of pct_change() * 100 |
+| 8 | Stdev Return | `stdev-return` | CLOSE_ONLY | ⚠️ CONDITIONAL | ✅ Yes | Rolling std of pct_change() * 100 |
+| 9 | Stdev Price | `stdev-price` | CLOSE_ONLY | ⚠️ CONDITIONAL | ✅ Yes | Rolling std of raw close prices |
 
 ---
 
@@ -261,23 +263,23 @@ LiveBarProvider.get_todays_bar()  ◄── Alpaca Snapshot API
 
 ## Per-Indicator Live Bar Configuration
 
-The `should_use_live_bar()` function controls whether each indicator uses today's partial bar:
+The `should_use_live_bar()` function controls whether each indicator uses today's partial bar.
+
+**Design Decision (2026-01-15):** All indicators now use live bars. If we accept a 15:45 synthetic close for any indicator, there's no mathematical reason to exclude others. The only distinction is eligibility (YES vs CONDITIONAL), which affects documentation, not behavior.
 
 ```python
 from the_alchemiser.shared.indicators.partial_bar_config import should_use_live_bar
 
-# Indicators that USE live bars (stable with partial data):
-should_use_live_bar("current_price")     # True
-should_use_live_bar("moving_average")    # True
-should_use_live_bar("cumulative_return") # True
-should_use_live_bar("max_drawdown")      # True
-
-# Indicators that EXCLUDE live bars (too volatile with partial data):
-should_use_live_bar("rsi")                            # False
-should_use_live_bar("exponential_moving_average_price") # False
-should_use_live_bar("moving_average_return")          # False
-should_use_live_bar("stdev_return")                   # False
-should_use_live_bar("stdev_price")                    # False
+# ALL indicators now use live bars for consistency:
+should_use_live_bar("current_price")                    # True
+should_use_live_bar("moving_average")                   # True
+should_use_live_bar("cumulative_return")                # True
+should_use_live_bar("max_drawdown")                     # True
+should_use_live_bar("rsi")                              # True (CONDITIONAL - more volatile intraday)
+should_use_live_bar("exponential_moving_average_price") # True (CONDITIONAL - recursive, naturally updated intraday)
+should_use_live_bar("moving_average_return")            # True (CONDITIONAL - today's return incomplete)
+should_use_live_bar("stdev_return")                     # True (CONDITIONAL - may spike intraday)
+should_use_live_bar("stdev_price")                      # True (CONDITIONAL - gap effects included)
 ```
 
 To change an indicator's behavior, update `use_live_bar` in `partial_bar_config.py`.
