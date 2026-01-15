@@ -116,7 +116,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaSecret=$ALPACA_SECRET"
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
-        "DataRefreshScheduleDev=cron(35 9 ? * MON-FRI *)"
+        'DataRefreshScheduleDev=cron(35 9 ? * MON-FRI *)'
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -130,7 +130,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         --no-fail-on-empty-changeset \
         --resolve-s3 \
         --config-env "$ENVIRONMENT" \
-        --parameter-overrides ${PARAMS[@]}
+        --parameter-overrides "${PARAMS[@]}"
 elif [ "$ENVIRONMENT" = "staging" ]; then
     # Staging: use same pattern as prod but with staging-specific parameters
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
@@ -146,7 +146,7 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         "StagingAlpacaSecret=$ALPACA_SECRET"
         "StagingAlpacaEndpoint=$STAGING_ALPACA_ENDPOINT_PARAM"
         "StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
-        "DataRefreshScheduleStaging=cron(40 9 ? * MON-FRI *)"
+        'DataRefreshScheduleStaging=cron(40 9 ? * MON-FRI *)'
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("StagingEmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -160,7 +160,7 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         --no-fail-on-empty-changeset \
         --resolve-s3 \
         --config-env "$ENVIRONMENT" \
-        --parameter-overrides ${PARAMS[@]}
+        --parameter-overrides "${PARAMS[@]}"
 else
     # Production: use the same ALPACA_* variables for both monolithic and microservices
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
@@ -176,7 +176,7 @@ else
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
-        "DataRefreshScheduleProd=cron(30 9 ? * MON-FRI *)"
+        'DataRefreshScheduleProd=cron(30 9 ? * MON-FRI *)'
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
