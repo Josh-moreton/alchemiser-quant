@@ -116,6 +116,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         "AlpacaSecret=$ALPACA_SECRET"
         "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
         "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "DataRefreshScheduleDev=cron(35 9 ? * MON-FRI *)"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -145,6 +146,7 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
         "StagingAlpacaSecret=$ALPACA_SECRET"
         "StagingAlpacaEndpoint=$STAGING_ALPACA_ENDPOINT_PARAM"
         "StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "DataRefreshScheduleStaging=cron(40 9 ? * MON-FRI *)"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("StagingEmailPassword=$EMAIL_PASSWORD_PARAM")
@@ -174,6 +176,7 @@ else
         "ProdAlpacaSecret=$ALPACA_SECRET"
         "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
         "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
+        "DataRefreshScheduleProd=cron(30 9 ? * MON-FRI *)"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
