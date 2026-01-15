@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import logging
 import os
 import sys
 import warnings
@@ -44,6 +45,9 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Suppress yfinance warnings
 warnings.filterwarnings("ignore")
@@ -324,6 +328,7 @@ def get_alpaca_client() -> StockHistoricalDataClient | None:
 
     Uses environment variables for credentials (from .env or system).
     Supported variable names (tries in order):
+    - ALPACA__KEY / ALPACA__SECRET (double underscore, project convention)
     - ALPACA_KEY / ALPACA_SECRET
     - ALPACA_API_KEY / ALPACA_API_SECRET
     - APCA_API_KEY_ID / APCA_API_SECRET_KEY
@@ -336,12 +341,14 @@ def get_alpaca_client() -> StockHistoricalDataClient | None:
         return _alpaca_client
 
     api_key = (
-        os.environ.get("ALPACA_KEY")
+        os.environ.get("ALPACA__KEY")  # Project convention (double underscore)
+        or os.environ.get("ALPACA_KEY")
         or os.environ.get("ALPACA_API_KEY")
         or os.environ.get("APCA_API_KEY_ID")
     )
     api_secret = (
-        os.environ.get("ALPACA_SECRET")
+        os.environ.get("ALPACA__SECRET")  # Project convention (double underscore)
+        or os.environ.get("ALPACA_SECRET")
         or os.environ.get("ALPACA_API_SECRET")
         or os.environ.get("APCA_API_SECRET_KEY")
     )
@@ -369,8 +376,11 @@ def fetch_alpaca_data(
     """
     try:
         start_dt = datetime.strptime(start, "%Y-%m-%d")
-        # Add one day to end to make it inclusive
-        end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
+        # Use yesterday as end if end is today (Alpaca won't return incomplete bars)
+        end_dt = datetime.strptime(end, "%Y-%m-%d")
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        if end_dt >= today:
+            end_dt = today - timedelta(days=1)
 
         request = StockBarsRequest(
             symbol_or_symbols=symbol,
@@ -381,7 +391,9 @@ def fetch_alpaca_data(
         )
 
         response = client.get_stock_bars(request)
-        if symbol not in response or not response[symbol]:
+        # Use response.data for containment check - BarSet's 'in' operator doesn't work
+        if symbol not in response.data or not response[symbol]:
+            logger.debug(f"No Alpaca bars returned for {symbol}")
             return None
 
         bars = response[symbol]
@@ -396,12 +408,16 @@ def fetch_alpaca_data(
         df.set_index("date", inplace=True)
         return df
 
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Alpaca data fetch failed for {symbol}: {e}")
         return None
 
 
 def get_alpaca_latest_date(client: StockHistoricalDataClient, symbol: str) -> str | None:
     """Get the latest complete bar date from Alpaca.
+
+    Note: Alpaca doesn't return bars for the current incomplete trading day,
+    so we query up to yesterday to get the last complete bar.
 
     Args:
         client: Alpaca StockHistoricalDataClient
@@ -411,7 +427,9 @@ def get_alpaca_latest_date(client: StockHistoricalDataClient, symbol: str) -> st
         Latest date as YYYY-MM-DD string, or None if fetch failed
     """
     try:
-        end_dt = datetime.now()
+        # Use yesterday as end date - Alpaca won't return today's incomplete bar
+        # and may have delays in data availability (up to 15 min after market close)
+        end_dt = datetime.now() - timedelta(days=1)
         start_dt = end_dt - timedelta(days=10)
 
         request = StockBarsRequest(
@@ -423,7 +441,8 @@ def get_alpaca_latest_date(client: StockHistoricalDataClient, symbol: str) -> st
         )
 
         response = client.get_stock_bars(request)
-        if symbol not in response or not response[symbol]:
+        # Use response.data for containment check - BarSet's 'in' operator doesn't work
+        if symbol not in response.data or not response[symbol]:
             return None
 
         bars = response[symbol]
@@ -432,7 +451,8 @@ def get_alpaca_latest_date(client: StockHistoricalDataClient, symbol: str) -> st
 
         return bars[-1].timestamp.strftime("%Y-%m-%d")
 
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Alpaca latest date fetch failed for {symbol}: {e}")
         return None
 
 

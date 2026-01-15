@@ -24,7 +24,7 @@ help:
 	@echo "  strategy-check-fractionable all=1   Check all strategy files"
 	@echo ""
 	@echo "Data Validation:"
-	@echo "  validate-data-lake                   Validate S3 data lake against yfinance"
+	@echo "  validate-data-lake                   Validate S3 data lake against yfinance + Alpaca"
 	@echo "  validate-data-lake symbols=SPY,QQQ   Validate specific symbols"
 	@echo "  validate-data-lake mark-bad=1        Mark failed symbols for refetch"
 	@echo "  validate-data-lake debug=1           Show detailed debug output"
@@ -229,14 +229,14 @@ strategy-check-fractionable:
 # DATA VALIDATION
 # ============================================================================
 
-# Validate S3 data lake against yfinance
+# Validate S3 data lake against yfinance and Alpaca (with Adjustment.ALL)
 # Usage: make validate-data-lake                   # Validate all configured symbols
 #        make validate-data-lake symbols=SPY,QQQ   # Validate specific symbols
 #        make validate-data-lake mark-bad=1        # Mark failed symbols for refetch
 #        make validate-data-lake debug=1           # Show detailed debug output
 #        make validate-data-lake limit=5           # Limit symbols (for testing)
 validate-data-lake:
-	@echo "🔍 Validating S3 data lake against yfinance..."
+	@echo "🔍 Validating S3 data lake against yfinance + Alpaca..."
 	@ARGS=""; \
 	if [ -n "$(symbols)" ]; then ARGS="$$ARGS --symbols $(symbols)"; fi; \
 	if [ -n "$(mark-bad)" ]; then ARGS="$$ARGS --mark-bad"; fi; \
