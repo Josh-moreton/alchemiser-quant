@@ -22,11 +22,20 @@ from the_alchemiser.shared.events.schemas import (
     HedgeExecuted,
 )
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
+from the_alchemiser.shared.options.adapters import (
+    AlpacaOptionsAdapter,
+    HedgePositionsRepository,
+)
 from the_alchemiser.shared.options.constants import (
     DEFAULT_ETF_PRICE_FALLBACK,
     DEFAULT_ETF_PRICES,
 )
+from the_alchemiser.shared.options.schemas.hedge_position import (
+    HedgePosition,
+    HedgePositionState,
+    RollState,
+)
+from the_alchemiser.shared.options.schemas.option_contract import OptionType
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -69,6 +78,10 @@ class HedgeExecutionHandler:
 
         self._option_selector = OptionSelector(self._options_adapter)
         self._execution_service = OptionsExecutionService(self._options_adapter)
+
+        # Initialize DynamoDB repository for hedge positions
+        table_name = os.environ.get("HEDGE_POSITIONS_TABLE_NAME", "")
+        self._positions_repo = HedgePositionsRepository(table_name) if table_name else None
 
         # Create event bus if not provided
         if event_bus is None:
@@ -223,6 +236,25 @@ class HedgeExecutionHandler:
         if portfolio_nav > 0 and result.total_premium > 0:
             nav_pct = result.total_premium / portfolio_nav
 
+        # Persist position to DynamoDB if execution succeeded
+        if result.success and self._positions_repo:
+            try:
+                self._persist_hedge_position(
+                    hedge_id=hedge_id,
+                    selected=selected,
+                    result=result,
+                    correlation_id=correlation_id,
+                    portfolio_nav=portfolio_nav,
+                    nav_pct=nav_pct,
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to persist hedge position to DynamoDB",
+                    hedge_id=hedge_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+
         return HedgeExecuted(
             correlation_id=correlation_id,
             causation_id=plan_id,
@@ -261,8 +293,8 @@ class HedgeExecutionHandler:
         succeeded = sum(1 for r in results if r.success)
         failed = len(results) - succeeded
 
-        total_premium = sum(r.total_premium for r in results)
-        total_nav_pct = sum(r.nav_percentage for r in results)
+        total_premium = sum((r.total_premium for r in results), Decimal("0"))
+        total_nav_pct = sum((r.nav_percentage for r in results), Decimal("0"))
 
         hedge_positions = [
             {
@@ -312,3 +344,59 @@ class HedgeExecutionHandler:
 
         """
         return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
+
+    def _persist_hedge_position(
+        self,
+        hedge_id: str,
+        selected: Any,  # SelectedOption
+        result: Any,  # ExecutionResult
+        correlation_id: str,
+        portfolio_nav: Decimal,
+        nav_pct: Decimal,
+    ) -> None:
+        """Persist hedge position to DynamoDB.
+
+        Args:
+            hedge_id: Unique hedge identifier
+            selected: Selected option with contract details
+            result: Execution result with fill details
+            correlation_id: Correlation ID for tracing
+            portfolio_nav: Portfolio NAV at entry
+            nav_pct: Premium as percentage of NAV
+
+        """
+        if not self._positions_repo:
+            return
+
+        contract = selected.contract
+        now = datetime.now(UTC)
+
+        position = HedgePosition(
+            hedge_id=hedge_id,
+            correlation_id=correlation_id,
+            option_symbol=contract.symbol,
+            underlying_symbol=contract.underlying_symbol,
+            option_type=contract.option_type,
+            strike_price=contract.strike_price,
+            expiration_date=contract.expiration_date,
+            contracts=result.filled_quantity,
+            entry_price=result.filled_price or Decimal("0"),
+            entry_date=now,
+            entry_delta=contract.delta or Decimal("0.15"),  # Fallback to target delta
+            total_premium_paid=result.total_premium,
+            state=HedgePositionState.ACTIVE,
+            roll_state=RollState.HOLDING,
+            last_updated=now,
+            hedge_template="tail_first",
+            nav_at_entry=portfolio_nav,
+            nav_percentage=nav_pct,
+        )
+
+        self._positions_repo.put_position(position)
+
+        logger.info(
+            "Hedge position persisted to DynamoDB",
+            hedge_id=hedge_id,
+            option_symbol=contract.symbol,
+            expiration_date=contract.expiration_date.isoformat(),
+        )
