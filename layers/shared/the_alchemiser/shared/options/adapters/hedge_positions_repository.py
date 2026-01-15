@@ -284,6 +284,82 @@ class HedgePositionsRepository:
             )
             return False
 
+    def mark_positions_expired(self, expiration_date: date) -> int:
+        """Mark positions expiring on the given date as expired.
+
+        Args:
+            expiration_date: Expiration date to check
+
+        Returns:
+            Number of positions marked as expired
+
+        """
+        try:
+            # Query active positions expiring on this date
+            positions = self.query_active_positions()
+            expired_count = 0
+
+            for pos in positions:
+                if pos.get("expiration_date") == expiration_date.isoformat():
+                    hedge_id = pos.get("hedge_id", "")
+                    if self.update_position_status(hedge_id, HedgePositionState.EXPIRED):
+                        expired_count += 1
+
+            logger.info(
+                "Marked positions as expired",
+                expiration_date=expiration_date.isoformat(),
+                count=expired_count,
+            )
+            return expired_count
+
+        except Exception as e:
+            logger.error(
+                "Failed to mark positions expired",
+                expiration_date=expiration_date.isoformat(),
+                error=str(e),
+                exc_info=True,
+            )
+            return 0
+
+    def mark_position_rolled(
+        self,
+        old_hedge_id: str,
+        new_position: HedgePosition,
+    ) -> bool:
+        """Mark old position as rolled and create new position.
+
+        Args:
+            old_hedge_id: ID of position being rolled out
+            new_position: New hedge position DTO
+
+        Returns:
+            True if both operations succeeded
+
+        """
+        try:
+            # Update old position status
+            if not self.update_position_status(old_hedge_id, HedgePositionState.ROLLING):
+                return False
+
+            # Create new position
+            self.put_position(new_position)
+
+            logger.info(
+                "Position rolled successfully",
+                old_hedge_id=old_hedge_id,
+                new_hedge_id=new_position.hedge_id,
+            )
+            return True
+
+        except Exception as e:
+            logger.error(
+                "Failed to roll position",
+                old_hedge_id=old_hedge_id,
+                error=str(e),
+                exc_info=True,
+            )
+            return False
+
     def _item_to_position(self, item: dict[str, Any]) -> HedgePosition:
         """Convert DynamoDB item to HedgePosition DTO.
 
