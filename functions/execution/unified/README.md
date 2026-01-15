@@ -31,9 +31,9 @@ This package provides a **single, robust, testable order placement flow** that s
 - **Note**: All quote operations are async and must be awaited
 
 ### 4. **Explicit "Walk the Book" Strategy**
-- Clear price progression: **75% → 85% → 95% → market**
-- For BUY orders: Start conservative (75% toward ask), get more aggressive
-- For SELL orders: Start conservative (75% toward bid), get more aggressive
+- Clear price progression: **50% → 75% → 95% → market**
+- For BUY orders: Start at midpoint (50%), then move toward ask (more aggressive)
+- For SELL orders: Start at midpoint (50%), then move toward bid (more aggressive)
 - Configurable wait times between steps
 - Full audit trail of all attempts
 
@@ -166,7 +166,7 @@ UnifiedOrderPlacementService.place_order(intent)  [async]
 ### New Architecture (Solutions)
 - **Single path**: All orders use same quote service
 - **Clear types**: `OrderIntent` with explicit `OrderSide` + `CloseType`
-- **Explicit logic**: `WalkTheBookStrategy` with clear 75%→85%→95%→market steps
+- **Explicit logic**: `WalkTheBookStrategy` with clear 50%→75%→95%→market steps
 - **Full validation**: `PortfolioValidator` confirms position changed as expected
 
 ## Metrics and Observability
