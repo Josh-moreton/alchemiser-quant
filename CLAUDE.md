@@ -7,7 +7,6 @@ This file provides guidance for AI agents (Claude, Copilot, etc.) working with t
 ```bash
 # Common commands
 source venv/bin/activate              # Activate virtualenv (use this, not poetry run)
-python -m pytest tests/ -v            # Run all tests
 python -m mypy the_alchemiser/        # Type check
 make format                           # Format code
 make type-check                       # Type check (via make)
@@ -28,7 +27,6 @@ Note: Each Lambda's source is packaged from `functions/<name>/` (SAM `CodeUri`) 
 - **Messaging**: EventBridge (events), SQS (execution queue), SNS (notifications)
 - **Storage**: DynamoDB (trade ledger), S3 (performance reports)
 - **Dependencies**: Poetry for package management
-- **Testing**: pytest with Hypothesis for property tests
 - **Typing**: mypy with strict mode
 
 ## Architecture
@@ -202,26 +200,6 @@ from pydantic import BaseModel
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.events import EventBus
 ```
-
-## Testing
-
-### Running Tests
-```bash
-# All tests
-python -m pytest tests/ -v
-
-# Specific module
-python -m pytest tests/strategy_v2/ -v
-
-# With coverage
-python -m pytest tests/ --cov=the_alchemiser
-```
-
-### Test Requirements
-- Every public function/class needs at least one test
-- Mirror source structure: `tests/test_<module>.py`
-- Use Hypothesis for property-based tests on math/strategies
-- Freeze time and seed RNG for determinism
 
 ## Version Management (MANDATORY)
 
@@ -447,7 +425,6 @@ logger.info(
 | DI Container | `the_alchemiser/shared/config/container.py` |
 | Strategy engines | `the_alchemiser/strategy_v2/engines/` |
 | Infrastructure (SAM) | `template.yaml` |
-| Tests | `tests/` (mirrors source structure) |
 | Script import helper | `scripts/_setup_imports.py` |
 
 ## Pre-Commit Checklist
@@ -455,10 +432,9 @@ logger.info(
 Before committing changes:
 1. [ ] Run `make format` (or `python -m ruff format the_alchemiser/`)
 2. [ ] Run `make type-check` (or `python -m mypy the_alchemiser/`)
-3. [ ] Run relevant tests
-4. [ ] Add module header if new file
-5. [ ] Stage changes: `git add <files>`
-6. [ ] Bump version: `make bump-patch` (or minor/major)
+3. [ ] Add module header if new file
+4. [ ] Stage changes: `git add <files>`
+5. [ ] Bump version: `make bump-patch` (or minor/major)
 
 ## Need More Context?
 

@@ -39,21 +39,15 @@
 - Order: stdlib → third-party → local; keep import sections separated.
 - Absolute imports inside business modules; no deep relative spelunking.
 
-### 7. Tests
-- Every public function/class has at least one test.
-- Mirror source structure (`tests/test_<module>.py`).
-- Include **property-based tests** (Hypothesis) for critical maths/strategies.
-- Deterministic tests: freeze time and seed RNG (`random`, `numpy`).
-
-### 8. Error Handling
+### 7. Error Handling
 - No silent `except`. Catch narrow exceptions; re-raise as module-specific errors from `shared.errors`.
 - Retries for I/O with bounded backoff; no infinite loops.
 
-### 9. Documentation
+### 8. Documentation
 - Docstrings on all public APIs (purpose, args, returns, raises, examples).
 - Module docstring explains responsibility and invariants.
 
-### 10. No Hardcoding
+### 9. No Hardcoding
 - No magic numbers/paths/secrets in code.
 - Use constants, config, or environment variables; 12-factor friendly.
 
@@ -177,16 +171,14 @@ publish_notification(subject="...", message="...")
 - Emit one log line per state change; avoid noisy debug spam in hot loops.
 
 ## Pull request & CI gates
-- CI must pass: format, lint, type, imports, security (bandit), secrets (gitleaks), tests.
+- CI must pass: format, lint, type, imports, security (bandit), secrets (gitleaks).
 - Max PR size: **~400 lines diff** unless refactor flagged with `#refactor` label.
-- No failing or skipped tests on `main`.
 - Lockfile changes justified in PR description.
 
 ## Hard limits (enforced targets)
 - **Module lines:** ≤ 500 (soft), split at > 800.
 - **Function lines:** ≤ 50. **Params:** ≤ 5.
 - **Cyclomatic complexity:** ≤ 10. **Cognitive:** ≤ 15.
-- **Public API test coverage:** ≥ 90% for strategy/portfolio; ≥ 80% overall until raised.
 - **Latency budgets:** adapter calls must expose timeouts; no call without a timeout.
 
 ## Implementation tips
