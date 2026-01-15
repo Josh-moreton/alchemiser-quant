@@ -23,6 +23,10 @@ from the_alchemiser.shared.events.schemas import (
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.options.constants import (
+    DEFAULT_ETF_PRICE_FALLBACK,
+    DEFAULT_ETF_PRICES,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -110,10 +114,19 @@ class HedgeEvaluationHandler:
                 underlying_price=underlying_price,
             )
 
+            # Derive existing hedge count from event metadata when available.
+            # Falls back to 0 to preserve current behavior if metadata is absent.
+            existing_hedge_count: int = 0
+            metadata = getattr(event, "metadata", None)
+            if isinstance(metadata, dict):
+                raw_existing_hedge_count = metadata.get("existing_hedge_count")
+                if isinstance(raw_existing_hedge_count, int) and raw_existing_hedge_count >= 0:
+                    existing_hedge_count = raw_existing_hedge_count
+
             # Check if hedging is needed
             should_hedge, skip_reason = self._hedge_sizer.should_hedge(
                 exposure=exposure,
-                existing_hedge_count=0,  # TODO: Query existing hedges from DynamoDB
+                existing_hedge_count=existing_hedge_count,
             )
 
             if not should_hedge:
@@ -216,15 +229,12 @@ class HedgeEvaluationHandler:
         Returns:
             Current price (defaults to reasonable estimate if unavailable)
 
+        Note:
+            Uses fallback prices until market data integration is complete.
+            TODO: Integrate with AlpacaManager to get real-time prices.
+
         """
-        # TODO: Integrate with AlpacaManager to get real price
-        # For now, use reasonable defaults
-        default_prices = {
-            "QQQ": Decimal("485"),
-            "SPY": Decimal("590"),
-            "IWM": Decimal("225"),
-        }
-        return default_prices.get(symbol, Decimal("500"))
+        return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
 
     def _get_current_vix(self) -> Decimal | None:
         """Get current VIX value.

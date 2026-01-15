@@ -12,7 +12,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.options.constants import HEDGE_ETFS, get_hedge_etf
+from the_alchemiser.shared.options.constants import (
+    HEDGE_ETFS,
+    QQQ_PREFERENCE_THRESHOLD,
+    get_hedge_etf,
+)
 
 logger = get_logger(__name__)
 
@@ -114,10 +118,11 @@ class SectorMapper:
                 max_exposure = exposure.total_value
                 primary_etf = etf
 
-        # For tech-heavy portfolios, prefer QQQ if it's within 20% of max
+        # For tech-heavy portfolios, prefer QQQ if it's within threshold of max
+        # QQQ has higher options liquidity and correlates well with tech portfolios
         if "QQQ" in sector_exposures:
             qqq_exposure = sector_exposures["QQQ"].total_value
-            if qqq_exposure >= max_exposure * Decimal("0.8"):
+            if qqq_exposure >= max_exposure * QQQ_PREFERENCE_THRESHOLD:
                 primary_etf = "QQQ"
 
         logger.info(

@@ -225,6 +225,83 @@ VIX_LOW_THRESHOLD: Decimal = Decimal("18")
 VIX_HIGH_THRESHOLD: Decimal = Decimal("28")
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# HEDGE SIZING THRESHOLDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Minimum portfolio NAV required to consider hedging.
+# Below this threshold, hedge costs would be disproportionate to portfolio size.
+MIN_NAV_THRESHOLD: Decimal = Decimal("10000")
+
+# Minimum net exposure ratio required to consider hedging.
+# Portfolios with low exposure don't need protective hedges.
+MIN_EXPOSURE_RATIO: Decimal = Decimal("0.5")
+
+# Maximum number of existing hedges before skipping new hedge evaluation.
+# Limits hedge accumulation; a portfolio with 3+ hedges is considered adequately protected.
+MAX_EXISTING_HEDGE_COUNT: int = 3
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OPTION SELECTION PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Strike price range as percentage of underlying for OTM put selection.
+# MAX: Maximum strike price (closest to ATM) - 5% OTM for reasonable delta
+# MIN: Minimum strike price (furthest OTM) - 25% OTM for tail protection
+STRIKE_MAX_OTM_RATIO: Decimal = Decimal("0.95")  # Strike <= 95% of underlying
+STRIKE_MIN_OTM_RATIO: Decimal = Decimal("0.75")  # Strike >= 75% of underlying
+
+# Limit price discount factor for buy limit orders.
+# Set limit price 2% below mid to avoid overpaying while ensuring fills.
+LIMIT_PRICE_DISCOUNT_FACTOR: Decimal = Decimal("0.98")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTOR MAPPER PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# QQQ preference threshold for tech-heavy portfolios.
+# If QQQ exposure is >= 80% of max sector exposure, prefer QQQ as primary hedge
+# underlying due to higher options liquidity and tech portfolio correlation.
+QQQ_PREFERENCE_THRESHOLD: Decimal = Decimal("0.8")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROLL MANAGEMENT PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Critical DTE threshold triggering immediate roll attention.
+# Positions below this threshold are flagged as "dte_critical" vs "dte_threshold".
+CRITICAL_DTE_THRESHOLD: int = 14
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXECUTION SERVICE PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Poll interval in seconds when monitoring order fills.
+# Affects responsiveness vs API call frequency/cost.
+ORDER_POLL_INTERVAL_SECONDS: int = 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FALLBACK PRICES
+# ═══════════════════════════════════════════════════════════════════════════════
+# Default ETF prices used when real-time market data is unavailable.
+# These are conservative estimates and should be replaced with live data ASAP.
+# TODO: Remove once market data integration is complete.
+
+DEFAULT_ETF_PRICES: dict[str, Decimal] = {
+    "QQQ": Decimal("485"),
+    "SPY": Decimal("590"),
+    "IWM": Decimal("225"),
+}
+
+# Default price used when ETF symbol is not in DEFAULT_ETF_PRICES
+DEFAULT_ETF_PRICE_FALLBACK: Decimal = Decimal("500")
+
+
 def get_budget_rate_for_vix(vix: Decimal) -> Decimal:
     """Get the appropriate budget rate based on current VIX level.
 

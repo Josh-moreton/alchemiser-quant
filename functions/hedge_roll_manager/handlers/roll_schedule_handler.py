@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.events.schemas import HedgeRollTriggered
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.options.constants import TAIL_HEDGE_TEMPLATE
+from the_alchemiser.shared.options.constants import CRITICAL_DTE_THRESHOLD, TAIL_HEDGE_TEMPLATE
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -142,13 +142,24 @@ class RollScheduleHandler:
         Returns:
             List of active hedge position records
 
-        """
-        # TODO: Implement DynamoDB query for active positions
-        # For now, return empty list (positions will be stored once execution runs)
-        logger.info("Querying active hedge positions from DynamoDB")
+        Note:
+            Currently returns empty list as placeholder.
+            The roll manager will not trigger any rolls until the DynamoDB
+            query is implemented. This is intentional during initial deployment
+            to prevent unexpected roll behavior before hedge positions are
+            properly tracked in DynamoDB.
 
-        # Placeholder - in production this would query HedgePositionsTable
-        # using GSI1 (UNDERLYING#symbol, EXPIRATION#date) or scan with filter
+            Implementation priority: HIGH - Required for production roll management.
+            Track: GitHub Issue #2990 (Options Hedging - Roll Manager DynamoDB Integration)
+
+        """
+        # TODO(#2990): Implement DynamoDB query for active positions
+        # Expected schema: HedgePositionsTable with GSI1 (UNDERLYING#symbol, EXPIRATION#date)
+        # or scan with filter on status='active' and expiration_date > today
+        logger.info("Querying active hedge positions from DynamoDB (placeholder - returns empty)")
+
+        # Placeholder - returns empty list until DynamoDB integration is complete
+        # This means roll checks will pass without triggering any rolls
         return []
 
     def _trigger_roll(
@@ -171,7 +182,7 @@ class RollScheduleHandler:
         contracts = position.get("contracts", 1)
 
         # Determine roll reason
-        if current_dte < 14:
+        if current_dte < CRITICAL_DTE_THRESHOLD:
             roll_reason = "dte_critical"
         elif current_dte < self._template.roll_trigger_dte:
             roll_reason = "dte_threshold"

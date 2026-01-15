@@ -1863,10 +1863,12 @@ Resources:
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
-          # VIX-adaptive budget configuration
-          HEDGE_BUDGET_VIX_LOW: "0.008"
-          HEDGE_BUDGET_VIX_MID: "0.005"
-          HEDGE_BUDGET_VIX_HIGH: "0.003"
+          # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
+          # Environment variables below are reserved for future runtime override capability.
+          # Currently unused - the code reads from constants; uncomment to enable env-based config.
+          # HEDGE_BUDGET_VIX_LOW: "0.008"
+          # HEDGE_BUDGET_VIX_MID: "0.005"
+          # HEDGE_BUDGET_VIX_HIGH: "0.003"
     Metadata:
       BuildMethod: python3.12
 

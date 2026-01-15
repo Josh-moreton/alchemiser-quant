@@ -16,6 +16,7 @@ from decimal import Decimal
 from the_alchemiser.shared.errors import TradingClientError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
+from the_alchemiser.shared.options.constants import ORDER_POLL_INTERVAL_SECONDS
 
 from .option_selector import SelectedOption
 
@@ -172,7 +173,6 @@ class OptionsExecutionService:
 
         """
         start_time = time.time()
-        poll_interval = 2  # seconds
 
         while True:
             elapsed = time.time() - start_time
@@ -240,7 +240,7 @@ class OptionsExecutionService:
                     )
 
                 # Still pending - continue polling
-                time.sleep(poll_interval)
+                time.sleep(ORDER_POLL_INTERVAL_SECONDS)
 
             except TradingClientError as e:
                 logger.error(
@@ -248,7 +248,7 @@ class OptionsExecutionService:
                     order_id=order_id,
                     error=str(e),
                 )
-                time.sleep(poll_interval)
+                time.sleep(ORDER_POLL_INTERVAL_SECONDS)
 
         # Reached timeout - get final status
         try:

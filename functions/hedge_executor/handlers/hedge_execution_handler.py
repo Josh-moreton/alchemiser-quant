@@ -23,6 +23,10 @@ from the_alchemiser.shared.events.schemas import (
 )
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
+from the_alchemiser.shared.options.constants import (
+    DEFAULT_ETF_PRICE_FALLBACK,
+    DEFAULT_ETF_PRICES,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -302,11 +306,9 @@ class HedgeExecutionHandler:
         Returns:
             Current price (defaults to estimate if unavailable)
 
+        Note:
+            Uses fallback prices until market data integration is complete.
+            TODO: Integrate with market data service for real-time prices.
+
         """
-        # TODO: Integrate with market data service
-        default_prices = {
-            "QQQ": Decimal("485"),
-            "SPY": Decimal("590"),
-            "IWM": Decimal("225"),
-        }
-        return default_prices.get(symbol, Decimal("500"))
+        return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)

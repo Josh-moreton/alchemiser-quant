@@ -14,7 +14,13 @@ from decimal import Decimal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
-from the_alchemiser.shared.options.constants import LIQUIDITY_FILTERS, TAIL_HEDGE_TEMPLATE
+from the_alchemiser.shared.options.constants import (
+    LIMIT_PRICE_DISCOUNT_FACTOR,
+    LIQUIDITY_FILTERS,
+    STRIKE_MAX_OTM_RATIO,
+    STRIKE_MIN_OTM_RATIO,
+    TAIL_HEDGE_TEMPLATE,
+)
 from the_alchemiser.shared.options.schemas import OptionContract, OptionType
 
 logger = get_logger(__name__)
@@ -88,9 +94,10 @@ class OptionSelector:
         target_expiry = today + timedelta(days=target_dte)
 
         # Calculate strike range (OTM puts)
-        # For 15-delta put, typically 10-15% OTM
-        strike_max = underlying_price * Decimal("0.95")  # At most 5% OTM
-        strike_min = underlying_price * Decimal("0.75")  # At most 25% OTM
+        # MAX: Maximum strike (closest to ATM) - for reasonable delta
+        # MIN: Minimum strike (furthest OTM) - for tail protection
+        strike_max = underlying_price * STRIKE_MAX_OTM_RATIO
+        strike_min = underlying_price * STRIKE_MIN_OTM_RATIO
 
         try:
             # Query option chain
@@ -267,7 +274,7 @@ class OptionSelector:
 
         # Calculate limit price (slightly better than mid for limit order)
         # For buying puts, we want to pay less than mid
-        limit_price = mid_price * Decimal("0.98")  # 2% below mid
+        limit_price = mid_price * LIMIT_PRICE_DISCOUNT_FACTOR
 
         # Premium per contract = price * 100 shares
         premium_per_contract = mid_price * 100

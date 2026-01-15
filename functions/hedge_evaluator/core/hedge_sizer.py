@@ -15,7 +15,12 @@ from decimal import Decimal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.constants import (
+    MAX_EXISTING_HEDGE_COUNT,
+    MIN_EXPOSURE_RATIO,
+    MIN_NAV_THRESHOLD,
     TAIL_HEDGE_TEMPLATE,
+    VIX_HIGH_THRESHOLD,
+    VIX_LOW_THRESHOLD,
     get_budget_rate_for_vix,
     get_exposure_multiplier,
 )
@@ -129,9 +134,9 @@ class HedgeSizer:
             VIX tier string (low, mid, high)
 
         """
-        if vix < Decimal("18"):
+        if vix < VIX_LOW_THRESHOLD:
             return "low"
-        if vix < Decimal("28"):
+        if vix < VIX_HIGH_THRESHOLD:
             return "mid"
         return "high"
 
@@ -196,17 +201,17 @@ class HedgeSizer:
             Tuple of (should_hedge, skip_reason if not hedging)
 
         """
-        # Skip if NAV is too small (< $10,000 - hedge costs would be disproportionate)
-        if exposure.nav < Decimal("10000"):
-            return False, "NAV below minimum threshold ($10,000)"
+        # Skip if NAV is too small - hedge costs would be disproportionate
+        if exposure.nav < MIN_NAV_THRESHOLD:
+            return False, f"NAV below minimum threshold (${MIN_NAV_THRESHOLD})"
 
-        # Skip if net exposure ratio is very low (< 0.5x)
-        if exposure.net_exposure_ratio < Decimal("0.5"):
-            return False, "Net exposure ratio below 0.5x"
+        # Skip if net exposure ratio is very low
+        if exposure.net_exposure_ratio < MIN_EXPOSURE_RATIO:
+            return False, f"Net exposure ratio below {MIN_EXPOSURE_RATIO}x"
 
         # Skip if we already have hedges and they cover adequate exposure
         # (This is a simplified check - real check would evaluate hedge coverage)
-        if existing_hedge_count >= 3:
+        if existing_hedge_count >= MAX_EXISTING_HEDGE_COUNT:
             return False, "Existing hedges appear sufficient"
 
         return True, None
