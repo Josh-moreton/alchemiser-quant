@@ -190,7 +190,7 @@ else
         --no-fail-on-empty-changeset \
         --resolve-s3 \
         --config-env "$ENVIRONMENT" \
-        --parameter-overrides ${PARAMS[@]}
+        --parameter-overrides "${PARAMS[@]}"
 fi
 
 echo ""
