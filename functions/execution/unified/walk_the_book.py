@@ -361,7 +361,7 @@ class WalkTheBookStrategy:
         Args:
             quote: Current market quote
             side: "BUY" or "SELL"
-            price_ratio: How far to move toward aggressive side (0.75 = 75%)
+            price_ratio: How far to move toward aggressive side (0.50 = 50% = midpoint, 0.75 = 75%)
 
         Returns:
             Calculated limit price
