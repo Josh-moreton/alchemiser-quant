@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Price progression configuration
-PRICE_STEPS = [0.75, 0.85, 0.95]  # Percentages toward aggressive side
+PRICE_STEPS = [0.50, 0.75, 0.95]  # Percentages toward aggressive side (start at midpoint)
 # Reduced from 30s to 10s - 30s per step was too long and resulted in poor execution
 # in volatile markets. 10s gives market time to fill while not leaving orders stale.
 DEFAULT_STEP_WAIT_SECONDS = 10  # How long to wait at each step before moving to next
@@ -131,18 +131,20 @@ class WalkTheBookStrategy:
     """Strategy for placing limit orders with progressive price improvement.
 
     This implements an explicit "walk the book" strategy:
-        1. Start with limit order at 75% toward aggressive side
-        2. If not filled after wait period, cancel and replace at 85%
-        3. If still not filled, cancel and replace at 95%
+        1. Start with limit order at midpoint (50% of spread)
+        2. If not filled after wait period, cancel and replace at 75% toward aggressive side
+        3. If still not filled, cancel and replace at 95% toward aggressive side
         4. If still not filled, cancel and place market order
 
     For BUY orders:
         - Aggressive side = ask price
+        - 50% = bid + 0.50 * (ask - bid) = midpoint
         - 75% = bid + 0.75 * (ask - bid)
         - Conservative (patient) to aggressive (market-crossing)
 
     For SELL orders:
         - Aggressive side = bid price
+        - 50% = ask - 0.50 * (ask - bid) = midpoint
         - 75% = ask - 0.75 * (ask - bid)
         - Conservative (patient) to aggressive (market-crossing)
 
@@ -162,7 +164,7 @@ class WalkTheBookStrategy:
             alpaca_manager: Alpaca broker manager for order operations
             step_wait_seconds: How long to wait at each price step (default: 10s)
             market_order_wait_seconds: How long to wait for market order fill (default: 30s)
-            price_steps: Custom price progression steps (default: [0.75, 0.85, 0.95])
+            price_steps: Custom price progression steps (default: [0.50, 0.75, 0.95])
 
         """
         self.alpaca_manager = alpaca_manager
@@ -359,7 +361,7 @@ class WalkTheBookStrategy:
         Args:
             quote: Current market quote
             side: "BUY" or "SELL"
-            price_ratio: How far to move toward aggressive side (0.75 = 75%)
+            price_ratio: How far to move toward aggressive side (0.50 = 50% = midpoint, 0.75 = 75%)
 
         Returns:
             Calculated limit price

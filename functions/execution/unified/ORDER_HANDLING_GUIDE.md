@@ -231,26 +231,26 @@ The walk-the-book strategy uses progressive price improvement:
 
 ```
 BUY ORDER:
-  Start: Conservative (closer to bid)
+  Start: Midpoint (50% of spread)
   Progress: Toward ask (more aggressive)
 
-  75% → 85% → 95% → 100% (market)
+  50% → 75% → 95% → 100% (market)
 
 SELL ORDER:
-  Start: Conservative (closer to ask)
+  Start: Midpoint (50% of spread)
   Progress: Toward bid (more aggressive)
 
-  75% → 85% → 95% → 100% (market)
+  50% → 75% → 95% → 100% (market)
 ```
 
 ### Step Timing
 
 | Step | Price Level | Wait Time | Cumulative |
 |------|-------------|-----------|------------|
-| 1 | 75% toward aggressive | 30s | 30s |
-| 2 | 85% toward aggressive | 30s | 60s |
-| 3 | 95% toward aggressive | 30s | 90s |
-| 4 | Market order | Immediate | ~90s total |
+| 1 | 50% midpoint | 10s | 10s |
+| 2 | 75% toward aggressive | 10s | 20s |
+| 3 | 95% toward aggressive | 10s | 30s |
+| 4 | Market order | Immediate | ~30s total |
 
 ### Why This Strategy?
 
