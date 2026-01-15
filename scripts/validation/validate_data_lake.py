@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Business Unit: data | Status: current.
 
-Comprehensive S3 data lake validation against yfinance.
+Comprehensive S3 data lake validation against yfinance and Alpaca.
 
 Validates:
 1. Completeness - All symbols from strategy DSL configs exist in S3
-2. Freshness - S3 data has the latest complete bar available on yfinance
-3. Integrity - Close prices match yfinance Adj Close within tolerance
+2. Freshness - S3 data has the latest complete bar available
+3. Integrity - Close prices match reference sources within tolerance
 4. Gaps - No missing trading days in the data series
+
+Data Sources:
+- yfinance: Adjusted close prices (free, may differ from Alpaca)
+- Alpaca: Adjusted close prices with Adjustment.ALL (authoritative source)
 
 Usage:
     make validate-data-lake                    # Validate all configured symbols
@@ -20,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 import warnings
 from dataclasses import dataclass, field
@@ -30,7 +35,15 @@ from typing import Any
 import boto3
 import pandas as pd
 import yfinance as yf
+from alpaca.data.enums import Adjustment
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Suppress yfinance warnings
 warnings.filterwarnings("ignore")
@@ -79,21 +92,31 @@ class SymbolValidationResult:
     symbol: str
     s3_records: int = 0
     yf_records: int = 0
+    alpaca_records: int = 0
     s3_last_date: str = ""
     yf_last_date: str = ""
+    alpaca_last_date: str = ""
     is_fresh: bool = False
-    price_mismatches: int = 0
-    missing_dates: int = 0  # dates in yfinance but not S3 (gaps)
+    yf_price_mismatches: int = 0  # mismatches vs yfinance
+    alpaca_price_mismatches: int = 0  # mismatches vs Alpaca
+    missing_dates: int = 0  # dates in reference but not S3 (gaps)
     errors: list[str] = field(default_factory=list)
-    sample_mismatches: list[dict[str, Any]] = field(default_factory=list)
+    yf_sample_mismatches: list[dict[str, Any]] = field(default_factory=list)
+    alpaca_sample_mismatches: list[dict[str, Any]] = field(default_factory=list)
     sample_missing_dates: list[str] = field(default_factory=list)
+
+    @property
+    def price_mismatches(self) -> int:
+        """Total price mismatches (either source)."""
+        return self.yf_price_mismatches + self.alpaca_price_mismatches
 
     @property
     def is_valid(self) -> bool:
         """Symbol passes all validation checks."""
         return (
             self.is_fresh
-            and self.price_mismatches == 0
+            and self.yf_price_mismatches == 0
+            and self.alpaca_price_mismatches == 0
             and self.missing_dates == 0
             and not self.errors
         )
@@ -105,8 +128,10 @@ class SymbolValidationResult:
             return "ERROR"
         if not self.is_fresh:
             return "STALE"
-        if self.price_mismatches > 0:
-            return "MISMATCH"
+        if self.alpaca_price_mismatches > 0:
+            return "ALPACA_MISMATCH"
+        if self.yf_price_mismatches > 0:
+            return "YF_MISMATCH"
         if self.missing_dates > 0:
             return "GAPS"
         return "VALID"
@@ -287,6 +312,131 @@ def get_yfinance_latest_date(symbol: str) -> str | None:
 
 
 # ============================================================================
+# ALPACA DATA ACCESS
+# ============================================================================
+
+# Global Alpaca client (initialized once)
+_alpaca_client: StockHistoricalDataClient | None = None
+
+
+def get_alpaca_client() -> StockHistoricalDataClient | None:
+    """Get authenticated Alpaca client.
+
+    Uses environment variables for credentials (from .env or system).
+    Supported variable names (tries in order):
+    - ALPACA_KEY / ALPACA_SECRET
+    - ALPACA_API_KEY / ALPACA_API_SECRET
+    - APCA_API_KEY_ID / APCA_API_SECRET_KEY
+
+    Returns:
+        StockHistoricalDataClient or None if credentials not found
+    """
+    global _alpaca_client
+    if _alpaca_client is not None:
+        return _alpaca_client
+
+    api_key = (
+        os.environ.get("ALPACA_KEY")
+        or os.environ.get("ALPACA_API_KEY")
+        or os.environ.get("APCA_API_KEY_ID")
+    )
+    api_secret = (
+        os.environ.get("ALPACA_SECRET")
+        or os.environ.get("ALPACA_API_SECRET")
+        or os.environ.get("APCA_API_SECRET_KEY")
+    )
+
+    if not api_key or not api_secret:
+        return None
+
+    _alpaca_client = StockHistoricalDataClient(api_key, api_secret)
+    return _alpaca_client
+
+
+def fetch_alpaca_data(
+    client: StockHistoricalDataClient, symbol: str, start: str, end: str
+) -> pd.DataFrame | None:
+    """Fetch Alpaca data with Adjustment.ALL.
+
+    Args:
+        client: Alpaca StockHistoricalDataClient
+        symbol: Ticker symbol
+        start: Start date (YYYY-MM-DD)
+        end: End date (YYYY-MM-DD), inclusive
+
+    Returns:
+        DataFrame with date index and close prices, or None if fetch failed
+    """
+    try:
+        start_dt = datetime.strptime(start, "%Y-%m-%d")
+        # Add one day to end to make it inclusive
+        end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
+
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame.Day,
+            start=start_dt,
+            end=end_dt,
+            adjustment=Adjustment.ALL,
+        )
+
+        response = client.get_stock_bars(request)
+        if symbol not in response or not response[symbol]:
+            return None
+
+        bars = response[symbol]
+        data = []
+        for bar in bars:
+            data.append({
+                "date": bar.timestamp.strftime("%Y-%m-%d"),
+                "close": float(bar.close),
+            })
+
+        df = pd.DataFrame(data)
+        df.set_index("date", inplace=True)
+        return df
+
+    except Exception:
+        return None
+
+
+def get_alpaca_latest_date(client: StockHistoricalDataClient, symbol: str) -> str | None:
+    """Get the latest complete bar date from Alpaca.
+
+    Args:
+        client: Alpaca StockHistoricalDataClient
+        symbol: Ticker symbol
+
+    Returns:
+        Latest date as YYYY-MM-DD string, or None if fetch failed
+    """
+    try:
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=10)
+
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame.Day,
+            start=start_dt,
+            end=end_dt,
+            adjustment=Adjustment.ALL,
+        )
+
+        response = client.get_stock_bars(request)
+        if symbol not in response or not response[symbol]:
+            return None
+
+        bars = response[symbol]
+        if not bars:
+            return None
+
+        return bars[-1].timestamp.strftime("%Y-%m-%d")
+
+    except Exception:
+        return None
+
+
+# ============================================================================
 # SYMBOL EXTRACTION FROM DSL CONFIGS
 # ============================================================================
 
@@ -327,19 +477,21 @@ def validate_symbol(
     symbol: str,
     s3_client: Any,
     bucket: str,
+    alpaca_client: StockHistoricalDataClient | None = None,
     debug: bool = False,
 ) -> SymbolValidationResult:
-    """Validate a single symbol against yfinance.
+    """Validate a single symbol against yfinance and Alpaca.
 
     Checks:
-    1. Freshness - S3 has the latest bar available on yfinance
-    2. Price integrity - Close prices match yfinance Adj Close within tolerance
+    1. Freshness - S3 has the latest bar available
+    2. Price integrity - Close prices match reference sources within tolerance
     3. Gaps - No missing trading days
 
     Args:
         symbol: Symbol to validate
         s3_client: Boto3 S3 client
         bucket: S3 bucket name
+        alpaca_client: Optional Alpaca client for Alpaca validation
         debug: Show detailed debug output
 
     Returns:
@@ -391,7 +543,7 @@ def validate_symbol(
     yf_df["date"] = yf_df.index.strftime("%Y-%m-%d")
     yf_by_date = yf_df.set_index("date")[adj_close_col].to_dict()
 
-    # 5. Compare prices and check for gaps
+    # 5. Compare S3 vs yfinance prices and check for gaps
     for date, yf_price in yf_by_date.items():
         if date not in s3_by_date:
             # Gap - date in yfinance but not in S3
@@ -409,14 +561,57 @@ def validate_symbol(
         pct_diff = abs(s3_price - yf_price) / max(abs(s3_price), abs(yf_price))
 
         if pct_diff > PRICE_TOLERANCE_PCT:
-            result.price_mismatches += 1
-            if len(result.sample_mismatches) < 5:
-                result.sample_mismatches.append({
+            result.yf_price_mismatches += 1
+            if len(result.yf_sample_mismatches) < 5:
+                result.yf_sample_mismatches.append({
                     "date": date,
                     "s3_close": round(s3_price, 4),
-                    "yf_adj_close": round(yf_price, 4),
+                    "ref_close": round(yf_price, 4),
                     "diff_pct": round(pct_diff * 100, 2),
                 })
+
+    # 6. Alpaca validation (if client available)
+    if alpaca_client is not None:
+        # Get Alpaca latest date
+        alpaca_latest = get_alpaca_latest_date(alpaca_client, symbol)
+        if alpaca_latest:
+            result.alpaca_last_date = alpaca_latest
+
+            # Fetch Alpaca data for comparison
+            alpaca_df = fetch_alpaca_data(alpaca_client, symbol, s3_start, alpaca_latest)
+            if alpaca_df is not None:
+                result.alpaca_records = len(alpaca_df)
+                alpaca_by_date = alpaca_df["close"].to_dict()
+
+                # Compare S3 vs Alpaca prices
+                for date, alpaca_price in alpaca_by_date.items():
+                    if date not in s3_by_date:
+                        # Already counted as gap from yfinance check
+                        continue
+
+                    s3_price = s3_by_date[date]
+
+                    # Avoid division by zero
+                    if max(abs(s3_price), abs(alpaca_price)) == 0:
+                        continue
+
+                    pct_diff = abs(s3_price - alpaca_price) / max(
+                        abs(s3_price), abs(alpaca_price)
+                    )
+
+                    if pct_diff > PRICE_TOLERANCE_PCT:
+                        result.alpaca_price_mismatches += 1
+                        if len(result.alpaca_sample_mismatches) < 5:
+                            result.alpaca_sample_mismatches.append({
+                                "date": date,
+                                "s3_close": round(s3_price, 4),
+                                "ref_close": round(alpaca_price, 4),
+                                "diff_pct": round(pct_diff * 100, 2),
+                            })
+            else:
+                result.errors.append("Failed to fetch Alpaca data")
+        else:
+            result.errors.append("Failed to fetch Alpaca latest date")
 
     return result
 
@@ -500,10 +695,13 @@ def write_csv_report(report: DataLakeValidationReport, output_path: Path) -> Non
             "Status",
             "S3 Records",
             "YF Records",
+            "Alpaca Records",
             "S3 Last Date",
             "YF Last Date",
+            "Alpaca Last Date",
             "Is Fresh",
-            "Price Mismatches",
+            "YF Mismatches",
+            "Alpaca Mismatches",
             "Missing Dates",
             "Errors",
         ])
@@ -514,21 +712,27 @@ def write_csv_report(report: DataLakeValidationReport, output_path: Path) -> Non
                 r.status,
                 r.s3_records,
                 r.yf_records,
+                r.alpaca_records,
                 r.s3_last_date,
                 r.yf_last_date,
+                r.alpaca_last_date,
                 r.is_fresh,
-                r.price_mismatches,
+                r.yf_price_mismatches,
+                r.alpaca_price_mismatches,
                 r.missing_dates,
                 "; ".join(r.errors) if r.errors else "",
             ])
 
 
-def print_report(report: DataLakeValidationReport, debug: bool = False) -> None:
+def print_report(
+    report: DataLakeValidationReport, debug: bool = False, alpaca_enabled: bool = True
+) -> None:
     """Print formatted validation report to terminal.
 
     Args:
         report: Validation report
         debug: Show detailed debug output
+        alpaca_enabled: Whether Alpaca validation was enabled
     """
     print()
     print(colorize("=" * 70, "bold"))
@@ -539,6 +743,7 @@ def print_report(report: DataLakeValidationReport, debug: bool = False) -> None:
     print(f"Timestamp: {report.timestamp.isoformat()}")
     print(f"Configured Symbols: {len(report.configured_symbols)}")
     print(f"S3 Symbols: {len(report.s3_symbols)}")
+    print(f"Data Sources: yfinance" + (" + Alpaca" if alpaca_enabled else ""))
     print()
 
     # Missing symbols check
@@ -549,10 +754,17 @@ def print_report(report: DataLakeValidationReport, debug: bool = False) -> None:
         print()
 
     # Summary counts
+    yf_mismatch_count = sum(1 for r in report.results if r.yf_price_mismatches > 0)
+    alpaca_mismatch_count = sum(
+        1 for r in report.results if r.alpaca_price_mismatches > 0
+    )
+
     print(colorize("📊 Validation Summary:", "bold"))
     print(f"   {colorize('✓ Valid:', 'green')} {report.valid_count}")
     print(f"   {colorize('⏰ Stale:', 'yellow')} {report.stale_count}")
-    print(f"   {colorize('⚡ Price Mismatches:', 'red')} {report.mismatch_count}")
+    print(f"   {colorize('⚡ YF Mismatches:', 'red')} {yf_mismatch_count}")
+    if alpaca_enabled:
+        print(f"   {colorize('⚡ Alpaca Mismatches:', 'red')} {alpaca_mismatch_count}")
     print(f"   {colorize('📅 Data Gaps:', 'yellow')} {report.gap_count}")
     print(f"   {colorize('❌ Errors:', 'red')} {report.error_count}")
     print()
@@ -565,14 +777,25 @@ def print_report(report: DataLakeValidationReport, debug: bool = False) -> None:
             status_color = "red" if r.errors or r.price_mismatches > 0 else "yellow"
             print(f"   {colorize(r.symbol, status_color)}: {r.status}")
             print(f"      S3 last: {r.s3_last_date} | YF last: {r.yf_last_date}")
+            if alpaca_enabled and r.alpaca_last_date:
+                print(f"      Alpaca last: {r.alpaca_last_date}")
 
-            if r.price_mismatches > 0:
-                print(f"      Price mismatches: {r.price_mismatches}")
-                if debug and r.sample_mismatches:
-                    for m in r.sample_mismatches[:3]:
+            if r.yf_price_mismatches > 0:
+                print(f"      YF mismatches: {r.yf_price_mismatches}")
+                if debug and r.yf_sample_mismatches:
+                    for m in r.yf_sample_mismatches[:3]:
                         print(
                             f"        {m['date']}: S3={m['s3_close']}, "
-                            f"YF={m['yf_adj_close']}, diff={m['diff_pct']}%"
+                            f"YF={m['ref_close']}, diff={m['diff_pct']}%"
+                        )
+
+            if r.alpaca_price_mismatches > 0:
+                print(f"      Alpaca mismatches: {r.alpaca_price_mismatches}")
+                if debug and r.alpaca_sample_mismatches:
+                    for m in r.alpaca_sample_mismatches[:3]:
+                        print(
+                            f"        {m['date']}: S3={m['s3_close']}, "
+                            f"Alpaca={m['ref_close']}, diff={m['diff_pct']}%"
                         )
 
             if r.missing_dates > 0:
@@ -607,7 +830,7 @@ def main() -> int:
         Exit code (0 = success, 1 = validation failures)
     """
     parser = argparse.ArgumentParser(
-        description="Validate S3 data lake against yfinance",
+        description="Validate S3 data lake against yfinance and Alpaca",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -653,6 +876,15 @@ def main() -> int:
     # Initialize S3 client
     s3_client = boto3.client("s3", region_name=args.region)
 
+    # Initialize Alpaca client (may be None if credentials not available)
+    alpaca_client = get_alpaca_client()
+    if alpaca_client:
+        print(colorize("✓ Alpaca client initialized", "green"))
+    else:
+        print(colorize("⚠️  Alpaca credentials not found - skipping Alpaca validation", "yellow"))
+        print("   Set ALPACA_KEY and ALPACA_SECRET in .env file to enable")
+    print()
+
     # Get symbols to validate
     if args.symbols:
         symbols_to_validate = set(s.strip().upper() for s in args.symbols.split(","))
@@ -688,7 +920,9 @@ def main() -> int:
         status_prefix = f"[{i}/{len(symbols_to_validate)}]"
         print(f"{status_prefix} Validating {symbol}...", end=" ", flush=True)
 
-        result = validate_symbol(symbol, s3_client, args.bucket, debug=args.debug)
+        result = validate_symbol(
+            symbol, s3_client, args.bucket, alpaca_client=alpaca_client, debug=args.debug
+        )
         report.results.append(result)
 
         # Print inline status
@@ -708,7 +942,7 @@ def main() -> int:
     print(f"\nReport saved to: {output_path}")
 
     # Print summary
-    print_report(report, debug=args.debug)
+    print_report(report, debug=args.debug, alpaca_enabled=alpaca_client is not None)
 
     # Mark bad symbols if requested
     if args.mark_bad:
