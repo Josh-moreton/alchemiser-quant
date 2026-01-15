@@ -358,17 +358,20 @@ class PnLService:
                     },
                 )
 
-            # Fetch non-trade activities (deposits) for the period
+            # Fetch non-trade activities (deposits AND withdrawals) for the period
             # CSD = Cash Deposit (money IN, inflates equity, NOT trading profit)
-            # We subtract deposits from cumulative P&L to get TRUE trading P&L
+            # CSW = Cash Withdrawal (money OUT, reduces equity, NOT trading loss)
             cash_activities = self._alpaca_manager.get_non_trade_activities(
                 start_date=start_date,
-                activity_types=["CSD"],
+                activity_types=["CSD", "CSW"],
             )
 
-            # Calculate total deposits to subtract from cumulative P&L
-            # Deposits inflate equity but are NOT trading gains
-            net_deposits = self._calculate_net_deposits(cash_activities, start_date, end_date)
+            # Calculate total deposits and withdrawals for TRUE trading P&L
+            # Deposits inflate equity but are NOT trading gains - subtract
+            # Withdrawals reduce equity but are NOT trading losses - add back
+            net_deposits, net_withdrawals = self._calculate_cash_movements(
+                cash_activities, start_date, end_date
+            )
 
             logger.debug(
                 "Fetched cash activities for P&L adjustment",
@@ -376,11 +379,14 @@ class PnLService:
                 end_date=end_date,
                 activity_count=len(cash_activities),
                 net_deposits=float(net_deposits),
+                net_withdrawals=float(net_withdrawals),
                 correlation_id=self._correlation_id,
                 module="pnl_service",
             )
 
-            return self._process_history_data(history, period, start_date, end_date, net_deposits)
+            return self._process_history_data(
+                history, period, start_date, end_date, net_deposits, net_withdrawals
+            )
 
         except DataProviderError:
             # Re-raise our typed errors
@@ -408,13 +414,13 @@ class PnLService:
                 },
             ) from e
 
-    def _calculate_net_deposits(
+    def _calculate_cash_movements(
         self,
         cash_activities: list[dict[str, str]],
         start_date: str,
         end_date: str,
-    ) -> Decimal:
-        """Calculate total deposits (CSD) within the date range.
+    ) -> tuple[Decimal, Decimal]:
+        """Calculate total deposits (CSD) and withdrawals (CSW) within the date range.
 
         Args:
             cash_activities: List of CSD/CSW activities from Alpaca
@@ -422,10 +428,13 @@ class PnLService:
             end_date: Period end date (YYYY-MM-DD)
 
         Returns:
-            Total deposit amount to subtract from cumulative P&L.
+            Tuple of (total_deposits, total_withdrawals).
+            - Deposits (CSD): Cash IN, inflates equity, NOT trading profit - subtract from P&L
+            - Withdrawals (CSW): Cash OUT, reduces equity, NOT trading loss - add back to P&L
 
         """
         total_deposits = Decimal("0")
+        total_withdrawals = Decimal("0")
 
         for activity in cash_activities:
             activity_date = activity.get("date", "")[:10]  # YYYY-MM-DD
@@ -443,8 +452,11 @@ class PnLService:
 
             if activity_type == "CSD":  # Cash Deposit - subtract from P&L
                 total_deposits += amount
+            elif activity_type == "CSW":  # Cash Withdrawal - add back to P&L
+                # Withdrawals are reported as negative amounts, so we take absolute value
+                total_withdrawals += abs(amount)
 
-        return total_deposits
+        return total_deposits, total_withdrawals
 
     def _process_history_data(
         self,
@@ -453,6 +465,7 @@ class PnLService:
         start_date: str | None = None,
         end_date: str | None = None,
         net_deposits: Decimal | None = None,
+        net_withdrawals: Decimal | None = None,
     ) -> PnLData:
         """Process portfolio history data into P&L metrics.
 
@@ -462,7 +475,8 @@ class PnLService:
             period: Period description
             start_date: Start date string
             end_date: End date string
-            net_deposits: Net deposits in period (deposits - withdrawals) to subtract from P&L
+            net_deposits: Total deposits (CSD) in period to subtract from P&L
+            net_withdrawals: Total withdrawals (CSW) in period to add back to P&L
 
         Returns:
             PnLData object with calculated metrics
@@ -498,12 +512,13 @@ class PnLService:
                 )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
-            # Calculate totals using CUMULATIVE P&L values and adjusting for deposits
+            # Calculate totals using CUMULATIVE P&L values and adjusting for cash movements
             start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(
                 equity_values,
                 profit_loss_values,
                 profit_loss_pct_values,
                 net_deposits=net_deposits or Decimal("0"),
+                net_withdrawals=net_withdrawals or Decimal("0"),
             )
             daily_data = self._build_daily_data(
                 timestamps, equity_values, profit_loss_values, profit_loss_pct_values
@@ -548,19 +563,22 @@ class PnLService:
         profit_loss_values: list[float] | list[int],
         profit_loss_pct_values: list[float] | list[int],
         net_deposits: Decimal = Decimal("0"),
+        net_withdrawals: Decimal = Decimal("0"),
     ) -> tuple[Decimal | None, Decimal | None, Decimal | None, Decimal | None]:
         """Extract start/end equity and total P&L from Alpaca's CUMULATIVE arrays.
 
-        With pnl_reset='no_reset', profit_loss[-1] is cumulative P&L from account inception.
-        To get TRUE trading P&L for the period:
-        - Take profit_loss[-1] (cumulative P&L including deposits)
-        - Subtract ALL deposits (CSD) in the period
+        With pnl_reset='no_reset', profit_loss values are CUMULATIVE from account inception.
+        To get TRUE trading P&L for just this period:
+        - Calculate period change: profit_loss[-1] - profit_loss[0]
+        - Subtract deposits (CSD) which inflate equity without being trading gains
+        - Add back withdrawals (CSW) which reduce equity without being trading losses
 
         Args:
             equity_values: List of equity values from Alpaca.
             profit_loss_values: CUMULATIVE P&L values from Alpaca (with pnl_reset='no_reset').
             profit_loss_pct_values: CUMULATIVE P&L percentage values from Alpaca.
-            net_deposits: Total deposits in the period to subtract from P&L.
+            net_deposits: Total deposits (CSD) in the period to subtract from P&L.
+            net_withdrawals: Total withdrawals (CSW) in the period to add back to P&L.
 
         Returns:
             Tuple of (start_value, end_value, total_pnl, total_pnl_pct).
@@ -576,13 +594,19 @@ class PnLService:
         total_pnl: Decimal | None = None
         total_pnl_pct: Decimal | None = None
 
-        # Take the LAST cumulative P&L value and subtract deposits
+        # Calculate PERIOD-SPECIFIC P&L from cumulative values
         if profit_loss_values and len(profit_loss_values) > 0:
+            first_pnl = (
+                Decimal(str(profit_loss_values[0])) if profit_loss_values[0] else Decimal("0")
+            )
             last_pnl = (
                 Decimal(str(profit_loss_values[-1])) if profit_loss_values[-1] else Decimal("0")
             )
-            # Subtract deposits to get TRUE trading P&L
-            total_pnl = last_pnl - net_deposits
+            # Period change in cumulative P&L
+            period_cumulative_change = last_pnl - first_pnl
+            # TRUE trading P&L = period change - deposits + withdrawals
+            # Deposits inflate equity (not trading gains), withdrawals reduce equity (not losses)
+            total_pnl = period_cumulative_change - net_deposits + net_withdrawals
 
         # Calculate percentage from TRUE P&L relative to starting equity
         if total_pnl is not None and start_money.to_decimal() > Decimal("0"):
@@ -603,7 +627,7 @@ class PnLService:
         - With pnl_reset='no_reset', Alpaca's profit_loss values are CUMULATIVE.
         - profit_loss[i] = cumulative P&L from base_value up to day i.
         - To get daily P&L: profit_loss[i] - profit_loss[i-1].
-        - First day's daily P&L is set to 0 (no prior reference in period).
+        - First day uses the cumulative P&L value directly (trading activity on day 1).
 
         Args:
             timestamps: Unix timestamps (seconds since epoch).
@@ -625,17 +649,29 @@ class PnLService:
             curr_equity = Decimal(str(equity_values[i]))
             date_str = datetime.fromtimestamp(ts, tz=UTC).date().isoformat()
 
-            # Compute DAILY P&L from cumulative values: profit_loss[i] - profit_loss[i-1]
-            # First day has no prior reference, so daily P&L = 0 for display
+            # Get current cumulative P&L
+            curr_cumulative = (
+                Decimal(str(profit_loss_values[i]))
+                if (i < len(profit_loss_values) and profit_loss_values[i] is not None)
+                else Decimal("0")
+            )
+
             if i == 0:
-                daily_pnl = Decimal("0")
-                daily_pct = Decimal("0")
+                # First day: use the first cumulative value as-is
+                # This represents actual trading P&L on day 1 of the period
+                daily_pnl = curr_cumulative
+                # Calculate percentage from first day P&L relative to starting equity
+                if curr_equity > Decimal("0"):
+                    # Use equity minus P&L as the base (what we started with)
+                    base_equity = curr_equity - daily_pnl
+                    if base_equity > Decimal("0"):
+                        daily_pct = (daily_pnl / base_equity) * PERCENTAGE_MULTIPLIER
+                    else:
+                        daily_pct = Decimal("0")
+                else:
+                    daily_pct = Decimal("0")
             else:
-                curr_cumulative = (
-                    Decimal(str(profit_loss_values[i]))
-                    if (i < len(profit_loss_values) and profit_loss_values[i] is not None)
-                    else Decimal("0")
-                )
+                # Subsequent days: compute difference from previous day
                 prev_cumulative = (
                     Decimal(str(profit_loss_values[i - 1]))
                     if ((i - 1) < len(profit_loss_values) and profit_loss_values[i - 1] is not None)
