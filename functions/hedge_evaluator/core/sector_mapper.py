@@ -81,9 +81,7 @@ class SectorMapper:
             "Mapped positions to sectors",
             total_positions=len(positions),
             sectors_with_exposure=len(sector_exposures),
-            sector_breakdown={
-                etf: str(exp.total_value) for etf, exp in sector_exposures.items()
-            },
+            sector_breakdown={etf: str(exp.total_value) for etf, exp in sector_exposures.items()},
         )
 
         return sector_exposures

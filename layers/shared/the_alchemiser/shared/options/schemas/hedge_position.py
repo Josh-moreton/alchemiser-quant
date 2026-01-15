@@ -7,7 +7,7 @@ Represents an active options hedge position with roll state tracking.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -135,7 +135,7 @@ class HedgePosition(BaseModel):
     @property
     def days_to_expiry(self) -> int:
         """Calculate days until expiration."""
-        return (self.expiration_date - date.today()).days
+        return (self.expiration_date - datetime.now(UTC).date()).days
 
     def should_roll(self, roll_trigger_dte: int = 45) -> RollState:
         """Determine if hedge should be rolled.

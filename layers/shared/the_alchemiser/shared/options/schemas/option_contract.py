@@ -8,7 +8,7 @@ used for option chain queries and selection.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -137,7 +137,7 @@ class OptionContract(BaseModel):
             Number of calendar days until expiration.
 
         """
-        return (self.expiration_date - date.today()).days
+        return (self.expiration_date - datetime.now(UTC).date()).days
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization.

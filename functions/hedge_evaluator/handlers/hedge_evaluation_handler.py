@@ -11,13 +11,13 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from core.exposure_calculator import ExposureCalculator
 from core.hedge_sizer import HedgeSizer
 from core.sector_mapper import SectorMapper
 
-from the_alchemiser.shared.events import BaseEvent, WorkflowFailed
+from the_alchemiser.shared.events import WorkflowFailed
 from the_alchemiser.shared.events.schemas import (
     HedgeEvaluationCompleted,
     RebalancePlanned,
@@ -97,9 +97,7 @@ class HedgeEvaluationHandler:
             sector_exposures = self._sector_mapper.map_positions_to_sectors(positions)
 
             # Determine primary hedge underlying
-            primary_underlying, _ = self._sector_mapper.aggregate_for_single_hedge(
-                sector_exposures
-            )
+            primary_underlying, _ = self._sector_mapper.aggregate_for_single_hedge(sector_exposures)
 
             # Get current price of primary underlying (from Alpaca)
             underlying_price = self._get_underlying_price(primary_underlying)

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Any
 
 from handlers.hedge_evaluation_handler import HedgeEvaluationHandler

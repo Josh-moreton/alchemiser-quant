@@ -12,7 +12,7 @@ Note: Alpaca options trading requires enabled options approval on the account.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -62,11 +62,13 @@ class AlpacaOptionsAdapter:
 
         # Create session with auth headers
         self._session = requests.Session()
-        self._session.headers.update({
-            "APCA-API-KEY-ID": api_key,
-            "APCA-API-SECRET-KEY": secret_key,
-            "accept": "application/json",
-        })
+        self._session.headers.update(
+            {
+                "APCA-API-KEY-ID": api_key,
+                "APCA-API-SECRET-KEY": secret_key,
+                "accept": "application/json",
+            }
+        )
 
         logger.info(
             "Initialized Alpaca Options adapter",
@@ -353,9 +355,7 @@ class AlpacaOptionsAdapter:
             positions = response.json()
 
             # Filter to only option positions (OCC symbol format)
-            option_positions = [
-                p for p in positions if self._is_option_symbol(p.get("symbol", ""))
-            ]
+            option_positions = [p for p in positions if self._is_option_symbol(p.get("symbol", ""))]
 
             logger.info(
                 "Fetched option positions",
@@ -428,7 +428,7 @@ class AlpacaOptionsAdapter:
 
             # Parse expiration date
             exp_str = data.get("expiration_date", "")
-            expiration = date.fromisoformat(exp_str) if exp_str else date.today()
+            expiration = date.fromisoformat(exp_str) if exp_str else datetime.now(UTC).date()
 
             return OptionContract(
                 symbol=data.get("symbol", ""),
@@ -456,7 +456,7 @@ class AlpacaOptionsAdapter:
             return None
 
     @staticmethod
-    def _parse_decimal(value: Any) -> Decimal | None:
+    def _parse_decimal(value: str | float | int | None) -> Decimal | None:
         """Parse value to Decimal, returning None for empty/invalid values."""
         if value is None or value == "":
             return None

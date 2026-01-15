@@ -131,10 +131,9 @@ class HedgeSizer:
         """
         if vix < Decimal("18"):
             return "low"
-        elif vix < Decimal("28"):
+        if vix < Decimal("28"):
             return "mid"
-        else:
-            return "high"
+        return "high"
 
     def _estimate_contracts(
         self,
