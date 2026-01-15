@@ -237,10 +237,9 @@ def get_budget_rate_for_vix(vix: Decimal) -> Decimal:
     """
     if vix < VIX_LOW_THRESHOLD:
         return TAIL_HEDGE_TEMPLATE.budget_vix_low
-    elif vix < VIX_HIGH_THRESHOLD:
+    if vix < VIX_HIGH_THRESHOLD:
         return TAIL_HEDGE_TEMPLATE.budget_vix_mid
-    else:
-        return TAIL_HEDGE_TEMPLATE.budget_vix_high
+    return TAIL_HEDGE_TEMPLATE.budget_vix_high
 
 
 def get_exposure_multiplier(net_exposure: Decimal) -> Decimal:

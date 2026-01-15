@@ -871,9 +871,7 @@ class HedgeEvaluationRequested(BaseEvent):
     )
 
     # Existing hedge positions (for roll evaluation)
-    existing_hedge_count: int = Field(
-        default=0, description="Number of existing hedge positions"
-    )
+    existing_hedge_count: int = Field(default=0, description="Number of existing hedge positions")
 
 
 class HedgeEvaluationCompleted(BaseEvent):
@@ -882,9 +880,7 @@ class HedgeEvaluationCompleted(BaseEvent):
     Contains the hedge sizing recommendations for execution.
     """
 
-    event_type: str = Field(
-        default="HedgeEvaluationCompleted", description=EVENT_TYPE_DESCRIPTION
-    )
+    event_type: str = Field(default="HedgeEvaluationCompleted", description=EVENT_TYPE_DESCRIPTION)
     __event_version__: str = CONTRACT_VERSION
 
     schema_version: str = Field(
@@ -908,9 +904,7 @@ class HedgeEvaluationCompleted(BaseEvent):
     )
 
     # Evaluation metadata
-    vix_tier: str = Field(
-        default="mid", description="VIX tier used for budget (low/mid/high)"
-    )
+    vix_tier: str = Field(default="mid", description="VIX tier used for budget (low/mid/high)")
     exposure_multiplier: Decimal = Field(
         default=Decimal("1.0"), description="Exposure-based budget multiplier"
     )
@@ -983,9 +977,7 @@ class HedgeExecuted(BaseEvent):
     quantity: int = Field(..., description="Contracts executed")
     filled_price: Decimal = Field(..., description="Average fill price per contract")
     total_premium: Decimal = Field(..., description="Total premium paid/received")
-    nav_percentage: Decimal = Field(
-        ..., description="Premium as percentage of portfolio NAV"
-    )
+    nav_percentage: Decimal = Field(..., description="Premium as percentage of portfolio NAV")
 
     # Status
     success: bool = Field(..., description="Whether execution succeeded")
@@ -1015,9 +1007,7 @@ class AllHedgesCompleted(BaseEvent):
 
     # Cost summary
     total_premium_spent: Decimal = Field(..., description="Total premium spent")
-    total_nav_pct: Decimal = Field(
-        ..., description="Total premium as percentage of NAV"
-    )
+    total_nav_pct: Decimal = Field(..., description="Total premium as percentage of NAV")
 
     # Position summary
     hedge_positions: list[dict[str, Any]] = Field(
