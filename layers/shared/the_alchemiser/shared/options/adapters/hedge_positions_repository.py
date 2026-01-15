@@ -179,6 +179,7 @@ class HedgePositionsRepository:
                 return self._scan_active_positions(expiration_before)
 
             # Query using GSI1
+            # Note: Index name matches template.yaml definition (GSI1-UnderlyingExpirationIndex)
             kwargs: dict[str, Any] = {
                 "IndexName": "GSI1-UnderlyingExpirationIndex",
                 "KeyConditionExpression": "GSI1PK = :pk",
