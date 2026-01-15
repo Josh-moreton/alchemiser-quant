@@ -830,3 +830,228 @@ class DataLakeUpdateCompleted(BaseEvent):
     error_details: dict[str, Any] = Field(
         default_factory=dict, description="Detailed error information per symbol"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Options Hedging Events
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class HedgeEvaluationRequested(BaseEvent):
+    """Event emitted when hedge evaluation is needed after rebalance.
+
+    Triggered by RebalancePlanned event to evaluate current portfolio exposure
+    and determine appropriate hedge sizing.
+    """
+
+    event_type: str = Field(default="HedgeEvaluationRequested", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Source rebalance plan context
+    plan_id: str = Field(..., description="Source RebalancePlan ID")
+    portfolio_nav: Decimal = Field(..., description="Total portfolio NAV (net asset value)")
+
+    # Exposure by sector ETF (calculated from positions)
+    sector_exposures: dict[str, str] = Field(
+        ...,
+        description="Beta-dollar exposure per sector ETF (symbol -> exposure as string)",
+    )
+    net_exposure_ratio: Decimal = Field(
+        ...,
+        description="Net portfolio exposure ratio (e.g., 2.0 = 2.0x leverage)",
+    )
+
+    # Current VIX for adaptive budgeting
+    current_vix: Decimal | None = Field(
+        default=None, description="Current VIX index value for budget calculation"
+    )
+
+    # Existing hedge positions (for roll evaluation)
+    existing_hedge_count: int = Field(
+        default=0, description="Number of existing hedge positions"
+    )
+
+
+class HedgeEvaluationCompleted(BaseEvent):
+    """Event emitted when hedge evaluation completes with recommendations.
+
+    Contains the hedge sizing recommendations for execution.
+    """
+
+    event_type: str = Field(
+        default="HedgeEvaluationCompleted", description=EVENT_TYPE_DESCRIPTION
+    )
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Source context
+    plan_id: str = Field(..., description="Source RebalancePlan ID")
+    portfolio_nav: Decimal = Field(..., description="Portfolio NAV at evaluation")
+
+    # Hedge recommendations
+    recommendations: list[dict[str, Any]] = Field(
+        ...,
+        description="List of hedge recommendations (underlying, delta, contracts, etc.)",
+    )
+    total_premium_budget: Decimal = Field(
+        ..., description="Total premium budget for this hedging cycle"
+    )
+    budget_nav_pct: Decimal = Field(
+        ..., description="Budget as percentage of NAV (e.g., 0.008 = 0.8%)"
+    )
+
+    # Evaluation metadata
+    vix_tier: str = Field(
+        default="mid", description="VIX tier used for budget (low/mid/high)"
+    )
+    exposure_multiplier: Decimal = Field(
+        default=Decimal("1.0"), description="Exposure-based budget multiplier"
+    )
+
+    # Skip reason (if no hedges needed)
+    skip_reason: str | None = Field(
+        default=None,
+        description="Reason if hedging was skipped (e.g., existing hedges sufficient)",
+    )
+
+
+class HedgeOrderRequested(BaseEvent):
+    """Event emitted for individual hedge option order.
+
+    Represents a single hedge order to be executed.
+    """
+
+    event_type: str = Field(default="HedgeOrderRequested", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Hedge identification
+    hedge_id: str = Field(..., description="Unique hedge identifier")
+    plan_id: str = Field(..., description="Source RebalancePlan ID")
+
+    # Option contract details
+    underlying_symbol: str = Field(..., description="Underlying ETF (SPY, QQQ, etc.)")
+    option_symbol: str = Field(..., description="OCC option symbol")
+    option_type: str = Field(..., description="PUT or CALL")
+    strike_price: Decimal = Field(..., description="Strike price")
+    expiration_date: str = Field(..., description="Expiration date (YYYY-MM-DD)")
+
+    # Order details
+    quantity: int = Field(..., description="Number of contracts")
+    action: str = Field(..., description="BUY or SELL")
+    order_type: str = Field(default="LIMIT", description="MARKET or LIMIT")
+    limit_price: Decimal | None = Field(default=None, description="Limit price if applicable")
+
+    # Hedge metadata
+    target_delta: Decimal | None = Field(default=None, description="Target delta for this hedge")
+    hedge_template: str = Field(default="tail_first", description="Hedge template used")
+
+
+class HedgeExecuted(BaseEvent):
+    """Event emitted when hedge option order is executed.
+
+    Contains the execution result for a single hedge order.
+    """
+
+    event_type: str = Field(default="HedgeExecuted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Hedge identification
+    hedge_id: str = Field(..., description="Unique hedge identifier")
+    plan_id: str = Field(..., description="Source RebalancePlan ID")
+    order_id: str = Field(..., description="Alpaca order ID")
+
+    # Contract details
+    option_symbol: str = Field(..., description="OCC option symbol")
+    underlying_symbol: str = Field(..., description="Underlying ETF")
+
+    # Execution results
+    quantity: int = Field(..., description="Contracts executed")
+    filled_price: Decimal = Field(..., description="Average fill price per contract")
+    total_premium: Decimal = Field(..., description="Total premium paid/received")
+    nav_percentage: Decimal = Field(
+        ..., description="Premium as percentage of portfolio NAV"
+    )
+
+    # Status
+    success: bool = Field(..., description="Whether execution succeeded")
+    error_message: str | None = Field(default=None, description="Error message if failed")
+
+
+class AllHedgesCompleted(BaseEvent):
+    """Event emitted when all hedge orders in a cycle have completed.
+
+    Aggregates results from multiple HedgeExecuted events for notifications.
+    """
+
+    event_type: str = Field(default="AllHedgesCompleted", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Identification
+    plan_id: str = Field(..., description="Source RebalancePlan ID")
+
+    # Aggregated results
+    total_hedges: int = Field(..., description="Total number of hedge orders")
+    succeeded_hedges: int = Field(..., description="Number that succeeded")
+    failed_hedges: int = Field(..., description="Number that failed")
+
+    # Cost summary
+    total_premium_spent: Decimal = Field(..., description="Total premium spent")
+    total_nav_pct: Decimal = Field(
+        ..., description="Total premium as percentage of NAV"
+    )
+
+    # Position summary
+    hedge_positions: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Summary of new hedge positions created",
+    )
+
+    # Failed symbols for error reporting
+    failed_symbols: list[str] = Field(
+        default_factory=list, description="Underlying symbols that failed"
+    )
+
+
+class HedgeRollTriggered(BaseEvent):
+    """Event emitted when a hedge position needs to be rolled.
+
+    Triggered by the roll manager when DTE falls below threshold.
+    """
+
+    event_type: str = Field(default="HedgeRollTriggered", description=EVENT_TYPE_DESCRIPTION)
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Existing position to roll
+    hedge_id: str = Field(..., description="Hedge position ID to roll")
+    option_symbol: str = Field(..., description="Current option symbol")
+    underlying_symbol: str = Field(..., description="Underlying ETF")
+    current_dte: int = Field(..., description="Current days to expiry")
+    current_contracts: int = Field(..., description="Number of contracts to roll")
+
+    # Roll reason
+    roll_reason: str = Field(
+        ..., description="Reason for roll (dte_threshold, profit_taking, etc.)"
+    )
