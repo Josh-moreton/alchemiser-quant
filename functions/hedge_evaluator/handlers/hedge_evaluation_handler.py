@@ -231,7 +231,7 @@ class HedgeEvaluationHandler:
 
         Note:
             Uses fallback prices until market data integration is complete.
-            TODO: Integrate with AlpacaManager to get real-time prices.
+            TODO(#2992): Integrate with AlpacaManager to get real-time prices.
 
         """
         return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
@@ -243,8 +243,8 @@ class HedgeEvaluationHandler:
             Current VIX value, or None if unavailable
 
         """
-        # TODO: Integrate with market data service to get real VIX
-        # For now, return None to use default
+        # TODO(#2993): Integrate with market data service to get real VIX
+        # For now, return None to use default mid-tier budget rate
         return None
 
     def _publish_skip_event(

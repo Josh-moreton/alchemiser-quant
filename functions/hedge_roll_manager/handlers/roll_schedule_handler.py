@@ -150,10 +150,10 @@ class RollScheduleHandler:
             properly tracked in DynamoDB.
 
             Implementation priority: HIGH - Required for production roll management.
-            Track: GitHub Issue #2990 (Options Hedging - Roll Manager DynamoDB Integration)
+            Track: GitHub Issue #2991 (Options Hedging: DynamoDB Position Tracking Integration)
 
         """
-        # TODO(#2990): Implement DynamoDB query for active positions
+        # TODO(#2991): Implement DynamoDB query for active positions
         # Expected schema: HedgePositionsTable with GSI1 (UNDERLYING#symbol, EXPIRATION#date)
         # or scan with filter on status='active' and expiration_date > today
         logger.info("Querying active hedge positions from DynamoDB (placeholder - returns empty)")

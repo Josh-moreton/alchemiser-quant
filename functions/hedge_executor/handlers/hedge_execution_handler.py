@@ -308,7 +308,7 @@ class HedgeExecutionHandler:
 
         Note:
             Uses fallback prices until market data integration is complete.
-            TODO: Integrate with market data service for real-time prices.
+            TODO(#2992): Integrate with market data service for real-time prices.
 
         """
         return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
