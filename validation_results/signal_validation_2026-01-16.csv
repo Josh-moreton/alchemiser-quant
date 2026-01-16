@@ -1,0 +1,13 @@
+validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,blatant_tech,blatant_tech.clj,no,,2026-01-16T12:01:03.913323+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,defence,defence.clj,no,,2026-01-16T12:01:12.566355+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,gold,gold.clj,yes,,2026-01-16T12:01:38.380344+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,nuclear,nuclear.clj,yes,,2026-01-16T12:01:43.481047+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,pals_spell,pals_spell.clj,yes,,2026-01-16T12:01:46.422516+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,rains_concise_em,rains_concise_em.clj,no,,2026-01-16T12:01:56.198375+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,rains_em_dancer,rains_em_dancer.clj,no,,2026-01-16T12:02:23.530020+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,simons_full_kmlm,simons_full_kmlm.clj,yes,,2026-01-16T12:02:31.674739+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,sisyphus_lowvol,sisyphus_lowvol.clj,no,,2026-01-16T12:02:41.474489+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,tqqq_ftlt,tqqq_ftlt.clj,yes,,2026-01-16T12:02:44.832397+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,tqqq_ftlt_1,tqqq_ftlt_1.clj,yes,,2026-01-16T12:02:48.098475+00:00
+2026-01-16,workflow-e1751daa-d155-4ed5-852e-35b50fd818a8,tqqq_ftlt_2,tqqq_ftlt_2.clj,yes,,2026-01-16T12:02:58.810240+00:00

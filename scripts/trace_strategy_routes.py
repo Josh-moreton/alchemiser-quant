@@ -59,8 +59,22 @@ sys.path.insert(0, str(PROJECT_ROOT / "functions" / "strategy_worker"))
 sys.path.insert(0, str(PROJECT_ROOT / "layers" / "shared"))
 
 
-Policy = Literal["composer", "all-live", "none-live"]
+Policy = Literal["composer", "all-live", "none-live", "custom"]
 Mode = Literal["live", "historical"]
+
+# Global per-indicator override map (set via --indicator-config or programmatically)
+_INDICATOR_OVERRIDES: dict[str, bool] = {}
+
+
+def set_indicator_overrides(overrides: dict[str, bool]) -> None:
+    """Set per-indicator live bar overrides programmatically.
+    
+    Args:
+        overrides: Dict mapping indicator_type to use_live_bar boolean.
+                   e.g., {"rsi": True, "cumulative_return": False}
+    """
+    global _INDICATOR_OVERRIDES
+    _INDICATOR_OVERRIDES = dict(overrides)
 
 
 def _parse_date(date_str: str) -> date:
@@ -108,6 +122,18 @@ def _apply_live_bar_policy(policy: Policy) -> None:
         from the_alchemiser.shared.indicators.partial_bar_config import should_use_live_bar
 
         indicator_service_mod.should_use_live_bar = should_use_live_bar
+        return
+
+    if policy == "custom":
+        # Use per-indicator overrides from _INDICATOR_OVERRIDES, falling back to config
+        from the_alchemiser.shared.indicators.partial_bar_config import should_use_live_bar as default_fn
+
+        def _custom_should_use_live_bar(indicator_type: str) -> bool:
+            if indicator_type in _INDICATOR_OVERRIDES:
+                return _INDICATOR_OVERRIDES[indicator_type]
+            return default_fn(indicator_type)
+
+        indicator_service_mod.should_use_live_bar = _custom_should_use_live_bar
         return
 
     def _always(_indicator_type: str) -> bool:
@@ -259,9 +285,14 @@ def main() -> None:
     parser.add_argument("--as-of", dest="as_of", help="Historical cutoff date (YYYY-MM-DD / today / yesterday)")
     parser.add_argument(
         "--policy",
-        choices=("composer", "all-live", "none-live"),
+        choices=("composer", "all-live", "none-live", "custom"),
         default="composer",
         help="Live bar inclusion policy for indicators",
+    )
+    parser.add_argument(
+        "--indicator-config",
+        dest="indicator_config",
+        help="JSON file or string with per-indicator overrides, e.g., '{\"rsi\": true, \"cumulative_return\": false}'",
     )
     parser.add_argument(
         "--append-live-bar",
@@ -288,6 +319,22 @@ def main() -> None:
     if not args.strategy:
         parser.error("strategy is required (or use --list)")
 
+    # Parse and apply per-indicator config if provided
+    if args.indicator_config:
+        indicator_config_str = args.indicator_config
+        # Check if it's a file path
+        config_path = Path(indicator_config_str)
+        if config_path.exists():
+            indicator_config_str = config_path.read_text()
+        try:
+            indicator_overrides = json.loads(indicator_config_str)
+            set_indicator_overrides(indicator_overrides)
+            # Auto-switch to custom policy if not already set
+            if args.policy == "composer":
+                args.policy = "custom"
+        except json.JSONDecodeError as e:
+            parser.error(f"Invalid JSON in --indicator-config: {e}")
+
     as_of_date = _parse_date(args.as_of) if args.as_of else None
     mode: Mode = "historical" if as_of_date else "live"
 
@@ -311,7 +358,10 @@ def main() -> None:
 
     payload = json.dumps(result, indent=2, sort_keys=False, default=_json_default)
 
-    if args.out:
+    if args.out == "stdout" or args.out == "json":
+        # Output JSON to stdout (for subprocess consumption)
+        print(payload)
+    elif args.out:
         Path(args.out).write_text(payload)
         print(f"Wrote trace to: {args.out}")
     else:

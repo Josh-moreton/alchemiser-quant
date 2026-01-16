@@ -1,0 +1,13 @@
+validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,blatant_tech,blatant_tech.clj,no,We have CORD SOX live signal is CORD NBIS SOX,2026-01-16T09:23:14.488012+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,defence,defence.clj,yes,,2026-01-16T09:23:23.921959+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,gold,gold.clj,yes,,2026-01-16T09:23:30.190893+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,nuclear,nuclear.clj,yes,,2026-01-16T09:23:36.750847+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,pals_spell,pals_spell.clj,yes,,2026-01-16T09:23:44.101045+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,rains_concise_em,rains_concise_em.clj,no,We have EDZ live signal is EDZ XLF,2026-01-16T09:24:15.002580+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,rains_em_dancer,rains_em_dancer.clj,yes,,2026-01-16T09:24:28.483969+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,simons_full_kmlm,simons_full_kmlm.clj,yes,,2026-01-16T09:25:06.014355+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,sisyphus_lowvol,sisyphus_lowvol.clj,no,We have UVXY EDZ VIXY BOND BIL UGL live signal is VIXY UVIX EDZ UVXY UGL BOND BIL,2026-01-16T09:26:26.595363+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,tqqq_ftlt,tqqq_ftlt.clj,yes,,2026-01-16T09:26:38.575710+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,tqqq_ftlt_1,tqqq_ftlt_1.clj,yes,,2026-01-16T09:26:51.282754+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,tqqq_ftlt_2,tqqq_ftlt_2.clj,yes,,2026-01-16T09:26:58.467696+00:00

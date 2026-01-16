@@ -474,7 +474,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--stage",
-        choices=["dev", "prod"],
+        choices=["dev", "staging", "prod"],
         default="dev",
         help="Environment stage (default: dev)",
     )
