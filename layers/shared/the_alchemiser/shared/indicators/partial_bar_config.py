@@ -191,7 +191,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.YES,
         modification_notes="Works well with partial bar. Compares today's close-so-far "
         "to the close from N days ago. This is the intended behavior for momentum signals.",
-        use_live_bar=False,  # Bento testing: T-1 data required for correct signals
+        use_live_bar=True,  # Bento testing: T-1 data required for correct signals
         edge_cases=(
             "Reference price (N days ago) must be from a completed bar",
             "For window=60, comparing to price from ~3 months ago is stable",
