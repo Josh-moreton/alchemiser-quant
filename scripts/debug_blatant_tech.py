@@ -437,11 +437,40 @@ Decision tree (simplified - showing path to SOXS):
     
     # For Branch 2
     print("\nBranch 2 - CRWV RSI(10):")
-    print(f"  Current: {crwv_rsi_10:.4f}")
-    print(f"  Upper threshold: 80 (must be below)")
-    print(f"  Lower threshold: 30 (must be above)")
-    print(f"  Upper margin: {80 - crwv_rsi_10:.4f} (positive = room before CORD)")
-    print(f"  Lower margin: {crwv_rsi_10 - 30:.4f} (positive = room before metals branch)")
+    if crwv_rsi_10 is not None:
+        print(f"  Current: {crwv_rsi_10:.4f}")
+        print(f"  Upper threshold: 80 (must be below)")
+        print(f"  Lower threshold: 30 (must be above)")
+        print(f"  Upper margin: {80 - crwv_rsi_10:.4f} (positive = room before CORD)")
+        print(f"  Lower margin: {crwv_rsi_10 - 30:.4f} (positive = room before metals branch)")
+    else:
+        print("  *** NO DATA - CRWV missing from symbol universe! ***")
+    
+    # =========================================================================
+    # FINAL SUMMARY
+    # =========================================================================
+    print_section("ROOT CAUSE SUMMARY")
+    print("""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  CRWV IS MISSING FROM S3 MARKET DATA!                                        ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  The strategy uses CRWV RSI(10) as a gate condition in Branch 2:             ║
+║    - If CRWV RSI(10) < 80 AND > 30: select lowest RSI from [NBIS, APLD, BE]  ║
+║    - Otherwise: CORD                                                         ║
+║                                                                              ║
+║  Without CRWV data, the strategy engine likely:                              ║
+║    1. Fails to evaluate the condition                                        ║
+║    2. Falls back to CORD (the else branch)                                   ║
+║                                                                              ║
+║  FIX REQUIRED:                                                               ║
+║    Add CRWV to the symbol universe for S3 data ingestion                     ║
+║                                                                              ║
+║  If CRWV data were available and 30 < RSI(10) < 80:                          ║
+║    -> NBIS would win (lowest RSI: 61.71 < 63.82 < 74.38)                     ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+""")
 
 
 if __name__ == "__main__":
