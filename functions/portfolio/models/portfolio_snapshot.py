@@ -132,6 +132,28 @@ class MarginInfo:
         return self.buying_power
 
     @property
+    def intraday_buying_power(self) -> Decimal | None:
+        """Get the effective buying power for intraday positions.
+
+        For PDT accounts (multiplier=4), uses daytrading_buying_power which
+        is the correct constraint for same-day trades. Falls back to
+        effective_buying_power for non-PDT accounts.
+
+        This is critical for capital constraint validation because Alpaca
+        enforces daytrading_buying_power limits on BUY orders during the
+        trading day, even if RegT buying power would allow more.
+
+        Returns:
+            Buying power applicable for intraday BUY orders
+
+        """
+        # For PDT accounts, use daytrading_buying_power if available
+        if self.is_pdt_account and self.daytrading_buying_power is not None:
+            return self.daytrading_buying_power
+        # Fall back to effective_buying_power for non-PDT or missing data
+        return self.effective_buying_power
+
+    @property
     def is_margin_account(self) -> bool:
         """Check if this is a margin-enabled account.
 
