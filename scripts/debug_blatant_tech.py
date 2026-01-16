@@ -35,7 +35,20 @@ from indicators.indicators import TechnicalIndicators
 def get_prices_for_symbol(adapter: CachedMarketDataAdapter, symbol: str) -> pd.Series:
     """Get price series for a symbol."""
     bars = adapter.get_bars(Symbol(symbol), "1Y", "1D")
+    if not bars:
+        print(f"      WARNING: No data for {symbol}!")
+        return pd.Series(dtype=float)
     return pd.Series([float(b.close) for b in bars])
+
+
+def safe_rsi(prices: pd.Series, window: int) -> float | None:
+    """Calculate RSI safely, returning None if data is insufficient."""
+    if len(prices) == 0:
+        return None
+    rsi = TechnicalIndicators.rsi(prices, window=window)
+    if len(rsi) == 0:
+        return None
+    return float(rsi.iloc[-1])
 
 
 def print_section(title: str) -> None:
@@ -53,13 +66,29 @@ def print_condition(name: str, value: float, threshold: float, operator: str, re
 
 def main() -> None:
     """Debug blatant_tech divergence by tracing all decision paths."""
-    print_section("BLATANT_TECH DIVERGENCE DEBUG")
+    print_section("BLATANT_TECH DIVERGENCE DEBUG (UPDATED STRATEGY)")
     print("\nExpected (Composer): 33% CORD, 33% NBIS, 33% SOXS")
     print("Actual (Our system): 66% CORD, 33% SOXS")
     print("\nThe strategy has 3 equal-weighted branches:")
-    print("  Branch 1: GDX RSI logic -> should give CORD (via else OR metals path)")
-    print("  Branch 2: APLD RSI logic -> should give NBIS")
-    print("  Branch 3: SOXL complex   -> should give SOXS")
+    print("  Branch 1: GDX RSI(7) logic  -> should give CORD (via else)")
+    print("  Branch 2: CRWV RSI(10) logic -> should give NBIS")
+    print("  Branch 3: SOXL complex      -> should give SOXS")
+    
+    # Initialize S3 store for direct reads
+    store = MarketDataStore()
+    
+    # Check what symbols we have in S3
+    print_section("S3 DATA CHECK")
+    critical_symbols = ["GDX", "CRWV", "NBIS", "APLD", "BE", "CORD", "SOXL"]
+    for sym in critical_symbols:
+        try:
+            df = store.read_symbol_data(sym)
+            if df is not None and len(df) > 0:
+                print(f"  {sym}: {len(df)} rows, {df.index.min().date()} to {df.index.max().date()}")
+            else:
+                print(f"  {sym}: NO DATA IN S3!")
+        except Exception as e:
+            print(f"  {sym}: ERROR - {e}")
     
     # Initialize adapter
     adapter = CachedMarketDataAdapter(append_live_bar=True)
@@ -75,7 +104,7 @@ Decision tree:
     if (rsi GDX 7) > 40:
       -> select-top 2 by RSI(10) from [CPXR, AGQ, GDXU]  (metal ETFs)
     else:
-      -> select-bottom 1 by RSI(10) from [NBIS, APLD, BE, CORD]
+      -> select-top 1 by RSI(10) from [NBIS, APLD, BE]  (HIGHEST RSI wins)
   else:
     -> CORD
 """)
@@ -101,11 +130,11 @@ Decision tree:
                     print(f"      {sym} RSI(10) = {rsi_10:.4f}")
                 except Exception as e:
                     print(f"      {sym}: ERROR - {e}")
-            print("  BRANCH 1 RESULT: One of [CPXR, AGQ, GDXU]")
+            print("  BRANCH 1 RESULT: Two of [CPXR, AGQ, GDXU] (highest RSI)")
         else:
-            print("\n  -> Selects BOTTOM 1 by RSI(10) from [NBIS, APLD, BE, CORD]")
+            print("\n  -> Selects TOP 1 by RSI(10) from [NBIS, APLD, BE] (HIGHEST wins)")
             rsi_values: dict[str, float] = {}
-            for sym in ["NBIS", "APLD", "BE", "CORD"]:
+            for sym in ["NBIS", "APLD", "BE"]:
                 try:
                     prices = get_prices_for_symbol(adapter, sym)
                     rsi_10 = TechnicalIndicators.rsi(prices, window=10).iloc[-1]
@@ -114,65 +143,76 @@ Decision tree:
                 except Exception as e:
                     print(f"      {sym}: ERROR - {e}")
             if rsi_values:
-                winner = min(rsi_values, key=rsi_values.get)  # type: ignore[arg-type]
-                print(f"  BRANCH 1 RESULT: {winner} (lowest RSI)")
+                winner = max(rsi_values, key=rsi_values.get)  # type: ignore[arg-type]
+                print(f"  BRANCH 1 RESULT: {winner} (highest RSI)")
     else:
         print("\n  -> Takes ELSE branch")
         print("  BRANCH 1 RESULT: CORD")
     
     # =========================================================================
-    # BRANCH 2: APLD RSI PATH
+    # BRANCH 2: CRWV RSI PATH (UPDATED - was APLD)
     # =========================================================================
-    print_section("BRANCH 2: APLD RSI PATH")
+    print_section("BRANCH 2: CRWV RSI PATH")
     print("""
 Decision tree:
-  if (rsi APLD 9) < 70:
-    if (rsi APLD 3) > 30:
-      -> select-bottom 1 by RSI(10) from [NBIS, APLD, BE, CORD]
+  if (rsi CRWV 10) < 80:
+    if (rsi CRWV 10) > 30:
+      -> select-bottom 1 by RSI(10) from [NBIS, APLD, BE]  (LOWEST RSI wins)
     else:
-      -> CORD
+      -> Metals group with CORD + metals
   else:
     -> CORD
 """)
     
-    apld_prices = get_prices_for_symbol(adapter, "APLD")
-    apld_rsi_9 = TechnicalIndicators.rsi(apld_prices, window=9).iloc[-1]
-    apld_rsi_3 = TechnicalIndicators.rsi(apld_prices, window=3).iloc[-1]
+    crwv_prices = get_prices_for_symbol(adapter, "CRWV")
+    crwv_rsi_10 = safe_rsi(crwv_prices, window=10)
     
-    print(f"APLD RSI(9) = {apld_rsi_9:.4f}")
-    print(f"APLD RSI(3) = {apld_rsi_3:.4f}")
-    
-    cond2_lt_70 = apld_rsi_9 < 70
-    print_condition("APLD RSI(9) < 70", apld_rsi_9, 70, "<", cond2_lt_70)
-    
-    if cond2_lt_70:
-        print("\n  -> Enters inner branch")
-        cond2_gt_30 = apld_rsi_3 > 30
-        print_condition("APLD RSI(3) > 30", apld_rsi_3, 30, ">", cond2_gt_30)
-        
-        if cond2_gt_30:
-            print("\n  -> Selects BOTTOM 1 by RSI(10) from [NBIS, APLD, BE, CORD]")
-            rsi_values = {}
-            for sym in ["NBIS", "APLD", "BE", "CORD"]:
-                try:
-                    prices = get_prices_for_symbol(adapter, sym)
-                    rsi_10 = TechnicalIndicators.rsi(prices, window=10).iloc[-1]
-                    rsi_values[sym] = rsi_10
-                    print(f"      {sym} RSI(10) = {rsi_10:.4f}")
-                except Exception as e:
-                    print(f"      {sym}: ERROR - {e}")
-            if rsi_values:
-                winner = min(rsi_values, key=rsi_values.get)  # type: ignore[arg-type]
-                print(f"  BRANCH 2 RESULT: {winner} (lowest RSI)")
-        else:
-            print("\n  -> Takes ELSE branch (RSI(3) <= 30)")
-            print("  BRANCH 2 RESULT: CORD")
+    if crwv_rsi_10 is None:
+        print("  *** ERROR: NO DATA FOR CRWV! ***")
+        print("  This is likely causing the divergence!")
+        print("  Need to add CRWV to the symbol universe.")
+        print("\n  BRANCH 2 RESULT: UNKNOWN (missing data)")
+        cond2_lt_80 = False  # Default for later analysis
+        cond2_gt_30 = False
     else:
-        print("\n  -> Takes ELSE branch (RSI(9) >= 70)")
-        print("  BRANCH 2 RESULT: CORD")
+        print(f"CRWV RSI(10) = {crwv_rsi_10:.4f}")
+        
+        cond2_lt_80 = crwv_rsi_10 < 80
+        print_condition("CRWV RSI(10) < 80", crwv_rsi_10, 80, "<", cond2_lt_80)
+        
+        if cond2_lt_80:
+            print("\n  -> Enters inner branch")
+            cond2_gt_30 = crwv_rsi_10 > 30
+            print_condition("CRWV RSI(10) > 30", crwv_rsi_10, 30, ">", cond2_gt_30)
+            
+            if cond2_gt_30:
+                print("\n  -> Selects BOTTOM 1 by RSI(10) from [NBIS, APLD, BE] (LOWEST wins)")
+                print("     NOTE: CORD is NOT in this filter!")
+                rsi_values = {}
+                for sym in ["NBIS", "APLD", "BE"]:
+                    try:
+                        prices = get_prices_for_symbol(adapter, sym)
+                        rsi_10 = safe_rsi(prices, window=10)
+                        if rsi_10 is not None:
+                            rsi_values[sym] = rsi_10
+                            print(f"      {sym} RSI(10) = {rsi_10:.4f}")
+                        else:
+                            print(f"      {sym}: NO DATA")
+                    except Exception as e:
+                        print(f"      {sym}: ERROR - {e}")
+                if rsi_values:
+                    winner = min(rsi_values, key=rsi_values.get)  # type: ignore[arg-type]
+                    print(f"  BRANCH 2 RESULT: {winner} (lowest RSI)")
+            else:
+                print("\n  -> Takes ELSE branch (CRWV RSI(10) <= 30)")
+                print("  -> Goes to Metals group with CORD")
+                print("  BRANCH 2 RESULT: CORD + metals (complex)")
+        else:
+            print("\n  -> Takes ELSE branch (CRWV RSI(10) >= 80)")
+            print("  BRANCH 2 RESULT: CORD")
     
     # =========================================================================
-    # BRANCH 3: SOXL COMPLEX PATH (abbreviated - just check main gate)
+    # BRANCH 3: SOXL COMPLEX PATH (unchanged)
     # =========================================================================
     print_section("BRANCH 3: SOXL COMPLEX PATH")
     print("""
@@ -235,6 +275,21 @@ Decision tree (simplified - showing path to SOXS):
                         print("  BRANCH 3 RESULT: SOXS ✓")
                     else:
                         print("  BRANCH 3 RESULT: select-top 2 from [SOXL, SPXL, TQQQ]")
+                else:
+                    print("  -> RSI(30) < 57.49, checking cumulative return path...")
+                    soxl_cumret_32 = TechnicalIndicators.cumulative_return(soxl_prices, window=32).iloc[-1]
+                    print(f"  SOXL cumulative-return(32) = {soxl_cumret_32:.4f}")
+                    if soxl_cumret_32 <= -12:
+                        print("  BRANCH 3 RESULT: SOXL")
+                    else:
+                        soxl_mdd_250 = TechnicalIndicators.max_drawdown(soxl_prices, window=250).iloc[-1]
+                        print(f"  SOXL max-drawdown(250) = {soxl_mdd_250:.4f}")
+                        if soxl_mdd_250 <= 71:
+                            print("  BRANCH 3 RESULT: SOXS")
+                        else:
+                            print("  BRANCH 3 RESULT: SOXL")
+            else:
+                print("  BRANCH 3 RESULT: SOXL")
         else:
             cond3_rsi32_gte_50 = soxl_rsi_32 >= 50
             print_condition("SOXL RSI(32) >= 50", soxl_rsi_32, 50, ">=", cond3_rsi32_gte_50)
@@ -256,42 +311,56 @@ Decision tree (simplified - showing path to SOXS):
     adapter_no_live = CachedMarketDataAdapter(append_live_bar=False)
     
     gdx_prices_t1 = get_prices_for_symbol(adapter_no_live, "GDX")
-    apld_prices_t1 = get_prices_for_symbol(adapter_no_live, "APLD")
+    crwv_prices_t1 = get_prices_for_symbol(adapter_no_live, "CRWV")
     
-    gdx_rsi_7_t1 = TechnicalIndicators.rsi(gdx_prices_t1, window=7).iloc[-1]
-    apld_rsi_9_t1 = TechnicalIndicators.rsi(apld_prices_t1, window=9).iloc[-1]
-    apld_rsi_3_t1 = TechnicalIndicators.rsi(apld_prices_t1, window=3).iloc[-1]
+    gdx_rsi_7_t1 = safe_rsi(gdx_prices_t1, window=7)
+    crwv_rsi_10_t1 = safe_rsi(crwv_prices_t1, window=10)
     
     print(f"\nT-1 Values (S3 historical only, no live bar):")
-    print(f"  GDX  RSI(7):  {gdx_rsi_7_t1:.4f}  (vs live: {gdx_rsi_7:.4f}, diff: {gdx_rsi_7 - gdx_rsi_7_t1:+.4f})")
-    print(f"  APLD RSI(9):  {apld_rsi_9_t1:.4f}  (vs live: {apld_rsi_9:.4f}, diff: {apld_rsi_9 - apld_rsi_9_t1:+.4f})")
-    print(f"  APLD RSI(3):  {apld_rsi_3_t1:.4f}  (vs live: {apld_rsi_3:.4f}, diff: {apld_rsi_3 - apld_rsi_3_t1:+.4f})")
+    if gdx_rsi_7_t1 is not None:
+        print(f"  GDX  RSI(7):   {gdx_rsi_7_t1:.4f}  (vs live: {gdx_rsi_7:.4f}, diff: {gdx_rsi_7 - gdx_rsi_7_t1:+.4f})")
+    else:
+        print(f"  GDX  RSI(7):   NO DATA")
+    if crwv_rsi_10_t1 is not None and crwv_rsi_10 is not None:
+        print(f"  CRWV RSI(10):  {crwv_rsi_10_t1:.4f}  (vs live: {crwv_rsi_10:.4f}, diff: {crwv_rsi_10 - crwv_rsi_10_t1:+.4f})")
+    else:
+        print(f"  CRWV RSI(10):  NO DATA (symbol missing from universe!)")
     
     # =========================================================================
-    # RSI(10) FILTER ANALYSIS
+    # RSI(10) FILTER ANALYSIS FOR BRANCH 2
     # =========================================================================
-    print_section("RSI(10) FILTER ANALYSIS")
-    print("For paths that select-bottom 1 by RSI(10) from [NBIS, APLD, BE, CORD]:")
+    print_section("RSI(10) FILTER ANALYSIS FOR BRANCH 2")
+    print("For paths that select-bottom 1 by RSI(10) from [NBIS, APLD, BE]:")
     print("(Lower RSI = more oversold = selected)")
+    print("NOTE: CORD is NOT in this list!")
     
     rsi_10_live: dict[str, float] = {}
     rsi_10_t1: dict[str, float] = {}
     
-    for sym in ["NBIS", "APLD", "BE", "CORD"]:
+    for sym in ["NBIS", "APLD", "BE"]:
         try:
             prices_live = get_prices_for_symbol(adapter, sym)
             prices_t1 = get_prices_for_symbol(adapter_no_live, sym)
             
-            rsi_live = TechnicalIndicators.rsi(prices_live, window=10).iloc[-1]
-            rsi_t1 = TechnicalIndicators.rsi(prices_t1, window=10).iloc[-1]
+            rsi_live = safe_rsi(prices_live, window=10)
+            rsi_t1 = safe_rsi(prices_t1, window=10)
             
-            rsi_10_live[sym] = rsi_live
-            rsi_10_t1[sym] = rsi_t1
+            if rsi_live is not None:
+                rsi_10_live[sym] = rsi_live
+            if rsi_t1 is not None:
+                rsi_10_t1[sym] = rsi_t1
             
             print(f"\n  {sym}:")
-            print(f"    RSI(10) with live bar: {rsi_live:.4f}")
-            print(f"    RSI(10) T-1 only:      {rsi_t1:.4f}")
-            print(f"    Difference:            {rsi_live - rsi_t1:+.4f}")
+            if rsi_live is not None:
+                print(f"    RSI(10) with live bar: {rsi_live:.4f}")
+            else:
+                print(f"    RSI(10) with live bar: NO DATA")
+            if rsi_t1 is not None:
+                print(f"    RSI(10) T-1 only:      {rsi_t1:.4f}")
+            else:
+                print(f"    RSI(10) T-1 only:      NO DATA")
+            if rsi_live is not None and rsi_t1 is not None:
+                print(f"    Difference:            {rsi_live - rsi_t1:+.4f}")
         except Exception as e:
             print(f"\n  {sym}: ERROR - {e}")
     
@@ -309,7 +378,6 @@ Decision tree (simplified - showing path to SOXS):
     # =========================================================================
     print_section("DIAGNOSIS")
     
-    # Determine what conditions need to be met for CORD, NBIS, SOXS
     print("\nTo get expected output [CORD, NBIS, SOXS]:")
     print("-" * 60)
     
@@ -321,31 +389,36 @@ Decision tree (simplified - showing path to SOXS):
         print(f"   ✗ GDX RSI(7) < 70, enters Metals group")
         if gdx_rsi_7 > 40:
             print("   ✗ And GDX RSI(7) > 40, so selects metal ETFs, not CORD")
-            print("   FIX NEEDED: GDX RSI needs to be >= 70 OR <= 40")
+            print("   FIX NEEDED: GDX RSI needs to be >= 70")
         else:
-            print("   ✓ But GDX RSI(7) <= 40, could get CORD from filter if it has lowest RSI(10)")
+            print("   ✗ GDX RSI(7) <= 40, selects from [NBIS, APLD, BE], not CORD")
+            print("   FIX NEEDED: GDX RSI needs to be >= 70")
     
     print("\n2. BRANCH 2 should output NBIS:")
-    print(f"   Current: APLD RSI(9) = {apld_rsi_9:.4f}")
-    print(f"   Current: APLD RSI(3) = {apld_rsi_3:.4f}")
-    
-    if apld_rsi_9 >= 70:
-        print("   ✗ APLD RSI(9) >= 70, takes ELSE -> CORD instead of NBIS")
-        print("   FIX NEEDED: APLD RSI(9) needs to be < 70")
-    elif apld_rsi_3 <= 30:
-        print("   ✗ APLD RSI(3) <= 30, takes inner ELSE -> CORD instead of NBIS")
-        print("   FIX NEEDED: APLD RSI(3) needs to be > 30")
+    if crwv_rsi_10 is None:
+        print("   *** CRWV DATA MISSING ***")
+        print("   Cannot evaluate branch - need to add CRWV to symbol universe!")
+        print("   This is likely causing the strategy to fail or default to CORD")
     else:
-        print("   ✓ Conditions met to enter filter")
-        if rsi_10_live:
-            sorted_rsi = sorted(rsi_10_live.items(), key=lambda x: x[1])
-            winner = sorted_rsi[0][0]
-            if winner == "NBIS":
-                print(f"   ✓ NBIS has lowest RSI(10), so NBIS selected")
-            else:
-                print(f"   ✗ {winner} has lowest RSI(10) = {sorted_rsi[0][1]:.4f}")
-                print(f"   ✗ NBIS RSI(10) = {rsi_10_live.get('NBIS', 0):.4f}")
-                print(f"   FIX NEEDED: NBIS needs lower RSI(10) than {winner}")
+        print(f"   Current: CRWV RSI(10) = {crwv_rsi_10:.4f}")
+        
+        if crwv_rsi_10 >= 80:
+            print("   ✗ CRWV RSI(10) >= 80, takes ELSE -> CORD instead of NBIS")
+            print("   FIX NEEDED: CRWV RSI(10) needs to be < 80")
+        elif crwv_rsi_10 <= 30:
+            print("   ✗ CRWV RSI(10) <= 30, takes Metals branch with CORD")
+            print("   FIX NEEDED: CRWV RSI(10) needs to be > 30")
+        else:
+            print("   ✓ Conditions met to enter filter (30 < RSI < 80)")
+            if rsi_10_live:
+                sorted_rsi = sorted(rsi_10_live.items(), key=lambda x: x[1])
+                winner = sorted_rsi[0][0]
+                if winner == "NBIS":
+                    print(f"   ✓ NBIS has lowest RSI(10) = {rsi_10_live['NBIS']:.4f}, so NBIS selected")
+                else:
+                    print(f"   ✗ {winner} has lowest RSI(10) = {sorted_rsi[0][1]:.4f}")
+                    print(f"   ✗ NBIS RSI(10) = {rsi_10_live.get('NBIS', 0):.4f}")
+                    print(f"   FIX NEEDED: NBIS needs lower RSI(10) than {winner}")
     
     print("\n3. BRANCH 3 should output SOXS:")
     print("   [Already traced above]")
@@ -360,18 +433,15 @@ Decision tree (simplified - showing path to SOXS):
     print("\nBranch 1 - GDX RSI(7):")
     print(f"  Current: {gdx_rsi_7:.4f}")
     print(f"  Threshold: 70")
-    print(f"  Margin: {70 - gdx_rsi_7:.4f} (positive = room before flip)")
+    print(f"  Margin: {70 - gdx_rsi_7:.4f} (positive = room before taking metals path)")
     
     # For Branch 2
-    print("\nBranch 2 - APLD RSI(9):")
-    print(f"  Current: {apld_rsi_9:.4f}")
-    print(f"  Threshold: 70")
-    print(f"  Margin: {70 - apld_rsi_9:.4f} (positive = room before flip)")
-    
-    print("\nBranch 2 - APLD RSI(3):")
-    print(f"  Current: {apld_rsi_3:.4f}")
-    print(f"  Threshold: 30")
-    print(f"  Margin: {apld_rsi_3 - 30:.4f} (positive = room before flip)")
+    print("\nBranch 2 - CRWV RSI(10):")
+    print(f"  Current: {crwv_rsi_10:.4f}")
+    print(f"  Upper threshold: 80 (must be below)")
+    print(f"  Lower threshold: 30 (must be above)")
+    print(f"  Upper margin: {80 - crwv_rsi_10:.4f} (positive = room before CORD)")
+    print(f"  Lower margin: {crwv_rsi_10 - 30:.4f} (positive = room before metals branch)")
 
 
 if __name__ == "__main__":
