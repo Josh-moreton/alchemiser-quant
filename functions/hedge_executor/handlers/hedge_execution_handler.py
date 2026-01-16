@@ -27,15 +27,12 @@ from the_alchemiser.shared.options.adapters import (
     AlpacaOptionsAdapter,
     HedgePositionsRepository,
 )
-from the_alchemiser.shared.options.constants import (
-    DEFAULT_ETF_PRICE_FALLBACK,
-    DEFAULT_ETF_PRICES,
-)
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
     RollState,
 )
+from the_alchemiser.shared.options.utils import get_underlying_price
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -187,7 +184,7 @@ class HedgeExecutionHandler:
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
 
         # Get underlying price
-        underlying_price = self._get_underlying_price(underlying)
+        underlying_price = get_underlying_price(self._container, underlying)
 
         # Select optimal contract
         selected = self._option_selector.select_hedge_contract(
@@ -328,56 +325,6 @@ class HedgeExecutionHandler:
         )
 
         self._event_bus.publish(completed_event)
-
-    def _get_underlying_price(self, symbol: str) -> Decimal:
-        """Get current price of underlying.
-
-        Args:
-            symbol: ETF symbol
-
-        Returns:
-            Current price from market data or fallback estimate
-
-        Note:
-            Attempts to fetch real-time price via AlpacaManager.
-            Falls back to DEFAULT_ETF_PRICES on API failure (< 5s timeout).
-
-        """
-        try:
-            # Attempt to get real-time quote via AlpacaManager
-            alpaca_manager = self._container.infrastructure.alpaca_manager()
-            quote = alpaca_manager.get_latest_quote(symbol)
-
-            if quote and quote.bid_price and quote.ask_price:
-                # Use mid price for fair value
-                # Explicit Decimal type ensures proper arithmetic
-                mid_price: Decimal = (quote.bid_price + quote.ask_price) / Decimal("2")
-                logger.info(
-                    "Using real-time ETF price",
-                    symbol=symbol,
-                    price=str(mid_price),
-                    bid=str(quote.bid_price),
-                    ask=str(quote.ask_price),
-                    price_source="live_market_data",
-                )
-                return mid_price
-        except Exception as e:
-            logger.warning(
-                "Failed to fetch real-time ETF price, using fallback",
-                symbol=symbol,
-                error=str(e),
-                price_source="fallback",
-            )
-
-        # Fallback to hardcoded prices
-        fallback_price = DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
-        logger.info(
-            "Using fallback ETF price",
-            symbol=symbol,
-            price=str(fallback_price),
-            price_source="fallback",
-        )
-        return fallback_price
 
     def _persist_hedge_position(
         self,
