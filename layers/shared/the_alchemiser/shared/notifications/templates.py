@@ -950,6 +950,346 @@ LINKS
     return header + body + footer
 
 
+def render_daily_run_partial_success_with_failures_html(context: dict[str, Any]) -> str:
+    """Render HTML for Daily Run PARTIAL_SUCCESS email with actual failures.
+
+    Used when some trades fail but the failure rate is below the threshold (30%).
+    This template shows both the successful execution summary AND the failure details,
+    so users don't lose visibility into what succeeded.
+
+    Args:
+        context: Template context with run data including failed_symbols
+
+    Returns:
+        Complete HTML email body
+
+    """
+    header = render_html_header("Daily Run", "PARTIAL_SUCCESS")
+    footer = render_html_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    mode = context.get("mode", "PAPER")
+    run_id = context.get("run_id", "unknown")
+
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
+    duration = context.get("duration_seconds", 0)
+
+    strategies_evaluated = context.get("strategies_evaluated", 0)
+    symbols_evaluated = context.get("symbols_evaluated", 0)
+    eligible = context.get("eligible_signals_count", 0)
+    blocked = context.get("blocked_by_risk_count", 0)
+
+    orders_placed = context.get("orders_placed", 0)
+    orders_filled = context.get("orders_filled", 0)
+    orders_cancelled = context.get("orders_cancelled", 0)
+    orders_rejected = context.get("orders_rejected", 0)
+
+    equity = context.get("equity", 0)
+    cash = context.get("cash", 0)
+    gross_exposure = context.get("gross_exposure", 0)
+    top_positions = context.get("top_positions", [])
+
+    # Use helper to format data freshness nicely
+    data_freshness = context.get("data_freshness", {})
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
+
+    # Failure details
+    failed_symbols = context.get("failed_symbols", [])
+    failure_rate = context.get("failure_rate", 0)
+    error_message = context.get("exception_message", "Trade execution failed")
+
+    # Non-fractionable skips (may also be present)
+    non_fractionable_skipped = context.get("non_fractionable_skipped_symbols", [])
+
+    # Extract P&L metrics
+    monthly_pnl = context.get("monthly_pnl", {})
+    yearly_pnl = context.get("yearly_pnl", {})
+
+    # Rebalance plan for display
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
+
+    warnings = context.get("warnings", [])
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+    <div style="padding: 15px 0;">
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Identity & Timing</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <tr><td style="padding: 3px;"><strong>Env:</strong></td><td style="padding: 3px;">{env}</td>
+                    <td style="padding: 3px;"><strong>Mode:</strong></td><td style="padding: 3px;">{mode}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Run ID:</strong></td><td colspan="3" style="padding: 3px;">{run_id}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Started:</strong></td><td colspan="3" style="padding: 3px;">{start_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Ended:</strong></td><td colspan="3" style="padding: 3px;">{end_time}</td></tr>
+                <tr><td style="padding: 3px;"><strong>Duration:</strong></td><td colspan="3" style="padding: 3px;">{duration}s</td></tr>
+            </table>
+        </div>
+
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Partial Success - {orders_filled}/{orders_placed} Trades Executed</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;">Most trades executed successfully. <strong>{len(failed_symbols)}</strong> trade(s) failed ({failure_rate:.1%} failure rate).</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Strategies evaluated:</strong> {strategies_evaluated} | <strong>Symbols evaluated:</strong> {symbols_evaluated} | <strong>Eligible signals:</strong> {eligible} | <strong>Blocked by risk:</strong> {blocked}</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Orders:</strong> placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}</p>
+        </div>
+
+        <div style="background-color: #f8d7da; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #dc3545;">
+            <h4 style="margin: 0 0 8px 0; color: #721c24; font-size: 13px;">Failed Trades ({len(failed_symbols)})</h4>
+            <ul style="margin: 4px 0 8px 0; padding-left: 20px; font-size: 11px;">
+"""
+
+    for symbol in failed_symbols:
+        body += f"                <li><strong>{symbol}</strong></li>\n"
+
+    if not failed_symbols:
+        body += "                <li>None</li>\n"
+
+    body += f"""
+            </ul>
+            <p style="margin: 0; font-size: 11px;"><strong>Error:</strong> {error_message}</p>
+        </div>
+"""
+
+    # Add non-fractionable skips section if any
+    if non_fractionable_skipped:
+        body += """
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Skipped Positions (Non-Fractionable)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;">The following symbols were skipped because they don't support fractional shares and the target quantity rounded to zero:</p>
+            <ul style="margin: 4px 0 8px 0; padding-left: 20px; font-size: 11px;">
+"""
+        for symbol in non_fractionable_skipped:
+            body += f"                <li><strong>{symbol}</strong></li>\n"
+        body += """
+            </ul>
+        </div>
+"""
+
+    body += f"""
+        <div style="background-color: #e7f5e9; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #28a745;">
+            <h4 style="margin: 0 0 8px 0; color: #155724; font-size: 13px;">Successful Execution Summary</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>{orders_filled} trades executed successfully</strong></p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Portfolio Snapshot (Post-Run)</h4>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Equity:</strong> ${equity:,.2f} | <strong>Cash:</strong> ${cash:,.2f}</p>
+            <p style="margin: 0 0 4px 0; font-size: 11px;"><strong>Exposure:</strong> {gross_exposure:.2f}x</p>
+            <p style="margin: 0; font-size: 11px;"><strong>Top positions:</strong></p>
+            <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 11px;">
+"""
+
+    for pos in top_positions[:3]:
+        body += f"                <li>{pos['symbol']} {pos['weight']:.1f}%</li>\n"
+
+    if not top_positions:
+        body += "                <li>No positions</li>\n"
+
+    body += """
+            </ul>
+        </div>
+"""
+
+    # Add P&L section if data available
+    body += _format_pnl_html(monthly_pnl, yearly_pnl)
+
+    # Add Rebalance Plan section if data available
+    body += _format_rebalance_plan_html(rebalance_plan_summary)
+
+    body += f"""
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Data Freshness</h4>
+            <p style="margin: 0; font-size: 11px;"><strong>Daily candles:</strong> {latest_candle} (age {candle_age})
+            <span style="color: {"#28a745" if freshness_gate == "PASS" else "#dc3545"}; font-weight: bold;">
+                DATA_FRESHNESS_GATE={freshness_gate}
+            </span></p>
+        </div>
+
+        <div style="background-color: #d1ecf1; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #17a2b8;">
+            <h4 style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">Quick Actions</h4>
+            <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
+                <li>Check Alpaca account status and buying power</li>
+                <li>Verify the failed symbol(s) are tradeable on Alpaca</li>
+                <li>Review order rejection reasons in trade ledger</li>
+            </ul>
+        </div>
+"""
+
+    if warnings:
+        body += """
+        <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #ffc107;">
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 13px;">Warnings</h4>
+            <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
+"""
+        for warning in warnings:
+            body += f"                <li>{warning}</li>\n"
+        body += """
+            </ul>
+        </div>
+"""
+
+    body += f"""
+        <div style="background-color: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 13px;">Links</h4>
+            <p style="margin: 0; font-size: 11px;"><a href="{logs_url}" style="color: #007bff; text-decoration: none;">View Logs</a></p>
+        </div>
+    </div>
+"""
+
+    return header + body + footer
+
+
+def render_daily_run_partial_success_with_failures_text(context: dict[str, Any]) -> str:
+    """Render plain text for Daily Run PARTIAL_SUCCESS email with actual failures.
+
+    Used when some trades fail but the failure rate is below the threshold (30%).
+    This template shows both the successful execution summary AND the failure details.
+
+    Args:
+        context: Template context with run data including failed_symbols
+
+    Returns:
+        Complete plain text email body
+
+    """
+    header = render_text_header("Daily Run", "PARTIAL_SUCCESS")
+    footer = render_text_footer()
+
+    # Extract context values
+    env = context.get("env", "unknown")
+    mode = context.get("mode", "PAPER")
+    run_id = context.get("run_id", "unknown")
+
+    start_time = _format_timestamp_for_display(context.get("start_time_utc", ""))
+    end_time = _format_timestamp_for_display(context.get("end_time_utc", ""))
+    duration = context.get("duration_seconds", 0)
+
+    strategies_evaluated = context.get("strategies_evaluated", 0)
+    symbols_evaluated = context.get("symbols_evaluated", 0)
+    eligible = context.get("eligible_signals_count", 0)
+    blocked = context.get("blocked_by_risk_count", 0)
+
+    orders_placed = context.get("orders_placed", 0)
+    orders_filled = context.get("orders_filled", 0)
+    orders_cancelled = context.get("orders_cancelled", 0)
+    orders_rejected = context.get("orders_rejected", 0)
+
+    equity = context.get("equity", 0)
+    cash = context.get("cash", 0)
+    gross_exposure = context.get("gross_exposure", 0)
+    top_positions = context.get("top_positions", [])
+
+    # Use helper to format data freshness nicely
+    data_freshness = context.get("data_freshness", {})
+    latest_candle, candle_age, freshness_gate = _format_data_freshness_for_display(data_freshness)
+
+    # Failure details
+    failed_symbols = context.get("failed_symbols", [])
+    failure_rate = context.get("failure_rate", 0)
+    error_message = context.get("exception_message", "Trade execution failed")
+
+    # Non-fractionable skips
+    non_fractionable_skipped = context.get("non_fractionable_skipped_symbols", [])
+
+    # Extract P&L metrics
+    monthly_pnl = context.get("monthly_pnl", {})
+    yearly_pnl = context.get("yearly_pnl", {})
+
+    # Rebalance plan for display
+    rebalance_plan_summary = context.get("rebalance_plan_summary", [])
+
+    warnings = context.get("warnings", [])
+    logs_url = context.get("logs_url", "#")
+
+    body = f"""
+Env: {env} | Mode: {mode} | Run ID: {run_id}
+Time: {start_time} → {end_time} ({duration}s)
+
+PARTIAL SUCCESS - {orders_filled}/{orders_placed} TRADES EXECUTED
+{"=" * 50}
+Most trades executed successfully. {len(failed_symbols)} trade(s) failed ({failure_rate:.1%} failure rate).
+
+SUMMARY
+-------
+• Strategies evaluated: {strategies_evaluated} | Symbols evaluated: {symbols_evaluated}
+• Eligible: {eligible} | Blocked by risk: {blocked}
+• Orders: placed={orders_placed} | filled={orders_filled} | cancelled={orders_cancelled} | rejected={orders_rejected}
+
+FAILED TRADES ({len(failed_symbols)})
+{"=" * 30}
+"""
+
+    for symbol in failed_symbols:
+        body += f"  • {symbol}\n"
+
+    if not failed_symbols:
+        body += "  • None\n"
+
+    body += f"""
+Error: {error_message}
+"""
+
+    # Add non-fractionable skips section if any
+    if non_fractionable_skipped:
+        body += """
+SKIPPED POSITIONS (NON-FRACTIONABLE)
+------------------------------------
+The following symbols were skipped (non-fractionable, quantity rounded to zero):
+"""
+        for symbol in non_fractionable_skipped:
+            body += f"  • {symbol}\n"
+
+    body += f"""
+SUCCESSFUL EXECUTION SUMMARY
+----------------------------
+• {orders_filled} trades executed successfully
+
+PORTFOLIO SNAPSHOT (POST-RUN)
+------------------------------
+• Equity: ${equity:,.2f} | Cash: ${cash:,.2f}
+• Exposure: {gross_exposure:.2f}x
+• Top positions:
+"""
+
+    for pos in top_positions[:3]:
+        body += f"  - {pos['symbol']} {pos['weight']:.1f}%\n"
+
+    if not top_positions:
+        body += "  - No positions\n"
+
+    # Add P&L section if data available
+    body += _format_pnl_text(monthly_pnl, yearly_pnl)
+
+    # Add Rebalance Plan section if data available
+    body += _format_rebalance_plan_text(rebalance_plan_summary)
+
+    body += f"""
+DATA FRESHNESS USED
+-------------------
+• Daily candles: {latest_candle} (age {candle_age}) DATA_FRESHNESS_GATE={freshness_gate}
+
+QUICK ACTIONS
+-------------
+• Check Alpaca account status and buying power
+• Verify the failed symbol(s) are tradeable on Alpaca
+• Review order rejection reasons in trade ledger
+"""
+
+    if warnings:
+        body += "\nWARNINGS\n--------\n"
+        for warning in warnings:
+            body += f"• {warning}\n"
+
+    body += f"""
+LINKS
+-----
+• Logs: {logs_url}
+"""
+
+    return header + body + footer
+
+
 def render_daily_run_failure_html(context: dict[str, Any]) -> str:
     """Render HTML for Daily Run FAILURE email.
 
@@ -1597,6 +1937,8 @@ __all__ = [
     "render_daily_run_failure_text",
     "render_daily_run_partial_success_html",
     "render_daily_run_partial_success_text",
+    "render_daily_run_partial_success_with_failures_html",
+    "render_daily_run_partial_success_with_failures_text",
     "render_daily_run_success_html",
     "render_daily_run_success_text",
     "render_schedule_created_html",
