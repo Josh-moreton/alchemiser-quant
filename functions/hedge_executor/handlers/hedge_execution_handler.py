@@ -336,14 +336,48 @@ class HedgeExecutionHandler:
             symbol: ETF symbol
 
         Returns:
-            Current price (defaults to estimate if unavailable)
+            Current price from market data or fallback estimate
 
         Note:
-            Uses fallback prices until market data integration is complete.
-            TODO(#2992): Integrate with market data service for real-time prices.
+            Attempts to fetch real-time price via AlpacaManager.
+            Falls back to DEFAULT_ETF_PRICES on API failure (< 5s timeout).
 
         """
-        return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
+        try:
+            # Attempt to get real-time quote via AlpacaManager
+            alpaca_manager = self._container.infrastructure.alpaca_manager()
+            quote = alpaca_manager.get_latest_quote(symbol)
+
+            if quote and quote.bid_price and quote.ask_price:
+                # Use mid price for fair value
+                # Explicit Decimal type ensures proper arithmetic
+                mid_price: Decimal = (quote.bid_price + quote.ask_price) / Decimal("2")
+                logger.info(
+                    "Using real-time ETF price",
+                    symbol=symbol,
+                    price=str(mid_price),
+                    bid=str(quote.bid_price),
+                    ask=str(quote.ask_price),
+                    price_source="live_market_data",
+                )
+                return mid_price
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch real-time ETF price, using fallback",
+                symbol=symbol,
+                error=str(e),
+                price_source="fallback",
+            )
+
+        # Fallback to hardcoded prices
+        fallback_price = DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
+        logger.info(
+            "Using fallback ETF price",
+            symbol=symbol,
+            price=str(fallback_price),
+            price_source="fallback",
+        )
+        return fallback_price
 
     def _persist_hedge_position(
         self,
