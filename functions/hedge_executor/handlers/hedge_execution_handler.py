@@ -13,8 +13,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from core.option_selector import OptionSelector
-from core.options_execution_service import OptionsExecutionService
+from botocore.exceptions import BotoCoreError, ClientError
+from core.option_selector import OptionSelector, SelectedOption
+from core.options_execution_service import ExecutionResult, OptionsExecutionService
 
 from the_alchemiser.shared.events.schemas import (
     AllHedgesCompleted,
@@ -35,7 +36,6 @@ from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePositionState,
     RollState,
 )
-from the_alchemiser.shared.options.schemas.option_contract import OptionType
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -247,7 +247,7 @@ class HedgeExecutionHandler:
                     portfolio_nav=portfolio_nav,
                     nav_pct=nav_pct,
                 )
-            except Exception as e:
+            except (BotoCoreError, ClientError) as e:
                 logger.error(
                     "Failed to persist hedge position to DynamoDB",
                     hedge_id=hedge_id,
@@ -348,8 +348,8 @@ class HedgeExecutionHandler:
     def _persist_hedge_position(
         self,
         hedge_id: str,
-        selected: Any,  # SelectedOption
-        result: Any,  # ExecutionResult
+        selected: SelectedOption,
+        result: ExecutionResult,
         correlation_id: str,
         portfolio_nav: Decimal,
         nav_pct: Decimal,
@@ -363,6 +363,10 @@ class HedgeExecutionHandler:
             correlation_id: Correlation ID for tracing
             portfolio_nav: Portfolio NAV at entry
             nav_pct: Premium as percentage of NAV
+
+        Raises:
+            botocore.exceptions.BotoCoreError: If DynamoDB operation fails
+            botocore.exceptions.ClientError: If DynamoDB request fails
 
         """
         if not self._positions_repo:

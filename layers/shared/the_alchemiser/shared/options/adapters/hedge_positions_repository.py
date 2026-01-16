@@ -19,6 +19,7 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
+    RollState,
 )
 
 logger = get_logger(__name__)
@@ -251,6 +252,8 @@ class HedgePositionsRepository:
     ) -> bool:
         """Update hedge position status.
 
+        Also updates GSI1PK to maintain query consistency for status-based lookups.
+
         Args:
             hedge_id: Hedge identifier
             new_status: New position status
@@ -260,14 +263,43 @@ class HedgePositionsRepository:
 
         """
         try:
+            key = {"PK": f"HEDGE#{hedge_id}", "SK": "METADATA"}
+
+            # Fetch current item to derive GSI key components
+            existing = self._table.get_item(Key=key).get("Item")
+            if not existing:
+                logger.error(
+                    "Hedge position not found when updating status",
+                    hedge_id=hedge_id,
+                    new_status=new_status.value,
+                )
+                return False
+
+            symbol = existing.get("underlying_symbol")
+            if not symbol:
+                logger.error(
+                    "Hedge position missing underlying_symbol; cannot update GSI1PK",
+                    hedge_id=hedge_id,
+                    new_status=new_status.value,
+                )
+                return False
+
+            # Ensure symbol is string (DynamoDB may return various types)
+            symbol_str = str(symbol) if not isinstance(symbol, str) else symbol
+            new_gsi1pk = f"STATUS#{new_status.value}#UNDERLYING#{symbol_str}"
             now = datetime.now(UTC)
+
             self._table.update_item(
-                Key={"PK": f"HEDGE#{hedge_id}", "SK": "METADATA"},
-                UpdateExpression="SET #status = :status, last_updated = :updated",
-                ExpressionAttributeNames={"#status": "status"},
+                Key=key,
+                UpdateExpression="SET #status = :status, last_updated = :updated, #gsi1pk = :gsi1pk",
+                ExpressionAttributeNames={
+                    "#status": "status",
+                    "#gsi1pk": "GSI1PK",
+                },
                 ExpressionAttributeValues={
                     ":status": new_status.value,
                     ":updated": now.isoformat(),
+                    ":gsi1pk": new_gsi1pk,
                 },
             )
             logger.info(
@@ -313,7 +345,7 @@ class HedgePositionsRepository:
             )
             return expired_count
 
-        except Exception as e:
+        except DynamoDBException as e:
             logger.error(
                 "Failed to mark positions expired",
                 expiration_date=expiration_date.isoformat(),
@@ -352,7 +384,7 @@ class HedgePositionsRepository:
             )
             return True
 
-        except Exception as e:
+        except DynamoDBException as e:
             logger.error(
                 "Failed to roll position",
                 old_hedge_id=old_hedge_id,
@@ -385,6 +417,7 @@ class HedgePositionsRepository:
             "entry_delta": Decimal(item["entry_delta"]),
             "total_premium_paid": Decimal(item["total_premium_paid"]),
             "state": HedgePositionState(item["status"]),
+            "roll_state": RollState(item.get("roll_state", "holding")),
             "hedge_template": item.get("hedge_template", "tail_first"),
         }
 
