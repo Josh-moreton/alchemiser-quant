@@ -50,13 +50,9 @@ def get_underlying_price(container: ApplicationContainer, symbol: str) -> Decima
         quote = alpaca_manager.get_latest_quote(symbol)
 
         # Validate quote has valid positive prices
-        if (
-            quote
-            and quote.bid_price
-            and quote.ask_price
-            and quote.bid_price > 0
-            and quote.ask_price > 0
-        ):
+        # Note: QuoteModel fields are non-optional, but we check None explicitly
+        # for safety. We also require positive prices to ensure valid mid-price calc.
+        if quote is not None and quote.bid_price > 0 and quote.ask_price > 0:
             # Use mid price for fair value
             # Explicit Decimal type ensures proper arithmetic
             mid_price: Decimal = (quote.bid_price + quote.ask_price) / Decimal("2")
