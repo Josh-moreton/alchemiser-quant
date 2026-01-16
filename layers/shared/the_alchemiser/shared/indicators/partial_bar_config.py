@@ -121,7 +121,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works with partial bar but RSI will be more volatile intraday. "
         "The partial bar's close-so-far contributes to the gain/loss calculation. "
         "Consider adding metadata flag to indicate partial bar was used.",
-        use_live_bar=False,  # RSI too volatile with partial bars
+        use_live_bar=True,  # Use T-0 data to match Composer's live signals (validated 2026-01-15)
         edge_cases=(
             "RSI may jump significantly near market open when close-so-far equals open",
             "Intraday RSI variance higher than end-of-day due to price swings",
