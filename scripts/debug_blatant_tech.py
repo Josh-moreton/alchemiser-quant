@@ -3,6 +3,11 @@
 
 Debug script to investigate blatant_tech divergence.
 Traces all decision points to find paths to CORD, NBIS, SOXS.
+
+UPDATED STRATEGY (Jan 2026):
+- Branch 1: GDX RSI(7) < 70 -> Metals group; else -> CORD
+- Branch 2: CRWV RSI(10) < 80 AND > 30 -> select-bottom 1 [NBIS, APLD, BE]; else -> CORD
+- Branch 3: SOXL complex logic -> SOXS path
 """
 
 from __future__ import annotations
