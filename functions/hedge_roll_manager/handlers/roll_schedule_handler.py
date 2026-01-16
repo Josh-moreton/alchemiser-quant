@@ -7,12 +7,14 @@ Scans existing hedge positions and triggers rolls for expiring hedges.
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.events.schemas import HedgeRollTriggered
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.options.adapters import HedgePositionsRepository
 from the_alchemiser.shared.options.constants import CRITICAL_DTE_THRESHOLD, TAIL_HEDGE_TEMPLATE
 
 if TYPE_CHECKING:
@@ -45,6 +47,10 @@ class RollScheduleHandler:
         """
         self._container = container
         self._template = TAIL_HEDGE_TEMPLATE
+
+        # Initialize DynamoDB repository for hedge positions
+        table_name = os.environ.get("HEDGE_POSITIONS_TABLE_NAME", "")
+        self._positions_repo = HedgePositionsRepository(table_name) if table_name else None
 
         # Create event bus if not provided
         if event_bus is None:
@@ -143,24 +149,27 @@ class RollScheduleHandler:
             List of active hedge position records
 
         Note:
-            Currently returns empty list as placeholder.
-            The roll manager will not trigger any rolls until the DynamoDB
-            query is implemented. This is intentional during initial deployment
-            to prevent unexpected roll behavior before hedge positions are
-            properly tracked in DynamoDB.
-
-            Implementation priority: HIGH - Required for production roll management.
-            Track: GitHub Issue #2991 (Options Hedging: DynamoDB Position Tracking Integration)
+            Queries positions with status='active' and expiration_date > today.
+            Uses scan for cross-underlying queries; could be optimized with
+            GSI queries if performance becomes an issue.
 
         """
-        # TODO(#2991): Implement DynamoDB query for active positions
-        # Expected schema: HedgePositionsTable with GSI1 (UNDERLYING#symbol, EXPIRATION#date)
-        # or scan with filter on status='active' and expiration_date > today
-        logger.info("Querying active hedge positions from DynamoDB (placeholder - returns empty)")
+        if not self._positions_repo:
+            logger.warning(
+                "Hedge positions repository not initialized - check HEDGE_POSITIONS_TABLE_NAME env var"
+            )
+            return []
 
-        # Placeholder - returns empty list until DynamoDB integration is complete
-        # This means roll checks will pass without triggering any rolls
-        return []
+        # Query active positions without expiration filter
+        # (we filter by DTE threshold in the caller)
+        positions = self._positions_repo.query_active_positions()
+
+        logger.info(
+            "Queried active hedge positions from DynamoDB",
+            count=len(positions),
+        )
+
+        return positions
 
     def _trigger_roll(
         self,
