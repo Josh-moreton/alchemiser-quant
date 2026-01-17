@@ -162,7 +162,104 @@ class RunConfig:
     as_of: date | None
 
 
-def _make_historical_market_data_adapter(as_of_date: date):
+def _fetch_simulated_live_bar(symbol: str, as_of_date: date) -> dict[str, Decimal] | None:
+    """Fetch the 3:45 PM ET 15-minute candle close as simulated live bar.
+    
+    This fetches the 15-minute bar that closes at 3:45 PM Eastern Time on the
+    given date. This simulates the "live" bar that Composer would see if running
+    the strategy at that time.
+    
+    Args:
+        symbol: Stock symbol to fetch
+        as_of_date: The historical date to get the 3:45 PM bar for
+        
+    Returns:
+        Dict with bar data (open, high, low, close, volume) or None if not available
+    """
+    import pytz
+    from alpaca.data.enums import Adjustment
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+    
+    # Try both naming conventions for Alpaca credentials
+    api_key = os.environ.get("ALPACA_API_KEY") or os.environ.get("ALPACA_KEY")
+    api_secret = os.environ.get("ALPACA_API_SECRET") or os.environ.get("ALPACA_SECRET")
+    
+    if not api_key or not api_secret:
+        print(f"  Warning: Alpaca credentials not set, cannot fetch simulated live bar for {symbol}")
+        return None
+    
+    try:
+        client = StockHistoricalDataClient(api_key, api_secret)
+        
+        # 3:45 PM ET is the close of the 15-minute bar starting at 3:30 PM
+        # In UTC: 3:45 PM ET = 8:45 PM UTC (EST) or 7:45 PM UTC (EDT)
+        et_tz = pytz.timezone("America/New_York")
+        
+        # Create 3:30 PM ET datetime for the target date (bar start time)
+        bar_start_et = et_tz.localize(datetime(as_of_date.year, as_of_date.month, as_of_date.day, 15, 30, 0))
+        bar_end_et = et_tz.localize(datetime(as_of_date.year, as_of_date.month, as_of_date.day, 15, 45, 0))
+        
+        # Convert to UTC for Alpaca API
+        bar_start_utc = bar_start_et.astimezone(pytz.UTC)
+        bar_end_utc = bar_end_et.astimezone(pytz.UTC)
+        
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame(15, TimeFrameUnit.Minute),
+            start=bar_start_utc,
+            end=bar_end_utc + timedelta(minutes=1),  # Small buffer to ensure we get the bar
+            adjustment=Adjustment.ALL,
+        )
+        
+        response = client.get_stock_bars(request)
+        
+        # Access bars via .data dict (BarSet response structure)
+        bars_data = response.data.get(symbol, []) if hasattr(response, 'data') else []
+        bars = list(bars_data) if bars_data else []
+        
+        if not bars:
+            return None
+        
+        # Take the FIRST bar (the one starting at 3:30 PM that closes at 3:45 PM)
+        bar = bars[0]
+        return {
+            "open": Decimal(str(bar.open)),
+            "high": Decimal(str(bar.high)),
+            "low": Decimal(str(bar.low)),
+            "close": Decimal(str(bar.close)),
+            "volume": int(bar.volume),
+            "timestamp": bar.timestamp,
+        }
+        
+    except Exception as e:
+        print(f"  Warning: Failed to fetch simulated live bar for {symbol}: {e}")
+        return None
+
+
+# Cache for simulated live bars to avoid repeated API calls
+_SIMULATED_LIVE_BAR_CACHE: dict[tuple[str, date], dict[str, Decimal] | None] = {}
+
+
+def _get_simulated_live_bar_cached(symbol: str, as_of_date: date) -> dict[str, Decimal] | None:
+    """Get simulated live bar with caching."""
+    cache_key = (symbol, as_of_date)
+    if cache_key not in _SIMULATED_LIVE_BAR_CACHE:
+        _SIMULATED_LIVE_BAR_CACHE[cache_key] = _fetch_simulated_live_bar(symbol, as_of_date)
+    return _SIMULATED_LIVE_BAR_CACHE[cache_key]
+
+
+def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bool = True):
+    """Create a historical market data adapter.
+    
+    Args:
+        as_of_date: The historical cutoff date
+        simulate_live_bar: If True, append a simulated live bar using the 3:45 PM ET
+                          15-minute candle from Alpaca. This bar will be marked as
+                          is_incomplete=True so the indicator service can choose
+                          whether to include or exclude it based on indicator config.
+    """
     import pandas as pd
 
     from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
@@ -171,8 +268,9 @@ def _make_historical_market_data_adapter(as_of_date: date):
     from the_alchemiser.shared.value_objects.symbol import Symbol
 
     class HistoricalMarketDataAdapter(MarketDataPort):
-        def __init__(self, cutoff_date: date):
+        def __init__(self, cutoff_date: date, inject_live_bar: bool):
             self.cutoff_date = cutoff_date
+            self.inject_live_bar = inject_live_bar
             self.market_data_store = MarketDataStore()
             self._cache: dict[str, pd.DataFrame] = {}
 
@@ -195,7 +293,9 @@ def _make_historical_market_data_adapter(as_of_date: date):
             if df.empty:
                 return []
 
-            cutoff_datetime = pd.Timestamp(self.cutoff_date, tz=timezone.utc)
+            # Use day BEFORE cutoff for daily bars (T-1 data)
+            # The simulated live bar will provide T0 data if configured
+            cutoff_datetime = pd.Timestamp(self.cutoff_date - timedelta(days=1), tz=timezone.utc)
             if df.index.tz is None:
                 df.index = df.index.tz_localize(timezone.utc)
 
@@ -214,8 +314,28 @@ def _make_historical_market_data_adapter(as_of_date: date):
                         low=Decimal(str(row.get("low", row.get("Low", 0)))),
                         close=Decimal(str(row.get("close", row.get("Close", 0)))),
                         volume=int(row.get("volume", row.get("Volume", 0))),
+                        is_incomplete=False,
                     )
                 )
+            
+            # Append simulated live bar if configured
+            if self.inject_live_bar:
+                live_bar_data = _get_simulated_live_bar_cached(symbol_str, self.cutoff_date)
+                if live_bar_data:
+                    # Create a "live" bar with is_incomplete=True
+                    # This allows the indicator service to respect should_use_live_bar()
+                    live_bar = BarModel(
+                        symbol=symbol_str,
+                        timestamp=live_bar_data["timestamp"],
+                        open=live_bar_data["open"],
+                        high=live_bar_data["high"],
+                        low=live_bar_data["low"],
+                        close=live_bar_data["close"],
+                        volume=live_bar_data["volume"],
+                        is_incomplete=True,  # Mark as live/partial bar
+                    )
+                    bars.append(live_bar)
+            
             return bars
 
         def get_latest_bar(self, symbol: Symbol) -> BarModel | None:
@@ -225,7 +345,7 @@ def _make_historical_market_data_adapter(as_of_date: date):
         def get_quote(self, symbol: Symbol) -> QuoteModel | None:
             return None
 
-    return HistoricalMarketDataAdapter(as_of_date)
+    return HistoricalMarketDataAdapter(as_of_date, simulate_live_bar)
 
 
 def run_trace(config: RunConfig) -> dict[str, object]:
@@ -247,7 +367,9 @@ def run_trace(config: RunConfig) -> dict[str, object]:
     else:
         if config.as_of is None:
             raise ValueError("historical mode requires --as-of")
-        market_data_adapter = _make_historical_market_data_adapter(config.as_of)
+        # Always inject simulated live bar - the indicator service will decide
+        # whether to use or strip it based on should_use_live_bar() per indicator
+        market_data_adapter = _make_historical_market_data_adapter(config.as_of, simulate_live_bar=True)
         engine = DslEngine(
             strategy_config_path=full_path.parent,
             market_data_adapter=market_data_adapter,
