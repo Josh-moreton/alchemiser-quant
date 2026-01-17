@@ -1,0 +1,2414 @@
+{
+  "generated_at": "2026-01-17T07:43:45.164408+00:00",
+  "dates": [
+    "2026-01-15"
+  ],
+  "strategies": {
+    "blatant_tech": {
+      "indicators": [
+        "max_drawdown",
+        "stdev_return",
+        "rsi",
+        "cumulative_return"
+      ],
+      "configs_tested": 16,
+      "dates": {
+        "2026-01-15": {
+          "validation_matches": false,
+          "expected_symbols": [
+            "CORD",
+            "SOXS",
+            "NBIS"
+          ],
+          "notes": "We have CORD SOX live signal is CORD NBIS SOXS",
+          "runs": [
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": true,
+                "rsi": true,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T0, rsi=T0, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": true,
+                "rsi": true,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T0, rsi=T0, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": true,
+                "rsi": false,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T0, rsi=T-1, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": true,
+                "rsi": false,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T0, rsi=T-1, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": false,
+                "rsi": true,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T0, rsi=T0, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": false,
+                "rsi": true,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T0, rsi=T0, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": false,
+                "rsi": false,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T0, rsi=T-1, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": true,
+                "stdev_return": false,
+                "rsi": false,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T0, rsi=T-1, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": true,
+                "rsi": true,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T-1, rsi=T0, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": true,
+                "rsi": true,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T-1, rsi=T0, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": true,
+                "rsi": false,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T-1, rsi=T-1, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": true,
+                "rsi": false,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T-1, rsi=T-1, stdev_return=T0",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": false,
+                "rsi": true,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T-1, rsi=T0, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": false,
+                "rsi": true,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T-1, rsi=T0, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": false,
+                "rsi": false,
+                "cumulative_return": true
+              },
+              "config_label": "cumulative_return=T0, max_drawdown=T-1, rsi=T-1, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            },
+            {
+              "config": {
+                "max_drawdown": false,
+                "stdev_return": false,
+                "rsi": false,
+                "cumulative_return": false
+              },
+              "config_label": "cumulative_return=T-1, max_drawdown=T-1, rsi=T-1, stdev_return=T-1",
+              "computed_symbols": [
+                "CORD",
+                "SOXS",
+                "NBIS"
+              ],
+              "matches": true,
+              "error": null,
+              "allocation": {
+                "CORD": 0.3333333333333333,
+                "NBIS": 0.3333333333333333,
+                "SOXS": 0.3333333333333333
+              },
+              "decision_path": [
+                {
+                  "condition": "GDX rsi :window(7) < 70",
+                  "result": false,
+                  "branch": "else",
+                  "values": {
+                    "GDX_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "GDX"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 70.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 7.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) > 30",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "greater_than",
+                  "threshold": 30.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "CRWV rsi :window(10) < 80",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "CRWV_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "CRWV"
+                  ],
+                  "operator_type": "less_than",
+                  "threshold": 80.0,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 10.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(30) >= 5.4135",
+                  "result": true,
+                  "branch": "then",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 5.4135
+                },
+                {
+                  "condition": "SOXL rsi :window(30) >= 57.49",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 57.49,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 30.0
+                  }
+                },
+                {
+                  "condition": "SOXL stdev-return :window(105) <= 4.9226",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 4.9226
+                },
+                {
+                  "condition": "SOXL rsi :window(32) <= 62.1995",
+                  "result": true,
+                  "branch": "then",
+                  "values": {
+                    "SOXL_rsi": "<computed>"
+                  },
+                  "condition_type": "rsi_check",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "less_than_or_equal",
+                  "threshold": 62.1995,
+                  "indicator_name": "rsi",
+                  "indicator_params": {
+                    "window": 32.0
+                  }
+                },
+                {
+                  "condition": "SOXL max-drawdown :window(60) >= 50",
+                  "result": false,
+                  "branch": "else",
+                  "values": {},
+                  "condition_type": "comparison",
+                  "symbols_involved": [
+                    "SOXL"
+                  ],
+                  "operator_type": "greater_than_or_equal",
+                  "threshold": 50.0
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

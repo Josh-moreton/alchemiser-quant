@@ -153,6 +153,9 @@ def _apply_live_bar_policy(policy: Policy) -> None:
     raise ValueError(f"Unknown policy: {policy}")
 
 
+DataSource = Literal["s3", "alpaca"]
+
+
 @dataclass(frozen=True)
 class RunConfig:
     strategy_name: str
@@ -160,6 +163,7 @@ class RunConfig:
     policy: Policy
     append_live_bar: bool
     as_of: date | None
+    data_source: DataSource = "s3"  # Default to S3 for backward compatibility
 
 
 def _fetch_simulated_live_bar(symbol: str, as_of_date: date) -> dict[str, Decimal] | None:
@@ -248,6 +252,146 @@ def _get_simulated_live_bar_cached(symbol: str, as_of_date: date) -> dict[str, D
     if cache_key not in _SIMULATED_LIVE_BAR_CACHE:
         _SIMULATED_LIVE_BAR_CACHE[cache_key] = _fetch_simulated_live_bar(symbol, as_of_date)
     return _SIMULATED_LIVE_BAR_CACHE[cache_key]
+
+
+# Cache for Alpaca daily bars
+_ALPACA_DAILY_BARS_CACHE: dict[tuple[str, date], list] = {}
+
+
+def _fetch_alpaca_daily_bars(symbol: str, as_of_date: date, lookback_days: int = 400) -> list:
+    """Fetch daily bars directly from Alpaca API.
+    
+    Args:
+        symbol: Stock symbol
+        as_of_date: End date (inclusive of T-1 data)
+        lookback_days: Number of days to look back
+        
+    Returns:
+        List of bar dicts with open, high, low, close, volume, timestamp
+    """
+    import pytz
+    from alpaca.data.enums import Adjustment
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+    
+    cache_key = (symbol, as_of_date)
+    if cache_key in _ALPACA_DAILY_BARS_CACHE:
+        return _ALPACA_DAILY_BARS_CACHE[cache_key]
+    
+    api_key = os.environ.get("ALPACA_API_KEY") or os.environ.get("ALPACA_KEY")
+    api_secret = os.environ.get("ALPACA_API_SECRET") or os.environ.get("ALPACA_SECRET")
+    
+    if not api_key or not api_secret:
+        print(f"  Warning: Alpaca credentials not set, cannot fetch daily bars for {symbol}")
+        return []
+    
+    try:
+        client = StockHistoricalDataClient(api_key, api_secret)
+        
+        # Fetch daily bars up to T-1 (day before as_of_date)
+        end_date = as_of_date - timedelta(days=1)  # T-1
+        start_date = end_date - timedelta(days=lookback_days)
+        
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame(1, TimeFrameUnit.Day),
+            start=datetime(start_date.year, start_date.month, start_date.day, tzinfo=timezone.utc),
+            end=datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc),
+            adjustment=Adjustment.ALL,
+        )
+        
+        response = client.get_stock_bars(request)
+        
+        bars_data = response.data.get(symbol, []) if hasattr(response, 'data') else []
+        bars = list(bars_data) if bars_data else []
+        
+        result = []
+        for bar in bars:
+            result.append({
+                "open": Decimal(str(bar.open)),
+                "high": Decimal(str(bar.high)),
+                "low": Decimal(str(bar.low)),
+                "close": Decimal(str(bar.close)),
+                "volume": int(bar.volume),
+                "timestamp": bar.timestamp,
+            })
+        
+        _ALPACA_DAILY_BARS_CACHE[cache_key] = result
+        return result
+        
+    except Exception as e:
+        print(f"  Warning: Failed to fetch Alpaca daily bars for {symbol}: {e}")
+        return []
+
+
+def _make_alpaca_only_market_data_adapter(as_of_date: date, simulate_live_bar: bool = True):
+    """Create a market data adapter that fetches ONLY from Alpaca API.
+    
+    This bypasses the S3 data lake completely and fetches all data directly
+    from Alpaca's historical data API.
+    
+    Args:
+        as_of_date: The historical cutoff date
+        simulate_live_bar: If True, append a simulated live bar using the 3:45 PM ET
+                          15-minute candle from Alpaca.
+    """
+    from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
+    from the_alchemiser.shared.types.market_data_port import MarketDataPort
+    from the_alchemiser.shared.value_objects.symbol import Symbol
+
+    class AlpacaOnlyMarketDataAdapter(MarketDataPort):
+        def __init__(self, cutoff_date: date, inject_live_bar: bool):
+            self.cutoff_date = cutoff_date
+            self.inject_live_bar = inject_live_bar
+
+        def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
+            symbol_str = str(symbol)
+            
+            # Fetch daily bars from Alpaca API (up to T-1)
+            alpaca_bars = _fetch_alpaca_daily_bars(symbol_str, self.cutoff_date)
+            
+            bars: list[BarModel] = []
+            for bar_data in alpaca_bars:
+                bars.append(
+                    BarModel(
+                        symbol=symbol_str,
+                        timestamp=bar_data["timestamp"],
+                        open=bar_data["open"],
+                        high=bar_data["high"],
+                        low=bar_data["low"],
+                        close=bar_data["close"],
+                        volume=bar_data["volume"],
+                        is_incomplete=False,
+                    )
+                )
+            
+            # Append simulated live bar (3:45 PM candle) if configured
+            if self.inject_live_bar:
+                live_bar_data = _get_simulated_live_bar_cached(symbol_str, self.cutoff_date)
+                if live_bar_data:
+                    live_bar = BarModel(
+                        symbol=symbol_str,
+                        timestamp=live_bar_data["timestamp"],
+                        open=live_bar_data["open"],
+                        high=live_bar_data["high"],
+                        low=live_bar_data["low"],
+                        close=live_bar_data["close"],
+                        volume=live_bar_data["volume"],
+                        is_incomplete=True,  # Mark as live/partial bar
+                    )
+                    bars.append(live_bar)
+            
+            return bars
+
+        def get_latest_bar(self, symbol: Symbol) -> BarModel | None:
+            bars = self.get_bars(symbol, "1D", "1D")
+            return bars[-1] if bars else None
+
+        def get_quote(self, symbol: Symbol) -> QuoteModel | None:
+            return None
+
+    return AlpacaOnlyMarketDataAdapter(as_of_date, simulate_live_bar)
 
 
 def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bool = True):
@@ -367,9 +511,13 @@ def run_trace(config: RunConfig) -> dict[str, object]:
     else:
         if config.as_of is None:
             raise ValueError("historical mode requires --as-of")
-        # Always inject simulated live bar - the indicator service will decide
-        # whether to use or strip it based on should_use_live_bar() per indicator
-        market_data_adapter = _make_historical_market_data_adapter(config.as_of, simulate_live_bar=True)
+        # Choose data source adapter
+        if config.data_source == "alpaca":
+            # Use Alpaca API directly (bypasses S3)
+            market_data_adapter = _make_alpaca_only_market_data_adapter(config.as_of, simulate_live_bar=True)
+        else:
+            # Default: use S3 data lake with simulated live bar
+            market_data_adapter = _make_historical_market_data_adapter(config.as_of, simulate_live_bar=True)
         engine = DslEngine(
             strategy_config_path=full_path.parent,
             market_data_adapter=market_data_adapter,
@@ -429,6 +577,13 @@ def main() -> None:
         action="store_false",
         help="(live mode) disable partial bar injection",
     )
+    parser.add_argument(
+        "--data-source",
+        dest="data_source",
+        choices=("s3", "alpaca"),
+        default="s3",
+        help="Data source for historical bars: 's3' (default) uses S3 data lake, 'alpaca' fetches directly from Alpaca API",
+    )
     parser.add_argument("--out", help="Write JSON output to this file")
 
     args = parser.parse_args()
@@ -466,6 +621,7 @@ def main() -> None:
         policy=args.policy,
         append_live_bar=bool(args.append_live_bar),
         as_of=as_of_date,
+        data_source=args.data_source,
     )
 
     result = run_trace(cfg)
