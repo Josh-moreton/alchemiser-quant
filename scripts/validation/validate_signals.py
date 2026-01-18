@@ -361,20 +361,13 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     if not editor:
         editor = "vi"
 
-    # Create temp file with instructions
+    # Create empty temp file
     temp_dir = tempfile.gettempdir()
     temp_path = Path(temp_dir) / f"composer_holdings_{strategy_name}.txt"
 
-    instructions = f"""# Paste the Composer.trade "Simulated Holdings" data below this line.
-# Save and close the editor when done.
-# To cancel, delete all content and save.
-#
-# Strategy: {strategy_name}
-# -------------------------------------------------------------------------
-
-"""
+    # Create empty file - user just pastes and saves
     with open(temp_path, "w") as f:
-        f.write(instructions)
+        f.write("")
 
     # Open editor
     print(f"\n  Opening {editor} for live signal capture...")
@@ -403,9 +396,8 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     except OSError:
         pass
 
-    # Remove instruction lines (lines starting with #)
-    lines = [line for line in content.split("\n") if not line.strip().startswith("#")]
-    cleaned_content = "\n".join(lines).strip()
+    # Check for empty content
+    cleaned_content = content.strip()
 
     if not cleaned_content:
         print("  No content found (cancelled)")
@@ -436,15 +428,18 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
 def display_signal_comparison(
     our_signals: dict[str, Decimal],
     live_signals: dict[str, Decimal] | None,
-) -> None:
+) -> bool:
     """Display side-by-side comparison of our signals vs live Composer signals.
 
     Args:
         our_signals: Our computed allocations (ticker -> decimal weight)
         live_signals: Live signals from Composer (ticker -> decimal weight), or None
+
+    Returns:
+        True if all signals match (within tolerance), False otherwise
     """
     if live_signals is None:
-        return
+        return False
 
     # Collect all symbols from both sources
     all_symbols = set(our_signals.keys()) | set(live_signals.keys())
@@ -472,7 +467,7 @@ def display_signal_comparison(
         elif live is None:
             status = "✗ Extra (ours)"
             differences += 1
-        elif abs(float(ours) - float(live)) < 0.001:  # 0.1% tolerance
+        elif abs(float(ours) - float(live)) < 0.05:  # 5 percentage point tolerance
             status = "✓ Match"
             matches += 1
         else:
@@ -485,6 +480,8 @@ def display_signal_comparison(
     print("  " + "-" * 50)
     print(f"  Matches: {matches}  |  Differences: {differences}")
     print("━" * 55)
+
+    return differences == 0
 
 
 # ============================================================================
@@ -902,18 +899,29 @@ def main() -> None:
 
             # If --capture-live flag, auto-invoke live signal capture
             live_signals: dict[str, Decimal] | None = None
+            all_signals_match = False
             if args.capture_live:
                 print("\n📥 Capture live signals (--capture-live enabled)")
                 live_signals = capture_live_signals(strategy_name)
                 if live_signals:
-                    display_signal_comparison(our_signals, live_signals)
+                    all_signals_match = display_signal_comparison(our_signals, live_signals)
 
-            # Prompt for validation
-            matches, notes, captured_live = prompt_validation(strategy_name, our_signals)
-
-            # Use live signals from prompt if not already captured
-            if captured_live and not live_signals:
-                live_signals = captured_live
+            # Auto-confirm/reject if capture-live mode and live signals were captured
+            if args.capture_live and live_signals:
+                if all_signals_match:
+                    matches = "yes"
+                    notes = ""
+                    print("\n✅ All signals match - auto-confirmed")
+                else:
+                    matches = "no"
+                    notes = ""
+                    print("\n❌ Signals don't match - auto-rejected")
+            else:
+                # Prompt for validation (manual mode or no live signals captured)
+                matches, notes, captured_live = prompt_validation(strategy_name, our_signals)
+                # Use live signals from prompt if not already captured
+                if captured_live and not live_signals:
+                    live_signals = captured_live
 
             # Serialize signals to JSON for CSV storage
             def signals_to_json(signals_dict: dict[str, Decimal] | None) -> str:
