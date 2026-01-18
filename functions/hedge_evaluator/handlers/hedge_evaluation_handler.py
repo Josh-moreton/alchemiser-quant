@@ -180,6 +180,8 @@ class HedgeEvaluationHandler:
                 plan_id=plan_id,
                 premium_budget=str(recommendation.premium_budget),
                 underlying=recommendation.underlying_symbol,
+                vix_value=str(current_vix) if current_vix else "default",
+                vix_tier=recommendation.vix_tier,
             )
 
         except Exception as e:
@@ -218,15 +220,43 @@ class HedgeEvaluationHandler:
         return positions
 
     def _get_current_vix(self) -> Decimal | None:
-        """Get current VIX value.
+        """Get current VIX value from VIXY ETF proxy.
+
+        Uses VIXY (ProShares VIX Short-Term Futures ETF) as a proxy for VIX
+        since Alpaca does not provide direct VIX index quotes. VIXY tracks
+        VIX futures and provides a tradeable, liquid instrument.
+
+        Note: VIXY price ≈ VIX / 10 (rule of thumb). We scale by multiplying
+        by 10 to approximate the VIX index value.
 
         Returns:
-            Current VIX value, or None if unavailable
+            Estimated VIX value from VIXY proxy, or None if unavailable
 
         """
-        # TODO(#2993): Integrate with market data service to get real VIX
-        # For now, return None to use default mid-tier budget rate
-        return None
+        try:
+            # Fetch VIXY price as VIX proxy
+            vixy_price = get_underlying_price(self._container, "VIXY")
+
+            # Scale VIXY to approximate VIX index value
+            # VIXY typically trades at ~1/10th of VIX value
+            estimated_vix = vixy_price * Decimal("10")
+
+            logger.info(
+                "Fetched VIX estimate from VIXY proxy",
+                vixy_price=str(vixy_price),
+                estimated_vix=str(estimated_vix),
+                data_source="VIXY_ETF_proxy",
+            )
+
+            return estimated_vix
+
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch VIX from VIXY proxy, using default tier",
+                error=str(e),
+                fallback="mid_tier",
+            )
+            return None
 
     def _publish_skip_event(
         self,
