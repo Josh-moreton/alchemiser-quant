@@ -66,9 +66,7 @@ def get_dynamodb_client(region: str = "us-east-1") -> Any:
     return boto3.client("dynamodb", region_name=region)
 
 
-def find_sessions_by_date(
-    client: Any, table_name: str, target_date: date
-) -> list[dict[str, Any]]:
+def find_sessions_by_date(client: Any, table_name: str, target_date: date) -> list[dict[str, Any]]:
     """Find all completed sessions for a given date.
 
     Args:
@@ -102,9 +100,7 @@ def find_sessions_by_date(
                     "correlation_id": item.get("correlation_id", {}).get("S", ""),
                     "created_at": item.get("created_at", {}).get("S", ""),
                     "status": item.get("status", {}).get("S", ""),
-                    "total_strategies": int(
-                        item.get("total_strategies", {}).get("N", "0")
-                    ),
+                    "total_strategies": int(item.get("total_strategies", {}).get("N", "0")),
                 }
             )
 
@@ -151,9 +147,7 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
                     "correlation_id": item.get("correlation_id", {}).get("S", ""),
                     "created_at": item.get("created_at", {}).get("S", ""),
                     "status": item.get("status", {}).get("S", ""),
-                    "total_strategies": int(
-                        item.get("total_strategies", {}).get("N", "0")
-                    ),
+                    "total_strategies": int(item.get("total_strategies", {}).get("N", "0")),
                 }
             )
         # Early termination: if we have more than limit * 3 sessions,
@@ -183,9 +177,7 @@ def get_latest_session(client: Any, table_name: str) -> dict[str, Any] | None:
     return sessions[0] if sessions else None
 
 
-def get_all_partial_signals(
-    client: Any, table_name: str, session_id: str
-) -> list[dict[str, Any]]:
+def get_all_partial_signals(client: Any, table_name: str, session_id: str) -> list[dict[str, Any]]:
     """Query all partial signals for a session.
 
     Args:
@@ -209,9 +201,7 @@ def get_all_partial_signals(
     for item in response.get("Items", []):
         # Parse JSON fields
         signals_data_str = item.get("signals_data", {}).get("S", "{}")
-        consolidated_portfolio_str = item.get("consolidated_portfolio", {}).get(
-            "S", "{}"
-        )
+        consolidated_portfolio_str = item.get("consolidated_portfolio", {}).get("S", "{}")
 
         signals.append(
             {
@@ -393,9 +383,7 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
         pass
 
     # Remove instruction lines (lines starting with #)
-    lines = [
-        line for line in content.split("\n") if not line.strip().startswith("#")
-    ]
+    lines = [line for line in content.split("\n") if not line.strip().startswith("#")]
     cleaned_content = "\n".join(lines).strip()
 
     if not cleaned_content:
@@ -585,9 +573,7 @@ def display_signal(
 
         # Sort by allocation descending
         sorted_allocations = sorted(
-            target_allocations.items(),
-            key=lambda x: Decimal(str(x[1])),
-            reverse=True
+            target_allocations.items(), key=lambda x: Decimal(str(x[1])), reverse=True
         )
 
         for symbol, weight in sorted_allocations:
@@ -631,9 +617,7 @@ def prompt_validation(
 
     while True:
         response = (
-            input("Does the signal match? (y/n/s=skip/l=capture live/q=quit): ")
-            .strip()
-            .lower()
+            input("Does the signal match? (y/n/s=skip/l=capture live/q=quit): ").strip().lower()
         )
 
         if response == "q":
@@ -683,7 +667,9 @@ def select_session(sessions: list[dict[str, Any]]) -> str:
 
     while True:
         try:
-            choice = input("\nSelect session [1-{}] or enter session ID: ".format(len(sessions))).strip()
+            choice = input(
+                "\nSelect session [1-{}] or enter session ID: ".format(len(sessions))
+            ).strip()
 
             # Try as index first
             if choice.isdigit():
@@ -876,9 +862,7 @@ def main() -> None:
             strategy = find_strategy_by_filename(ledger, dsl_file)
 
             # Extract our signals (un-scaled to match Composer's 100% view)
-            raw_allocations = signal["consolidated_portfolio"].get(
-                "target_allocations", {}
-            )
+            raw_allocations = signal["consolidated_portfolio"].get("target_allocations", {})
             allocation_weight = signal["allocation"]
             our_signals: dict[str, Decimal] = {}
             for symbol, weight in raw_allocations.items():
@@ -915,9 +899,7 @@ def main() -> None:
                 if not signals_dict:
                     return ""
                 # Convert Decimal to float for JSON serialization
-                return json.dumps(
-                    {k: float(v) for k, v in signals_dict.items()}, sort_keys=True
-                )
+                return json.dumps({k: float(v) for k, v in signals_dict.items()}, sort_keys=True)
 
             # Record validation
             record = {
