@@ -1,0 +1,668 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/validator/sam_schema/schema.json
+# yaml-language-server: disable-validation
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  The Alchemiser Debugging Stack
+  
+  Lightweight stack for debugging strategy signals with live bars.
+  Runs orchestrator, workers, and aggregator every 5 minutes from 3:00-3:55 PM ET
+  to track when signal outputs change (tickers or weights).
+  
+  NO portfolio or execution capabilities - signal generation only.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: debug
+    AllowedValues:
+      - debug
+    Description: Deployment stage (always debug for this stack)
+  
+  StackName:
+    Type: String
+    Default: "alchemiser-debug"
+    Description: Stack name for resource naming
+  
+  AlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key (for market data access)
+
+  AlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret
+
+  AlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint (paper trading for debugging)
+
+Conditions:
+  HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
+
+Globals:
+  Function:
+    Timeout: 900  # 15 minutes - max for Lambda
+    MemorySize: 512
+    Environment:
+      Variables:
+        # Stage awareness
+        APP__STAGE: debug
+        # Alpaca Configuration for market data
+        ALPACA__KEY: !Ref AlpacaKey
+        ALPACA__SECRET: !Ref AlpacaSecret
+        ALPACA__ENDPOINT: !Ref AlpacaEndpoint
+
+Resources:
+  # ========== DYNAMODB TABLES ==========
+  
+  # Aggregation Sessions Table (required for multi-node strategy execution)
+  AggregationSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${StackName}-aggregation-sessions"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: debug
+        - Key: Service
+          Value: aggregation-sessions
+
+  # Signal History Table (tracks signal changes over time)
+  SignalHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${StackName}-signal-history"
+      BillingMode: PAY_PER_REQUEST
+      
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      
+      SSESpecification:
+        SSEEnabled: true
+      
+      Tags:
+        - Key: Environment
+          Value: debug
+        - Key: Service
+          Value: signal-history
+
+  # ========== EVENTBRIDGE BUS ==========
+  
+  AlchemiserDebugEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub "${StackName}-events"
+
+  # ========== LAMBDA LAYERS ==========
+  
+  # Strategy Layer: awswrangler (pandas, numpy, pyarrow) + alpaca-py
+  StrategyLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${StackName}-strategy-deps"
+      Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
+      ContentUri: layers/strategy/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
+
+  # Shared Code Layer
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${StackName}-shared-code"
+      Description: Shared business logic (the_alchemiser.shared module)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Notifications Layer (for signal debugger)
+  NotificationsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${StackName}-notifications-deps"
+      Description: Notifications Lambda dependencies (pydantic, structlog)
+      ContentUri: layers/notifications/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # ========== STRATEGY LAMBDAS ==========
+  
+  # Strategy Orchestrator Lambda
+  StrategyOrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StackName}-strategy-orchestrator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/strategy_orchestrator/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref NotificationsLayer
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserDebugEventBus
+          AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
+          STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
+          AGGREGATION_TIMEOUT_SECONDS: "600"
+    Metadata:
+      BuildMethod: python3.12
+
+  StrategyOrchestratorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StrategyOrchestratorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserDebugEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt AggregationSessionsTable.Arn
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:InvokeAsync
+                Resource:
+                  - !GetAtt StrategyFunction.Arn
+
+  # Strategy Worker Lambda
+  StrategyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StackName}-strategy-worker"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/strategy_worker/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt StrategyExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref StrategyLayer
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserDebugEventBus
+          MARKET_DATA_BUCKET: !Sub "alchemiser-dev-market-data"  # Use dev market data
+          STAGE: debug
+    Metadata:
+      BuildMethod: python3.12
+
+  StrategyExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StrategyPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserDebugEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::alchemiser-dev-market-data"
+                  - !Sub "arn:aws:s3:::alchemiser-dev-market-data/*"
+
+  # Signal Aggregator Lambda
+  StrategyAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StackName}-signal-aggregator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/strategy_aggregator/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt StrategyAggregatorExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref NotificationsLayer
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref AlchemiserDebugEventBus
+          AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
+          ALLOCATION_TOLERANCE: "0.01"
+      Events:
+        PartialSignalEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserDebugEventBus
+            Pattern:
+              source:
+                - "alchemiser.strategy"
+              detail-type:
+                - "PartialSignalGenerated"
+    Metadata:
+      BuildMethod: python3.12
+
+  StrategyAggregatorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StrategyAggregatorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserDebugEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt AggregationSessionsTable.Arn
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+
+  # EventBridge Permission for Strategy Aggregator
+  StrategyAggregatorEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StrategyAggregatorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserDebugEventBus.Name}/*"
+
+  # ========== SIGNAL DEBUGGER LAMBDA ==========
+  
+  SignalDebuggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${StackName}-signal-debugger"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/signal_debugger/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt SignalDebuggerExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref NotificationsLayer
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          SIGNAL_HISTORY_TABLE: !Ref SignalHistoryTable
+      Events:
+        SignalGeneratedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserDebugEventBus
+            Pattern:
+              source:
+                - "alchemiser.strategy"
+              detail-type:
+                - "SignalGenerated"
+    Metadata:
+      BuildMethod: python3.12
+
+  SignalDebuggerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SignalDebuggerPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt SignalHistoryTable.Arn
+
+  # EventBridge Permission for Signal Debugger
+  SignalDebuggerEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SignalDebuggerFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserDebugEventBus.Name}/*"
+
+  # ========== EVENTBRIDGE SCHEDULES ==========
+  
+  # Schedule: Every 5 minutes from 3:00 PM to 3:55 PM ET (Mon-Fri)
+  # Creates 12 schedules: 15:00, 15:05, 15:10, ..., 15:55
+  DebugSchedule3PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1500"
+      Description: "Debug run at 3:00 PM ET"
+      ScheduleExpression: "cron(0 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule305PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1505"
+      Description: "Debug run at 3:05 PM ET"
+      ScheduleExpression: "cron(5 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule310PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1510"
+      Description: "Debug run at 3:10 PM ET"
+      ScheduleExpression: "cron(10 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule315PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1515"
+      Description: "Debug run at 3:15 PM ET"
+      ScheduleExpression: "cron(15 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule320PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1520"
+      Description: "Debug run at 3:20 PM ET"
+      ScheduleExpression: "cron(20 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule325PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1525"
+      Description: "Debug run at 3:25 PM ET"
+      ScheduleExpression: "cron(25 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule330PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1530"
+      Description: "Debug run at 3:30 PM ET"
+      ScheduleExpression: "cron(30 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule335PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1535"
+      Description: "Debug run at 3:35 PM ET"
+      ScheduleExpression: "cron(35 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule340PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1540"
+      Description: "Debug run at 3:40 PM ET"
+      ScheduleExpression: "cron(40 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule345PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1545"
+      Description: "Debug run at 3:45 PM ET"
+      ScheduleExpression: "cron(45 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule350PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1550"
+      Description: "Debug run at 3:50 PM ET"
+      ScheduleExpression: "cron(50 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  DebugSchedule355PM:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${StackName}-run-1555"
+      Description: "Debug run at 3:55 PM ET"
+      ScheduleExpression: "cron(55 15 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt StrategyOrchestratorFunction.Arn
+        RoleArn: !GetAtt StrategySchedulerRole.Arn
+        Input: '{"mode": "debug", "scheduled_by": "debug_scheduler"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+
+  StrategySchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeStrategy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt StrategyOrchestratorFunction.Arn
+
+Outputs:
+  AggregationSessionsTableName:
+    Description: "DynamoDB table for multi-node strategy aggregation sessions"
+    Value: !Ref AggregationSessionsTable
+
+  SignalHistoryTableName:
+    Description: "DynamoDB table for signal history tracking"
+    Value: !Ref SignalHistoryTable
+
+  EventBusName:
+    Description: "EventBridge bus for debugging stack"
+    Value: !Ref AlchemiserDebugEventBus
+
+  StrategyOrchestratorArn:
+    Description: "ARN of Strategy Orchestrator Lambda"
+    Value: !GetAtt StrategyOrchestratorFunction.Arn
+
+  DebugStackName:
+    Description: "Debug stack name"
+    Value: !Ref StackName

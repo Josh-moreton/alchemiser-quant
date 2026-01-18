@@ -72,4 +72,22 @@ parameter_overrides = [
 	"Stage=ephemeral",
 ]
 
+[debug.build.parameters]
+beta_features = true
+use_container = false
+
+[debug.deploy.parameters]
+stack_name = "alchemiser-debug"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+# Debug stack uses separate template
+parameter_overrides = [
+	"Stage=debug",
+	"StackName=alchemiser-debug",
+]
+
 

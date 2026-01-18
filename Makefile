@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights deploy-debug destroy-debug debug-report
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -47,6 +47,12 @@ help:
 	@echo "  debug-strategy s=<name>              Debug strategy with full condition tracing"
 	@echo "  debug-strategy list=1                List all available strategies"
 	@echo "  debug-strategy-historical s=<name> as-of=<date>  Debug with historical data cutoff"
+	@echo ""
+	@echo "Debugging Stack (Live Bar Testing):"
+	@echo "  deploy-debug                         Deploy debugging stack (runs 3:00-3:55 PM ET)"
+	@echo "  destroy-debug                        Destroy debugging stack"
+	@echo "  debug-report                         View today's signal change report"
+	@echo "  debug-report date=2026-01-18         View specific date's report"
 	@echo ""
 	@echo "Observability:"
 	@echo "  logs                       Fetch logs from most recent workflow (dev)"
@@ -539,3 +545,52 @@ deploy-prod:
 		--notes "Production release $$TAG"; \
 	echo "✅ Production release $$TAG created and pushed!"; \
 	echo "🚀 Production deployment will start automatically via GitHub Actions"
+
+# ============================================================================
+# DEBUGGING STACK
+# ============================================================================
+
+# Deploy debugging stack (signal tracking with live bars, no trading)
+# Usage: make deploy-debug
+deploy-debug:
+	@echo "🐛 Deploying debugging stack..."
+	@echo "⚠️  This stack runs every 5 minutes from 3:00-3:55 PM ET"
+	@echo "📊 Tracks signal changes with live bars enabled"
+	@echo ""
+	@# Load Alpaca credentials from dev environment
+	@ALPACA_KEY=$$(aws ssm get-parameter --name "/alchemiser/dev/alpaca_key" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo ""); \
+	ALPACA_SECRET=$$(aws ssm get-parameter --name "/alchemiser/dev/alpaca_secret" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo ""); \
+	if [ -z "$$ALPACA_KEY" ] || [ -z "$$ALPACA_SECRET" ]; then \
+		echo "❌ Failed to load Alpaca credentials from SSM"; \
+		echo "💡 Ensure SSM parameters exist: /alchemiser/dev/alpaca_key and /alchemiser/dev/alpaca_secret"; \
+		exit 1; \
+	fi; \
+	sam build --template-file template-debug.yaml --config-env debug && \
+	sam deploy --template-file template-debug.yaml --config-env debug \
+		--parameter-overrides \
+		"AlpacaKey=$$ALPACA_KEY" \
+		"AlpacaSecret=$$ALPACA_SECRET"
+
+# Destroy debugging stack
+# Usage: make destroy-debug
+destroy-debug:
+	@echo "🗑️  Destroying debugging stack..."
+	@read -p "Are you sure you want to delete the debugging stack? [y/N] " -n 1 -r; \
+	echo ""; \
+	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "❌ Deletion cancelled"; \
+		exit 1; \
+	fi; \
+	aws cloudformation delete-stack --stack-name alchemiser-debug --no-cli-pager; \
+	echo "⏳ Waiting for stack deletion..."; \
+	aws cloudformation wait stack-delete-complete --stack-name alchemiser-debug --no-cli-pager; \
+	echo "✅ Debugging stack deleted"
+
+# View signal change report for a specific date
+# Usage: make debug-report                     # Today's report
+#        make debug-report date=2026-01-18     # Specific date
+debug-report:
+	@echo "📊 Fetching signal change report..."
+	@DATE=$${date:-$$(date +%Y-%m-%d)}; \
+	echo "📅 Date: $$DATE"; \
+	poetry run python scripts/debug_signal_report.py --date $$DATE

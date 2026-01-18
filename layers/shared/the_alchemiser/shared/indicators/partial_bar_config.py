@@ -122,7 +122,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works with partial bar but RSI will be more volatile intraday. "
         "The partial bar's close-so-far contributes to the gain/loss calculation. "
         "Consider adding metadata flag to indicate partial bar was used.",
-        use_live_bar=True,  # RSI too volatile with partial bars
+        use_live_bar=True,  # Enabled for debugging stack
         edge_cases=(
             "RSI may jump significantly near market open when close-so-far equals open",
             "Intraday RSI variance higher than end-of-day due to price swings",
@@ -157,7 +157,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.CONDITIONAL,
         modification_notes="Works but partial bar has higher weight due to exponential decay. "
         "Short-term EMAs (8, 12) will show more intraday variance than long-term (50, 200).",
-        use_live_bar=True,  # EMA gives too much weight to partial bar
+        use_live_bar=True,  # Enabled for debugging stack
         edge_cases=(
             "EMA crossover signals may flip intraday then revert by close",
             "For EMA-8 vs SMA-10 comparisons, timing of evaluation matters significantly",
@@ -228,7 +228,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.CONDITIONAL,
         modification_notes="Works but today's price may increase variance reading. "
         "Unlike stdev_return, this uses absolute prices so gap effects are included.",
-        use_live_bar=True,  # Price stdev too sensitive to partial bars
+        use_live_bar=True,  # Enabled for debugging stack
         edge_cases=(
             "Large gap up/down increases price stdev immediately at open",
             "Trending price action may show lower stdev than mean-reverting action",
