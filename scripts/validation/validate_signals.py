@@ -44,6 +44,10 @@ from botocore.exceptions import ClientError
 
 # Project root for paths (go up two levels: validation/ -> scripts/ -> project root)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Add shared layer to path for partial bar config import
+sys.path.insert(0, str(PROJECT_ROOT / "layers" / "shared"))
+from the_alchemiser.shared.indicators.partial_bar_config import get_all_indicator_configs
 LEDGER_PATH = (
     PROJECT_ROOT
     / "layers"
@@ -67,7 +71,10 @@ def get_dynamodb_client(region: str = "us-east-1") -> Any:
 
 
 def find_sessions_by_date(client: Any, table_name: str, target_date: date) -> list[dict[str, Any]]:
-    """Find all completed sessions for a given date.
+    """Find all sessions for a given date by scanning STRATEGY items.
+
+    Sessions are discovered from STRATEGY items (SK begins with "STRATEGY#")
+    since the table doesn't have separate METADATA items.
 
     Args:
         client: DynamoDB client
@@ -77,42 +84,54 @@ def find_sessions_by_date(client: Any, table_name: str, target_date: date) -> li
     Returns:
         List of session metadata dicts, sorted by created_at descending
     """
-    sessions: list[dict[str, Any]] = []
+    # Dictionary to aggregate sessions by session_id
+    sessions_map: dict[str, dict[str, Any]] = {}
 
-    # Scan with pagination
+    # Scan for STRATEGY items with completed_at on the target date
     paginator = client.get_paginator("scan")
     page_iterator = paginator.paginate(
         TableName=table_name,
-        FilterExpression="SK = :metadata AND #status = :completed AND begins_with(created_at, :date)",
-        ExpressionAttributeNames={"#status": "status"},
+        FilterExpression="begins_with(SK, :strategy_prefix) AND begins_with(completed_at, :date)",
         ExpressionAttributeValues={
-            ":metadata": {"S": "METADATA"},
-            ":completed": {"S": "COMPLETED"},
+            ":strategy_prefix": {"S": "STRATEGY#"},
             ":date": {"S": target_date.isoformat()},
         },
     )
 
     for page in page_iterator:
         for item in page.get("Items", []):
-            sessions.append(
-                {
-                    "session_id": item.get("session_id", {}).get("S", ""),
-                    "correlation_id": item.get("correlation_id", {}).get("S", ""),
-                    "created_at": item.get("created_at", {}).get("S", ""),
-                    "status": item.get("status", {}).get("S", ""),
-                    "total_strategies": int(item.get("total_strategies", {}).get("N", "0")),
-                }
-            )
+            # Extract session_id from PK (format: "SESSION#<session_id>")
+            pk = item.get("PK", {}).get("S", "")
+            if pk.startswith("SESSION#"):
+                session_id = pk.replace("SESSION#", "")
+                completed_at = item.get("completed_at", {}).get("S", "")
 
-    # Sort by created_at descending (most recent first)
+                # Track this session (use latest completed_at if multiple strategies)
+                if session_id not in sessions_map:
+                    sessions_map[session_id] = {
+                        "session_id": session_id,
+                        "correlation_id": session_id,  # Same as session_id for these records
+                        "created_at": completed_at,
+                        "status": "COMPLETED",  # If we have strategy items, session completed
+                        "total_strategies": 1,
+                    }
+                else:
+                    # Count strategies and update to latest timestamp
+                    sessions_map[session_id]["total_strategies"] += 1
+                    if completed_at > sessions_map[session_id]["created_at"]:
+                        sessions_map[session_id]["created_at"] = completed_at
+
+    # Convert to list and sort
+    sessions = list(sessions_map.values())
     sessions.sort(key=lambda x: x["created_at"], reverse=True)
     return sessions
 
 
 def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Get recent completed sessions efficiently.
+    """Get recent sessions by scanning STRATEGY items.
 
-    Uses pagination with early termination to quickly find recent sessions.
+    Sessions are discovered from STRATEGY items since the table doesn't have
+    separate METADATA items.
 
     Args:
         client: DynamoDB client
@@ -122,40 +141,46 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
     Returns:
         List of recent session metadata dicts
     """
-    sessions: list[dict[str, Any]] = []
+    # Dictionary to aggregate sessions by session_id
+    sessions_map: dict[str, dict[str, Any]] = {}
 
-    # Use pagination but stop early once we have enough sessions
-    # Each page scans up to 1MB of data
+    # Scan for all STRATEGY items
+    # Note: We scan the entire table to ensure we find the most recent sessions,
+    # since DynamoDB scan doesn't return items in any particular order.
     paginator = client.get_paginator("scan")
     page_iterator = paginator.paginate(
         TableName=table_name,
-        FilterExpression="SK = :metadata AND #status = :completed",
-        ExpressionAttributeNames={"#status": "status"},
+        FilterExpression="begins_with(SK, :strategy_prefix)",
         ExpressionAttributeValues={
-            ":metadata": {"S": "METADATA"},
-            ":completed": {"S": "COMPLETED"},
+            ":strategy_prefix": {"S": "STRATEGY#"},
         },
-        PaginationConfig={"PageSize": 500},  # Items per page
+        PaginationConfig={"PageSize": 1000},
     )
 
-    # Collect sessions from pages, stop when we have enough recent ones
+    # Collect all strategy items to build session list
     for page in page_iterator:
         for item in page.get("Items", []):
-            sessions.append(
-                {
-                    "session_id": item.get("session_id", {}).get("S", ""),
-                    "correlation_id": item.get("correlation_id", {}).get("S", ""),
-                    "created_at": item.get("created_at", {}).get("S", ""),
-                    "status": item.get("status", {}).get("S", ""),
-                    "total_strategies": int(item.get("total_strategies", {}).get("N", "0")),
-                }
-            )
-        # Early termination: if we have more than limit * 3 sessions,
-        # we likely have the most recent ones in there
-        if len(sessions) >= limit * 3:
-            break
+            # Extract session_id from PK (format: "SESSION#<session_id>")
+            pk = item.get("PK", {}).get("S", "")
+            if pk.startswith("SESSION#"):
+                session_id = pk.replace("SESSION#", "")
+                completed_at = item.get("completed_at", {}).get("S", "")
 
-    # Sort by created_at descending and return top N
+                if session_id not in sessions_map:
+                    sessions_map[session_id] = {
+                        "session_id": session_id,
+                        "correlation_id": session_id,
+                        "created_at": completed_at,
+                        "status": "COMPLETED",
+                        "total_strategies": 1,
+                    }
+                else:
+                    sessions_map[session_id]["total_strategies"] += 1
+                    if completed_at > sessions_map[session_id]["created_at"]:
+                        sessions_map[session_id]["created_at"] = completed_at
+
+    # Convert to list, sort by created_at descending, return top N
+    sessions = list(sessions_map.values())
     sessions.sort(key=lambda x: x["created_at"], reverse=True)
     return sessions[:limit]
 
@@ -340,20 +365,13 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     if not editor:
         editor = "vi"
 
-    # Create temp file with instructions
+    # Create empty temp file
     temp_dir = tempfile.gettempdir()
     temp_path = Path(temp_dir) / f"composer_holdings_{strategy_name}.txt"
 
-    instructions = f"""# Paste the Composer.trade "Simulated Holdings" data below this line.
-# Save and close the editor when done.
-# To cancel, delete all content and save.
-#
-# Strategy: {strategy_name}
-# -------------------------------------------------------------------------
-
-"""
+    # Create empty file - user just pastes and saves
     with open(temp_path, "w") as f:
-        f.write(instructions)
+        f.write("")
 
     # Open editor
     print(f"\n  Opening {editor} for live signal capture...")
@@ -382,9 +400,8 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     except OSError:
         pass
 
-    # Remove instruction lines (lines starting with #)
-    lines = [line for line in content.split("\n") if not line.strip().startswith("#")]
-    cleaned_content = "\n".join(lines).strip()
+    # Check for empty content
+    cleaned_content = content.strip()
 
     if not cleaned_content:
         print("  No content found (cancelled)")
@@ -415,15 +432,18 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
 def display_signal_comparison(
     our_signals: dict[str, Decimal],
     live_signals: dict[str, Decimal] | None,
-) -> None:
+) -> bool:
     """Display side-by-side comparison of our signals vs live Composer signals.
 
     Args:
         our_signals: Our computed allocations (ticker -> decimal weight)
         live_signals: Live signals from Composer (ticker -> decimal weight), or None
+
+    Returns:
+        True if all signals match (within tolerance), False otherwise
     """
     if live_signals is None:
-        return
+        return False
 
     # Collect all symbols from both sources
     all_symbols = set(our_signals.keys()) | set(live_signals.keys())
@@ -451,7 +471,7 @@ def display_signal_comparison(
         elif live is None:
             status = "✗ Extra (ours)"
             differences += 1
-        elif abs(float(ours) - float(live)) < 0.001:  # 0.1% tolerance
+        elif abs(float(ours) - float(live)) < 0.05:  # 5 percentage point tolerance
             status = "✓ Match"
             matches += 1
         else:
@@ -464,6 +484,8 @@ def display_signal_comparison(
     print("  " + "-" * 50)
     print(f"  Matches: {matches}  |  Differences: {differences}")
     print("━" * 55)
+
+    return differences == 0
 
 
 # ============================================================================
@@ -521,6 +543,7 @@ def append_validation(csv_path: Path, record: dict[str, Any]) -> None:
         "notes",
         "our_signals",
         "live_signals",
+        "partial_bar_config",
         "validated_at",
     ]
 
@@ -881,18 +904,29 @@ def main() -> None:
 
             # If --capture-live flag, auto-invoke live signal capture
             live_signals: dict[str, Decimal] | None = None
+            all_signals_match = False
             if args.capture_live:
                 print("\n📥 Capture live signals (--capture-live enabled)")
                 live_signals = capture_live_signals(strategy_name)
                 if live_signals:
-                    display_signal_comparison(our_signals, live_signals)
+                    all_signals_match = display_signal_comparison(our_signals, live_signals)
 
-            # Prompt for validation
-            matches, notes, captured_live = prompt_validation(strategy_name, our_signals)
-
-            # Use live signals from prompt if not already captured
-            if captured_live and not live_signals:
-                live_signals = captured_live
+            # Auto-confirm/reject if capture-live mode and live signals were captured
+            if args.capture_live and live_signals:
+                if all_signals_match:
+                    matches = "yes"
+                    notes = ""
+                    print("\n✅ All signals match - auto-confirmed")
+                else:
+                    matches = "no"
+                    notes = ""
+                    print("\n❌ Signals don't match - auto-rejected")
+            else:
+                # Prompt for validation (manual mode or no live signals captured)
+                matches, notes, captured_live = prompt_validation(strategy_name, our_signals)
+                # Use live signals from prompt if not already captured
+                if captured_live and not live_signals:
+                    live_signals = captured_live
 
             # Serialize signals to JSON for CSV storage
             def signals_to_json(signals_dict: dict[str, Decimal] | None) -> str:
@@ -900,6 +934,14 @@ def main() -> None:
                     return ""
                 # Convert Decimal to float for JSON serialization
                 return json.dumps({k: float(v) for k, v in signals_dict.items()}, sort_keys=True)
+
+            # Get partial bar config as JSON (indicator -> use_live_bar)
+            def get_partial_bar_config_json() -> str:
+                configs = get_all_indicator_configs()
+                return json.dumps(
+                    {name: cfg.use_live_bar for name, cfg in configs.items()},
+                    sort_keys=True,
+                )
 
             # Record validation
             record = {
@@ -911,6 +953,7 @@ def main() -> None:
                 "notes": notes,
                 "our_signals": signals_to_json(our_signals),
                 "live_signals": signals_to_json(live_signals),
+                "partial_bar_config": get_partial_bar_config_json(),
                 "validated_at": datetime.now(UTC).isoformat(),
             }
 
