@@ -1,5 +1,5 @@
 validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
-2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,blatant_tech,blatant_tech.clj,no,We have CORD SOX live signal is CORD NBIS SOX,2026-01-16T09:23:14.488012+00:00
+2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,blatant_tech,blatant_tech.clj,no,We have CORD SOX live signal is CORD NBIS SOXS,2026-01-16T09:23:14.488012+00:00
 2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,defence,defence.clj,yes,,2026-01-16T09:23:23.921959+00:00
 2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,gold,gold.clj,yes,,2026-01-16T09:23:30.190893+00:00
 2026-01-15,schedule-8d92110f-4d7d-4729-bda7-b28e32177337,nuclear,nuclear.clj,yes,,2026-01-16T09:23:36.750847+00:00

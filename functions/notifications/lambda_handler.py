@@ -209,25 +209,44 @@ def _build_trading_notification_from_aggregated(
     failed_symbols = all_trades_detail.get("failed_symbols", [])
     non_fractionable_skipped_symbols = all_trades_detail.get("non_fractionable_skipped_symbols", [])
 
-    # Determine trading success status with partial success logic:
+    # Determine trading success status with threshold-based partial success logic:
     # - SUCCESS: All trades succeeded (no failures)
-    # - PARTIAL_SUCCESS: Some failures, but ALL failures are non-fractionable skips
-    # - FAILURE: Some actual failures (not just non-fractionable skips)
+    # - PARTIAL_SUCCESS (non-fractionable): Some failures, but ALL are non-fractionable skips
+    # - PARTIAL_SUCCESS (with failures): Actual failures exist but below 30% failure rate
+    # - FAILURE: Actual failures at 30% or more of total trades
+    #
+    # Threshold: 30% failure rate is the cutoff for "real" failure emails
+    # This prevents a single failed trade out of 20 from triggering a FAILURE notification
+    FAILURE_THRESHOLD = 0.30  # 30% failure rate
+
     has_actual_failures = len(failed_symbols) > 0
     has_non_fractionable_skips = len(non_fractionable_skipped_symbols) > 0
+
+    # Calculate failure rate based on actual failures (not non-fractionable skips)
+    actual_failure_count = len(failed_symbols)
+    failure_rate = actual_failure_count / total_trades if total_trades > 0 else 0
 
     if total_trades > 0 and failed_trades == 0:
         # No failures at all - full success
         trading_success = True
         is_partial_success = False
+        is_partial_success_with_failures = False
     elif total_trades > 0 and not has_actual_failures and has_non_fractionable_skips:
-        # All failures are non-fractionable skips - partial success
+        # All failures are non-fractionable skips - partial success (non-fractionable)
         trading_success = True  # Mark as success for template selection
         is_partial_success = True
+        is_partial_success_with_failures = False
+    elif has_actual_failures and failure_rate < FAILURE_THRESHOLD:
+        # Actual failures exist but below threshold - partial success with failures
+        # This is the case where 19/20 succeed and 1 fails (5% failure rate < 30%)
+        trading_success = True  # Mark as partial success, not failure
+        is_partial_success = True
+        is_partial_success_with_failures = True
     else:
-        # Actual failures exist - failure
+        # Actual failures at or above threshold - true failure
         trading_success = False
         is_partial_success = False
+        is_partial_success_with_failures = False
 
     # Get portfolio snapshot (always fetched from Alpaca by TradeAggregator)
     portfolio_snapshot = all_trades_detail.get("portfolio_snapshot", {})
@@ -261,7 +280,10 @@ def _build_trading_notification_from_aggregated(
         "pnl_metrics": pnl_metrics,
         # Partial success context
         "is_partial_success": is_partial_success,
+        "is_partial_success_with_failures": is_partial_success_with_failures,
         "non_fractionable_skipped_symbols": non_fractionable_skipped_symbols,
+        "failed_symbols": failed_symbols,
+        "failure_rate": failure_rate,
         # Strategy evaluation metadata
         "strategies_evaluated": all_trades_detail.get("strategies_evaluated", 0),
         # Rebalance plan summary for email display

@@ -309,12 +309,14 @@ rebalance-weights:
 #        make validate-signals stage=prod         # Validate latest prod session
 #        make validate-signals fresh=1            # Start fresh validation
 #        make validate-signals session=<id>       # Validate specific session
+#        make validate-signals capture=1          # Always capture live signals
 validate-signals:
 	@echo "🔍 Validating signals against Composer.trade..."
 	@ARGS=""; \
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
 	if [ -n "$(fresh)" ]; then ARGS="$$ARGS --fresh"; fi; \
 	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
+	if [ -n "$(capture)" ]; then ARGS="$$ARGS --capture-live"; fi; \
 	poetry run python scripts/validation/validate_signals.py $$ARGS
 
 # ============================================================================
