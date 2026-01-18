@@ -27,7 +27,11 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
+import re
+import subprocess
 import sys
+import tempfile
 import webbrowser
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -262,6 +266,219 @@ def find_strategy_by_filename(
 
 
 # ============================================================================
+# Composer Holdings Parser Functions
+# ============================================================================
+
+
+def parse_composer_holdings(raw_text: str) -> dict[str, Decimal]:
+    """Parse Composer.trade 'Simulated Holdings' copy-paste format.
+
+    Parses the raw text copied from Composer.trade's Simulated Holdings table
+    and extracts ticker symbols with their allocation percentages.
+
+    Args:
+        raw_text: Raw copy-pasted text from Composer.trade
+
+    Returns:
+        Dict of ticker -> allocation as Decimal (e.g., {"BSV": Decimal("0.375")})
+        Cash positions ("Symphony Cash Remainder") are skipped.
+
+    Example input format:
+        Simulated Holdings
+        Jan 18, 2025->Jan 16, 2026 | Assuming an initial investment of $10,000
+        Current Price	Quantity	Market Value	Current Allocation
+        BSV
+        Vanguard Short-Term Bond ETF
+        $78.73
+        90.571	$7,130.67	37.5%
+    """
+    holdings: dict[str, Decimal] = {}
+    lines = raw_text.strip().split("\n")
+
+    # Track the last potential ticker we've seen
+    last_ticker: str | None = None
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Skip "Symphony Cash Remainder" (cash position)
+        if "Symphony Cash Remainder" in line:
+            last_ticker = None
+            continue
+
+        # Check if this line contains an allocation percentage
+        # Matches patterns like "37.5%" or "62.5%" at the end of the line
+        alloc_match = re.search(r"(\d+\.?\d*)\s*%\s*$", line)
+        if alloc_match and last_ticker:
+            pct = Decimal(alloc_match.group(1))
+            # Convert percentage to decimal (37.5% -> 0.375)
+            holdings[last_ticker] = pct / Decimal("100")
+            last_ticker = None
+            continue
+
+        # Check if this line could be a ticker symbol
+        # Tickers are typically 1-5 uppercase letters/numbers, standalone
+        # Avoid matching prices like "$78.73" or dates
+        if re.match(r"^[A-Z][A-Z0-9]{0,4}$", line):
+            last_ticker = line
+            continue
+
+        # If line looks like a full name (contains spaces, lowercase), reset ticker
+        if " " in line or any(c.islower() for c in line):
+            # Don't reset if we're in the middle of parsing a holding
+            pass
+
+    return holdings
+
+
+def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
+    """Open editor for user to paste Composer holdings, then parse.
+
+    Creates a temporary file, opens it in the user's editor, waits for them
+    to paste the Composer.trade holdings data, then parses the result.
+
+    Args:
+        strategy_name: Strategy name (used for temp file naming)
+
+    Returns:
+        Parsed holdings dict, or None if cancelled or empty
+    """
+    # Get editor from environment, fall back to nano then vi
+    editor = os.environ.get("EDITOR", "nano")
+    if not editor:
+        editor = "vi"
+
+    # Create temp file with instructions
+    temp_dir = tempfile.gettempdir()
+    temp_path = Path(temp_dir) / f"composer_holdings_{strategy_name}.txt"
+
+    instructions = f"""# Paste the Composer.trade "Simulated Holdings" data below this line.
+# Save and close the editor when done.
+# To cancel, delete all content and save.
+#
+# Strategy: {strategy_name}
+# -------------------------------------------------------------------------
+
+"""
+    with open(temp_path, "w") as f:
+        f.write(instructions)
+
+    # Open editor
+    print(f"\n  Opening {editor} for live signal capture...")
+    print(f"  Paste Composer holdings, save, and close the editor.")
+
+    try:
+        result = subprocess.run([editor, str(temp_path)], check=True)
+    except subprocess.CalledProcessError:
+        print("  Editor exited with error")
+        return None
+    except FileNotFoundError:
+        print(f"  Editor '{editor}' not found. Set EDITOR environment variable.")
+        return None
+
+    # Read and parse the file
+    try:
+        with open(temp_path) as f:
+            content = f.read()
+    except FileNotFoundError:
+        print("  Temp file not found")
+        return None
+
+    # Clean up temp file
+    try:
+        temp_path.unlink()
+    except OSError:
+        pass
+
+    # Remove instruction lines (lines starting with #)
+    lines = [
+        line for line in content.split("\n") if not line.strip().startswith("#")
+    ]
+    cleaned_content = "\n".join(lines).strip()
+
+    if not cleaned_content:
+        print("  No content found (cancelled)")
+        return None
+
+    # Parse the holdings
+    holdings = parse_composer_holdings(cleaned_content)
+
+    if not holdings:
+        print("  Could not parse any holdings from the pasted data")
+        return None
+
+    # Display parsed results
+    print(f"\n  Parsed {len(holdings)} holdings:")
+    for ticker, weight in sorted(holdings.items(), key=lambda x: x[1], reverse=True):
+        pct = float(weight) * 100
+        print(f"    {ticker:<8} {pct:>6.2f}%")
+
+    # Confirm with user
+    confirm = input("\n  Is this correct? [Y/n]: ").strip().lower()
+    if confirm in ["n", "no"]:
+        print("  Discarded live signals")
+        return None
+
+    return holdings
+
+
+def display_signal_comparison(
+    our_signals: dict[str, Decimal],
+    live_signals: dict[str, Decimal] | None,
+) -> None:
+    """Display side-by-side comparison of our signals vs live Composer signals.
+
+    Args:
+        our_signals: Our computed allocations (ticker -> decimal weight)
+        live_signals: Live signals from Composer (ticker -> decimal weight), or None
+    """
+    if live_signals is None:
+        return
+
+    # Collect all symbols from both sources
+    all_symbols = set(our_signals.keys()) | set(live_signals.keys())
+
+    print("\n" + "━" * 55)
+    print("  Signal Comparison")
+    print("━" * 55)
+    print(f"  {'Symbol':<8}  {'Ours':>10}  {'Live':>10}  {'Status':<12}")
+    print("  " + "-" * 50)
+
+    matches = 0
+    differences = 0
+
+    for symbol in sorted(all_symbols):
+        ours = our_signals.get(symbol)
+        live = live_signals.get(symbol)
+
+        ours_str = f"{float(ours) * 100:.2f}%" if ours else "-"
+        live_str = f"{float(live) * 100:.2f}%" if live else "-"
+
+        # Determine status
+        if ours is None:
+            status = "✗ Missing (ours)"
+            differences += 1
+        elif live is None:
+            status = "✗ Extra (ours)"
+            differences += 1
+        elif abs(float(ours) - float(live)) < 0.001:  # 0.1% tolerance
+            status = "✓ Match"
+            matches += 1
+        else:
+            diff = (float(ours) - float(live)) * 100
+            status = f"✗ Diff ({diff:+.1f}%)"
+            differences += 1
+
+        print(f"  {symbol:<8}  {ours_str:>10}  {live_str:>10}  {status:<12}")
+
+    print("  " + "-" * 50)
+    print(f"  Matches: {matches}  |  Differences: {differences}")
+    print("━" * 55)
+
+
+# ============================================================================
 # CSV Persistence Functions
 # ============================================================================
 
@@ -305,7 +522,7 @@ def append_validation(csv_path: Path, record: dict[str, Any]) -> None:
 
     Args:
         csv_path: Path to CSV file
-        record: Validation record dict
+        record: Validation record dict (should include our_signals and live_signals as JSON)
     """
     fieldnames = [
         "validation_date",
@@ -314,6 +531,8 @@ def append_validation(csv_path: Path, record: dict[str, Any]) -> None:
         "dsl_file",
         "matches",
         "notes",
+        "our_signals",
+        "live_signals",
         "validated_at",
     ]
 
@@ -394,18 +613,40 @@ def open_url_in_browser(url: str) -> None:
         print(f"  ⚠️  Could not open browser: {e}")
 
 
-def prompt_validation() -> tuple[str, str]:
+def prompt_validation(
+    strategy_name: str,
+    our_signals: dict[str, Decimal],
+) -> tuple[str, str, dict[str, Decimal] | None]:
     """Interactive prompt for validation result.
 
+    Args:
+        strategy_name: Name of the strategy being validated
+        our_signals: Our computed allocations for comparison display
+
     Returns:
-        Tuple of (matches_str, notes_str)
+        Tuple of (matches_str, notes_str, live_signals_dict_or_none)
         Raises KeyboardInterrupt if user quits
     """
+    live_signals: dict[str, Decimal] | None = None
+
     while True:
-        response = input("Does the signal match? (y/n/s=skip/q=quit): ").strip().lower()
+        response = (
+            input("Does the signal match? (y/n/s=skip/l=capture live/q=quit): ")
+            .strip()
+            .lower()
+        )
 
         if response == "q":
             raise KeyboardInterrupt("User quit validation")
+
+        if response == "l":
+            # Capture live signals from Composer
+            live_signals = capture_live_signals(strategy_name)
+            if live_signals:
+                # Display comparison
+                display_signal_comparison(our_signals, live_signals)
+            # Return to prompt for final answer
+            continue
 
         if response in ["y", "n", "s"]:
             matches_map = {"y": "yes", "n": "no", "s": "skip"}
@@ -413,9 +654,9 @@ def prompt_validation() -> tuple[str, str]:
 
             notes = input("Notes (optional): ").strip()
 
-            return matches, notes
+            return matches, notes, live_signals
 
-        print("  Invalid input. Please enter y, n, s, or q.")
+        print("  Invalid input. Please enter y, n, s, l, or q.")
 
 
 def select_session(sessions: list[dict[str, Any]]) -> str:
@@ -497,6 +738,11 @@ def main() -> None:
         "--fresh",
         action="store_true",
         help="Ignore previous validations and start fresh (creates new CSV)",
+    )
+    parser.add_argument(
+        "--capture-live",
+        action="store_true",
+        help="Always prompt to capture live signals from Composer for each strategy",
     )
 
     args = parser.parse_args()
@@ -619,6 +865,7 @@ def main() -> None:
     try:
         for i, signal in enumerate(signals, 1):
             dsl_file = signal["dsl_file"]
+            strategy_name = dsl_file.replace(".clj", "")
 
             # Skip if already validated
             if dsl_file in validated_strategies:
@@ -627,6 +874,17 @@ def main() -> None:
 
             # Find strategy metadata
             strategy = find_strategy_by_filename(ledger, dsl_file)
+
+            # Extract our signals (un-scaled to match Composer's 100% view)
+            raw_allocations = signal["consolidated_portfolio"].get(
+                "target_allocations", {}
+            )
+            allocation_weight = signal["allocation"]
+            our_signals: dict[str, Decimal] = {}
+            for symbol, weight in raw_allocations.items():
+                # Un-scale: divide by strategy allocation to get original 100% portfolio
+                original_weight = Decimal(str(weight)) / allocation_weight
+                our_signals[symbol] = original_weight
 
             # Display signal
             display_signal(signal, strategy, i, len(signals))
@@ -637,17 +895,40 @@ def main() -> None:
                 if open_prompt in ["", "y", "yes"]:
                     open_url_in_browser(strategy["source_url"])
 
+            # If --capture-live flag, auto-invoke live signal capture
+            live_signals: dict[str, Decimal] | None = None
+            if args.capture_live:
+                print("\n📥 Capture live signals (--capture-live enabled)")
+                live_signals = capture_live_signals(strategy_name)
+                if live_signals:
+                    display_signal_comparison(our_signals, live_signals)
+
             # Prompt for validation
-            matches, notes = prompt_validation()
+            matches, notes, captured_live = prompt_validation(strategy_name, our_signals)
+
+            # Use live signals from prompt if not already captured
+            if captured_live and not live_signals:
+                live_signals = captured_live
+
+            # Serialize signals to JSON for CSV storage
+            def signals_to_json(signals_dict: dict[str, Decimal] | None) -> str:
+                if not signals_dict:
+                    return ""
+                # Convert Decimal to float for JSON serialization
+                return json.dumps(
+                    {k: float(v) for k, v in signals_dict.items()}, sort_keys=True
+                )
 
             # Record validation
             record = {
                 "validation_date": validation_date.isoformat(),
                 "session_id": session_id,
-                "strategy_name": dsl_file.replace(".clj", ""),
+                "strategy_name": strategy_name,
                 "dsl_file": dsl_file,
                 "matches": matches,
                 "notes": notes,
+                "our_signals": signals_to_json(our_signals),
+                "live_signals": signals_to_json(live_signals),
                 "validated_at": datetime.now(UTC).isoformat(),
             }
 
