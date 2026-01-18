@@ -1,30 +1,24 @@
 {
   "files": [
-    "blatant_tech.clj",
     "defence.clj",
     "gold.clj",
     "nuclear.clj",
     "pals_spell.clj",
-    "rains_concise_em.clj",
     "rains_em_dancer.clj",
     "simons_full_kmlm.clj",
-    "sisyphus_lowvol.clj",
     "tqqq_ftlt.clj",
     "tqqq_ftlt_1.clj",
     "tqqq_ftlt_2.clj"
   ],
   "allocations": {
-    "blatant_tech.clj": 0.083,
-    "defence.clj": 0.147,
-    "gold.clj": 0.079,
-    "nuclear.clj": 0.04,
-    "pals_spell.clj": 0.095,
-    "rains_concise_em.clj": 0.116,
-    "rains_em_dancer.clj": 0.099,
-    "simons_full_kmlm.clj": 0.04,
-    "sisyphus_lowvol.clj": 0.073,
-    "tqqq_ftlt.clj": 0.045,
-    "tqqq_ftlt_1.clj": 0.109,
-    "tqqq_ftlt_2.clj": 0.074
+    "defence.clj": 0.215,
+    "gold.clj": 0.108,
+    "nuclear.clj": 0.054,
+    "pals_spell.clj": 0.134,
+    "rains_em_dancer.clj": 0.138,
+    "simons_full_kmlm.clj": 0.054,
+    "tqqq_ftlt.clj": 0.059,
+    "tqqq_ftlt_1.clj": 0.14,
+    "tqqq_ftlt_2.clj": 0.098
   }
 }
