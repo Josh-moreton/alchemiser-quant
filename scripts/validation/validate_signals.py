@@ -44,6 +44,10 @@ from botocore.exceptions import ClientError
 
 # Project root for paths (go up two levels: validation/ -> scripts/ -> project root)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Add shared layer to path for partial bar config import
+sys.path.insert(0, str(PROJECT_ROOT / "layers" / "shared"))
+from the_alchemiser.shared.indicators.partial_bar_config import get_all_indicator_configs
 LEDGER_PATH = (
     PROJECT_ROOT
     / "layers"
@@ -539,6 +543,7 @@ def append_validation(csv_path: Path, record: dict[str, Any]) -> None:
         "notes",
         "our_signals",
         "live_signals",
+        "partial_bar_config",
         "validated_at",
     ]
 
@@ -930,6 +935,14 @@ def main() -> None:
                 # Convert Decimal to float for JSON serialization
                 return json.dumps({k: float(v) for k, v in signals_dict.items()}, sort_keys=True)
 
+            # Get partial bar config as JSON (indicator -> use_live_bar)
+            def get_partial_bar_config_json() -> str:
+                configs = get_all_indicator_configs()
+                return json.dumps(
+                    {name: cfg.use_live_bar for name, cfg in configs.items()},
+                    sort_keys=True,
+                )
+
             # Record validation
             record = {
                 "validation_date": validation_date.isoformat(),
@@ -940,6 +953,7 @@ def main() -> None:
                 "notes": notes,
                 "our_signals": signals_to_json(our_signals),
                 "live_signals": signals_to_json(live_signals),
+                "partial_bar_config": get_partial_bar_config_json(),
                 "validated_at": datetime.now(UTC).isoformat(),
             }
 
