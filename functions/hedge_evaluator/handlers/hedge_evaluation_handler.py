@@ -23,10 +23,7 @@ from the_alchemiser.shared.events.schemas import (
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.options.constants import (
-    DEFAULT_ETF_PRICE_FALLBACK,
-    DEFAULT_ETF_PRICES,
-)
+from the_alchemiser.shared.options.utils import get_underlying_price
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -104,7 +101,7 @@ class HedgeEvaluationHandler:
             primary_underlying, _ = self._sector_mapper.aggregate_for_single_hedge(sector_exposures)
 
             # Get current price of primary underlying (from Alpaca)
-            underlying_price = self._get_underlying_price(primary_underlying)
+            underlying_price = get_underlying_price(self._container, primary_underlying)
 
             # Calculate portfolio exposure
             exposure = self._exposure_calculator.calculate_exposure(
@@ -219,22 +216,6 @@ class HedgeEvaluationHandler:
                 positions[item.symbol] = item.current_value
 
         return positions
-
-    def _get_underlying_price(self, symbol: str) -> Decimal:
-        """Get current price of underlying.
-
-        Args:
-            symbol: ETF symbol (QQQ, SPY, etc.)
-
-        Returns:
-            Current price (defaults to reasonable estimate if unavailable)
-
-        Note:
-            Uses fallback prices until market data integration is complete.
-            TODO(#2992): Integrate with AlpacaManager to get real-time prices.
-
-        """
-        return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
 
     def _get_current_vix(self) -> Decimal | None:
         """Get current VIX value.

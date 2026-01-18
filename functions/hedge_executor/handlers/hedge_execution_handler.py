@@ -27,15 +27,12 @@ from the_alchemiser.shared.options.adapters import (
     AlpacaOptionsAdapter,
     HedgePositionsRepository,
 )
-from the_alchemiser.shared.options.constants import (
-    DEFAULT_ETF_PRICE_FALLBACK,
-    DEFAULT_ETF_PRICES,
-)
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
     RollState,
 )
+from the_alchemiser.shared.options.utils import get_underlying_price
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -187,7 +184,7 @@ class HedgeExecutionHandler:
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
 
         # Get underlying price
-        underlying_price = self._get_underlying_price(underlying)
+        underlying_price = get_underlying_price(self._container, underlying)
 
         # Select optimal contract
         selected = self._option_selector.select_hedge_contract(
@@ -328,22 +325,6 @@ class HedgeExecutionHandler:
         )
 
         self._event_bus.publish(completed_event)
-
-    def _get_underlying_price(self, symbol: str) -> Decimal:
-        """Get current price of underlying.
-
-        Args:
-            symbol: ETF symbol
-
-        Returns:
-            Current price (defaults to estimate if unavailable)
-
-        Note:
-            Uses fallback prices until market data integration is complete.
-            TODO(#2992): Integrate with market data service for real-time prices.
-
-        """
-        return DEFAULT_ETF_PRICES.get(symbol, DEFAULT_ETF_PRICE_FALLBACK)
 
     def _persist_hedge_position(
         self,
