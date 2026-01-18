@@ -224,6 +224,14 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
 VIX_LOW_THRESHOLD: Decimal = Decimal("18")
 VIX_HIGH_THRESHOLD: Decimal = Decimal("28")
 
+# VIX Proxy Configuration
+# Alpaca does not provide direct VIX index quotes. We use VIXY ETF as a liquid proxy.
+# VIXY (ProShares VIX Short-Term Futures ETF) tracks VIX short-term futures.
+# Historical analysis shows VIXY ≈ VIX / 10, so we scale by 10 to estimate VIX.
+# Note: This is an approximation - the relationship varies with contango/backwardation.
+VIX_PROXY_SYMBOL: str = "VIXY"
+VIX_PROXY_SCALE_FACTOR: Decimal = Decimal("10")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # HEDGE SIZING THRESHOLDS

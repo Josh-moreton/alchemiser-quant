@@ -23,6 +23,8 @@ from .hedge_config import (
     TAIL_HEDGE_TEMPLATE,
     VIX_HIGH_THRESHOLD,
     VIX_LOW_THRESHOLD,
+    VIX_PROXY_SCALE_FACTOR,
+    VIX_PROXY_SYMBOL,
     # Dataclasses
     HedgeETF,
     LiquidityFilters,
@@ -54,6 +56,8 @@ __all__ = [
     "TICKER_SECTOR_MAP",
     "VIX_HIGH_THRESHOLD",
     "VIX_LOW_THRESHOLD",
+    "VIX_PROXY_SCALE_FACTOR",
+    "VIX_PROXY_SYMBOL",
     "HedgeETF",
     "LiquidityFilters",
     "TailHedgeTemplate",

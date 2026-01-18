@@ -23,6 +23,10 @@ from the_alchemiser.shared.events.schemas import (
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.options.constants import (
+    VIX_PROXY_SCALE_FACTOR,
+    VIX_PROXY_SYMBOL,
+)
 from the_alchemiser.shared.options.utils import get_underlying_price
 
 if TYPE_CHECKING:
@@ -226,33 +230,37 @@ class HedgeEvaluationHandler:
         since Alpaca does not provide direct VIX index quotes. VIXY tracks
         VIX futures and provides a tradeable, liquid instrument.
 
-        Note: VIXY price ≈ VIX / 10 (rule of thumb). We scale by multiplying
-        by 10 to approximate the VIX index value.
+        The scaling relationship (VIXY price * 10 approx VIX index) is an empirical
+        approximation based on historical analysis. This relationship can vary
+        with VIX futures term structure (contango/backwardation), but provides
+        a reasonable real-time estimate for budget tier selection.
 
         Returns:
             Estimated VIX value from VIXY proxy, or None if unavailable
 
         """
         try:
-            # Fetch VIXY price as VIX proxy
-            vixy_price = get_underlying_price(self._container, "VIXY")
+            # Fetch VIX proxy ETF price using configurable symbol
+            proxy_price = get_underlying_price(self._container, VIX_PROXY_SYMBOL)
 
-            # Scale VIXY to approximate VIX index value
-            # VIXY typically trades at ~1/10th of VIX value
-            estimated_vix = vixy_price * Decimal("10")
+            # Scale proxy price to approximate VIX index value
+            estimated_vix = proxy_price * VIX_PROXY_SCALE_FACTOR
 
             logger.info(
-                "Fetched VIX estimate from VIXY proxy",
-                vixy_price=str(vixy_price),
+                "Fetched VIX estimate from ETF proxy",
+                proxy_symbol=VIX_PROXY_SYMBOL,
+                proxy_price=str(proxy_price),
+                scale_factor=str(VIX_PROXY_SCALE_FACTOR),
                 estimated_vix=str(estimated_vix),
-                data_source="VIXY_ETF_proxy",
+                data_source="ETF_proxy",
             )
 
             return estimated_vix
 
         except Exception as e:
             logger.warning(
-                "Failed to fetch VIX from VIXY proxy, using default tier",
+                "Failed to fetch VIX from ETF proxy, using default tier",
+                proxy_symbol=VIX_PROXY_SYMBOL,
                 error=str(e),
                 fallback="mid_tier",
             )
