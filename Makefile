@@ -551,25 +551,50 @@ deploy-prod:
 # ============================================================================
 
 # Deploy debugging stack (signal tracking with live bars, no trading)
+# Uses dev environment GitHub secrets via CI/CD
 # Usage: make deploy-debug
 deploy-debug:
 	@echo "🐛 Deploying debugging stack..."
 	@echo "⚠️  This stack runs every 5 minutes from 3:00-3:55 PM ET"
 	@echo "📊 Tracks signal changes with live bars enabled"
 	@echo ""
-	@# Load Alpaca credentials from dev environment
-	@ALPACA_KEY=$$(aws ssm get-parameter --name "/alchemiser/dev/alpaca_key" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo ""); \
-	ALPACA_SECRET=$$(aws ssm get-parameter --name "/alchemiser/dev/alpaca_secret" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo ""); \
-	if [ -z "$$ALPACA_KEY" ] || [ -z "$$ALPACA_SECRET" ]; then \
-		echo "❌ Failed to load Alpaca credentials from SSM"; \
-		echo "💡 Ensure SSM parameters exist: /alchemiser/dev/alpaca_key and /alchemiser/dev/alpaca_secret"; \
+	@VERSION_TO_USE=$$(poetry version -s); \
+	DEBUG_NUM=$$(git tag -l "v$$VERSION_TO_USE-debug.*" | wc -l | tr -d ' '); \
+	DEBUG_NUM=$$((DEBUG_NUM + 1)); \
+	TAG="v$$VERSION_TO_USE-debug.$$DEBUG_NUM"; \
+	echo "🏷️ Tag: $$TAG (debug release using dev environment secrets)"; \
+	echo ""; \
+	if git tag | grep -q "^$$TAG$$"; then \
+		echo "❌ Tag $$TAG already exists!"; \
 		exit 1; \
 	fi; \
-	sam build --template-file template-debug.yaml --config-env debug && \
-	sam deploy --template-file template-debug.yaml --config-env debug \
-		--parameter-overrides \
-		"AlpacaKey=$$ALPACA_KEY" \
-		"AlpacaSecret=$$ALPACA_SECRET"
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "❌ You have uncommitted changes!"; \
+		echo "💡 Please commit or stash your changes first"; \
+		exit 1; \
+	fi; \
+	echo "📝 Creating debug tag $$TAG..."; \
+	git tag -a "$$TAG" -m "Debug release $$TAG for signal tracking"; \
+	echo "📤 Pushing tag to origin..."; \
+	git push origin "$$TAG"; \
+	echo "🚀 Creating GitHub pre-release..."; \
+	gh release create "$$TAG" \
+		--title "Debug Release $$TAG" \
+		--notes "Debug release $$TAG for live bar signal tracking (uses dev environment)" \
+		--prerelease; \
+	echo "✅ Debug pre-release $$TAG created successfully!"; \
+	echo "🚀 Debug stack deployment will start automatically via GitHub Actions"
 
 # Destroy debugging stack
 # Usage: make destroy-debug

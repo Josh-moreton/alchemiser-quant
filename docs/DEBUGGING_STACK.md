@@ -184,10 +184,12 @@ The debugging stack uses the **dev environment's market data bucket** (`alchemis
 
 ### Credentials
 
-Alpaca API credentials are loaded from AWS SSM:
+Alpaca API credentials are loaded from **GitHub environment secrets** (dev environment) via CI/CD:
 
-- `/alchemiser/dev/alpaca_key`
-- `/alchemiser/dev/alpaca_secret`
+- `ALPACA_KEY` - Alpaca API key
+- `ALPACA_SECRET` - Alpaca API secret
+
+The deployment is triggered by `make deploy-debug`, which creates a git tag and triggers the GitHub Actions workflow. Credentials never leave GitHub - they are injected at deploy time.
 
 The stack uses **paper trading** mode (`https://paper-api.alpaca.markets/v2`) to avoid any accidental live trading.
 
