@@ -229,6 +229,8 @@ VIX_HIGH_THRESHOLD: Decimal = Decimal("28")
 # VIXY (ProShares VIX Short-Term Futures ETF) tracks VIX short-term futures.
 # Historical analysis shows VIX ≈ VIXY * 10, so we scale by 10 to estimate VIX.
 # Note: This is an approximation - the relationship varies with contango/backwardation.
+# Typical VIX range: 10-80, with 15-25 being normal market conditions.
+# The approximation is sufficient for budget tier selection (low/mid/high).
 VIX_PROXY_SYMBOL: str = "VIXY"
 VIX_PROXY_SCALE_FACTOR: Decimal = Decimal("10")
 

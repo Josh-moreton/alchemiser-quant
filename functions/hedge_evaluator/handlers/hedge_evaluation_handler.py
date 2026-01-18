@@ -235,6 +235,9 @@ class HedgeEvaluationHandler:
         with VIX futures term structure (contango/backwardation), but provides
         a reasonable real-time estimate for budget tier selection.
 
+        The approximation is monitored via logs (vix_value field in completion logs)
+        and can be validated against published VIX values during market hours.
+
         Returns:
             Estimated VIX value from VIXY proxy, or None if unavailable
 
