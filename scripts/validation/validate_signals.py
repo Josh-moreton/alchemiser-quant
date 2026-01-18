@@ -67,7 +67,10 @@ def get_dynamodb_client(region: str = "us-east-1") -> Any:
 
 
 def find_sessions_by_date(client: Any, table_name: str, target_date: date) -> list[dict[str, Any]]:
-    """Find all completed sessions for a given date.
+    """Find all sessions for a given date by scanning STRATEGY items.
+
+    Sessions are discovered from STRATEGY items (SK begins with "STRATEGY#")
+    since the table doesn't have separate METADATA items.
 
     Args:
         client: DynamoDB client
@@ -77,42 +80,54 @@ def find_sessions_by_date(client: Any, table_name: str, target_date: date) -> li
     Returns:
         List of session metadata dicts, sorted by created_at descending
     """
-    sessions: list[dict[str, Any]] = []
+    # Dictionary to aggregate sessions by session_id
+    sessions_map: dict[str, dict[str, Any]] = {}
 
-    # Scan with pagination
+    # Scan for STRATEGY items with completed_at on the target date
     paginator = client.get_paginator("scan")
     page_iterator = paginator.paginate(
         TableName=table_name,
-        FilterExpression="SK = :metadata AND #status = :completed AND begins_with(created_at, :date)",
-        ExpressionAttributeNames={"#status": "status"},
+        FilterExpression="begins_with(SK, :strategy_prefix) AND begins_with(completed_at, :date)",
         ExpressionAttributeValues={
-            ":metadata": {"S": "METADATA"},
-            ":completed": {"S": "COMPLETED"},
+            ":strategy_prefix": {"S": "STRATEGY#"},
             ":date": {"S": target_date.isoformat()},
         },
     )
 
     for page in page_iterator:
         for item in page.get("Items", []):
-            sessions.append(
-                {
-                    "session_id": item.get("session_id", {}).get("S", ""),
-                    "correlation_id": item.get("correlation_id", {}).get("S", ""),
-                    "created_at": item.get("created_at", {}).get("S", ""),
-                    "status": item.get("status", {}).get("S", ""),
-                    "total_strategies": int(item.get("total_strategies", {}).get("N", "0")),
-                }
-            )
+            # Extract session_id from PK (format: "SESSION#<session_id>")
+            pk = item.get("PK", {}).get("S", "")
+            if pk.startswith("SESSION#"):
+                session_id = pk.replace("SESSION#", "")
+                completed_at = item.get("completed_at", {}).get("S", "")
 
-    # Sort by created_at descending (most recent first)
+                # Track this session (use latest completed_at if multiple strategies)
+                if session_id not in sessions_map:
+                    sessions_map[session_id] = {
+                        "session_id": session_id,
+                        "correlation_id": session_id,  # Same as session_id for these records
+                        "created_at": completed_at,
+                        "status": "COMPLETED",  # If we have strategy items, session completed
+                        "total_strategies": 1,
+                    }
+                else:
+                    # Count strategies and update to latest timestamp
+                    sessions_map[session_id]["total_strategies"] += 1
+                    if completed_at > sessions_map[session_id]["created_at"]:
+                        sessions_map[session_id]["created_at"] = completed_at
+
+    # Convert to list and sort
+    sessions = list(sessions_map.values())
     sessions.sort(key=lambda x: x["created_at"], reverse=True)
     return sessions
 
 
 def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Get recent completed sessions efficiently.
+    """Get recent sessions by scanning STRATEGY items.
 
-    Uses pagination with early termination to quickly find recent sessions.
+    Sessions are discovered from STRATEGY items since the table doesn't have
+    separate METADATA items.
 
     Args:
         client: DynamoDB client
@@ -122,40 +137,46 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
     Returns:
         List of recent session metadata dicts
     """
-    sessions: list[dict[str, Any]] = []
+    # Dictionary to aggregate sessions by session_id
+    sessions_map: dict[str, dict[str, Any]] = {}
 
-    # Use pagination but stop early once we have enough sessions
-    # Each page scans up to 1MB of data
+    # Scan for all STRATEGY items
+    # Note: We scan the entire table to ensure we find the most recent sessions,
+    # since DynamoDB scan doesn't return items in any particular order.
     paginator = client.get_paginator("scan")
     page_iterator = paginator.paginate(
         TableName=table_name,
-        FilterExpression="SK = :metadata AND #status = :completed",
-        ExpressionAttributeNames={"#status": "status"},
+        FilterExpression="begins_with(SK, :strategy_prefix)",
         ExpressionAttributeValues={
-            ":metadata": {"S": "METADATA"},
-            ":completed": {"S": "COMPLETED"},
+            ":strategy_prefix": {"S": "STRATEGY#"},
         },
-        PaginationConfig={"PageSize": 500},  # Items per page
+        PaginationConfig={"PageSize": 1000},
     )
 
-    # Collect sessions from pages, stop when we have enough recent ones
+    # Collect all strategy items to build session list
     for page in page_iterator:
         for item in page.get("Items", []):
-            sessions.append(
-                {
-                    "session_id": item.get("session_id", {}).get("S", ""),
-                    "correlation_id": item.get("correlation_id", {}).get("S", ""),
-                    "created_at": item.get("created_at", {}).get("S", ""),
-                    "status": item.get("status", {}).get("S", ""),
-                    "total_strategies": int(item.get("total_strategies", {}).get("N", "0")),
-                }
-            )
-        # Early termination: if we have more than limit * 3 sessions,
-        # we likely have the most recent ones in there
-        if len(sessions) >= limit * 3:
-            break
+            # Extract session_id from PK (format: "SESSION#<session_id>")
+            pk = item.get("PK", {}).get("S", "")
+            if pk.startswith("SESSION#"):
+                session_id = pk.replace("SESSION#", "")
+                completed_at = item.get("completed_at", {}).get("S", "")
 
-    # Sort by created_at descending and return top N
+                if session_id not in sessions_map:
+                    sessions_map[session_id] = {
+                        "session_id": session_id,
+                        "correlation_id": session_id,
+                        "created_at": completed_at,
+                        "status": "COMPLETED",
+                        "total_strategies": 1,
+                    }
+                else:
+                    sessions_map[session_id]["total_strategies"] += 1
+                    if completed_at > sessions_map[session_id]["created_at"]:
+                        sessions_map[session_id]["created_at"] = completed_at
+
+    # Convert to list, sort by created_at descending, return top N
+    sessions = list(sessions_map.values())
     sessions.sort(key=lambda x: x["created_at"], reverse=True)
     return sessions[:limit]
 
