@@ -1543,6 +1543,11 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
+          DAILY_PNL_TABLE_NAME: !Ref DailyPnLTable
+          ENVIRONMENT: !Ref Stage
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
@@ -1583,6 +1588,12 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt ExecutionRunsTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt DailyPnLTable.Arn
 
   # ========== NOTIFICATIONS LAMBDA ==========
   # Consumes TradeExecuted and WorkflowFailed events and sends email notifications

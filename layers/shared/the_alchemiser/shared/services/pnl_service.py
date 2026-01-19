@@ -29,22 +29,37 @@ PERCENTAGE_MULTIPLIER: Decimal = Decimal("100")
 
 
 class PnLService:
-    """Service for P&L analysis and reporting."""
+    """Service for P&L analysis and reporting.
+    
+    This service provides a unified interface for P&L data, using DynamoDB
+    as the primary source for historical daily data (fast, consistent) and
+    Alpaca as fallback for real-time or missing data.
+    """
 
     def __init__(
-        self, alpaca_manager: AlpacaManager | None = None, correlation_id: str | None = None
+        self,
+        alpaca_manager: AlpacaManager | None = None,
+        correlation_id: str | None = None,
+        dynamodb_table_name: str | None = None,
+        environment: str | None = None,
     ) -> None:
         """Initialize P&L service.
 
         Args:
             alpaca_manager: Alpaca manager instance. If None, creates one from config.
             correlation_id: Optional correlation ID for observability tracing.
+            dynamodb_table_name: Optional DynamoDB table name for daily PnL cache.
+            environment: Environment (dev/staging/prod) for DynamoDB filtering.
 
         Raises:
             ConfigurationError: If Alpaca API keys are not found in configuration.
 
         """
         self._correlation_id = correlation_id or ""
+        self._dynamodb_table_name = dynamodb_table_name
+        self._environment = environment or "dev"
+        self._daily_pnl_service = None
+        
         if alpaca_manager is None:
             api_key, secret_key, endpoint = get_alpaca_keys()
             if not api_key or not secret_key:
@@ -61,6 +76,17 @@ class PnLService:
             )
         else:
             self._alpaca_manager = alpaca_manager
+        
+        # Initialize DailyPnLService if table name provided
+        if dynamodb_table_name:
+            from the_alchemiser.shared.services.daily_pnl_service import DailyPnLService
+            
+            self._daily_pnl_service = DailyPnLService(
+                table_name=dynamodb_table_name,
+                environment=self._environment,
+                alpaca_manager=self._alpaca_manager,
+                correlation_id=self._correlation_id,
+            )
 
     @staticmethod
     def _is_paper_from_endpoint(ep: str | None) -> bool:
@@ -189,6 +215,9 @@ class PnLService:
 
     def get_last_n_calendar_months_pnl(self, n_months: int = 3) -> list[PnLData]:
         """Get P&L for the last N calendar months including current month.
+        
+        Uses DynamoDB as primary source for completed days if available,
+        falling back to Alpaca for missing or current-month data.
 
         Args:
             n_months: Number of months to fetch (must be positive; default 3, including current month)
@@ -202,7 +231,121 @@ class PnLService:
         """
         if n_months <= 0:
             raise ValueError(f"n_months must be a positive integer; got {n_months}")
+        
+        # Try DynamoDB first for faster, cached results
+        if self._daily_pnl_service:
+            try:
+                return self._get_last_n_months_from_dynamodb(n_months)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to fetch P&L from DynamoDB, falling back to Alpaca: {e}",
+                    extra={
+                        "correlation_id": self._correlation_id,
+                        "error_type": type(e).__name__,
+                    },
+                )
+        
+        # Fallback to Alpaca (original implementation)
+        return self._get_last_n_months_from_alpaca(n_months)
+    
+    def _get_last_n_months_from_dynamodb(self, n_months: int) -> list[PnLData]:
+        """Get last N months P&L from DynamoDB with daily granularity.
+        
+        Aggregates daily records from DynamoDB into monthly PnLData objects.
+        """
+        today = datetime.now(UTC).date()
+        results: list[PnLData] = []
+        
+        for i in range(n_months - 1, -1, -1):  # Start from oldest
+            # Calculate target month
+            target_month = today.month - i
+            target_year = today.year
 
+            while target_month <= 0:
+                target_month += 12
+                target_year -= 1
+            
+            # Calculate date range for this month
+            import calendar
+            
+            start_date = datetime(target_year, target_month, 1, tzinfo=UTC).date()
+            
+            # End date is last day of month or today if current month
+            if target_year == today.year and target_month == today.month:
+                end_date = today
+                month_name = calendar.month_name[target_month]
+                period_label = f"{month_name} {target_year} (MTD)"
+            else:
+                if target_month == 12:
+                    end_date = (datetime(target_year + 1, 1, 1, tzinfo=UTC) - timedelta(days=1)).date()
+                else:
+                    end_date = (datetime(target_year, target_month + 1, 1, tzinfo=UTC) - timedelta(days=1)).date()
+                month_name = calendar.month_name[target_month]
+                period_label = f"{month_name} {target_year}"
+            
+            # Fetch daily records from DynamoDB
+            try:
+                daily_records = self._daily_pnl_service.get_daily_pnl_range(start_date, end_date)
+                
+                if not daily_records:
+                    # No data in DynamoDB, add empty entry
+                    results.append(PnLData(period=period_label))
+                    continue
+                
+                # Aggregate daily records into monthly P&L
+                start_equity = daily_records[0].equity - daily_records[0].pnl_amount
+                end_equity = daily_records[-1].equity
+                
+                # Sum daily P&L (already adjusted for deposits/withdrawals)
+                total_pnl = sum(record.pnl_amount for record in daily_records)
+                
+                # Calculate percentage
+                if start_equity > Decimal("0"):
+                    total_pnl_pct = (total_pnl / start_equity) * Decimal("100")
+                else:
+                    total_pnl_pct = Decimal("0")
+                
+                # Convert daily records to DailyPnLEntry
+                from the_alchemiser.shared.schemas.pnl import DailyPnLEntry
+                
+                daily_data = [
+                    DailyPnLEntry(
+                        date=record.date,
+                        equity=record.equity,
+                        profit_loss=record.pnl_amount,
+                        profit_loss_pct=record.pnl_percent,
+                    )
+                    for record in daily_records
+                ]
+                
+                results.append(
+                    PnLData(
+                        period=period_label,
+                        start_date=start_date.isoformat(),
+                        end_date=end_date.isoformat(),
+                        start_value=start_equity,
+                        end_value=end_equity,
+                        total_pnl=total_pnl,
+                        total_pnl_pct=total_pnl_pct,
+                        daily_data=daily_data,
+                    )
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to fetch P&L from DynamoDB for {target_year}-{target_month:02d}: {e}",
+                    extra={
+                        "correlation_id": self._correlation_id,
+                        "year": target_year,
+                        "month": target_month,
+                    },
+                )
+                # Add empty entry
+                results.append(PnLData(period=period_label))
+        
+        return results
+    
+    def _get_last_n_months_from_alpaca(self, n_months: int) -> list[PnLData]:
+        """Get last N months P&L from Alpaca (original implementation)."""
         today = datetime.now(UTC).date()
         results: list[PnLData] = []
 
