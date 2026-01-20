@@ -84,6 +84,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_schedule_created(detail, correlation_id)
         if detail_type == "Lambda Function Invocation Result - Failure":
             return _handle_lambda_async_failure(detail, correlation_id, source)
+        if detail_type == "CloudWatch Alarm State Change":
+            return _handle_cloudwatch_alarm(event, correlation_id)
 
         logger.debug(
             f"Ignoring unsupported event type: {detail_type}",
@@ -774,4 +776,131 @@ without the target function being able to publish a WorkflowFailed event.
     return {
         "statusCode": 200,
         "body": f"Lambda async failure notification sent for {function_name}",
+    }
+
+
+def _handle_cloudwatch_alarm(event: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle CloudWatch Alarm State Change events.
+
+    Routes CloudWatch alarms (DLQ alerts, stuck runs, Lambda errors) through
+    the unified SES notification channel instead of the deprecated SNS topic.
+
+    Args:
+        event: The full EventBridge event (not unwrapped detail)
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    # CloudWatch alarm events come from default EventBridge bus
+    # Extract alarm details from the event
+    detail = event.get("detail", {})
+    alarm_name = detail.get("alarmName", "Unknown Alarm")
+    alarm_description = detail.get("configuration", {}).get("description", "")
+    state = detail.get("state", {})
+    state_value = state.get("value", "UNKNOWN")
+    state_reason = state.get("reason", "No reason provided")
+    state_timestamp = state.get("timestamp", "")
+
+    # Only process ALARM state (not OK or INSUFFICIENT_DATA)
+    if state_value != "ALARM":
+        logger.debug(
+            f"Ignoring CloudWatch alarm state change: {state_value}",
+            extra={"correlation_id": correlation_id, "alarm_name": alarm_name},
+        )
+        return {
+            "statusCode": 200,
+            "body": f"Ignored alarm state: {state_value}",
+        }
+
+    logger.warning(
+        "Processing CloudWatch alarm",
+        extra={
+            "correlation_id": correlation_id,
+            "alarm_name": alarm_name,
+            "state_value": state_value,
+            "state_reason": state_reason,
+        },
+    )
+
+    # Determine alarm category and title from alarm name
+    alarm_name_lower = alarm_name.lower()
+    if "dlq" in alarm_name_lower:
+        error_title = "DLQ Alert: Failed Messages Detected"
+        impact = "Messages have landed in the dead letter queue after exhausting retries."
+    elif "stuck" in alarm_name_lower and "aggregation" in alarm_name_lower:
+        error_title = "Stuck Aggregation Session Alert"
+        impact = "An aggregation session has been stuck in PENDING state for over 30 minutes. Strategy workers may have failed silently."
+    elif "stuck" in alarm_name_lower:
+        error_title = "Stuck Execution Run Alert"
+        impact = "An execution run has been stuck in RUNNING state for over 30 minutes. Trades may not have completed."
+    elif "error" in alarm_name_lower or "orchestrator" in alarm_name_lower:
+        error_title = "Lambda Error Alert"
+        impact = (
+            "A Lambda function has encountered errors (timeouts, crashes, or unhandled exceptions)."
+        )
+    else:
+        error_title = f"CloudWatch Alarm: {alarm_name}"
+        impact = "A CloudWatch alarm has triggered."
+
+    # Create minimal ApplicationContainer for notifications
+    container = ApplicationContainer.create_for_notifications("production")
+
+    # Build error report
+    error_report = f"""
+CloudWatch Alarm Alert
+======================
+
+Alarm Name: {alarm_name}
+State: {state_value}
+Timestamp: {state_timestamp}
+Correlation ID: {correlation_id}
+
+Description:
+{alarm_description or "No description provided"}
+
+Reason:
+{state_reason}
+
+Impact:
+{impact}
+
+Quick Actions:
+- Check CloudWatch Logs for related Lambda functions
+- Review DynamoDB tables for stuck sessions/runs
+- Inspect SQS DLQ for failed messages
+- Verify recent deployments for potential regressions
+"""
+
+    notification_event = ErrorNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=correlation_id,
+        event_id=f"cloudwatch-alarm-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        error_severity="CRITICAL",
+        error_priority="HIGH",
+        error_title=error_title,
+        error_report=error_report.strip(),
+        error_code="CloudWatchAlarm",
+    )
+
+    # Create NotificationService and process the event
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    logger.info(
+        "CloudWatch alarm notification sent",
+        extra={
+            "correlation_id": correlation_id,
+            "alarm_name": alarm_name,
+            "error_title": error_title,
+        },
+    )
+
+    return {
+        "statusCode": 200,
+        "body": f"CloudWatch alarm notification sent for {alarm_name}",
     }
