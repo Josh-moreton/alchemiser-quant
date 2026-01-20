@@ -571,7 +571,7 @@ Resources:
         - python3.12
       RetentionPolicy: Retain
     Metadata:
-      BuildMethod: python3.12
+      BuildMethod: makefile
 
   # Data Layer: awswrangler (pandas, numpy, pyarrow) + alpaca-py
   # Built via Makefile: downloads pre-built awswrangler, adds alpaca-py
