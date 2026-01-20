@@ -67,15 +67,20 @@ jobs:
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
         run: |
+          if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+            echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for debug deploy." >&2
+            exit 1
+          fi
+          
           ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
           
-          # Use the built template from .aws-sam/build/ (not the source template)
           sam deploy \
             --config-env debug \
             --no-fail-on-empty-changeset \
             --resolve-s3 \
             --parameter-overrides \
               "Stage=debug" \
+              "StackName=alchemiser-debug" \
               "AlpacaKey=$ALPACA_KEY" \
               "AlpacaSecret=$ALPACA_SECRET" \
               "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
