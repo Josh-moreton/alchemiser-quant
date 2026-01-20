@@ -161,7 +161,9 @@ class DailyPnLService:
                 prev_record = self.get_daily_pnl(prev_date)
                 if prev_record:
                     prev_equity = prev_record.equity
-                    pnl_adjusted = end_equity - prev_equity - deposits + withdrawals
+                    # equity_change includes both trading gains and cash movements
+                    # Subtract deposits and add withdrawals to isolate trading performance
+                    pnl_adjusted = (end_equity - prev_equity) - deposits + withdrawals
                 else:
                     # No previous data, can't calculate daily P&L reliably
                     pnl_adjusted = Decimal("0")
@@ -271,6 +273,11 @@ class DailyPnLService:
     ) -> list[DailyPnLRecord]:
         """Retrieve daily P&L records for a date range from DynamoDB.
 
+        Note: This method uses DynamoDB Scan with pagination. For large date ranges
+        (e.g., multiple years), this will scan the entire table and filter results,
+        which can be expensive in terms of RCUs and latency. Consider using narrow
+        date ranges where possible.
+
         Args:
             start_date: Start date (inclusive).
             end_date: End date (inclusive).
@@ -286,14 +293,31 @@ class DailyPnLService:
             start_str = start_date.isoformat()
             end_str = end_date.isoformat()
 
-            response = self._table.scan(
-                FilterExpression="#d >= :start_date AND #d <= :end_date",
-                ExpressionAttributeNames={"#d": "date"},
-                ExpressionAttributeValues={":start_date": start_str, ":end_date": end_str},
-            )
+            # Paginate through all results
+            items: list[dict[str, Any]] = []
+            last_evaluated_key: dict[str, Any] | None = None
+
+            while True:
+                scan_kwargs = {
+                    "FilterExpression": "#d >= :start_date AND #d <= :end_date AND #env = :environment",
+                    "ExpressionAttributeNames": {"#d": "date", "#env": "environment"},
+                    "ExpressionAttributeValues": {
+                        ":start_date": start_str,
+                        ":end_date": end_str,
+                        ":environment": self.environment,
+                    },
+                }
+                if last_evaluated_key:
+                    scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
+
+                response = self._table.scan(**scan_kwargs)
+                items.extend(response.get("Items", []))
+                last_evaluated_key = response.get("LastEvaluatedKey")
+                if not last_evaluated_key:
+                    break
 
             records: list[DailyPnLRecord] = []
-            for item in response.get("Items", []):
+            for item in items:
                 records.append(
                     DailyPnLRecord(
                         date=item["date"],
