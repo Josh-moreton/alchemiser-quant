@@ -69,8 +69,8 @@ jobs:
         run: |
           ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
           
+          # Use the built template from .aws-sam/build/ (not the source template)
           sam deploy \
-            --template-file template-debug.yaml \
             --config-env debug \
             --no-fail-on-empty-changeset \
             --resolve-s3 \
