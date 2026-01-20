@@ -18,7 +18,7 @@ env:
 jobs:
   deploy-debug:
     runs-on: ubuntu-latest
-    environment: dev  # Uses dev environment secrets
+    environment: debug  # Uses dedicated debug environment secrets
     # Ensure only one deploy runs at a time
     concurrency:
       group: ${{ github.workflow }}-debug
