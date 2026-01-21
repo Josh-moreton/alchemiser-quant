@@ -9,6 +9,8 @@ supporting weekly and monthly performance reports.
 
 from __future__ import annotations
 
+import calendar
+import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -20,6 +22,7 @@ from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.errors.exceptions import ConfigurationError, DataProviderError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.pnl import DailyPnLEntry, PnLData
+from the_alchemiser.shared.services.daily_pnl_service import DailyPnLService
 from the_alchemiser.shared.types.money import Money
 
 logger = get_logger(__name__)
@@ -79,8 +82,6 @@ class PnLService:
         
         # Initialize DailyPnLService if table name provided
         if dynamodb_table_name:
-            from the_alchemiser.shared.services.daily_pnl_service import DailyPnLService
-            
             self._daily_pnl_service = DailyPnLService(
                 table_name=dynamodb_table_name,
                 environment=self._environment,
@@ -186,8 +187,6 @@ class PnLService:
         if not 1 <= month <= 12:
             raise ValueError(f"month must be in range 1-12; got {month}")
 
-        import calendar
-
         # Start of the month
         start_date = datetime(year, month, 1, tzinfo=UTC).date()
 
@@ -266,8 +265,6 @@ class PnLService:
                 target_year -= 1
             
             # Calculate date range for this month
-            import calendar
-            
             start_date = datetime(target_year, target_month, 1, tzinfo=UTC).date()
             
             # End date is last day of month or today if current month
@@ -293,7 +290,26 @@ class PnLService:
                     continue
                 
                 # Aggregate daily records into monthly P&L
-                start_equity = daily_records[0].equity - daily_records[0].pnl_amount
+                first_record = daily_records[0]
+                if first_record.date == start_date.isoformat():
+                    # We have data from the requested period start; derive start-of-day equity
+                    start_equity = first_record.equity - first_record.pnl_amount
+                else:
+                    # Data does not start at the requested month boundary; fall back to using
+                    # the first available day's ending equity as the period start. This avoids
+                    # incorrectly inferring true month-start equity when records are missing.
+                    logger.warning(
+                        "Daily P&L records do not start at requested start_date; "
+                        "using first available day's ending equity as start_equity.",
+                        extra={
+                            "correlation_id": self._correlation_id,
+                            "year": target_year,
+                            "month": target_month,
+                            "requested_start_date": start_date.isoformat(),
+                            "actual_first_date": first_record.date,
+                        },
+                    )
+                    start_equity = first_record.equity
                 end_equity = daily_records[-1].equity
                 
                 # Sum daily P&L (already adjusted for deposits/withdrawals)
@@ -306,8 +322,6 @@ class PnLService:
                     total_pnl_pct = Decimal("0")
                 
                 # Convert daily records to DailyPnLEntry
-                from the_alchemiser.shared.schemas.pnl import DailyPnLEntry
-                
                 daily_data = [
                     DailyPnLEntry(
                         date=record.date,
@@ -371,8 +385,6 @@ class PnLService:
                     },
                 )
                 # Still add an empty entry so we have consistent count
-                import calendar
-
                 month_name = calendar.month_name[target_month]
                 is_current = target_year == today.year and target_month == today.month
                 period_label = f"{month_name} {target_year}" + (" (MTD)" if is_current else "")

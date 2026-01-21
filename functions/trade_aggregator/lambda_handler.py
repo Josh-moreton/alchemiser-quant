@@ -11,6 +11,8 @@ Trigger: EventBridge rule matching TradeExecuted events.
 
 from __future__ import annotations
 
+import json
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -26,6 +28,7 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
     unwrap_eventbridge_event,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.services.pnl_service import PnLService
 
 # Initialize logging on cold start
 configure_application_logging()
@@ -192,8 +195,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         completed_at = datetime.now(UTC).isoformat()
 
         # Get data freshness from run metadata (stored as JSON string)
-        import json
-
         data_freshness_raw = run_metadata.get("data_freshness")
         data_freshness = None
         if data_freshness_raw:
@@ -501,10 +502,7 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
     }
 
     try:
-        from the_alchemiser.shared.services.pnl_service import PnLService
-        
         # Get DynamoDB table name from environment (optional)
-        import os
         daily_pnl_table = os.environ.get("DAILY_PNL_TABLE_NAME")
         environment = os.environ.get("ENVIRONMENT", "dev")
 

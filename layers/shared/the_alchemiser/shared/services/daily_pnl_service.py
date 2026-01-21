@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
@@ -271,6 +270,11 @@ class DailyPnLService:
     ) -> list[DailyPnLRecord]:
         """Retrieve daily P&L records for a date range from DynamoDB.
 
+        Note: This method uses a DynamoDB Scan with FilterExpression, which reads
+        the entire table before filtering. For tables with many years of data,
+        consider adding a GSI with environment as partition key and date as sort
+        key for more efficient Query operations.
+
         Args:
             start_date: Start date (inclusive).
             end_date: End date (inclusive).
@@ -286,14 +290,32 @@ class DailyPnLService:
             start_str = start_date.isoformat()
             end_str = end_date.isoformat()
 
-            response = self._table.scan(
-                FilterExpression="#d >= :start_date AND #d <= :end_date",
-                ExpressionAttributeNames={"#d": "date"},
-                ExpressionAttributeValues={":start_date": start_str, ":end_date": end_str},
-            )
+            # Use pagination to handle tables larger than 1MB
+            items: list[dict] = []
+            last_evaluated_key: dict | None = None
+
+            while True:
+                scan_kwargs = {
+                    "FilterExpression": "#d >= :start_date AND #d <= :end_date AND #env = :environment",
+                    "ExpressionAttributeNames": {"#d": "date", "#env": "environment"},
+                    "ExpressionAttributeValues": {
+                        ":start_date": start_str,
+                        ":end_date": end_str,
+                        ":environment": self.environment,
+                    },
+                }
+                if last_evaluated_key:
+                    scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
+
+                response = self._table.scan(**scan_kwargs)
+                items.extend(response.get("Items", []))
+                last_evaluated_key = response.get("LastEvaluatedKey")
+
+                if not last_evaluated_key:
+                    break
 
             records: list[DailyPnLRecord] = []
-            for item in response.get("Items", []):
+            for item in items:
                 records.append(
                     DailyPnLRecord(
                         date=item["date"],
