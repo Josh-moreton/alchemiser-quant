@@ -166,6 +166,7 @@ def build_daily_records(
     """
     # Build list of all trading dates first
     all_dates = [format_ts(ts) for ts in timestamps]
+    all_trading_days = set(all_dates)
     records = []
 
     for i, ts in enumerate(timestamps):
@@ -174,12 +175,13 @@ def build_daily_records(
         raw_pnl = Decimal(str(profit_losses[i]))
 
         # Get all calendar days where deposits would settle today
-        # This is prev_trading_day through yesterday (exclusive of today)
         deposit_settled_today = Decimal("0")
         if i > 0:
             prev_trading_day = all_dates[i - 1]
-            # Deposits made from prev trading day up to (but not including) today settle today
-            days_to_check = get_deposit_dates_for_settlement(prev_trading_day, date_str)
+            # Deposits made between prev trading day and today settle today
+            days_to_check = get_deposit_dates_for_settlement(
+                prev_trading_day, date_str, all_trading_days
+            )
             for d in days_to_check:
                 if d in deposits:
                     deposit_settled_today += deposits[d]
