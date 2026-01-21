@@ -504,19 +504,20 @@ def display_signal_comparison(
 # ============================================================================
 
 
-def get_csv_path(validation_date: date) -> Path:
+def get_csv_path(validation_date: date, stage: str = "dev") -> Path:
     """Get CSV path for a validation date.
 
     If the file already exists, appends a counter to create a unique filename
-    (e.g., signal_validation_2026-01-21_1.csv, signal_validation_2026-01-21_2.csv).
+    (e.g., signal_validation_2026-01-21_dev_1.csv, signal_validation_2026-01-21_dev_2.csv).
 
     Args:
         validation_date: Date of validation
+        stage: Environment stage (dev, staging, prod)
 
     Returns:
         Path to CSV file (unique if file already exists)
     """
-    base_filename = f"signal_validation_{validation_date.isoformat()}.csv"
+    base_filename = f"signal_validation_{validation_date.isoformat()}_{stage}.csv"
     base_path = VALIDATION_DIR / base_filename
     
     # If file doesn't exist, use base filename
@@ -526,7 +527,7 @@ def get_csv_path(validation_date: date) -> Path:
     # File exists, append counter to create unique filename
     counter = 1
     while True:
-        unique_filename = f"signal_validation_{validation_date.isoformat()}_{counter}.csv"
+        unique_filename = f"signal_validation_{validation_date.isoformat()}_{stage}_{counter}.csv"
         unique_path = VALIDATION_DIR / unique_filename
         if not unique_path.exists():
             return unique_path
@@ -878,7 +879,7 @@ def main() -> None:
         sys.exit(1)
 
     # Load existing validations (for resume capability)
-    csv_path = get_csv_path(validation_date)
+    csv_path = get_csv_path(validation_date, args.stage)
 
     if args.fresh:
         # Delete existing CSV if --fresh flag is set
