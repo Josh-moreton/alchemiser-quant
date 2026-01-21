@@ -128,10 +128,11 @@ def find_sessions_by_date(client: Any, table_name: str, target_date: date) -> li
 
 
 def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Get recent sessions by scanning STRATEGY items.
+    """Get recent sessions by scanning STRATEGY items efficiently.
 
-    Sessions are discovered from STRATEGY items since the table doesn't have
-    separate METADATA items.
+    Scans with a small page size to quickly find recent sessions without
+    reading the entire table. Sessions are discovered from STRATEGY items
+    by extracting unique session_ids and their latest completion timestamps.
 
     Args:
         client: DynamoDB client
@@ -139,14 +140,14 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
         limit: Maximum number of sessions to return
 
     Returns:
-        List of recent session metadata dicts
+        List of recent session metadata dicts, sorted by completion time descending
     """
     # Dictionary to aggregate sessions by session_id
     sessions_map: dict[str, dict[str, Any]] = {}
+    items_scanned = 0
+    max_items_to_scan = 2000  # Stop after scanning ~2000 items (usually contains dozens of sessions)
 
-    # Scan for all STRATEGY items
-    # Note: We scan the entire table to ensure we find the most recent sessions,
-    # since DynamoDB scan doesn't return items in any particular order.
+    # Scan with small page size to get recent items quickly
     paginator = client.get_paginator("scan")
     page_iterator = paginator.paginate(
         TableName=table_name,
@@ -154,12 +155,14 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
         ExpressionAttributeValues={
             ":strategy_prefix": {"S": "STRATEGY#"},
         },
-        PaginationConfig={"PageSize": 1000},
+        PaginationConfig={"PageSize": 100},  # Small page size for faster initial results
     )
 
-    # Collect all strategy items to build session list
+    # Scan items until we have enough unique sessions (with early exit)
     for page in page_iterator:
         for item in page.get("Items", []):
+            items_scanned += 1
+
             # Extract session_id from PK (format: "SESSION#<session_id>")
             pk = item.get("PK", {}).get("S", "")
             if pk.startswith("SESSION#"):
@@ -178,6 +181,14 @@ def get_recent_sessions(client: Any, table_name: str, limit: int = 5) -> list[di
                     sessions_map[session_id]["total_strategies"] += 1
                     if completed_at > sessions_map[session_id]["created_at"]:
                         sessions_map[session_id]["created_at"] = completed_at
+
+            # Early exit: if we've found enough sessions and scanned enough items, stop
+            if len(sessions_map) >= limit * 3 and items_scanned > max_items_to_scan:
+                break
+
+        # Break outer loop if we've found enough
+        if len(sessions_map) >= limit * 3 and items_scanned > max_items_to_scan:
+            break
 
     # Convert to list, sort by created_at descending, return top N
     sessions = list(sessions_map.values())
