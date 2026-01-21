@@ -312,18 +312,18 @@ rebalance-weights:
 	fi
 
 # Validate strategy signals against Composer.trade
-# Usage: make validate-signals                    # Validate latest dev session
+# Usage: make validate-signals                    # Validate latest dev session (with live capture & fresh)
 #        make validate-signals stage=prod         # Validate latest prod session
-#        make validate-signals fresh=1            # Start fresh validation
 #        make validate-signals session=<id>       # Validate specific session
-#        make validate-signals capture=1          # Always capture live signals
+#        make validate-signals capture=0          # Disable live capture (opt-out)
+#        make validate-signals fresh=0            # Disable fresh mode (resume previous)
 validate-signals:
 	@echo "🔍 Validating signals against Composer.trade..."
 	@ARGS=""; \
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
-	if [ -n "$(fresh)" ]; then ARGS="$$ARGS --fresh"; fi; \
+	if [ "$(fresh)" != "0" ]; then ARGS="$$ARGS --fresh"; fi; \
 	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
-	if [ -n "$(capture)" ]; then ARGS="$$ARGS --capture-live"; fi; \
+	if [ "$(capture)" != "0" ]; then ARGS="$$ARGS --capture-live"; fi; \
 	poetry run python scripts/validation/validate_signals.py $$ARGS
 
 # ============================================================================

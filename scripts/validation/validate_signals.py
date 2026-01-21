@@ -496,14 +496,30 @@ def display_signal_comparison(
 def get_csv_path(validation_date: date) -> Path:
     """Get CSV path for a validation date.
 
+    If the file already exists, appends a counter to create a unique filename
+    (e.g., signal_validation_2026-01-21_1.csv, signal_validation_2026-01-21_2.csv).
+
     Args:
         validation_date: Date of validation
 
     Returns:
-        Path to CSV file
+        Path to CSV file (unique if file already exists)
     """
-    filename = f"signal_validation_{validation_date.isoformat()}.csv"
-    return VALIDATION_DIR / filename
+    base_filename = f"signal_validation_{validation_date.isoformat()}.csv"
+    base_path = VALIDATION_DIR / base_filename
+    
+    # If file doesn't exist, use base filename
+    if not base_path.exists():
+        return base_path
+    
+    # File exists, append counter to create unique filename
+    counter = 1
+    while True:
+        unique_filename = f"signal_validation_{validation_date.isoformat()}_{counter}.csv"
+        unique_path = VALIDATION_DIR / unique_filename
+        if not unique_path.exists():
+            return unique_path
+        counter += 1
 
 
 def load_validated_strategies(csv_path: Path) -> set[str]:
