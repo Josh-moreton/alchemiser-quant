@@ -160,7 +160,9 @@ class DailyPnLService:
                 prev_record = self.get_daily_pnl(prev_date)
                 if prev_record:
                     prev_equity = prev_record.equity
-                    pnl_adjusted = end_equity - prev_equity - deposits + withdrawals
+                    # equity_change includes both trading gains and cash movements
+                    # Subtract deposits and add withdrawals to isolate trading performance
+                    pnl_adjusted = (end_equity - prev_equity) - deposits + withdrawals
                 else:
                     # No previous data, can't calculate daily P&L reliably
                     pnl_adjusted = Decimal("0")
@@ -270,10 +272,12 @@ class DailyPnLService:
     ) -> list[DailyPnLRecord]:
         """Retrieve daily P&L records for a date range from DynamoDB.
 
-        Note: This method uses a DynamoDB Scan with FilterExpression, which reads
-        the entire table before filtering. For tables with many years of data,
-        consider adding a GSI with environment as partition key and date as sort
-        key for more efficient Query operations.
+        Note: This method uses DynamoDB Scan with pagination and FilterExpression.
+        For large date ranges (e.g., multiple years), this will scan the entire
+        table and filter results, which can be expensive in terms of RCUs and latency.
+        Consider using narrow date ranges where possible. For future optimization,
+        consider adding a GSI with environment as partition key and date as sort key
+        for more efficient Query operations.
 
         Args:
             start_date: Start date (inclusive).
@@ -291,8 +295,8 @@ class DailyPnLService:
             end_str = end_date.isoformat()
 
             # Use pagination to handle tables larger than 1MB
-            items: list[dict] = []
-            last_evaluated_key: dict | None = None
+            items: list[dict[str, Any]] = []
+            last_evaluated_key: dict[str, Any] | None = None
 
             while True:
                 scan_kwargs = {
@@ -310,7 +314,6 @@ class DailyPnLService:
                 response = self._table.scan(**scan_kwargs)
                 items.extend(response.get("Items", []))
                 last_evaluated_key = response.get("LastEvaluatedKey")
-
                 if not last_evaluated_key:
                     break
 

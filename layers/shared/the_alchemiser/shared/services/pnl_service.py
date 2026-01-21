@@ -10,7 +10,6 @@ supporting weekly and monthly performance reports.
 from __future__ import annotations
 
 import calendar
-import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -81,6 +80,7 @@ class PnLService:
             self._alpaca_manager = alpaca_manager
         
         # Initialize DailyPnLService if table name provided
+        # Lazy import to avoid circular dependency (DailyPnLService imports AlpacaManager)
         if dynamodb_table_name:
             self._daily_pnl_service = DailyPnLService(
                 table_name=dynamodb_table_name,
