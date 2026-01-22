@@ -360,10 +360,10 @@ def parse_composer_holdings(raw_text: str) -> dict[str, Decimal]:
 
 
 def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
-    """Open editor for user to paste Composer holdings, then parse.
+    """Capture Composer holdings via cat (paste + Ctrl+D).
 
-    Creates a temporary file, opens it in the user's editor, waits for them
-    to paste the Composer.trade holdings data, then parses the result.
+    Uses cat to capture stdin directly to a temp file - simpler than
+    an interactive editor. User pastes data and presses Ctrl+D to finish.
 
     Args:
         strategy_name: Strategy name (used for temp file naming)
@@ -371,30 +371,21 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     Returns:
         Parsed holdings dict, or None if cancelled or empty
     """
-    # Get editor from environment, fall back to nano then vi
-    editor = os.environ.get("EDITOR", "nano")
-    if not editor:
-        editor = "vi"
-
-    # Create empty temp file
+    # Create temp file path
     temp_dir = tempfile.gettempdir()
     temp_path = Path(temp_dir) / f"composer_holdings_{strategy_name}.txt"
 
-    # Create empty file - user just pastes and saves
-    with open(temp_path, "w") as f:
-        f.write("")
-
-    # Open editor
-    print(f"\n  Opening {editor} for live signal capture...")
-    print(f"  Paste Composer holdings, save, and close the editor.")
+    # Use cat to capture stdin directly to file (paste + Enter + Ctrl+D)
+    print(f"\n  Paste Composer holdings, then press Enter + Ctrl+D to finish:")
 
     try:
-        result = subprocess.run([editor, str(temp_path)], check=True)
+        with open(temp_path, "w") as f:
+            result = subprocess.run(["cat"], stdout=f, check=True)
     except subprocess.CalledProcessError:
-        print("  Editor exited with error")
+        print("  Capture cancelled")
         return None
-    except FileNotFoundError:
-        print(f"  Editor '{editor}' not found. Set EDITOR environment variable.")
+    except KeyboardInterrupt:
+        print("\n  Cancelled")
         return None
 
     # Read and parse the file
@@ -430,12 +421,6 @@ def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     for ticker, weight in sorted(holdings.items(), key=lambda x: x[1], reverse=True):
         pct = float(weight) * 100
         print(f"    {ticker:<8} {pct:>6.2f}%")
-
-    # Confirm with user
-    confirm = input("\n  Is this correct? [Y/n]: ").strip().lower()
-    if confirm in ["n", "no"]:
-        print("  Discarded live signals")
-        return None
 
     return holdings
 
@@ -924,11 +909,9 @@ def main() -> None:
             # Display signal
             display_signal(signal, strategy, i, len(signals))
 
-            # Optionally open browser
+            # Auto-open browser (use --no-browser to disable)
             if not args.no_browser and strategy and strategy.get("source_url"):
-                open_prompt = input("Open Composer URL? [Y/n]: ").strip().lower()
-                if open_prompt in ["", "y", "yes"]:
-                    open_url_in_browser(strategy["source_url"])
+                open_url_in_browser(strategy["source_url"])
 
             # If --capture-live flag, auto-invoke live signal capture
             live_signals: dict[str, Decimal] | None = None
