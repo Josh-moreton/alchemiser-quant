@@ -311,19 +311,18 @@ rebalance-weights:
 		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
 	fi
 
-# Validate strategy signals against Composer.trade
-# Usage: make validate-signals                    # Validate latest dev session (with live capture & fresh)
+# Validate strategy signals against Composer.trade (shifted T-1 comparison)
+# Captures today's live_signals, compares today's our_signals vs yesterday's live_signals
+# Usage: make validate-signals                    # Validate latest dev session
 #        make validate-signals stage=prod         # Validate latest prod session
 #        make validate-signals session=<id>       # Validate specific session
-#        make validate-signals capture=0          # Disable live capture (opt-out)
-#        make validate-signals fresh=0            # Disable fresh mode (resume previous)
+#        make validate-signals fresh=1            # Start fresh (ignore previous captures)
 validate-signals:
 	@echo "🔍 Validating signals against Composer.trade..."
-	@ARGS=""; \
+	@ARGS="--shifted"; \
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
-	if [ "$(fresh)" != "0" ]; then ARGS="$$ARGS --fresh"; fi; \
+	if [ "$(fresh)" = "1" ]; then ARGS="$$ARGS --fresh"; fi; \
 	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
-	if [ "$(capture)" != "0" ]; then ARGS="$$ARGS --capture-live"; fi; \
 	poetry run python scripts/validation/validate_signals.py $$ARGS
 
 # ============================================================================
