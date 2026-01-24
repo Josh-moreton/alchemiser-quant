@@ -298,13 +298,17 @@ def append_record(csv_path: Path, record: dict[str, Any]) -> None:
 # Comparison Report
 # ============================================================================
 
+MASTER_REPORT_PATH = VALIDATION_DIR / "validation_master_report.csv"
+
 
 def run_comparison_report(
     today_our_signals: dict[str, dict[str, Decimal]],
     previous_live_signals: dict[str, dict[str, Decimal]],
     previous_date: str,
+    validation_date: date,
+    stage: str,
 ) -> None:
-    """Compare today's our_signals vs yesterday's live_signals."""
+    """Compare today's our_signals vs yesterday's live_signals and save to master report."""
     print("\n" + "=" * 80)
     print("SHIFTED VALIDATION REPORT")
     print(f"Comparing today's our_signals vs {previous_date}'s live_signals")
@@ -312,6 +316,7 @@ def run_comparison_report(
 
     matches = mismatches = skipped = 0
     all_strategies = sorted(set(today_our_signals.keys()) | set(previous_live_signals.keys()))
+    report_rows: list[dict[str, Any]] = []
 
     print(f"\n{'Strategy':<25} {'Status':<15} {'Details'}")
     print("-" * 70)
@@ -333,19 +338,29 @@ def run_comparison_report(
         all_symbols = set(ours.keys()) | set(prev.keys())
         is_match = True
         diffs = []
+        symbol_details = []
 
-        for sym in all_symbols:
+        for sym in sorted(all_symbols):
             o, p = ours.get(sym), prev.get(sym)
+            o_pct = float(o) * 100 if o else 0
+            p_pct = float(p) * 100 if p else 0
+
             if o is None:
                 is_match = False
                 diffs.append(f"{sym}: missing")
+                symbol_details.append(f"{sym}:0%vs{p_pct:.1f}%")
             elif p is None:
                 is_match = False
                 diffs.append(f"{sym}: extra")
+                symbol_details.append(f"{sym}:{o_pct:.1f}%vs0%")
             elif abs(float(o) - float(p)) >= 0.05:
                 is_match = False
                 diffs.append(f"{sym}: {(float(o) - float(p)) * 100:+.1f}%")
+                symbol_details.append(f"{sym}:{o_pct:.1f}%vs{p_pct:.1f}%")
+            else:
+                symbol_details.append(f"{sym}:{o_pct:.1f}%")
 
+        status = "MATCH" if is_match else "MISMATCH"
         if is_match:
             matches += 1
             print(f"{name:<25} {'✅ MATCH':<15}")
@@ -356,6 +371,19 @@ def run_comparison_report(
                 details += f" (+{len(diffs) - 3} more)"
             print(f"{name:<25} {'❌ MISMATCH':<15} {details}")
 
+        # Prepare row for master report
+        report_rows.append({
+            "validation_date": validation_date.isoformat(),
+            "comparison_date": previous_date,
+            "stage": stage,
+            "strategy_name": name,
+            "status": status,
+            "our_signals": json.dumps({k: float(v) for k, v in ours.items()}, sort_keys=True),
+            "live_signals": json.dumps({k: float(v) for k, v in prev.items()}, sort_keys=True),
+            "symbol_details": "; ".join(symbol_details),
+            "recorded_at": datetime.now(UTC).isoformat(),
+        })
+
     total = matches + mismatches
     rate = (matches / total * 100) if total > 0 else 0
 
@@ -364,6 +392,42 @@ def run_comparison_report(
     if skipped:
         print(f"         {skipped} skipped (missing data)")
     print("=" * 80)
+
+    # Write to master report
+    _append_to_master_report(report_rows, matches, total, validation_date, previous_date, stage)
+
+
+def _append_to_master_report(
+    rows: list[dict[str, Any]],
+    matches: int,
+    total: int,
+    validation_date: date,
+    comparison_date: str,
+    stage: str,
+) -> None:
+    """Append comparison results to master report CSV."""
+    fieldnames = [
+        "validation_date",
+        "comparison_date",
+        "stage",
+        "strategy_name",
+        "status",
+        "our_signals",
+        "live_signals",
+        "symbol_details",
+        "recorded_at",
+    ]
+
+    file_exists = MASTER_REPORT_PATH.exists()
+    with open(MASTER_REPORT_PATH, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+    print(f"\n📊 Master report updated: {MASTER_REPORT_PATH}")
+    print(f"   Added {len(rows)} rows for {validation_date} ({matches}/{total} matched)")
 
 
 # ============================================================================
@@ -537,7 +601,7 @@ def main() -> None:
 
         prev_live = load_live_signals_from_csv(previous_csv)
         if prev_live:
-            run_comparison_report(today_our_signals, prev_live, prev_date)
+            run_comparison_report(today_our_signals, prev_live, prev_date, validation_date, args.stage)
         else:
             print(f"\n⚠️  No live_signals in: {previous_csv}")
     else:
