@@ -27,6 +27,7 @@ from the_alchemiser.shared.options.adapters import (
     AlpacaOptionsAdapter,
     HedgePositionsRepository,
 )
+from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -182,6 +183,38 @@ class HedgeExecutionHandler:
         target_delta = Decimal(recommendation.get("target_delta", "0.15"))
         target_dte = recommendation.get("target_dte", 90)
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
+
+        # Validate position concentration limit (defensive check)
+        # This should already be enforced in HedgeSizer, but double-check here
+        max_premium = portfolio_nav * MAX_SINGLE_POSITION_PCT
+        if premium_budget > max_premium:
+            logger.warning(
+                "Premium budget exceeds max concentration at execution time",
+                premium_budget=str(premium_budget),
+                max_premium=str(max_premium),
+                max_concentration_pct=str(MAX_SINGLE_POSITION_PCT),
+                nav=str(portfolio_nav),
+                underlying=underlying,
+            )
+            return HedgeExecuted(
+                correlation_id=correlation_id,
+                causation_id=plan_id,
+                event_id=f"hedge-exec-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="hedge_executor",
+                source_component="HedgeExecutionHandler",
+                hedge_id=f"hedge-{uuid.uuid4()}",
+                plan_id=plan_id,
+                order_id="",
+                option_symbol="",
+                underlying_symbol=underlying,
+                quantity=0,
+                filled_price=Decimal("0"),
+                total_premium=Decimal("0"),
+                nav_percentage=Decimal("0"),
+                success=False,
+                error_message=f"Position would exceed max concentration (${premium_budget} > ${max_premium} = {MAX_SINGLE_POSITION_PCT:.1%} NAV)",
+            )
 
         # Get underlying price
         underlying_price = get_underlying_price(self._container, underlying)
