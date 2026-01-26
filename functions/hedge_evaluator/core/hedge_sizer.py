@@ -24,7 +24,6 @@ from the_alchemiser.shared.options.constants import (
     get_budget_rate_for_vix,
     get_exposure_multiplier,
 )
-from the_alchemiser.shared.options.utils import calculate_contracts_for_payoff_target
 
 from .exposure_calculator import PortfolioExposure
 

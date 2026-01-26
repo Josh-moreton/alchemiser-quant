@@ -124,7 +124,7 @@ def calculate_contracts_for_payoff_target(
         ...     target_payoff=Decimal("0.08"),
         ...     nav=Decimal("100000")
         ... )
-        100  # Need 100 contracts
+        3  # Need 3 contracts
 
     """
     # Target NAV payoff in dollars

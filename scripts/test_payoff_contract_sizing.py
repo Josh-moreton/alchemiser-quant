@@ -62,7 +62,7 @@ def test_basic_scenario() -> None:
     )
 
     print(f"Result: {contracts} contracts")
-    print(f"Expected: ~100 contracts")
+    print("Expected: ~3 contracts")
 
     # Verify calculation
     # Strike = 500 * (1 - 0.15) = 425

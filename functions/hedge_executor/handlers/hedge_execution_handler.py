@@ -194,6 +194,7 @@ class HedgeExecutionHandler:
             target_dte=target_dte,
             premium_budget=premium_budget,
             underlying_price=underlying_price,
+            nav=portfolio_nav,
         )
 
         if selected is None:
