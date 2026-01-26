@@ -4,8 +4,7 @@ Historical data service for fetching daily returns from Alpaca.
 
 Provides methods for:
 - Fetching daily historical bars for ETFs
-- Calculating daily returns
-- Caching historical data for beta/correlation calculations
+- Calculating daily returns for beta/correlation calculations
 """
 
 from __future__ import annotations

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.constants import HEDGE_ETFS
-from the_alchemiser.shared.options.utils.beta_calculations import (
+from the_alchemiser.shared.options.utils import (
     calculate_rolling_beta,
     calculate_rolling_correlation,
 )
@@ -194,11 +194,24 @@ class ExposureCalculator:
         # Default beta for unmapped ETFs
         return Decimal("1.0")
 
+    # Constants for rolling metrics calculation
+    # We need ~90 trading days for correlation. Since calendar days != trading days
+    # (~252 trading days per year), we fetch 130 calendar days to reliably get 90+ trading days.
+    _CALENDAR_DAYS_TO_FETCH = 130
+    _MIN_TRADING_DAYS_REQUIRED = 90  # For 90-day correlation window
+    _BETA_WINDOW = 60
+    _CORRELATION_WINDOW = 90
+
     def _calculate_rolling_metrics(
         self,
         sector_exposures: dict[str, SectorExposure],
     ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
         """Calculate rolling beta and correlation to SPY and QQQ.
+
+        Orchestrates the rolling metrics calculation by:
+        1. Fetching benchmark returns (SPY, QQQ)
+        2. Building weighted portfolio returns from sector exposures
+        3. Computing rolling beta (60-day) and correlation (90-day) statistics
 
         Args:
             sector_exposures: Exposure by sector ETF
@@ -210,122 +223,189 @@ class ExposureCalculator:
         # If historical data service not available, fall back to static betas
         if self._historical_data_service is None:
             logger.info("Historical data service not available, using static betas")
-            # Return static values from first sector (or defaults)
-            return (
-                Decimal("1.0"),  # beta_to_spy
-                Decimal("1.15"),  # beta_to_qqq (typical)
-                Decimal("0.0"),  # correlation_spy (unknown)
-                Decimal("0.0"),  # correlation_qqq (unknown)
-            )
+            return self._static_fallback_metrics()
 
         try:
-            # Calculate weighted portfolio returns based on sector exposures
-            # First, calculate total portfolio value for weighting
-            total_value = sum((exp.total_value for exp in sector_exposures.values()), Decimal("0"))
+            # Calculate total portfolio value for weighting
+            total_value = sum(
+                (exp.total_value for exp in sector_exposures.values()), Decimal("0")
+            )
 
             if total_value == 0:
                 logger.warning("Zero total portfolio value, cannot calculate rolling metrics")
-                return (
-                    Decimal("1.0"),
-                    Decimal("1.15"),
-                    Decimal("0.0"),
-                    Decimal("0.0"),
-                )
+                return self._static_fallback_metrics()
 
-            # Fetch returns for SPY and QQQ (benchmarks)
-            logger.info("Fetching benchmark returns")
-            spy_returns = self._historical_data_service.get_daily_returns("SPY", days=90)
-            qqq_returns = self._historical_data_service.get_daily_returns("QQQ", days=90)
+            # Fetch benchmark returns
+            spy_returns, qqq_returns = self._get_benchmark_returns()
+            if spy_returns is None or qqq_returns is None:
+                return self._static_fallback_metrics()
 
-            if len(spy_returns) < 60 or len(qqq_returns) < 60:
-                logger.warning(
-                    "Insufficient benchmark returns",
-                    spy_count=len(spy_returns),
-                    qqq_count=len(qqq_returns),
-                )
-                return (
-                    Decimal("1.0"),
-                    Decimal("1.15"),
-                    Decimal("0.0"),
-                    Decimal("0.0"),
-                )
-
-            # Calculate weighted portfolio returns across all sectors
-            portfolio_returns: list[Decimal] = []
-
-            for sector_symbol, exposure in sector_exposures.items():
-                # Calculate weight for this sector
-                weight = exposure.total_value / total_value
-
-                logger.debug(
-                    "Fetching sector returns",
-                    sector=sector_symbol,
-                    weight=str(weight),
-                )
-
-                try:
-                    sector_returns = self._historical_data_service.get_daily_returns(
-                        sector_symbol, days=90
-                    )
-
-                    # Initialize portfolio returns list if empty
-                    if not portfolio_returns:
-                        portfolio_returns = [Decimal("0")] * len(sector_returns)
-
-                    # Add weighted sector returns to portfolio
-                    for i, ret in enumerate(sector_returns):
-                        if i < len(portfolio_returns):
-                            portfolio_returns[i] += ret * weight
-
-                except Exception as sector_error:
-                    logger.warning(
-                        "Failed to fetch sector returns, skipping",
-                        sector=sector_symbol,
-                        error=str(sector_error),
-                    )
-                    continue
-
+            # Build weighted portfolio returns
+            portfolio_returns = self._build_weighted_portfolio_returns(
+                sector_exposures, total_value
+            )
             if not portfolio_returns:
-                logger.warning("No sector returns available for portfolio calculation")
-                return (
-                    Decimal("1.0"),
-                    Decimal("1.15"),
-                    Decimal("0.0"),
-                    Decimal("0.0"),
-                )
+                return self._static_fallback_metrics()
 
-            # Calculate betas (60-day window)
-            beta_to_spy = calculate_rolling_beta(portfolio_returns, spy_returns, window=60)
-            beta_to_qqq = calculate_rolling_beta(portfolio_returns, qqq_returns, window=60)
-
-            # Calculate correlations (90-day window)
-            correlation_spy = calculate_rolling_correlation(
-                portfolio_returns, spy_returns, window=90
-            )
-            correlation_qqq = calculate_rolling_correlation(
-                portfolio_returns, qqq_returns, window=90
-            )
-
-            logger.info(
-                "Calculated rolling metrics",
-                beta_to_spy=str(beta_to_spy),
-                beta_to_qqq=str(beta_to_qqq),
-                correlation_spy=str(correlation_spy),
-                correlation_qqq=str(correlation_qqq),
-            )
-
-            return beta_to_spy, beta_to_qqq, correlation_spy, correlation_qqq
+            # Compute rolling statistics
+            return self._compute_rolling_stats(portfolio_returns, spy_returns, qqq_returns)
 
         except Exception as e:
             logger.warning(
                 "Failed to calculate rolling metrics, falling back to static betas",
                 error=str(e),
             )
-            # Fall back to static betas on error
-            return (
-                Decimal("1.0"),  # beta_to_spy
-                Decimal("1.15"),  # beta_to_qqq (typical)
-                Decimal("0.0"),  # correlation_spy (unknown)
-                Decimal("0.0"),  # correlation_qqq (unknown)
+            return self._static_fallback_metrics()
+
+    def _static_fallback_metrics(
+        self,
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+        """Return static fallback values for rolling metrics.
+
+        Returns:
+            Tuple of (beta_to_spy=1.0, beta_to_qqq=1.15, correlation_spy=0.0, correlation_qqq=0.0)
+
+        """
+        return (
+            Decimal("1.0"),  # beta_to_spy
+            Decimal("1.15"),  # beta_to_qqq (typical)
+            Decimal("0.0"),  # correlation_spy (unknown)
+            Decimal("0.0"),  # correlation_qqq (unknown)
+        )
+
+    def _get_benchmark_returns(
+        self,
+    ) -> tuple[list[Decimal] | None, list[Decimal] | None]:
+        """Fetch daily returns for SPY and QQQ benchmarks.
+
+        Fetches enough calendar days to ensure we have sufficient trading days
+        for both 60-day beta and 90-day correlation calculations.
+
+        Returns:
+            Tuple of (spy_returns, qqq_returns), or (None, None) if insufficient data
+
+        """
+        if self._historical_data_service is None:
+            return None, None
+
+        logger.info("Fetching benchmark returns")
+        spy_returns = self._historical_data_service.get_daily_returns(
+            "SPY", days=self._CALENDAR_DAYS_TO_FETCH
+        )
+        qqq_returns = self._historical_data_service.get_daily_returns(
+            "QQQ", days=self._CALENDAR_DAYS_TO_FETCH
+        )
+
+        if (
+            len(spy_returns) < self._MIN_TRADING_DAYS_REQUIRED
+            or len(qqq_returns) < self._MIN_TRADING_DAYS_REQUIRED
+        ):
+            logger.warning(
+                "Insufficient benchmark returns",
+                spy_count=len(spy_returns),
+                qqq_count=len(qqq_returns),
+                required=self._MIN_TRADING_DAYS_REQUIRED,
             )
+            return None, None
+
+        return spy_returns, qqq_returns
+
+    def _build_weighted_portfolio_returns(
+        self,
+        sector_exposures: dict[str, SectorExposure],
+        total_value: Decimal,
+    ) -> list[Decimal]:
+        """Build weighted portfolio returns from sector ETF exposures.
+
+        Args:
+            sector_exposures: Exposure by sector ETF
+            total_value: Total portfolio value for weight calculation
+
+        Returns:
+            List of weighted portfolio daily returns
+
+        """
+        if self._historical_data_service is None:
+            return []
+
+        portfolio_returns: list[Decimal] = []
+
+        for sector_symbol, exposure in sector_exposures.items():
+            weight = exposure.total_value / total_value
+
+            logger.debug(
+                "Fetching sector returns",
+                sector=sector_symbol,
+                weight=str(weight),
+            )
+
+            try:
+                sector_returns = self._historical_data_service.get_daily_returns(
+                    sector_symbol, days=self._CALENDAR_DAYS_TO_FETCH
+                )
+
+                # Initialize portfolio returns list if empty
+                if not portfolio_returns:
+                    portfolio_returns = [Decimal("0")] * len(sector_returns)
+
+                # Add weighted sector returns to portfolio
+                for i, ret in enumerate(sector_returns):
+                    if i < len(portfolio_returns):
+                        portfolio_returns[i] += ret * weight
+
+            except Exception as sector_error:
+                logger.warning(
+                    "Failed to fetch sector returns, skipping",
+                    sector=sector_symbol,
+                    error=str(sector_error),
+                )
+                continue
+
+        if not portfolio_returns:
+            logger.warning("No sector returns available for portfolio calculation")
+
+        return portfolio_returns
+
+    def _compute_rolling_stats(
+        self,
+        portfolio_returns: list[Decimal],
+        spy_returns: list[Decimal],
+        qqq_returns: list[Decimal],
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+        """Compute rolling beta and correlation metrics for the portfolio.
+
+        Args:
+            portfolio_returns: Weighted portfolio daily returns
+            spy_returns: SPY benchmark daily returns
+            qqq_returns: QQQ benchmark daily returns
+
+        Returns:
+            Tuple of (beta_to_spy, beta_to_qqq, correlation_spy, correlation_qqq)
+
+        """
+        # Calculate betas (60-day window)
+        beta_to_spy = calculate_rolling_beta(
+            portfolio_returns, spy_returns, window=self._BETA_WINDOW
+        )
+        beta_to_qqq = calculate_rolling_beta(
+            portfolio_returns, qqq_returns, window=self._BETA_WINDOW
+        )
+
+        # Calculate correlations (90-day window)
+        correlation_spy = calculate_rolling_correlation(
+            portfolio_returns, spy_returns, window=self._CORRELATION_WINDOW
+        )
+        correlation_qqq = calculate_rolling_correlation(
+            portfolio_returns, qqq_returns, window=self._CORRELATION_WINDOW
+        )
+
+        logger.info(
+            "Calculated rolling metrics",
+            beta_to_spy=str(beta_to_spy),
+            beta_to_qqq=str(beta_to_qqq),
+            correlation_spy=str(correlation_spy),
+            correlation_qqq=str(correlation_qqq),
+        )
+
+        return beta_to_spy, beta_to_qqq, correlation_spy, correlation_qqq
 
