@@ -219,23 +219,80 @@ class ExposureCalculator:
             )
 
         try:
-            # Calculate portfolio weighted returns
-            # For simplicity, we'll use the largest sector as proxy
-            # In production, this should weight returns by sector exposure
-            largest_sector = max(
-                sector_exposures.items(),
-                key=lambda x: x[1].total_value,
-                default=("QQQ", SectorExposure(total_value=Decimal("0"), position_count=0)),
-            )[0]
+            # Calculate weighted portfolio returns based on sector exposures
+            # First, calculate total portfolio value for weighting
+            total_value = sum((exp.total_value for exp in sector_exposures.values()), Decimal("0"))
 
-            logger.info("Fetching historical returns", largest_sector=largest_sector)
+            if total_value == 0:
+                logger.warning("Zero total portfolio value, cannot calculate rolling metrics")
+                return (
+                    Decimal("1.0"),
+                    Decimal("1.15"),
+                    Decimal("0.0"),
+                    Decimal("0.0"),
+                )
 
-            # Fetch returns for portfolio proxy and benchmarks
-            portfolio_returns = self._historical_data_service.get_daily_returns(
-                largest_sector, days=90
-            )
+            # Fetch returns for SPY and QQQ (benchmarks)
+            logger.info("Fetching benchmark returns")
             spy_returns = self._historical_data_service.get_daily_returns("SPY", days=90)
             qqq_returns = self._historical_data_service.get_daily_returns("QQQ", days=90)
+
+            if len(spy_returns) < 60 or len(qqq_returns) < 60:
+                logger.warning(
+                    "Insufficient benchmark returns",
+                    spy_count=len(spy_returns),
+                    qqq_count=len(qqq_returns),
+                )
+                return (
+                    Decimal("1.0"),
+                    Decimal("1.15"),
+                    Decimal("0.0"),
+                    Decimal("0.0"),
+                )
+
+            # Calculate weighted portfolio returns across all sectors
+            portfolio_returns: list[Decimal] = []
+
+            for sector_symbol, exposure in sector_exposures.items():
+                # Calculate weight for this sector
+                weight = exposure.total_value / total_value
+
+                logger.debug(
+                    "Fetching sector returns",
+                    sector=sector_symbol,
+                    weight=str(weight),
+                )
+
+                try:
+                    sector_returns = self._historical_data_service.get_daily_returns(
+                        sector_symbol, days=90
+                    )
+
+                    # Initialize portfolio returns list if empty
+                    if not portfolio_returns:
+                        portfolio_returns = [Decimal("0")] * len(sector_returns)
+
+                    # Add weighted sector returns to portfolio
+                    for i, ret in enumerate(sector_returns):
+                        if i < len(portfolio_returns):
+                            portfolio_returns[i] += ret * weight
+
+                except Exception as sector_error:
+                    logger.warning(
+                        "Failed to fetch sector returns, skipping",
+                        sector=sector_symbol,
+                        error=str(sector_error),
+                    )
+                    continue
+
+            if not portfolio_returns:
+                logger.warning("No sector returns available for portfolio calculation")
+                return (
+                    Decimal("1.0"),
+                    Decimal("1.15"),
+                    Decimal("0.0"),
+                    Decimal("0.0"),
+                )
 
             # Calculate betas (60-day window)
             beta_to_spy = calculate_rolling_beta(portfolio_returns, spy_returns, window=60)
