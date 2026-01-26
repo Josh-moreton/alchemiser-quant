@@ -18,6 +18,7 @@ from typing import Literal
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.constants import (
     MAX_EXISTING_HEDGE_COUNT,
+    MAX_SINGLE_POSITION_PCT,
     MIN_EXPOSURE_RATIO,
     MIN_NAV_THRESHOLD,
     SMOOTHING_HEDGE_TEMPLATE,
@@ -130,6 +131,20 @@ class HedgeSizer:
             target_dte = TAIL_HEDGE_TEMPLATE.target_dte
             short_delta = None
             is_spread = False
+
+        # Apply maximum position concentration cap (2% NAV)
+        max_premium = exposure.nav * MAX_SINGLE_POSITION_PCT
+        if premium_budget > max_premium:
+            logger.warning(
+                "Premium budget exceeds max concentration limit, capping to 2% NAV",
+                original_budget=str(premium_budget),
+                original_nav_pct=str(nav_pct),
+                max_premium=str(max_premium),
+                max_concentration_pct=str(MAX_SINGLE_POSITION_PCT),
+                nav=str(exposure.nav),
+            )
+            premium_budget = max_premium
+            nav_pct = MAX_SINGLE_POSITION_PCT
 
         # Estimate contracts (will be refined during execution based on actual quotes)
         contracts_estimated = self._estimate_contracts(

@@ -308,6 +308,11 @@ MIN_EXPOSURE_RATIO: Decimal = Decimal("0.5")
 # Limits hedge accumulation; a portfolio with 3+ hedges is considered adequately protected.
 MAX_EXISTING_HEDGE_COUNT: int = 3
 
+# Maximum concentration for a single hedge position as percentage of NAV.
+# Prevents excessive capital allocation to a single hedge position.
+# Single hedge position premium must not exceed 2% of portfolio NAV.
+MAX_SINGLE_POSITION_PCT: Decimal = Decimal("0.02")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OPTION SELECTION PARAMETERS
