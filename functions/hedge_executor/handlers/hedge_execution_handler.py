@@ -64,10 +64,11 @@ class HedgeExecutionHandler:
         """
         self._container = container
 
-        # Initialize Alpaca options adapter
-        api_key = os.environ.get("ALPACA_API_KEY", "")
-        secret_key = os.environ.get("ALPACA_SECRET_KEY", "")
-        paper = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
+        # Initialize Alpaca options adapter (standard env var pattern)
+        api_key = os.environ.get("ALPACA__KEY", "")
+        secret_key = os.environ.get("ALPACA__SECRET", "")
+        endpoint = os.environ.get("ALPACA__ENDPOINT", "")
+        paper = self._is_paper_from_endpoint(endpoint)
 
         self._options_adapter = AlpacaOptionsAdapter(
             api_key=api_key,
@@ -391,42 +392,3 @@ class HedgeExecutionHandler:
             option_symbol=contract.symbol,
             expiration_date=contract.expiration_date.isoformat(),
         )
-
-        # Record HEDGE_OPENED action to audit trail
-        if self._history_repo:
-            # Use a default account ID for single-account system
-            account_id = "default"
-            try:
-                self._history_repo.record_action(
-                    account_id=account_id,
-                    action=HedgeAction.HEDGE_OPENED,
-                    hedge_id=hedge_id,
-                    correlation_id=correlation_id,
-                    underlying_symbol=contract.underlying_symbol,
-                    option_symbol=contract.symbol,
-                    contracts=result.filled_quantity,
-                    premium=result.total_premium,
-                    details={
-                        "strike_price": str(contract.strike_price),
-                        "expiration_date": contract.expiration_date.isoformat(),
-                        "entry_delta": str(contract.delta or Decimal("0.15")),
-                        "nav_at_entry": str(portfolio_nav),
-                        "nav_percentage": str(nav_pct),
-                        "order_id": result.order_id or "",
-                    },
-                    timestamp=now,
-                )
-                logger.info(
-                    "Hedge action recorded to audit trail",
-                    hedge_id=hedge_id,
-                    action="HEDGE_OPENED",
-                )
-            except Exception as e:
-                # Don't fail the execution if audit trail write fails
-                logger.error(
-                    "Failed to record hedge action to audit trail",
-                    hedge_id=hedge_id,
-                    action="HEDGE_OPENED",
-                    error=str(e),
-                    exc_info=True,
-                )
