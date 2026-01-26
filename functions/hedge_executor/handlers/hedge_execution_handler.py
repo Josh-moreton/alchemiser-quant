@@ -63,10 +63,11 @@ class HedgeExecutionHandler:
         """
         self._container = container
 
-        # Initialize Alpaca options adapter
-        api_key = os.environ.get("ALPACA_API_KEY", "")
-        secret_key = os.environ.get("ALPACA_SECRET_KEY", "")
-        paper = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
+        # Initialize Alpaca options adapter (standard env var pattern)
+        api_key = os.environ.get("ALPACA__KEY", "")
+        secret_key = os.environ.get("ALPACA__SECRET", "")
+        endpoint = os.environ.get("ALPACA__ENDPOINT", "")
+        paper = self._is_paper_from_endpoint(endpoint)
 
         self._options_adapter = AlpacaOptionsAdapter(
             api_key=api_key,
@@ -418,3 +419,25 @@ class HedgeExecutionHandler:
             option_symbol=contract.symbol,
             expiration_date=contract.expiration_date.isoformat(),
         )
+
+    @staticmethod
+    def _is_paper_from_endpoint(ep: str | None) -> bool:
+        """Determine if endpoint is for paper trading.
+
+        Args:
+            ep: Endpoint URL string or None.
+
+        Returns:
+            True if endpoint is for paper trading, False for live trading.
+
+        """
+        if not ep:
+            return True
+        ep_norm = ep.strip().rstrip("/").lower()
+        if ep_norm.endswith("/v2"):
+            ep_norm = ep_norm[:-3]
+        # Explicit paper host
+        if "paper-api.alpaca.markets" in ep_norm:
+            return True
+        # Explicit live host
+        return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)

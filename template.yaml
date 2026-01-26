@@ -1959,9 +1959,9 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
-          ALPACA_API_KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
-          ALPACA_SECRET_KEY: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
-          ALPACA_PAPER: !If [ IsProduction, "false", "true" ]
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
       Events:
         HedgeExecutionQueue:
           Type: SQS
