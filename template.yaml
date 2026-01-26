@@ -554,6 +554,43 @@ Resources:
         - Key: Service
           Value: hedge-positions
 
+  # ========== HEDGE HISTORY TABLE (OPTIONS HEDGING AUDIT TRAIL) ==========
+  # DynamoDB table for tracking all hedge actions for audit and compliance
+  # Records HEDGE_OPENED, HEDGE_ROLLED, HEDGE_CLOSED, etc. actions
+  HedgeHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-history"
+        - !Sub "alchemiser-${Stage}-hedge-history"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: account_id
+          AttributeType: S
+        - AttributeName: timestamp_action
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: account_id
+          KeyType: HASH
+        - AttributeName: timestamp_action
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: hedge-history
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1863,6 +1900,7 @@ Resources:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
@@ -1907,6 +1945,11 @@ Resources:
                 Resource:
                   - !GetAtt HedgePositionsTable.Arn
                   - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
 
   # EventBridge Rule: Route RebalancePlanned events to HedgeEvaluator
   RebalancePlannedToHedgeRule:
@@ -1959,6 +2002,7 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
           ALPACA_API_KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA_SECRET_KEY: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA_PAPER: !If [ IsProduction, "false", "true" ]
@@ -2009,6 +2053,11 @@ Resources:
                 Resource:
                   - !GetAtt HedgePositionsTable.Arn
                   - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
 
   # ========== HEDGE ROLL MANAGER LAMBDA (OPTIONS HEDGING) ==========
   # Scheduled daily to scan expiring hedges and trigger rolls
@@ -2035,6 +2084,7 @@ Resources:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
       Events:
         # Daily schedule: 3:45 PM ET (after equity rebalance at 3:30 PM)
         # 19:45 UTC in winter, 20:45 UTC in summer (using 19:45 as default)
@@ -2079,6 +2129,11 @@ Resources:
                 Resource:
                   - !GetAtt HedgePositionsTable.Arn
                   - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
 
   # ========== DATA LAMBDA FUNCTION (PER-STAGE) ==========
   # Market data fetching and S3 storage (replaces alchemiser-shared-data)

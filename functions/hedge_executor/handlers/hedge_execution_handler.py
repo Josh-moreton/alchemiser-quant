@@ -25,8 +25,10 @@ from the_alchemiser.shared.events.schemas import (
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import (
     AlpacaOptionsAdapter,
+    HedgeHistoryRepository,
     HedgePositionsRepository,
 )
+from the_alchemiser.shared.options.schemas.hedge_history_record import HedgeAction
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -79,6 +81,10 @@ class HedgeExecutionHandler:
         # Initialize DynamoDB repository for hedge positions
         table_name = os.environ.get("HEDGE_POSITIONS_TABLE_NAME", "")
         self._positions_repo = HedgePositionsRepository(table_name) if table_name else None
+
+        # Initialize DynamoDB repository for hedge history
+        history_table_name = os.environ.get("HEDGE_HISTORY_TABLE_NAME", "")
+        self._history_repo = HedgeHistoryRepository(history_table_name) if history_table_name else None
 
         # Create event bus if not provided
         if event_bus is None:
@@ -385,3 +391,42 @@ class HedgeExecutionHandler:
             option_symbol=contract.symbol,
             expiration_date=contract.expiration_date.isoformat(),
         )
+
+        # Record HEDGE_OPENED action to audit trail
+        if self._history_repo:
+            # Use Alpaca API key (hashed first 8 chars) as account identifier
+            account_id = os.environ.get("ALPACA_API_KEY", "unknown")[:8]
+            try:
+                self._history_repo.record_action(
+                    account_id=account_id,
+                    action=HedgeAction.HEDGE_OPENED,
+                    hedge_id=hedge_id,
+                    correlation_id=correlation_id,
+                    underlying_symbol=contract.underlying_symbol,
+                    option_symbol=contract.symbol,
+                    contracts=result.filled_quantity,
+                    premium=result.total_premium,
+                    details={
+                        "strike_price": str(contract.strike_price),
+                        "expiration_date": contract.expiration_date.isoformat(),
+                        "entry_delta": str(contract.delta or Decimal("0.15")),
+                        "nav_at_entry": str(portfolio_nav),
+                        "nav_percentage": str(nav_pct),
+                        "order_id": result.order_id or "",
+                    },
+                    timestamp=now,
+                )
+                logger.info(
+                    "Hedge action recorded to audit trail",
+                    hedge_id=hedge_id,
+                    action="HEDGE_OPENED",
+                )
+            except Exception as e:
+                # Don't fail the execution if audit trail write fails
+                logger.error(
+                    "Failed to record hedge action to audit trail",
+                    hedge_id=hedge_id,
+                    action="HEDGE_OPENED",
+                    error=str(e),
+                    exc_info=True,
+                )
