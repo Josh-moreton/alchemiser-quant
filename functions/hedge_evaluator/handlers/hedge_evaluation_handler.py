@@ -290,6 +290,8 @@ class HedgeEvaluationHandler:
             # Scale proxy price to approximate VIX index value
             estimated_vix = proxy_price * VIX_PROXY_SCALE_FACTOR
 
+            # Log for drift monitoring - VIXY/VIX relationship can drift over time
+            # Monitor this in CloudWatch to detect when scaling factor needs recalibration
             logger.info(
                 "Fetched VIX estimate from ETF proxy",
                 proxy_symbol=VIX_PROXY_SYMBOL,
@@ -297,6 +299,15 @@ class HedgeEvaluationHandler:
                 scale_factor=str(VIX_PROXY_SCALE_FACTOR),
                 estimated_vix=str(estimated_vix),
                 data_source="ETF_proxy",
+            )
+            logger.info(
+                "VIX proxy drift monitoring",
+                proxy_symbol=VIX_PROXY_SYMBOL,
+                proxy_price=str(proxy_price),
+                implied_vix_ratio=str(estimated_vix / proxy_price) if proxy_price > 0 else "N/A",
+                expected_ratio=str(VIX_PROXY_SCALE_FACTOR),
+                vix_estimate=str(estimated_vix),
+                monitoring_note="Track proxy_price vs estimated_vix ratio for scaling factor drift",
             )
 
             return estimated_vix

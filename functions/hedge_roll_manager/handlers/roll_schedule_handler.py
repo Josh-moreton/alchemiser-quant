@@ -34,6 +34,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Account ID for hedge history audit trail records
+# In production, set HEDGE_ACCOUNT_ID environment variable to actual account identifier
+HEDGE_ACCOUNT_ID = os.environ.get("HEDGE_ACCOUNT_ID", "default")
+
 
 class RollScheduleHandler:
     """Handler for scheduled hedge roll checks.
@@ -66,7 +70,9 @@ class RollScheduleHandler:
 
         # Initialize DynamoDB repository for hedge history
         history_table_name = os.environ.get("HEDGE_HISTORY_TABLE_NAME", "")
-        self._history_repo = HedgeHistoryRepository(history_table_name) if history_table_name else None
+        self._history_repo = (
+            HedgeHistoryRepository(history_table_name) if history_table_name else None
+        )
 
         # Create event bus if not provided
         if event_bus is None:
@@ -388,12 +394,9 @@ class RollScheduleHandler:
         if not self._history_repo:
             return
 
-        # Use a placeholder account ID - in production this should come from config
-        account_id = "default"
-
         try:
             self._history_repo.record_action(
-                account_id=account_id,
+                account_id=HEDGE_ACCOUNT_ID,
                 action=HedgeAction.ROLL_TRIGGERED,
                 hedge_id=hedge_id,
                 correlation_id=correlation_id,
@@ -436,12 +439,9 @@ class RollScheduleHandler:
         if not self._history_repo:
             return
 
-        # Use a placeholder account ID - in production this should come from config
-        account_id = "default"
-
         try:
             self._history_repo.record_action(
-                account_id=account_id,
+                account_id=HEDGE_ACCOUNT_ID,
                 action=HedgeAction.EVALUATION_COMPLETED,
                 hedge_id=f"eval-{correlation_id}",
                 correlation_id=correlation_id,

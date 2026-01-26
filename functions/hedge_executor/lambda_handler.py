@@ -78,6 +78,38 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 },
             )
 
+            # Validate required fields in HedgeEvaluationCompleted event
+            required_fields = ["plan_id", "portfolio_nav", "recommendations"]
+            missing_fields = [
+                f for f in required_fields if f not in detail or detail.get(f) in (None, "")
+            ]
+
+            # Allow empty recommendations list but not missing
+            if "recommendations" in missing_fields and detail.get("recommendations") == []:
+                missing_fields.remove("recommendations")
+
+            if missing_fields:
+                logger.error(
+                    "Invalid HedgeEvaluationCompleted event: missing required fields",
+                    extra={
+                        "message_id": message_id,
+                        "correlation_id": correlation_id,
+                        "missing_fields": missing_fields,
+                        "detail_keys": list(detail.keys()),
+                    },
+                )
+                raise ValueError(
+                    f"Missing required fields in HedgeEvaluationCompleted: {missing_fields}"
+                )
+
+            # Validate plan_id is not empty string (invalid state)
+            if detail.get("plan_id") == "":
+                logger.error(
+                    "Invalid HedgeEvaluationCompleted event: empty plan_id",
+                    extra={"message_id": message_id, "correlation_id": correlation_id},
+                )
+                raise ValueError("Invalid HedgeEvaluationCompleted: plan_id cannot be empty")
+
             # Create application container
             container = ApplicationContainer()
             register_hedge_executor(container)

@@ -84,7 +84,9 @@ class HedgeExecutionHandler:
 
         # Initialize DynamoDB repository for hedge history
         history_table_name = os.environ.get("HEDGE_HISTORY_TABLE_NAME", "")
-        self._history_repo = HedgeHistoryRepository(history_table_name) if history_table_name else None
+        self._history_repo = (
+            HedgeHistoryRepository(history_table_name) if history_table_name else None
+        )
 
         # Create event bus if not provided
         if event_bus is None:
@@ -349,7 +351,7 @@ class HedgeExecutionHandler:
         Args:
             event: Source evaluation event
             results: List of execution results
-            _skipped: Whether hedging was skipped (reserved for future use)
+            _skipped: Whether hedging was skipped (no recommendations to execute)
 
         """
         succeeded = sum(1 for r in results if r.success)
@@ -387,6 +389,7 @@ class HedgeExecutionHandler:
             total_nav_pct=total_nav_pct,
             hedge_positions=hedge_positions,
             failed_symbols=failed_symbols,
+            was_skipped=_skipped,
         )
 
         self._event_bus.publish(completed_event)

@@ -78,8 +78,56 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             timestamp = datetime.now(UTC)
         timestamp = ensure_timezone_aware(timestamp)
 
-        # Reconstruct RebalancePlan from detail
-        rebalance_plan_data = detail.get("rebalance_plan", {})
+        # Validate rebalance_plan exists and has required structure
+        rebalance_plan_data = detail.get("rebalance_plan")
+        if not rebalance_plan_data:
+            logger.error(
+                "Missing rebalance_plan in event detail",
+                extra={"correlation_id": correlation_id, "detail_keys": list(detail.keys())},
+            )
+            return {
+                "statusCode": 400,
+                "body": {
+                    "status": "error",
+                    "correlation_id": correlation_id,
+                    "error": "Missing required field: rebalance_plan",
+                },
+            }
+
+        if not isinstance(rebalance_plan_data, dict):
+            logger.error(
+                "Invalid rebalance_plan type: expected dict",
+                extra={
+                    "correlation_id": correlation_id,
+                    "actual_type": type(rebalance_plan_data).__name__,
+                },
+            )
+            return {
+                "statusCode": 400,
+                "body": {
+                    "status": "error",
+                    "correlation_id": correlation_id,
+                    "error": "Invalid rebalance_plan: expected dict",
+                },
+            }
+
+        # Validate required fields in rebalance_plan
+        required_fields = ["plan_id", "items"]
+        missing_fields = [f for f in required_fields if f not in rebalance_plan_data]
+        if missing_fields:
+            logger.error(
+                "Missing required fields in rebalance_plan",
+                extra={"correlation_id": correlation_id, "missing_fields": missing_fields},
+            )
+            return {
+                "statusCode": 400,
+                "body": {
+                    "status": "error",
+                    "correlation_id": correlation_id,
+                    "error": f"Missing required fields in rebalance_plan: {missing_fields}",
+                },
+            }
+
         rebalance_plan = RebalancePlan.from_dict(rebalance_plan_data)
 
         # Reconstruct RebalancePlanned event

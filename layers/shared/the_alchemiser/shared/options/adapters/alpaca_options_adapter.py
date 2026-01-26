@@ -298,13 +298,20 @@ class AlpacaOptionsAdapter:
         short_leg_limit_price: Decimal | None = None,
         time_in_force: str = "day",
         client_order_id: str | None = None,
+        max_retries: int = 3,
+        base_retry_delay: float = 0.5,
     ) -> dict[str, Any]:
         """Place a put spread order (buy long leg, sell short leg).
 
         Note: Alpaca does not support native multi-leg orders via API.
         This method executes legs sequentially. If the long leg succeeds but
-        the short leg fails, compensating logic attempts to close the long leg
-        to avoid stranded positions.
+        the short leg fails, retry logic with exponential backoff is applied
+        to the short leg before falling back to compensating close.
+
+        RISK WARNING: If all short leg retries fail AND the compensating close
+        of the long leg also fails, the account will be left with a naked long
+        option position. This requires manual reconciliation. Monitor for
+        "manual reconciliation required" log messages.
 
         Args:
             long_leg_symbol: OCC symbol for the long put (e.g., 30-delta)
@@ -314,12 +321,14 @@ class AlpacaOptionsAdapter:
             short_leg_limit_price: Limit price for short leg (if None, uses market)
             time_in_force: "day", "gtc", "ioc", "fok"
             client_order_id: Base client order ID for idempotency (derives -L/-S suffixes)
+            max_retries: Maximum number of retry attempts for short leg (default: 3)
+            base_retry_delay: Base delay in seconds for exponential backoff (default: 0.5)
 
         Returns:
             Dictionary with both order responses
 
         Raises:
-            TradingClientError: If either leg fails to execute (after compensating)
+            TradingClientError: If either leg fails to execute (after retries and compensating)
 
         """
         # Derive per-leg client order IDs for idempotency
@@ -336,6 +345,8 @@ class AlpacaOptionsAdapter:
 
         long_order = None
 
+        import time
+
         try:
             # Execute long leg first (buy)
             long_order = self.place_option_order(
@@ -348,16 +359,41 @@ class AlpacaOptionsAdapter:
                 client_order_id=long_client_id,
             )
 
-            # Execute short leg (sell)
-            short_order = self.place_option_order(
-                option_symbol=short_leg_symbol,
-                quantity=quantity,
-                side="sell",
-                order_type="limit" if short_leg_limit_price else "market",
-                limit_price=short_leg_limit_price,
-                time_in_force=time_in_force,
-                client_order_id=short_client_id,
-            )
+            # Execute short leg (sell) with retry logic
+            short_order = None
+            last_short_error: TradingClientError | None = None
+
+            for attempt in range(max_retries):
+                try:
+                    short_order = self.place_option_order(
+                        option_symbol=short_leg_symbol,
+                        quantity=quantity,
+                        side="sell",
+                        order_type="limit" if short_leg_limit_price else "market",
+                        limit_price=short_leg_limit_price,
+                        time_in_force=time_in_force,
+                        client_order_id=f"{short_client_id}-{attempt}" if short_client_id else None,
+                    )
+                    break  # Success, exit retry loop
+                except TradingClientError as e:
+                    last_short_error = e
+                    if attempt < max_retries - 1:
+                        delay = base_retry_delay * (2**attempt)  # Exponential backoff
+                        logger.warning(
+                            "Short leg failed, retrying with backoff",
+                            short_leg=short_leg_symbol,
+                            attempt=attempt + 1,
+                            max_retries=max_retries,
+                            delay_seconds=delay,
+                            error=str(e),
+                        )
+                        time.sleep(delay)
+
+            # If all retries failed, raise to trigger compensating close
+            if short_order is None:
+                if last_short_error is not None:
+                    raise last_short_error
+                raise TradingClientError("Short leg order failed without error captured")
 
             logger.info(
                 "Put spread order placed",

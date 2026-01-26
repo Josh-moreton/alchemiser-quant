@@ -190,7 +190,9 @@ class HedgeHistoryRepository:
 
                 if conditions:
                     key_condition = query_kwargs["KeyConditionExpression"]
-                    query_kwargs["KeyConditionExpression"] = f"{key_condition} AND {' AND '.join(conditions)}"
+                    query_kwargs["KeyConditionExpression"] = (
+                        f"{key_condition} AND {' AND '.join(conditions)}"
+                    )
 
             response = self._table.query(**query_kwargs)
             items = response.get("Items", [])

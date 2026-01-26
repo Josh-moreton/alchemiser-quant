@@ -1020,6 +1020,12 @@ class AllHedgesCompleted(BaseEvent):
         default_factory=list, description="Underlying symbols that failed"
     )
 
+    # Skip indicator
+    was_skipped: bool = Field(
+        default=False,
+        description="True if hedge evaluation was skipped (no recommendations)",
+    )
+
 
 class HedgeRollTriggered(BaseEvent):
     """Event emitted when a hedge position needs to be rolled.
