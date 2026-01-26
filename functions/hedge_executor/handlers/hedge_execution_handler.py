@@ -214,7 +214,7 @@ class HedgeExecutionHandler:
                 total_premium=Decimal("0"),
                 nav_percentage=Decimal("0"),
                 success=False,
-                error_message=f"Position would exceed max concentration (${premium_budget} > ${max_premium} = {MAX_SINGLE_POSITION_PCT:.1%} NAV)",
+                error_message=f"Position would exceed max concentration (${float(premium_budget):.2f} > ${float(max_premium):.2f} = {float(MAX_SINGLE_POSITION_PCT):.1%} NAV)",
             )
 
         # Get underlying price
