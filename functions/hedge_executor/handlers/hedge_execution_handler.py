@@ -25,6 +25,7 @@ from the_alchemiser.shared.events.schemas import (
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import (
     AlpacaOptionsAdapter,
+    HedgeHistoryRepository,
     HedgePositionsRepository,
 )
 from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
@@ -63,11 +64,10 @@ class HedgeExecutionHandler:
         """
         self._container = container
 
-        # Initialize Alpaca options adapter (standard env var pattern)
-        api_key = os.environ.get("ALPACA__KEY", "")
-        secret_key = os.environ.get("ALPACA__SECRET", "")
-        endpoint = os.environ.get("ALPACA__ENDPOINT", "")
-        paper = self._is_paper_from_endpoint(endpoint)
+        # Initialize Alpaca options adapter using container config
+        api_key = container.config.alpaca_api_key() or ""
+        secret_key = container.config.alpaca_secret_key() or ""
+        paper = container.config.paper_trading()
 
         self._options_adapter = AlpacaOptionsAdapter(
             api_key=api_key,
@@ -81,6 +81,10 @@ class HedgeExecutionHandler:
         # Initialize DynamoDB repository for hedge positions
         table_name = os.environ.get("HEDGE_POSITIONS_TABLE_NAME", "")
         self._positions_repo = HedgePositionsRepository(table_name) if table_name else None
+
+        # Initialize DynamoDB repository for hedge history
+        history_table_name = os.environ.get("HEDGE_HISTORY_TABLE_NAME", "")
+        self._history_repo = HedgeHistoryRepository(history_table_name) if history_table_name else None
 
         # Create event bus if not provided
         if event_bus is None:
@@ -464,25 +468,3 @@ class HedgeExecutionHandler:
             option_symbol=contract.symbol,
             expiration_date=contract.expiration_date.isoformat(),
         )
-
-    @staticmethod
-    def _is_paper_from_endpoint(ep: str | None) -> bool:
-        """Determine if endpoint is for paper trading.
-
-        Args:
-            ep: Endpoint URL string or None.
-
-        Returns:
-            True if endpoint is for paper trading, False for live trading.
-
-        """
-        if not ep:
-            return True
-        ep_norm = ep.strip().rstrip("/").lower()
-        if ep_norm.endswith("/v2"):
-            ep_norm = ep_norm[:-3]
-        # Explicit paper host
-        if "paper-api.alpaca.markets" in ep_norm:
-            return True
-        # Explicit live host
-        return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)
