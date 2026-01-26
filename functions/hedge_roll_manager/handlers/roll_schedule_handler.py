@@ -106,6 +106,7 @@ class RollScheduleHandler:
                     "status": "success",
                     "positions_checked": 0,
                     "rolls_triggered": 0,
+                    "assignment_risks": 0,
                 }
 
             # Check each position for roll eligibility

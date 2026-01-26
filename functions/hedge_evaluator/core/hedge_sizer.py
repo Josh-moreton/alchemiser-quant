@@ -190,6 +190,7 @@ class HedgeSizer:
         premium_budget: Decimal,
         underlying_price: Decimal | None,
         target_delta: Decimal,
+        *,
         is_spread: bool = False,
     ) -> int:
         """Estimate number of contracts based on budget.

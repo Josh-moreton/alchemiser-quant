@@ -237,6 +237,26 @@ class HedgeExecutionHandler:
         # Persist position to DynamoDB if execution succeeded
         if result.success and self._positions_repo:
             try:
+                # Extract template and spread info from recommendation
+                hedge_template = recommendation.get("hedge_template", "tail_first")
+                is_spread = recommendation.get("is_spread", False)
+                short_leg_symbol = recommendation.get("short_leg_symbol")
+                short_leg_strike = (
+                    Decimal(recommendation["short_leg_strike"])
+                    if recommendation.get("short_leg_strike")
+                    else None
+                )
+                short_leg_entry_price = (
+                    Decimal(recommendation["short_leg_entry_price"])
+                    if recommendation.get("short_leg_entry_price")
+                    else None
+                )
+                short_leg_current_delta = (
+                    Decimal(recommendation["short_leg_current_delta"])
+                    if recommendation.get("short_leg_current_delta")
+                    else None
+                )
+
                 self._persist_hedge_position(
                     hedge_id=hedge_id,
                     selected=selected,
@@ -244,6 +264,12 @@ class HedgeExecutionHandler:
                     correlation_id=correlation_id,
                     portfolio_nav=portfolio_nav,
                     nav_pct=nav_pct,
+                    hedge_template=hedge_template,
+                    is_spread=is_spread,
+                    short_leg_symbol=short_leg_symbol,
+                    short_leg_strike=short_leg_strike,
+                    short_leg_entry_price=short_leg_entry_price,
+                    short_leg_current_delta=short_leg_current_delta,
                 )
             except (BotoCoreError, ClientError) as e:
                 logger.error(
@@ -335,6 +361,13 @@ class HedgeExecutionHandler:
         correlation_id: str,
         portfolio_nav: Decimal,
         nav_pct: Decimal,
+        *,
+        hedge_template: str = "tail_first",
+        is_spread: bool = False,
+        short_leg_symbol: str | None = None,
+        short_leg_strike: Decimal | None = None,
+        short_leg_entry_price: Decimal | None = None,
+        short_leg_current_delta: Decimal | None = None,
     ) -> None:
         """Persist hedge position to DynamoDB.
 
@@ -345,6 +378,12 @@ class HedgeExecutionHandler:
             correlation_id: Correlation ID for tracing
             portfolio_nav: Portfolio NAV at entry
             nav_pct: Premium as percentage of NAV
+            hedge_template: Template used (tail_first or smoothing)
+            is_spread: Whether this is a spread position
+            short_leg_symbol: OCC symbol for short leg (spreads only)
+            short_leg_strike: Strike price of short leg (spreads only)
+            short_leg_entry_price: Entry price of short leg (spreads only)
+            short_leg_current_delta: Current delta of short leg (spreads only)
 
         Raises:
             botocore.exceptions.BotoCoreError: If DynamoDB operation fails
@@ -373,9 +412,14 @@ class HedgeExecutionHandler:
             state=HedgePositionState.ACTIVE,
             roll_state=RollState.HOLDING,
             last_updated=now,
-            hedge_template="tail_first",
+            hedge_template=hedge_template,
             nav_at_entry=portfolio_nav,
             nav_percentage=nav_pct,
+            is_spread=is_spread,
+            short_leg_symbol=short_leg_symbol,
+            short_leg_strike=short_leg_strike,
+            short_leg_entry_price=short_leg_entry_price,
+            short_leg_current_delta=short_leg_current_delta,
         )
 
         self._positions_repo.put_position(position)

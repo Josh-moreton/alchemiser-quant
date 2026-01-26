@@ -296,13 +296,15 @@ class AlpacaOptionsAdapter:
         *,
         long_leg_limit_price: Decimal | None = None,
         short_leg_limit_price: Decimal | None = None,
-        net_debit_limit: Decimal | None = None,
         time_in_force: str = "day",
+        client_order_id: str | None = None,
     ) -> dict[str, Any]:
         """Place a put spread order (buy long leg, sell short leg).
 
         Note: Alpaca does not support native multi-leg orders via API.
-        This method executes legs sequentially with spread pricing logic.
+        This method executes legs sequentially. If the long leg succeeds but
+        the short leg fails, compensating logic attempts to close the long leg
+        to avoid stranded positions.
 
         Args:
             long_leg_symbol: OCC symbol for the long put (e.g., 30-delta)
@@ -310,23 +312,29 @@ class AlpacaOptionsAdapter:
             quantity: Number of spreads (contracts per leg)
             long_leg_limit_price: Limit price for long leg (if None, uses market)
             short_leg_limit_price: Limit price for short leg (if None, uses market)
-            net_debit_limit: Maximum net debit to pay (if None, no limit)
             time_in_force: "day", "gtc", "ioc", "fok"
+            client_order_id: Base client order ID for idempotency (derives -L/-S suffixes)
 
         Returns:
             Dictionary with both order responses
 
         Raises:
-            TradingClientError: If either leg fails to execute
+            TradingClientError: If either leg fails to execute (after compensating)
 
         """
+        # Derive per-leg client order IDs for idempotency
+        long_client_id = f"{client_order_id}-L" if client_order_id else None
+        short_client_id = f"{client_order_id}-S" if client_order_id else None
+
         logger.info(
             "Placing put spread order",
             long_leg=long_leg_symbol,
             short_leg=short_leg_symbol,
             quantity=quantity,
-            net_debit_limit=str(net_debit_limit) if net_debit_limit else None,
+            client_order_id=client_order_id,
         )
+
+        long_order = None
 
         try:
             # Execute long leg first (buy)
@@ -337,6 +345,7 @@ class AlpacaOptionsAdapter:
                 order_type="limit" if long_leg_limit_price else "market",
                 limit_price=long_leg_limit_price,
                 time_in_force=time_in_force,
+                client_order_id=long_client_id,
             )
 
             # Execute short leg (sell)
@@ -347,6 +356,7 @@ class AlpacaOptionsAdapter:
                 order_type="limit" if short_leg_limit_price else "market",
                 limit_price=short_leg_limit_price,
                 time_in_force=time_in_force,
+                client_order_id=short_client_id,
             )
 
             logger.info(
@@ -364,10 +374,33 @@ class AlpacaOptionsAdapter:
             }
 
         except TradingClientError as e:
+            # If long leg succeeded but short leg failed, attempt compensating close
+            if long_order is not None:
+                logger.warning(
+                    "Short leg failed after long leg succeeded, attempting compensating close",
+                    long_leg=long_leg_symbol,
+                    long_order_id=long_order.get("id"),
+                    error=str(e),
+                )
+                try:
+                    self.close_option_position(long_leg_symbol)
+                    logger.info(
+                        "Compensating close succeeded for long leg",
+                        long_leg=long_leg_symbol,
+                    )
+                except TradingClientError as close_error:
+                    logger.error(
+                        "Compensating close FAILED - manual reconciliation required",
+                        long_leg=long_leg_symbol,
+                        long_order_id=long_order.get("id"),
+                        close_error=str(close_error),
+                    )
+
             logger.error(
                 "Failed to place spread order",
                 long_leg=long_leg_symbol,
                 short_leg=short_leg_symbol,
+                long_leg_placed=long_order is not None,
                 error=str(e),
             )
             raise
@@ -378,6 +411,9 @@ class AlpacaOptionsAdapter:
         short_leg_symbol: str,
     ) -> dict[str, Any]:
         """Close a spread position (both legs).
+
+        Closes the short leg first (buy-to-close) to avoid leaving
+        the account temporarily naked short if failures occur.
 
         Args:
             long_leg_symbol: OCC symbol for the long put
@@ -396,12 +432,15 @@ class AlpacaOptionsAdapter:
             short_leg=short_leg_symbol,
         )
 
+        short_close = None
+        long_close = None
+
         try:
+            # Close short leg FIRST (buy to close) to avoid naked short exposure
+            short_close = self.close_option_position(short_leg_symbol)
+
             # Close long leg (sell to close)
             long_close = self.close_option_position(long_leg_symbol)
-
-            # Close short leg (buy to close)
-            short_close = self.close_option_position(short_leg_symbol)
 
             logger.info(
                 "Put spread position closed",
@@ -415,10 +454,13 @@ class AlpacaOptionsAdapter:
             }
 
         except TradingClientError as e:
+            # Log partial state for reconciliation
             logger.error(
                 "Failed to close spread position",
                 long_leg=long_leg_symbol,
                 short_leg=short_leg_symbol,
+                short_leg_closed=short_close is not None,
+                long_leg_closed=long_close is not None,
                 error=str(e),
             )
             raise

@@ -113,6 +113,20 @@ class HedgePositionsRepository:
         if position.nav_percentage is not None:
             item["nav_percentage"] = str(position.nav_percentage)
 
+        # Spread tracking fields
+        if position.is_spread:
+            item["is_spread"] = position.is_spread
+        if position.short_leg_symbol is not None:
+            item["short_leg_symbol"] = position.short_leg_symbol
+        if position.short_leg_strike is not None:
+            item["short_leg_strike"] = str(position.short_leg_strike)
+        if position.short_leg_entry_price is not None:
+            item["short_leg_entry_price"] = str(position.short_leg_entry_price)
+        if position.short_leg_current_price is not None:
+            item["short_leg_current_price"] = str(position.short_leg_current_price)
+        if position.short_leg_current_delta is not None:
+            item["short_leg_current_delta"] = str(position.short_leg_current_delta)
+
         try:
             self._table.put_item(Item=item)
             logger.info(
@@ -460,4 +474,10 @@ class HedgePositionsRepository:
             "option_type": item.get("option_type", "put"),
             "entry_price": item.get("entry_price", "0"),
             "entry_date": item.get("entry_date", ""),
+            # Template and spread fields for roll manager
+            "hedge_template": item.get("hedge_template", "tail_first"),
+            "is_spread": item.get("is_spread", False),
+            "short_leg_symbol": item.get("short_leg_symbol"),
+            "short_leg_strike": item.get("short_leg_strike"),
+            "short_leg_current_delta": item.get("short_leg_current_delta"),
         }
