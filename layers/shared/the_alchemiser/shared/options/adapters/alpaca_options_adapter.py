@@ -288,6 +288,141 @@ class AlpacaOptionsAdapter:
             )
             raise TradingClientError(f"Option order failed: {e}") from e
 
+    def place_spread_order(
+        self,
+        long_leg_symbol: str,
+        short_leg_symbol: str,
+        quantity: int,
+        *,
+        long_leg_limit_price: Decimal | None = None,
+        short_leg_limit_price: Decimal | None = None,
+        net_debit_limit: Decimal | None = None,
+        time_in_force: str = "day",
+    ) -> dict[str, Any]:
+        """Place a put spread order (buy long leg, sell short leg).
+
+        Note: Alpaca does not support native multi-leg orders via API.
+        This method executes legs sequentially with spread pricing logic.
+
+        Args:
+            long_leg_symbol: OCC symbol for the long put (e.g., 30-delta)
+            short_leg_symbol: OCC symbol for the short put (e.g., 10-delta)
+            quantity: Number of spreads (contracts per leg)
+            long_leg_limit_price: Limit price for long leg (if None, uses market)
+            short_leg_limit_price: Limit price for short leg (if None, uses market)
+            net_debit_limit: Maximum net debit to pay (if None, no limit)
+            time_in_force: "day", "gtc", "ioc", "fok"
+
+        Returns:
+            Dictionary with both order responses
+
+        Raises:
+            TradingClientError: If either leg fails to execute
+
+        """
+        logger.info(
+            "Placing put spread order",
+            long_leg=long_leg_symbol,
+            short_leg=short_leg_symbol,
+            quantity=quantity,
+            net_debit_limit=str(net_debit_limit) if net_debit_limit else None,
+        )
+
+        try:
+            # Execute long leg first (buy)
+            long_order = self.place_option_order(
+                option_symbol=long_leg_symbol,
+                quantity=quantity,
+                side="buy",
+                order_type="limit" if long_leg_limit_price else "market",
+                limit_price=long_leg_limit_price,
+                time_in_force=time_in_force,
+            )
+
+            # Execute short leg (sell)
+            short_order = self.place_option_order(
+                option_symbol=short_leg_symbol,
+                quantity=quantity,
+                side="sell",
+                order_type="limit" if short_leg_limit_price else "market",
+                limit_price=short_leg_limit_price,
+                time_in_force=time_in_force,
+            )
+
+            logger.info(
+                "Put spread order placed",
+                long_order_id=long_order.get("id"),
+                short_order_id=short_order.get("id"),
+                long_leg=long_leg_symbol,
+                short_leg=short_leg_symbol,
+            )
+
+            return {
+                "long_leg": long_order,
+                "short_leg": short_order,
+                "spread_type": "put_spread",
+            }
+
+        except TradingClientError as e:
+            logger.error(
+                "Failed to place spread order",
+                long_leg=long_leg_symbol,
+                short_leg=short_leg_symbol,
+                error=str(e),
+            )
+            raise
+
+    def close_spread_position(
+        self,
+        long_leg_symbol: str,
+        short_leg_symbol: str,
+    ) -> dict[str, Any]:
+        """Close a spread position (both legs).
+
+        Args:
+            long_leg_symbol: OCC symbol for the long put
+            short_leg_symbol: OCC symbol for the short put
+
+        Returns:
+            Dictionary with both close order responses
+
+        Raises:
+            TradingClientError: If either leg fails to close
+
+        """
+        logger.info(
+            "Closing put spread position",
+            long_leg=long_leg_symbol,
+            short_leg=short_leg_symbol,
+        )
+
+        try:
+            # Close long leg (sell to close)
+            long_close = self.close_option_position(long_leg_symbol)
+
+            # Close short leg (buy to close)
+            short_close = self.close_option_position(short_leg_symbol)
+
+            logger.info(
+                "Put spread position closed",
+                long_leg=long_leg_symbol,
+                short_leg=short_leg_symbol,
+            )
+
+            return {
+                "long_leg": long_close,
+                "short_leg": short_close,
+            }
+
+        except TradingClientError as e:
+            logger.error(
+                "Failed to close spread position",
+                long_leg=long_leg_symbol,
+                short_leg=short_leg_symbol,
+                error=str(e),
+            )
+            raise
+
     def get_order(self, order_id: str) -> dict[str, Any]:
         """Get order status by order ID.
 

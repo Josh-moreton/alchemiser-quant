@@ -118,6 +118,34 @@ class HedgePosition(BaseModel):
         description="Premium as percentage of NAV at entry",
     )
 
+    # Spread tracking (for put_spread structures)
+    is_spread: bool = Field(default=False, description="Whether this is a spread position")
+    short_leg_symbol: str | None = Field(
+        default=None,
+        description="OCC symbol of short leg (for spreads)",
+    )
+    short_leg_strike: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description="Strike price of short leg (for spreads)",
+    )
+    short_leg_entry_price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description="Entry price of short leg (for spreads)",
+    )
+    short_leg_current_price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description="Current price of short leg (for spreads)",
+    )
+    short_leg_current_delta: Decimal | None = Field(
+        default=None,
+        ge=Decimal("-1"),
+        le=Decimal("1"),
+        description="Current delta of short leg (for spreads)",
+    )
+
     @field_validator("underlying_symbol")
     @classmethod
     def normalize_underlying(cls, v: str) -> str:
@@ -189,6 +217,10 @@ class HedgePosition(BaseModel):
             "unrealized_pnl",
             "nav_at_entry",
             "nav_percentage",
+            "short_leg_strike",
+            "short_leg_entry_price",
+            "short_leg_current_price",
+            "short_leg_current_delta",
         ]
         for field_name in decimal_fields:
             if data.get(field_name) is not None:
@@ -227,6 +259,10 @@ class HedgePosition(BaseModel):
             "unrealized_pnl",
             "nav_at_entry",
             "nav_percentage",
+            "short_leg_strike",
+            "short_leg_entry_price",
+            "short_leg_current_price",
+            "short_leg_current_delta",
         ]
         for field_name in decimal_fields:
             if data.get(field_name) is not None and isinstance(data[field_name], str):
