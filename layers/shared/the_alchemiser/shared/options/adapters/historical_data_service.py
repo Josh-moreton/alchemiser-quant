@@ -88,7 +88,7 @@ class HistoricalDataService:
 
             # Build request URL
             url = f"{self._data_url}/v2/stocks/{symbol}/bars"
-            params = {
+            params: dict[str, str | int] = {
                 "timeframe": "1Day",
                 "start": start_str,
                 "end": end_str,
@@ -109,7 +109,7 @@ class HistoricalDataService:
             data = response.json()
 
             # Extract bars from response
-            bars = data.get("bars", [])
+            bars: list[dict[str, Any]] = data.get("bars", [])
 
             logger.info(
                 "Fetched daily bars",
