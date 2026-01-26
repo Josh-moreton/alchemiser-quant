@@ -75,14 +75,7 @@ class PnLService:
         """
         if not ep:
             return True
-        ep_norm = ep.strip().rstrip("/").lower()
-        if ep_norm.endswith("/v2"):
-            ep_norm = ep_norm[:-3]
-        # Explicit paper host
-        if "paper-api.alpaca.markets" in ep_norm:
-            return True
-        # Explicit live host
-        return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)
+        return "paper" in ep.lower()
 
     def get_weekly_pnl(self, weeks_back: int = 1) -> PnLData:
         """Get P&L for the past N weeks.
