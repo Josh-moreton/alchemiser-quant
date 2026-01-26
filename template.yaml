@@ -2086,13 +2086,17 @@ Resources:
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
       Events:
-        # Daily schedule: 3:45 PM ET (after equity rebalance at 3:30 PM)
-        # 19:45 UTC in winter, 20:45 UTC in summer (using 19:45 as default)
+        # Daily schedule: ~3:45 PM Eastern Time (after equity rebalance at 3:30 PM)
+        # TIMEZONE NOTE: This schedule uses 19:45 UTC which equals:
+        #   - 3:45 PM EDT (during daylight saving time, Mar-Nov)
+        #   - 2:45 PM EST (during standard time, Nov-Mar)
+        # AWS EventBridge does not natively support US timezone rules.
+        # Acceptable for roll checks as 1-hour variance has minimal impact.
         DailyRollCheck:
           Type: Schedule
           Properties:
             Schedule: "cron(45 19 ? * MON-FRI *)"
-            Description: "Daily hedge roll check (3:45 PM ET)"
+            Description: "Daily hedge roll check (~3:45 PM ET, see comment for timezone note)"
     Metadata:
       BuildMethod: python3.12
 
