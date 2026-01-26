@@ -453,13 +453,42 @@ class RebalancePlanCalculator:
                 ),
             )
 
+        # For PDT accounts, constrain deployable capital to intraday buying power
+        # This ensures the rebalance plan is sized correctly from the start,
+        # preventing BUY order rejections due to daytrading_buying_power constraints.
+        original_deployable_capital = deployable_capital
+        intraday_bp = margin_info.intraday_buying_power
+
+        if intraday_bp is not None:
+            # Use the more restrictive of intraday BP and requested deployable capital
+            effective_constraint = min(intraday_bp, buying_power)
+            if deployable_capital > effective_constraint:
+                deployable_capital = effective_constraint
+                logger.warning(
+                    "Deployable capital constrained by buying power limits",
+                    module=MODULE_NAME,
+                    action="_validate_leverage_capacity",
+                    original_deployable_capital=str(original_deployable_capital),
+                    constrained_deployable_capital=str(deployable_capital),
+                    intraday_buying_power=str(intraday_bp),
+                    overnight_buying_power=str(buying_power),
+                    is_pdt_account=margin_info.is_pdt_account,
+                    reason=(
+                        "daytrading_buying_power constraint (PDT account)"
+                        if margin_info.is_pdt_account
+                        else "buying power constraint"
+                    ),
+                )
+
         # Log successful validation with margin metrics
         logger.info(
             "Leverage capacity validated with margin safety",
             module=MODULE_NAME,
             action="_validate_leverage_capacity",
             deployable_capital=str(deployable_capital),
+            original_deployable_capital=str(original_deployable_capital),
             buying_power=str(buying_power),
+            intraday_buying_power=str(intraday_bp) if intraday_bp else "N/A",
             buying_power_utilization_pct=(
                 f"{float(deployable_capital / buying_power) * 100:.1f}%"
                 if buying_power > Decimal("0")
@@ -530,22 +559,60 @@ class RebalancePlanCalculator:
                     module=MODULE_NAME,
                     operation="_validate_capital_constraints",
                 )
-            # Use effective buying power for overnight safety
+            # Use intraday buying power for BUY order validation (handles PDT accounts)
+            # PDT accounts are subject to daytrading_buying_power limits, which may be
+            # more restrictive than RegT buying_power during the trading day.
+            intraday_bp = snapshot.margin.intraday_buying_power
             effective_bp = snapshot.margin.effective_buying_power or snapshot.margin.buying_power
+
+            # Use the more restrictive of intraday_bp (for same-day trades) and effective_bp
+            # This prevents BUY order rejections due to daytrading_buying_power constraints
+            if intraday_bp is not None and effective_bp is not None:
+                constraint_bp = min(intraday_bp, effective_bp)
+            else:
+                constraint_bp = intraday_bp or effective_bp
+
+            if constraint_bp is None:
+                raise PortfolioError(
+                    "Unable to determine buying power constraint for capital validation.",
+                    module=MODULE_NAME,
+                    operation="_validate_capital_constraints",
+                )
+
             # Net capital needed = buys - sells (sells free up buying power)
             net_buy_needed = total_buy_amount - total_sell_proceeds
             # Use tolerance to handle Decimal precision artifacts (e.g., 1E-25 differences)
-            deficit = net_buy_needed - effective_bp
+            deficit = net_buy_needed - constraint_bp
             if deficit > CAPITAL_CONSTRAINT_TOLERANCE:
+                # Provide detailed error message including both buying power values
+                bp_info = f"intraday: ${intraday_bp}, overnight: ${effective_bp}"
+                if snapshot.margin.is_pdt_account:
+                    bp_info = f"daytrading_buying_power: ${intraday_bp} (PDT account)"
                 raise PortfolioError(
                     f"Cannot execute rebalance: requires ${net_buy_needed} net BUY capital "
                     f"(total buys: ${total_buy_amount}, sell proceeds: ${total_sell_proceeds}) "
-                    f"but only ${effective_bp} buying power available. "
+                    f"but only ${constraint_bp} buying power available ({bp_info}). "
                     f"Deficit: ${deficit}. "
                     f"Consider reducing equity_deployment_pct.",
                     module=MODULE_NAME,
                     operation="_validate_capital_constraints",
                 )
+
+            logger.info(
+                "Capital constraint validation passed (leverage mode)",
+                module=MODULE_NAME,
+                action="_validate_capital_constraints",
+                total_buy_amount=str(total_buy_amount),
+                total_sell_proceeds=str(total_sell_proceeds),
+                net_buy_needed=str(net_buy_needed),
+                current_cash=str(snapshot.cash),
+                intraday_buying_power=str(intraday_bp) if intraday_bp else "N/A",
+                effective_buying_power=str(effective_bp) if effective_bp else "N/A",
+                constraint_buying_power=str(constraint_bp),
+                is_pdt_account=snapshot.margin.is_pdt_account,
+                leverage_enabled=leverage_enabled,
+                deployable_capital=str(deployable_capital),
+            )
         else:
             # Cash-only mode: buys must be covered by cash + sells
             # Use tolerance to handle Decimal precision artifacts (e.g., 1E-25 differences)
@@ -560,17 +627,17 @@ class RebalancePlanCalculator:
                     operation="_validate_capital_constraints",
                 )
 
-        logger.info(
-            "Capital constraint validation passed",
-            module=MODULE_NAME,
-            action="_validate_capital_constraints",
-            total_buy_amount=str(total_buy_amount),
-            total_sell_proceeds=str(total_sell_proceeds),
-            current_cash=str(snapshot.cash),
-            available_capital=str(available_capital),
-            leverage_enabled=leverage_enabled,
-            deployable_capital=str(deployable_capital),
-        )
+            logger.info(
+                "Capital constraint validation passed (cash mode)",
+                module=MODULE_NAME,
+                action="_validate_capital_constraints",
+                total_buy_amount=str(total_buy_amount),
+                total_sell_proceeds=str(total_sell_proceeds),
+                current_cash=str(snapshot.cash),
+                available_capital=str(available_capital),
+                leverage_enabled=leverage_enabled,
+                deployable_capital=str(deployable_capital),
+            )
 
     def _calculate_trade_items(
         self,

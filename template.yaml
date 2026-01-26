@@ -841,9 +841,9 @@ Resources:
         - Key: Service
           Value: market-data
 
-  # ========== TRADING NOTIFICATIONS SNS ==========
-  # SNS Topic for trading notifications (trade results, workflow failures)
-  # CloudWatch Alarm for DLQ messages (triggers when messages hit DLQ)
+  # ========== CLOUDWATCH ALARMS ==========
+  # All alarms publish to default EventBridge bus (no AlarmActions needed)
+  # Notifications Lambda handles CloudWatch Alarm State Change events via SES
   DLQMessageAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -862,8 +862,8 @@ Resources:
       Dimensions:
         - Name: QueueName
           Value: !GetAtt ExecutionDLQ.QueueName
-      AlarmActions:
-        - !Ref DLQAlertTopic
+      # AlarmActions removed - alarms automatically publish to default EventBridge bus
+      # Notifications Lambda handles CloudWatch Alarm State Change events
       TreatMissingData: notBreaching
 
   # CloudWatch Alarm for parallel execution DLQ messages (per-trade execution failures)
@@ -885,8 +885,6 @@ Resources:
       Dimensions:
         - Name: QueueName
           Value: !GetAtt ExecutionFifoDLQ.QueueName
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # CloudWatch Alarm for stuck execution runs (RUNNING > 30 mins)
@@ -909,8 +907,6 @@ Resources:
       Dimensions:
         - Name: TableName
           Value: !Ref ExecutionRunsTable
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # CloudWatch Alarm for stuck aggregation sessions (PENDING > 30 mins)
@@ -934,8 +930,6 @@ Resources:
       Dimensions:
         - Name: TableName
           Value: !Ref AggregationSessionsTable
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # ========== LAMBDA ERROR ALARMS ==========
@@ -964,8 +958,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref StrategyOrchestratorFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Strategy Worker errors - catches timeout/crash when WorkflowFailed can't be published
@@ -987,8 +979,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref StrategyFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Strategy Aggregator errors - catches stalled aggregation scenarios
@@ -1010,8 +1000,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref StrategyAggregatorFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Portfolio Lambda errors - catches failures in rebalance planning
@@ -1033,12 +1021,11 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref PortfolioFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Notifications Lambda errors - CRITICAL: if this fails, no one knows
-  # Uses DLQAlertTopic since TradingNotificationsTopic depends on this Lambda
+  # This alarm publishes to default EventBridge bus, creating a feedback loop risk
+  # However, since we filter by ALARM state only, recovery won't re-trigger
   NotificationsErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1057,8 +1044,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref NotificationsFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Note: ExecutionQueuePolicy removed - EventBridge no longer routes to SQS.
@@ -1728,6 +1713,23 @@ Resources:
                 - "lambda"
               detail-type:
                 - "Lambda Function Invocation Result - Failure"
+        # CloudWatch Alarm State Changes - routes DLQ alerts, stuck runs, Lambda errors
+        # through unified SES notification channel (replaces deprecated SNS topic)
+        CloudWatchAlarmEvent:
+          Type: EventBridgeRule
+          Properties:
+            # CloudWatch alarms publish to the default EventBridge bus
+            Pattern:
+              source:
+                - "aws.cloudwatch"
+              detail-type:
+                - "CloudWatch Alarm State Change"
+              detail:
+                alarmName:
+                  - prefix: "alchemiser-"
+                state:
+                  value:
+                    - "ALARM"
     Metadata:
       BuildMethod: python3.12
       # BuildProperties removed - SAM auto-includes everything in CodeUri

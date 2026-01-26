@@ -32,6 +32,8 @@ from the_alchemiser.shared.notifications.templates import (
     render_daily_run_failure_text,
     render_daily_run_partial_success_html,
     render_daily_run_partial_success_text,
+    render_daily_run_partial_success_with_failures_html,
+    render_daily_run_partial_success_with_failures_text,
     render_daily_run_success_html,
     render_daily_run_success_text,
     render_html_footer,
@@ -264,9 +266,15 @@ class NotificationService:
         execution_data = event.execution_data or {}
         execution_summary = execution_data.get("execution_summary", {})
 
-        # Check if this is a partial success (non-fractionable skips only)
+        # Check if this is a partial success
+        # Two types: non-fractionable skips only, OR actual failures below threshold
         is_partial_success = execution_data.get("is_partial_success", False)
+        is_partial_success_with_failures = execution_data.get(
+            "is_partial_success_with_failures", False
+        )
         non_fractionable_skipped = execution_data.get("non_fractionable_skipped_symbols", [])
+        failed_symbols = execution_data.get("failed_symbols", [])
+        failure_rate = execution_data.get("failure_rate", 0)
 
         # Extract timing from execution_data (populated by TradeAggregator)
         start_time_utc = execution_data.get("start_time_utc", "")
@@ -298,8 +306,11 @@ class NotificationService:
         yearly_pnl = pnl_metrics_raw.get("yearly_pnl", {})
 
         # Determine status for template
-        if is_partial_success:
-            status = "PARTIAL_SUCCESS"
+        # PARTIAL_SUCCESS covers both non-fractionable skips AND low failure rates
+        if is_partial_success_with_failures:
+            status = "PARTIAL_SUCCESS"  # With actual failures, but below threshold
+        elif is_partial_success:
+            status = "PARTIAL_SUCCESS"  # Non-fractionable skips only
         elif event.trading_success:
             status = "SUCCESS"
         else:
@@ -334,6 +345,10 @@ class NotificationService:
             "logs_url": self._build_logs_url(event.correlation_id),
             # Partial success specific
             "non_fractionable_skipped_symbols": non_fractionable_skipped,
+            # Failure details for partial success with failures
+            "failed_symbols": failed_symbols,
+            "failure_rate": failure_rate,
+            "is_partial_success_with_failures": is_partial_success_with_failures,
             # Strategy evaluation metadata
             "strategies_evaluated": execution_data.get("strategies_evaluated", 0),
             # Rebalance plan summary for display
@@ -342,7 +357,12 @@ class NotificationService:
 
         try:
             # Render templates based on status
-            if is_partial_success:
+            if is_partial_success_with_failures:
+                # Partial success with actual failures (below 30% threshold)
+                # Use dedicated template that shows both successes AND failures
+                html_body = render_daily_run_partial_success_with_failures_html(context)
+                text_body = render_daily_run_partial_success_with_failures_text(context)
+            elif is_partial_success:
                 # Partial success: non-fractionable skips only, rest succeeded
                 html_body = render_daily_run_partial_success_html(context)
                 text_body = render_daily_run_partial_success_text(context)

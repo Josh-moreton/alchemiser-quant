@@ -9,7 +9,7 @@ The Execution_v2 module provides a unified order placement system for trade exec
 ## Core Responsibilities
 
 - **Unified Order Placement**: Single entry point for ALL order execution via `UnifiedOrderPlacementService`
-- **Walk-the-Book Execution**: Progressive price improvement (75% → 85% → 95% → market)
+- **Walk-the-Book Execution**: Progressive price improvement (50% → 75% → 95% → market)
 - **Streaming-First Quotes**: WebSocket quotes with REST fallback
 - **Portfolio Validation**: Verify position changes after execution
 - **Trade Monitoring**: Track order status and settlement

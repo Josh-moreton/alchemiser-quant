@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights pnl-report
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -34,6 +34,7 @@ help:
 	@echo "  validate-signals stage=prod          Validate prod signals"
 	@echo ""
 	@echo "Performance Reports:"
+	@echo "  pnl-report                           Generate deposit-adjusted P&L report"
 	@echo "  quantstats                           Generate QuantStats reports (prod)"
 	@echo "  quantstats stage=dev                 Generate for dev environment"
 	@echo "  quantstats days=180                  Custom lookback period (default: 90)"
@@ -262,6 +263,12 @@ validate-dynamo:
 #        make quantstats stage=dev                 # Generate dev reports
 #        make quantstats days=180                  # Custom lookback period
 #        make quantstats local=1                   # Save locally (no S3 upload)
+# Generate P&L report with deposit adjustments
+# Usage: make pnl-report
+pnl-report:
+	@echo "📊 Generating deposit-adjusted P&L report..."
+	poetry run python scripts/pnl_report.py
+
 quantstats:
 	@echo "📊 Generating QuantStats per-strategy reports..."
 	@STAGE=$${stage:-prod}; \
@@ -304,16 +311,17 @@ rebalance-weights:
 		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
 	fi
 
-# Validate strategy signals against Composer.trade
+# Validate strategy signals against Composer.trade (shifted T-1 comparison)
+# Captures today's live_signals, compares today's our_signals vs yesterday's live_signals
 # Usage: make validate-signals                    # Validate latest dev session
 #        make validate-signals stage=prod         # Validate latest prod session
-#        make validate-signals fresh=1            # Start fresh validation
 #        make validate-signals session=<id>       # Validate specific session
+#        make validate-signals fresh=1            # Start fresh (ignore previous captures)
 validate-signals:
 	@echo "🔍 Validating signals against Composer.trade..."
-	@ARGS=""; \
+	@ARGS="--shifted"; \
 	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
-	if [ -n "$(fresh)" ]; then ARGS="$$ARGS --fresh"; fi; \
+	if [ "$(fresh)" = "1" ]; then ARGS="$$ARGS --fresh"; fi; \
 	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
 	poetry run python scripts/validation/validate_signals.py $$ARGS
 

@@ -104,6 +104,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.YES,
         modification_notes="No modifications needed. Already works with partial bars "
         "because it simply returns the latest close value regardless of completeness.",
+        use_live_bar=False,  # Always use live bar - must return today's current price
         edge_cases=(
             "Stale price if market closed and cache not updated",
             "Pre-market/after-hours price may differ from regular session",
@@ -121,7 +122,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works with partial bar but RSI will be more volatile intraday. "
         "The partial bar's close-so-far contributes to the gain/loss calculation. "
         "Consider adding metadata flag to indicate partial bar was used.",
-        use_live_bar=True,  # Use T-0 data to match Composer's live signals (validated 2026-01-15)
+        use_live_bar=False,  # Use T-0 data to match Composer's live signals (validated 2026-01-15)
         edge_cases=(
             "RSI may jump significantly near market open when close-so-far equals open",
             "Intraday RSI variance higher than end-of-day due to price swings",
@@ -139,7 +140,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.YES,
         modification_notes="Works with partial bar. The partial close contributes 1/N "
         "weight to the average. Effect is minimal for large windows (e.g., 200-day).",
-        use_live_bar=True,  # Use live bar for MA calculations
+        use_live_bar=False,  # T-1 mode: exclude live bar (validated 2026-01-16)
         edge_cases=(
             "For short windows (5-20 days), partial bar has higher relative impact",
             "Gap up/down at open creates larger deviation from yesterday's close-based MA",
@@ -174,7 +175,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works but today's return is incomplete. Early in session, "
         "today's return is (close-so-far / yesterday_close - 1) which may not reflect "
         "final daily return. Impact depends on window size.",
-        use_live_bar=True,  # Use T-0 data to match Composer's live signals (validated 2026-01-15)
+        use_live_bar=False,  # T-1 mode: exclude live bar (validated 2026-01-16)
         edge_cases=(
             "Morning volatility causes today's return to swing significantly",
             "Rolling average may differ from EOD value if session ends differently",
@@ -191,7 +192,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.YES,
         modification_notes="Works well with partial bar. Compares today's close-so-far "
         "to the close from N days ago. This is the intended behavior for momentum signals.",
-        use_live_bar=False,  # Bento testing: T-1 data required for correct signals
+        use_live_bar=False,  # T-1 mode: exclude live bar (validated 2026-01-16)
         edge_cases=(
             "Reference price (N days ago) must be from a completed bar",
             "For window=60, comparing to price from ~3 months ago is stable",
@@ -209,7 +210,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works but today's incomplete return may skew volatility. "
         "If today has unusually high intraday range, stdev will spike. "
         "For short windows (6 days), this effect is pronounced.",
-        use_live_bar=True,  # Include live bar - window boundary effects are critical
+        use_live_bar=False,  # T-1 mode: exclude live bar (validated 2026-01-16)
         edge_cases=(
             "Flash crash or spike intraday inflates volatility reading",
             "Near market open, return is small (close-so-far ≈ open)",
@@ -245,6 +246,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         modification_notes="Works well with partial bar. If today's close-so-far is "
         "below the rolling high, drawdown increases. If it sets a new high, drawdown "
         "may decrease. This reflects real-time risk exposure.",
+        use_live_bar=False,  # T-1 mode: exclude live bar (validated 2026-01-16)
         edge_cases=(
             "Intraday drawdown may exceed EOD drawdown if price recovers later",
             "New all-time high intraday resets drawdown to 0 even if price falls later",

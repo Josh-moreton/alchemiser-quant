@@ -25,25 +25,22 @@
           [(weight-equal
             [(filter
               (rsi {:window 10})
-              (select-bottom 1)
+              (select-top 1)
               [(asset
                 "NBIS"
                 "Nebius Group N.V. - Ordinary Shares - Class A")
                (asset "APLD" "Applied Digital Corporation")
                (asset
                 "BE"
-                "Bloom Energy Corp - Ordinary Shares - Class A")
-               (asset
-                "CORD"
-                "ETF Opportunities Trust - T-REX 2X Inverse CRWV Daily Target ETF")])])])])])]
+                "Bloom Energy Corp - Ordinary Shares - Class A")])])])])])]
     [(asset
       "CORD"
       "ETF Opportunities Trust - T-REX 2X Inverse CRWV Daily Target ETF")])
    (if
-    (< (rsi "APLD" {:window 9}) 70)
+    (< (rsi "CRWV" {:window 10}) 80)
     [(weight-equal
       [(if
-        (> (rsi "APLD" {:window 3}) 30)
+        (> (rsi "CRWV" {:window 10}) 30)
         [(weight-equal
           [(filter
             (rsi {:window 10})
@@ -54,13 +51,39 @@
              (asset "APLD" "Applied Digital Corporation")
              (asset
               "BE"
-              "Bloom Energy Corp - Ordinary Shares - Class A")
-             (asset
+              "Bloom Energy Corp - Ordinary Shares - Class A")])])]
+        [(group
+          "Metals"
+          [(weight-equal
+            [(asset
               "CORD"
-              "ETF Opportunities Trust - T-REX 2X Inverse CRWV Daily Target ETF")])])]
-        [(asset
-          "CORD"
-          "ETF Opportunities Trust - T-REX 2X Inverse CRWV Daily Target ETF")])])]
+              "ETF Opportunities Trust - T-REX 2X Inverse CRWV Daily Target ETF")
+             (if
+              (> (rsi "GDX" {:window 7}) 40)
+              [(weight-equal
+                [(filter
+                  (rsi {:window 10})
+                  (select-top 2)
+                  [(asset
+                    "CPXR"
+                    "Tidal Trust III - USCF Daily Target 2X Copper Index ETF")
+                   (asset
+                    "AGQ"
+                    "ProShares Trust - ProShares Ultra Silver 2x Shares")
+                   (asset
+                    "GDXU"
+                    "Bank of Montreal - MicroSectors Gold Miners 3X Leveraged ETN")])])]
+              [(weight-equal
+                [(filter
+                  (rsi {:window 10})
+                  (select-top 1)
+                  [(asset
+                    "NBIS"
+                    "Nebius Group N.V. - Ordinary Shares - Class A")
+                   (asset "APLD" "Applied Digital Corporation")
+                   (asset
+                    "BE"
+                    "Bloom Energy Corp - Ordinary Shares - Class A")])])])])])])])]
     [(asset
       "CORD"
       "ETF Opportunities Trust - T-REX 2X Inverse CRWV Daily Target ETF")])
