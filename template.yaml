@@ -1864,6 +1864,7 @@ Resources:
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
+          # VIX value is fetched real-time from VIXY ETF proxy (VIXY price * 10 ≈ VIX index).
           # Environment variables below are reserved for future runtime override capability.
           # Currently unused - the code reads from constants; uncomment to enable env-based config.
           # HEDGE_BUDGET_VIX_LOW: "0.008"

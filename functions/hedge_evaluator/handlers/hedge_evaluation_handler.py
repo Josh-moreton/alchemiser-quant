@@ -23,6 +23,10 @@ from the_alchemiser.shared.events.schemas import (
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.options.constants import (
+    VIX_PROXY_SCALE_FACTOR,
+    VIX_PROXY_SYMBOL,
+)
 from the_alchemiser.shared.options.utils import get_underlying_price
 
 if TYPE_CHECKING:
@@ -180,6 +184,8 @@ class HedgeEvaluationHandler:
                 plan_id=plan_id,
                 premium_budget=str(recommendation.premium_budget),
                 underlying=recommendation.underlying_symbol,
+                vix_value=str(current_vix) if current_vix else "default",
+                vix_tier=recommendation.vix_tier,
             )
 
         except Exception as e:
@@ -218,15 +224,50 @@ class HedgeEvaluationHandler:
         return positions
 
     def _get_current_vix(self) -> Decimal | None:
-        """Get current VIX value.
+        """Get current VIX value from VIXY ETF proxy.
+
+        Uses VIXY (ProShares VIX Short-Term Futures ETF) as a proxy for VIX
+        since Alpaca does not provide direct VIX index quotes. VIXY tracks
+        VIX futures and provides a tradeable, liquid instrument.
+
+        The scaling relationship (VIXY price * 10 approx VIX index) is an empirical
+        approximation based on historical analysis. This relationship can vary
+        with VIX futures term structure (contango/backwardation), but provides
+        a reasonable real-time estimate for budget tier selection.
+
+        The approximation is monitored via logs (vix_value field in completion logs)
+        and can be validated against published VIX values during market hours.
 
         Returns:
-            Current VIX value, or None if unavailable
+            Estimated VIX value from VIXY proxy, or None if unavailable
 
         """
-        # TODO(#2993): Integrate with market data service to get real VIX
-        # For now, return None to use default mid-tier budget rate
-        return None
+        try:
+            # Fetch VIX proxy ETF price using configurable symbol
+            proxy_price = get_underlying_price(self._container, VIX_PROXY_SYMBOL)
+
+            # Scale proxy price to approximate VIX index value
+            estimated_vix = proxy_price * VIX_PROXY_SCALE_FACTOR
+
+            logger.info(
+                "Fetched VIX estimate from ETF proxy",
+                proxy_symbol=VIX_PROXY_SYMBOL,
+                proxy_price=str(proxy_price),
+                scale_factor=str(VIX_PROXY_SCALE_FACTOR),
+                estimated_vix=str(estimated_vix),
+                data_source="ETF_proxy",
+            )
+
+            return estimated_vix
+
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch VIX from ETF proxy, using default tier",
+                proxy_symbol=VIX_PROXY_SYMBOL,
+                error=str(e),
+                fallback="mid_tier",
+            )
+            return None
 
     def _publish_skip_event(
         self,
