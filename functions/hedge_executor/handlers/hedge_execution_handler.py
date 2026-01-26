@@ -394,8 +394,8 @@ class HedgeExecutionHandler:
 
         # Record HEDGE_OPENED action to audit trail
         if self._history_repo:
-            # Use Alpaca API key (hashed first 8 chars) as account identifier
-            account_id = os.environ.get("ALPACA_API_KEY", "unknown")[:8]
+            # Use a default account ID for single-account system
+            account_id = "default"
             try:
                 self._history_repo.record_action(
                     account_id=account_id,
