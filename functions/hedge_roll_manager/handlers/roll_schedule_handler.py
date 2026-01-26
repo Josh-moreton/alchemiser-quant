@@ -3,6 +3,9 @@
 Handler for scheduled hedge roll management.
 
 Scans existing hedge positions and triggers rolls for expiring hedges.
+Supports multiple templates:
+- tail_first: DTE-based roll trigger (45 DTE)
+- smoothing: Fixed 21-day cadence roll
 """
 
 from __future__ import annotations
@@ -15,7 +18,11 @@ from typing import TYPE_CHECKING, Any
 from the_alchemiser.shared.events.schemas import HedgeRollTriggered
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import HedgePositionsRepository
-from the_alchemiser.shared.options.constants import CRITICAL_DTE_THRESHOLD, TAIL_HEDGE_TEMPLATE
+from the_alchemiser.shared.options.constants import (
+    CRITICAL_DTE_THRESHOLD,
+    SMOOTHING_HEDGE_TEMPLATE,
+    TAIL_HEDGE_TEMPLATE,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -46,7 +53,8 @@ class RollScheduleHandler:
 
         """
         self._container = container
-        self._template = TAIL_HEDGE_TEMPLATE
+        self._tail_template = TAIL_HEDGE_TEMPLATE
+        self._smoothing_template = SMOOTHING_HEDGE_TEMPLATE
 
         # Initialize DynamoDB repository for hedge positions
         table_name = os.environ.get("HEDGE_POSITIONS_TABLE_NAME", "")
@@ -98,10 +106,12 @@ class RollScheduleHandler:
                     "status": "success",
                     "positions_checked": 0,
                     "rolls_triggered": 0,
+                    "assignment_risks": 0,
                 }
 
             # Check each position for roll eligibility
             rolls_triggered = 0
+            assignment_risks = 0
             today = datetime.now(UTC).date()
 
             for position in positions:
@@ -112,8 +122,25 @@ class RollScheduleHandler:
                 expiry = date.fromisoformat(expiry_str)
                 dte = (expiry - today).days
 
+                # Get position template (default to tail_first if not set)
+                template = position.get("hedge_template", "tail_first")
+
+                # Check for assignment risk on short leg (for spreads)
+                if position.get("is_spread", False):
+                    assignment_risk = self._check_assignment_risk(position)
+                    if assignment_risk:
+                        assignment_risks += 1
+
+                # Determine roll threshold based on template
+                if template == "smoothing":
+                    # Fixed cadence: check days since entry
+                    should_roll = self._should_roll_smoothing(position, today)
+                else:
+                    # DTE-based: check if below roll trigger
+                    should_roll = dte < self._tail_template.roll_trigger_dte
+
                 # Check if DTE below threshold
-                if dte < self._template.roll_trigger_dte:
+                if should_roll:
                     self._trigger_roll(position, dte, correlation_id)
                     rolls_triggered += 1
 
@@ -122,12 +149,14 @@ class RollScheduleHandler:
                 correlation_id=correlation_id,
                 positions_checked=len(positions),
                 rolls_triggered=rolls_triggered,
+                assignment_risks=assignment_risks,
             )
 
             return {
                 "status": "success",
                 "positions_checked": len(positions),
                 "rolls_triggered": rolls_triggered,
+                "assignment_risks": assignment_risks,
             }
 
         except Exception as e:
@@ -189,11 +218,15 @@ class RollScheduleHandler:
         option_symbol = position.get("option_symbol", "")
         underlying = position.get("underlying_symbol", "QQQ")
         contracts = position.get("contracts", 1)
+        template = position.get("hedge_template", "tail_first")
 
-        # Determine roll reason
-        if current_dte < CRITICAL_DTE_THRESHOLD:
+        # Determine roll reason based on template
+        if template == "smoothing":
+            # Smoothing uses fixed cadence
+            roll_reason = "cadence_due"
+        elif current_dte < CRITICAL_DTE_THRESHOLD:
             roll_reason = "dte_critical"
-        elif current_dte < self._template.roll_trigger_dte:
+        elif current_dte < self._tail_template.roll_trigger_dte:
             roll_reason = "dte_threshold"
         else:
             roll_reason = "scheduled"
@@ -204,6 +237,7 @@ class RollScheduleHandler:
             option_symbol=option_symbol,
             current_dte=current_dte,
             roll_reason=roll_reason,
+            template=template,
         )
 
         roll_event = HedgeRollTriggered(
@@ -222,3 +256,87 @@ class RollScheduleHandler:
         )
 
         self._event_bus.publish(roll_event)
+
+    def _should_roll_smoothing(self, position: dict[str, Any], today: date) -> bool:
+        """Check if smoothing template position should roll (fixed 21-day cadence).
+
+        Args:
+            position: Hedge position data
+            today: Current date
+
+        Returns:
+            True if position should roll based on fixed cadence
+
+        """
+        entry_date_str = position.get("entry_date", "")
+        if not entry_date_str:
+            return False
+
+        try:
+            # Parse entry date (might be datetime string)
+            if "T" in entry_date_str:
+                entry_dt = datetime.fromisoformat(entry_date_str)
+                entry_date = entry_dt.date()
+            else:
+                entry_date = date.fromisoformat(entry_date_str)
+
+            days_held = (today - entry_date).days
+
+            # Roll if held >= 21 days
+            return days_held >= self._smoothing_template.roll_cadence_days
+
+        except (ValueError, AttributeError) as e:
+            logger.warning(
+                "Failed to parse entry date for smoothing roll check",
+                position_id=position.get("hedge_id"),
+                entry_date=entry_date_str,
+                error=str(e),
+            )
+            return False
+
+    def _check_assignment_risk(self, position: dict[str, Any]) -> bool:
+        """Check for assignment risk on short leg of spread (FR-5.3).
+
+        Args:
+            position: Hedge position data (must be a spread)
+
+        Returns:
+            True if assignment risk detected (delta > 0.80)
+
+        """
+        if not position.get("is_spread", False):
+            return False
+
+        short_delta_str = position.get("short_leg_current_delta")
+        if not short_delta_str:
+            return False
+
+        try:
+            from decimal import Decimal
+
+            short_delta = Decimal(str(short_delta_str))
+            abs_delta = abs(short_delta)
+
+            # Check against threshold (0.80 by default)
+            if abs_delta > self._smoothing_template.assignment_risk_delta_threshold:
+                hedge_id = position.get("hedge_id", "unknown")
+                short_symbol = position.get("short_leg_symbol", "unknown")
+
+                logger.warning(
+                    "Assignment risk detected on short leg",
+                    hedge_id=hedge_id,
+                    short_leg_symbol=short_symbol,
+                    short_delta=str(short_delta),
+                    threshold=str(self._smoothing_template.assignment_risk_delta_threshold),
+                )
+                return True
+
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to parse short leg delta for assignment risk check",
+                position_id=position.get("hedge_id"),
+                short_delta=short_delta_str,
+                error=str(e),
+            )
+
+        return False

@@ -100,9 +100,7 @@ class HedgeEvaluationHandler:
                     secret_key=secret_key,
                     paper=paper_trading,
                 )
-            logger.warning(
-                "Alpaca credentials not available, rolling metrics disabled"
-            )
+            logger.warning("Alpaca credentials not available, rolling metrics disabled")
             return None
         except Exception as e:
             logger.warning(

@@ -56,6 +56,34 @@ class TailHedgeTemplate:
 
 
 @dataclass(frozen=True)
+class SmoothingHedgeTemplate:
+    """Configuration for smoothing hedge strategy using put spreads.
+
+    Optimized for cost efficiency with reduced theta decay:
+    - Put spread: buy 30-delta, sell 10-delta
+    - 60 DTE for shorter tenor
+    - Fixed 21-day roll cadence
+    - Lower cost but capped upside
+    """
+
+    underlying: str  # Primary underlying ETF
+    long_delta: Decimal  # Long put delta (e.g., 0.30 for 30-delta)
+    short_delta: Decimal  # Short put delta (e.g., 0.10 for 10-delta)
+    target_dte: int  # Target days to expiry
+    roll_cadence_days: int  # Fixed roll cadence (not DTE-based)
+    scenario_move: Decimal  # Target underlying move for sizing (-0.10 = -10%)
+    min_payoff_nav_pct: Decimal  # Minimum target payoff as % NAV
+    max_payoff_nav_pct: Decimal  # Maximum target payoff as % NAV
+    budget_vix_low: Decimal  # Budget rate when VIX < 18 (% NAV/month)
+    budget_vix_mid: Decimal  # Budget rate when VIX 18-28 (% NAV/month)
+    budget_vix_high: Decimal  # Budget rate when VIX > 28 (% NAV/month)
+    exposure_base: Decimal  # Base exposure multiplier (at 1.0x leverage)
+    exposure_per_excess: Decimal  # Additional multiplier per 1.0x above base
+    exposure_max_multiplier: Decimal  # Cap on exposure multiplier
+    assignment_risk_delta_threshold: Decimal  # Delta threshold for assignment risk (0.80)
+
+
+@dataclass(frozen=True)
 class LiquidityFilters:
     """Liquidity filter configuration for option selection.
 
@@ -178,7 +206,7 @@ HEDGE_ETFS: dict[str, HedgeETF] = {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# TAIL HEDGE TEMPLATE
+# TAIL HEDGE TEMPLATE (Template 1)
 # ═══════════════════════════════════════════════════════════════════════════════
 # Optimized for leveraged (2.0x-2.5x+) tech-heavy portfolios
 # Buy protection BEFORE volatility expands (counter-intuitive but optimal)
@@ -202,6 +230,35 @@ TAIL_HEDGE_TEMPLATE: TailHedgeTemplate = TailHedgeTemplate(
     scenario_move=Decimal("-0.20"),  # Size for -20% underlying move
     min_payoff_nav_pct=Decimal("0.06"),  # Min +6% NAV payoff
     max_payoff_nav_pct=Decimal("0.10"),  # Max +10% NAV payoff
+)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SMOOTHING HEDGE TEMPLATE (Template 2)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Lower-cost hedging with put spreads
+# Buy 30-delta, sell 10-delta for reduced premium cost and theta decay
+# Fixed 21-day roll cadence
+
+SMOOTHING_HEDGE_TEMPLATE: SmoothingHedgeTemplate = SmoothingHedgeTemplate(
+    underlying="QQQ",  # Primary hedge (tech-correlated)
+    long_delta=Decimal("0.30"),  # Buy 30-delta put
+    short_delta=Decimal("0.10"),  # Sell 10-delta put
+    target_dte=60,  # 60 days to expiry (shorter than tail)
+    roll_cadence_days=21,  # Roll every 3 weeks (fixed cadence)
+    scenario_move=Decimal("-0.10"),  # Size for -10% underlying move
+    min_payoff_nav_pct=Decimal("0.02"),  # Min +2% NAV payoff
+    max_payoff_nav_pct=Decimal("0.04"),  # Max +4% NAV payoff
+    # VIX-adaptive budget rates (lower than tail due to spread structure)
+    budget_vix_low=Decimal("0.004"),  # VIX < 18: 0.4% NAV/month
+    budget_vix_mid=Decimal("0.0025"),  # VIX 18-28: 0.25% NAV/month
+    budget_vix_high=Decimal("0.0015"),  # VIX > 28: 0.15% NAV/month
+    # Exposure scaling (same as tail)
+    exposure_base=Decimal("1.0"),
+    exposure_per_excess=Decimal("0.5"),
+    exposure_max_multiplier=Decimal("1.5"),
+    # Assignment risk threshold (FR-5.3)
+    assignment_risk_delta_threshold=Decimal("0.80"),  # Alert when short leg delta > 0.80
 )
 
 

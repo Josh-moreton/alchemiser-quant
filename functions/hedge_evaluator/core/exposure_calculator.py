@@ -227,9 +227,7 @@ class ExposureCalculator:
 
         try:
             # Calculate total portfolio value for weighting
-            total_value = sum(
-                (exp.total_value for exp in sector_exposures.values()), Decimal("0")
-            )
+            total_value = sum((exp.total_value for exp in sector_exposures.values()), Decimal("0"))
 
             if total_value == 0:
                 logger.warning("Zero total portfolio value, cannot calculate rolling metrics")
@@ -408,4 +406,3 @@ class ExposureCalculator:
         )
 
         return beta_to_spy, beta_to_qqq, correlation_spy, correlation_qqq
-

@@ -19,6 +19,7 @@ from .hedge_config import (
     MIN_NAV_THRESHOLD,
     ORDER_POLL_INTERVAL_SECONDS,
     QQQ_PREFERENCE_THRESHOLD,
+    SMOOTHING_HEDGE_TEMPLATE,
     STRIKE_MAX_OTM_RATIO,
     STRIKE_MIN_OTM_RATIO,
     TAIL_HEDGE_TEMPLATE,
@@ -29,6 +30,7 @@ from .hedge_config import (
     # Dataclasses
     HedgeETF,
     LiquidityFilters,
+    SmoothingHedgeTemplate,
     TailHedgeTemplate,
     # Functions
     get_budget_rate_for_vix,
@@ -52,6 +54,7 @@ __all__ = [
     "MIN_NAV_THRESHOLD",
     "ORDER_POLL_INTERVAL_SECONDS",
     "QQQ_PREFERENCE_THRESHOLD",
+    "SMOOTHING_HEDGE_TEMPLATE",
     "STRIKE_MAX_OTM_RATIO",
     "STRIKE_MIN_OTM_RATIO",
     "TAIL_HEDGE_TEMPLATE",
@@ -62,6 +65,7 @@ __all__ = [
     "VIX_PROXY_SYMBOL",
     "HedgeETF",
     "LiquidityFilters",
+    "SmoothingHedgeTemplate",
     "TailHedgeTemplate",
     "get_budget_rate_for_vix",
     "get_exposure_multiplier",
