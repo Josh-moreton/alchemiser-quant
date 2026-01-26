@@ -22,6 +22,7 @@ from the_alchemiser.shared.options.constants import (
     TAIL_HEDGE_TEMPLATE,
 )
 from the_alchemiser.shared.options.schemas import OptionContract, OptionType
+from the_alchemiser.shared.options.utils import calculate_contracts_for_payoff_target
 
 logger = get_logger(__name__)
 
@@ -63,6 +64,7 @@ class OptionSelector:
         target_dte: int,
         premium_budget: Decimal,
         underlying_price: Decimal,
+        nav: Decimal | None = None,
     ) -> SelectedOption | None:
         """Select optimal option contract for hedging.
 
@@ -72,6 +74,7 @@ class OptionSelector:
             target_dte: Target days to expiry
             premium_budget: Dollar amount available for premium
             underlying_price: Current underlying price
+            nav: Portfolio NAV (optional, for payoff-based sizing)
 
         Returns:
             SelectedOption if found, None if no suitable contract
@@ -137,6 +140,9 @@ class OptionSelector:
             return self._build_selected_option(
                 contract=best_contract,
                 premium_budget=premium_budget,
+                underlying_price=underlying_price,
+                target_delta=target_delta,
+                nav=nav,
             )
 
         except Exception as e:
@@ -257,12 +263,21 @@ class OptionSelector:
         self,
         contract: OptionContract,
         premium_budget: Decimal,
+        underlying_price: Decimal,
+        target_delta: Decimal,
+        nav: Decimal | None = None,
     ) -> SelectedOption:
         """Build SelectedOption with contract count and limit price.
+
+        Uses scenario-payoff based sizing when NAV is provided, otherwise
+        falls back to simple budget-based sizing.
 
         Args:
             contract: Selected option contract
             premium_budget: Available budget for premium
+            underlying_price: Current underlying price
+            target_delta: Target delta for the option
+            nav: Portfolio NAV (optional, enables payoff-based sizing)
 
         Returns:
             SelectedOption with execution details
@@ -281,8 +296,45 @@ class OptionSelector:
 
         # Calculate contracts to buy
         contracts_to_buy = 1
-        if premium_per_contract > 0:
-            contracts_to_buy = max(1, int(premium_budget / premium_per_contract))
+
+        if nav is not None:
+            # Use scenario-payoff based sizing
+            # Default scenario from tail hedge template: -20% move
+            scenario_move = self._template.scenario_move
+            # Target payoff: use midpoint of min/max range
+            target_payoff_pct = (
+                self._template.min_payoff_nav_pct + self._template.max_payoff_nav_pct
+            ) / Decimal("2")
+
+            # Calculate contracts for target payoff
+            contracts_by_payoff = calculate_contracts_for_payoff_target(
+                underlying_price=underlying_price,
+                option_delta=target_delta,
+                scenario_move=scenario_move,
+                target_payoff=target_payoff_pct,
+                nav=nav,
+            )
+
+            # Apply budget cap
+            max_contracts_by_budget = 1
+            if premium_per_contract > 0:
+                max_contracts_by_budget = int(premium_budget / premium_per_contract)
+
+            # Use the smaller of payoff-based and budget-capped contracts
+            contracts_to_buy = max(1, min(contracts_by_payoff, max_contracts_by_budget))
+
+            logger.info(
+                "Applied payoff-based sizing with budget cap",
+                contracts_by_payoff=contracts_by_payoff,
+                max_contracts_by_budget=max_contracts_by_budget,
+                final_contracts=contracts_to_buy,
+                scenario_move=str(scenario_move),
+                target_payoff_pct=str(target_payoff_pct),
+            )
+        else:
+            # Fallback to simple budget-based sizing
+            if premium_per_contract > 0:
+                contracts_to_buy = max(1, int(premium_budget / premium_per_contract))
 
         # Estimated total premium
         estimated_premium = premium_per_contract * contracts_to_buy
