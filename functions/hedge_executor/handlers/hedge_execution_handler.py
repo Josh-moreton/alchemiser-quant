@@ -28,6 +28,7 @@ from the_alchemiser.shared.options.adapters import (
     HedgeHistoryRepository,
     HedgePositionsRepository,
 )
+from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -188,6 +189,38 @@ class HedgeExecutionHandler:
         target_dte = recommendation.get("target_dte", 90)
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
 
+        # Validate position concentration limit (defensive check)
+        # This should already be enforced in HedgeSizer, but double-check here
+        max_premium = portfolio_nav * MAX_SINGLE_POSITION_PCT
+        if premium_budget > max_premium:
+            logger.warning(
+                "Premium budget exceeds max concentration at execution time",
+                premium_budget=str(premium_budget),
+                max_premium=str(max_premium),
+                max_concentration_pct=str(MAX_SINGLE_POSITION_PCT),
+                nav=str(portfolio_nav),
+                underlying=underlying,
+            )
+            return HedgeExecuted(
+                correlation_id=correlation_id,
+                causation_id=plan_id,
+                event_id=f"hedge-exec-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="hedge_executor",
+                source_component="HedgeExecutionHandler",
+                hedge_id=f"hedge-{uuid.uuid4()}",
+                plan_id=plan_id,
+                order_id="",
+                option_symbol="",
+                underlying_symbol=underlying,
+                quantity=0,
+                filled_price=Decimal("0"),
+                total_premium=Decimal("0"),
+                nav_percentage=Decimal("0"),
+                success=False,
+                error_message=f"Position would exceed max concentration (${float(premium_budget):.2f} > ${float(max_premium):.2f} = {float(MAX_SINGLE_POSITION_PCT):.1%} NAV)",
+            )
+
         # Get underlying price
         underlying_price = get_underlying_price(self._container, underlying)
 
@@ -198,6 +231,7 @@ class HedgeExecutionHandler:
             target_dte=target_dte,
             premium_budget=premium_budget,
             underlying_price=underlying_price,
+            nav=portfolio_nav,
         )
 
         if selected is None:
@@ -241,6 +275,26 @@ class HedgeExecutionHandler:
         # Persist position to DynamoDB if execution succeeded
         if result.success and self._positions_repo:
             try:
+                # Extract template and spread info from recommendation
+                hedge_template = recommendation.get("hedge_template", "tail_first")
+                is_spread = recommendation.get("is_spread", False)
+                short_leg_symbol = recommendation.get("short_leg_symbol")
+                short_leg_strike = (
+                    Decimal(recommendation["short_leg_strike"])
+                    if recommendation.get("short_leg_strike")
+                    else None
+                )
+                short_leg_entry_price = (
+                    Decimal(recommendation["short_leg_entry_price"])
+                    if recommendation.get("short_leg_entry_price")
+                    else None
+                )
+                short_leg_current_delta = (
+                    Decimal(recommendation["short_leg_current_delta"])
+                    if recommendation.get("short_leg_current_delta")
+                    else None
+                )
+
                 self._persist_hedge_position(
                     hedge_id=hedge_id,
                     selected=selected,
@@ -248,6 +302,12 @@ class HedgeExecutionHandler:
                     correlation_id=correlation_id,
                     portfolio_nav=portfolio_nav,
                     nav_pct=nav_pct,
+                    hedge_template=hedge_template,
+                    is_spread=is_spread,
+                    short_leg_symbol=short_leg_symbol,
+                    short_leg_strike=short_leg_strike,
+                    short_leg_entry_price=short_leg_entry_price,
+                    short_leg_current_delta=short_leg_current_delta,
                 )
             except (BotoCoreError, ClientError) as e:
                 logger.error(
@@ -339,6 +399,13 @@ class HedgeExecutionHandler:
         correlation_id: str,
         portfolio_nav: Decimal,
         nav_pct: Decimal,
+        *,
+        hedge_template: str = "tail_first",
+        is_spread: bool = False,
+        short_leg_symbol: str | None = None,
+        short_leg_strike: Decimal | None = None,
+        short_leg_entry_price: Decimal | None = None,
+        short_leg_current_delta: Decimal | None = None,
     ) -> None:
         """Persist hedge position to DynamoDB.
 
@@ -349,6 +416,12 @@ class HedgeExecutionHandler:
             correlation_id: Correlation ID for tracing
             portfolio_nav: Portfolio NAV at entry
             nav_pct: Premium as percentage of NAV
+            hedge_template: Template used (tail_first or smoothing)
+            is_spread: Whether this is a spread position
+            short_leg_symbol: OCC symbol for short leg (spreads only)
+            short_leg_strike: Strike price of short leg (spreads only)
+            short_leg_entry_price: Entry price of short leg (spreads only)
+            short_leg_current_delta: Current delta of short leg (spreads only)
 
         Raises:
             botocore.exceptions.BotoCoreError: If DynamoDB operation fails
@@ -377,9 +450,14 @@ class HedgeExecutionHandler:
             state=HedgePositionState.ACTIVE,
             roll_state=RollState.HOLDING,
             last_updated=now,
-            hedge_template="tail_first",
+            hedge_template=hedge_template,
             nav_at_entry=portfolio_nav,
             nav_percentage=nav_pct,
+            is_spread=is_spread,
+            short_leg_symbol=short_leg_symbol,
+            short_leg_strike=short_leg_strike,
+            short_leg_entry_price=short_leg_entry_price,
+            short_leg_current_delta=short_leg_current_delta,
         )
 
         self._positions_repo.put_position(position)
