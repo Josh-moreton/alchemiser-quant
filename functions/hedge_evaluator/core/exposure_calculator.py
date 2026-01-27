@@ -193,9 +193,12 @@ class ExposureCalculator:
         return Decimal("1.0")
 
     # Constants for rolling metrics calculation
-    # We need ~90 trading days for correlation. Since calendar days != trading days
-    # (~252 trading days per year), we fetch 130 calendar days to reliably get 90+ trading days.
-    _CALENDAR_DAYS_TO_FETCH = 130
+    # We need ~90 trading days for correlation. Calculation for calendar days buffer:
+    # - 90 trading days minimum + 5 buffer = 95 trading days target
+    # - ~38 weekend days per 130 calendar days
+    # - Up to 12 US market holidays in worst-case periods (Q4/Q1 has 6+ holidays)
+    # - Total: 95 + 38 + 12 = 145 calendar days
+    _CALENDAR_DAYS_TO_FETCH = 145
     _MIN_TRADING_DAYS_REQUIRED = 90  # For 90-day correlation window
     _BETA_WINDOW = 60
     _CORRELATION_WINDOW = 90
