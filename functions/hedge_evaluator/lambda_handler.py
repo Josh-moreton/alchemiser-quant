@@ -8,16 +8,20 @@ Runs hedge evaluation and publishes HedgeEvaluationCompleted to EventBridge.
 
 from __future__ import annotations
 
+import json
+import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+import boto3
 from handlers.hedge_evaluation_handler import HedgeEvaluationHandler
 from wiring import register_hedge_evaluator
 
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import BaseEvent, WorkflowFailed
 from the_alchemiser.shared.events.eventbridge_publisher import (
+    DecimalEncoder,
     publish_to_eventbridge,
     unwrap_eventbridge_event,
 )
@@ -168,9 +172,34 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Run hedge evaluation
         handler.handle_event(rebalance_event)
 
-        # Publish result to EventBridge
+        # Publish result to EventBridge and SQS
         if evaluation_event is not None:
             publish_to_eventbridge(evaluation_event)
+
+            # Send to HedgeExecutionQueue to trigger hedge executor
+            queue_url = os.environ.get("HEDGE_EXECUTION_QUEUE_URL")
+            if queue_url:
+                sqs_client = boto3.client("sqs")
+                sqs_client.send_message(
+                    QueueUrl=queue_url,
+                    MessageBody=json.dumps(
+                        evaluation_event.model_dump(mode="json"),
+                        cls=DecimalEncoder,
+                    ),
+                )
+                logger.info(
+                    "Sent HedgeEvaluationCompleted to execution queue",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "queue_url": queue_url,
+                    },
+                )
+            else:
+                logger.warning(
+                    "HEDGE_EXECUTION_QUEUE_URL not set, skipping SQS send",
+                    extra={"correlation_id": correlation_id},
+                )
+
             logger.info(
                 "Hedge evaluation completed successfully",
                 extra={
