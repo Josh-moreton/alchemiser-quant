@@ -278,7 +278,7 @@ class OptionSelector:
 
         for contract in contracts:
             # Apply liquidity filters
-            if not self._passes_liquidity_filter(contract, skip_oi_filter):
+            if not self._passes_liquidity_filter(contract, skip_oi_filter=skip_oi_filter):
                 continue
 
             # Score contract (lower is better)
