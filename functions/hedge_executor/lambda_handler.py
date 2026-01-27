@@ -147,17 +147,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             executed_events: list[HedgeExecuted] = []
             completed_event_holder: list[AllHedgesCompleted] = []
 
-            def capture_executed(
-                evt: BaseEvent, events: list[HedgeExecuted] = executed_events
-            ) -> None:
+            def capture_executed(evt: BaseEvent) -> None:
                 if isinstance(evt, HedgeExecuted):
-                    events.append(evt)
+                    executed_events.append(evt)  # noqa: B023
 
-            def capture_completed(
-                evt: BaseEvent, holder: list[AllHedgesCompleted] = completed_event_holder
-            ) -> None:
+            def capture_completed(evt: BaseEvent) -> None:
                 if isinstance(evt, AllHedgesCompleted):
-                    holder.append(evt)
+                    completed_event_holder.append(evt)  # noqa: B023
 
             handler.event_bus.subscribe("HedgeExecuted", capture_executed)
             handler.event_bus.subscribe("AllHedgesCompleted", capture_completed)

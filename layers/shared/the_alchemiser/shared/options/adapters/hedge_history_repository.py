@@ -152,6 +152,7 @@ class HedgeHistoryRepository:
         self,
         account_id: str,
         limit: int = 100,
+        *,
         descending: bool = True,
         start_time: datetime | None = None,
         end_time: datetime | None = None,

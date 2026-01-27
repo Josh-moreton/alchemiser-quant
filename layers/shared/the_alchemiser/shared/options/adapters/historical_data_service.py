@@ -79,7 +79,8 @@ class HistoricalDataService:
         """
         try:
             # Calculate date range
-            end_date = datetime.now(UTC)
+            # End 15 mins ago to avoid free-tier delay restrictions
+            end_date = datetime.now(UTC) - timedelta(minutes=15)
             start_date = end_date - timedelta(days=days)
 
             # Format dates for API
@@ -94,6 +95,7 @@ class HistoricalDataService:
                 "end": end_str,
                 "limit": 10000,  # Max limit
                 "adjustment": "split",  # Adjust for splits
+                "feed": "iex",  # Use IEX feed (free tier compatible)
             }
 
             logger.debug(
