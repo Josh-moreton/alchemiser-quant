@@ -258,6 +258,7 @@ class OptionSelector:
         contracts: list[OptionContract],
         target_delta: Decimal,
         target_expiry: date,
+        *,
         skip_oi_filter: bool,
     ) -> OptionContract | None:
         """Select best contract with optional filter bypass.
@@ -290,7 +291,7 @@ class OptionSelector:
         return best_contract
 
     def _passes_liquidity_filter(
-        self, contract: OptionContract, skip_oi_filter: bool = False
+        self, contract: OptionContract, *, skip_oi_filter: bool = False
     ) -> bool:
         """Check if contract passes liquidity requirements.
 
@@ -303,9 +304,8 @@ class OptionSelector:
 
         """
         # Check open interest (skip if OI data unavailable in paper API)
-        if not skip_oi_filter:
-            if contract.open_interest < self._filters.min_open_interest:
-                return False
+        if not skip_oi_filter and contract.open_interest < self._filters.min_open_interest:
+            return False
 
         # Check bid-ask spread
         spread_pct = contract.spread_pct
