@@ -171,12 +171,53 @@ class OptionSelector:
             Best matching contract, or None if none pass filters
 
         """
+        # First pass: try with full filters
+        best_contract = self._select_best_contract(
+            contracts, target_delta, target_expiry, skip_oi_filter=False
+        )
+
+        if best_contract is not None:
+            return best_contract
+
+        # Check if ALL contracts have 0 open_interest (paper API limitation)
+        all_zero_oi = all(c.open_interest == 0 for c in contracts)
+        if all_zero_oi and contracts:
+            logger.warning(
+                "All contracts have 0 open_interest, skipping OI filter (paper API)",
+                contracts_count=len(contracts),
+            )
+            # Second pass: retry without OI filter for paper trading
+            best_contract = self._select_best_contract(
+                contracts, target_delta, target_expiry, skip_oi_filter=True
+            )
+
+        return best_contract
+
+    def _select_best_contract(
+        self,
+        contracts: list[OptionContract],
+        target_delta: Decimal,
+        target_expiry: date,
+        skip_oi_filter: bool,
+    ) -> OptionContract | None:
+        """Select best contract with optional filter bypass.
+
+        Args:
+            contracts: List of option contracts
+            target_delta: Target delta
+            target_expiry: Target expiration date
+            skip_oi_filter: Skip open interest filter (for paper API)
+
+        Returns:
+            Best matching contract, or None if none pass filters
+
+        """
         best_contract: OptionContract | None = None
         best_score = Decimal("999999")
 
         for contract in contracts:
             # Apply liquidity filters
-            if not self._passes_liquidity_filter(contract):
+            if not self._passes_liquidity_filter(contract, skip_oi_filter):
                 continue
 
             # Score contract (lower is better)
@@ -188,19 +229,23 @@ class OptionSelector:
 
         return best_contract
 
-    def _passes_liquidity_filter(self, contract: OptionContract) -> bool:
+    def _passes_liquidity_filter(
+        self, contract: OptionContract, skip_oi_filter: bool = False
+    ) -> bool:
         """Check if contract passes liquidity requirements.
 
         Args:
             contract: Option contract to check
+            skip_oi_filter: Skip open interest check (for paper API)
 
         Returns:
             True if contract passes all liquidity filters
 
         """
-        # Check open interest
-        if contract.open_interest < self._filters.min_open_interest:
-            return False
+        # Check open interest (skip if OI data unavailable in paper API)
+        if not skip_oi_filter:
+            if contract.open_interest < self._filters.min_open_interest:
+                return False
 
         # Check bid-ask spread
         spread_pct = contract.spread_pct
