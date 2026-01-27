@@ -121,6 +121,66 @@ class OptionSelector:
                 )
                 return None
 
+            # Pre-filter by DTE before fetching quotes (reduce quote API calls)
+            dte_filtered = [
+                c
+                for c in contracts
+                if self._filters.min_dte <= c.days_to_expiry <= self._filters.max_dte
+            ]
+
+            if not dte_filtered:
+                logger.warning(
+                    "No contracts in DTE range",
+                    underlying=underlying_symbol,
+                    min_dte=self._filters.min_dte,
+                    max_dte=self._filters.max_dte,
+                )
+                return None
+
+            # Fetch quotes for filtered contracts (contracts endpoint doesn't return quotes)
+            symbols = [c.symbol for c in dte_filtered]
+            quotes = self._adapter.get_option_quotes_batch(symbols)
+
+            # Enrich contracts with quote data
+            enriched_contracts = []
+            for contract in dte_filtered:
+                quote = quotes.get(contract.symbol)
+                if quote:
+                    # Create new contract with quote data
+                    enriched = OptionContract(
+                        symbol=contract.symbol,
+                        underlying_symbol=contract.underlying_symbol,
+                        option_type=contract.option_type,
+                        strike_price=contract.strike_price,
+                        expiration_date=contract.expiration_date,
+                        bid_price=quote.get("bid_price"),
+                        ask_price=quote.get("ask_price"),
+                        last_price=contract.last_price,
+                        volume=contract.volume,
+                        open_interest=contract.open_interest,
+                        delta=contract.delta,
+                        gamma=contract.gamma,
+                        theta=contract.theta,
+                        vega=contract.vega,
+                        implied_volatility=contract.implied_volatility,
+                    )
+                    enriched_contracts.append(enriched)
+                else:
+                    # Keep original contract (may fail liquidity filter)
+                    enriched_contracts.append(contract)
+
+            logger.info(
+                "Enriched contracts with quotes",
+                underlying=underlying_symbol,
+                total_contracts=len(dte_filtered),
+                contracts_with_quotes=len(quotes),
+            )
+
+            contracts = enriched_contracts
+
+            if not contracts:
+                return None
+
             # Filter and score contracts
             best_contract = self._find_best_contract(
                 contracts=contracts,

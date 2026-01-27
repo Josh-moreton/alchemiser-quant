@@ -197,6 +197,92 @@ class AlpacaOptionsAdapter:
             )
             raise TradingClientError(f"Option quote failed: {e}") from e
 
+    def get_option_quotes_batch(
+        self, option_symbols: list[str]
+    ) -> dict[str, dict[str, Decimal | None]]:
+        """Get quotes for multiple option contracts in a single request.
+
+        Uses the Alpaca Market Data API for efficient batch quote fetching.
+
+        Args:
+            option_symbols: List of OCC option symbols (max 100 per request)
+
+        Returns:
+            Dict mapping symbol to quote data:
+            {
+                "SPY250117P00400000": {
+                    "bid_price": Decimal("1.23"),
+                    "ask_price": Decimal("1.25"),
+                    "last_price": Decimal("1.24"),
+                },
+                ...
+            }
+
+        """
+        if not option_symbols:
+            return {}
+
+        # Alpaca data API has a limit on symbols per request
+        max_batch_size = 100
+        quotes: dict[str, dict[str, Decimal | None]] = {}
+
+        for i in range(0, len(option_symbols), max_batch_size):
+            batch = option_symbols[i : i + max_batch_size]
+            batch_quotes = self._fetch_quotes_batch(batch)
+            quotes.update(batch_quotes)
+
+        return quotes
+
+    def _fetch_quotes_batch(self, symbols: list[str]) -> dict[str, dict[str, Decimal | None]]:
+        """Fetch a single batch of option quotes from data API.
+
+        Args:
+            symbols: List of option symbols (max 100)
+
+        Returns:
+            Dict mapping symbol to quote data
+
+        """
+        try:
+            # Use data API endpoint for quotes
+            response = self._session.get(
+                f"{self._data_url}/v1beta1/options/quotes/latest",
+                params={"symbols": ",".join(symbols)},
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            quotes: dict[str, dict[str, Decimal | None]] = {}
+            for symbol, quote_data in data.get("quotes", {}).items():
+                quotes[symbol] = {
+                    "bid_price": self._parse_decimal(quote_data.get("bp")),
+                    "ask_price": self._parse_decimal(quote_data.get("ap")),
+                }
+
+            logger.debug(
+                "Fetched option quotes batch",
+                requested=len(symbols),
+                received=len(quotes),
+            )
+            return quotes
+
+        except requests.HTTPError as e:
+            logger.warning(
+                "HTTP error fetching option quotes batch",
+                symbols_count=len(symbols),
+                status_code=e.response.status_code if e.response else None,
+                error=str(e),
+            )
+            return {}
+        except requests.RequestException as e:
+            logger.warning(
+                "Request error fetching option quotes batch",
+                symbols_count=len(symbols),
+                error=str(e),
+            )
+            return {}
+
     def place_option_order(
         self,
         option_symbol: str,
