@@ -30,6 +30,7 @@ from the_alchemiser.shared.events.schemas import (
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
@@ -134,6 +135,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
         rebalance_plan = RebalancePlan.from_dict(rebalance_plan_data)
 
+        # Deserialize allocation_comparison using from_json_dict to handle
+        # Decimal values serialized as strings by EventBridge
+        allocation_comparison_data = detail.get("allocation_comparison", {})
+        allocation_comparison = AllocationComparison.from_json_dict(allocation_comparison_data)
+
         # Reconstruct RebalancePlanned event
         rebalance_event = RebalancePlanned(
             correlation_id=detail.get("correlation_id", correlation_id),
@@ -143,7 +149,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             source_module=detail.get("source_module", "portfolio_v2"),
             source_component=detail.get("source_component"),
             rebalance_plan=rebalance_plan,
-            allocation_comparison=detail.get("allocation_comparison", {}),
+            allocation_comparison=allocation_comparison,
             trades_required=detail.get("trades_required", False),
             metadata=detail.get("metadata", {}),
         )
