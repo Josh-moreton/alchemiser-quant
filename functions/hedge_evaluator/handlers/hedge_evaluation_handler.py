@@ -23,9 +23,6 @@ from the_alchemiser.shared.events.schemas import (
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.options.adapters.historical_data_service import (
-    HistoricalDataService,
-)
 from the_alchemiser.shared.options.constants import (
     VIX_PROXY_SCALE_FACTOR,
     VIX_PROXY_SYMBOL,
@@ -62,11 +59,8 @@ class HedgeEvaluationHandler:
         self._sector_mapper = SectorMapper()
         self._hedge_sizer = HedgeSizer()
 
-        # Create HistoricalDataService for rolling beta/correlation calculations
-        historical_data_service = self._create_historical_data_service(container)
-        self._exposure_calculator = ExposureCalculator(
-            historical_data_service=historical_data_service
-        )
+        # Create ExposureCalculator with container for historical data access
+        self._exposure_calculator = ExposureCalculator(container=container)
 
         # Create event bus if not provided
         if event_bus is None:
@@ -75,39 +69,6 @@ class HedgeEvaluationHandler:
             self._event_bus = EventBusClass()
         else:
             self._event_bus = event_bus
-
-    def _create_historical_data_service(
-        self,
-        container: ApplicationContainer,
-    ) -> HistoricalDataService | None:
-        """Create HistoricalDataService if credentials are available.
-
-        Args:
-            container: Application DI container
-
-        Returns:
-            HistoricalDataService instance or None if credentials unavailable
-
-        """
-        try:
-            api_key = container.config.alpaca_api_key()
-            secret_key = container.config.alpaca_secret_key()
-            paper_trading = container.config.paper_trading()
-
-            if api_key and secret_key:
-                return HistoricalDataService(
-                    api_key=api_key,
-                    secret_key=secret_key,
-                    paper=paper_trading,
-                )
-            logger.warning("Alpaca credentials not available, rolling metrics disabled")
-            return None
-        except Exception as e:
-            logger.warning(
-                "Failed to create HistoricalDataService, rolling metrics disabled",
-                error=str(e),
-            )
-            return None
 
     @property
     def event_bus(self) -> EventBus:

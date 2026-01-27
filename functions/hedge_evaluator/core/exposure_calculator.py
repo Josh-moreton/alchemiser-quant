@@ -22,9 +22,7 @@ from the_alchemiser.shared.options.utils import (
 from .sector_mapper import SectorExposure
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.options.adapters.historical_data_service import (
-        HistoricalDataService,
-    )
+    from the_alchemiser.shared.config.container import ApplicationContainer
 
 logger = get_logger(__name__)
 
@@ -60,18 +58,18 @@ class ExposureCalculator:
 
     def __init__(
         self,
-        historical_data_service: HistoricalDataService | None = None,
+        container: ApplicationContainer | None = None,
     ) -> None:
         """Initialize exposure calculator.
 
         Args:
-            historical_data_service: Optional service for fetching historical data
-                for rolling beta/correlation calculations. If not provided, will
-                fall back to static betas from HEDGE_ETFS.
+            container: Optional DI container for accessing AlpacaManager
+                for historical data. If not provided, will fall back to
+                static betas from HEDGE_ETFS.
 
         """
         self._hedge_etfs = HEDGE_ETFS
-        self._historical_data_service = historical_data_service
+        self._container = container
 
     def calculate_exposure(
         self,
@@ -220,9 +218,9 @@ class ExposureCalculator:
             Tuple of (beta_to_spy, beta_to_qqq, correlation_spy, correlation_qqq)
 
         """
-        # If historical data service not available, fall back to static betas
-        if self._historical_data_service is None:
-            logger.info("Historical data service not available, using static betas")
+        # If container not available, fall back to static betas
+        if self._container is None:
+            logger.info("Container not available, using static betas")
             return self._static_fallback_metrics()
 
         try:
@@ -271,6 +269,53 @@ class ExposureCalculator:
             Decimal("0.0"),  # correlation_qqq (unknown)
         )
 
+    def _fetch_daily_returns(self, symbol: str) -> list[Decimal]:
+        """Fetch daily returns for a symbol using AlpacaManager.
+
+        Args:
+            symbol: Stock symbol (e.g., SPY, QQQ)
+
+        Returns:
+            List of daily returns as Decimals
+
+        Raises:
+            Exception: If AlpacaManager call fails
+
+        """
+        from datetime import UTC, datetime, timedelta
+
+        if self._container is None:
+            return []
+
+        alpaca = self._container.infrastructure.alpaca_manager()
+
+        end_date = datetime.now(UTC)
+        start_date = end_date - timedelta(days=self._CALENDAR_DAYS_TO_FETCH)
+
+        bars = alpaca.get_historical_bars(
+            symbol,
+            start_date.strftime("%Y-%m-%d"),
+            end_date.strftime("%Y-%m-%d"),
+            "1Day",
+        )
+
+        # Calculate returns from bars (uses SDK field names: open, high, low, close)
+        returns: list[Decimal] = []
+        for i in range(1, len(bars)):
+            prev_close = Decimal(str(bars[i - 1]["close"]))
+            curr_close = Decimal(str(bars[i]["close"]))
+            if prev_close > 0:
+                returns.append((curr_close - prev_close) / prev_close)
+
+        logger.debug(
+            "Fetched daily returns",
+            symbol=symbol,
+            bar_count=len(bars),
+            return_count=len(returns),
+        )
+
+        return returns
+
     def _get_benchmark_returns(
         self,
     ) -> tuple[list[Decimal] | None, list[Decimal] | None]:
@@ -283,16 +328,19 @@ class ExposureCalculator:
             Tuple of (spy_returns, qqq_returns), or (None, None) if insufficient data
 
         """
-        if self._historical_data_service is None:
+        if self._container is None:
             return None, None
 
         logger.info("Fetching benchmark returns")
-        spy_returns = self._historical_data_service.get_daily_returns(
-            "SPY", days=self._CALENDAR_DAYS_TO_FETCH
-        )
-        qqq_returns = self._historical_data_service.get_daily_returns(
-            "QQQ", days=self._CALENDAR_DAYS_TO_FETCH
-        )
+        try:
+            spy_returns = self._fetch_daily_returns("SPY")
+            qqq_returns = self._fetch_daily_returns("QQQ")
+        except Exception as e:
+            logger.error(
+                "Failed to fetch benchmark returns",
+                error=str(e),
+            )
+            return None, None
 
         if (
             len(spy_returns) < self._MIN_TRADING_DAYS_REQUIRED
@@ -323,7 +371,7 @@ class ExposureCalculator:
             List of weighted portfolio daily returns
 
         """
-        if self._historical_data_service is None:
+        if self._container is None:
             return []
 
         portfolio_returns: list[Decimal] = []
@@ -338,9 +386,7 @@ class ExposureCalculator:
             )
 
             try:
-                sector_returns = self._historical_data_service.get_daily_returns(
-                    sector_symbol, days=self._CALENDAR_DAYS_TO_FETCH
-                )
+                sector_returns = self._fetch_daily_returns(sector_symbol)
 
                 # Initialize portfolio returns list if empty
                 if not portfolio_returns:
