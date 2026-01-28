@@ -325,7 +325,9 @@ class AlpacaOptionsAdapter:
         }
 
         if limit_price is not None:
-            order_data["limit_price"] = str(limit_price)
+            # Options prices must be rounded to 2 decimal places
+            rounded_price = limit_price.quantize(Decimal("0.01"))
+            order_data["limit_price"] = str(rounded_price)
 
         if client_order_id:
             order_data["client_order_id"] = client_order_id
@@ -337,7 +339,7 @@ class AlpacaOptionsAdapter:
                 side=side,
                 qty=quantity,
                 order_type=order_type,
-                limit_price=str(limit_price) if limit_price else None,
+                limit_price=str(order_data.get("limit_price")) if limit_price else None,
             )
 
             response = self._session.post(
@@ -357,15 +359,27 @@ class AlpacaOptionsAdapter:
             return result
 
         except requests.HTTPError as e:
-            error_body = e.response.json() if e.response else {}
+            # Capture full error response for debugging
+            error_body: dict[str, Any] = {}
+            error_text: str = ""
+            if e.response is not None:
+                error_text = e.response.text
+                try:
+                    error_body = e.response.json()
+                except (ValueError, requests.exceptions.JSONDecodeError):
+                    error_body = {"raw_response": error_text}
             logger.error(
                 "HTTP error placing option order",
                 symbol=option_symbol,
                 status_code=e.response.status_code if e.response else None,
                 error=str(e),
                 error_body=error_body,
+                error_text=error_text,
+                request_data=order_data,
             )
-            raise TradingClientError(f"Option order failed: {e}") from e
+            raise TradingClientError(
+                f"Option order failed: {e} - Response: {error_text or 'No response body'}"
+            ) from e
         except requests.RequestException as e:
             logger.error(
                 "Request error placing option order",
