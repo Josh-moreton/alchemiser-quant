@@ -145,8 +145,10 @@ class HedgeSizer:
                 TAIL_HEDGE_TEMPLATE.min_payoff_nav_pct + TAIL_HEDGE_TEMPLATE.max_payoff_nav_pct
             ) / Decimal("2")
 
-        # Apply rich IV adjustments if needed
-        if should_reduce_hedge_intensity(vix):
+        # Apply rich IV adjustments if needed (only for outright positions, not spreads)
+        # Note: For spreads, adjusting only the long leg delta would change the spread width
+        # in unintended ways. Skip rich IV adjustments for spread strategies.
+        if should_reduce_hedge_intensity(vix) and not is_spread:
             logger.info(
                 "Applying rich IV adjustments",
                 vix=str(vix),
@@ -165,6 +167,13 @@ class HedgeSizer:
                 adjusted_delta=str(target_delta),
                 adjusted_dte=target_dte,
                 adjusted_payoff_pct=str(target_payoff_pct),
+            )
+        elif should_reduce_hedge_intensity(vix) and is_spread:
+            logger.info(
+                "Skipping rich IV adjustments for spread position",
+                vix=str(vix),
+                template=self._template_name,
+                reason="Adjusting long leg delta would change spread width",
             )
 
         # Apply maximum position concentration cap (2% NAV)

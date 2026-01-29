@@ -204,7 +204,8 @@ def test_hedge_sizer_with_rich_iv() -> None:
     """Test HedgeSizer integration with rich IV adjustments."""
     print("\n=== Test 6: HedgeSizer with Rich IV ===")
 
-    sizer = HedgeSizer()
+    # Test with tail_first template (outright puts)
+    tail_sizer = HedgeSizer(template="tail_first")
 
     exposure = MockExposure(
         nav=Decimal("100000"),
@@ -214,27 +215,55 @@ def test_hedge_sizer_with_rich_iv() -> None:
 
     # Normal VIX - no adjustments
     normal_vix = Decimal("20")
-    normal_rec = sizer.calculate_hedge_recommendation(
+    normal_rec = tail_sizer.calculate_hedge_recommendation(
         exposure=exposure,
         current_vix=normal_vix,
         underlying_price=Decimal("485"),
     )
-    print(f"\nNormal VIX ({normal_vix}):")
+    print(f"\nTail template - Normal VIX ({normal_vix}):")
     print(f"  Delta: {normal_rec.target_delta}, DTE: {normal_rec.target_dte}")
 
     # Rich VIX - should apply adjustments
     rich_vix = Decimal("40")
-    rich_rec = sizer.calculate_hedge_recommendation(
+    rich_rec = tail_sizer.calculate_hedge_recommendation(
         exposure=exposure,
         current_vix=rich_vix,
         underlying_price=Decimal("485"),
     )
-    print(f"\nRich VIX ({rich_vix}):")
+    print(f"\nTail template - Rich VIX ({rich_vix}):")
     print(f"  Delta: {rich_rec.target_delta}, DTE: {rich_rec.target_dte}")
 
-    # Verify adjustments were applied
+    # Verify adjustments were applied for tail template
     assert rich_rec.target_delta < normal_rec.target_delta, "Delta should be wider for rich IV"
     assert rich_rec.target_dte > normal_rec.target_dte, "DTE should be extended for rich IV"
+
+    # Test with smoothing template (spreads) - should skip adjustments
+    smoothing_sizer = HedgeSizer(template="smoothing")
+
+    spread_rec_normal = smoothing_sizer.calculate_hedge_recommendation(
+        exposure=exposure,
+        current_vix=normal_vix,
+        underlying_price=Decimal("485"),
+    )
+    print(f"\nSmoothing template - Normal VIX ({normal_vix}):")
+    print(f"  Delta: {spread_rec_normal.target_delta}, DTE: {spread_rec_normal.target_dte}")
+
+    spread_rec_rich = smoothing_sizer.calculate_hedge_recommendation(
+        exposure=exposure,
+        current_vix=rich_vix,
+        underlying_price=Decimal("485"),
+    )
+    print(f"\nSmoothing template - Rich VIX ({rich_vix}):")
+    print(f"  Delta: {spread_rec_rich.target_delta}, DTE: {spread_rec_rich.target_dte}")
+
+    # Verify adjustments were NOT applied for spread template
+    assert (
+        spread_rec_rich.target_delta == spread_rec_normal.target_delta
+    ), "Delta should NOT change for spreads at rich IV"
+    assert (
+        spread_rec_rich.target_dte == spread_rec_normal.target_dte
+    ), "DTE should NOT change for spreads at rich IV"
+    print("  → Adjustments correctly skipped for spread positions ✓")
 
     print("✅ HedgeSizer rich IV integration working correctly")
 

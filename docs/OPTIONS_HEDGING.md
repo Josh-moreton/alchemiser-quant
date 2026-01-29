@@ -138,16 +138,16 @@ Premium budget adjusts based on market volatility (VIX):
 
 | VIX Level | Threshold | Budget (% NAV/month) | Annual (×12) | At 1.0x | At 2.0x | At 2.5x |
 |-----------|-----------|----------------------|--------------|---------|---------|---------|
-| Low | < 18 | 0.80% | 9.6% | 9.6% | 14.4% | 16.8% |
-| Mid | 18-28 | 0.50% | 6.0% | 6.0% | 9.0% | 10.5% |
-| High | > 28 | 0.30% | 3.6% | 3.6% | 5.4% | 6.3% |
+| Low | < 18 | 0.80% | 9.6% | 9.6% | 14.4% | 14.4% |
+| Mid | 18-28 | 0.50% | 6.0% | 6.0% | 9.0% | 9.0% |
+| High | > 28 | 0.30% | 3.6% | 3.6% | 5.4% | 5.4% |
 | Rich | > 35 | Reduced intensity | - | - | - | - |
 
 **Notes:**
 - Annual drag = monthly rate × 12 months × exposure multiplier
 - Exposure multiplier at 1.0x leverage: 1.0
 - Exposure multiplier at 2.0x leverage: 1.5 (sublinear scaling)
-- Exposure multiplier at 2.5x leverage: 1.75
+- Exposure multiplier at 2.5x leverage: 1.5 (capped at max multiplier)
 - **Hard cap: 5% NAV/year** to prevent excessive drag
 - **Target band: 2-5% NAV/year** for sustainable protection
 
@@ -173,6 +173,8 @@ When implied volatility is rich (VIX > 35), the system automatically reduces hed
 1. **Widen delta target**: Move from 15-delta to 10-delta (further OTM, cheaper)
 2. **Extend tenor**: Increase DTE from 90 to 120 days (better theta efficiency)
 3. **Reduce target payoff**: Lower payoff target by 25% (less protection needed)
+
+**Note**: Rich IV adjustments are **only applied to outright put positions** (tail_first template). For spread positions (smoothing template), adjustments are skipped because changing the long leg delta would alter the spread width in unintended ways.
 
 Rationale: When volatility is already elevated, options are expensive and the market has likely already repriced risk. Buying less protection at these times is economically rational.
 
@@ -460,6 +462,45 @@ Key log entries to monitor:
 - DLQ message count
 - **Rich IV reduction trigger frequency**
 
+### Year-to-Date Spend Tracking
+
+To enforce the annual spend cap, the system needs to track year-to-date premium spend:
+
+**Implementation Approach:**
+
+1. **Query HedgeHistoryTable** for all hedge execution events in the current calendar year:
+   ```python
+   # Query for account_id with timestamp_action starting with current year
+   # Filter for action="OPENED" events
+   # Sum the total_premium field from each event
+   ```
+
+2. **Pass YTD spend in event metadata**:
+   ```python
+   # In RebalancePlanned event metadata
+   metadata = {
+       "existing_hedge_count": 2,
+       "year_to_date_premium_spend": "3500.00"  # Sum from step 1
+   }
+   ```
+
+3. **Annual cap enforcement in HedgeSizer**:
+   ```python
+   # HedgeSizer.should_hedge() already checks annual cap
+   # When proposed_spend is provided and would exceed cap, returns skip_reason
+   should_hedge, skip_reason = sizer.should_hedge(
+       exposure=exposure,
+       year_to_date_spend=ytd_spend,
+       proposed_spend=recommendation.premium_budget
+   )
+   ```
+
+**Alternative: Separate YTD tracking table** (if query performance is a concern):
+- Create a `HedgeYTDSpendTable` with partition key `account_id#year`
+- Increment on each hedge execution
+- Reset at year boundary
+- More efficient queries but requires additional state management
+
 ### Alerts
 
 Configure CloudWatch alarms for:
@@ -529,6 +570,9 @@ aws lambda invoke \
 | Order not filling | Order times out | Adjust limit price discount factor |
 | VIX tier incorrect | Budget seems wrong | Check VIXY price availability |
 | Roll not triggering | Positions not rolling | Verify DynamoDB query, check DTE calculation |
+| **Annual cap hit** | **Skip reason: "Annual spend cap"** | **Check YTD spend tracking, verify calendar year reset** |
+| **Rich IV not triggering** | **Delta not adjusted at high VIX** | **Verify VIX > 35, check logs for "Applying rich IV adjustments"** |
+| **Excessive annual drag** | **Drag > 5% NAV/year** | **Review monthly rates, check exposure multipliers** |
 
 ### Alpaca Options API Issues
 

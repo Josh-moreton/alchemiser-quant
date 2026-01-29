@@ -464,7 +464,9 @@ def should_reduce_hedge_intensity(vix: Decimal) -> bool:
     overpaying for protection by:
     - Reducing target payoff
     - Widening tenor (longer DTE)
-    - Favoring spreads over outright puts
+    - Widening delta target (further OTM, cheaper options)
+
+    Note: Spread conversion logic not currently implemented.
 
     Args:
         vix: Current VIX index value
