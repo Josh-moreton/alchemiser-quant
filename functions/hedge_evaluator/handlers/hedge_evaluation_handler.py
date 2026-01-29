@@ -298,10 +298,10 @@ class HedgeEvaluationHandler:
         """
         try:
             # Fetch VIX proxy ETF price using configurable symbol
-            proxy_price = get_underlying_price(self._container, VIX_PROXY_SYMBOL)
+            proxy_price: Decimal = get_underlying_price(self._container, VIX_PROXY_SYMBOL)
 
             # Scale proxy price to approximate VIX index value
-            estimated_vix = proxy_price * VIX_PROXY_SCALE_FACTOR
+            estimated_vix: Decimal = proxy_price * VIX_PROXY_SCALE_FACTOR
 
             # Log for drift monitoring - VIXY/VIX relationship can drift over time
             # Monitor this in CloudWatch to detect when scaling factor needs recalibration

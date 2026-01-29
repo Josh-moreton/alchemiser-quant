@@ -128,18 +128,22 @@ class KillSwitchService:
             # Parse datetime fields
             triggered_at = None
             if item.get("triggered_at"):
-                triggered_at = datetime.fromisoformat(item["triggered_at"])
+                # Cast to str for type safety with DynamoDB responses
+                triggered_at_str = str(item["triggered_at"])
+                triggered_at = datetime.fromisoformat(triggered_at_str)
 
             last_failure_at = None
             if item.get("last_failure_at"):
-                last_failure_at = datetime.fromisoformat(item["last_failure_at"])
+                # Cast to str for type safety with DynamoDB responses
+                last_failure_at_str = str(item["last_failure_at"])
+                last_failure_at = datetime.fromisoformat(last_failure_at_str)
 
             return KillSwitchState(
-                is_active=item.get("is_active", False),
-                trigger_reason=item.get("trigger_reason"),
+                is_active=bool(item.get("is_active", False)),
+                trigger_reason=str(item["trigger_reason"]) if item.get("trigger_reason") else None,
                 triggered_at=triggered_at,
-                triggered_by=item.get("triggered_by"),
-                failure_count=item.get("failure_count", 0),
+                triggered_by=str(item["triggered_by"]) if item.get("triggered_by") else None,
+                failure_count=int(item.get("failure_count", 0)),
                 last_failure_at=last_failure_at,
             )
 
