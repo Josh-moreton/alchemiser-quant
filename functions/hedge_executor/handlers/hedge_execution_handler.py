@@ -17,7 +17,10 @@ from botocore.exceptions import BotoCoreError, ClientError
 from core.option_selector import OptionSelector, SelectedOption
 from core.options_execution_service import ExecutionResult, OptionsExecutionService
 
-from the_alchemiser.shared.errors.exceptions import HedgeFailClosedError
+from the_alchemiser.shared.errors.exceptions import (
+    HedgeFailClosedError,
+    SpreadExecutionUnavailableError,
+)
 from the_alchemiser.shared.events.schemas import (
     AllHedgesCompleted,
     HedgeEvaluationCompleted,
@@ -245,6 +248,33 @@ class HedgeExecutionHandler:
         target_delta = Decimal(recommendation.get("target_delta", "0.15"))
         target_dte = recommendation.get("target_dte", 90)
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
+        hedge_template = recommendation.get("hedge_template", "tail_first")
+        is_spread = recommendation.get("is_spread", False)
+
+        # FAIL-CLOSED CHECK: Spread execution availability for smoothing template
+        # Smoothing template REQUIRES spread execution (buy 30-delta, sell 10-delta)
+        # Do NOT fallback to single-leg execution
+        if hedge_template == "smoothing" and is_spread:
+            # Check if spread execution is available
+            # For now, we'll check if the options adapter supports spreads
+            # In the future, this could check specific market conditions
+            if not hasattr(self._options_adapter, "execute_spread_order"):
+                logger.error(
+                    "Spread execution unavailable for smoothing template - FAILING CLOSED",
+                    underlying=underlying,
+                    hedge_template=hedge_template,
+                    correlation_id=correlation_id,
+                    fail_closed_condition="spread_execution_unavailable",
+                    alert_required=True,
+                )
+                raise SpreadExecutionUnavailableError(
+                    message=f"Spread execution unavailable for smoothing template on {underlying}. "
+                    "Cannot fallback to single-leg execution as it would compromise hedge strategy.",
+                    underlying_symbol=underlying,
+                    long_delta=str(recommendation.get("target_delta")),
+                    short_delta=str(recommendation.get("short_delta")),
+                    correlation_id=correlation_id,
+                )
 
         # Validate position concentration limit (defensive check)
         # This should already be enforced in HedgeSizer, but double-check here
