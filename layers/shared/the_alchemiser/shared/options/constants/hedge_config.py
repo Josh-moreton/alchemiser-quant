@@ -286,6 +286,13 @@ VIX_HIGH_THRESHOLD: Decimal = Decimal("28")
 # At rich IV, reduce hedge intensity to avoid overpaying for protection
 RICH_IV_THRESHOLD: Decimal = Decimal("35")  # VIX > 35 is considered rich
 
+# Rich IV adjustment parameters
+# When VIX > RICH_IV_THRESHOLD, these adjustments are applied to reduce cost
+RICH_IV_DELTA_REDUCTION: Decimal = Decimal("0.05")  # Widen delta by 5 (e.g., 15Δ → 10Δ)
+RICH_IV_MIN_DELTA: Decimal = Decimal("0.05")  # Floor for delta after adjustment
+RICH_IV_DTE_EXTENSION: int = 30  # Extend tenor by 30 days (e.g., 90 → 120 DTE)
+RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
+
 # VIX Proxy Configuration
 # Alpaca does not provide direct VIX index quotes. We use VIXY ETF as a liquid proxy.
 # VIXY (ProShares VIX Short-Term Futures ETF) tracks VIX short-term futures.
@@ -511,14 +518,14 @@ def apply_rich_iv_adjustment(
         return target_delta, target_dte, target_payoff_pct
 
     # Rich IV adjustments:
-    # 1. Widen delta by 5 delta (e.g., 15-delta → 10-delta)
-    adjusted_delta = max(Decimal("0.05"), target_delta - Decimal("0.05"))
+    # 1. Widen delta (e.g., 15-delta → 10-delta)
+    adjusted_delta = max(RICH_IV_MIN_DELTA, target_delta - RICH_IV_DELTA_REDUCTION)
 
-    # 2. Extend DTE by 30 days (e.g., 90 DTE → 120 DTE)
-    adjusted_dte = target_dte + 30
+    # 2. Extend DTE (e.g., 90 DTE → 120 DTE)
+    adjusted_dte = target_dte + RICH_IV_DTE_EXTENSION
 
-    # 3. Reduce target payoff by 25% (e.g., 8% → 6%)
-    adjusted_payoff_pct = target_payoff_pct * Decimal("0.75")
+    # 3. Reduce target payoff (e.g., 8% → 6%)
+    adjusted_payoff_pct = target_payoff_pct * RICH_IV_PAYOFF_MULTIPLIER
 
     return adjusted_delta, adjusted_dte, adjusted_payoff_pct
 

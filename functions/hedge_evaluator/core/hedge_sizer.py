@@ -57,6 +57,8 @@ class HedgeRecommendation:
     # Spread-specific fields (only used for smoothing template)
     short_delta: Decimal | None = None  # Short leg delta (for put spreads)
     is_spread: bool = False  # Whether this is a spread recommendation
+    # Rich IV adjustment indicator
+    rich_iv_applied: bool = False  # Whether rich IV adjustments were applied
 
 
 class HedgeSizer:
@@ -198,6 +200,8 @@ class HedgeSizer:
             is_spread=is_spread,
         )
 
+        rich_iv_applied = should_reduce_hedge_intensity(vix) and not is_spread
+
         recommendation = HedgeRecommendation(
             underlying_symbol=exposure.primary_hedge_underlying,
             target_delta=target_delta,
@@ -210,6 +214,7 @@ class HedgeSizer:
             exposure_multiplier=exposure_multiplier,
             short_delta=short_delta,
             is_spread=is_spread,
+            rich_iv_applied=rich_iv_applied,
         )
 
         logger.info(
@@ -224,7 +229,7 @@ class HedgeSizer:
             contracts_estimated=contracts_estimated,
             template=self._template_name,
             is_spread=is_spread,
-            rich_iv_applied=should_reduce_hedge_intensity(vix),
+            rich_iv_applied=rich_iv_applied,
         )
 
         return recommendation
