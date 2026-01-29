@@ -12,8 +12,10 @@ Note: Alpaca options trading requires enabled options approval on the account.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from secrets import randbelow
 from typing import Any
 
 import requests
@@ -197,15 +199,26 @@ class AlpacaOptionsAdapter:
             )
             raise TradingClientError(f"Option quote failed: {e}") from e
 
+    # Rate limiting constants for options quote fetching
+    _QUOTE_BATCH_SIZE = 50  # Conservative batch size (API max is 100)
+    _INTER_BATCH_DELAY_SECONDS = 0.3  # Delay between batches to avoid rate limits
+    _MAX_QUOTE_RETRIES = 3  # Retry attempts for transient failures
+    _BASE_RETRY_DELAY_SECONDS = 1.0  # Base delay for exponential backoff
+    _JITTER_FACTOR = 0.2  # ±20% jitter to avoid thundering herd
+
     def get_option_quotes_batch(
         self, option_symbols: list[str]
     ) -> dict[str, dict[str, Decimal | None]]:
-        """Get quotes for multiple option contracts in a single request.
+        """Get quotes for multiple option contracts with rate limiting.
 
-        Uses the Alpaca Market Data API for efficient batch quote fetching.
+        Uses the Alpaca Market Data API for batch quote fetching with
+        defensive rate limiting:
+        - Smaller batch sizes (50 vs 100 max)
+        - Inter-batch delays to stay under rate limits
+        - Automatic retry with exponential backoff on 429/5xx
 
         Args:
-            option_symbols: List of OCC option symbols (max 100 per request)
+            option_symbols: List of OCC option symbols
 
         Returns:
             Dict mapping symbol to quote data:
@@ -213,7 +226,6 @@ class AlpacaOptionsAdapter:
                 "SPY250117P00400000": {
                     "bid_price": Decimal("1.23"),
                     "ask_price": Decimal("1.25"),
-                    "last_price": Decimal("1.24"),
                 },
                 ...
             }
@@ -222,66 +234,173 @@ class AlpacaOptionsAdapter:
         if not option_symbols:
             return {}
 
-        # Alpaca data API has a limit on symbols per request
-        max_batch_size = 100
         quotes: dict[str, dict[str, Decimal | None]] = {}
+        total_batches = (len(option_symbols) + self._QUOTE_BATCH_SIZE - 1) // self._QUOTE_BATCH_SIZE
 
-        for i in range(0, len(option_symbols), max_batch_size):
-            batch = option_symbols[i : i + max_batch_size]
-            batch_quotes = self._fetch_quotes_batch(batch)
+        for batch_idx, i in enumerate(range(0, len(option_symbols), self._QUOTE_BATCH_SIZE)):
+            batch = option_symbols[i : i + self._QUOTE_BATCH_SIZE]
+            batch_quotes = self._fetch_quotes_batch_with_retry(batch)
             quotes.update(batch_quotes)
 
+            # Add inter-batch delay (except after last batch)
+            if batch_idx < total_batches - 1:
+                time.sleep(self._INTER_BATCH_DELAY_SECONDS)
+
+        logger.info(
+            "Completed batch quote fetching",
+            total_symbols=len(option_symbols),
+            quotes_received=len(quotes),
+            batches=total_batches,
+        )
         return quotes
 
-    def _fetch_quotes_batch(self, symbols: list[str]) -> dict[str, dict[str, Decimal | None]]:
-        """Fetch a single batch of option quotes from data API.
+    def _calculate_retry_delay(self, attempt: int) -> float:
+        """Calculate retry delay with exponential backoff and jitter.
 
         Args:
-            symbols: List of option symbols (max 100)
+            attempt: Current attempt number (0-indexed)
 
         Returns:
-            Dict mapping symbol to quote data
+            Delay in seconds with jitter applied
 
         """
-        try:
-            # Use data API endpoint for quotes
-            response = self._session.get(
-                f"{self._data_url}/v1beta1/options/quotes/latest",
-                params={"symbols": ",".join(symbols)},
-                timeout=30,
-            )
-            response.raise_for_status()
-            data = response.json()
+        base_delay: float = self._BASE_RETRY_DELAY_SECONDS * (2**attempt)
+        # Add ±20% jitter using cryptographic randomness
+        jitter_range = int(base_delay * self._JITTER_FACTOR * 1000)
+        jitter: float = (
+            (randbelow(jitter_range * 2) - jitter_range) / 1000 if jitter_range > 0 else 0.0
+        )
+        return base_delay + jitter
 
-            quotes: dict[str, dict[str, Decimal | None]] = {}
-            for symbol, quote_data in data.get("quotes", {}).items():
-                quotes[symbol] = {
-                    "bid_price": self._parse_decimal(quote_data.get("bp")),
-                    "ask_price": self._parse_decimal(quote_data.get("ap")),
-                }
+    def _is_retryable_error(self, response: requests.Response | None) -> bool:
+        """Check if HTTP response indicates a retryable error.
 
-            logger.debug(
-                "Fetched option quotes batch",
-                requested=len(symbols),
-                received=len(quotes),
-            )
-            return quotes
+        Args:
+            response: HTTP response object (may be None)
 
-        except requests.HTTPError as e:
-            logger.warning(
-                "HTTP error fetching option quotes batch",
-                symbols_count=len(symbols),
-                status_code=e.response.status_code if e.response else None,
-                error=str(e),
-            )
-            return {}
-        except requests.RequestException as e:
-            logger.warning(
-                "Request error fetching option quotes batch",
-                symbols_count=len(symbols),
-                error=str(e),
-            )
-            return {}
+        Returns:
+            True if error is retryable (429 or 5xx)
+
+        """
+        if response is None:
+            return True  # Network errors are retryable
+        return response.status_code == 429 or response.status_code >= 500
+
+    def _get_retry_after(self, response: requests.Response | None) -> float | None:
+        """Extract Retry-After header value if present.
+
+        Args:
+            response: HTTP response object
+
+        Returns:
+            Retry delay in seconds, or None if not specified
+
+        """
+        if response is None:
+            return None
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                return float(retry_after)
+            except ValueError:
+                return None
+        return None
+
+    def _fetch_quotes_batch_with_retry(
+        self, symbols: list[str]
+    ) -> dict[str, dict[str, Decimal | None]]:
+        """Fetch option quotes with automatic retry on transient failures.
+
+        Implements exponential backoff with jitter for rate limit (429)
+        and server errors (5xx). Respects Retry-After header if present.
+
+        Args:
+            symbols: List of option symbols (max 50 recommended)
+
+        Returns:
+            Dict mapping symbol to quote data (empty dict on persistent failure)
+
+        """
+        last_error: Exception | None = None
+
+        for attempt in range(self._MAX_QUOTE_RETRIES):
+            try:
+                response = self._session.get(
+                    f"{self._data_url}/v1beta1/options/quotes/latest",
+                    params={"symbols": ",".join(symbols)},
+                    timeout=30,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                quotes: dict[str, dict[str, Decimal | None]] = {}
+                for symbol, quote_data in data.get("quotes", {}).items():
+                    quotes[symbol] = {
+                        "bid_price": self._parse_decimal(quote_data.get("bp")),
+                        "ask_price": self._parse_decimal(quote_data.get("ap")),
+                    }
+
+                logger.debug(
+                    "Fetched option quotes batch",
+                    requested=len(symbols),
+                    received=len(quotes),
+                    attempt=attempt + 1,
+                )
+                return quotes
+
+            except requests.HTTPError as e:
+                last_error = e
+                response = e.response
+
+                if not self._is_retryable_error(response):
+                    # Non-retryable error (4xx except 429) - fail immediately
+                    logger.warning(
+                        "Non-retryable HTTP error fetching quotes",
+                        symbols_count=len(symbols),
+                        status_code=response.status_code if response else None,
+                        error=str(e),
+                    )
+                    return {}
+
+                if attempt < self._MAX_QUOTE_RETRIES - 1:
+                    # Calculate delay: prefer Retry-After header, else use backoff
+                    retry_after = self._get_retry_after(response)
+                    delay = retry_after if retry_after else self._calculate_retry_delay(attempt)
+
+                    logger.warning(
+                        "Retryable HTTP error, backing off",
+                        symbols_count=len(symbols),
+                        status_code=response.status_code if response else None,
+                        attempt=attempt + 1,
+                        max_retries=self._MAX_QUOTE_RETRIES,
+                        delay_seconds=round(delay, 2),
+                        retry_after_header=retry_after,
+                    )
+                    time.sleep(delay)
+
+            except requests.RequestException as e:
+                last_error = e
+
+                if attempt < self._MAX_QUOTE_RETRIES - 1:
+                    delay = self._calculate_retry_delay(attempt)
+                    logger.warning(
+                        "Network error fetching quotes, retrying",
+                        symbols_count=len(symbols),
+                        attempt=attempt + 1,
+                        max_retries=self._MAX_QUOTE_RETRIES,
+                        delay_seconds=round(delay, 2),
+                        error=str(e),
+                    )
+                    time.sleep(delay)
+
+        # All retries exhausted
+        logger.error(
+            "Failed to fetch option quotes after all retries",
+            symbols_count=len(symbols),
+            max_retries=self._MAX_QUOTE_RETRIES,
+            last_error=str(last_error) if last_error else "unknown",
+        )
+        return {}
 
     def place_option_order(
         self,
