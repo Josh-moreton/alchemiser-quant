@@ -124,18 +124,18 @@ def calculate_extended_metrics(
         returns = returns.copy()
         returns.index = returns.index.tz_localize(None)
 
-    # Calculate metrics using QuantStats
+    # Calculate metrics using QuantStats (untyped library)
     return ExtendedMetrics(
-        var_95=float(qs.stats.var(returns)),
-        cvar_95=float(qs.stats.cvar(returns)),
+        var_95=float(qs.stats.var(returns)),  # type: ignore[no-untyped-call]
+        cvar_95=float(qs.stats.cvar(returns)),  # type: ignore[no-untyped-call]
         omega_ratio=float(qs.stats.omega(returns, rf=rf)),
-        kelly_criterion=float(qs.stats.kelly_criterion(returns)),
-        ulcer_index=float(qs.stats.ulcer_index(returns)),
-        payoff_ratio=float(qs.stats.payoff_ratio(returns)),
-        tail_ratio=float(qs.stats.tail_ratio(returns)),
-        common_sense_ratio=float(qs.stats.common_sense_ratio(returns)),
-        outlier_win_ratio=float(qs.stats.outlier_win_ratio(returns)),
-        outlier_loss_ratio=float(qs.stats.outlier_loss_ratio(returns)),
+        kelly_criterion=float(qs.stats.kelly_criterion(returns)),  # type: ignore[no-untyped-call]
+        ulcer_index=float(qs.stats.ulcer_index(returns)),  # type: ignore[no-untyped-call]
+        payoff_ratio=float(qs.stats.payoff_ratio(returns)),  # type: ignore[no-untyped-call]
+        tail_ratio=float(qs.stats.tail_ratio(returns)),  # type: ignore[no-untyped-call]
+        common_sense_ratio=float(qs.stats.common_sense_ratio(returns)),  # type: ignore[no-untyped-call]
+        outlier_win_ratio=float(qs.stats.outlier_win_ratio(returns)),  # type: ignore[no-untyped-call]
+        outlier_loss_ratio=float(qs.stats.outlier_loss_ratio(returns)),  # type: ignore[no-untyped-call]
     )
 
 
@@ -193,7 +193,7 @@ def generate_tearsheet(
     if output_path is None:
         # Generate to string buffer
         output = io.StringIO()
-        qs.reports.html(
+        qs.reports.html(  # type: ignore[no-untyped-call]
             returns,
             benchmark=benchmark,
             output=output,
@@ -209,7 +209,7 @@ def generate_tearsheet(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    qs.reports.html(
+    qs.reports.html(  # type: ignore[no-untyped-call]
         returns,
         benchmark=benchmark,
         output=str(output_path),
@@ -355,8 +355,8 @@ def generate_metrics_snapshot(
 
     returns = _equity_to_returns(equity)
 
-    # Get basic QuantStats metrics
-    metrics = qs.stats.metrics(returns, benchmark=benchmark, rf=rf, display=False)
+    # Get basic QuantStats metrics (moved to reports module in v0.0.78+)
+    metrics = qs.reports.metrics(returns, benchmark=benchmark, rf=rf, display=False)  # type: ignore[no-untyped-call]
 
     # Convert to dict with float values
     result: dict[str, float] = {}

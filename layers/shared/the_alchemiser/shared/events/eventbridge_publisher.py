@@ -43,6 +43,10 @@ EVENT_TYPE_TO_DETAIL_TYPE: dict[str, tuple[str, str]] = {
     "ErrorNotificationRequested": ("notifications", "ErrorNotificationRequested"),
     "DataLakeUpdateCompleted": ("data", "DataLakeUpdateCompleted"),  # From Data Lambda
     "ScheduleCreated": ("coordinator", "ScheduleCreated"),  # From Schedule Manager
+    "HedgeEvaluationCompleted": ("hedge", "HedgeEvaluationCompleted"),
+    "HedgeExecuted": ("hedge", "HedgeExecuted"),
+    "AllHedgesCompleted": ("hedge", "AllHedgesCompleted"),
+    "HedgeRollTriggered": ("hedge", "HedgeRollTriggered"),
 }
 
 # Mapping from source_module prefix to EventBridge source suffix
@@ -53,6 +57,7 @@ SOURCE_MODULE_TO_SOURCE: dict[str, str] = {
     "execution": "execution",
     "notifications": "notifications",
     "trade": "trade",  # Trade aggregator
+    "hedge": "hedge",
 }
 
 
