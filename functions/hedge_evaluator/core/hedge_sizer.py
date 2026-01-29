@@ -81,22 +81,21 @@ class HedgeSizer:
     def calculate_hedge_recommendation(
         self,
         exposure: PortfolioExposure,
-        current_vix: Decimal | None = None,
+        current_vix: Decimal,
         underlying_price: Decimal | None = None,
     ) -> HedgeRecommendation:
         """Calculate hedge sizing recommendation.
 
         Args:
             exposure: Portfolio exposure metrics from ExposureCalculator
-            current_vix: Current VIX index value (defaults to 20 if None)
+            current_vix: Current VIX index value (REQUIRED - no default)
             underlying_price: Current price of hedge underlying (for contract estimate)
 
         Returns:
             HedgeRecommendation with sizing parameters
 
         """
-        # Default VIX if not provided
-        vix = current_vix if current_vix is not None else Decimal("20")
+        vix = current_vix
 
         # Get VIX-adaptive base budget rate
         if self._template_name == "smoothing":

@@ -17,6 +17,10 @@ from core.exposure_calculator import ExposureCalculator
 from core.hedge_sizer import HedgeSizer
 from core.sector_mapper import SectorMapper
 
+from the_alchemiser.shared.errors.exceptions import (
+    HedgeFailClosedError,
+    VIXProxyUnavailableError,
+)
 from the_alchemiser.shared.events import WorkflowFailed
 from the_alchemiser.shared.events.schemas import (
     HedgeEvaluationCompleted,
@@ -27,6 +31,7 @@ from the_alchemiser.shared.options.constants import (
     VIX_PROXY_SCALE_FACTOR,
     VIX_PROXY_SYMBOL,
 )
+from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
 from the_alchemiser.shared.options.utils import get_underlying_price
 
 if TYPE_CHECKING:
@@ -62,6 +67,9 @@ class HedgeEvaluationHandler:
         # Create ExposureCalculator with container for historical data access
         self._exposure_calculator = ExposureCalculator(container=container)
 
+        # Initialize kill switch service
+        self._kill_switch = KillSwitchService()
+
         # Create event bus if not provided
         if event_bus is None:
             from the_alchemiser.shared.events import EventBus as EventBusClass
@@ -94,6 +102,23 @@ class HedgeEvaluationHandler:
         )
 
         try:
+            # FAIL-CLOSED CHECK: Emergency kill switch
+            # Do not proceed with hedging if kill switch is active
+            try:
+                self._kill_switch.check_kill_switch(correlation_id=correlation_id)
+            except HedgeFailClosedError as e:
+                # Kill switch is active - this is an expected skip (system halted)
+                logger.warning(
+                    "Hedge evaluation skipped - kill switch active",
+                    correlation_id=correlation_id,
+                    plan_id=plan_id,
+                    trigger_reason=e.trigger_reason,
+                )
+                self._publish_skip_event(
+                    event, f"Kill switch active: {e.trigger_reason or 'unknown reason'}"
+                )
+                return
+
             # Extract position values from rebalance plan
             positions = self._extract_positions_from_plan(event)
 
@@ -133,16 +158,20 @@ class HedgeEvaluationHandler:
             )
 
             if not should_hedge:
+                # This is an EXPECTED skip - conditions not met for hedging
+                # This is a success state, not a failure
                 logger.info(
-                    "Skipping hedge evaluation",
+                    "Hedge evaluation skipped - conditions not met",
                     correlation_id=correlation_id,
                     skip_reason=skip_reason,
+                    status="success_skip",
                 )
                 self._publish_skip_event(event, skip_reason)
                 return
 
-            # Get VIX for adaptive budgeting
-            current_vix = self._get_current_vix()
+            # FAIL-CLOSED CHECK: VIX proxy data
+            # Get VIX for adaptive budgeting - MUST succeed or fail closed
+            current_vix = self._get_current_vix_fail_closed(correlation_id)
 
             # Calculate hedge recommendation
             recommendation = self._hedge_sizer.calculate_hedge_recommendation(
@@ -186,17 +215,38 @@ class HedgeEvaluationHandler:
                 plan_id=plan_id,
                 premium_budget=str(recommendation.premium_budget),
                 underlying=recommendation.underlying_symbol,
-                vix_value=str(current_vix) if current_vix else "default",
+                vix_value=str(current_vix),
                 vix_tier=recommendation.vix_tier,
             )
 
-        except Exception as e:
+        except HedgeFailClosedError as e:
+            # Fail-closed condition hit - this is an unexpected failure that needs alerting
             logger.error(
-                "Hedge evaluation failed",
+                "Hedge evaluation FAILED CLOSED",
                 correlation_id=correlation_id,
+                plan_id=plan_id,
+                fail_closed_condition=e.condition,
                 error=str(e),
                 exc_info=True,
+                alert_required=True,
             )
+            # Record failure in kill switch service for automatic activation tracking
+            self._kill_switch.record_failure(f"Fail-closed: {e.condition} - {e.message}")
+            self._publish_failure_event(event, str(e))
+            raise
+
+        except Exception as e:
+            # Unexpected error - needs alerting
+            logger.error(
+                "Hedge evaluation failed with unexpected error",
+                correlation_id=correlation_id,
+                plan_id=plan_id,
+                error=str(e),
+                exc_info=True,
+                alert_required=True,
+            )
+            # Record failure for kill switch tracking
+            self._kill_switch.record_failure(f"Unexpected error: {e!s}")
             self._publish_failure_event(event, str(e))
             raise
 
@@ -225,23 +275,25 @@ class HedgeEvaluationHandler:
 
         return positions
 
-    def _get_current_vix(self) -> Decimal | None:
-        """Get current VIX value from VIXY ETF proxy.
+    def _get_current_vix_fail_closed(self, correlation_id: str | None = None) -> Decimal:
+        """Get current VIX value from VIXY ETF proxy - FAIL CLOSED on unavailable data.
 
         Uses VIXY (ProShares VIX Short-Term Futures ETF) as a proxy for VIX
-        since Alpaca does not provide direct VIX index quotes. VIXY tracks
-        VIX futures and provides a tradeable, liquid instrument.
+        since Alpaca does not provide direct VIX index quotes.
 
-        The scaling relationship (VIXY price * 10 approx VIX index) is an empirical
-        approximation based on historical analysis. This relationship can vary
-        with VIX futures term structure (contango/backwardation), but provides
-        a reasonable real-time estimate for budget tier selection.
+        This is a fail-closed check. If VIX proxy data is unavailable or stale,
+        this method raises VIXProxyUnavailableError rather than defaulting to
+        a mid-tier assumption. The system requires real volatility data to make
+        safe hedging decisions.
 
-        The approximation is monitored via logs (vix_value field in completion logs)
-        and can be validated against published VIX values during market hours.
+        Args:
+            correlation_id: Correlation ID for tracing
 
         Returns:
-            Estimated VIX value from VIXY proxy, or None if unavailable
+            Estimated VIX value from VIXY proxy
+
+        Raises:
+            VIXProxyUnavailableError: If VIX proxy data is unavailable or stale
 
         """
         try:
@@ -260,6 +312,7 @@ class HedgeEvaluationHandler:
                 scale_factor=str(VIX_PROXY_SCALE_FACTOR),
                 estimated_vix=str(estimated_vix),
                 data_source="ETF_proxy",
+                correlation_id=correlation_id,
             )
             logger.info(
                 "VIX proxy drift monitoring",
@@ -269,18 +322,27 @@ class HedgeEvaluationHandler:
                 expected_ratio=str(VIX_PROXY_SCALE_FACTOR),
                 vix_estimate=str(estimated_vix),
                 monitoring_note="Track proxy_price vs estimated_vix ratio for scaling factor drift",
+                correlation_id=correlation_id,
             )
 
             return estimated_vix
 
         except Exception as e:
-            logger.warning(
-                "Failed to fetch VIX from ETF proxy, using default tier",
+            # FAIL CLOSED: VIX proxy unavailable - cannot hedge safely
+            logger.error(
+                "VIX proxy data unavailable - FAILING CLOSED",
                 proxy_symbol=VIX_PROXY_SYMBOL,
                 error=str(e),
-                fallback="mid_tier",
+                exc_info=True,
+                correlation_id=correlation_id,
+                fail_closed_condition="vix_proxy_unavailable",
+                alert_required=True,
             )
-            return None
+            raise VIXProxyUnavailableError(
+                message=f"VIX proxy ({VIX_PROXY_SYMBOL}) data unavailable - cannot hedge without volatility data: {e!s}",
+                proxy_symbol=VIX_PROXY_SYMBOL,
+                correlation_id=correlation_id,
+            ) from e
 
     def _publish_skip_event(
         self,

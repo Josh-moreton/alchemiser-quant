@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from the_alchemiser.shared.errors.exceptions import NoLiquidContractsError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
 from the_alchemiser.shared.options.constants import (
@@ -65,6 +66,7 @@ class OptionSelector:
         premium_budget: Decimal,
         underlying_price: Decimal,
         nav: Decimal | None = None,
+        correlation_id: str | None = None,
     ) -> SelectedOption | None:
         """Select optimal option contract for hedging.
 
@@ -75,9 +77,13 @@ class OptionSelector:
             premium_budget: Dollar amount available for premium
             underlying_price: Current underlying price
             nav: Portfolio NAV (optional, for payoff-based sizing)
+            correlation_id: Correlation ID for tracing
 
         Returns:
             SelectedOption if found, None if no suitable contract
+
+        Raises:
+            NoLiquidContractsError: If no contracts pass liquidity filters (fail-closed)
 
         """
         logger.info(
@@ -86,6 +92,7 @@ class OptionSelector:
             target_delta=str(target_delta),
             target_dte=target_dte,
             premium_budget=str(premium_budget),
+            correlation_id=correlation_id,
         )
 
         # Calculate expiration date range
@@ -189,12 +196,21 @@ class OptionSelector:
             )
 
             if best_contract is None:
-                logger.warning(
-                    "No contract passed liquidity filters",
+                # FAIL CLOSED: No contracts passed liquidity filters
+                logger.error(
+                    "No contract passed liquidity filters - FAILING CLOSED",
                     underlying=underlying_symbol,
                     contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_liquid_contracts",
+                    alert_required=True,
                 )
-                return None
+                raise NoLiquidContractsError(
+                    message=f"No option contracts passed liquidity filters for {underlying_symbol}. Checked {len(contracts)} contracts. Cannot execute hedge with illiquid options.",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
 
             # Calculate contracts to buy and limit price
             return self._build_selected_option(
@@ -205,12 +221,16 @@ class OptionSelector:
                 nav=nav,
             )
 
+        except NoLiquidContractsError:
+            # Re-raise fail-closed errors
+            raise
         except Exception as e:
             logger.error(
                 "Error selecting hedge contract",
                 underlying=underlying_symbol,
                 error=str(e),
                 exc_info=True,
+                correlation_id=correlation_id,
             )
             return None
 

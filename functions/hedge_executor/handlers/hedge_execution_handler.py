@@ -17,6 +17,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from core.option_selector import OptionSelector, SelectedOption
 from core.options_execution_service import ExecutionResult, OptionsExecutionService
 
+from the_alchemiser.shared.errors.exceptions import HedgeFailClosedError
 from the_alchemiser.shared.events.schemas import (
     AllHedgesCompleted,
     HedgeEvaluationCompleted,
@@ -29,6 +30,7 @@ from the_alchemiser.shared.options.adapters import (
     HedgePositionsRepository,
 )
 from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
+from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -88,6 +90,9 @@ class HedgeExecutionHandler:
             HedgeHistoryRepository(history_table_name) if history_table_name else None
         )
 
+        # Initialize kill switch service
+        self._kill_switch = KillSwitchService()
+
         # Create event bus if not provided
         if event_bus is None:
             from the_alchemiser.shared.events import EventBus as EventBusClass
@@ -120,7 +125,27 @@ class HedgeExecutionHandler:
             recommendations_count=len(event.recommendations),
         )
 
-        # Check if hedging was skipped
+        try:
+            # FAIL-CLOSED CHECK: Emergency kill switch
+            # Do not execute hedges if kill switch is active
+            self._kill_switch.check_kill_switch(correlation_id=correlation_id)
+
+        except HedgeFailClosedError as e:
+            # Kill switch is active - publish completion with skipped status
+            logger.warning(
+                "Hedge execution skipped - kill switch active",
+                correlation_id=correlation_id,
+                plan_id=plan_id,
+                trigger_reason=e.trigger_reason,
+            )
+            self._publish_all_hedges_completed(
+                event=event,
+                results=[],
+                _skipped=True,
+            )
+            return
+
+        # Check if hedging was skipped in evaluation
         if event.skip_reason:
             logger.info(
                 "Hedge evaluation was skipped",
@@ -136,6 +161,7 @@ class HedgeExecutionHandler:
 
         # Execute each hedge recommendation
         results: list[HedgeExecuted] = []
+        fail_closed_errors: list[str] = []
 
         for recommendation in event.recommendations:
             try:
@@ -148,6 +174,23 @@ class HedgeExecutionHandler:
                 if result:
                     results.append(result)
                     self._event_bus.publish(result)
+                    # Reset failure counter on successful execution
+                    if result.success:
+                        self._kill_switch.reset_failures()
+            except HedgeFailClosedError as e:
+                # Fail-closed condition - log and track but continue processing other recommendations
+                logger.error(
+                    "Hedge execution FAILED CLOSED for recommendation",
+                    correlation_id=correlation_id,
+                    underlying=recommendation.get("underlying_symbol"),
+                    fail_closed_condition=e.condition,
+                    error=str(e),
+                    exc_info=True,
+                    alert_required=True,
+                )
+                fail_closed_errors.append(f"{e.condition}: {e.message}")
+                # Record failure for kill switch tracking
+                self._kill_switch.record_failure(f"Fail-closed: {e.condition} - {e.message}")
             except Exception as e:
                 logger.error(
                     "Failed to execute hedge recommendation",
@@ -155,16 +198,28 @@ class HedgeExecutionHandler:
                     underlying=recommendation.get("underlying_symbol"),
                     error=str(e),
                     exc_info=True,
+                    alert_required=True,
                 )
+                # Record unexpected failure
+                self._kill_switch.record_failure(f"Unexpected error: {e!s}")
 
         # Publish aggregated completion event
         self._publish_all_hedges_completed(event, results)
+
+        # If all recommendations failed with fail-closed errors, raise
+        if fail_closed_errors and len(fail_closed_errors) == len(event.recommendations):
+            error_summary = "; ".join(fail_closed_errors)
+            raise HedgeFailClosedError(
+                message=f"All hedge executions failed closed: {error_summary}",
+                correlation_id=correlation_id,
+            )
 
         logger.info(
             "Hedge execution completed",
             correlation_id=correlation_id,
             total_recommendations=len(event.recommendations),
             successful_hedges=sum(1 for r in results if r.success),
+            fail_closed_count=len(fail_closed_errors),
         )
 
     def _execute_recommendation(
@@ -234,6 +289,7 @@ class HedgeExecutionHandler:
             premium_budget=premium_budget,
             underlying_price=underlying_price,
             nav=portfolio_nav,
+            correlation_id=correlation_id,
         )
 
         if selected is None:
