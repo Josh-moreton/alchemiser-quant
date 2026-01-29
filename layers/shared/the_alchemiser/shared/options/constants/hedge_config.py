@@ -13,6 +13,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Literal
+
+# Type alias for fallback behavior options
+ProtectionShortfallFallbackType = Literal["clip_and_report", "switch_template", "skip"]
 
 
 @dataclass(frozen=True)
@@ -312,6 +316,42 @@ MAX_EXISTING_HEDGE_COUNT: int = 3
 # Prevents excessive capital allocation to a single hedge position.
 # Single hedge position premium must not exceed 2% of portfolio NAV.
 MAX_SINGLE_POSITION_PCT: Decimal = Decimal("0.02")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HARD CONSTRAINTS FOR PREMIUM SPEND
+# ═══════════════════════════════════════════════════════════════════════════════
+# These constraints are HARD CAPS that override VIX-tier budget targets.
+# VIX-tier rates (0.8%, 0.5%, 0.3%) are optimal allocation targets, but actual
+# spend is clamped to these hard limits to prevent cost overruns.
+# TODO: Enforce in hedge_evaluator.py before placing orders (clamp budget calculation)
+# TODO: Enforce in hedge_executor.py for cumulative tracking (reject if annual cap exceeded)
+
+# Maximum premium spend per year as percentage of NAV.
+# This is a hard cap to prevent excessive hedging costs eating into returns.
+# Example: For a $150,000 portfolio, 4% = $6,000/year maximum premium spend.
+MAX_PREMIUM_SPEND_ANNUAL_PCT: Decimal = Decimal("0.04")  # 4% NAV/year
+
+# Maximum premium spend per month as percentage of NAV.
+# Monthly cap prevents concentrated hedging in a single period.
+# This OVERRIDES VIX-tier rates when they exceed this cap.
+# Example: For a $150,000 portfolio, 0.35% = $525/month maximum premium spend.
+MAX_PREMIUM_SPEND_MONTHLY_PCT: Decimal = Decimal("0.0035")  # 0.35% NAV/month
+
+# Minimum required protection payoff at -20% underlying move as percentage of NAV.
+# This ensures hedges provide meaningful protection in severe drawdown scenarios.
+# Example: For a $150,000 portfolio with 2.5x leverage = $375,000 exposure.
+# At -20% index move: -$75,000 loss. Min protection: $9,000 (6% of NAV).
+# TODO: Enforce in hedge_evaluator.py during contract selection (verify payoff meets floor)
+MIN_PROTECTION_AT_MINUS_20_PCT: Decimal = Decimal("0.06")  # 6% NAV minimum payoff
+
+# Fallback behavior when minimum protection is unaffordable within premium budget.
+# Options: "clip_and_report", "switch_template", "skip"
+# - clip_and_report: Buy maximum affordable protection and log shortfall
+# - switch_template: Try alternative hedge template (e.g., smoothing)
+# - skip: Do not hedge if minimum protection cannot be met
+# TODO: Implement fallback logic in hedge_evaluator.py when protection floor not met
+PROTECTION_SHORTFALL_FALLBACK: ProtectionShortfallFallbackType = "clip_and_report"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
