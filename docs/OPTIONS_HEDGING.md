@@ -136,13 +136,84 @@ The tail-risk template uses out-of-the-money puts for crash protection:
 
 Premium budget adjusts based on market volatility (VIX):
 
-| VIX Level | Threshold | Budget (% NAV) | Rationale |
-|-----------|-----------|----------------|-----------|
-| Low | < 18 | 0.80% | Protection is cheap, buy more |
-| Mid | 18-28 | 0.50% | Standard allocation |
-| High | > 28 | 0.30% | Protection expensive, reduce size |
+| VIX Level | Threshold | Budget (% NAV/month) | Annual (×12) | At 1.0x | At 2.0x | At 2.5x |
+|-----------|-----------|----------------------|--------------|---------|---------|---------|
+| Low | < 18 | 0.80% | 9.6% | 9.6% | 14.4% | 16.8% |
+| Mid | 18-28 | 0.50% | 6.0% | 6.0% | 9.0% | 10.5% |
+| High | > 28 | 0.30% | 3.6% | 3.6% | 5.4% | 6.3% |
+| Rich | > 35 | Reduced intensity | - | - | - | - |
+
+**Notes:**
+- Annual drag = monthly rate × 12 months × exposure multiplier
+- Exposure multiplier at 1.0x leverage: 1.0
+- Exposure multiplier at 2.0x leverage: 1.5 (sublinear scaling)
+- Exposure multiplier at 2.5x leverage: 1.75
+- **Hard cap: 5% NAV/year** to prevent excessive drag
+- **Target band: 2-5% NAV/year** for sustainable protection
 
 **VIX Estimation**: Uses VIXY ETF as proxy (`VIXY price × 10 ≈ VIX index`). The scaling factor is monitored via CloudWatch logs for drift.
+
+### Annual Premium Spend Target
+
+The system enforces an annual premium spend target band to prevent excessive drag:
+
+- **Minimum target**: 2% NAV/year (ensure adequate protection)
+- **Maximum target**: 5% NAV/year (prevent excessive cost)
+- **Hard cap**: 5% NAV/year (strictly enforced)
+
+Spend tracking:
+- Year-to-date premium spend tracked in DynamoDB
+- Each hedge evaluation checks against annual cap
+- Hedges skipped if cap would be exceeded
+
+### Rich IV Reduction Logic
+
+When implied volatility is rich (VIX > 35), the system automatically reduces hedge intensity to avoid overpaying:
+
+1. **Widen delta target**: Move from 15-delta to 10-delta (further OTM, cheaper)
+2. **Extend tenor**: Increase DTE from 90 to 120 days (better theta efficiency)
+3. **Reduce target payoff**: Lower payoff target by 25% (less protection needed)
+
+Rationale: When volatility is already elevated, options are expensive and the market has likely already repriced risk. Buying less protection at these times is economically rational.
+
+### Carry Expectation & Trade-offs
+
+**Expected Theta Bleed in Normal Regimes:**
+
+The hedge portfolio exhibits negative carry (theta decay) by design:
+
+| Market Regime | Expected Monthly Bleed | Expected Annual Drag | Trade-off |
+|---------------|------------------------|----------------------|-----------|
+| Low VIX (<18) | 0.8% NAV/month | 9.6% at 1.0x, 14.4% at 2.0x | Higher cost for cheaper protection |
+| Mid VIX (18-28) | 0.5% NAV/month | 6.0% at 1.0x, 9.0% at 2.0x | Balanced cost/protection |
+| High VIX (>28) | 0.3% NAV/month | 3.6% at 1.0x, 5.4% at 2.0x | Lower cost but already in stress |
+| Rich IV (>35) | Reduced intensity | < 5% at 2.0x | Minimal spend when options expensive |
+
+**Trade-offs Being Accepted:**
+
+1. **Negative carry**: We accept 2-5% NAV/year drag in exchange for:
+   - Convex payoff in market crashes (-20% market → +6-10% NAV)
+   - Sleep-at-night insurance for leveraged portfolio (2.0x-2.5x)
+   - Capital preservation to redeploy at market bottoms
+
+2. **Counter-intuitive timing**: We buy MORE protection when VIX is LOW:
+   - Options are cheaper when volatility is compressed
+   - Already own protection when volatility expands
+   - Avoid panic buying at rich IV levels
+
+3. **Sublinear scaling**: At 2.0x leverage, we only pay 1.5x the base premium:
+   - Avoids overpaying at extremes
+   - Recognizes diminishing returns of additional protection
+   - Balances cost efficiency with risk management
+
+**Acceptable Scenarios:**
+- ✅ Portfolio drops 20%, hedge gains 6-10% → Net -10% to -14% (vs -40% unhedged at 2.0x)
+- ✅ Portfolio flat for year, lose 2-5% to theta → Insurance premium paid
+- ❌ Portfolio up 30%, lose 2-5% to theta → Underperformance vs unhedged
+
+**Unacceptable Scenarios:**
+- ❌ Annual drag exceeds 5% NAV (hard cap prevents this)
+- ❌ Hedges fail to deliver during actual crash (payoff-based sizing prevents this)
 
 ### Position Sizing Formula
 
@@ -281,6 +352,7 @@ Hedging is **automatically skipped** when:
 | Low Exposure | < 0.5x | Insufficient equity exposure |
 | Existing Hedges | ≥ 3 active | Avoid over-hedging |
 | No Positions | 0 equities | Nothing to hedge |
+| **Annual Cap Exceeded** | **≥ 5% NAV YTD** | **Prevent excessive annual drag** |
 
 Skip events are logged and a `HedgeEvaluationCompleted` with `skip_reason` is published.
 
@@ -336,11 +408,17 @@ For spread orders (long + short leg):
 # VIX thresholds
 VIX_LOW_THRESHOLD = Decimal("18")
 VIX_HIGH_THRESHOLD = Decimal("28")
+RICH_IV_THRESHOLD = Decimal("35")  # Reduce hedge intensity above this
 
 # Budget rates by VIX tier
-BUDGET_VIX_LOW = Decimal("0.008")   # 0.8% NAV
-BUDGET_VIX_MID = Decimal("0.005")   # 0.5% NAV  
-BUDGET_VIX_HIGH = Decimal("0.003")  # 0.3% NAV
+BUDGET_VIX_LOW = Decimal("0.008")   # 0.8% NAV/month
+BUDGET_VIX_MID = Decimal("0.005")   # 0.5% NAV/month  
+BUDGET_VIX_HIGH = Decimal("0.003")  # 0.3% NAV/month
+
+# Annual spend limits (hard caps to prevent excessive drag)
+MAX_ANNUAL_PREMIUM_SPEND_PCT = Decimal("0.05")  # 5% NAV/year hard cap
+TARGET_ANNUAL_PREMIUM_SPEND_MIN_PCT = Decimal("0.02")  # 2% NAV/year minimum
+TARGET_ANNUAL_PREMIUM_SPEND_MAX_PCT = Decimal("0.05")  # 5% NAV/year maximum
 
 # Position limits
 MIN_NAV_FOR_HEDGING = Decimal("10000")
@@ -376,8 +454,11 @@ Key log entries to monitor:
 - Skip rate by reason
 - Fill rate (successful / attempted)
 - Average premium as % NAV
+- **Year-to-date premium spend as % NAV**
+- **Annual drag rate (actual vs target band)**
 - Roll trigger frequency
 - DLQ message count
+- **Rich IV reduction trigger frequency**
 
 ### Alerts
 
