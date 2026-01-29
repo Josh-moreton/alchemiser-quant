@@ -153,11 +153,13 @@ The tail-risk template uses out-of-the-money puts for crash protection:
 
 Premium budget adjusts based on market volatility (VIX):
 
-| VIX Level | Threshold | Budget (% NAV) | Rationale |
+| VIX Level | Threshold | Target (% NAV) | Rationale |
 |-----------|-----------|----------------|-----------|
 | Low | < 18 | 0.80% | Protection is cheap, buy more |
 | Mid | 18-28 | 0.50% | Standard allocation |
 | High | > 28 | 0.30% | Protection expensive, reduce size |
+
+**Important**: VIX-tier rates are *allocation targets*, not guarantees. Actual spend is clamped by the **hard monthly cap (0.35% NAV/month)**. When VIX is low and the tier target is 0.80%, the system will still respect the 0.35% monthly cap—the difference is that low-VIX conditions make it easier to get quality protection within that cap.
 
 **VIX Estimation**: Uses VIXY ETF as proxy (`VIXY price × 10 ≈ VIX index`). The scaling factor is monitored via CloudWatch logs for drift.
 
@@ -394,7 +396,7 @@ The hard constraints lock the objectives and prevent the hedging system from dri
 
 1. **Annual Premium Cap (4% NAV/year)**: Prevents excessive hedging costs from eroding returns over time. For a $150,000 portfolio, this limits annual premium spend to $6,000.
 
-2. **Monthly Premium Cap (0.35% NAV/month)**: Prevents concentrated hedging in a single period. For a $150,000 portfolio, this limits monthly spend to $525.
+2. **Monthly Premium Cap (0.35% NAV/month)**: Prevents concentrated hedging in a single period. For a $150,000 portfolio, this limits monthly spend to $525. **This cap overrides VIX-tier targets**—if VIX is low and the tier target is 0.8%, actual spend is clamped to 0.35%.
 
 3. **Protection Floor (6% NAV at -20%)**: Ensures hedges provide meaningful protection in severe drawdowns. For a 2.5x leveraged $150,000 portfolio ($375,000 exposure), a -20% move causes -$75,000 loss. The hedge must pay out at least $9,000 (6% of NAV) to be worthwhile.
 
@@ -402,6 +404,18 @@ The hard constraints lock the objectives and prevent the hedging system from dri
    - **clip_and_report** (default): Buy the maximum affordable protection and log the shortfall for manual review
    - **switch_template**: Attempt to use a lower-cost hedge template (e.g., put spreads)
    - **skip**: Do not hedge at all if minimum protection cannot be met
+
+#### Constraint Hierarchy
+
+```
+VIX-Tier Target (0.3%-0.8%)  ←  Soft target based on market conditions
+        ↓
+Monthly Hard Cap (0.35%)     ←  Clamps VIX target; prevents monthly overspend
+        ↓
+Annual Hard Cap (4%)         ←  Cumulative limit; rejects orders if exceeded
+        ↓
+Protection Floor (6% NAV)    ←  Validates payoff quality; triggers fallback if unmet
+```
 
 ---
 
