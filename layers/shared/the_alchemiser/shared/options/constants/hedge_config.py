@@ -285,6 +285,18 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
 VIX_LOW_THRESHOLD: Decimal = Decimal("18")
 VIX_HIGH_THRESHOLD: Decimal = Decimal("28")
 
+# Rich IV threshold - when to reduce hedge intensity
+# IV is considered "rich" when it's elevated relative to normal market conditions
+# At rich IV, reduce hedge intensity to avoid overpaying for protection
+RICH_IV_THRESHOLD: Decimal = Decimal("35")  # VIX > 35 is considered rich
+
+# Rich IV adjustment parameters
+# When VIX > RICH_IV_THRESHOLD, these adjustments are applied to reduce cost
+RICH_IV_DELTA_REDUCTION: Decimal = Decimal("0.05")  # Widen delta by 5 (e.g., 15Δ → 10Δ)
+RICH_IV_MIN_DELTA: Decimal = Decimal("0.05")  # Floor for delta after adjustment
+RICH_IV_DTE_EXTENSION: int = 30  # Extend tenor by 30 days (e.g., 90 → 120 DTE)
+RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
+
 # VIX Proxy Configuration
 # Alpaca does not provide direct VIX index quotes. We use VIXY ETF as a liquid proxy.
 # VIXY (ProShares VIX Short-Term Futures ETF) tracks VIX short-term futures.
@@ -316,6 +328,13 @@ MAX_EXISTING_HEDGE_COUNT: int = 3
 # Prevents excessive capital allocation to a single hedge position.
 # Single hedge position premium must not exceed 2% of portfolio NAV.
 MAX_SINGLE_POSITION_PCT: Decimal = Decimal("0.02")
+
+# Maximum annual premium spend as percentage of NAV (hard cap).
+# Prevents excessive annual drag from options hedging.
+# Target band: 2-5% NAV/year, with hard cap at 5% to prevent bleed.
+MAX_ANNUAL_PREMIUM_SPEND_PCT: Decimal = Decimal("0.05")  # 5% NAV/year hard cap
+TARGET_ANNUAL_PREMIUM_SPEND_MIN_PCT: Decimal = Decimal("0.02")  # 2% NAV/year minimum
+TARGET_ANNUAL_PREMIUM_SPEND_MAX_PCT: Decimal = Decimal("0.05")  # 5% NAV/year maximum
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -455,3 +474,116 @@ def get_exposure_multiplier(net_exposure: Decimal) -> Decimal:
     excess = max(Decimal("0"), net_exposure - template.exposure_base)
     multiplier = template.exposure_base + (excess * template.exposure_per_excess)
     return min(multiplier, template.exposure_max_multiplier)
+
+
+def calculate_annual_drag(
+    monthly_rate: Decimal, leverage: Decimal, exposure_multiplier: Decimal | None = None
+) -> Decimal:
+    """Calculate annualized drag from monthly premium spend rate.
+
+    Args:
+        monthly_rate: Monthly premium spend as % of NAV (e.g., 0.008 = 0.8%)
+        leverage: Portfolio leverage level (e.g., 1.0, 2.0, 2.5)
+        exposure_multiplier: Optional exposure multiplier override
+            (defaults to calculated multiplier based on leverage)
+
+    Returns:
+        Annual drag as percentage of NAV (e.g., 0.096 = 9.6%)
+
+    Examples:
+        >>> calculate_annual_drag(Decimal("0.008"), Decimal("1.0"))
+        Decimal('0.096')  # 9.6% annual at 1.0x
+        >>> calculate_annual_drag(Decimal("0.008"), Decimal("2.0"))
+        Decimal('0.144')  # 14.4% annual at 2.0x (with 1.5x multiplier)
+
+    """
+    if exposure_multiplier is None:
+        exposure_multiplier = get_exposure_multiplier(leverage)
+
+    # Annual rate = monthly rate × 12 months × exposure multiplier
+    return monthly_rate * Decimal("12") * exposure_multiplier
+
+
+def should_reduce_hedge_intensity(vix: Decimal) -> bool:
+    """Determine if hedge intensity should be reduced due to rich IV.
+
+    When IV is rich (expensive), we reduce hedge intensity to avoid
+    overpaying for protection by:
+    - Reducing target payoff
+    - Widening tenor (longer DTE)
+    - Widening delta target (further OTM, cheaper options)
+
+    Note: Spread conversion logic not currently implemented.
+
+    Args:
+        vix: Current VIX index value
+
+    Returns:
+        True if IV is rich and hedge intensity should be reduced
+
+    """
+    return vix > RICH_IV_THRESHOLD
+
+
+def apply_rich_iv_adjustment(
+    target_delta: Decimal,
+    target_dte: int,
+    target_payoff_pct: Decimal,
+    vix: Decimal,
+) -> tuple[Decimal, int, Decimal]:
+    """Apply rich IV adjustments to hedge parameters.
+
+    When IV is rich (VIX > 35), reduce hedge intensity by:
+    1. Widening delta target (further OTM, cheaper options)
+    2. Extending tenor (longer DTE, better theta efficiency)
+    3. Reducing target payoff (less protection needed)
+
+    Args:
+        target_delta: Original target delta (e.g., 0.15)
+        target_dte: Original target DTE (e.g., 90)
+        target_payoff_pct: Original target payoff as % NAV (e.g., 0.08)
+        vix: Current VIX index value
+
+    Returns:
+        Tuple of (adjusted_delta, adjusted_dte, adjusted_payoff_pct)
+
+    Examples:
+        >>> apply_rich_iv_adjustment(
+        ...     Decimal("0.15"), 90, Decimal("0.08"), Decimal("40")
+        ... )
+        (Decimal('0.10'), 120, Decimal('0.06'))
+
+    """
+    if not should_reduce_hedge_intensity(vix):
+        return target_delta, target_dte, target_payoff_pct
+
+    # Rich IV adjustments:
+    # 1. Widen delta (e.g., 15-delta → 10-delta)
+    adjusted_delta = max(RICH_IV_MIN_DELTA, target_delta - RICH_IV_DELTA_REDUCTION)
+
+    # 2. Extend DTE (e.g., 90 DTE → 120 DTE)
+    adjusted_dte = target_dte + RICH_IV_DTE_EXTENSION
+
+    # 3. Reduce target payoff (e.g., 8% → 6%)
+    adjusted_payoff_pct = target_payoff_pct * RICH_IV_PAYOFF_MULTIPLIER
+
+    return adjusted_delta, adjusted_dte, adjusted_payoff_pct
+
+
+def check_annual_spend_cap(
+    current_year_spend: Decimal, proposed_spend: Decimal, nav: Decimal
+) -> bool:
+    """Check if proposed spend would exceed annual spend cap.
+
+    Args:
+        current_year_spend: Total premium spent year-to-date
+        proposed_spend: Proposed additional premium spend
+        nav: Current portfolio NAV
+
+    Returns:
+        True if proposed spend is within annual cap, False otherwise
+
+    """
+    total_spend = current_year_spend + proposed_spend
+    spend_pct = total_spend / nav if nav > 0 else Decimal("0")
+    return spend_pct <= MAX_ANNUAL_PREMIUM_SPEND_PCT
