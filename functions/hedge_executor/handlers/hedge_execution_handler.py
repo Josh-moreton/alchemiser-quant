@@ -17,6 +17,10 @@ from botocore.exceptions import BotoCoreError, ClientError
 from core.option_selector import OptionSelector, SelectedOption
 from core.options_execution_service import ExecutionResult, OptionsExecutionService
 
+from the_alchemiser.shared.errors.exceptions import (
+    HedgeFailClosedError,
+    SpreadExecutionUnavailableError,
+)
 from the_alchemiser.shared.events.schemas import (
     AllHedgesCompleted,
     HedgeEvaluationCompleted,
@@ -29,6 +33,7 @@ from the_alchemiser.shared.options.adapters import (
     HedgePositionsRepository,
 )
 from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
+from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -88,6 +93,9 @@ class HedgeExecutionHandler:
             HedgeHistoryRepository(history_table_name) if history_table_name else None
         )
 
+        # Initialize kill switch service
+        self._kill_switch = KillSwitchService()
+
         # Create event bus if not provided
         if event_bus is None:
             from the_alchemiser.shared.events import EventBus as EventBusClass
@@ -120,7 +128,27 @@ class HedgeExecutionHandler:
             recommendations_count=len(event.recommendations),
         )
 
-        # Check if hedging was skipped
+        try:
+            # FAIL-CLOSED CHECK: Emergency kill switch
+            # Do not execute hedges if kill switch is active
+            self._kill_switch.check_kill_switch(correlation_id=correlation_id)
+
+        except HedgeFailClosedError as e:
+            # Kill switch is active - publish completion with skipped status
+            logger.warning(
+                "Hedge execution skipped - kill switch active",
+                correlation_id=correlation_id,
+                plan_id=plan_id,
+                trigger_reason=getattr(e, "trigger_reason", None),
+            )
+            self._publish_all_hedges_completed(
+                event=event,
+                results=[],
+                _skipped=True,
+            )
+            return
+
+        # Check if hedging was skipped in evaluation
         if event.skip_reason:
             logger.info(
                 "Hedge evaluation was skipped",
@@ -136,6 +164,7 @@ class HedgeExecutionHandler:
 
         # Execute each hedge recommendation
         results: list[HedgeExecuted] = []
+        fail_closed_errors: list[str] = []
 
         for recommendation in event.recommendations:
             try:
@@ -148,6 +177,23 @@ class HedgeExecutionHandler:
                 if result:
                     results.append(result)
                     self._event_bus.publish(result)
+                    # Reset failure counter on successful execution
+                    if result.success:
+                        self._kill_switch.reset_failures()
+            except HedgeFailClosedError as e:
+                # Fail-closed condition - log and track but continue processing other recommendations
+                logger.error(
+                    "Hedge execution FAILED CLOSED for recommendation",
+                    correlation_id=correlation_id,
+                    underlying=recommendation.get("underlying_symbol"),
+                    fail_closed_condition=e.condition,
+                    error=str(e),
+                    exc_info=True,
+                    alert_required=True,
+                )
+                fail_closed_errors.append(f"{e.condition}: {e.message}")
+                # Record failure for kill switch tracking
+                self._kill_switch.record_failure(f"Fail-closed: {e.condition} - {e.message}")
             except Exception as e:
                 logger.error(
                     "Failed to execute hedge recommendation",
@@ -155,16 +201,28 @@ class HedgeExecutionHandler:
                     underlying=recommendation.get("underlying_symbol"),
                     error=str(e),
                     exc_info=True,
+                    alert_required=True,
                 )
+                # Record unexpected failure
+                self._kill_switch.record_failure(f"Unexpected error: {e!s}")
 
         # Publish aggregated completion event
         self._publish_all_hedges_completed(event, results)
+
+        # If all recommendations failed with fail-closed errors, raise
+        if fail_closed_errors and len(fail_closed_errors) == len(event.recommendations):
+            error_summary = "; ".join(fail_closed_errors)
+            raise HedgeFailClosedError(
+                message=f"All hedge executions failed closed: {error_summary}",
+                correlation_id=correlation_id,
+            )
 
         logger.info(
             "Hedge execution completed",
             correlation_id=correlation_id,
             total_recommendations=len(event.recommendations),
             successful_hedges=sum(1 for r in results if r.success),
+            fail_closed_count=len(fail_closed_errors),
         )
 
     def _execute_recommendation(
@@ -190,6 +248,33 @@ class HedgeExecutionHandler:
         target_delta = Decimal(recommendation.get("target_delta", "0.15"))
         target_dte = recommendation.get("target_dte", 90)
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
+        hedge_template = recommendation.get("hedge_template", "tail_first")
+        is_spread = recommendation.get("is_spread", False)
+
+        # FAIL-CLOSED CHECK: Spread execution availability for smoothing template
+        # Smoothing template REQUIRES spread execution (buy 30-delta, sell 10-delta)
+        # Do NOT fallback to single-leg execution
+        if hedge_template == "smoothing" and is_spread:
+            # Check if spread execution is available
+            # For now, we'll check if the options adapter supports spreads
+            # In the future, this could check specific market conditions
+            if not hasattr(self._options_adapter, "execute_spread_order"):
+                logger.error(
+                    "Spread execution unavailable for smoothing template - FAILING CLOSED",
+                    underlying=underlying,
+                    hedge_template=hedge_template,
+                    correlation_id=correlation_id,
+                    fail_closed_condition="spread_execution_unavailable",
+                    alert_required=True,
+                )
+                raise SpreadExecutionUnavailableError(
+                    message=f"Spread execution unavailable for smoothing template on {underlying}. "
+                    "Cannot fallback to single-leg execution as it would compromise hedge strategy.",
+                    underlying_symbol=underlying,
+                    long_delta=str(recommendation.get("target_delta")),
+                    short_delta=str(recommendation.get("short_delta")),
+                    correlation_id=correlation_id,
+                )
 
         # Validate position concentration limit (defensive check)
         # This should already be enforced in HedgeSizer, but double-check here
@@ -234,6 +319,7 @@ class HedgeExecutionHandler:
             premium_budget=premium_budget,
             underlying_price=underlying_price,
             nav=portfolio_nav,
+            correlation_id=correlation_id,
         )
 
         if selected is None:
