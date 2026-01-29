@@ -4,6 +4,23 @@
 
 The Alchemiser options hedging module provides automated downside protection via protective puts on broad market ETFs. It integrates with the existing portfolio rebalancing workflow to automatically evaluate and execute hedge positions.
 
+## Objective
+
+**Reduce equity drawdowns of a 2.0x–2.5x leveraged book by 6–10% NAV under -20% index scenarios, with ≤4% annual premium drag.**
+
+This objective is measurable and locks in the hedging strategy's expectations:
+- **Target Protection**: 6–10% NAV payoff when underlying (QQQ/SPY) moves -20%
+- **Cost Constraint**: Maximum 4% of NAV spent annually on premiums (≤0.35% per month)
+- **Portfolio Profile**: Optimized for 2.0x–2.5x leveraged, tech-heavy portfolios
+
+### What This Is NOT
+
+**This hedging strategy will NOT fully hedge a -20% index move on a 2.5x book.**
+
+With 2.5x leverage and -20% underlying move, the unhedged loss would be -50% NAV. The hedges provide partial mitigation (6–10% NAV), reducing the loss to approximately -40–44% NAV. This is crash insurance, not full portfolio insurance.
+
+The module prioritizes cost-efficiency over complete protection. Full hedging of 2.5x leverage would require prohibitively expensive premiums that would eliminate long-term returns.
+
 ## Architecture
 
 ### System Components
@@ -136,7 +153,7 @@ The tail-risk template uses out-of-the-money puts for crash protection:
 
 Premium budget adjusts based on market volatility (VIX):
 
-| VIX Level | Threshold | Budget (% NAV/month) | Annual (×12) | At 1.0x | At 2.0x | At 2.5x |
+| VIX Level | Threshold | Target (% NAV/month) | Annual (×12) | At 1.0x | At 2.0x | At 2.5x |
 |-----------|-----------|----------------------|--------------|---------|---------|---------|
 | Low | < 18 | 0.80% | 9.6% | 9.6% | 14.4% | 14.4% |
 | Mid | 18-28 | 0.50% | 6.0% | 6.0% | 9.0% | 9.0% |
@@ -150,6 +167,8 @@ Premium budget adjusts based on market volatility (VIX):
 - Exposure multiplier at 2.5x leverage: 1.5 (capped at max multiplier)
 - **Hard cap: 5% NAV/year** to prevent excessive drag
 - **Target band: 2-5% NAV/year** for sustainable protection
+
+**Important**: VIX-tier rates are *allocation targets*, not guarantees. Actual spend is clamped by the **hard monthly cap (0.35% NAV/month)**. When VIX is low and the tier target is 0.80%, the system will still respect the 0.35% monthly cap—the difference is that low-VIX conditions make it easier to get quality protection within that cap.
 
 **VIX Estimation**: Uses VIXY ETF as proxy (`VIXY price × 10 ≈ VIX index`). The scaling factor is monitored via CloudWatch logs for drift.
 
@@ -412,10 +431,10 @@ VIX_LOW_THRESHOLD = Decimal("18")
 VIX_HIGH_THRESHOLD = Decimal("28")
 RICH_IV_THRESHOLD = Decimal("35")  # Reduce hedge intensity above this
 
-# Budget rates by VIX tier
-BUDGET_VIX_LOW = Decimal("0.008")   # 0.8% NAV/month
-BUDGET_VIX_MID = Decimal("0.005")   # 0.5% NAV/month  
-BUDGET_VIX_HIGH = Decimal("0.003")  # 0.3% NAV/month
+# Budget rates by VIX tier (% NAV per month)
+BUDGET_VIX_LOW = Decimal("0.008")   # 0.8% NAV/month/month
+BUDGET_VIX_MID = Decimal("0.005")   # 0.5% NAV/month/month  
+BUDGET_VIX_HIGH = Decimal("0.003")  # 0.3% NAV/month/month
 
 # Annual spend limits (hard caps to prevent excessive drag)
 MAX_ANNUAL_PREMIUM_SPEND_PCT = Decimal("0.05")  # 5% NAV/year hard cap
@@ -431,6 +450,51 @@ MAX_SINGLE_POSITION_PCT = Decimal("0.02")  # 2% NAV
 # Roll parameters
 ROLL_TRIGGER_DTE = 45
 CRITICAL_DTE_THRESHOLD = 14
+
+# ═══════════════════════════════════════════════════════════════
+# HARD CONSTRAINTS (Locked Objectives)
+# ═══════════════════════════════════════════════════════════════
+
+# Maximum premium spend caps
+MAX_PREMIUM_SPEND_ANNUAL_PCT = Decimal("0.04")    # 4% NAV/year maximum
+MAX_PREMIUM_SPEND_MONTHLY_PCT = Decimal("0.0035") # 0.35% NAV/month maximum
+
+# Minimum protection floor
+MIN_PROTECTION_AT_MINUS_20_PCT = Decimal("0.06")  # 6% NAV minimum payoff at -20% move
+
+# Fallback behavior when minimum protection is unaffordable
+PROTECTION_SHORTFALL_FALLBACK = "clip_and_report"
+# Options: "clip_and_report" | "switch_template" | "skip"
+# - clip_and_report: Buy maximum affordable protection and log shortfall
+# - switch_template: Try alternative hedge template (e.g., smoothing)  
+# - skip: Do not hedge if minimum protection cannot be met
+```
+
+#### Hard Constraints Explained
+
+The hard constraints lock the objectives and prevent the hedging system from drifting:
+
+1. **Annual Premium Cap (4% NAV/year)**: Prevents excessive hedging costs from eroding returns over time. For a $150,000 portfolio, this limits annual premium spend to $6,000.
+
+2. **Monthly Premium Cap (0.35% NAV/month)**: Prevents concentrated hedging in a single period. For a $150,000 portfolio, this limits monthly spend to $525. **This cap overrides VIX-tier targets**—if VIX is low and the tier target is 0.8%, actual spend is clamped to 0.35%.
+
+3. **Protection Floor (6% NAV at -20%)**: Ensures hedges provide meaningful protection in severe drawdowns. For a 2.5x leveraged $150,000 portfolio ($375,000 exposure), a -20% move causes -$75,000 loss. The hedge must pay out at least $9,000 (6% of NAV) to be worthwhile.
+
+4. **Fallback Behavior**: When the system cannot afford to meet the protection floor within budget:
+   - **clip_and_report** (default): Buy the maximum affordable protection and log the shortfall for manual review
+   - **switch_template**: Attempt to use a lower-cost hedge template (e.g., put spreads)
+   - **skip**: Do not hedge at all if minimum protection cannot be met
+
+#### Constraint Hierarchy
+
+```
+VIX-Tier Target (0.3%-0.8%)  ←  Soft target based on market conditions
+        ↓
+Monthly Hard Cap (0.35%)     ←  Clamps VIX target; prevents monthly overspend
+        ↓
+Annual Hard Cap (4%)         ←  Cumulative limit; rejects orders if exceeded
+        ↓
+Protection Floor (6% NAV)    ←  Validates payoff quality; triggers fallback if unmet
 ```
 
 ---

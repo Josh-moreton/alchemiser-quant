@@ -811,3 +811,300 @@ class TimeframeValidationError(ValidationError):
         self.valid_timeframes = valid_timeframes
         if valid_timeframes:
             self.context["valid_timeframes"] = valid_timeframes
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HEDGE-SPECIFIC EXCEPTIONS (Fail-Closed Safety Rails)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class HedgeFailClosedError(AlchemiserError):
+    """Raised when hedge evaluation/execution must fail closed due to safety conditions.
+
+    This exception indicates that hedging cannot proceed due to missing or invalid
+    data that would compromise the safety of the hedge. This is a deliberate
+    fail-closed behavior - do not retry or fallback to defaults.
+
+    Examples of fail-closed conditions:
+    - VIX proxy data unavailable or stale
+    - IV/skew data missing or stale
+    - Scenario sizing calculation fails
+    - Premium cap would be breached
+    - All option contracts fail liquidity filters
+    - Spread execution unavailable for smoothing template
+    """
+
+    def __init__(
+        self,
+        message: str,
+        condition: str | None = None,
+        underlying_symbol: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize hedge fail-closed error with context.
+
+        Args:
+            message: Human-readable error message
+            condition: Specific fail-closed condition that triggered (e.g., "vix_unavailable")
+            underlying_symbol: Underlying ETF symbol if applicable
+            correlation_id: Correlation ID for tracing
+
+        """
+        context: dict[str, Any] = {}
+        if condition:
+            context["fail_closed_condition"] = condition
+        if underlying_symbol:
+            context["underlying_symbol"] = underlying_symbol
+        if correlation_id:
+            context["correlation_id"] = correlation_id
+
+        super().__init__(message, context)
+        self.condition = condition
+        self.underlying_symbol = underlying_symbol
+        self.correlation_id = correlation_id
+
+
+class VIXProxyUnavailableError(HedgeFailClosedError):
+    """Raised when VIX proxy data is unavailable or stale.
+
+    This is a fail-closed condition. Do not default to a VIX tier - the system
+    must have real volatility data to make safe hedging decisions.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        proxy_symbol: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize VIX proxy unavailable error.
+
+        Args:
+            message: Error message
+            proxy_symbol: VIX proxy symbol that failed (e.g., "VIXY")
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="vix_proxy_unavailable",
+            underlying_symbol=proxy_symbol,
+            correlation_id=correlation_id,
+        )
+        self.proxy_symbol = proxy_symbol
+
+
+class IVDataStaleError(HedgeFailClosedError):
+    """Raised when implied volatility data is stale or unavailable.
+
+    This is a fail-closed condition. Cannot select options safely without
+    current IV data.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        underlying_symbol: str | None = None,
+        data_age_seconds: float | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize IV data stale error.
+
+        Args:
+            message: Error message
+            underlying_symbol: Underlying symbol
+            data_age_seconds: Age of stale data in seconds
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="iv_data_stale",
+            underlying_symbol=underlying_symbol,
+            correlation_id=correlation_id,
+        )
+        self.data_age_seconds = data_age_seconds
+        if data_age_seconds is not None:
+            self.context["data_age_seconds"] = data_age_seconds
+
+
+class ScenarioSizingFailedError(HedgeFailClosedError):
+    """Raised when scenario-based sizing calculation fails.
+
+    This is a fail-closed condition. Cannot size hedges safely without
+    valid scenario analysis.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        underlying_symbol: str | None = None,
+        scenario_move: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize scenario sizing failed error.
+
+        Args:
+            message: Error message
+            underlying_symbol: Underlying symbol
+            scenario_move: Target scenario move (e.g., "-0.20")
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="scenario_sizing_failed",
+            underlying_symbol=underlying_symbol,
+            correlation_id=correlation_id,
+        )
+        self.scenario_move = scenario_move
+        if scenario_move:
+            self.context["scenario_move"] = scenario_move
+
+
+class PremiumCapBreachedError(HedgeFailClosedError):
+    """Raised when hedge premium would exceed maximum allowed percentage of NAV.
+
+    This is a fail-closed condition. Cannot allow oversized hedge positions.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        premium_amount: str | None = None,
+        premium_cap: str | None = None,
+        nav: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize premium cap breached error.
+
+        Args:
+            message: Error message
+            premium_amount: Attempted premium amount
+            premium_cap: Maximum allowed premium
+            nav: Portfolio NAV
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="premium_cap_breached",
+            correlation_id=correlation_id,
+        )
+        self.premium_amount = premium_amount
+        self.premium_cap = premium_cap
+        self.nav = nav
+        if premium_amount:
+            self.context["premium_amount"] = premium_amount
+        if premium_cap:
+            self.context["premium_cap"] = premium_cap
+        if nav:
+            self.context["nav"] = nav
+
+
+class NoLiquidContractsError(HedgeFailClosedError):
+    """Raised when no option contracts pass liquidity filters.
+
+    This is a fail-closed condition. Cannot execute hedges with illiquid options.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        underlying_symbol: str | None = None,
+        contracts_checked: int | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize no liquid contracts error.
+
+        Args:
+            message: Error message
+            underlying_symbol: Underlying symbol
+            contracts_checked: Number of contracts that failed filters
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="no_liquid_contracts",
+            underlying_symbol=underlying_symbol,
+            correlation_id=correlation_id,
+        )
+        self.contracts_checked = contracts_checked
+        if contracts_checked is not None:
+            self.context["contracts_checked"] = contracts_checked
+
+
+class SpreadExecutionUnavailableError(HedgeFailClosedError):
+    """Raised when spread execution is unavailable for smoothing template.
+
+    This is a fail-closed condition. Smoothing template requires spread execution;
+    do not fallback to single-leg execution.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        underlying_symbol: str | None = None,
+        long_delta: str | None = None,
+        short_delta: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize spread execution unavailable error.
+
+        Args:
+            message: Error message
+            underlying_symbol: Underlying symbol
+            long_delta: Long leg delta
+            short_delta: Short leg delta
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="spread_execution_unavailable",
+            underlying_symbol=underlying_symbol,
+            correlation_id=correlation_id,
+        )
+        self.long_delta = long_delta
+        self.short_delta = short_delta
+        if long_delta:
+            self.context["long_delta"] = long_delta
+        if short_delta:
+            self.context["short_delta"] = short_delta
+
+
+class KillSwitchActiveError(HedgeFailClosedError):
+    """Raised when emergency kill switch is active.
+
+    This is a fail-closed condition. System has been manually or automatically
+    halted. Do not attempt to execute hedges.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        trigger_reason: str | None = None,
+        triggered_at: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize kill switch active error.
+
+        Args:
+            message: Error message
+            trigger_reason: Reason kill switch was triggered
+            triggered_at: ISO timestamp when kill switch was activated
+            correlation_id: Correlation ID for tracing
+
+        """
+        super().__init__(
+            message,
+            condition="kill_switch_active",
+            correlation_id=correlation_id,
+        )
+        self.trigger_reason = trigger_reason
+        self.triggered_at = triggered_at
+        if trigger_reason:
+            self.context["trigger_reason"] = trigger_reason
+        if triggered_at:
+            self.context["triggered_at"] = triggered_at
