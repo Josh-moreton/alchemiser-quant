@@ -194,11 +194,11 @@ print(f"Reason: {state.trigger_reason}")
   "switch_id": "HEDGE_KILL_SWITCH",
   "is_active": false,
   "trigger_reason": "Automatic activation after 3 failures: No liquid contracts",
-  "triggered_at": "2026-01-29T17:30:00Z",
+  "triggered_at": "2024-11-15T17:30:00+00:00",
   "triggered_by": "automatic",
   "failure_count": 0,
   "last_failure_at": null,
-  "updated_at": "2026-01-29T17:30:00Z"
+  "updated_at": "2024-11-15T17:30:00+00:00"
 }
 ```
 

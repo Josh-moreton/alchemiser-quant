@@ -122,10 +122,15 @@ class OptionSelector:
             )
 
             if not contracts:
-                logger.warning(
-                    "No contracts found in option chain",
+                # No contracts returned from adapter - likely an API/data issue
+                logger.error(
+                    "No contracts found in option chain - API/data issue",
                     underlying=underlying_symbol,
+                    correlation_id=correlation_id,
+                    alert_required=True,
                 )
+                # Return None to indicate adapter/API error (not fail-closed)
+                # Caller can decide whether to fail closed or retry
                 return None
 
             # Pre-filter by DTE before fetching quotes (reduce quote API calls)

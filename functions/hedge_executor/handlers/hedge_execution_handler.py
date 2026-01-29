@@ -139,7 +139,7 @@ class HedgeExecutionHandler:
                 "Hedge execution skipped - kill switch active",
                 correlation_id=correlation_id,
                 plan_id=plan_id,
-                trigger_reason=e.trigger_reason,
+                trigger_reason=getattr(e, "trigger_reason", None),
             )
             self._publish_all_hedges_completed(
                 event=event,

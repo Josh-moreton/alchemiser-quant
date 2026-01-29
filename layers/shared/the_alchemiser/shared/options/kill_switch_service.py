@@ -125,18 +125,24 @@ class KillSwitchService:
 
             item = response["Item"]
 
-            # Parse datetime fields
+            # Parse datetime fields with explicit UTC timezone
             triggered_at = None
             if item.get("triggered_at"):
                 # Cast to str for type safety with DynamoDB responses
                 triggered_at_str = str(item["triggered_at"])
                 triggered_at = datetime.fromisoformat(triggered_at_str)
+                # Ensure timezone-aware
+                if triggered_at.tzinfo is None:
+                    triggered_at = triggered_at.replace(tzinfo=UTC)
 
             last_failure_at = None
             if item.get("last_failure_at"):
                 # Cast to str for type safety with DynamoDB responses
                 last_failure_at_str = str(item["last_failure_at"])
                 last_failure_at = datetime.fromisoformat(last_failure_at_str)
+                # Ensure timezone-aware
+                if last_failure_at.tzinfo is None:
+                    last_failure_at = last_failure_at.replace(tzinfo=UTC)
 
             return KillSwitchState(
                 is_active=bool(item.get("is_active", False)),
@@ -184,15 +190,17 @@ class KillSwitchService:
         now = datetime.now(UTC)
 
         try:
-            self._table.put_item(
-                Item={
-                    "switch_id": self.KILL_SWITCH_KEY,
-                    "is_active": True,
-                    "trigger_reason": reason,
-                    "triggered_at": now.isoformat(),
-                    "triggered_by": triggered_by,
-                    "updated_at": now.isoformat(),
-                }
+            # Use update_item to preserve failure tracking fields
+            self._table.update_item(
+                Key={"switch_id": self.KILL_SWITCH_KEY},
+                UpdateExpression="SET is_active = :active, trigger_reason = :reason, triggered_at = :at, triggered_by = :by, updated_at = :now",
+                ExpressionAttributeValues={
+                    ":active": True,
+                    ":reason": reason,
+                    ":at": now.isoformat(),
+                    ":by": triggered_by,
+                    ":now": now.isoformat(),
+                },
             )
 
             logger.warning(
@@ -212,7 +220,7 @@ class KillSwitchService:
             raise DatabaseError(
                 message=f"Failed to activate kill switch: {e!s}",
                 table_name=self._table_name,
-                operation="put_item",
+                operation="update_item",
             ) from e
 
     def deactivate(self) -> None:
@@ -277,53 +285,57 @@ class KillSwitchService:
             return
 
         now = datetime.now(UTC)
-        failure_count = state.failure_count
 
-        # Reset failure count if last failure was outside the window
-        if state.last_failure_at:
-            window_start = now - timedelta(hours=self.FAILURE_WINDOW_HOURS)
-            if state.last_failure_at < window_start:
-                logger.info(
-                    "Last failure outside window, resetting failure count",
-                    last_failure_at=state.last_failure_at.isoformat(),
-                    window_hours=self.FAILURE_WINDOW_HOURS,
-                )
-                failure_count = 0
+        # Check if last failure was outside the window - if so, reset counter
+        window_start = now - timedelta(hours=self.FAILURE_WINDOW_HOURS)
+        should_reset = (
+            state.last_failure_at is None or state.last_failure_at < window_start
+        )
 
-        # Increment failure count
-        failure_count += 1
+        if should_reset:
+            logger.info(
+                "Last failure outside window or no previous failures, resetting counter",
+                last_failure_at=state.last_failure_at.isoformat()
+                if state.last_failure_at
+                else None,
+                window_hours=self.FAILURE_WINDOW_HOURS,
+            )
+            new_failure_count = 1
+        else:
+            new_failure_count = state.failure_count + 1
 
         logger.warning(
             "Hedge failure recorded",
             failure_reason=failure_reason,
-            failure_count=failure_count,
+            failure_count=new_failure_count,
             threshold=self.FAILURE_THRESHOLD,
             window_hours=self.FAILURE_WINDOW_HOURS,
         )
 
         # Check if threshold exceeded
-        if failure_count >= self.FAILURE_THRESHOLD:
+        if new_failure_count >= self.FAILURE_THRESHOLD:
             logger.error(
                 "Failure threshold exceeded - activating kill switch automatically",
-                failure_count=failure_count,
+                failure_count=new_failure_count,
                 threshold=self.FAILURE_THRESHOLD,
                 latest_failure=failure_reason,
             )
             self.activate(
-                reason=f"Automatic activation after {failure_count} failures: {failure_reason}",
+                reason=f"Automatic activation after {new_failure_count} failures: {failure_reason}",
                 triggered_by="automatic",
             )
         else:
-            # Update failure count without activating
+            # Update failure count without activating - use update_item for atomic operation
             try:
-                self._table.put_item(
-                    Item={
-                        "switch_id": self.KILL_SWITCH_KEY,
-                        "is_active": False,
-                        "failure_count": failure_count,
-                        "last_failure_at": now.isoformat(),
-                        "updated_at": now.isoformat(),
-                    }
+                self._table.update_item(
+                    Key={"switch_id": self.KILL_SWITCH_KEY},
+                    UpdateExpression="SET failure_count = :count, last_failure_at = :last, updated_at = :now, is_active = if_not_exists(is_active, :false)",
+                    ExpressionAttributeValues={
+                        ":count": new_failure_count,
+                        ":last": now.isoformat(),
+                        ":now": now.isoformat(),
+                        ":false": False,
+                    },
                 )
             except (BotoCoreError, ClientError) as e:
                 logger.error(

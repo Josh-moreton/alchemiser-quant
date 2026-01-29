@@ -112,10 +112,11 @@ class HedgeEvaluationHandler:
                     "Hedge evaluation skipped - kill switch active",
                     correlation_id=correlation_id,
                     plan_id=plan_id,
-                    trigger_reason=e.trigger_reason,
+                    trigger_reason=getattr(e, "trigger_reason", None),
                 )
                 self._publish_skip_event(
-                    event, f"Kill switch active: {e.trigger_reason or 'unknown reason'}"
+                    event,
+                    f"Kill switch active: {getattr(e, 'trigger_reason', 'unknown reason')}",
                 )
                 return
 
