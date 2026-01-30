@@ -675,10 +675,30 @@ class OptionSelector:
             # Net debit = long premium - short credit
             net_debit_per_contract = (long_mid_price - short_mid_price) * 100
 
+            # Validate spread pricing - must be a net debit for protective put spreads
+            if net_debit_per_contract <= 0:
+                logger.error(
+                    "Invalid spread pricing - net debit must be positive for protective spread - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    long_strike=str(long_leg.strike_price),
+                    long_mid_price=str(long_mid_price),
+                    short_strike=str(short_leg.strike_price),
+                    short_mid_price=str(short_mid_price),
+                    net_debit=str(net_debit_per_contract),
+                    correlation_id=correlation_id,
+                    fail_closed_condition="invalid_spread_pricing",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"Invalid spread pricing on {underlying_symbol}: net debit {net_debit_per_contract} <= 0. "
+                    "Long leg premium must exceed short leg premium for protective put spread.",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
             # Calculate contracts to buy based on net premium budget
-            contracts_to_buy = 1
-            if net_debit_per_contract > 0:
-                contracts_to_buy = max(1, int(premium_budget / net_debit_per_contract))
+            contracts_to_buy = max(1, int(premium_budget / net_debit_per_contract))
 
             # Estimated net premium
             estimated_net_premium = net_debit_per_contract * contracts_to_buy

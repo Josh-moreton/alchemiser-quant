@@ -406,13 +406,26 @@ class OptionsExecutionService:
 
                     # Both legs filled - calculate net premium
                     long_filled_price = result.filled_price or Decimal("0")
+                    long_filled_qty = result.filled_quantity
                     short_filled_qty = int(short_order_status.get("filled_qty", 0))
                     short_filled_price = self._parse_decimal(
                         short_order_status.get("filled_avg_price")
                     ) or Decimal("0")
 
+                    # Verify both legs have same quantity (spread requirement)
+                    if long_filled_qty != short_filled_qty:
+                        logger.warning(
+                            "Spread legs filled with different quantities",
+                            long_filled_qty=long_filled_qty,
+                            short_filled_qty=short_filled_qty,
+                            long_order_id=long_order_id,
+                            short_order_id=short_order_id,
+                        )
+
                     # Net debit = long premium - short credit
-                    net_premium = (long_filled_price - short_filled_price) * short_filled_qty * 100
+                    # Use minimum quantity to ensure consistency
+                    filled_qty = min(long_filled_qty, short_filled_qty)
+                    net_premium = (long_filled_price - short_filled_price) * filled_qty * 100
 
                     logger.info(
                         "Spread order fully executed",
@@ -429,7 +442,7 @@ class OptionsExecutionService:
                         option_symbol=f"{long_symbol}/{short_symbol}",
                         underlying_symbol=underlying_symbol,
                         quantity=quantity,
-                        filled_quantity=min(result.filled_quantity, short_filled_qty),
+                        filled_quantity=filled_qty,
                         filled_price=long_filled_price - short_filled_price,
                         total_premium=net_premium,
                     )
@@ -440,8 +453,18 @@ class OptionsExecutionService:
                         short_order_id=short_order_id,
                         error=str(e),
                     )
-                    # Return success for long leg
-                    return result
+                    # Return result with error message about short leg verification failure
+                    return ExecutionResult(
+                        success=result.success,
+                        order_id=result.order_id,
+                        option_symbol=result.option_symbol,
+                        underlying_symbol=underlying_symbol,
+                        quantity=result.quantity,
+                        filled_quantity=result.filled_quantity,
+                        filled_price=result.filled_price,
+                        total_premium=result.total_premium,
+                        error_message=f"Long leg filled but short leg verification failed: {e}",
+                    )
 
             return result
 
