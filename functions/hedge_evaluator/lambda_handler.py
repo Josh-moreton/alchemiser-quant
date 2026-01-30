@@ -40,6 +40,17 @@ configure_application_logging()
 logger = get_logger(__name__)
 
 
+def _is_hedging_enabled() -> bool:
+    """Check if options hedging is enabled via environment variable.
+
+    Returns:
+        True if OPTIONS_HEDGING_ENABLED is set to 'true' (case-insensitive),
+        False otherwise. Defaults to False for safety.
+
+    """
+    return os.environ.get("OPTIONS_HEDGING_ENABLED", "false").lower() == "true"
+
+
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle EventBridge event for hedge evaluation.
 
@@ -59,6 +70,25 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     # Extract correlation ID for logging
     detail = unwrap_eventbridge_event(event)
     correlation_id = detail.get("correlation_id", str(uuid.uuid4()))
+
+    # Feature flag check - skip hedging if disabled
+    if not _is_hedging_enabled():
+        logger.info(
+            "Options hedging DISABLED via feature flag - skipping evaluation",
+            extra={
+                "correlation_id": correlation_id,
+                "feature_flag": "OPTIONS_HEDGING_ENABLED",
+                "status": "skipped",
+            },
+        )
+        return {
+            "statusCode": 200,
+            "body": {
+                "status": "skipped",
+                "correlation_id": correlation_id,
+                "reason": "Options hedging disabled via OPTIONS_HEDGING_ENABLED feature flag",
+            },
+        }
 
     logger.info(
         "HedgeEvaluator Lambda invoked",

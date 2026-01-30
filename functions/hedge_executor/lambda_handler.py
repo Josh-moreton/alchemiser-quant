@@ -34,6 +34,19 @@ configure_application_logging()
 logger = get_logger(__name__)
 
 
+def _is_hedging_enabled() -> bool:
+    """Check if options hedging is enabled via environment variable.
+
+    Returns:
+        True if OPTIONS_HEDGING_ENABLED is set to 'true' (case-insensitive),
+        False otherwise. Defaults to False for safety.
+
+    """
+    import os
+
+    return os.environ.get("OPTIONS_HEDGING_ENABLED", "false").lower() == "true"
+
+
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle SQS event for hedge execution.
 
@@ -50,6 +63,19 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         Response with batch item failures for retry
 
     """
+    # Feature flag check - skip execution if disabled
+    if not _is_hedging_enabled():
+        logger.info(
+            "Options hedging DISABLED via feature flag - skipping execution",
+            extra={
+                "feature_flag": "OPTIONS_HEDGING_ENABLED",
+                "status": "skipped",
+                "record_count": len(event.get("Records", [])),
+            },
+        )
+        # Return empty batch failures to acknowledge all messages without processing
+        return {"batchItemFailures": []}
+
     records = event.get("Records", [])
     batch_item_failures: list[dict[str, str]] = []
 

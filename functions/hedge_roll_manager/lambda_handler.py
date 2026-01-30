@@ -8,6 +8,7 @@ and trigger roll operations.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -24,6 +25,17 @@ from the_alchemiser.shared.logging import configure_application_logging, get_log
 configure_application_logging()
 
 logger = get_logger(__name__)
+
+
+def _is_hedging_enabled() -> bool:
+    """Check if options hedging is enabled via environment variable.
+
+    Returns:
+        True if OPTIONS_HEDGING_ENABLED is set to 'true' (case-insensitive),
+        False otherwise. Defaults to False for safety.
+
+    """
+    return os.environ.get("OPTIONS_HEDGING_ENABLED", "false").lower() == "true"
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
@@ -43,6 +55,25 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     """
     correlation_id = f"roll-check-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+
+    # Feature flag check - skip roll management if hedging disabled
+    if not _is_hedging_enabled():
+        logger.info(
+            "Options hedging DISABLED via feature flag - skipping roll check",
+            extra={
+                "correlation_id": correlation_id,
+                "feature_flag": "OPTIONS_HEDGING_ENABLED",
+                "status": "skipped",
+            },
+        )
+        return {
+            "statusCode": 200,
+            "body": {
+                "status": "skipped",
+                "correlation_id": correlation_id,
+                "reason": "Options hedging disabled via OPTIONS_HEDGING_ENABLED feature flag",
+            },
+        }
 
     logger.info(
         "HedgeRollManager Lambda invoked",

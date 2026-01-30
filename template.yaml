@@ -1923,6 +1923,8 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
@@ -2034,6 +2036,8 @@ Resources:
       ReservedConcurrentExecutions: 3  # Conservative for options API limits
       Environment:
         Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
@@ -2123,6 +2127,8 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
