@@ -22,7 +22,9 @@ from the_alchemiser.shared.options.constants import (
     STRIKE_MIN_OTM_RATIO,
     TAIL_HEDGE_TEMPLATE,
 )
+from the_alchemiser.shared.options.convexity_selector import ConvexitySelector
 from the_alchemiser.shared.options.schemas import OptionContract, OptionType
+from the_alchemiser.shared.options.tenor_selector import TenorSelector
 from the_alchemiser.shared.options.utils import calculate_contracts_for_payoff_target
 
 logger = get_logger(__name__)
@@ -57,6 +59,8 @@ class OptionSelector:
         self._adapter = options_adapter
         self._template = TAIL_HEDGE_TEMPLATE
         self._filters = LIQUIDITY_FILTERS
+        self._tenor_selector = TenorSelector()
+        self._convexity_selector = ConvexitySelector()
 
     def select_hedge_contract(
         self,
@@ -67,6 +71,8 @@ class OptionSelector:
         underlying_price: Decimal,
         nav: Decimal | None = None,
         correlation_id: str | None = None,
+        current_vix: Decimal | None = None,
+        iv_percentile: Decimal | None = None,
     ) -> SelectedOption | None:
         """Select optimal option contract for hedging.
 
@@ -78,6 +84,8 @@ class OptionSelector:
             underlying_price: Current underlying price
             nav: Portfolio NAV (optional, for payoff-based sizing)
             correlation_id: Correlation ID for tracing
+            current_vix: Current VIX level (optional, enables dynamic tenor)
+            iv_percentile: IV percentile (optional, for tenor selection)
 
         Returns:
             SelectedOption if found, None if no suitable contract
@@ -86,6 +94,20 @@ class OptionSelector:
             NoLiquidContractsError: If no contracts pass liquidity filters (fail-closed)
 
         """
+        # Use dynamic tenor selection if VIX provided
+        if current_vix is not None:
+            tenor_recommendation = self._tenor_selector.select_tenor(
+                current_vix=current_vix,
+                iv_percentile=iv_percentile,
+                use_ladder=False,  # For now, use single tenor
+            )
+            target_dte = tenor_recommendation.primary_dte
+            logger.info(
+                "Dynamic tenor selected",
+                target_dte=target_dte,
+                rationale=tenor_recommendation.rationale,
+            )
+
         logger.info(
             "Selecting hedge contract",
             underlying=underlying_symbol,
@@ -198,6 +220,7 @@ class OptionSelector:
                 contracts=contracts,
                 target_delta=target_delta,
                 target_expiry=target_expiry,
+                underlying_price=underlying_price,
             )
 
             if best_contract is None:
@@ -244,13 +267,18 @@ class OptionSelector:
         contracts: list[OptionContract],
         target_delta: Decimal,
         target_expiry: date,
+        underlying_price: Decimal,
     ) -> OptionContract | None:
         """Find best contract from chain based on delta and expiry.
+
+        Uses convexity-based selection when sufficient data available,
+        otherwise falls back to delta/expiry scoring.
 
         Args:
             contracts: List of option contracts
             target_delta: Target delta (positive, e.g., 0.15)
             target_expiry: Target expiration date
+            underlying_price: Current underlying price
 
         Returns:
             Best matching contract, or None if none pass filters
@@ -258,7 +286,7 @@ class OptionSelector:
         """
         # First pass: try with full filters
         best_contract = self._select_best_contract(
-            contracts, target_delta, target_expiry, skip_oi_filter=False
+            contracts, target_delta, target_expiry, underlying_price, skip_oi_filter=False
         )
 
         if best_contract is not None:
@@ -273,7 +301,7 @@ class OptionSelector:
             )
             # Second pass: retry without OI filter for paper trading
             best_contract = self._select_best_contract(
-                contracts, target_delta, target_expiry, skip_oi_filter=True
+                contracts, target_delta, target_expiry, underlying_price, skip_oi_filter=True
             )
 
         return best_contract
@@ -283,29 +311,72 @@ class OptionSelector:
         contracts: list[OptionContract],
         target_delta: Decimal,
         target_expiry: date,
+        underlying_price: Decimal,
         *,
         skip_oi_filter: bool,
     ) -> OptionContract | None:
         """Select best contract with optional filter bypass.
 
+        Uses convexity-based selection when gamma data is available,
+        otherwise falls back to delta/expiry scoring.
+
         Args:
             contracts: List of option contracts
             target_delta: Target delta
             target_expiry: Target expiration date
+            underlying_price: Current underlying price
             skip_oi_filter: Skip open interest filter (for paper API)
 
         Returns:
             Best matching contract, or None if none pass filters
 
         """
+        # Filter by liquidity first
+        liquid_contracts = [
+            c for c in contracts if self._passes_liquidity_filter(c, skip_oi_filter=skip_oi_filter)
+        ]
+
+        if not liquid_contracts:
+            return None
+
+        # Try convexity-based selection if gamma data available
+        convexity_metrics = []
+        for contract in liquid_contracts:
+            metrics = self._convexity_selector.calculate_convexity_metrics(
+                contract, underlying_price
+            )
+            if metrics is not None:
+                convexity_metrics.append(metrics)
+
+        # If we have sufficient convexity data, use it
+        if len(convexity_metrics) >= len(liquid_contracts) // 2:
+            logger.info(
+                "Using convexity-based selection",
+                total_contracts=len(liquid_contracts),
+                with_convexity=len(convexity_metrics),
+            )
+
+            # Filter by payoff contribution
+            filtered_metrics = self._convexity_selector.filter_by_payoff_contribution(
+                convexity_metrics
+            )
+
+            if filtered_metrics:
+                # Rank by convexity and return best
+                ranked = self._convexity_selector.rank_by_convexity(filtered_metrics)
+                return ranked[0].contract
+
+        # Fallback: traditional delta/expiry scoring
+        logger.info(
+            "Using traditional delta/expiry scoring",
+            total_contracts=len(liquid_contracts),
+            with_convexity=len(convexity_metrics),
+        )
+
         best_contract: OptionContract | None = None
         best_score = Decimal("999999")
 
-        for contract in contracts:
-            # Apply liquidity filters
-            if not self._passes_liquidity_filter(contract, skip_oi_filter=skip_oi_filter):
-                continue
-
+        for contract in liquid_contracts:
             # Score contract (lower is better)
             score = self._score_contract(contract, target_delta, target_expiry)
 
@@ -332,10 +403,25 @@ class OptionSelector:
         if not skip_oi_filter and contract.open_interest < self._filters.min_open_interest:
             return False
 
-        # Check bid-ask spread
+        # Check volume
+        if contract.volume < self._filters.min_volume:
+            return False
+
+        # Check mid price minimum (avoid penny options)
+        mid_price = contract.mid_price
+        if mid_price is None or mid_price < self._filters.min_mid_price:
+            return False
+
+        # Check bid-ask spread (percentage)
         spread_pct = contract.spread_pct
         if spread_pct is not None and spread_pct > self._filters.max_spread_pct:
             return False
+
+        # Check absolute bid-ask spread
+        if contract.bid_price is not None and contract.ask_price is not None:
+            spread_absolute = contract.ask_price - contract.bid_price
+            if spread_absolute > self._filters.max_spread_absolute:
+                return False
 
         # Check DTE
         dte = contract.days_to_expiry
