@@ -244,7 +244,8 @@ class RollScheduleHandler:
             count=len(positions),
         )
 
-        return positions
+        # Cast to expected type for mypy
+        return list(positions) if positions else []
 
     def _trigger_roll(
         self,
@@ -340,10 +341,11 @@ class RollScheduleHandler:
             else:
                 entry_date = date.fromisoformat(entry_date_str)
 
-            days_held = (today - entry_date).days
+            days_held: int = (today - entry_date).days
 
             # Roll if held >= 21 days
-            return days_held >= self._smoothing_template.roll_cadence_days
+            should_roll: bool = days_held >= self._smoothing_template.roll_cadence_days
+            return should_roll
 
         except (ValueError, AttributeError) as e:
             logger.warning(
