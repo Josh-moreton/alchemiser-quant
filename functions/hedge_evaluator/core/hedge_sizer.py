@@ -3,7 +3,7 @@
 Hedge sizing calculator for options hedging.
 
 Determines appropriate hedge sizing based on:
-- VIX-adaptive premium budget
+- IV-adaptive premium budget (replaces VIX proxy)
 - Portfolio exposure and leverage
 - Target delta and payoff objectives
 - Template selection (tail_first, smoothing)
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.constants import (
@@ -21,19 +21,17 @@ from the_alchemiser.shared.options.constants import (
     MAX_SINGLE_POSITION_PCT,
     MIN_EXPOSURE_RATIO,
     MIN_NAV_THRESHOLD,
-    RICH_IV_THRESHOLD,
     SMOOTHING_HEDGE_TEMPLATE,
     TAIL_HEDGE_TEMPLATE,
-    VIX_HIGH_THRESHOLD,
-    VIX_LOW_THRESHOLD,
     apply_rich_iv_adjustment,
     check_annual_spend_cap,
-    get_budget_rate_for_vix,
     get_exposure_multiplier,
-    should_reduce_hedge_intensity,
 )
 
 from .exposure_calculator import PortfolioExposure
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.options.iv_signal import IVRegime, IVSignal
 
 logger = get_logger(__name__)
 
@@ -52,7 +50,7 @@ class HedgeRecommendation:
     nav_pct: Decimal  # Budget as percentage of NAV
     contracts_estimated: int  # Estimated contracts (refined during execution)
     hedge_template: Literal["tail_first", "smoothing"]  # Template name
-    vix_tier: str  # VIX tier used (low, mid, high)
+    vix_tier: str  # Regime tier (low, mid, high) - kept for backward compatibility
     exposure_multiplier: Decimal  # Multiplier applied for leverage
     # Spread-specific fields (only used for smoothing template)
     short_delta: Decimal | None = None  # Short leg delta (for put spreads)
@@ -64,8 +62,10 @@ class HedgeRecommendation:
 class HedgeSizer:
     """Calculates hedge sizing based on portfolio exposure and market conditions.
 
-    Uses VIX-adaptive budgeting to buy protection more aggressively when
-    volatility is low (options are cheap) and conservatively when high.
+    Uses IV-adaptive budgeting to buy protection more aggressively when
+    implied volatility is low (options are cheap) and conservatively when high.
+
+    Replaces VIX proxy (VIXY × 10) with proper IV data from the hedge underlying.
 
     Supports multiple hedge templates:
     - tail_first: Long 15-delta puts (high convexity, higher cost)
@@ -87,35 +87,44 @@ class HedgeSizer:
     def calculate_hedge_recommendation(
         self,
         exposure: PortfolioExposure,
-        current_vix: Decimal,
+        iv_signal: IVSignal,
+        iv_regime: IVRegime,
         underlying_price: Decimal | None = None,
     ) -> HedgeRecommendation:
-        """Calculate hedge sizing recommendation.
+        """Calculate hedge sizing recommendation based on IV signal.
 
         Args:
             exposure: Portfolio exposure metrics from ExposureCalculator
-            current_vix: Current VIX index value (REQUIRED - no default)
+            iv_signal: IV signal with ATM IV, skew, and percentile
+            iv_regime: IV regime classification (low/mid/high)
             underlying_price: Current price of hedge underlying (for contract estimate)
 
         Returns:
             HedgeRecommendation with sizing parameters
 
         """
-        vix = current_vix
-
-        # Get VIX-adaptive base budget rate
+        # Map IV regime to budget rate
+        # Low IV (< 30th percentile): Buy protection aggressively (0.8% NAV/month)
+        # Mid IV (30th-70th percentile): Standard hedging (0.5% NAV/month)
+        # High IV (> 70th percentile): Reduce intensity (0.3% NAV/month)
         if self._template_name == "smoothing":
             # Smoothing template has its own budget rates
-            if vix < VIX_LOW_THRESHOLD:
+            if iv_regime.regime == "low":
                 base_rate = SMOOTHING_HEDGE_TEMPLATE.budget_vix_low
-            elif vix < VIX_HIGH_THRESHOLD:
+            elif iv_regime.regime == "mid":
                 base_rate = SMOOTHING_HEDGE_TEMPLATE.budget_vix_mid
             else:
                 base_rate = SMOOTHING_HEDGE_TEMPLATE.budget_vix_high
         else:
-            base_rate = get_budget_rate_for_vix(vix)
+            # Tail hedge template budget rates
+            if iv_regime.regime == "low":
+                base_rate = TAIL_HEDGE_TEMPLATE.budget_vix_low
+            elif iv_regime.regime == "mid":
+                base_rate = TAIL_HEDGE_TEMPLATE.budget_vix_mid
+            else:
+                base_rate = TAIL_HEDGE_TEMPLATE.budget_vix_high
 
-        vix_tier = self._get_vix_tier(vix)
+        regime_tier = iv_regime.regime  # For backward compatibility with "vix_tier"
 
         # Apply exposure multiplier for leveraged portfolios
         exposure_multiplier = get_exposure_multiplier(exposure.net_exposure_ratio)
@@ -147,12 +156,21 @@ class HedgeSizer:
             ) / Decimal("2")
 
         # Apply rich IV adjustments if needed (only for outright positions, not spreads)
+        # Rich IV: When IV percentile is high (> 70th percentile) OR skew is rich
         # Note: For spreads, adjusting only the long leg delta would change the spread width
         # in unintended ways. Skip rich IV adjustments for spread strategies.
-        if should_reduce_hedge_intensity(vix) and not is_spread:
+        should_reduce = iv_regime.regime == "high" or iv_regime.skew_rich
+        
+        if should_reduce and not is_spread:
+            # Convert IV percentile to approximate VIX for legacy adjustment function
+            # This is temporary until we refactor apply_rich_iv_adjustment
+            approximate_vix = self._iv_percentile_to_vix_approx(iv_signal.atm_iv)
+            
             logger.info(
                 "Applying rich IV adjustments",
-                vix=str(vix),
+                iv_percentile=str(iv_signal.iv_percentile),
+                iv_skew=str(iv_signal.iv_skew),
+                skew_rich=iv_regime.skew_rich,
                 original_delta=str(target_delta),
                 original_dte=target_dte,
                 original_payoff_pct=str(target_payoff_pct),
@@ -161,7 +179,7 @@ class HedgeSizer:
                 target_delta=target_delta,
                 target_dte=target_dte,
                 target_payoff_pct=target_payoff_pct,
-                vix=vix,
+                vix=approximate_vix,
             )
             logger.info(
                 "Rich IV adjustments applied",
@@ -169,10 +187,11 @@ class HedgeSizer:
                 adjusted_dte=target_dte,
                 adjusted_payoff_pct=str(target_payoff_pct),
             )
-        elif should_reduce_hedge_intensity(vix) and is_spread:
+        elif should_reduce and is_spread:
             logger.info(
                 "Skipping rich IV adjustments for spread position",
-                vix=str(vix),
+                iv_regime=iv_regime.regime,
+                skew_rich=iv_regime.skew_rich,
                 template=self._template_name,
                 reason="Adjusting long leg delta would change spread width",
             )
@@ -199,7 +218,7 @@ class HedgeSizer:
             is_spread=is_spread,
         )
 
-        rich_iv_applied = should_reduce_hedge_intensity(vix) and not is_spread
+        rich_iv_applied = should_reduce and not is_spread
 
         recommendation = HedgeRecommendation(
             underlying_symbol=exposure.primary_hedge_underlying,
@@ -209,7 +228,7 @@ class HedgeSizer:
             nav_pct=nav_pct,
             contracts_estimated=contracts_estimated,
             hedge_template=self._template_name,
-            vix_tier=vix_tier,
+            vix_tier=regime_tier,
             exposure_multiplier=exposure_multiplier,
             short_delta=short_delta,
             is_spread=is_spread,
@@ -221,8 +240,9 @@ class HedgeSizer:
             underlying=exposure.primary_hedge_underlying,
             premium_budget=str(premium_budget),
             nav_pct=str(nav_pct),
-            vix=str(vix),
-            vix_tier=vix_tier,
+            iv_regime=regime_tier,
+            iv_percentile=str(iv_signal.iv_percentile),
+            iv_skew=str(iv_signal.iv_skew),
             exposure_ratio=str(exposure.net_exposure_ratio),
             exposure_multiplier=str(exposure_multiplier),
             contracts_estimated=contracts_estimated,
@@ -233,21 +253,27 @@ class HedgeSizer:
 
         return recommendation
 
-    def _get_vix_tier(self, vix: Decimal) -> str:
-        """Determine VIX tier for logging/reporting.
+    def _iv_percentile_to_vix_approx(self, atm_iv: Decimal) -> Decimal:
+        """Convert ATM IV to approximate VIX for legacy adjustment functions.
+
+        This is a temporary mapping until we refactor apply_rich_iv_adjustment
+        to work directly with IV percentile.
 
         Args:
-            vix: Current VIX value
+            atm_iv: ATM implied volatility (e.g., 0.20 = 20%)
 
         Returns:
-            VIX tier string (low, mid, high)
+            Approximate VIX value
 
         """
-        if vix < VIX_LOW_THRESHOLD:
-            return "low"
-        if vix < VIX_HIGH_THRESHOLD:
-            return "mid"
-        return "high"
+        # Convert IV to percentage (0.20 → 20)
+        iv_pct = atm_iv * 100
+
+        # Map IV to VIX-like scale
+        # Typical ATM IV: 15-25% → VIX 15-25
+        # High ATM IV: 30-40% → VIX 30-40
+        # Very high ATM IV: > 40% → VIX > 40
+        return iv_pct  # Direct mapping for now
 
     def _estimate_contracts(
         self,
