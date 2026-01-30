@@ -189,6 +189,7 @@ class HedgeEvaluationHandler:
                 "premium_budget": str(recommendation.premium_budget),
                 "contracts_estimated": recommendation.contracts_estimated,
                 "hedge_template": recommendation.hedge_template,
+                "current_vix": str(current_vix),  # For dynamic tenor selection
             }
 
             # Publish HedgeEvaluationCompleted event
@@ -205,6 +206,7 @@ class HedgeEvaluationHandler:
                 total_premium_budget=recommendation.premium_budget,
                 budget_nav_pct=recommendation.nav_pct,
                 vix_tier=recommendation.vix_tier,
+                current_vix=current_vix,
                 exposure_multiplier=recommendation.exposure_multiplier,
             )
 

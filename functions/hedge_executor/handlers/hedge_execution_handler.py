@@ -250,6 +250,8 @@ class HedgeExecutionHandler:
         premium_budget = Decimal(recommendation.get("premium_budget", "0"))
         hedge_template = recommendation.get("hedge_template", "tail_first")
         is_spread = recommendation.get("is_spread", False)
+        current_vix_str = recommendation.get("current_vix")
+        current_vix = Decimal(current_vix_str) if current_vix_str else None
 
         # FAIL-CLOSED CHECK: Spread execution availability for smoothing template
         # Smoothing template REQUIRES spread execution (buy 30-delta, sell 10-delta)
@@ -320,6 +322,7 @@ class HedgeExecutionHandler:
             underlying_price=underlying_price,
             nav=portfolio_nav,
             correlation_id=correlation_id,
+            current_vix=current_vix,
         )
 
         if selected is None:
