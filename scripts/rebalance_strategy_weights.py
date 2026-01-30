@@ -45,7 +45,16 @@ CONFIG_DIR = (
     / "shared"
     / "config"
 )
-STRATEGY_PROD_JSON = CONFIG_DIR / "strategy.prod.json"
+
+# Valid stages
+VALID_STAGES = ("dev", "staging", "prod")
+
+
+def get_config_path(stage: str) -> Path:
+    """Get the config file path for the given stage."""
+    if stage not in VALID_STAGES:
+        raise ValueError(f"Invalid stage '{stage}'. Must be one of: {VALID_STAGES}")
+    return CONFIG_DIR / f"strategy.{stage}.json"
 
 # Calmar-tilt parameters (from issue #2975)
 ALPHA = Decimal("0.5")  # Square-root dampening
@@ -84,6 +93,13 @@ def match_csv_name_to_filename(csv_name: str) -> str | None:
         if csv_name.startswith(prefix):
             return filename
     return None
+
+
+def strip_prefix(filename: str) -> str:
+    """Strip 'testing/' prefix from filename if present."""
+    if filename.startswith("testing/"):
+        return filename[8:]  # len("testing/") == 8
+    return filename
 
 
 def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
@@ -237,15 +253,15 @@ def calculate_calmar_tilt_weights(
     return normalized_weights
 
 
-def load_current_config() -> dict:
-    """Load the current strategy.prod.json config."""
-    with STRATEGY_PROD_JSON.open("r", encoding="utf-8") as f:
+def load_current_config(config_path: Path) -> dict:
+    """Load the current strategy config."""
+    with config_path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_config(config: dict) -> None:
-    """Save the strategy.prod.json config."""
-    with STRATEGY_PROD_JSON.open("w", encoding="utf-8") as f:
+def save_config(config: dict, config_path: Path) -> None:
+    """Save the strategy config."""
+    with config_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
         f.write("\n")  # Trailing newline
 
@@ -283,7 +299,18 @@ def main() -> int:
         default=2.0,
         help="Maximum multiplier cap (default: 2.0)",
     )
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="prod",
+        choices=VALID_STAGES,
+        help="Stage to update: dev, staging, or prod (default: prod)",
+    )
     args = parser.parse_args()
+
+    # Get config path for the specified stage
+    config_path = get_config_path(args.stage)
+    print(f"Target config: {config_path.name}")
 
     # Find CSV file
     if args.csv:
@@ -302,7 +329,7 @@ def main() -> int:
         print(f"  {filename:25s}: {float(calmar):10.2f}")
 
     # Load current config
-    config = load_current_config()
+    config = load_current_config(config_path)
     old_allocations = config.get("allocations", {})
     config_files = set(config.get("files", []))
 
@@ -355,7 +382,7 @@ def main() -> int:
         print(f"\n⚠️  Strategies in CSV but not in config: {extra_in_csv}")
 
     if args.dry_run:
-        print("\n[DRY RUN] No changes made to strategy.prod.json")
+        print(f"\n[DRY RUN] No changes made to {config_path.name}")
         return 0
 
     # Update config
@@ -364,8 +391,8 @@ def main() -> int:
         for filename in config.get("files", [])
     }
 
-    save_config(config)
-    print(f"\n✅ Updated {STRATEGY_PROD_JSON}")
+    save_config(config, config_path)
+    print(f"\n✅ Updated {config_path}")
 
     return 0
 

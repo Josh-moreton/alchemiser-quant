@@ -1,0 +1,89 @@
+"""Business Unit: shared | Status: current.
+
+Options hedging constants and configuration.
+"""
+
+from __future__ import annotations
+
+from .hedge_config import (
+    # Thresholds
+    CRITICAL_DTE_THRESHOLD,
+    DEFAULT_ETF_PRICE_FALLBACK,
+    DEFAULT_ETF_PRICES,
+    HEDGE_ETFS,
+    LIMIT_PRICE_DISCOUNT_FACTOR,
+    LIQUIDITY_FILTERS,
+    MAX_ANNUAL_PREMIUM_SPEND_PCT,
+    MAX_EXISTING_HEDGE_COUNT,
+    MAX_SINGLE_POSITION_PCT,
+    MIN_EXPOSURE_RATIO,
+    MIN_NAV_THRESHOLD,
+    ORDER_POLL_INTERVAL_SECONDS,
+    QQQ_PREFERENCE_THRESHOLD,
+    RICH_IV_THRESHOLD,
+    SMOOTHING_HEDGE_TEMPLATE,
+    STRIKE_MAX_OTM_RATIO,
+    STRIKE_MIN_OTM_RATIO,
+    TAIL_HEDGE_TEMPLATE,
+    TARGET_ANNUAL_PREMIUM_SPEND_MAX_PCT,
+    TARGET_ANNUAL_PREMIUM_SPEND_MIN_PCT,
+    VIX_HIGH_THRESHOLD,
+    VIX_LOW_THRESHOLD,
+    VIX_PROXY_SCALE_FACTOR,
+    VIX_PROXY_SYMBOL,
+    # Dataclasses
+    HedgeETF,
+    LiquidityFilters,
+    SmoothingHedgeTemplate,
+    TailHedgeTemplate,
+    # Functions
+    apply_rich_iv_adjustment,
+    calculate_annual_drag,
+    check_annual_spend_cap,
+    get_budget_rate_for_vix,
+    get_exposure_multiplier,
+    should_reduce_hedge_intensity,
+)
+from .sector_mapping import (
+    TICKER_SECTOR_MAP,
+    get_hedge_etf,
+)
+
+__all__ = [
+    "CRITICAL_DTE_THRESHOLD",
+    "DEFAULT_ETF_PRICES",
+    "DEFAULT_ETF_PRICE_FALLBACK",
+    "HEDGE_ETFS",
+    "LIMIT_PRICE_DISCOUNT_FACTOR",
+    "LIQUIDITY_FILTERS",
+    "MAX_ANNUAL_PREMIUM_SPEND_PCT",
+    "MAX_EXISTING_HEDGE_COUNT",
+    "MAX_SINGLE_POSITION_PCT",
+    "MIN_EXPOSURE_RATIO",
+    "MIN_NAV_THRESHOLD",
+    "ORDER_POLL_INTERVAL_SECONDS",
+    "QQQ_PREFERENCE_THRESHOLD",
+    "RICH_IV_THRESHOLD",
+    "SMOOTHING_HEDGE_TEMPLATE",
+    "STRIKE_MAX_OTM_RATIO",
+    "STRIKE_MIN_OTM_RATIO",
+    "TAIL_HEDGE_TEMPLATE",
+    "TARGET_ANNUAL_PREMIUM_SPEND_MAX_PCT",
+    "TARGET_ANNUAL_PREMIUM_SPEND_MIN_PCT",
+    "TICKER_SECTOR_MAP",
+    "VIX_HIGH_THRESHOLD",
+    "VIX_LOW_THRESHOLD",
+    "VIX_PROXY_SCALE_FACTOR",
+    "VIX_PROXY_SYMBOL",
+    "HedgeETF",
+    "LiquidityFilters",
+    "SmoothingHedgeTemplate",
+    "TailHedgeTemplate",
+    "apply_rich_iv_adjustment",
+    "calculate_annual_drag",
+    "check_annual_spend_cap",
+    "get_budget_rate_for_vix",
+    "get_exposure_multiplier",
+    "get_hedge_etf",
+    "should_reduce_hedge_intensity",
+]

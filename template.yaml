@@ -502,6 +502,121 @@ Resources:
         - Key: Service
           Value: bad-data-markers
 
+  # ========== HEDGE POSITIONS TABLE (OPTIONS HEDGING) ==========
+  # DynamoDB table for tracking active hedge positions (protective puts)
+  # Used by HedgeRollManager to identify positions needing roll
+  HedgePositionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-positions"
+        - !Sub "alchemiser-${Stage}-hedge-positions"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      GlobalSecondaryIndexes:
+        # GSI1: Query by underlying symbol and expiration for roll management
+        - IndexName: GSI1-UnderlyingExpirationIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: hedge-positions
+
+  # ========== HEDGE HISTORY TABLE (OPTIONS HEDGING AUDIT TRAIL) ==========
+  # DynamoDB table for tracking all hedge actions for audit and compliance
+  # Records HEDGE_OPENED, HEDGE_ROLLED, HEDGE_CLOSED, etc. actions
+  HedgeHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-history"
+        - !Sub "alchemiser-${Stage}-hedge-history"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: account_id
+          AttributeType: S
+        - AttributeName: timestamp_action
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: account_id
+          KeyType: HASH
+        - AttributeName: timestamp_action
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: hedge-history
+
+  HedgeKillSwitchTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-kill-switch"
+        - !Sub "alchemiser-${Stage}-hedge-kill-switch"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: switch_id
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: switch_id
+          KeyType: HASH
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: hedge-kill-switch
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -679,6 +794,51 @@ Resources:
         - !Sub "alchemiser-${Stage}-execution-dlq.fifo"
       FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 days
+
+  # ========== HEDGE EXECUTION QUEUE (OPTIONS HEDGING) ==========
+  # SQS Queue for reliable hedge order execution with DLQ
+  HedgeExecutionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-execution-queue"
+        - !Sub "alchemiser-${Stage}-hedge-execution-queue"
+      VisibilityTimeout: 900  # 15 mins for execution
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt HedgeExecutionDLQ.Arn
+        maxReceiveCount: 3
+
+  HedgeExecutionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-execution-dlq"
+        - !Sub "alchemiser-${Stage}-hedge-execution-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
+  DLQAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-dlq-alerts"
+        - !Sub "alchemiser-${Stage}-dlq-alerts"
+      DisplayName: "Alchemiser DLQ Alert"
+
+  # Email subscription for DLQ alerts
+  DLQAlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DLQAlertTopic
+      Protocol: email
+      Endpoint: !If
+        - HasNotificationEmail
+        - !Ref NotificationEmail
+        - "notifications@rwxt.org"
 
   # ========== PERFORMANCE REPORTS S3 BUCKET ==========
   # S3 bucket for strategy performance CSV reports with presigned URL access
@@ -1739,6 +1899,293 @@ Resources:
                 Action:
                   - cloudwatch:PutMetricData
                 Resource: "*"
+
+  # ========== HEDGE EVALUATOR LAMBDA (OPTIONS HEDGING) ==========
+  # Triggered by RebalancePlanned to evaluate hedge requirements
+  # Calculates sector exposure, sizes hedges, publishes HedgeEvaluationCompleted
+  HedgeEvaluatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-evaluator"
+        - !Sub "alchemiser-${Stage}-hedge-evaluator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_evaluator/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeEvaluatorExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
+          # VIX value is fetched real-time from VIXY ETF proxy (VIXY price * 10 ≈ VIX index).
+          # Environment variables below are reserved for future runtime override capability.
+          # Currently unused - the code reads from constants; uncomment to enable env-based config.
+          # HEDGE_BUDGET_VIX_LOW: "0.008"
+          # HEDGE_BUDGET_VIX_MID: "0.005"
+          # HEDGE_BUDGET_VIX_HIGH: "0.003"
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeEvaluatorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HedgeEvaluatorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt HedgeExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt HedgeKillSwitchTable.Arn
+
+  # EventBridge Rule: Route RebalancePlanned events to HedgeEvaluator
+  RebalancePlannedToHedgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-to-hedge"
+        - !Sub "alchemiser-${Stage}-rebalance-to-hedge"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.portfolio
+        detail-type:
+          - RebalancePlanned
+      Targets:
+        - Id: HedgeEvaluatorTarget
+          Arn: !GetAtt HedgeEvaluatorFunction.Arn
+
+  RebalancePlannedToHedgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HedgeEvaluatorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt RebalancePlannedToHedgeRule.Arn
+
+  # ========== HEDGE EXECUTOR LAMBDA (OPTIONS HEDGING) ==========
+  # Triggered by SQS queue to execute hedge orders via Alpaca Options API
+  HedgeExecutorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-executor"
+        - !Sub "alchemiser-${Stage}-hedge-executor"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_executor/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeExecutorExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref ExecutionLayer  # alpaca-py, pydantic
+      Timeout: 600
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 3  # Conservative for options API limits
+      Environment:
+        Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
+      Events:
+        HedgeExecutionQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt HedgeExecutionQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeExecutorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HedgeExecutorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt HedgeExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt HedgeKillSwitchTable.Arn
+
+  # ========== HEDGE ROLL MANAGER LAMBDA (OPTIONS HEDGING) ==========
+  # Scheduled daily to scan expiring hedges and trigger rolls
+  HedgeRollManagerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-roll-manager"
+        - !Sub "alchemiser-${Stage}-hedge-roll-manager"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_roll_manager/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeRollManagerExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+      Events:
+        # Daily schedule: ~3:45 PM Eastern Time (after equity rebalance at 3:30 PM)
+        # TIMEZONE NOTE: This schedule uses 19:45 UTC which equals:
+        #   - 3:45 PM EDT (during daylight saving time, Mar-Nov)
+        #   - 2:45 PM EST (during standard time, Nov-Mar)
+        # AWS EventBridge does not natively support US timezone rules.
+        # Acceptable for roll checks as 1-hour variance has minimal impact.
+        DailyRollCheck:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(45 19 ? * MON-FRI *)"
+            Description: "Daily hedge roll check (~3:45 PM ET, see comment for timezone note)"
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeRollManagerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HedgeRollManagerPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt HedgeExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
 
   # ========== DATA LAMBDA FUNCTION (PER-STAGE) ==========
   # Market data fetching and S3 storage (replaces alchemiser-shared-data)

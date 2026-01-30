@@ -43,6 +43,7 @@ help:
 	@echo "  rebalance-weights                    Recalculate strategy weights (Calmar-tilt)"
 	@echo "  rebalance-weights dry-run=1          Preview without updating config"
 	@echo "  rebalance-weights csv=path/to.csv    Use specific CSV file"
+	@echo "  rebalance-weights stage=dev          Target dev/staging/prod (default: prod)"
 	@echo ""
 	@echo "Strategy Debugging:"
 	@echo "  debug-strategy s=<name>              Debug strategy with full condition tracing"
@@ -290,25 +291,32 @@ quantstats:
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod
 #        make rebalance-weights dry-run=1          # Preview without updating (no deploy)
 #        make rebalance-weights csv=path/to.csv    # Use specific CSV
+#        make rebalance-weights stage=dev          # Target dev config (no deploy)
+#        make rebalance-weights stage=staging      # Target staging config (no deploy)
 #        make rebalance-weights alpha=0.5          # Custom alpha parameter
 #        make rebalance-weights f-min=0.5          # Custom floor multiplier
 #        make rebalance-weights f-max=2.0          # Custom cap multiplier
 rebalance-weights:
 	@echo "⚖️  Recalculating strategy weights using Calmar-tilt formula..."
 	@ARGS=""; \
+	STAGE="$${stage:-prod}"; \
 	if [ -n "$(csv)" ]; then ARGS="$$ARGS --csv $(csv)"; fi; \
 	if [ -n "$(dry-run)" ]; then ARGS="$$ARGS --dry-run"; fi; \
 	if [ -n "$(alpha)" ]; then ARGS="$$ARGS --alpha $(alpha)"; fi; \
 	if [ -n "$(f-min)" ]; then ARGS="$$ARGS --f-min $(f-min)"; fi; \
 	if [ -n "$(f-max)" ]; then ARGS="$$ARGS --f-max $(f-max)"; fi; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; STAGE="$(stage)"; fi; \
 	poetry run python scripts/rebalance_strategy_weights.py $$ARGS; \
-	if [ $$? -eq 0 ] && [ -z "$(dry-run)" ]; then \
+	if [ $$? -eq 0 ] && [ -z "$(dry-run)" ] && [ "$$STAGE" = "prod" ]; then \
 		echo ""; \
 		echo "🚀 Strategy weights updated successfully!"; \
 		echo "📦 Bumping version and deploying to production..."; \
 		echo ""; \
 		git add layers/shared/the_alchemiser/shared/config/strategy.prod.json; \
 		$(MAKE) bump-patch && $(MAKE) deploy-prod; \
+	elif [ $$? -eq 0 ] && [ -z "$(dry-run)" ] && [ "$$STAGE" != "prod" ]; then \
+		echo ""; \
+		echo "✅ Strategy weights updated for $$STAGE (no auto-deploy for non-prod)"; \
 	fi
 
 # Validate strategy signals against Composer.trade (shifted T-1 comparison)
