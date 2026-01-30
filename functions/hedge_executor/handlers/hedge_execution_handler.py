@@ -34,6 +34,7 @@ from the_alchemiser.shared.options.adapters import (
 )
 from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
 from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
+from the_alchemiser.shared.options.marketability_pricing import OrderSide
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -349,10 +350,17 @@ class HedgeExecutionHandler:
 
         # Execute order
         hedge_id = f"hedge-{uuid.uuid4()}"
+
+        # Get VIX level if available (for adaptive pricing)
+        # Currently not passed in event, defaults to None (uses CALM pricing)
+        vix_level = None  # TODO: Add VIX to HedgeEvaluationCompleted event
+
         result = self._execution_service.execute_hedge_order(
             selected_option=selected,
             underlying_symbol=underlying,
             client_order_id=hedge_id,
+            vix_level=vix_level,
+            order_side=OrderSide.OPEN,  # Always OPEN for new hedges
         )
 
         # Calculate NAV percentage

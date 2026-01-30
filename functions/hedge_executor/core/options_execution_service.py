@@ -183,14 +183,13 @@ class OptionsExecutionService:
                     vix_level=vix_level,
                     initial_limit=initial_limit,
                 )
-            else:
-                # Standard monitoring without repricing
-                return self._monitor_order(
-                    order_id=order_id,
-                    option_symbol=option_symbol,
-                    underlying_symbol=underlying_symbol,
-                    target_quantity=selected_option.contracts_to_buy,
-                )
+            # Standard monitoring without repricing
+            return self._monitor_order(
+                order_id=order_id,
+                option_symbol=option_symbol,
+                underlying_symbol=underlying_symbol,
+                target_quantity=selected_option.contracts_to_buy,
+            )
 
         except TradingClientError as e:
             logger.error(
@@ -218,7 +217,7 @@ class OptionsExecutionService:
         option_symbol: str,
         underlying_symbol: str,
         target_quantity: int,
-        contract: "OptionContract",
+        contract: OptionContract,
         order_side: OrderSide,
         vix_level: Decimal | None,
         initial_limit: Decimal,
@@ -324,7 +323,8 @@ class OptionsExecutionService:
                     # Calculate slippage metrics
                     slippage_from_mid = filled_price - mid_price if filled_price else None
                     slippage_pct = (
-                        (slippage_from_mid / mid_price) if (slippage_from_mid and mid_price > 0)
+                        (slippage_from_mid / mid_price)
+                        if (slippage_from_mid and mid_price > 0)
                         else None
                     )
 

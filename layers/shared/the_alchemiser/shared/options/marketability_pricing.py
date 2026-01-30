@@ -27,7 +27,6 @@ from the_alchemiser.shared.options.constants import (
     MAX_SLIPPAGE_PER_TRADE_OPEN,
     PRICE_STEP_PCT_CALM,
     PRICE_STEP_PCT_HIGH_IV,
-    PRICE_UPDATE_INTERVAL_SECONDS,
     VIX_HIGH_THRESHOLD,
 )
 
@@ -309,9 +308,7 @@ class MarketabilityPricer:
         # Check daily slippage limit
         # Assume 1 contract for estimation (actual will be checked at fill)
         estimated_slippage = slippage_from_mid * Decimal("100")  # 100 shares per contract
-        allowed, current_daily_pct = self._slippage_tracker.check_daily_limit(
-            estimated_slippage
-        )
+        allowed, current_daily_pct = self._slippage_tracker.check_daily_limit(estimated_slippage)
 
         if not allowed:
             logger.warning(
