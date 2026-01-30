@@ -646,6 +646,21 @@ aws lambda invoke \
 
 ---
 
+## Operational Runbooks
+
+Detailed step-by-step procedures for operational scenarios:
+
+### Assignment Handling
+- **[Assignment Handling Runbook](ASSIGNMENT_HANDLING_RUNBOOK.md)**: Complete procedures for detecting and remediating option assignment events on short legs of put spreads. Includes automated detection criteria, remediation procedures (exercise, close, or roll), halt trading mechanisms, and escalation procedures.
+
+### Roll Procedures
+- **[Roll Procedures Runbook](ROLL_PROCEDURES_RUNBOOK.md)**: Comprehensive guide to rolling hedge positions including DTE-based rolls, delta drift triggers, extrinsic value decay monitoring, spread width value criteria, and execution procedures for both tail and smoothing templates.
+
+### Emergency Unwind
+- **[Emergency Unwind Runbook](EMERGENCY_UNWIND_RUNBOOK.md)**: Critical procedures for emergency position liquidation during system failures, market disruptions, or risk management escalations. Includes controlled unwind procedures, rapid market order liquidation, broker-assisted closes, and post-emergency reconciliation.
+
+---
+
 ## Prerequisites
 
 1. **Alpaca Account**: Must have options trading enabled
@@ -658,4 +673,5 @@ aws lambda invoke \
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 10.0.11 | 2026-01-30 | Assignment handling and lifecycle runbooks added |
 | 10.0.0 | 2026-01-26 | Initial options hedging implementation |

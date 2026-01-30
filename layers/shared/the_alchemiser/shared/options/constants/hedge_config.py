@@ -406,6 +406,39 @@ QQQ_PREFERENCE_THRESHOLD: Decimal = Decimal("0.8")
 # Positions below this threshold are flagged as "dte_critical" vs "dte_threshold".
 CRITICAL_DTE_THRESHOLD: int = 14
 
+# ─────────────────────────────────────────────────────────────────────────────
+# TAIL TEMPLATE ROLL TRIGGERS (Enhanced FR-8)
+# ─────────────────────────────────────────────────────────────────────────────
+# Additional roll triggers beyond basic DTE threshold to optimize cost and protection
+
+# Delta drift threshold: Roll if current delta deviates significantly from entry delta
+# Ensures hedge maintains optimal OTM profile for convexity
+TAIL_DELTA_DRIFT_THRESHOLD: Decimal = Decimal("0.10")  # 10 delta points
+
+# Extrinsic value decay threshold: Roll when time value falls below this % of entry premium
+# Captures remaining value before full theta decay accelerates near expiration
+TAIL_EXTRINSIC_DECAY_THRESHOLD: Decimal = Decimal("0.20")  # 20% of entry premium
+
+# Skew regime monitoring (requires IV data source implementation)
+# Roll or adjust when put skew moves beyond historical norms
+SKEW_BASELINE_WINDOW: int = 252  # Trading days (1 year) for skew percentile calc
+SKEW_CHANGE_THRESHOLD: Decimal = Decimal("2.0")  # Standard deviations for regime shift
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPREAD TEMPLATE ROLL TRIGGERS (Enhanced FR-8)
+# ─────────────────────────────────────────────────────────────────────────────
+# Roll criteria for put spread structures beyond fixed cadence
+
+# Remaining width value threshold: Roll when spread value decays significantly
+# Ensures spread provides meaningful protection relative to max payoff
+SPREAD_WIDTH_VALUE_THRESHOLD: Decimal = Decimal("0.30")  # 30% of max width
+
+# Long leg delta drift warning: Monitor for ITM drift reducing convexity
+SPREAD_LONG_DELTA_THRESHOLD: Decimal = Decimal("0.50")  # 50-delta (deep ITM warning)
+
+# Short leg delta drift warning: Monitor for assignment risk before critical threshold
+SPREAD_SHORT_DELTA_THRESHOLD: Decimal = Decimal("0.20")  # 20-delta (early warning)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # EXECUTION SERVICE PARAMETERS
