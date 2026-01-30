@@ -591,6 +591,32 @@ Resources:
         - Key: Service
           Value: hedge-history
 
+  HedgeKillSwitchTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-kill-switch"
+        - !Sub "alchemiser-${Stage}-hedge-kill-switch"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: switch_id
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: switch_id
+          KeyType: HASH
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: hedge-kill-switch
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1901,6 +1927,7 @@ Resources:
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
@@ -1950,6 +1977,13 @@ Resources:
                   - dynamodb:PutItem
                 Resource:
                   - !GetAtt HedgeHistoryTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt HedgeKillSwitchTable.Arn
 
   # EventBridge Rule: Route RebalancePlanned events to HedgeEvaluator
   RebalancePlannedToHedgeRule:
@@ -2003,6 +2037,7 @@ Resources:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
@@ -2058,6 +2093,13 @@ Resources:
                   - dynamodb:PutItem
                 Resource:
                   - !GetAtt HedgeHistoryTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt HedgeKillSwitchTable.Arn
 
   # ========== HEDGE ROLL MANAGER LAMBDA (OPTIONS HEDGING) ==========
   # Scheduled daily to scan expiring hedges and trigger rolls

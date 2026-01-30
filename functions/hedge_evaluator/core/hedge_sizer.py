@@ -21,12 +21,16 @@ from the_alchemiser.shared.options.constants import (
     MAX_SINGLE_POSITION_PCT,
     MIN_EXPOSURE_RATIO,
     MIN_NAV_THRESHOLD,
+    RICH_IV_THRESHOLD,
     SMOOTHING_HEDGE_TEMPLATE,
     TAIL_HEDGE_TEMPLATE,
     VIX_HIGH_THRESHOLD,
     VIX_LOW_THRESHOLD,
+    apply_rich_iv_adjustment,
+    check_annual_spend_cap,
     get_budget_rate_for_vix,
     get_exposure_multiplier,
+    should_reduce_hedge_intensity,
 )
 
 from .exposure_calculator import PortfolioExposure
@@ -53,6 +57,8 @@ class HedgeRecommendation:
     # Spread-specific fields (only used for smoothing template)
     short_delta: Decimal | None = None  # Short leg delta (for put spreads)
     is_spread: bool = False  # Whether this is a spread recommendation
+    # Rich IV adjustment indicator
+    rich_iv_applied: bool = False  # Whether rich IV adjustments were applied
 
 
 class HedgeSizer:
@@ -81,22 +87,21 @@ class HedgeSizer:
     def calculate_hedge_recommendation(
         self,
         exposure: PortfolioExposure,
-        current_vix: Decimal | None = None,
+        current_vix: Decimal,
         underlying_price: Decimal | None = None,
     ) -> HedgeRecommendation:
         """Calculate hedge sizing recommendation.
 
         Args:
             exposure: Portfolio exposure metrics from ExposureCalculator
-            current_vix: Current VIX index value (defaults to 20 if None)
+            current_vix: Current VIX index value (REQUIRED - no default)
             underlying_price: Current price of hedge underlying (for contract estimate)
 
         Returns:
             HedgeRecommendation with sizing parameters
 
         """
-        # Default VIX if not provided
-        vix = current_vix if current_vix is not None else Decimal("20")
+        vix = current_vix
 
         # Get VIX-adaptive base budget rate
         if self._template_name == "smoothing":
@@ -126,11 +131,51 @@ class HedgeSizer:
             target_dte = SMOOTHING_HEDGE_TEMPLATE.target_dte
             short_delta = SMOOTHING_HEDGE_TEMPLATE.short_delta
             is_spread = True
+            # Calculate midpoint payoff for smoothing template
+            target_payoff_pct = (
+                SMOOTHING_HEDGE_TEMPLATE.min_payoff_nav_pct
+                + SMOOTHING_HEDGE_TEMPLATE.max_payoff_nav_pct
+            ) / Decimal("2")
         else:
             target_delta = TAIL_HEDGE_TEMPLATE.target_delta
             target_dte = TAIL_HEDGE_TEMPLATE.target_dte
             short_delta = None
             is_spread = False
+            # Calculate midpoint payoff for tail template
+            target_payoff_pct = (
+                TAIL_HEDGE_TEMPLATE.min_payoff_nav_pct + TAIL_HEDGE_TEMPLATE.max_payoff_nav_pct
+            ) / Decimal("2")
+
+        # Apply rich IV adjustments if needed (only for outright positions, not spreads)
+        # Note: For spreads, adjusting only the long leg delta would change the spread width
+        # in unintended ways. Skip rich IV adjustments for spread strategies.
+        if should_reduce_hedge_intensity(vix) and not is_spread:
+            logger.info(
+                "Applying rich IV adjustments",
+                vix=str(vix),
+                original_delta=str(target_delta),
+                original_dte=target_dte,
+                original_payoff_pct=str(target_payoff_pct),
+            )
+            target_delta, target_dte, target_payoff_pct = apply_rich_iv_adjustment(
+                target_delta=target_delta,
+                target_dte=target_dte,
+                target_payoff_pct=target_payoff_pct,
+                vix=vix,
+            )
+            logger.info(
+                "Rich IV adjustments applied",
+                adjusted_delta=str(target_delta),
+                adjusted_dte=target_dte,
+                adjusted_payoff_pct=str(target_payoff_pct),
+            )
+        elif should_reduce_hedge_intensity(vix) and is_spread:
+            logger.info(
+                "Skipping rich IV adjustments for spread position",
+                vix=str(vix),
+                template=self._template_name,
+                reason="Adjusting long leg delta would change spread width",
+            )
 
         # Apply maximum position concentration cap (2% NAV)
         max_premium = exposure.nav * MAX_SINGLE_POSITION_PCT
@@ -154,6 +199,8 @@ class HedgeSizer:
             is_spread=is_spread,
         )
 
+        rich_iv_applied = should_reduce_hedge_intensity(vix) and not is_spread
+
         recommendation = HedgeRecommendation(
             underlying_symbol=exposure.primary_hedge_underlying,
             target_delta=target_delta,
@@ -166,6 +213,7 @@ class HedgeSizer:
             exposure_multiplier=exposure_multiplier,
             short_delta=short_delta,
             is_spread=is_spread,
+            rich_iv_applied=rich_iv_applied,
         )
 
         logger.info(
@@ -180,6 +228,7 @@ class HedgeSizer:
             contracts_estimated=contracts_estimated,
             template=self._template_name,
             is_spread=is_spread,
+            rich_iv_applied=rich_iv_applied,
         )
 
         return recommendation
@@ -260,12 +309,16 @@ class HedgeSizer:
         self,
         exposure: PortfolioExposure,
         existing_hedge_count: int = 0,
+        year_to_date_spend: Decimal = Decimal("0"),
+        proposed_spend: Decimal | None = None,
     ) -> tuple[bool, str | None]:
         """Determine if hedging is needed.
 
         Args:
             exposure: Portfolio exposure metrics
             existing_hedge_count: Number of existing hedge positions
+            year_to_date_spend: Total premium spent year-to-date
+            proposed_spend: Proposed additional premium spend (optional)
 
         Returns:
             Tuple of (should_hedge, skip_reason if not hedging)
@@ -283,5 +336,15 @@ class HedgeSizer:
         # (This is a simplified check - real check would evaluate hedge coverage)
         if existing_hedge_count >= MAX_EXISTING_HEDGE_COUNT:
             return False, "Existing hedges appear sufficient"
+
+        # Check annual spend cap if proposed spend is provided
+        if proposed_spend is not None:
+            if not check_annual_spend_cap(year_to_date_spend, proposed_spend, exposure.nav):
+                ytd_pct = (
+                    (year_to_date_spend / exposure.nav * Decimal("100"))
+                    if exposure.nav > 0
+                    else Decimal("0")
+                )
+                return False, f"Annual spend cap would be exceeded (YTD: {ytd_pct:.2f}%)"
 
         return True, None
