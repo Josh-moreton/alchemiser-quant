@@ -383,8 +383,31 @@ Skip events are logged and a `HedgeEvaluationCompleted` with `skip_reason` is pu
 
 ### Contract Selection
 
-The `OptionSelector` finds the optimal contract:
+The `OptionSelector` uses **dynamic contract selection** based on market conditions:
 
+**See [DYNAMIC_CONTRACT_SELECTION.md](./DYNAMIC_CONTRACT_SELECTION.md) for detailed documentation.**
+
+#### Dynamic Tenor Selection
+- **Low VIX (<18)**: 60-90 DTE range, or tenor ladder (split allocation)
+- **High VIX (>35)**: 120-180 DTE range for theta efficiency
+- **High IV Percentile (>70%)**: Longer tenors preferred
+
+#### Convexity-Based Strike Selection
+1. Calculate effective convexity: `gamma / (mid_price × 100)`
+2. Filter by scenario payoff: minimum 3x at -20% move
+3. Rank by combined score: convexity + payoff contribution
+4. Select contract with highest effective score
+5. Fallback to delta/expiry scoring if gamma data unavailable
+
+#### Enhanced Liquidity Filters
+- **Open Interest**: ≥1000 contracts
+- **Volume**: ≥100 contracts/day
+- **Bid-Ask Spread (%)**: ≤5% of mid
+- **Bid-Ask Spread ($)**: ≤$0.10 absolute
+- **Mid Price**: ≥$0.05 (avoids penny options)
+- **DTE**: 14-120 days
+
+**Traditional Flow (for reference):**
 1. Query option chain from Alpaca (strike range: 75-95% of underlying)
 2. Filter by target DTE (±15 days from target)
 3. Score candidates by delta proximity to target
