@@ -62,13 +62,19 @@ class HedgeEvaluationHandler:
         """
         self._container = container
         self._sector_mapper = SectorMapper()
-        self._hedge_sizer = HedgeSizer()
+        # Note: HedgeSizer template is now chosen dynamically by TemplateChooser
+        self._hedge_sizer: HedgeSizer | None = None
 
         # Create ExposureCalculator with container for historical data access
         self._exposure_calculator = ExposureCalculator(container=container)
 
         # Initialize kill switch service
         self._kill_switch = KillSwitchService()
+
+        # Initialize template chooser for regime-based template selection
+        from the_alchemiser.shared.options import TemplateChooser
+
+        self._template_chooser = TemplateChooser()
 
         # Create event bus if not provided
         if event_bus is None:
@@ -152,6 +158,32 @@ class HedgeEvaluationHandler:
                 if isinstance(raw_existing_hedge_count, int) and raw_existing_hedge_count >= 0:
                     existing_hedge_count = raw_existing_hedge_count
 
+            # FAIL-CLOSED CHECK: VIX proxy data
+            # Get VIX for adaptive budgeting - MUST succeed or fail closed
+            current_vix = self._get_current_vix_fail_closed(correlation_id)
+
+            # Choose template based on market regime
+            template_rationale = self._template_chooser.choose_template(
+                vix=current_vix,
+                vix_percentile=None,  # Future: fetch from historical data
+                skew=None,  # Future: calculate from option chain
+            )
+
+            # Log template selection rationale
+            logger.info(
+                "Template selection rationale",
+                correlation_id=correlation_id,
+                plan_id=plan_id,
+                selected_template=template_rationale.selected_template,
+                regime=template_rationale.regime,
+                vix=str(template_rationale.vix),
+                reason=template_rationale.reason,
+                hysteresis_applied=template_rationale.hysteresis_applied,
+            )
+
+            # Create HedgeSizer with selected template
+            self._hedge_sizer = HedgeSizer(template=template_rationale.selected_template)
+
             # Check if hedging is needed
             should_hedge, skip_reason = self._hedge_sizer.should_hedge(
                 exposure=exposure,
@@ -169,10 +201,6 @@ class HedgeEvaluationHandler:
                 )
                 self._publish_skip_event(event, skip_reason)
                 return
-
-            # FAIL-CLOSED CHECK: VIX proxy data
-            # Get VIX for adaptive budgeting - MUST succeed or fail closed
-            current_vix = self._get_current_vix_fail_closed(correlation_id)
 
             # Calculate hedge recommendation
             recommendation = self._hedge_sizer.calculate_hedge_recommendation(
@@ -206,6 +234,9 @@ class HedgeEvaluationHandler:
                 budget_nav_pct=recommendation.nav_pct,
                 vix_tier=recommendation.vix_tier,
                 exposure_multiplier=recommendation.exposure_multiplier,
+                template_selected=template_rationale.selected_template,
+                template_regime=template_rationale.regime,
+                template_selection_reason=template_rationale.reason,
             )
 
             self._event_bus.publish(completed_event)
@@ -218,6 +249,8 @@ class HedgeEvaluationHandler:
                 underlying=recommendation.underlying_symbol,
                 vix_value=str(current_vix),
                 vix_tier=recommendation.vix_tier,
+                template_selected=template_rationale.selected_template,
+                template_regime=template_rationale.regime,
             )
 
         except HedgeFailClosedError as e:

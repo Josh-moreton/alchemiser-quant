@@ -909,6 +909,17 @@ class HedgeEvaluationCompleted(BaseEvent):
         default=Decimal("1.0"), description="Exposure-based budget multiplier"
     )
 
+    # Template selection metadata (new)
+    template_selected: str | None = Field(
+        default=None, description="Template selected (tail_first, smoothing)"
+    )
+    template_regime: str | None = Field(
+        default=None, description="Regime classification for template selection"
+    )
+    template_selection_reason: str | None = Field(
+        default=None, description="Human-readable reason for template selection"
+    )
+
     # Skip reason (if no hedges needed)
     skip_reason: str | None = Field(
         default=None,
