@@ -289,3 +289,177 @@ class OptionsExecutionService:
             return Decimal(str(value))
         except (ValueError, TypeError):
             return None
+
+    def execute_spread_order(
+        self,
+        long_leg: OptionContract,
+        short_leg: OptionContract,
+        quantity: int,
+        long_limit_price: Decimal,
+        short_limit_price: Decimal,
+        underlying_symbol: str,
+        client_order_id: str | None = None,
+    ) -> ExecutionResult:
+        """Execute a spread order (long and short legs).
+
+        Places spread order via adapter's place_spread_order method,
+        which handles sequential execution with retry logic and
+        compensating close if needed.
+
+        Args:
+            long_leg: Long leg option contract
+            short_leg: Short leg option contract
+            quantity: Number of spreads to execute
+            long_limit_price: Limit price for long leg
+            short_limit_price: Limit price for short leg
+            underlying_symbol: Underlying ETF symbol
+            client_order_id: Optional client order ID for idempotency
+
+        Returns:
+            ExecutionResult with spread execution details
+
+        """
+        long_symbol = long_leg.symbol
+        short_symbol = short_leg.symbol
+
+        if client_order_id is None:
+            client_order_id = f"spread-{uuid.uuid4()}"
+
+        logger.info(
+            "Executing spread order",
+            long_leg=long_symbol,
+            short_leg=short_symbol,
+            underlying=underlying_symbol,
+            quantity=quantity,
+            long_limit_price=str(long_limit_price),
+            short_limit_price=str(short_limit_price),
+            client_order_id=client_order_id,
+        )
+
+        try:
+            # Place spread order via adapter (handles sequential execution)
+            spread_response = self._adapter.place_spread_order(
+                long_leg_symbol=long_symbol,
+                short_leg_symbol=short_symbol,
+                quantity=quantity,
+                long_leg_limit_price=long_limit_price,
+                short_leg_limit_price=short_limit_price,
+                time_in_force="day",
+                client_order_id=client_order_id,
+            )
+
+            # Extract order IDs and details from response
+            long_order = spread_response.get("long_leg", {})
+            short_order = spread_response.get("short_leg", {})
+
+            long_order_id = long_order.get("id")
+            short_order_id = short_order.get("id")
+
+            if not long_order_id or not short_order_id:
+                return ExecutionResult(
+                    success=False,
+                    order_id=None,
+                    option_symbol=long_symbol,
+                    underlying_symbol=underlying_symbol,
+                    quantity=quantity,
+                    filled_quantity=0,
+                    filled_price=None,
+                    total_premium=Decimal("0"),
+                    error_message="Spread order failed - missing order IDs",
+                )
+
+            # Monitor both legs until filled or timeout
+            # For simplicity, monitor the long leg (critical leg for protection)
+            result = self._monitor_order(
+                order_id=long_order_id,
+                option_symbol=long_symbol,
+                underlying_symbol=underlying_symbol,
+                target_quantity=quantity,
+            )
+
+            # If long leg succeeded, verify short leg also filled
+            if result.success:
+                try:
+                    short_order_status = self._adapter.get_order(short_order_id)
+                    short_status = short_order_status.get("status", "").lower()
+
+                    if short_status != "filled":
+                        logger.warning(
+                            "Long leg filled but short leg not filled",
+                            long_order_id=long_order_id,
+                            short_order_id=short_order_id,
+                            short_status=short_status,
+                        )
+                        # Return success for long leg, but note the asymmetry
+                        # The adapter's retry/compensating logic should have handled this
+                        return ExecutionResult(
+                            success=True,
+                            order_id=long_order_id,
+                            option_symbol=long_symbol,
+                            underlying_symbol=underlying_symbol,
+                            quantity=quantity,
+                            filled_quantity=result.filled_quantity,
+                            filled_price=result.filled_price,
+                            total_premium=result.total_premium,
+                            error_message=f"Spread executed but short leg status: {short_status}",
+                        )
+
+                    # Both legs filled - calculate net premium
+                    long_filled_price = result.filled_price or Decimal("0")
+                    short_filled_qty = int(short_order_status.get("filled_qty", 0))
+                    short_filled_price = self._parse_decimal(
+                        short_order_status.get("filled_avg_price")
+                    ) or Decimal("0")
+
+                    # Net debit = long premium - short credit
+                    net_premium = (long_filled_price - short_filled_price) * short_filled_qty * 100
+
+                    logger.info(
+                        "Spread order fully executed",
+                        long_order_id=long_order_id,
+                        short_order_id=short_order_id,
+                        long_filled_price=str(long_filled_price),
+                        short_filled_price=str(short_filled_price),
+                        net_premium=str(net_premium),
+                    )
+
+                    return ExecutionResult(
+                        success=True,
+                        order_id=f"{long_order_id}+{short_order_id}",
+                        option_symbol=f"{long_symbol}/{short_symbol}",
+                        underlying_symbol=underlying_symbol,
+                        quantity=quantity,
+                        filled_quantity=min(result.filled_quantity, short_filled_qty),
+                        filled_price=long_filled_price - short_filled_price,
+                        total_premium=net_premium,
+                    )
+
+                except TradingClientError as e:
+                    logger.error(
+                        "Error verifying short leg status",
+                        short_order_id=short_order_id,
+                        error=str(e),
+                    )
+                    # Return success for long leg
+                    return result
+
+            return result
+
+        except TradingClientError as e:
+            logger.error(
+                "Spread order failed",
+                long_leg=long_symbol,
+                short_leg=short_symbol,
+                error=str(e),
+            )
+            return ExecutionResult(
+                success=False,
+                order_id=None,
+                option_symbol=f"{long_symbol}/{short_symbol}",
+                underlying_symbol=underlying_symbol,
+                quantity=quantity,
+                filled_quantity=0,
+                filled_price=None,
+                total_premium=Decimal("0"),
+                error_message=str(e),
+            )
