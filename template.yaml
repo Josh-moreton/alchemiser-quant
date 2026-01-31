@@ -1274,13 +1274,14 @@ Resources:
   StrategyExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
+      AssumeRolePolicyDocument: &lambda-assume-role
         Statement:
           - Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns:
+      ManagedPolicyArns: &lambda-basic-execution
+
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         - PolicyName: StrategyPolicy
@@ -1349,14 +1350,8 @@ Resources:
   StrategyOrchestratorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: StrategyOrchestratorPolicy
           PolicyDocument:
@@ -1422,14 +1417,8 @@ Resources:
   StrategyAggregatorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: StrategyAggregatorPolicy
           PolicyDocument:
@@ -1493,14 +1482,8 @@ Resources:
   PortfolioExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: PortfolioPolicy
           PolicyDocument:
@@ -1601,14 +1584,8 @@ Resources:
   ExecutionExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: ExecutionPolicy
           PolicyDocument:
@@ -1693,14 +1670,8 @@ Resources:
   TradeAggregatorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: TradeAggregatorPolicy
           PolicyDocument:
@@ -1844,14 +1815,8 @@ Resources:
   NotificationsExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: NotificationsPolicy
           PolicyDocument:
@@ -1919,14 +1884,8 @@ Resources:
   MetricsExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: MetricsPolicy
           PolicyDocument:
@@ -1989,14 +1948,8 @@ Resources:
   HedgeEvaluatorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: HedgeEvaluatorPolicy
           PolicyDocument:
@@ -2103,14 +2056,8 @@ Resources:
   HedgeExecutorExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: HedgeExecutorPolicy
           PolicyDocument:
@@ -2195,14 +2142,8 @@ Resources:
   HedgeRollManagerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: HedgeRollManagerPolicy
           PolicyDocument:
@@ -2279,14 +2220,8 @@ Resources:
   DataExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: DataPolicy
           PolicyDocument:
@@ -2383,14 +2318,8 @@ Resources:
   PnLCaptureExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: PnLCapturePolicy
           PolicyDocument:
@@ -2409,7 +2338,7 @@ Resources:
   StrategySchedulerRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
+      AssumeRolePolicyDocument: &scheduler-assume-role
         Statement:
           - Effect: Allow
             Principal:
@@ -2461,14 +2390,8 @@ Resources:
   ScheduleManagerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
       Policies:
         - PolicyName: ScheduleManagerPolicy
           PolicyDocument:
@@ -2520,12 +2443,7 @@ Resources:
   ScheduleManagerSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: scheduler.amazonaws.com
-            Action: sts:AssumeRole
+      AssumeRolePolicyDocument: *scheduler-assume-role
       Policies:
         - PolicyName: InvokeScheduleManager
           PolicyDocument:
@@ -2561,12 +2479,7 @@ Resources:
   DataSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: scheduler.amazonaws.com
-            Action: sts:AssumeRole
+      AssumeRolePolicyDocument: *scheduler-assume-role
       Policies:
         - PolicyName: InvokeDataFunction
           PolicyDocument:
