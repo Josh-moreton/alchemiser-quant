@@ -76,9 +76,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Initialize Alpaca manager
         api_key, secret_key, endpoint = get_alpaca_keys()
         paper = "paper" in endpoint.lower() if endpoint else True
-        alpaca_manager = create_alpaca_manager(
-            api_key=api_key, secret_key=secret_key, paper=paper
-        )
+        alpaca_manager = create_alpaca_manager(api_key=api_key, secret_key=secret_key, paper=paper)
 
         # Initialize PnL service
         pnl_service = DailyPnLService(

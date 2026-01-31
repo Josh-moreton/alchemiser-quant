@@ -32,7 +32,7 @@ PERCENTAGE_MULTIPLIER: Decimal = Decimal("100")
 
 class PnLService:
     """Service for P&L analysis and reporting.
-    
+
     This service provides a unified interface for P&L data, using DynamoDB
     as the primary source for historical daily data (fast, consistent) and
     Alpaca as fallback for real-time or missing data.
@@ -61,7 +61,7 @@ class PnLService:
         self._dynamodb_table_name = dynamodb_table_name
         self._environment = environment or "dev"
         self._daily_pnl_service = None
-        
+
         if alpaca_manager is None:
             api_key, secret_key, endpoint = get_alpaca_keys()
             if not api_key or not secret_key:
@@ -78,7 +78,7 @@ class PnLService:
             )
         else:
             self._alpaca_manager = alpaca_manager
-        
+
         # Initialize DailyPnLService if table name provided
         # Lazy import to avoid circular dependency (DailyPnLService imports AlpacaManager)
         if dynamodb_table_name:
@@ -220,7 +220,7 @@ class PnLService:
 
     def get_last_n_calendar_months_pnl(self, n_months: int = 3) -> list[PnLData]:
         """Get P&L for the last N calendar months including current month.
-        
+
         Uses DynamoDB as primary source for completed days if available,
         falling back to Alpaca for missing or current-month data.
 
@@ -236,7 +236,7 @@ class PnLService:
         """
         if n_months <= 0:
             raise ValueError(f"n_months must be a positive integer; got {n_months}")
-        
+
         # Try DynamoDB first for faster, cached results
         if self._daily_pnl_service:
             try:
@@ -249,19 +249,20 @@ class PnLService:
                         "error_type": type(e).__name__,
                     },
                 )
-        
+
         # Fallback to Alpaca (original implementation)
         return self._get_last_n_months_from_alpaca(n_months)
-    
+
     def _get_last_n_months_from_dynamodb(self, n_months: int) -> list[PnLData]:
         """Get last N months P&L from DynamoDB with daily granularity.
-        
+
         Aggregates daily records from DynamoDB into monthly PnLData objects.
         """
-        assert self._daily_pnl_service is not None, "DynamoDB service must be initialized"
+        if self._daily_pnl_service is None:
+            raise RuntimeError("DynamoDB service must be initialized")
         today = datetime.now(UTC).date()
         results: list[PnLData] = []
-        
+
         for i in range(n_months - 1, -1, -1):  # Start from oldest
             # Calculate target month
             target_month = today.month - i
@@ -270,10 +271,10 @@ class PnLService:
             while target_month <= 0:
                 target_month += 12
                 target_year -= 1
-            
+
             # Calculate date range for this month
             start_date = datetime(target_year, target_month, 1, tzinfo=UTC).date()
-            
+
             # End date is last day of month or today if current month
             if target_year == today.year and target_month == today.month:
                 end_date = today
@@ -281,21 +282,25 @@ class PnLService:
                 period_label = f"{month_name} {target_year} (MTD)"
             else:
                 if target_month == 12:
-                    end_date = (datetime(target_year + 1, 1, 1, tzinfo=UTC) - timedelta(days=1)).date()
+                    end_date = (
+                        datetime(target_year + 1, 1, 1, tzinfo=UTC) - timedelta(days=1)
+                    ).date()
                 else:
-                    end_date = (datetime(target_year, target_month + 1, 1, tzinfo=UTC) - timedelta(days=1)).date()
+                    end_date = (
+                        datetime(target_year, target_month + 1, 1, tzinfo=UTC) - timedelta(days=1)
+                    ).date()
                 month_name = calendar.month_name[target_month]
                 period_label = f"{month_name} {target_year}"
-            
+
             # Fetch daily records from DynamoDB
             try:
                 daily_records = self._daily_pnl_service.get_daily_pnl_range(start_date, end_date)
-                
+
                 if not daily_records:
                     # No data in DynamoDB, add empty entry
                     results.append(PnLData(period=period_label))
                     continue
-                
+
                 # Aggregate daily records into monthly P&L
                 first_record = daily_records[0]
                 if first_record.date == start_date.isoformat():
@@ -318,16 +323,16 @@ class PnLService:
                     )
                     start_equity = first_record.equity
                 end_equity = daily_records[-1].equity
-                
+
                 # Sum daily P&L (already adjusted for deposits/withdrawals)
                 total_pnl = sum((record.pnl_amount for record in daily_records), Decimal("0"))
-                
+
                 # Calculate percentage
                 if start_equity > Decimal("0"):
                     total_pnl_pct = (total_pnl / start_equity) * Decimal("100")
                 else:
                     total_pnl_pct = Decimal("0")
-                
+
                 # Convert daily records to DailyPnLEntry
                 daily_data = [
                     DailyPnLEntry(
@@ -338,7 +343,7 @@ class PnLService:
                     )
                     for record in daily_records
                 ]
-                
+
                 results.append(
                     PnLData(
                         period=period_label,
@@ -362,9 +367,9 @@ class PnLService:
                 )
                 # Add empty entry
                 results.append(PnLData(period=period_label))
-        
+
         return results
-    
+
     def _get_last_n_months_from_alpaca(self, n_months: int) -> list[PnLData]:
         """Get last N months P&L from Alpaca (original implementation)."""
         today = datetime.now(UTC).date()

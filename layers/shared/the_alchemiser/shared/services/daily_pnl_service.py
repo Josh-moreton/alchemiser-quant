@@ -154,7 +154,9 @@ class DailyPnLService:
 
             target_idx = all_trading_days.index(date_str)
             end_equity = Decimal(str(equity_values[target_idx]))
-            raw_pnl = Decimal(str(profit_loss_values[target_idx])) if profit_loss_values else Decimal("0")
+            raw_pnl = (
+                Decimal(str(profit_loss_values[target_idx])) if profit_loss_values else Decimal("0")
+            )
 
             # Get previous trading day's equity for equity_change calculation
             if target_idx > 0:
@@ -174,25 +176,10 @@ class DailyPnLService:
                 activity_types=["CSD", "CSW"],
             )
 
-            # Build deposits by date dict
-            deposits_by_date: dict[str, Decimal] = {}
-            total_withdrawals = Decimal("0")
-            deposits_made_today = Decimal("0")
-
-            for activity in cash_activities:
-                activity_date = activity.get("date", "")[:10]
-                activity_type = activity.get("activity_type", "")
-                try:
-                    amount = Decimal(str(activity.get("net_amount", "0")))
-                except (ValueError, ArithmeticError):
-                    continue
-
-                if activity_type == "CSD":
-                    deposits_by_date[activity_date] = deposits_by_date.get(activity_date, Decimal("0")) + amount
-                    if activity_date == date_str:
-                        deposits_made_today = amount
-                elif activity_type == "CSW" and activity_date == date_str:
-                    total_withdrawals += abs(amount)
+            # Process cash activities
+            deposits_by_date, total_withdrawals, deposits_made_today = (
+                self._process_cash_activities(cash_activities, date_str)
+            )
 
             # Calculate deposits that settled today using T+1 logic
             deposits_settled_today = Decimal("0")
@@ -267,6 +254,42 @@ class DailyPnLService:
                 },
             ) from e
 
+    def _process_cash_activities(
+        self, cash_activities: list[dict[str, Any]], date_str: str
+    ) -> tuple[dict[str, Decimal], Decimal, Decimal]:
+        """Process cash activities and return deposits/withdrawals summary.
+
+        Args:
+            cash_activities: List of activity records from Alpaca.
+            date_str: Target date (YYYY-MM-DD).
+
+        Returns:
+            Tuple of (deposits_by_date, total_withdrawals, deposits_made_today).
+
+        """
+        deposits_by_date: dict[str, Decimal] = {}
+        total_withdrawals = Decimal("0")
+        deposits_made_today = Decimal("0")
+
+        for activity in cash_activities:
+            activity_date = activity.get("date", "")[:10]
+            activity_type = activity.get("activity_type", "")
+            try:
+                amount = Decimal(str(activity.get("net_amount", "0")))
+            except (ValueError, ArithmeticError):
+                continue
+
+            if activity_type == "CSD":
+                deposits_by_date[activity_date] = (
+                    deposits_by_date.get(activity_date, Decimal("0")) + amount
+                )
+                if activity_date == date_str:
+                    deposits_made_today = amount
+            elif activity_type == "CSW" and activity_date == date_str:
+                total_withdrawals += abs(amount)
+
+        return deposits_by_date, total_withdrawals, deposits_made_today
+
     def _get_deposit_dates_for_settlement(
         self, prev_trading_day: str, today: str, all_trading_days: set[str]
     ) -> list[str]:
@@ -289,8 +312,8 @@ class DailyPnLService:
             List of dates whose deposits settle on 'today'.
 
         """
-        start = datetime.strptime(prev_trading_day, "%Y-%m-%d")
-        end = datetime.strptime(today, "%Y-%m-%d")
+        start = date.fromisoformat(prev_trading_day)
+        end = date.fromisoformat(today)
         dates: list[str] = []
 
         # Start from day AFTER prev_trading_day
@@ -363,9 +386,7 @@ class DailyPnLService:
                 context={"date": date_str, "error": str(e), "correlation_id": self._correlation_id},
             ) from e
 
-    def get_daily_pnl_range(
-        self, start_date: date, end_date: date
-    ) -> list[DailyPnLRecord]:
+    def get_daily_pnl_range(self, start_date: date, end_date: date) -> list[DailyPnLRecord]:
         """Retrieve daily P&L records for a date range from DynamoDB.
 
         Note: This method uses DynamoDB Scan with pagination and FilterExpression.
@@ -457,7 +478,7 @@ class DailyPnLService:
                 },
             )
             raise StorageError(
-                f"Failed to retrieve daily PnL range",
+                "Failed to retrieve daily PnL range",
                 context={
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
