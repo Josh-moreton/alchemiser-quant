@@ -63,8 +63,9 @@ F_MAX = Decimal("2.0")  # Cap: 2× base weight
 
 # CSV strategy name prefix -> filename mapping
 CSV_TO_FILENAME: dict[str, str] = {
+    "[VOXPORT] The Best": "vox_the_best.clj",
     "Flextiger-DefAI+eVTO": "defence.clj",
-    "FOMO NOMO - No Lever": "fomo_nono.clj",
+    "FOMO NOMO - No Lever": "fomo_nomo.clj",
     "Golden Rotation 2x": "gold.clj",
     "Nuclear Energy with": "nuclear.clj",
     "Pals Minor Spell of": "pals_spell.clj",
