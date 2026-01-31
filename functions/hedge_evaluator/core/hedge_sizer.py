@@ -21,7 +21,6 @@ from the_alchemiser.shared.options.constants import (
     MAX_SINGLE_POSITION_PCT,
     MIN_EXPOSURE_RATIO,
     MIN_NAV_THRESHOLD,
-    RICH_IV_THRESHOLD,
     SMOOTHING_HEDGE_TEMPLATE,
     TAIL_HEDGE_TEMPLATE,
     VIX_HIGH_THRESHOLD,

@@ -14,17 +14,17 @@
     "kmlm_switcher.clj"
   ],
   "allocations": {
-    "defence.clj": 0.106,
-    "gold.clj": 0.08,
-    "nuclear.clj": 0.031,
-    "pals_spell.clj": 0.098,
-    "rains_em_dancer.clj": 0.051,
-    "simons_full_kmlm.clj": 0.031,
-    "sisyphus_lowvol.clj": 0.049,
-    "tqqq_ftlt.clj": 0.04,
-    "tqqq_ftlt_1.clj": 0.094,
-    "tqqq_ftlt_2.clj": 0.066,
-    "holy_grail.clj": 0.083,
-    "kmlm_switcher.clj": 0.083
+    "defence.clj": 0.144,
+    "gold.clj": 0.115,
+    "nuclear.clj": 0.036,
+    "pals_spell.clj": 0.142,
+    "rains_em_dancer.clj": 0.073,
+    "simons_full_kmlm.clj": 0.036,
+    "sisyphus_lowvol.clj": 0.071,
+    "tqqq_ftlt.clj": 0.058,
+    "tqqq_ftlt_1.clj": 0.136,
+    "tqqq_ftlt_2.clj": 0.095,
+    "holy_grail.clj": 0.058,
+    "kmlm_switcher.clj": 0.036
   }
 }

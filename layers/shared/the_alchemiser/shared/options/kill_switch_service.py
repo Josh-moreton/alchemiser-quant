@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from typing import Literal
 
 import boto3
@@ -288,9 +287,7 @@ class KillSwitchService:
 
         # Check if last failure was outside the window - if so, reset counter
         window_start = now - timedelta(hours=self.FAILURE_WINDOW_HOURS)
-        should_reset = (
-            state.last_failure_at is None or state.last_failure_at < window_start
-        )
+        should_reset = state.last_failure_at is None or state.last_failure_at < window_start
 
         if should_reset:
             logger.info(

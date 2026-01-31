@@ -1095,6 +1095,55 @@ class DynamoDBTradeLedgerRepository:
             logger.error(f"Failed to discover strategies with closed lots: {e}")
             return []
 
+    def discover_strategies_with_completed_trades(self) -> list[str]:
+        """Discover all strategies that have completed trades (exit records).
+
+        Scans for unique strategy names from lots that have at least one exit record.
+        This is the correct method for P&L reporting - a completed trade is any exit,
+        regardless of whether the lot still has remaining shares.
+
+        Returns:
+            List of unique strategy names with completed trades
+
+        """
+        try:
+            # Scan for all LOT# items that have exit_records
+            response = self._table.scan(
+                FilterExpression="begins_with(PK, :pk) AND size(exit_records) > :zero",
+                ExpressionAttributeValues={
+                    ":pk": "LOT#",
+                    ":zero": 0,
+                },
+                ProjectionExpression="strategy_name",
+            )
+
+            strategy_names: set[str] = set()
+            for item in response.get("Items", []):
+                strategy_name = item.get("strategy_name")
+                if strategy_name and isinstance(strategy_name, str):
+                    strategy_names.add(strategy_name)
+
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self._table.scan(
+                    FilterExpression="begins_with(PK, :pk) AND size(exit_records) > :zero",
+                    ExpressionAttributeValues={
+                        ":pk": "LOT#",
+                        ":zero": 0,
+                    },
+                    ProjectionExpression="strategy_name",
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                for item in response.get("Items", []):
+                    strategy_name = item.get("strategy_name")
+                    if strategy_name and isinstance(strategy_name, str):
+                        strategy_names.add(strategy_name)
+
+            return sorted(strategy_names)
+        except DynamoDBException as e:
+            logger.error(f"Failed to discover strategies with completed trades: {e}")
+            return []
+
     # ========================================================================
     # Strategy Metadata Operations
     # ========================================================================
@@ -1290,8 +1339,12 @@ class DynamoDBTradeLedgerRepository:
                     losing_trades += 1
 
         completed_trades = winning_trades + losing_trades
-        win_rate = (winning_trades / completed_trades * 100) if completed_trades > 0 else Decimal("0")
-        avg_profit = (total_realized_pnl / completed_trades) if completed_trades > 0 else Decimal("0")
+        win_rate = (
+            (winning_trades / completed_trades * 100) if completed_trades > 0 else Decimal("0")
+        )
+        avg_profit = (
+            (total_realized_pnl / completed_trades) if completed_trades > 0 else Decimal("0")
+        )
 
         return {
             "strategy_name": strategy_name,
