@@ -337,7 +337,7 @@ class DailyPnLService:
 
             item = response["Item"]
             return DailyPnLRecord(
-                date=item["date"],
+                date=str(item["date"]),
                 equity=Decimal(str(item["equity"])),
                 pnl_amount=Decimal(str(item["pnl_amount"])),
                 pnl_percent=Decimal(str(item["pnl_percent"])),
@@ -345,9 +345,9 @@ class DailyPnLService:
                 deposits_settled=Decimal(str(item.get("deposits_settled", "0"))),
                 deposits=Decimal(str(item.get("deposits", "0"))),
                 withdrawals=Decimal(str(item.get("withdrawals", "0"))),
-                timestamp=item["timestamp"],
-                environment=item["environment"],
-                schema_version=item.get("schema_version", "1.0"),
+                timestamp=str(item["timestamp"]),
+                environment=str(item["environment"]),
+                schema_version=str(item.get("schema_version", "1.0")),
             )
         except ClientError as e:
             logger.error(
@@ -395,7 +395,7 @@ class DailyPnLService:
             last_evaluated_key: dict[str, Any] | None = None
 
             while True:
-                scan_kwargs = {
+                scan_kwargs: dict[str, Any] = {
                     "FilterExpression": "#d >= :start_date AND #d <= :end_date AND #env = :environment",
                     "ExpressionAttributeNames": {"#d": "date", "#env": "environment"},
                     "ExpressionAttributeValues": {
@@ -417,7 +417,7 @@ class DailyPnLService:
             for item in items:
                 records.append(
                     DailyPnLRecord(
-                        date=item["date"],
+                        date=str(item["date"]),
                         equity=Decimal(str(item["equity"])),
                         pnl_amount=Decimal(str(item["pnl_amount"])),
                         pnl_percent=Decimal(str(item["pnl_percent"])),
@@ -425,9 +425,9 @@ class DailyPnLService:
                         deposits_settled=Decimal(str(item.get("deposits_settled", "0"))),
                         deposits=Decimal(str(item.get("deposits", "0"))),
                         withdrawals=Decimal(str(item.get("withdrawals", "0"))),
-                        timestamp=item["timestamp"],
-                        environment=item["environment"],
-                        schema_version=item.get("schema_version", "1.0"),
+                        timestamp=str(item["timestamp"]),
+                        environment=str(item["environment"]),
+                        schema_version=str(item.get("schema_version", "1.0")),
                     )
                 )
 

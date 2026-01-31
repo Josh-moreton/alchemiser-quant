@@ -258,6 +258,7 @@ class PnLService:
         
         Aggregates daily records from DynamoDB into monthly PnLData objects.
         """
+        assert self._daily_pnl_service is not None, "DynamoDB service must be initialized"
         today = datetime.now(UTC).date()
         results: list[PnLData] = []
         
@@ -319,7 +320,7 @@ class PnLService:
                 end_equity = daily_records[-1].equity
                 
                 # Sum daily P&L (already adjusted for deposits/withdrawals)
-                total_pnl = sum(record.pnl_amount for record in daily_records)
+                total_pnl = sum((record.pnl_amount for record in daily_records), Decimal("0"))
                 
                 # Calculate percentage
                 if start_equity > Decimal("0"):
