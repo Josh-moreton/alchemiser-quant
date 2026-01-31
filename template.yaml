@@ -502,34 +502,6 @@ Resources:
         - Key: Service
           Value: bad-data-markers
 
-  # DynamoDB table for daily P&L tracking
-  # Single source of truth for historical portfolio performance
-  DailyPnLTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-daily-pnl"
-        - !Sub "alchemiser-${Stage}-daily-pnl"
-      BillingMode: PAY_PER_REQUEST
-
-      AttributeDefinitions:
-        - AttributeName: date
-          AttributeType: S
-
-      KeySchema:
-        - AttributeName: date
-          KeyType: HASH
-
-      SSESpecification:
-        SSEEnabled: true
-
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: daily-pnl
-
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -708,6 +680,30 @@ Resources:
       FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 days
 
+  # ========== HEDGE EXECUTION QUEUE (OPTIONS HEDGING) ==========
+  # SQS Queue for reliable hedge order execution with DLQ
+  HedgeExecutionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-execution-queue"
+        - !Sub "alchemiser-${Stage}-hedge-execution-queue"
+      VisibilityTimeout: 900  # 15 mins for execution
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt HedgeExecutionDLQ.Arn
+        maxReceiveCount: 3
+
+  HedgeExecutionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-execution-dlq"
+        - !Sub "alchemiser-${Stage}-hedge-execution-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
   # SNS Topic for DLQ alerts (very low cost: ~$0.50/million messages)
   DLQAlertTopic:
     Type: AWS::SNS::Topic
@@ -793,9 +789,9 @@ Resources:
         - Key: Service
           Value: market-data
 
-  # ========== TRADING NOTIFICATIONS SNS ==========
-  # SNS Topic for trading notifications (trade results, workflow failures)
-  # CloudWatch Alarm for DLQ messages (triggers when messages hit DLQ)
+  # ========== CLOUDWATCH ALARMS ==========
+  # All alarms publish to default EventBridge bus (no AlarmActions needed)
+  # Notifications Lambda handles CloudWatch Alarm State Change events via SES
   DLQMessageAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -814,8 +810,8 @@ Resources:
       Dimensions:
         - Name: QueueName
           Value: !GetAtt ExecutionDLQ.QueueName
-      AlarmActions:
-        - !Ref DLQAlertTopic
+      # AlarmActions removed - alarms automatically publish to default EventBridge bus
+      # Notifications Lambda handles CloudWatch Alarm State Change events
       TreatMissingData: notBreaching
 
   # CloudWatch Alarm for parallel execution DLQ messages (per-trade execution failures)
@@ -837,8 +833,6 @@ Resources:
       Dimensions:
         - Name: QueueName
           Value: !GetAtt ExecutionFifoDLQ.QueueName
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # CloudWatch Alarm for stuck execution runs (RUNNING > 30 mins)
@@ -861,8 +855,6 @@ Resources:
       Dimensions:
         - Name: TableName
           Value: !Ref ExecutionRunsTable
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # CloudWatch Alarm for stuck aggregation sessions (PENDING > 30 mins)
@@ -886,8 +878,6 @@ Resources:
       Dimensions:
         - Name: TableName
           Value: !Ref AggregationSessionsTable
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # ========== LAMBDA ERROR ALARMS ==========
@@ -916,8 +906,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref StrategyOrchestratorFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Strategy Worker errors - catches timeout/crash when WorkflowFailed can't be published
@@ -939,8 +927,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref StrategyFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Strategy Aggregator errors - catches stalled aggregation scenarios
@@ -962,8 +948,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref StrategyAggregatorFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Portfolio Lambda errors - catches failures in rebalance planning
@@ -985,12 +969,11 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref PortfolioFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Notifications Lambda errors - CRITICAL: if this fails, no one knows
-  # Uses DLQAlertTopic since TradingNotificationsTopic depends on this Lambda
+  # This alarm publishes to default EventBridge bus, creating a feedback loop risk
+  # However, since we filter by ALARM state only, recovery won't re-trigger
   NotificationsErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1009,8 +992,6 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref NotificationsFunction
-      AlarmActions:
-        - !Ref DLQAlertTopic
       TreatMissingData: notBreaching
 
   # Note: ExecutionQueuePolicy removed - EventBridge no longer routes to SQS.
@@ -1691,6 +1672,23 @@ Resources:
                 - "lambda"
               detail-type:
                 - "Lambda Function Invocation Result - Failure"
+        # CloudWatch Alarm State Changes - routes DLQ alerts, stuck runs, Lambda errors
+        # through unified SES notification channel (replaces deprecated SNS topic)
+        CloudWatchAlarmEvent:
+          Type: EventBridgeRule
+          Properties:
+            # CloudWatch alarms publish to the default EventBridge bus
+            Pattern:
+              source:
+                - "aws.cloudwatch"
+              detail-type:
+                - "CloudWatch Alarm State Change"
+              detail:
+                alarmName:
+                  - prefix: "alchemiser-"
+                state:
+                  value:
+                    - "ALARM"
     Metadata:
       BuildMethod: python3.12
       # BuildProperties removed - SAM auto-includes everything in CodeUri
@@ -1797,6 +1795,293 @@ Resources:
                 Action:
                   - cloudwatch:PutMetricData
                 Resource: "*"
+
+  # ========== HEDGE EVALUATOR LAMBDA (OPTIONS HEDGING) ==========
+  # Triggered by RebalancePlanned to evaluate hedge requirements
+  # Calculates sector exposure, sizes hedges, publishes HedgeEvaluationCompleted
+  HedgeEvaluatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-evaluator"
+        - !Sub "alchemiser-${Stage}-hedge-evaluator"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_evaluator/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeEvaluatorExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
+          # VIX value is fetched real-time from VIXY ETF proxy (VIXY price * 10 ≈ VIX index).
+          # Environment variables below are reserved for future runtime override capability.
+          # Currently unused - the code reads from constants; uncomment to enable env-based config.
+          # HEDGE_BUDGET_VIX_LOW: "0.008"
+          # HEDGE_BUDGET_VIX_MID: "0.005"
+          # HEDGE_BUDGET_VIX_HIGH: "0.003"
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeEvaluatorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HedgeEvaluatorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt HedgeExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt HedgeKillSwitchTable.Arn
+
+  # EventBridge Rule: Route RebalancePlanned events to HedgeEvaluator
+  RebalancePlannedToHedgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-rebalance-to-hedge"
+        - !Sub "alchemiser-${Stage}-rebalance-to-hedge"
+      EventBusName: !Ref AlchemiserEventBus
+      EventPattern:
+        source:
+          - alchemiser.portfolio
+        detail-type:
+          - RebalancePlanned
+      Targets:
+        - Id: HedgeEvaluatorTarget
+          Arn: !GetAtt HedgeEvaluatorFunction.Arn
+
+  RebalancePlannedToHedgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HedgeEvaluatorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt RebalancePlannedToHedgeRule.Arn
+
+  # ========== HEDGE EXECUTOR LAMBDA (OPTIONS HEDGING) ==========
+  # Triggered by SQS queue to execute hedge orders via Alpaca Options API
+  HedgeExecutorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-executor"
+        - !Sub "alchemiser-${Stage}-hedge-executor"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_executor/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeExecutorExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref ExecutionLayer  # alpaca-py, pydantic
+      Timeout: 600
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 3  # Conservative for options API limits
+      Environment:
+        Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
+      Events:
+        HedgeExecutionQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt HedgeExecutionQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeExecutorExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HedgeExecutorPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt HedgeExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt HedgeKillSwitchTable.Arn
+
+  # ========== HEDGE ROLL MANAGER LAMBDA (OPTIONS HEDGING) ==========
+  # Scheduled daily to scan expiring hedges and trigger rolls
+  HedgeRollManagerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-roll-manager"
+        - !Sub "alchemiser-${Stage}-hedge-roll-manager"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_roll_manager/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeRollManagerExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
+          OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
+          HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+      Events:
+        # Daily schedule: ~3:45 PM Eastern Time (after equity rebalance at 3:30 PM)
+        # TIMEZONE NOTE: This schedule uses 19:45 UTC which equals:
+        #   - 3:45 PM EDT (during daylight saving time, Mar-Nov)
+        #   - 2:45 PM EST (during standard time, Nov-Mar)
+        # AWS EventBridge does not natively support US timezone rules.
+        # Acceptable for roll checks as 1-hour variance has minimal impact.
+        DailyRollCheck:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(45 19 ? * MON-FRI *)"
+            Description: "Daily hedge roll check (~3:45 PM ET, see comment for timezone note)"
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeRollManagerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HedgeRollManagerPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt AlchemiserEventBus.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt HedgeExecutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt HedgeHistoryTable.Arn
 
   # ========== DATA LAMBDA FUNCTION (PER-STAGE) ==========
   # Market data fetching and S3 storage (replaces alchemiser-shared-data)

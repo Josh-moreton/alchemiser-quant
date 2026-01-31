@@ -1,30 +1,30 @@
 {
   "files": [
-    "blatant_tech.clj",
     "defence.clj",
     "gold.clj",
     "nuclear.clj",
     "pals_spell.clj",
-    "rains_concise_em.clj",
     "rains_em_dancer.clj",
     "simons_full_kmlm.clj",
     "sisyphus_lowvol.clj",
     "tqqq_ftlt.clj",
     "tqqq_ftlt_1.clj",
-    "tqqq_ftlt_2.clj"
+    "tqqq_ftlt_2.clj",
+    "holy_grail.clj",
+    "kmlm_switcher.clj"
   ],
   "allocations": {
-    "blatant_tech.clj": 0.075,
-    "defence.clj": 0.1,
-    "gold.clj": 0.05,
-    "nuclear.clj": 0.05,
-    "pals_spell.clj": 0.1,
-    "rains_concise_em.clj": 0.1,
-    "rains_em_dancer.clj": 0.075,
-    "simons_full_kmlm.clj": 0.075,
-    "sisyphus_lowvol.clj": 0.1,
-    "tqqq_ftlt.clj": 0.1,
-    "tqqq_ftlt_1.clj": 0.075,
-    "tqqq_ftlt_2.clj": 0.1
+    "defence.clj": 0.144,
+    "gold.clj": 0.115,
+    "nuclear.clj": 0.036,
+    "pals_spell.clj": 0.142,
+    "rains_em_dancer.clj": 0.073,
+    "simons_full_kmlm.clj": 0.036,
+    "sisyphus_lowvol.clj": 0.071,
+    "tqqq_ftlt.clj": 0.058,
+    "tqqq_ftlt_1.clj": 0.136,
+    "tqqq_ftlt_2.clj": 0.095,
+    "holy_grail.clj": 0.058,
+    "kmlm_switcher.clj": 0.036
   }
 }

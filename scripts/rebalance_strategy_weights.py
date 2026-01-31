@@ -45,7 +45,16 @@ CONFIG_DIR = (
     / "shared"
     / "config"
 )
-STRATEGY_PROD_JSON = CONFIG_DIR / "strategy.prod.json"
+
+# Valid stages
+VALID_STAGES = ("dev", "staging", "prod")
+
+
+def get_config_path(stage: str) -> Path:
+    """Get the config file path for the given stage."""
+    if stage not in VALID_STAGES:
+        raise ValueError(f"Invalid stage '{stage}'. Must be one of: {VALID_STAGES}")
+    return CONFIG_DIR / f"strategy.{stage}.json"
 
 # Calmar-tilt parameters (from issue #2975)
 ALPHA = Decimal("0.5")  # Square-root dampening
@@ -66,6 +75,13 @@ CSV_TO_FILENAME: dict[str, str] = {
     "2017 BT TQQQ For The": "tqqq_ftlt_2.clj",
     "TQQQ For The Long Te": "tqqq_ftlt.clj",
     "Blatant Tech Rulersh": "blatant_tech.clj",
+    "The Holy Grail": "holy_grail.clj",
+    "KMLM switcher": "kmlm_switcher.clj",
+    "Custom Exposures": "custom_exposures.clj",
+    "FTL Starburst": "ftl_starburst.clj",
+    "Gold Currency Hedge": "gold_currency.clj",
+    "Growth Blend": "growth_blend.clj",
+    "V1a What Have I Done": "what_have_i_done.clj",
 }
 
 
@@ -84,6 +100,13 @@ def match_csv_name_to_filename(csv_name: str) -> str | None:
         if csv_name.startswith(prefix):
             return filename
     return None
+
+
+def strip_prefix(filename: str) -> str:
+    """Strip 'testing/' prefix from filename if present."""
+    if filename.startswith("testing/"):
+        return filename[8:]  # len("testing/") == 8
+    return filename
 
 
 def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
@@ -112,7 +135,10 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
         calmar_by_filename[filename] = Decimal(str(abs(calmar_value)))
 
     if unmatched:
-        print(f"Warning: Could not match CSV names: {unmatched}")
+        print(f"❌ ERROR: Could not match CSV names: {unmatched}")
+        print("\nPlease add mappings to CSV_TO_FILENAME in scripts/rebalance_strategy_weights.py")
+        print("Available .clj files can be found in layers/shared/the_alchemiser/shared/strategies/")
+        sys.exit(1)
 
     return calmar_by_filename
 
@@ -132,6 +158,9 @@ def calculate_calmar_tilt_weights(
     Strategies in config but missing from CSV get the base weight (1/N),
     and the remaining allocation is distributed among CSV-based strategies.
 
+    IMPORTANT: Only strategies present in BOTH CSV and config are used for
+    weight calculation. CSV strategies not in config are ignored (with warning).
+
     Args:
         calmar_ratios: Dict of filename -> Calmar ratio (from CSV)
         config_files: Set of all strategy filenames from config
@@ -146,6 +175,14 @@ def calculate_calmar_tilt_weights(
     n_total = len(config_files)
     if n_total == 0:
         raise ValueError("No strategies in config")
+
+    # Filter CSV strategies to only those in config (ignore extras)
+    extra_in_csv = set(calmar_ratios.keys()) - config_files
+    if extra_in_csv:
+        print(f"\n⚠️  Strategies in CSV but not in config (ignored): {extra_in_csv}")
+
+    # Only use CSV strategies that are in config for weight calculation
+    calmar_ratios = {k: v for k, v in calmar_ratios.items() if k in config_files}
 
     # Base weight = 1/N (using total config strategies)
     w_base = Decimal("1") / Decimal(str(n_total))
@@ -175,8 +212,8 @@ def calculate_calmar_tilt_weights(
 
     print(f"\nCalmar-Tilt Calculation:")
     print(f"  N strategies (config): {n_total}")
-    print(f"  N strategies (CSV): {len(calmar_ratios)}")
-    print(f"  N missing (base weight): {len(missing_strategies)}")
+    print(f"  N strategies (CSV matched): {len(calmar_ratios)}")
+    print(f"  N missing from CSV (base weight): {len(missing_strategies)}")
     print(f"  Base weight (1/N): {float(w_base):.4f}")
     print(f"  Reserved for missing: {float(reserved_weight):.4f}")
     print(f"  Available for CSV strategies: {float(available_weight):.4f}")
@@ -237,15 +274,15 @@ def calculate_calmar_tilt_weights(
     return normalized_weights
 
 
-def load_current_config() -> dict:
-    """Load the current strategy.prod.json config."""
-    with STRATEGY_PROD_JSON.open("r", encoding="utf-8") as f:
+def load_current_config(config_path: Path) -> dict:
+    """Load the current strategy config."""
+    with config_path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_config(config: dict) -> None:
-    """Save the strategy.prod.json config."""
-    with STRATEGY_PROD_JSON.open("w", encoding="utf-8") as f:
+def save_config(config: dict, config_path: Path) -> None:
+    """Save the strategy config."""
+    with config_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
         f.write("\n")  # Trailing newline
 
@@ -283,7 +320,18 @@ def main() -> int:
         default=2.0,
         help="Maximum multiplier cap (default: 2.0)",
     )
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="prod",
+        choices=VALID_STAGES,
+        help="Stage to update: dev, staging, or prod (default: prod)",
+    )
     args = parser.parse_args()
+
+    # Get config path for the specified stage
+    config_path = get_config_path(args.stage)
+    print(f"Target config: {config_path.name}")
 
     # Find CSV file
     if args.csv:
@@ -302,7 +350,7 @@ def main() -> int:
         print(f"  {filename:25s}: {float(calmar):10.2f}")
 
     # Load current config
-    config = load_current_config()
+    config = load_current_config(config_path)
     old_allocations = config.get("allocations", {})
     config_files = set(config.get("files", []))
 
@@ -347,15 +395,8 @@ def main() -> int:
     print("-" * 70)
     print(f"  {'TOTAL':25s}: {float(total_old):6.1%} → {float(total_new):6.1%}")
 
-    # Check for extra strategies in CSV not in config
-    weight_files = set(new_weights.keys())
-    extra_in_csv = set(calmar_ratios.keys()) - config_files
-
-    if extra_in_csv:
-        print(f"\n⚠️  Strategies in CSV but not in config: {extra_in_csv}")
-
     if args.dry_run:
-        print("\n[DRY RUN] No changes made to strategy.prod.json")
+        print(f"\n[DRY RUN] No changes made to {config_path.name}")
         return 0
 
     # Update config
@@ -364,8 +405,8 @@ def main() -> int:
         for filename in config.get("files", [])
     }
 
-    save_config(config)
-    print(f"\n✅ Updated {STRATEGY_PROD_JSON}")
+    save_config(config, config_path)
+    print(f"\n✅ Updated {config_path}")
 
     return 0
 

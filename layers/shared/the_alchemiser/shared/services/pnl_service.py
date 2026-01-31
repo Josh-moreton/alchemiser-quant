@@ -98,18 +98,24 @@ class PnLService:
 
         Returns:
             True if endpoint is for paper trading, False for live trading.
+            Defaults to True (paper) for safety if endpoint is unknown.
 
         """
         if not ep:
             return True
-        ep_norm = ep.strip().rstrip("/").lower()
-        if ep_norm.endswith("/v2"):
-            ep_norm = ep_norm[:-3]
-        # Explicit paper host
-        if "paper-api.alpaca.markets" in ep_norm:
+
+        ep_lower = ep.lower()
+
+        # Check for known Alpaca production endpoint
+        if "api.alpaca.markets" in ep_lower and "paper" not in ep_lower:
+            return False
+
+        # Check for known Alpaca paper endpoint
+        if "paper-api.alpaca.markets" in ep_lower:
             return True
-        # Explicit live host
-        return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)
+
+        # Default to paper trading for safety (unknown endpoints)
+        return True
 
     def get_weekly_pnl(self, weeks_back: int = 1) -> PnLData:
         """Get P&L for the past N weeks.
