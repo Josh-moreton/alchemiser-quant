@@ -155,20 +155,24 @@ def find_most_recent_workflow(
                 '{ $.extra.correlation_id = * }',
                 '{ $.correlation_id = * }',
                 '"workflow-"',  # Fallback: raw string match
+                '"schedule-"',  # Fallback: scheduled runs
             ]
 
             events = []
             for filter_pattern in filter_patterns:
-                response = logs_client.filter_log_events(
-                    logGroupName=orchestrator_log_group,
-                    startTime=start_ms,
-                    endTime=end_ms,
-                    filterPattern=filter_pattern,
-                    limit=500,  # Higher limit to ensure we capture recent events
-                )
-                events = response.get("events", [])
-                if events:
-                    break  # Found events, no need to try more patterns
+                try:
+                    response = logs_client.filter_log_events(
+                        logGroupName=orchestrator_log_group,
+                        startTime=start_ms,
+                        endTime=end_ms,
+                        filterPattern=filter_pattern,
+                        limit=500,  # Higher limit to ensure we capture recent events
+                    )
+                    events = response.get("events", [])
+                    if events:
+                        break  # Found events, no need to try more patterns
+                except ClientError:
+                    continue  # Try next filter pattern
 
             if not events:
                 # No events in this window, try a larger window
@@ -182,14 +186,14 @@ def find_most_recent_workflow(
                     # Check nested extra field first (structlog format), then root level
                     extra = message.get("extra", {})
                     cid = extra.get("correlation_id", "") or message.get("correlation_id", "")
-                    if cid and cid.startswith("workflow-"):
+                    if cid and (cid.startswith("workflow-") or cid.startswith("schedule-")):
                         ts = event["timestamp"]
                         if cid not in correlation_ids or ts > correlation_ids[cid]:
                             correlation_ids[cid] = ts
                 except json.JSONDecodeError:
                     # Try to extract from raw message
                     raw = event.get("message", "")
-                    match = re.search(r'workflow-[a-f0-9-]+', raw)
+                    match = re.search(r'(?:workflow|schedule)-[a-f0-9-]+', raw)
                     if match:
                         cid = match.group(0)
                         ts = event["timestamp"]
