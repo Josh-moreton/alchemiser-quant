@@ -337,13 +337,14 @@ class HedgeSizer:
             return False, "Existing hedges appear sufficient"
 
         # Check annual spend cap if proposed spend is provided
-        if proposed_spend is not None:
-            if not check_annual_spend_cap(year_to_date_spend, proposed_spend, exposure.nav):
-                ytd_pct = (
-                    (year_to_date_spend / exposure.nav * Decimal("100"))
-                    if exposure.nav > 0
-                    else Decimal("0")
-                )
-                return False, f"Annual spend cap would be exceeded (YTD: {ytd_pct:.2f}%)"
+        if proposed_spend is not None and not check_annual_spend_cap(
+            year_to_date_spend, proposed_spend, exposure.nav
+        ):
+            ytd_pct = (
+                (year_to_date_spend / exposure.nav * Decimal("100"))
+                if exposure.nav > 0
+                else Decimal("0")
+            )
+            return False, f"Annual spend cap would be exceeded (YTD: {ytd_pct:.2f}%)"
 
         return True, None

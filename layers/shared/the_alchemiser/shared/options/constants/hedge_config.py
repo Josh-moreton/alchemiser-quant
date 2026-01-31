@@ -500,7 +500,7 @@ def calculate_annual_drag(
     if exposure_multiplier is None:
         exposure_multiplier = get_exposure_multiplier(leverage)
 
-    # Annual rate = monthly rate × 12 months × exposure multiplier
+    # Annual rate = monthly rate * 12 months * exposure multiplier
     return monthly_rate * Decimal("12") * exposure_multiplier
 
 
