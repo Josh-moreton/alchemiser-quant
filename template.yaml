@@ -564,7 +564,8 @@ Resources:
           KeyType: RANGE
 
       GlobalSecondaryIndexes:
-        - IndexName: UnderlyingExpirationIndex
+        # GSI1: Query by underlying symbol and expiration for roll management
+        - IndexName: GSI1-UnderlyingExpirationIndex
           KeySchema:
             - AttributeName: GSI1PK
               KeyType: HASH
@@ -573,15 +574,12 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: true
-
-      SSESpecification:
-        SSEEnabled: true
-
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
 
       Tags:
         - Key: Environment
@@ -589,9 +587,9 @@ Resources:
         - Key: Service
           Value: hedge-positions
 
-  # ========== HEDGE HISTORY TABLE (OPTIONS HEDGING) ==========
-  # DynamoDB table for hedge action audit trail
-  # Supports compliance and historical analysis
+  # ========== HEDGE HISTORY TABLE (OPTIONS HEDGING AUDIT TRAIL) ==========
+  # DynamoDB table for tracking all hedge actions for audit and compliance
+  # Records HEDGE_OPENED, HEDGE_ROLLED, HEDGE_CLOSED, etc. actions
   HedgeHistoryTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -602,26 +600,23 @@ Resources:
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
-        - AttributeName: PK
+        - AttributeName: account_id
           AttributeType: S
-        - AttributeName: SK
+        - AttributeName: timestamp_action
           AttributeType: S
 
       KeySchema:
-        - AttributeName: PK
+        - AttributeName: account_id
           KeyType: HASH
-        - AttributeName: SK
+        - AttributeName: timestamp_action
           KeyType: RANGE
-
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: true
-
-      SSESpecification:
-        SSEEnabled: true
 
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
 
       Tags:
         - Key: Environment
@@ -629,9 +624,6 @@ Resources:
         - Key: Service
           Value: hedge-history
 
-  # ========== HEDGE KILL SWITCH TABLE (OPTIONS HEDGING) ==========
-  # DynamoDB table for emergency kill switch state
-  # Simple key-value storage for circuit breaker state
   HedgeKillSwitchTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -642,15 +634,12 @@ Resources:
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
-        - AttributeName: id
+        - AttributeName: switch_id
           AttributeType: S
 
       KeySchema:
-        - AttributeName: id
+        - AttributeName: switch_id
           KeyType: HASH
-
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: true
 
       SSESpecification:
         SSEEnabled: true
