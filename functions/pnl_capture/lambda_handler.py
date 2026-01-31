@@ -97,6 +97,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "equity": float(record.equity),
                 "pnl_amount": float(record.pnl_amount),
                 "pnl_percent": float(record.pnl_percent),
+                "raw_pnl": float(record.raw_pnl),
+                "deposits_settled": float(record.deposits_settled),
             },
         )
 
@@ -108,6 +110,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "equity": float(record.equity),
                 "pnl_amount": float(record.pnl_amount),
                 "pnl_percent": float(record.pnl_percent),
+                "raw_pnl": float(record.raw_pnl),
+                "deposits_settled": float(record.deposits_settled),
                 "deposits": float(record.deposits),
                 "withdrawals": float(record.withdrawals),
             },

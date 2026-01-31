@@ -25,12 +25,20 @@ class DailyPnLRecord(BaseModel):
     This is the canonical representation of daily portfolio performance,
     adjusted for deposits and withdrawals to reflect true trading P&L.
 
+    Settlement Logic (T+1):
+    - Deposits settle on the next trading day after they're made
+    - `deposits_settled` tracks deposits that settled TODAY (made on prev trading day or weekend)
+    - `pnl_amount` = equity_change - deposits_settled (true trading P&L)
+    - `raw_pnl` = Alpaca's reported P&L (for reference/debugging)
+
     Attributes:
         date: ISO 8601 date (YYYY-MM-DD) - partition key
         equity: Total account equity at end of day (USD)
-        pnl_amount: Daily profit/loss in dollars, adjusted for deposits/withdrawals
+        pnl_amount: Daily profit/loss in dollars, adjusted for deposits/withdrawals (T+1 settlement)
         pnl_percent: Daily profit/loss as percentage
-        deposits: Total deposits on this day (CSD activities)
+        raw_pnl: Alpaca's reported P&L before deposit adjustment (for transparency)
+        deposits_settled: Deposits that settled on this day (from prev trading day or weekends)
+        deposits: Total deposits made on this calendar day (CSD activities)
         withdrawals: Total withdrawals on this day (CSW activities)
         timestamp: ISO 8601 timestamp when record was captured
         environment: Environment (dev/staging/prod)
@@ -42,6 +50,8 @@ class DailyPnLRecord(BaseModel):
         ...     equity=Decimal("10500.00"),
         ...     pnl_amount=Decimal("250.00"),
         ...     pnl_percent=Decimal("2.44"),
+        ...     raw_pnl=Decimal("250.00"),
+        ...     deposits_settled=Decimal("0"),
         ...     deposits=Decimal("0"),
         ...     withdrawals=Decimal("0"),
         ...     timestamp="2025-01-15T21:00:00Z",
@@ -63,14 +73,23 @@ class DailyPnLRecord(BaseModel):
         description="Total account equity at end of day (USD)",
     )
     pnl_amount: Decimal = Field(
-        description="Daily P&L in dollars, adjusted for deposits/withdrawals",
+        description="Daily P&L in dollars, adjusted for deposits/withdrawals (T+1 settlement)",
     )
     pnl_percent: Decimal = Field(
         description="Daily P&L as percentage",
     )
+    raw_pnl: Decimal = Field(
+        default=Decimal("0"),
+        description="Alpaca's reported P&L before deposit adjustment (for transparency)",
+    )
+    deposits_settled: Decimal = Field(
+        default=Decimal("0"),
+        ge=0,
+        description="Deposits that settled on this day (from prev trading day or weekends)",
+    )
     deposits: Decimal = Field(
         ge=0,
-        description="Total deposits on this day (CSD activities)",
+        description="Total deposits made on this calendar day (CSD activities)",
     )
     withdrawals: Decimal = Field(
         ge=0,
@@ -84,6 +103,6 @@ class DailyPnLRecord(BaseModel):
         description="Environment (dev/staging/prod)",
     )
     schema_version: str = Field(
-        default="1.0",
-        description="Schema version for compatibility tracking",
+        default="1.1",
+        description="Schema version for compatibility tracking (1.1 adds raw_pnl, deposits_settled)",
     )

@@ -502,6 +502,39 @@ Resources:
         - Key: Service
           Value: bad-data-markers
 
+  # ========== DAILY P&L TABLE (PNL TRACKING) ==========
+  # DynamoDB table for canonical daily P&L tracking
+  # Stores deposit-adjusted daily P&L with T+1 settlement logic
+  # Single source of truth for account-wide daily/weekly/monthly performance
+  DailyPnLTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-daily-pnl"
+        - !Sub "alchemiser-${Stage}-daily-pnl"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: date
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: date
+          KeyType: HASH
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: daily-pnl
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
