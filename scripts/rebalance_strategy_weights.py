@@ -75,6 +75,13 @@ CSV_TO_FILENAME: dict[str, str] = {
     "2017 BT TQQQ For The": "tqqq_ftlt_2.clj",
     "TQQQ For The Long Te": "tqqq_ftlt.clj",
     "Blatant Tech Rulersh": "blatant_tech.clj",
+    "The Holy Grail": "holy_grail.clj",
+    "KMLM switcher": "kmlm_switcher.clj",
+    "Custom Exposures": "custom_exposures.clj",
+    "FTL Starburst": "ftl_starburst.clj",
+    "Gold Currency Hedge": "gold_currency.clj",
+    "Growth Blend": "growth_blend.clj",
+    "V1a What Have I Done": "what_have_i_done.clj",
 }
 
 
@@ -128,7 +135,10 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
         calmar_by_filename[filename] = Decimal(str(abs(calmar_value)))
 
     if unmatched:
-        print(f"Warning: Could not match CSV names: {unmatched}")
+        print(f"❌ ERROR: Could not match CSV names: {unmatched}")
+        print("\nPlease add mappings to CSV_TO_FILENAME in scripts/rebalance_strategy_weights.py")
+        print("Available .clj files can be found in layers/shared/the_alchemiser/shared/strategies/")
+        sys.exit(1)
 
     return calmar_by_filename
 
@@ -148,6 +158,9 @@ def calculate_calmar_tilt_weights(
     Strategies in config but missing from CSV get the base weight (1/N),
     and the remaining allocation is distributed among CSV-based strategies.
 
+    IMPORTANT: Only strategies present in BOTH CSV and config are used for
+    weight calculation. CSV strategies not in config are ignored (with warning).
+
     Args:
         calmar_ratios: Dict of filename -> Calmar ratio (from CSV)
         config_files: Set of all strategy filenames from config
@@ -162,6 +175,14 @@ def calculate_calmar_tilt_weights(
     n_total = len(config_files)
     if n_total == 0:
         raise ValueError("No strategies in config")
+
+    # Filter CSV strategies to only those in config (ignore extras)
+    extra_in_csv = set(calmar_ratios.keys()) - config_files
+    if extra_in_csv:
+        print(f"\n⚠️  Strategies in CSV but not in config (ignored): {extra_in_csv}")
+
+    # Only use CSV strategies that are in config for weight calculation
+    calmar_ratios = {k: v for k, v in calmar_ratios.items() if k in config_files}
 
     # Base weight = 1/N (using total config strategies)
     w_base = Decimal("1") / Decimal(str(n_total))
@@ -191,8 +212,8 @@ def calculate_calmar_tilt_weights(
 
     print(f"\nCalmar-Tilt Calculation:")
     print(f"  N strategies (config): {n_total}")
-    print(f"  N strategies (CSV): {len(calmar_ratios)}")
-    print(f"  N missing (base weight): {len(missing_strategies)}")
+    print(f"  N strategies (CSV matched): {len(calmar_ratios)}")
+    print(f"  N missing from CSV (base weight): {len(missing_strategies)}")
     print(f"  Base weight (1/N): {float(w_base):.4f}")
     print(f"  Reserved for missing: {float(reserved_weight):.4f}")
     print(f"  Available for CSV strategies: {float(available_weight):.4f}")
@@ -373,13 +394,6 @@ def main() -> int:
 
     print("-" * 70)
     print(f"  {'TOTAL':25s}: {float(total_old):6.1%} → {float(total_new):6.1%}")
-
-    # Check for extra strategies in CSV not in config
-    weight_files = set(new_weights.keys())
-    extra_in_csv = set(calmar_ratios.keys()) - config_files
-
-    if extra_in_csv:
-        print(f"\n⚠️  Strategies in CSV but not in config: {extra_in_csv}")
 
     if args.dry_run:
         print(f"\n[DRY RUN] No changes made to {config_path.name}")
