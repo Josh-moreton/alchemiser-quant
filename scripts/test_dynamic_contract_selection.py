@@ -146,7 +146,7 @@ def test_convexity_selector():
         print(f"\n  Strike ${m.contract.strike_price} (delta {m.contract.delta}):")
         print(f"    Mid price: ${m.contract.mid_price}")
         print(f"    Convexity/dollar: {m.convexity_per_dollar:.6f}")
-        print(f"    Scenario payoff: {m.scenario_payoff_pct:.2f}x premium")
+        print(f"    Scenario payoff: {m.scenario_payoff_multiple:.2f}x premium")
         print(f"    Effective score: {m.effective_score:.2f}")
 
     # Filter by payoff contribution
@@ -162,7 +162,7 @@ def test_convexity_selector():
         )
         print(f"  Effective score: {best.effective_score:.2f}")
         print(f"  Convexity/dollar: {best.convexity_per_dollar:.6f}")
-        print(f"  Payoff multiple: {best.scenario_payoff_pct:.2f}x")
+        print(f"  Payoff multiple: {best.scenario_payoff_multiple:.2f}x")
 
     print("\n✓ ConvexitySelector tests passed")
 

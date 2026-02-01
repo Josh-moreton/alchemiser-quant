@@ -25,7 +25,7 @@ class ConvexityMetrics:
 
     contract: OptionContract
     convexity_per_dollar: Decimal  # Gamma / (mid_price * 100)
-    scenario_payoff_pct: Decimal  # Payoff at -20% as % of premium
+    scenario_payoff_multiple: Decimal  # Payoff at -20% as multiple of premium (e.g., 3.0 = 3x)
     effective_score: Decimal  # Combined score (higher is better)
 
 
@@ -99,7 +99,7 @@ class ConvexitySelector:
         return ConvexityMetrics(
             contract=contract,
             convexity_per_dollar=convexity_per_dollar,
-            scenario_payoff_pct=payoff_multiple,
+            scenario_payoff_multiple=payoff_multiple,
             effective_score=effective_score,
         )
 
@@ -117,7 +117,7 @@ class ConvexitySelector:
 
         """
         filtered = [
-            m for m in metrics_list if m.scenario_payoff_pct >= self._min_payoff_contribution
+            m for m in metrics_list if m.scenario_payoff_multiple >= self._min_payoff_contribution
         ]
 
         logger.info(
@@ -153,7 +153,7 @@ class ConvexitySelector:
                 strike=str(best.contract.strike_price),
                 delta=str(best.contract.delta) if best.contract.delta else "N/A",
                 convexity_per_dollar=str(best.convexity_per_dollar),
-                payoff_multiple=str(best.scenario_payoff_pct),
+                payoff_multiple=str(best.scenario_payoff_multiple),
                 effective_score=str(best.effective_score),
             )
 

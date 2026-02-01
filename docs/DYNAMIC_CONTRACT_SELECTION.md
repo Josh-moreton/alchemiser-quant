@@ -23,10 +23,10 @@ selector = TenorSelector()
 recommendation = selector.select_tenor(
     current_vix=Decimal("25"),
     iv_percentile=Decimal("0.75"),
-    use_ladder=True,
+    use_ladder=False,
 )
 # recommendation.primary_dte = 150
-# recommendation.strategy = "ladder"
+# recommendation.strategy = "single"  # High IV takes precedence over ladder
 ```
 
 ### 2. Convexity-Based Strike Selection (`convexity_selector.py`)
@@ -52,7 +52,7 @@ selector = ConvexitySelector(
 
 metrics = selector.calculate_convexity_metrics(contract, underlying_price)
 # metrics.convexity_per_dollar = 0.000012
-# metrics.scenario_payoff_pct = 3.62
+# metrics.scenario_payoff_multiple = 3.62  # 3.62x premium
 # metrics.effective_score = 3.63
 
 # Filter and rank

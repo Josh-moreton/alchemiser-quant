@@ -405,7 +405,7 @@ The `OptionSelector` uses **dynamic contract selection** based on market conditi
 - **Bid-Ask Spread (%)**: ≤5% of mid
 - **Bid-Ask Spread ($)**: ≤$0.10 absolute
 - **Mid Price**: ≥$0.05 (avoids penny options)
-- **DTE**: 14-120 days
+- **DTE**: 14-180 days (supports long-tenor dynamic selection)
 
 **Traditional Flow (for reference):**
 1. Query option chain from Alpaca (strike range: 75-95% of underlying)

@@ -196,20 +196,22 @@ class HedgeEvaluationHandler:
                 correlation_id=correlation_id,
             )
 
-            # Also fetch VIX proxy as a sanity check (log only, don't use for decisions)
+            # Also fetch VIX proxy for dynamic tenor selection
+            current_vix: Decimal | None = None
             try:
                 vix_proxy = self._get_vix_proxy_sanity_check(correlation_id)
+                current_vix = vix_proxy  # Use for dynamic tenor selection
                 logger.info(
-                    "VIX proxy sanity check",
+                    "VIX proxy fetched for dynamic tenor selection",
                     vix_proxy=str(vix_proxy),
                     iv_signal_atm=str(iv_signal.atm_iv),
-                    note="VIX proxy is for monitoring only - IV signal drives decisions",
+                    note="VIX proxy used for dynamic tenor selection in executor",
                     correlation_id=correlation_id,
                 )
             except Exception as e:
-                # VIX proxy failure is OK - it's just a sanity check
+                # VIX proxy failure is OK - executor will use default tenor
                 logger.warning(
-                    "VIX proxy sanity check failed (non-critical)",
+                    "VIX proxy fetch failed - executor will use default tenor",
                     error=str(e),
                     correlation_id=correlation_id,
                 )
@@ -223,14 +225,14 @@ class HedgeEvaluationHandler:
             )
 
             # Build recommendation dict for event
-            recommendation_dict = {
+            recommendation_dict: dict[str, str | int | None] = {
                 "underlying_symbol": recommendation.underlying_symbol,
                 "target_delta": str(recommendation.target_delta),
                 "target_dte": recommendation.target_dte,
                 "premium_budget": str(recommendation.premium_budget),
                 "contracts_estimated": recommendation.contracts_estimated,
                 "hedge_template": recommendation.hedge_template,
-                "current_vix": str(current_vix),  # For dynamic tenor selection
+                "current_vix": str(current_vix) if current_vix is not None else None,
             }
 
             # Publish HedgeEvaluationCompleted event

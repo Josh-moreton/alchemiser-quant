@@ -108,6 +108,7 @@ class OptionSelector:
 
         """
         # Use dynamic tenor selection if VIX provided
+        effective_max_dte = self._filters.max_dte
         if current_vix is not None:
             tenor_recommendation = self._tenor_selector.select_tenor(
                 current_vix=current_vix,
@@ -115,9 +116,13 @@ class OptionSelector:
                 use_ladder=False,  # For now, use single tenor
             )
             target_dte = tenor_recommendation.primary_dte
+            # Ensure query window includes dynamically selected tenor
+            # This prevents longer-tenor recommendations from being excluded
+            effective_max_dte = max(self._filters.max_dte, target_dte + 15)
             logger.info(
                 "Dynamic tenor selected",
                 target_dte=target_dte,
+                effective_max_dte=effective_max_dte,
                 rationale=tenor_recommendation.rationale,
             )
 
@@ -133,7 +138,7 @@ class OptionSelector:
         # Calculate expiration date range
         today = datetime.now(UTC).date()
         min_expiry = today + timedelta(days=self._filters.min_dte)
-        max_expiry = today + timedelta(days=self._filters.max_dte)
+        max_expiry = today + timedelta(days=effective_max_dte)
 
         # Target expiry around target_dte
         target_expiry = today + timedelta(days=target_dte)
@@ -172,7 +177,7 @@ class OptionSelector:
             dte_filtered = [
                 c
                 for c in contracts
-                if self._filters.min_dte <= c.days_to_expiry <= self._filters.max_dte
+                if self._filters.min_dte <= c.days_to_expiry <= effective_max_dte
             ]
 
             if not dte_filtered:
@@ -363,7 +368,9 @@ class OptionSelector:
                 convexity_metrics.append(metrics)
 
         # If we have sufficient convexity data, use it
-        if len(convexity_metrics) >= len(liquid_contracts) // 2:
+        # Require non-empty AND at least half of contracts have gamma data
+        min_required = max(1, len(liquid_contracts) // 2)
+        if convexity_metrics and len(convexity_metrics) >= min_required:
             logger.info(
                 "Using convexity-based selection",
                 total_contracts=len(liquid_contracts),

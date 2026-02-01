@@ -298,7 +298,7 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
     min_mid_price=Decimal("0.05"),  # Min $0.05 mid price (avoid penny options)
     min_volume=100,  # Minimum 100 daily volume
     min_dte=14,  # No options expiring < 14 days (avoid gamma)
-    max_dte=120,  # No options expiring > 120 days (too far out)
+    max_dte=180,  # No options expiring > 180 days (supports long-tenor dynamic selection)
 )
 
 

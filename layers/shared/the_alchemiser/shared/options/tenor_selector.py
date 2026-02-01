@@ -61,6 +61,7 @@ class TenorSelector:
         current_vix: Decimal,
         iv_percentile: Decimal | None = None,
         term_structure_slope: Decimal | None = None,
+        *,
         use_ladder: bool = True,
     ) -> TenorRecommendation:
         """Select optimal tenor based on market conditions.
@@ -115,20 +116,14 @@ class TenorSelector:
 
         # Term structure adjustment (if available)
         if term_structure_slope is not None:
-            if term_structure_slope > Decimal("0.1"):
+            if term_structure_slope > Decimal("0.1") and strategy == "single":
                 # Steep contango: favor shorter tenors (less theta decay)
-                if strategy == "single":
-                    primary_dte = self._short_min_dte
-                    rationale += (
-                        f" (steep contango {term_structure_slope:.1%}, favoring shorter tenor)"
-                    )
-            elif term_structure_slope < Decimal("-0.05"):
+                primary_dte = self._short_min_dte
+                rationale += f" (steep contango {term_structure_slope:.1%}, favoring shorter tenor)"
+            elif term_structure_slope < Decimal("-0.05") and strategy == "single":
                 # Backwardation: favor longer tenors (capture term premium)
-                if strategy == "single":
-                    primary_dte = self._long_max_dte
-                    rationale += (
-                        f" (backwardation {term_structure_slope:.1%}, favoring longer tenor)"
-                    )
+                primary_dte = self._long_max_dte
+                rationale += f" (backwardation {term_structure_slope:.1%}, favoring longer tenor)"
 
         return TenorRecommendation(
             primary_dte=primary_dte,
