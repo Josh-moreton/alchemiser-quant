@@ -141,7 +141,7 @@ class RollScheduleHandler:
 
                 # Check for assignment risk on short leg (for spreads)
                 if position.get("is_spread", False):
-                    assignment_risk = self._check_assignment_risk(position)
+                    assignment_risk = self._check_assignment_risk(position, correlation_id)
                     if assignment_risk:
                         assignment_risks += 1
 
@@ -185,7 +185,6 @@ class RollScheduleHandler:
                     # Fallback for legacy path
                     self._trigger_roll(position, dte, correlation_id)
                     rolls_triggered += 1
-
 
             logger.info(
                 "Hedge roll check completed",
@@ -356,11 +355,14 @@ class RollScheduleHandler:
             )
             return False
 
-    def _check_assignment_risk(self, position: dict[str, Any]) -> bool:
+    def _check_assignment_risk(
+        self, position: dict[str, Any], correlation_id: str | None = None
+    ) -> bool:
         """Check for assignment risk on short leg of spread (FR-5.3).
 
         Args:
             position: Hedge position data (must be a spread)
+            correlation_id: Correlation ID for tracing (propagated to audit trail)
 
         Returns:
             True if assignment risk detected (delta > 0.80)
@@ -397,7 +399,7 @@ class RollScheduleHandler:
                     hedge_id=hedge_id,
                     short_leg_symbol=short_symbol,
                     short_delta=str(short_delta),
-                    correlation_id=f"assignment-risk-{hedge_id}",
+                    correlation_id=correlation_id or f"assignment-risk-{hedge_id}",
                 )
 
                 return True
@@ -583,6 +585,7 @@ class RollScheduleHandler:
 
         try:
             from the_alchemiser.shared.options.constants import (
+                DEFAULT_ETF_PRICE_FALLBACK,
                 DEFAULT_ETF_PRICES,
                 TAIL_EXTRINSIC_DECAY_THRESHOLD,
             )
@@ -592,9 +595,7 @@ class RollScheduleHandler:
             strike_price = Decimal(str(strike_price_str))
 
             # Get underlying price (use fallback if not available)
-            underlying_price = DEFAULT_ETF_PRICES.get(
-                underlying_symbol, Decimal("485")
-            )  # QQQ fallback
+            underlying_price = DEFAULT_ETF_PRICES.get(underlying_symbol, DEFAULT_ETF_PRICE_FALLBACK)
 
             # Calculate intrinsic value for put option
             intrinsic_value = max(strike_price - underlying_price, Decimal("0"))
@@ -623,9 +624,7 @@ class RollScheduleHandler:
 
         return False, None
 
-    def _check_spread_width_value(
-        self, position: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def _check_spread_width_value(self, position: dict[str, Any]) -> tuple[bool, str | None]:
         """Check for spread width value decay (FR-8 enhancement).
 
         Args:
@@ -682,9 +681,7 @@ class RollScheduleHandler:
 
         return False, None
 
-    def _check_spread_delta_drift(
-        self, position: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def _check_spread_delta_drift(self, position: dict[str, Any]) -> tuple[bool, str | None]:
         """Check for delta drift on spread legs (FR-8 enhancement).
 
         Args:
@@ -773,9 +770,7 @@ class RollScheduleHandler:
                 option_symbol=short_leg_symbol,
                 details={
                     "short_delta": short_delta,
-                    "threshold": str(
-                        self._smoothing_template.assignment_risk_delta_threshold
-                    ),
+                    "threshold": str(self._smoothing_template.assignment_risk_delta_threshold),
                     "detection_method": "automated_roll_check",
                 },
             )

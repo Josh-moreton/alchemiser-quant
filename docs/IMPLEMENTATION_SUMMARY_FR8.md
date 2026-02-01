@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the implementation of options hedging assignment handling procedures and enhanced roll lifecycle rules for the Alchemiser quantitative trading system (Issue #FR-8).
+This document summarizes the implementation of options hedging assignment handling procedures and enhanced roll lifecycle rules for the Alchemiser quantitative trading system (Issue #3027).
 
 ## Deliverables Completed
 
@@ -352,7 +352,7 @@ All new configuration constants added to `hedge_config.py` with sensible default
 
 ## Contributors
 
-- **Issue**: Josh-moreton/alchemiser-quant#FR-8
+- **Issue**: Josh-moreton/alchemiser-quant#3027
 - **Implementation**: GitHub Copilot
 - **Review**: [Pending]
 

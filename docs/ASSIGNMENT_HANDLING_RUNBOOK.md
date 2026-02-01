@@ -169,12 +169,19 @@ Short 5x QQQ $450 Puts (assigned)
 3. **Verify Positions Flat**:
    ```bash
    # Verify no residual positions
+   # NOTE: HedgePositionsTable uses PK/SK single-table design.
+   # Derive keys from hedge_id: PK="HEDGE#<hedge_id>", SK="POSITION#LIVE"
    aws dynamodb update-item \
+     --no-cli-pager \
      --table-name HedgePositionsTable \
-     --key '{"hedge_id": {"S": "hedge-abc123"}}' \
+     --key '{
+       "PK": {"S": "HEDGE#hedge-abc123"},
+       "SK": {"S": "POSITION#LIVE"}
+     }' \
      --update-expression "SET #state = :closed, roll_state = :closed_state" \
      --expression-attribute-names '{"#state": "state"}' \
-     --expression-attribute-values '{":closed": {"S": "closed"}, ":closed_state": {"S": "closed"}}'
+     --expression-attribute-values '{":closed": {"S": "closed"}, ":closed_state": {"S": "closed"}}' \
+     --region us-east-1
    ```
 
 4. **Calculate P&L**:
@@ -227,10 +234,14 @@ Halt all hedging operations if:
 
 1. **Set Kill Switch**:
    ```python
-   # In kill_switch_service.py
-   reason = "unresolved_assignment_detected"
-   hedge_id = "hedge-abc123"
-   set_kill_switch(reason=reason, hedge_id=hedge_id)
+   # Using KillSwitchService
+   from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
+   
+   service = KillSwitchService()
+   service.activate(
+       reason="unresolved_assignment_detected",
+       triggered_by="manual"
+   )
    ```
 
 2. **Notification**:
@@ -245,7 +256,7 @@ Halt all hedging operations if:
 
 4. **Clear Kill Switch** (after remediation):
    ```python
-   clear_kill_switch(hedge_id="hedge-abc123")
+   service.deactivate()
    ```
 
 ## Forced Actions Configuration
@@ -264,10 +275,12 @@ New action types added to `HedgeAction` enum:
 **Configuration**: `hedge_config.py`
 
 ```python
-# Assignment handling configuration
-ASSIGNMENT_AUTO_REMEDIATE: bool = True  # Enable automatic remediation
-ASSIGNMENT_REMEDIATION_TIMEOUT_HOURS: int = 4  # Max time to remediate
-ASSIGNMENT_HALT_ON_UNRESOLVED: bool = True  # Halt trading if not resolved
+# Assignment handling configuration (PLANNED - not yet implemented)
+# These constants are placeholders for future automated remediation.
+# When implemented, define them in hedge_config.py and wire into runtime.
+# ASSIGNMENT_AUTO_REMEDIATE: bool = True  # Enable automatic remediation
+# ASSIGNMENT_REMEDIATION_TIMEOUT_HOURS: int = 4  # Max time to remediate
+# ASSIGNMENT_HALT_ON_UNRESOLVED: bool = True  # Halt trading if not resolved
 ```
 
 **Handler**: `functions/hedge_roll_manager/handlers/assignment_handler.py` (to be created)
@@ -473,10 +486,11 @@ aws lambda invoke \
 ### Check Kill Switch Status
 
 ```bash
-# Query kill switch state
+# Query kill switch state (HedgeKillSwitchTable uses switch_id as PK)
 aws dynamodb get-item \
-  --table-name HedgeConfigTable \
-  --key '{"config_key": {"S": "kill_switch_status"}}' \
+  --no-cli-pager \
+  --table-name HedgeKillSwitchTable \
+  --key '{"switch_id": {"S": "HEDGE_KILL_SWITCH"}}' \
   --region us-east-1
 ```
 
@@ -484,9 +498,15 @@ aws dynamodb get-item \
 
 ```bash
 # Update position state to closed
+# NOTE: HedgePositionsTable uses PK/SK single-table design.
+# Derive keys from hedge_id: PK="HEDGE#<hedge_id>", SK="POSITION#LIVE"
 aws dynamodb update-item \
+  --no-cli-pager \
   --table-name HedgePositionsTable \
-  --key '{"hedge_id": {"S": "hedge-abc123"}}' \
+  --key '{
+    "PK": {"S": "HEDGE#hedge-abc123"},
+    "SK": {"S": "POSITION#LIVE"}
+  }' \
   --update-expression "SET #state = :closed, roll_state = :closed_state, last_updated = :now" \
   --expression-attribute-names '{"#state": "state"}' \
   --expression-attribute-values '{

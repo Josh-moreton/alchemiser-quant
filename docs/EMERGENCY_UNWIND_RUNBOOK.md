@@ -57,26 +57,29 @@ Execute safe and controlled position liquidation during emergency scenarios to:
 
 ```bash
 # Set kill switch to halt new hedging operations
+# NOTE: HedgeKillSwitchTable uses switch_id as PK
 aws dynamodb update-item \
-  --table-name HedgeConfigTable \
-  --key '{"config_key": {"S": "kill_switch_status"}}' \
-  --update-expression "SET #status = :active, reason = :reason, timestamp = :now" \
-  --expression-attribute-names '{"#status": "status"}' \
+  --no-cli-pager \
+  --table-name HedgeKillSwitchTable \
+  --key '{"switch_id": {"S": "HEDGE_KILL_SWITCH"}}' \
+  --update-expression "SET is_active = :active, trigger_reason = :reason, triggered_at = :now, triggered_by = :by" \
   --expression-attribute-values '{
-    ":active": {"S": "active"},
+    ":active": {"BOOL": true},
     ":reason": {"S": "emergency_unwind_initiated"},
-    ":now": {"S": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}
+    ":now": {"S": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"},
+    ":by": {"S": "manual"}
   }' \
   --region us-east-1
 ```
 
 ```python
 # In code
-from the_alchemiser.shared.options.kill_switch_service import set_kill_switch
+from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
 
-set_kill_switch(
+service = KillSwitchService()
+service.activate(
     reason="emergency_unwind_initiated",
-    details={"scenario": "lambda_repeated_failures", "initiated_by": "ops_team"}
+    triggered_by="manual"
 )
 ```
 
@@ -84,10 +87,12 @@ set_kill_switch(
 
 ```bash
 # Get complete position inventory
+# NOTE: Positions use "status" attribute (not "state")
 aws dynamodb scan \
+  --no-cli-pager \
   --table-name HedgePositionsTable \
-  --filter-expression "#state = :active" \
-  --expression-attribute-names '{"#state": "state"}' \
+  --filter-expression "#status = :active" \
+  --expression-attribute-names '{"#status": "status"}' \
   --expression-attribute-values '{":active": {"S": "active"}}' \
   --region us-east-1 \
   > active_positions_$(date +%Y%m%d_%H%M%S).json
@@ -236,10 +241,12 @@ standard_positions = [
 
 ```bash
 # Query for remaining active positions
+# NOTE: Positions use "status" attribute (not "state")
 aws dynamodb scan \
+  --no-cli-pager \
   --table-name HedgePositionsTable \
-  --filter-expression "#state = :active" \
-  --expression-attribute-names '{"#state": "state"}' \
+  --filter-expression "#status = :active" \
+  --expression-attribute-names '{"#status": "status"}' \
   --expression-attribute-values '{":active": {"S": "active"}}' \
   --region us-east-1
 ```
@@ -340,9 +347,10 @@ update_ytd_premium_spend(additional_spend=Decimal("0"))  # No new spend, just cl
    echo "Positions to close:" >> emergency_request.txt
    
    aws dynamodb scan \
+     --no-cli-pager \
      --table-name HedgePositionsTable \
-     --filter-expression "#state = :active" \
-     --expression-attribute-names '{"#state": "state"}' \
+     --filter-expression "#status = :active" \
+     --expression-attribute-names '{"#status": "status"}' \
      --expression-attribute-values '{":active": {"S": "active"}}' \
      --query 'Items[*].[hedge_id.S, option_symbol.S, contracts.N]' \
      --output text >> emergency_request.txt
@@ -397,14 +405,21 @@ if vix > 60:  # Historical panic levels (2008, 2020)
 
 **Command Line**:
 ```bash
-# Manually trigger emergency unwind Lambda
+# Manually trigger emergency unwind
+# NOTE: EmergencyUnwindFunction is a placeholder - replace with actual
+# function name once provisioned in template.yaml, or use manual procedures.
+# The emergency unwind can be performed via HedgeRollManagerFunction with
+# a custom payload or by manually executing the procedures in this runbook.
 aws lambda invoke \
-  --function-name EmergencyUnwindFunction \
+  --no-cli-pager \
+  --function-name HedgeRollManagerFunction \
   --payload '{
-    "emergency_level": "level_2",
-    "reason": "market_disruption",
-    "initiated_by": "risk_manager",
-    "authorization_code": "EMERGENCY_AUTH_CODE"
+    "detail-type": "EmergencyUnwind",
+    "detail": {
+      "emergency_level": "level_2",
+      "reason": "market_disruption",
+      "initiated_by": "risk_manager"
+    }
   }' \
   --region us-east-1 \
   response.json
@@ -538,25 +553,24 @@ curl -X GET "https://paper-api.alpaca.markets/v2/account" \
 
 **Clear Kill Switch**:
 ```bash
+# NOTE: HedgeKillSwitchTable uses switch_id as PK
 aws dynamodb update-item \
-  --table-name HedgeConfigTable \
-  --key '{"config_key": {"S": "kill_switch_status"}}' \
-  --update-expression "SET #status = :inactive, cleared_timestamp = :now" \
-  --expression-attribute-names '{"#status": "status"}' \
+  --no-cli-pager \
+  --table-name HedgeKillSwitchTable \
+  --key '{"switch_id": {"S": "HEDGE_KILL_SWITCH"}}' \
+  --update-expression "SET is_active = :inactive, updated_at = :now" \
   --expression-attribute-values '{
-    ":inactive": {"S": "inactive"},
+    ":inactive": {"BOOL": false},
     ":now": {"S": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}
   }' \
   --region us-east-1
 ```
 
 ```python
-from the_alchemiser.shared.options.kill_switch_service import clear_kill_switch
+from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
 
-clear_kill_switch(
-    cleared_by="ops_manager",
-    post_mortem_completed=True
-)
+service = KillSwitchService()
+service.deactivate()
 ```
 
 **Resume Normal Operations**:

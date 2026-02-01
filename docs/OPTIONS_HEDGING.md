@@ -696,5 +696,5 @@ Detailed step-by-step procedures for operational scenarios:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 10.0.11 | 2026-01-30 | Assignment handling and lifecycle runbooks added |
+| 10.1.0 | 2026-01-30 | Assignment handling and lifecycle runbooks added |
 | 10.0.0 | 2026-01-26 | Initial options hedging implementation |
