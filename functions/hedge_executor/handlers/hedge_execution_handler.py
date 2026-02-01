@@ -258,7 +258,7 @@ class HedgeExecutionHandler:
             # Check if spread execution is available
             # For now, we'll check if the options adapter supports spreads
             # In the future, this could check specific market conditions
-            if not hasattr(self._options_adapter, "execute_spread_order"):
+            if not hasattr(self._options_adapter, "place_spread_order"):
                 logger.error(
                     "Spread execution unavailable for smoothing template - FAILING CLOSED",
                     underlying=underlying,
