@@ -738,7 +738,7 @@ class HedgeEvaluationHandler:
         """
         positions: dict[str, Decimal] = {}
 
-        # top_positions now contains ALL positions (not just top 5)
+        # Note: Despite the name 'top_positions', this field now contains ALL positions (not just top 5).
         all_positions = portfolio_snapshot.get("top_positions", [])
         if not isinstance(all_positions, list):
             logger.warning(

@@ -142,7 +142,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             # Extract portfolio data from AllTradesCompleted event
             portfolio_snapshot = detail.get("portfolio_snapshot", {})
 
-            if not portfolio_snapshot:
+            if not portfolio_snapshot or "equity" not in portfolio_snapshot:
                 logger.warning(
                     "No portfolio_snapshot in AllTradesCompleted - skipping hedge evaluation",
                     extra={"correlation_id": correlation_id},
