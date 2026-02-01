@@ -27,6 +27,13 @@ class HedgeAction(str, Enum):
     HEDGE_EXPIRED = "hedge_expired"  # Position expired worthless
     ROLL_TRIGGERED = "roll_triggered"  # Roll event triggered (but not yet executed)
     EVALUATION_COMPLETED = "evaluation_completed"  # Hedge evaluation run
+    # Assignment handling actions (FR-8)
+    ASSIGNMENT_DETECTED = "assignment_detected"  # Short leg delta > threshold
+    ASSIGNMENT_EXERCISED = "assignment_exercised"  # Long leg exercised to offset
+    ASSIGNMENT_CLOSED = "assignment_closed"  # Both legs closed at market
+    ASSIGNMENT_UNRESOLVED = "assignment_unresolved"  # Remediation failed/delayed
+    # Emergency actions
+    EMERGENCY_UNWIND = "emergency_unwind"  # Emergency position liquidation
 
 
 class HedgeHistoryRecord(BaseModel):

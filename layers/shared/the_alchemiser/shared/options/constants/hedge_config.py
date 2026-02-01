@@ -9,7 +9,7 @@ Contains:
 - Liquidity filters for strike selection
 
 NOTE: Budget rates are now driven by IV signal (ATM IV + percentile + skew)
-from the actual hedge underlying, not VIXY × 10 proxy. See iv_signal.py for
+from the actual hedge underlying, not VIXY x 10 proxy. See iv_signal.py for
 the new volatility regime classification logic.
 """
 
@@ -49,7 +49,7 @@ class TailHedgeTemplate:
 
     Budget rates now driven by IV percentile (see iv_signal.py):
     - Low IV (< 30th percentile): 0.8% NAV/month
-    - Mid IV (30th-70th percentile): 0.5% NAV/month  
+    - Mid IV (30th-70th percentile): 0.5% NAV/month
     - High IV (> 70th percentile): 0.3% NAV/month
     """
 
@@ -106,6 +106,9 @@ class LiquidityFilters:
 
     min_open_interest: int  # Minimum contract open interest
     max_spread_pct: Decimal  # Maximum bid-ask spread (% of mid)
+    max_spread_absolute: Decimal  # Maximum absolute bid-ask spread ($)
+    min_mid_price: Decimal  # Minimum option mid price ($)
+    min_volume: int  # Minimum daily volume
     min_dte: int  # Minimum days to expiry (avoid gamma risk)
     max_dte: int  # Maximum days to expiry
 
@@ -225,7 +228,7 @@ HEDGE_ETFS: dict[str, HedgeETF] = {
 # Buy protection when IV is cheap (counter-intuitive but optimal)
 #
 # NOTE: Budget rates are now driven by IV signal (ATM IV + percentile + skew)
-# from the actual hedge underlying, not VIXY × 10 proxy. The VIX thresholds
+# from the actual hedge underlying, not VIXY x 10 proxy. The VIX thresholds
 # below are legacy and kept for backward compatibility with rich IV adjustments.
 # See iv_signal.py for the new regime classification (IV percentile-based).
 
@@ -291,8 +294,11 @@ SMOOTHING_HEDGE_TEMPLATE: SmoothingHedgeTemplate = SmoothingHedgeTemplate(
 LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
     min_open_interest=1000,  # Minimum 1000 contracts OI
     max_spread_pct=Decimal("0.05"),  # Max 5% bid-ask spread
+    max_spread_absolute=Decimal("0.10"),  # Max $0.10 absolute spread
+    min_mid_price=Decimal("0.05"),  # Min $0.05 mid price (avoid penny options)
+    min_volume=100,  # Minimum 100 daily volume
     min_dte=14,  # No options expiring < 14 days (avoid gamma)
-    max_dte=120,  # No options expiring > 120 days (too far out)
+    max_dte=180,  # No options expiring > 180 days (supports long-tenor dynamic selection)
 )
 
 
@@ -303,10 +309,10 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
 # with rich IV adjustments. The system now uses IV percentile from the actual
 # hedge underlying (see iv_signal.py) for regime classification.
 #
-# VIX proxy (VIXY × 10) is kept as a sanity check only.
+# VIX proxy (VIXY x 10) is kept as a sanity check only.
 # Budget tiers are now determined by IV percentile:
 # - Low: IV percentile < 30 (options cheap, buy aggressively)
-# - Mid: IV percentile 30-70 (normal hedging)  
+# - Mid: IV percentile 30-70 (normal hedging)
 # - High: IV percentile > 70 (options expensive, reduce intensity)
 
 VIX_LOW_THRESHOLD: Decimal = Decimal("18")  # Legacy - not used for regime
@@ -328,15 +334,15 @@ RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
 # ═══════════════════════════════════════════════════════════════════════════════
 # IMPORTANT: This proxy is NO LONGER USED for hedge sizing decisions.
 # The system now uses proper IV data from the actual hedge underlying options.
-# 
-# VIXY × 10 is kept as a SANITY CHECK ONLY to monitor drift and compare with
+#
+# VIXY x 10 is kept as a SANITY CHECK ONLY to monitor drift and compare with
 # the new IV-based regime classification. If this proxy is unavailable, it's
 # logged as a warning but does NOT cause the system to fail closed.
 #
 # Alpaca does not provide direct VIX index quotes. VIXY ETF was previously used
 # as a proxy with the approximation VIX ≈ VIXY * 10. This relationship varies
 # with contango/backwardation and can drift significantly.
-# 
+#
 # See iv_signal.py for the replacement: proper ATM IV from hedge underlying.
 
 VIX_PROXY_SYMBOL: str = "VIXY"
@@ -419,8 +425,40 @@ STRIKE_MAX_OTM_RATIO: Decimal = Decimal("0.95")  # Strike <= 95% of underlying
 STRIKE_MIN_OTM_RATIO: Decimal = Decimal("0.75")  # Strike >= 75% of underlying
 
 # Limit price discount factor for buy limit orders.
+# DEPRECATED: Use marketability algorithm instead.
 # Set limit price 2% below mid to avoid overpaying while ensuring fills.
 LIMIT_PRICE_DISCOUNT_FACTOR: Decimal = Decimal("0.98")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MARKETABILITY ALGORITHM PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Marketability pricing: Start at mid, step toward ask until filled or max slippage
+# Separate rules for open vs close orders and calm vs high IV conditions
+
+# Maximum slippage per trade (as percentage of mid price)
+# Open positions: more aggressive limit (higher max slippage)
+# Close positions: tighter limit (lower max slippage, exit at better price)
+MAX_SLIPPAGE_PER_TRADE_OPEN: Decimal = Decimal("0.10")  # 10% above mid for opens
+MAX_SLIPPAGE_PER_TRADE_CLOSE: Decimal = Decimal("0.05")  # 5% above mid for closes
+
+# Maximum total slippage per day (as percentage of total premium)
+# Aggregate slippage across all trades in a single day
+MAX_DAILY_SLIPPAGE_PCT: Decimal = Decimal("0.03")  # 3% of daily premium volume
+
+# Price stepping increments (as percentage of bid-ask spread)
+# Calm markets (VIX < 28): smaller steps, more patient
+# High IV (VIX >= 28): larger steps, more aggressive
+PRICE_STEP_PCT_CALM: Decimal = Decimal("0.10")  # 10% of spread per step
+PRICE_STEP_PCT_HIGH_IV: Decimal = Decimal("0.20")  # 20% of spread per step
+
+# Maximum attempts and time limits for order fills
+MAX_FILL_ATTEMPTS: int = 5  # Max number of price steps before giving up
+MAX_FILL_TIME_SECONDS: int = 180  # 3 minutes max per order
+
+# Time between price updates (seconds)
+PRICE_UPDATE_INTERVAL_SECONDS: int = 30  # 30 seconds between steps
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -440,6 +478,39 @@ QQQ_PREFERENCE_THRESHOLD: Decimal = Decimal("0.8")
 # Critical DTE threshold triggering immediate roll attention.
 # Positions below this threshold are flagged as "dte_critical" vs "dte_threshold".
 CRITICAL_DTE_THRESHOLD: int = 14
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAIL TEMPLATE ROLL TRIGGERS (Enhanced FR-8)
+# ─────────────────────────────────────────────────────────────────────────────
+# Additional roll triggers beyond basic DTE threshold to optimize cost and protection
+
+# Delta drift threshold: Roll if current delta deviates significantly from entry delta
+# Ensures hedge maintains optimal OTM profile for convexity
+TAIL_DELTA_DRIFT_THRESHOLD: Decimal = Decimal("0.10")  # 10 delta points
+
+# Extrinsic value decay threshold: Roll when time value falls below this % of entry premium
+# Captures remaining value before full theta decay accelerates near expiration
+TAIL_EXTRINSIC_DECAY_THRESHOLD: Decimal = Decimal("0.20")  # 20% of entry premium
+
+# Skew regime monitoring (requires IV data source implementation)
+# Roll or adjust when put skew moves beyond historical norms
+SKEW_BASELINE_WINDOW: int = 252  # Trading days (1 year) for skew percentile calc
+SKEW_CHANGE_THRESHOLD: Decimal = Decimal("2.0")  # Standard deviations for regime shift
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPREAD TEMPLATE ROLL TRIGGERS (Enhanced FR-8)
+# ─────────────────────────────────────────────────────────────────────────────
+# Roll criteria for put spread structures beyond fixed cadence
+
+# Remaining width value threshold: Roll when spread value decays significantly
+# Ensures spread provides meaningful protection relative to max payoff
+SPREAD_WIDTH_VALUE_THRESHOLD: Decimal = Decimal("0.30")  # 30% of max width
+
+# Long leg delta drift warning: Monitor for ITM drift reducing convexity
+SPREAD_LONG_DELTA_THRESHOLD: Decimal = Decimal("0.50")  # 50-delta (deep ITM warning)
+
+# Short leg delta drift warning: Monitor for assignment risk before critical threshold
+SPREAD_SHORT_DELTA_THRESHOLD: Decimal = Decimal("0.20")  # 20-delta (early warning)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

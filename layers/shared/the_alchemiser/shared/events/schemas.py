@@ -13,7 +13,7 @@ Provides specific event classes for the system workflow:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
@@ -905,8 +905,22 @@ class HedgeEvaluationCompleted(BaseEvent):
 
     # Evaluation metadata
     vix_tier: str = Field(default="mid", description="VIX tier used for budget (low/mid/high)")
+    current_vix: Decimal | None = Field(
+        default=None, description="Current VIX level for dynamic selection"
+    )
     exposure_multiplier: Decimal = Field(
         default=Decimal("1.0"), description="Exposure-based budget multiplier"
+    )
+
+    # Template selection metadata (new)
+    template_selected: Literal["tail_first", "smoothing"] | None = Field(
+        default=None, description="Template selected (tail_first, smoothing)"
+    )
+    template_regime: (
+        Literal["low_iv_normal_skew", "mid_iv_moderate_skew", "high_iv_rich_skew"] | None
+    ) = Field(default=None, description="Regime classification for template selection")
+    template_selection_reason: str | None = Field(
+        default=None, description="Human-readable reason for template selection"
     )
 
     # Skip reason (if no hedges needed)

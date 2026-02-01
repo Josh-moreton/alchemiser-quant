@@ -7,8 +7,39 @@ This package provides:
 - Hedge configuration: VIX-adaptive budgets, delta targets, DTE thresholds
 - Option schemas: DTOs for contracts, positions, and orders
 - Alpaca adapter: Options API integration for chain queries and execution
+- Template chooser: Regime-based template selection for tail_first vs smoothing
+- Payoff calculator: Scenario-based contract sizing for target payoffs
+- Premium tracker: Rolling 12-month spend tracking and cap enforcement
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .payoff_calculator import (
+    PayoffCalculationResult,
+    PayoffCalculator,
+    PayoffScenario,
+)
+from .premium_tracker import (
+    PremiumSpendRecord,
+    PremiumTracker,
+    SpendCheckResult,
+)
+from .template_chooser import (
+    RegimeThresholds,
+    TemplateChooser,
+    TemplateSelectionRationale,
+    TemplateType,
+)
+
+__all__ = [
+    "PayoffCalculationResult",
+    "PayoffCalculator",
+    "PayoffScenario",
+    "PremiumSpendRecord",
+    "PremiumTracker",
+    "RegimeThresholds",
+    "SpendCheckResult",
+    "TemplateChooser",
+    "TemplateSelectionRationale",
+    "TemplateType",
+]
