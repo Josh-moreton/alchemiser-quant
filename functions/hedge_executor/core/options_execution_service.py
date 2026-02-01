@@ -209,6 +209,68 @@ class OptionsExecutionService:
                 no_fill_explicit=True,
             )
 
+    def _build_no_fill_result(
+        self,
+        order_id: str | None,
+        option_symbol: str,
+        underlying_symbol: str,
+        target_quantity: int,
+        pricing_attempt: int,
+        error_message: str,
+        filled_quantity: int = 0,
+        filled_price: Decimal | None = None,
+    ) -> ExecutionResult:
+        """Build an ExecutionResult for explicit no-fill cases.
+
+        Args:
+            order_id: Alpaca order ID (if any)
+            option_symbol: OCC option symbol
+            underlying_symbol: Underlying ETF symbol
+            target_quantity: Expected fill quantity
+            pricing_attempt: Number of pricing attempts made
+            error_message: Description of why no fill occurred
+            filled_quantity: Partial fill quantity (default 0)
+            filled_price: Partial fill price (default None)
+
+        Returns:
+            ExecutionResult with no_fill_explicit=True
+
+        """
+        return ExecutionResult(
+            success=False,
+            order_id=order_id,
+            option_symbol=option_symbol,
+            underlying_symbol=underlying_symbol,
+            quantity=target_quantity,
+            filled_quantity=filled_quantity,
+            filled_price=filled_price,
+            total_premium=Decimal("0"),
+            slippage_from_mid=None,
+            slippage_pct=None,
+            pricing_attempts=pricing_attempt,
+            error_message=f"{error_message} - HEDGE NOT PLACED",
+            no_fill_explicit=True,
+        )
+
+    def _try_cancel_order(self, order_id: str, option_symbol: str, reason: str) -> None:
+        """Best-effort order cancellation with logging.
+
+        Args:
+            order_id: Alpaca order ID to cancel
+            option_symbol: OCC option symbol (for logging)
+            reason: Why the cancellation is happening
+
+        """
+        try:
+            self._adapter.cancel_order(order_id)
+        except TradingClientError as exc:
+            logger.warning(
+                f"Best-effort cancel_order failed {reason}",
+                order_id=order_id,
+                option_symbol=option_symbol,
+                error_message=str(exc),
+            )
+
     def _monitor_order_with_repricing(
         self,
         order_id: str,
@@ -260,30 +322,14 @@ class OptionsExecutionService:
                     pricing_attempts=pricing_attempt,
                     alert_required=True,
                 )
-                try:
-                    self._adapter.cancel_order(order_id)
-                except TradingClientError as exc:
-                    logger.warning(
-                        "Best-effort cancel_order failed after timeout",
-                        order_id=order_id,
-                        option_symbol=option_symbol,
-                        error_message=str(exc),
-                    )
-
-                return ExecutionResult(
-                    success=False,
-                    order_id=order_id,
-                    option_symbol=option_symbol,
-                    underlying_symbol=underlying_symbol,
-                    quantity=target_quantity,
-                    filled_quantity=0,
-                    filled_price=None,
-                    total_premium=Decimal("0"),
-                    slippage_from_mid=None,
-                    slippage_pct=None,
-                    pricing_attempts=pricing_attempt,
-                    error_message=f"No fill after {elapsed:.1f}s - HEDGE NOT PLACED",
-                    no_fill_explicit=True,
+                self._try_cancel_order(order_id, option_symbol, "after timeout")
+                return self._build_no_fill_result(
+                    order_id,
+                    option_symbol,
+                    underlying_symbol,
+                    target_quantity,
+                    pricing_attempt,
+                    f"No fill after {elapsed:.1f}s",
                 )
 
             # Check max attempts
@@ -296,30 +342,14 @@ class OptionsExecutionService:
                     max_attempts=MAX_FILL_ATTEMPTS,
                     alert_required=True,
                 )
-                try:
-                    self._adapter.cancel_order(order_id)
-                except TradingClientError as exc:
-                    logger.warning(
-                        "Best-effort cancel_order failed after max attempts",
-                        order_id=order_id,
-                        option_symbol=option_symbol,
-                        error_message=str(exc),
-                    )
-
-                return ExecutionResult(
-                    success=False,
-                    order_id=order_id,
-                    option_symbol=option_symbol,
-                    underlying_symbol=underlying_symbol,
-                    quantity=target_quantity,
-                    filled_quantity=0,
-                    filled_price=None,
-                    total_premium=Decimal("0"),
-                    slippage_from_mid=None,
-                    slippage_pct=None,
-                    pricing_attempts=pricing_attempt,
-                    error_message=f"No fill after {pricing_attempt} attempts - HEDGE NOT PLACED",
-                    no_fill_explicit=True,
+                self._try_cancel_order(order_id, option_symbol, "after max attempts")
+                return self._build_no_fill_result(
+                    order_id,
+                    option_symbol,
+                    underlying_symbol,
+                    target_quantity,
+                    pricing_attempt,
+                    f"No fill after {pricing_attempt} attempts",
                 )
 
             try:
@@ -378,10 +408,11 @@ class OptionsExecutionService:
                     )
 
                 if status in ("canceled", "cancelled", "expired", "rejected"):
-                    error_msg = f"Order {status}"
-                    if status == "rejected":
-                        error_msg = order.get("reject_reason", "Order rejected")
-
+                    error_msg = (
+                        order.get("reject_reason", "Order rejected")
+                        if status == "rejected"
+                        else f"Order {status}"
+                    )
                     logger.warning(
                         "EXPLICIT NO FILL - Order ended without fill",
                         order_id=order_id,
@@ -390,21 +421,15 @@ class OptionsExecutionService:
                         pricing_attempts=pricing_attempt,
                         alert_required=True,
                     )
-
-                    return ExecutionResult(
-                        success=False,
-                        order_id=order_id,
-                        option_symbol=option_symbol,
-                        underlying_symbol=underlying_symbol,
-                        quantity=target_quantity,
+                    return self._build_no_fill_result(
+                        order_id,
+                        option_symbol,
+                        underlying_symbol,
+                        target_quantity,
+                        pricing_attempt,
+                        error_msg,
                         filled_quantity=int(order.get("filled_qty", 0)),
                         filled_price=self._parse_decimal(order.get("filled_avg_price")),
-                        total_premium=Decimal("0"),
-                        slippage_from_mid=None,
-                        slippage_pct=None,
-                        pricing_attempts=pricing_attempt,
-                        error_message=f"{error_msg} - HEDGE NOT PLACED",
-                        no_fill_explicit=True,
                     )
 
                 # Still pending - check if we should reprice
@@ -447,30 +472,14 @@ class OptionsExecutionService:
                             pricing_attempts=pricing_attempt,
                             alert_required=True,
                         )
-                        try:
-                            self._adapter.cancel_order(order_id)
-                        except TradingClientError as exc:
-                            logger.warning(
-                                "Best-effort cancel_order failed after max slippage",
-                                order_id=order_id,
-                                option_symbol=option_symbol,
-                                error_message=str(exc),
-                            )
-
-                        return ExecutionResult(
-                            success=False,
-                            order_id=order_id,
-                            option_symbol=option_symbol,
-                            underlying_symbol=underlying_symbol,
-                            quantity=target_quantity,
-                            filled_quantity=0,
-                            filled_price=None,
-                            total_premium=Decimal("0"),
-                            slippage_from_mid=None,
-                            slippage_pct=None,
-                            pricing_attempts=pricing_attempt,
-                            error_message="Max slippage reached - HEDGE NOT PLACED",
-                            no_fill_explicit=True,
+                        self._try_cancel_order(order_id, option_symbol, "after max slippage")
+                        return self._build_no_fill_result(
+                            order_id,
+                            option_symbol,
+                            underlying_symbol,
+                            target_quantity,
+                            pricing_attempt,
+                            "Max slippage reached",
                         )
 
                     # Cancel and replace order with new limit price
@@ -506,20 +515,13 @@ class OptionsExecutionService:
                                 "Failed to replace order - no ID returned",
                                 option_symbol=option_symbol,
                             )
-                            return ExecutionResult(
-                                success=False,
-                                order_id=order_id,
-                                option_symbol=option_symbol,
-                                underlying_symbol=underlying_symbol,
-                                quantity=target_quantity,
-                                filled_quantity=0,
-                                filled_price=None,
-                                total_premium=Decimal("0"),
-                                slippage_from_mid=None,
-                                slippage_pct=None,
-                                pricing_attempts=pricing_attempt,
-                                error_message="Failed to replace order - HEDGE NOT PLACED",
-                                no_fill_explicit=True,
+                            return self._build_no_fill_result(
+                                order_id,
+                                option_symbol,
+                                underlying_symbol,
+                                target_quantity,
+                                pricing_attempt,
+                                "Failed to replace order",
                             )
 
                     except TradingClientError as e:
@@ -528,20 +530,13 @@ class OptionsExecutionService:
                             order_id=order_id,
                             error=str(e),
                         )
-                        return ExecutionResult(
-                            success=False,
-                            order_id=order_id,
-                            option_symbol=option_symbol,
-                            underlying_symbol=underlying_symbol,
-                            quantity=target_quantity,
-                            filled_quantity=0,
-                            filled_price=None,
-                            total_premium=Decimal("0"),
-                            slippage_from_mid=None,
-                            slippage_pct=None,
-                            pricing_attempts=pricing_attempt,
-                            error_message=f"Reprice error: {e} - HEDGE NOT PLACED",
-                            no_fill_explicit=True,
+                        return self._build_no_fill_result(
+                            order_id,
+                            option_symbol,
+                            underlying_symbol,
+                            target_quantity,
+                            pricing_attempt,
+                            f"Reprice error: {e}",
                         )
 
                 # Continue polling

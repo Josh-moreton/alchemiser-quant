@@ -163,9 +163,7 @@ class IVSignalCalculator:
             self._iv_history_repo = IVHistoryRepository(table_name)
             return self._iv_history_repo
 
-        logger.warning(
-            "IV_HISTORY_TABLE_NAME not set, will use approximation for IV percentile"
-        )
+        logger.warning("IV_HISTORY_TABLE_NAME not set, will use approximation for IV percentile")
         return None
 
     def calculate_iv_signal(
@@ -509,12 +507,13 @@ class IVSignalCalculator:
             percentile = 90 + min(((iv_pct - high) / 20) * 10, 10)
 
         logger.info(
-            "IV percentile approximation (placeholder - needs historical data)",
+            "IV percentile approximation (fallback method)",
             underlying_symbol=underlying_symbol,
             current_iv=str(current_iv),
             iv_pct=str(iv_pct),
             percentile=str(percentile),
-            note="Using approximation until historical IV tracking is implemented",
+            method="approximation",
+            note="Using static thresholds - historical data not yet available",
         )
 
         return Decimal(str(percentile))

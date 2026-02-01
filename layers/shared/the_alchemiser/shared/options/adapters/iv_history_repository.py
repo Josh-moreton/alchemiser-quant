@@ -19,7 +19,7 @@ from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["IVHistoryRepository", "IVHistoryRecord"]
+__all__ = ["IVHistoryRecord", "IVHistoryRepository"]
 
 # DynamoDB exception types for error handling
 DynamoDBException = (ClientError, BotoCoreError)
@@ -35,12 +35,12 @@ class IVHistoryRecord:
     """Record of a single daily IV observation."""
 
     __slots__ = (
-        "underlying_symbol",
-        "record_date",
         "atm_iv",
-        "put_25delta_iv",
         "dte_used",
+        "put_25delta_iv",
+        "record_date",
         "timestamp",
+        "underlying_symbol",
     )
 
     def __init__(

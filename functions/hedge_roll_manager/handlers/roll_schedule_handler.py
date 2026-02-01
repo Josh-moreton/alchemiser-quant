@@ -87,6 +87,93 @@ class RollScheduleHandler:
         """Get the event bus."""
         return self._event_bus
 
+    def _check_roll_conditions(
+        self,
+        position: dict[str, Any],
+        dte: int,
+        template: str,
+        today: date,
+    ) -> tuple[bool, str | None]:
+        """Check whether a position should be rolled based on template rules.
+
+        Args:
+            position: Hedge position data
+            dte: Days to expiry
+            template: Hedge template name ('smoothing' or 'tail_first')
+            today: Current date
+
+        Returns:
+            Tuple of (should_roll, roll_reason)
+
+        """
+        should_roll = False
+        roll_reason: str | None = None
+
+        if template == "smoothing":
+            # Fixed cadence: check days since entry
+            should_roll = self._should_roll_smoothing(position, today)
+            if should_roll:
+                roll_reason = "cadence_due"
+
+            # Check enhanced spread roll triggers (FR-8)
+            if not should_roll:
+                should_roll, roll_reason = self._check_spread_width_value(position)
+            if not should_roll:
+                should_roll, roll_reason = self._check_spread_delta_drift(position)
+        else:
+            # DTE-based: check if below roll trigger
+            if dte < self._tail_template.roll_trigger_dte:
+                should_roll = True
+                roll_reason = "dte_critical" if dte < CRITICAL_DTE_THRESHOLD else "dte_threshold"
+
+            # Check enhanced tail roll triggers (FR-8)
+            if not should_roll:
+                should_roll, roll_reason = self._check_delta_drift(position)
+            if not should_roll:
+                should_roll, roll_reason = self._check_extrinsic_decay(position)
+
+        return should_roll, roll_reason
+
+    def _process_position(
+        self,
+        position: dict[str, Any],
+        today: date,
+        correlation_id: str,
+    ) -> tuple[bool, bool]:
+        """Process a single position for roll eligibility.
+
+        Args:
+            position: Hedge position data
+            today: Current date
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            Tuple of (roll_triggered, assignment_risk_detected)
+
+        """
+        expiry_str = position.get("expiration_date", "")
+        if not expiry_str:
+            return False, False
+
+        expiry = date.fromisoformat(expiry_str)
+        dte = (expiry - today).days
+        template = position.get("hedge_template", "tail_first")
+
+        # Check for assignment risk on short leg (for spreads)
+        assignment_risk = False
+        if position.get("is_spread", False):
+            assignment_risk = self._check_assignment_risk(position, correlation_id)
+
+        # Check roll conditions
+        should_roll, roll_reason = self._check_roll_conditions(position, dte, template, today)
+
+        # Trigger roll if any condition met
+        if should_roll:
+            self._trigger_roll(position, dte, correlation_id, roll_reason)
+            return True, assignment_risk
+
+        return False, assignment_risk
+
     def handle_scheduled_event(self, correlation_id: str | None = None) -> dict[str, Any]:
         """Handle scheduled roll check event.
 
@@ -129,62 +216,13 @@ class RollScheduleHandler:
             today = datetime.now(UTC).date()
 
             for position in positions:
-                expiry_str = position.get("expiration_date", "")
-                if not expiry_str:
-                    continue
-
-                expiry = date.fromisoformat(expiry_str)
-                dte = (expiry - today).days
-
-                # Get position template (default to tail_first if not set)
-                template = position.get("hedge_template", "tail_first")
-
-                # Check for assignment risk on short leg (for spreads)
-                if position.get("is_spread", False):
-                    assignment_risk = self._check_assignment_risk(position, correlation_id)
-                    if assignment_risk:
-                        assignment_risks += 1
-
-                # Initialize roll decision variables
-                should_roll = False
-                roll_reason = None
-
-                # Determine roll threshold based on template
-                if template == "smoothing":
-                    # Fixed cadence: check days since entry
-                    should_roll = self._should_roll_smoothing(position, today)
-                    if should_roll:
-                        roll_reason = "cadence_due"
-
-                    # Check enhanced spread roll triggers (FR-8)
-                    if not should_roll:
-                        should_roll, roll_reason = self._check_spread_width_value(position)
-                    if not should_roll:
-                        should_roll, roll_reason = self._check_spread_delta_drift(position)
-
-                else:
-                    # DTE-based: check if below roll trigger
-                    if dte < self._tail_template.roll_trigger_dte:
-                        should_roll = True
-                        if dte < CRITICAL_DTE_THRESHOLD:
-                            roll_reason = "dte_critical"
-                        else:
-                            roll_reason = "dte_threshold"
-
-                    # Check enhanced tail roll triggers (FR-8)
-                    if not should_roll:
-                        should_roll, roll_reason = self._check_delta_drift(position)
-                    if not should_roll:
-                        should_roll, roll_reason = self._check_extrinsic_decay(position)
-
-                # Trigger roll if any condition met
-                if should_roll and roll_reason:
-                    self._trigger_roll(position, dte, correlation_id, roll_reason)
+                roll_triggered, assignment_risk = self._process_position(
+                    position, today, correlation_id
+                )
+                if roll_triggered:
                     rolls_triggered += 1
-                elif should_roll:
-                    # Fallback for legacy path
-                    self._trigger_roll(position, dte, correlation_id)
-                    rolls_triggered += 1
+                if assignment_risk:
+                    assignment_risks += 1
 
             logger.info(
                 "Hedge roll check completed",
