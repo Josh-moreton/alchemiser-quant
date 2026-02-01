@@ -1322,3 +1322,108 @@ vox_the_best:
   - XLF
   - XLK
   - XLU
+interstellar:
+  strategy_name: interstellar
+  display_name: Interstellar (Public Copy)
+  source_url: https://app.composer.trade/symphony/TiDwMCIw9NhUSD65zuy6/details
+  filename: interstellar.clj
+  date_updated: '2026-02-01'
+  assets:
+  - ARKG
+  - ARKK
+  - ARKQ
+  - ARKW
+  - ARKX
+  - BIL
+  - BND
+  - BSV
+  - BTAL
+  - BULZ
+  - COP
+  - CVE
+  - CVX
+  - DBO
+  - DIA
+  - DINO
+  - DRV
+  - EDC
+  - ENPH
+  - ERY
+  - FNGA
+  - GBTC
+  - GLD
+  - HIBL
+  - HIBS
+  - IEF
+  - IWM
+  - JDST
+  - LABD
+  - LABU
+  - MPC
+  - OILK
+  - PSQ
+  - QID
+  - QQQ
+  - SARK
+  - SCO
+  - SH
+  - SHV
+  - SHY
+  - SMH
+  - SOXL
+  - SOXS
+  - SOXX
+  - SPHB
+  - SPLV
+  - SPY
+  - SQQQ
+  - STIP
+  - SVXY
+  - TARK
+  - TECL
+  - TLT
+  - TMF
+  - TMV
+  - TQQQ
+  - TYO
+  - UBT
+  - UCO
+  - UDOW
+  - UGL
+  - UPRO
+  - URTY
+  - USDU
+  - UUP
+  - UVXY
+  - VIXM
+  - VIXY
+  - VLO
+  - VTI
+  - WEBL
+  - XLE
+  - XLK
+  - XLP
+  - XOM
+  - YANG
+  - YINN
+  frontrunners:
+  - AGG
+  - FNGS
+  - IEI
+  - SCHZ
+  - TFLO
+  - TLH
+  - TYD
+gold_and_miners:
+  strategy_name: gold_and_miners
+  display_name: Gold and Miner Friendship - Structural Filter
+  source_url: https://app.composer.trade/symphony/ifebJZG6248OjVv2VVKU/details
+  filename: gold_and_miners.clj
+  date_updated: '2026-02-01'
+  assets:
+  - BIL
+  - DULL
+  - GDXD
+  - GDXU
+  - SHNY
+  - SPY

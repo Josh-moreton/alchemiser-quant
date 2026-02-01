@@ -33,6 +33,7 @@ from pathlib import Path
 from statistics import median
 
 import pandas as pd
+import yaml
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -45,6 +46,15 @@ CONFIG_DIR = (
     / "shared"
     / "config"
 )
+STRATEGIES_DIR = (
+    PROJECT_ROOT
+    / "layers"
+    / "shared"
+    / "the_alchemiser"
+    / "shared"
+    / "strategies"
+)
+LEDGER_FILE = STRATEGIES_DIR / "strategy_ledger.yaml"
 
 # Valid stages
 VALID_STAGES = ("dev", "staging", "prod")
@@ -62,11 +72,14 @@ F_MIN = Decimal("0.5")  # Floor: 50% of base weight
 F_MAX = Decimal("2.0")  # Cap: 2× base weight
 
 # CSV strategy name prefix -> filename mapping
+# NOTE: This is the fallback mapping. Preferred approach is to add csv_name_prefix
+#       to the strategy ledger via `make strategy-add` which will auto-populate here.
 CSV_TO_FILENAME: dict[str, str] = {
     "[VOXPORT] The Best": "vox_the_best.clj",
     "Flextiger-DefAI+eVTO": "defence.clj",
     "FOMO NOMO - No Lever": "fomo_nomo.clj",
     "Golden Rotation 2x": "gold.clj",
+    "Gold and Miner Frien": "gold_and_miners.clj",
     "Nuclear Energy with": "nuclear.clj",
     "Pals Minor Spell of": "pals_spell.clj",
     "Rain's Concise EM Le": "rains_concise_em.clj",
@@ -74,11 +87,11 @@ CSV_TO_FILENAME: dict[str, str] = {
     "Simons KMLM FULL BUI": "simons_full_kmlm.clj",
     "SOXL Growth v2.4.5 R": "soxl_growth.clj",
     "(A) Sisyphus V0.1": "sisyphus_lowvol.clj",
-    "BT 1Nov16-22Nov22 AR": "tqqq_ftlt_1.clj",
-    "2017 BT TQQQ For The": "tqqq_ftlt_2.clj",
-    "TQQQ For The Long Te": "tqqq_ftlt.clj",
+    "BT 1Nov16-22Nov22 AR": "ftlt/tqqq_ftlt_1.clj",
+    "2017 BT TQQQ For The": "ftlt/tqqq_ftlt_2.clj",
+    "TQQQ For The Long Te": "ftlt/tqqq_ftlt.clj",
     "Blatant Tech Rulersh": "blatant_tech.clj",
-    "The Holy Grail": "holy_grail.clj",
+    "The Holy Grail": "ftlt/holy_grail.clj",
     "KMLM switcher": "kmlm_switcher.clj",
     "Custom Exposures": "custom_exposures.clj",
     "FTL Starburst": "ftl_starburst.clj",
@@ -86,6 +99,38 @@ CSV_TO_FILENAME: dict[str, str] = {
     "Growth Blend": "growth_blend.clj",
     "V1a What Have I Done": "what_have_i_done.clj",
 }
+
+
+def load_csv_mappings_from_ledger() -> dict[str, str]:
+    """Load CSV name prefix -> filename mappings from strategy ledger.
+
+    Returns:
+        Dict mapping csv_name_prefix -> filename
+    """
+    if not LEDGER_FILE.exists():
+        return {}
+
+    with LEDGER_FILE.open("r", encoding="utf-8") as f:
+        ledger = yaml.safe_load(f) or {}
+
+    mappings: dict[str, str] = {}
+    for entry in ledger.values():
+        csv_prefix = entry.get("csv_name_prefix")
+        filename = entry.get("filename")
+        if csv_prefix and filename:
+            mappings[csv_prefix] = filename
+
+    return mappings
+
+
+def get_csv_to_filename_mapping() -> dict[str, str]:
+    """Get merged CSV to filename mapping (ledger takes priority over fallback)."""
+    # Start with fallback mapping
+    mapping = dict(CSV_TO_FILENAME)
+    # Overlay ledger mappings (takes priority)
+    ledger_mappings = load_csv_mappings_from_ledger()
+    mapping.update(ledger_mappings)
+    return mapping
 
 
 def find_latest_csv(results_dir: Path) -> Path:
@@ -97,9 +142,9 @@ def find_latest_csv(results_dir: Path) -> Path:
     return sorted(csv_files, key=lambda p: p.name)[-1]
 
 
-def match_csv_name_to_filename(csv_name: str) -> str | None:
+def match_csv_name_to_filename(csv_name: str, csv_to_filename: dict[str, str]) -> str | None:
     """Match a CSV strategy name to its corresponding .clj filename."""
-    for prefix, filename in CSV_TO_FILENAME.items():
+    for prefix, filename in csv_to_filename.items():
         if csv_name.startswith(prefix):
             return filename
     return None
@@ -120,6 +165,9 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
     """
     df = pd.read_csv(csv_path, index_col=0)
 
+    # Get merged CSV->filename mapping (ledger + fallback)
+    csv_to_filename = get_csv_to_filename_mapping()
+
     calmar_by_filename: dict[str, Decimal] = {}
     unmatched: list[str] = []
 
@@ -128,7 +176,7 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
         if csv_name == "Mean":
             continue
 
-        filename = match_csv_name_to_filename(csv_name)
+        filename = match_csv_name_to_filename(csv_name, csv_to_filename)
         if filename is None:
             unmatched.append(csv_name)
             continue
@@ -139,8 +187,10 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
 
     if unmatched:
         print(f"❌ ERROR: Could not match CSV names: {unmatched}")
-        print("\nPlease add mappings to CSV_TO_FILENAME in scripts/rebalance_strategy_weights.py")
-        print("Available .clj files can be found in layers/shared/the_alchemiser/shared/strategies/")
+        print("\nOptions to fix:")
+        print("  1. Run 'make strategy-add' to add csv_name_prefix to the ledger (recommended)")
+        print("  2. Manually add mappings to CSV_TO_FILENAME in scripts/rebalance_strategy_weights.py")
+        print("\nAvailable .clj files: layers/shared/the_alchemiser/shared/strategies/")
         sys.exit(1)
 
     return calmar_by_filename

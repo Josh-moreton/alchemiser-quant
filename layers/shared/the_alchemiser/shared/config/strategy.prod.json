@@ -5,10 +5,10 @@
     "pals_spell.clj",
     "rains_em_dancer.clj",
     "sisyphus_lowvol.clj",
-    "tqqq_ftlt.clj",
-    "tqqq_ftlt_1.clj",
-    "tqqq_ftlt_2.clj",
-    "holy_grail.clj",
+    "ftlt/tqqq_ftlt.clj",
+    "ftlt/tqqq_ftlt_1.clj",
+    "ftlt/tqqq_ftlt_2.clj",
+    "ftlt/holy_grail.clj",
     "kmlm_switcher.clj"
   ],
   "allocations": {
@@ -17,10 +17,10 @@
     "pals_spell.clj": 0.084,
     "rains_em_dancer.clj": 0.099,
     "sisyphus_lowvol.clj": 0.093,
-    "tqqq_ftlt.clj": 0.047,
-    "tqqq_ftlt_1.clj": 0.185,
-    "tqqq_ftlt_2.clj": 0.135,
-    "holy_grail.clj": 0.047,
+    "ftlt/tqqq_ftlt.clj": 0.047,
+    "ftlt/tqqq_ftlt_1.clj": 0.185,
+    "ftlt/tqqq_ftlt_2.clj": 0.135,
+    "ftlt/holy_grail.clj": 0.047,
     "kmlm_switcher.clj": 0.064
   }
 }
