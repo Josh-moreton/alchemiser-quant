@@ -175,7 +175,7 @@ class HedgeEvaluationHandler:
 
             # FAIL-CLOSED CHECK: IV data
             # Calculate IV signal for the hedge underlying - MUST succeed or fail closed
-            # This replaces the old VIXY × 10 VIX proxy with proper IV data
+            # This replaces the old VIXY x 10 VIX proxy with proper IV data
             iv_signal = self._iv_calculator.calculate_iv_signal(
                 underlying_symbol=primary_underlying,
                 underlying_price=underlying_price,
@@ -322,7 +322,7 @@ class HedgeEvaluationHandler:
     def _get_vix_proxy_sanity_check(self, correlation_id: str | None = None) -> Decimal:
         """Get VIX proxy value for sanity checking only (NOT for hedge decisions).
 
-        This method fetches VIXY × 10 as a VIX approximation for comparison
+        This method fetches VIXY x 10 as a VIX approximation for comparison
         with the IV signal. It is NOT used for hedge sizing decisions.
 
         Args:

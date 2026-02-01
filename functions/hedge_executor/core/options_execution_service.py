@@ -17,6 +17,7 @@ from the_alchemiser.shared.errors import TradingClientError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
 from the_alchemiser.shared.options.constants import ORDER_POLL_INTERVAL_SECONDS
+from the_alchemiser.shared.options.schemas.option_contract import OptionContract
 
 from .option_selector import SelectedOption
 

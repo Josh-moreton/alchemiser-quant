@@ -2,7 +2,7 @@
 
 Implied Volatility (IV) signal calculator for hedge evaluation.
 
-Replaces the VIX proxy (VIXY × 10) with proper IV data from the actual
+Replaces the VIX proxy (VIXY x 10) with proper IV data from the actual
 hedge underlying (QQQ, SPY). Calculates:
 - ATM IV for the target tenor (60-90 DTE)
 - IV percentile over rolling 252-day window
@@ -15,7 +15,7 @@ and market volatility regime than the VIX proxy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -167,7 +167,7 @@ class IVSignalCalculator:
             alpaca_options = self._container.infrastructure.alpaca_options_adapter()
 
             # Calculate target expiration date range (60-90 DTE from today)
-            today = date.today()
+            today = datetime.now(UTC).date()
             min_expiry = today + timedelta(days=IV_TARGET_DTE_MIN)
             max_expiry = today + timedelta(days=IV_TARGET_DTE_MAX)
 
@@ -393,7 +393,7 @@ class IVSignalCalculator:
         """
         # Placeholder logic: Map IV to approximate percentile using thresholds
         # See IV_APPROX_* constants for threshold definitions
-        iv_pct = current_iv * 100  # Convert to percentage (0.20 → 20)
+        iv_pct = float(current_iv * 100)  # Convert to percentage (0.20 → 20)
 
         very_low = float(IV_APPROX_VERY_LOW_THRESHOLD)
         low = float(IV_APPROX_LOW_THRESHOLD)

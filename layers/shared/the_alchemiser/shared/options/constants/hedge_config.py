@@ -9,7 +9,7 @@ Contains:
 - Liquidity filters for strike selection
 
 NOTE: Budget rates are now driven by IV signal (ATM IV + percentile + skew)
-from the actual hedge underlying, not VIXY × 10 proxy. See iv_signal.py for
+from the actual hedge underlying, not VIXY x 10 proxy. See iv_signal.py for
 the new volatility regime classification logic.
 """
 
@@ -225,7 +225,7 @@ HEDGE_ETFS: dict[str, HedgeETF] = {
 # Buy protection when IV is cheap (counter-intuitive but optimal)
 #
 # NOTE: Budget rates are now driven by IV signal (ATM IV + percentile + skew)
-# from the actual hedge underlying, not VIXY × 10 proxy. The VIX thresholds
+# from the actual hedge underlying, not VIXY x 10 proxy. The VIX thresholds
 # below are legacy and kept for backward compatibility with rich IV adjustments.
 # See iv_signal.py for the new regime classification (IV percentile-based).
 
@@ -303,7 +303,7 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
 # with rich IV adjustments. The system now uses IV percentile from the actual
 # hedge underlying (see iv_signal.py) for regime classification.
 #
-# VIX proxy (VIXY × 10) is kept as a sanity check only.
+# VIX proxy (VIXY x 10) is kept as a sanity check only.
 # Budget tiers are now determined by IV percentile:
 # - Low: IV percentile < 30 (options cheap, buy aggressively)
 # - Mid: IV percentile 30-70 (normal hedging)
@@ -329,7 +329,7 @@ RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
 # IMPORTANT: This proxy is NO LONGER USED for hedge sizing decisions.
 # The system now uses proper IV data from the actual hedge underlying options.
 #
-# VIXY × 10 is kept as a SANITY CHECK ONLY to monitor drift and compare with
+# VIXY x 10 is kept as a SANITY CHECK ONLY to monitor drift and compare with
 # the new IV-based regime classification. If this proxy is unavailable, it's
 # logged as a warning but does NOT cause the system to fail closed.
 #

@@ -77,7 +77,7 @@ class HedgeSizer:
     Uses IV-adaptive budgeting to buy protection more aggressively when
     implied volatility is low (options are cheap) and conservatively when high.
 
-    Replaces VIX proxy (VIXY × 10) with proper IV data from the hedge underlying.
+    Replaces VIX proxy (VIXY x 10) with proper IV data from the hedge underlying.
 
     Supports multiple hedge templates:
     - tail_first: Long 15-delta puts (high convexity, higher cost)
@@ -247,7 +247,7 @@ class HedgeSizer:
                 target_delta=target_delta,
                 is_spread=is_spread,
             )
-            recommendation = HedgeRecommendation(
+            return HedgeRecommendation(
                 underlying_symbol=exposure.primary_hedge_underlying,
                 target_delta=target_delta,
                 target_dte=target_dte,
@@ -266,7 +266,6 @@ class HedgeSizer:
                 was_clipped_by_budget=False,
                 clip_report=None,
             )
-            return recommendation
 
         # Create scenario
         scenario = PayoffScenario(
@@ -406,14 +405,11 @@ class HedgeSizer:
             Approximate VIX value
 
         """
-        # Convert IV to percentage (0.20 → 20)
-        iv_pct = atm_iv * 100
-
         # Map IV to VIX-like scale
         # Typical ATM IV: 15-25% → VIX 15-25
         # High ATM IV: 30-40% → VIX 30-40
         # Very high ATM IV: > 40% → VIX > 40
-        return iv_pct  # Direct mapping for now
+        return atm_iv * 100  # Direct mapping for now
 
     def _estimate_contracts(
         self,

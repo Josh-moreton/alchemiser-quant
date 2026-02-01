@@ -254,27 +254,27 @@ class HedgeExecutionHandler:
         # FAIL-CLOSED CHECK: Spread execution availability for smoothing template
         # Smoothing template REQUIRES spread execution (buy 30-delta, sell 10-delta)
         # Do NOT fallback to single-leg execution
-        if hedge_template == "smoothing" and is_spread:
-            # Check if spread execution is available
-            # For now, we'll check if the options adapter supports spreads
-            # In the future, this could check specific market conditions
-            if not hasattr(self._options_adapter, "place_spread_order"):
-                logger.error(
-                    "Spread execution unavailable for smoothing template - FAILING CLOSED",
-                    underlying=underlying,
-                    hedge_template=hedge_template,
-                    correlation_id=correlation_id,
-                    fail_closed_condition="spread_execution_unavailable",
-                    alert_required=True,
-                )
-                raise SpreadExecutionUnavailableError(
-                    message=f"Spread execution unavailable for smoothing template on {underlying}. "
-                    "Cannot fallback to single-leg execution as it would compromise hedge strategy.",
-                    underlying_symbol=underlying,
-                    long_delta=str(recommendation.get("target_delta")),
-                    short_delta=str(recommendation.get("short_delta")),
-                    correlation_id=correlation_id,
-                )
+        if (
+            hedge_template == "smoothing"
+            and is_spread
+            and not hasattr(self._options_adapter, "place_spread_order")
+        ):
+            logger.error(
+                "Spread execution unavailable for smoothing template - FAILING CLOSED",
+                underlying=underlying,
+                hedge_template=hedge_template,
+                correlation_id=correlation_id,
+                fail_closed_condition="spread_execution_unavailable",
+                alert_required=True,
+            )
+            raise SpreadExecutionUnavailableError(
+                message=f"Spread execution unavailable for smoothing template on {underlying}. "
+                "Cannot fallback to single-leg execution as it would compromise hedge strategy.",
+                underlying_symbol=underlying,
+                long_delta=str(recommendation.get("target_delta")),
+                short_delta=str(recommendation.get("short_delta")),
+                correlation_id=correlation_id,
+            )
 
         # Validate position concentration limit (defensive check)
         # This should already be enforced in HedgeSizer, but double-check here
