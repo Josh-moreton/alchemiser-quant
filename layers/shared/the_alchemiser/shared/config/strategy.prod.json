@@ -1,7 +1,6 @@
 {
   "files": [
     "gold.clj",
-    "pals_spell.clj",
     "rains_em_dancer.clj",
     "sisyphus_lowvol.clj",
     "ftlt/tqqq_ftlt.clj",
@@ -13,7 +12,6 @@
   ],
   "allocations": {
     "gold.clj": 0.18,
-    "pals_spell.clj": 0.121,
     "rains_em_dancer.clj": 0.109,
     "sisyphus_lowvol.clj": 0.096,
     "ftlt/tqqq_ftlt.clj": 0.059,
