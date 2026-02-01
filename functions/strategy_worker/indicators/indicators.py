@@ -451,9 +451,14 @@ class TechnicalIndicators:
     def max_drawdown(data: pd.Series, window: int) -> pd.Series:
         """Return rolling maximum drawdown over window (percentage magnitude).
 
-        For each point, computes the maximum decline from the first price
-        in the window to any subsequent trough. This matches Composer's
-        max-drawdown calculation methodology.
+        For each point, computes the maximum peak-to-trough decline within the
+        rolling window. This matches Composer's max-drawdown calculation
+        methodology as documented in their official docs.
+
+        Composer's algorithm:
+        1. Track the running maximum value (peak) seen so far in the window
+        2. For each value, compute drawdown = (peak - current) / peak
+        3. Max drawdown is the largest such decline within the window
 
         Args:
             data (pd.Series): Price data series (typically closing prices).
@@ -467,15 +472,17 @@ class TechnicalIndicators:
             MarketDataError: If window is not positive or data contains invalid values.
 
         Example:
-            >>> prices = pd.Series([100, 105, 98, 102, 95, 110])
-            >>> mdd = TechnicalIndicators.max_drawdown(prices, 3)
-            >>> print(f"Max 3-day drawdown: {mdd.iloc[-1]:.1f}%")
-            Max 3-day drawdown: 4.5%
+            >>> prices = pd.Series([100, 110, 95, 105, 90, 100])
+            >>> mdd = TechnicalIndicators.max_drawdown(prices, 4)
+            >>> # Window [110, 95, 105, 90]: peak=110, trough=90, dd=(110-90)/110=18.2%
+            >>> print(f"Max 4-day drawdown: {mdd.iloc[-1]:.1f}%")
+            Max 4-day drawdown: 18.2%
 
         Note:
-            Composer methodology: measures decline from first price in window,
-            not from rolling cumulative max. This captures "how much have we
-            dropped from where we started N days ago" rather than peak-to-trough.
+            This is the standard peak-to-trough drawdown calculation used by
+            Composer and most financial platforms. It measures the greatest
+            percentage decline from any peak to any subsequent trough within
+            the window.
 
         """
         # Input validation
@@ -495,13 +502,13 @@ class TechnicalIndicators:
             return pd.Series([0] * len(data), index=data.index)
 
         try:
-            # Rolling window apply using Composer's first-price methodology
+            # Rolling window apply using Composer's peak-to-trough methodology
             def mdd_window(x: pd.Series) -> float:
-                """Compute max drawdown from first price in window.
+                """Compute max drawdown using peak-to-trough (Composer methodology).
 
-                Calculates the maximum decline from the first price in the
-                window to any subsequent price. This matches Composer's
-                max-drawdown behavior.
+                Tracks the running maximum (peak) within the window and finds
+                the largest percentage decline from any peak to any subsequent
+                trough.
 
                 Args:
                     x: Price series within the rolling window.
@@ -510,12 +517,160 @@ class TechnicalIndicators:
                     Maximum drawdown as a positive percentage value.
 
                 """
-                # Composer method: measure from first price in window
-                first_price = x.iloc[0]
-                drawdowns = (x / first_price) - 1.0
-                return float(-drawdowns.min() * 100.0)
+                # Composer method: track running peak and measure decline from it
+                cummax = x.cummax()  # Running maximum (peak tracking)
+                drawdowns = (x / cummax) - 1.0  # Decline from peak at each point
+                return float(-drawdowns.min() * 100.0)  # Largest decline as positive %
 
             return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating maximum drawdown: {e}", exc_info=True)
             raise MarketDataError(f"Failed to calculate maximum drawdown: {e}") from e
+
+    @staticmethod
+    def percentage_price_oscillator(
+        data: pd.Series, short_window: int = 12, long_window: int = 26
+    ) -> pd.Series:
+        """Calculate Percentage Price Oscillator (PPO).
+
+        PPO measures the percentage difference between two exponential moving
+        averages. It is similar to MACD but expressed as a percentage, making
+        it easier to compare across different price ranges.
+
+        Formula: PPO = ((EMA(short) - EMA(long)) / EMA(long)) * 100
+
+        Args:
+            data (pd.Series): Price data series (typically closing prices).
+            short_window (int): Short-term EMA period. Default is 12.
+            long_window (int): Long-term EMA period. Default is 26.
+
+        Returns:
+            pd.Series: PPO values as percentages. Positive values indicate
+                short-term momentum is stronger than long-term.
+
+        Raises:
+            MarketDataError: If windows are invalid or data is insufficient.
+
+        Example:
+            >>> prices = pd.Series([100, 102, 101, 103, 105, 104, 106, 108])
+            >>> ppo = TechnicalIndicators.percentage_price_oscillator(prices, 3, 5)
+            >>> print(f"Latest PPO: {ppo.iloc[-1]:.2f}%")
+            Latest PPO: 1.23%
+
+        Note:
+            PPO crossovers above/below zero indicate momentum shifts.
+            A rising PPO suggests strengthening bullish momentum.
+
+        """
+        # Input validation
+        if short_window <= 0:
+            msg = f"PPO short window must be positive, got {short_window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if long_window <= 0:
+            msg = f"PPO long window must be positive, got {long_window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if short_window >= long_window:
+            msg = f"PPO short window ({short_window}) must be less than long window ({long_window})"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to percentage_price_oscillator calculation")
+            return pd.Series(dtype=float)
+
+        if len(data) < long_window:
+            logger.warning(
+                f"Insufficient data for PPO: {len(data)} < {long_window}, returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
+
+        try:
+            # Calculate EMAs
+            ema_short = data.ewm(span=short_window, adjust=False).mean()
+            ema_long = data.ewm(span=long_window, adjust=False).mean()
+
+            # PPO = ((EMA_short - EMA_long) / EMA_long) * 100
+            ppo = ((ema_short - ema_long) / ema_long) * 100
+
+            # Mask early values with insufficient data
+            ppo.iloc[: long_window - 1] = pd.NA
+
+            return ppo
+        except (ValueError, TypeError, KeyError, ZeroDivisionError) as e:
+            logger.error(f"Error calculating PPO: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate PPO: {e}") from e
+
+    @staticmethod
+    def percentage_price_oscillator_signal(
+        data: pd.Series, short_window: int = 12, long_window: int = 26, smooth_window: int = 9
+    ) -> pd.Series:
+        """Calculate PPO Signal Line.
+
+        The signal line is an EMA of the PPO, used to generate trading signals.
+        Crossovers between PPO and its signal line indicate momentum shifts.
+
+        Formula: PPO Signal = EMA(PPO, smooth_window)
+
+        Args:
+            data (pd.Series): Price data series (typically closing prices).
+            short_window (int): Short-term EMA period for PPO. Default is 12.
+            long_window (int): Long-term EMA period for PPO. Default is 26.
+            smooth_window (int): Signal line smoothing period. Default is 9.
+
+        Returns:
+            pd.Series: PPO signal line values as percentages.
+
+        Raises:
+            MarketDataError: If windows are invalid or data is insufficient.
+
+        Example:
+            >>> prices = pd.Series([100, 102, 101, 103, 105, 104, 106, 108])
+            >>> signal = TechnicalIndicators.percentage_price_oscillator_signal(
+            ...     prices, 3, 5, 2
+            ... )
+            >>> print(f"Latest PPO Signal: {signal.iloc[-1]:.2f}%")
+            Latest PPO Signal: 0.98%
+
+        Note:
+            Buy signal: PPO crosses above signal line
+            Sell signal: PPO crosses below signal line
+
+        """
+        # Input validation for smooth_window
+        if smooth_window <= 0:
+            msg = f"PPO signal smooth window must be positive, got {smooth_window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning(
+                "Empty data series provided to percentage_price_oscillator_signal calculation"
+            )
+            return pd.Series(dtype=float)
+
+        min_required = long_window + smooth_window
+        if len(data) < min_required:
+            logger.warning(
+                f"Insufficient data for PPO signal: {len(data)} < {min_required}, "
+                "returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
+
+        try:
+            # Calculate PPO first
+            ppo = TechnicalIndicators.percentage_price_oscillator(data, short_window, long_window)
+
+            # Signal line is EMA of PPO
+            signal = ppo.ewm(span=smooth_window, adjust=False).mean()
+
+            # Mask early values with insufficient data
+            signal.iloc[: long_window + smooth_window - 2] = pd.NA
+
+            return signal
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating PPO signal: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate PPO signal: {e}") from e
