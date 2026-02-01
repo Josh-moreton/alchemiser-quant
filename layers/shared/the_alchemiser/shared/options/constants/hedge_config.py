@@ -407,8 +407,8 @@ MAX_SLIPPAGE_PER_TRADE_CLOSE: Decimal = Decimal("0.05")  # 5% above mid for clos
 MAX_DAILY_SLIPPAGE_PCT: Decimal = Decimal("0.03")  # 3% of daily premium volume
 
 # Price stepping increments (as percentage of bid-ask spread)
-# Calm markets (VIX < 25): smaller steps, more patient
-# High IV (VIX >= 25): larger steps, more aggressive
+# Calm markets (VIX < 28): smaller steps, more patient
+# High IV (VIX >= 28): larger steps, more aggressive
 PRICE_STEP_PCT_CALM: Decimal = Decimal("0.10")  # 10% of spread per step
 PRICE_STEP_PCT_HIGH_IV: Decimal = Decimal("0.20")  # 20% of spread per step
 

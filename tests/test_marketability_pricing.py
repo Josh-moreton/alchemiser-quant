@@ -8,11 +8,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from the_alchemiser.shared.options.marketability_pricing import (
     MarketabilityPricer,
-    MarketCondition,
     MarketSnapshot,
     OrderSide,
     SlippageTracker,

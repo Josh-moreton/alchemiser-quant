@@ -262,7 +262,15 @@ class OptionsExecutionService:
                     pricing_attempts=pricing_attempt,
                     alert_required=True,
                 )
-                self._adapter.cancel_order(order_id)
+                try:
+                    self._adapter.cancel_order(order_id)
+                except TradingClientError as exc:
+                    logger.warning(
+                        "Best-effort cancel_order failed after timeout",
+                        order_id=order_id,
+                        option_symbol=option_symbol,
+                        error_message=str(exc),
+                    )
 
                 return ExecutionResult(
                     success=False,
@@ -290,7 +298,15 @@ class OptionsExecutionService:
                     max_attempts=MAX_FILL_ATTEMPTS,
                     alert_required=True,
                 )
-                self._adapter.cancel_order(order_id)
+                try:
+                    self._adapter.cancel_order(order_id)
+                except TradingClientError as exc:
+                    logger.warning(
+                        "Best-effort cancel_order failed after max attempts",
+                        order_id=order_id,
+                        option_symbol=option_symbol,
+                        error_message=str(exc),
+                    )
 
                 return ExecutionResult(
                     success=False,
@@ -433,7 +449,15 @@ class OptionsExecutionService:
                             pricing_attempts=pricing_attempt,
                             alert_required=True,
                         )
-                        self._adapter.cancel_order(order_id)
+                        try:
+                            self._adapter.cancel_order(order_id)
+                        except TradingClientError as exc:
+                            logger.warning(
+                                "Best-effort cancel_order failed after max slippage",
+                                order_id=order_id,
+                                option_symbol=option_symbol,
+                                error_message=str(exc),
+                            )
 
                         return ExecutionResult(
                             success=False,

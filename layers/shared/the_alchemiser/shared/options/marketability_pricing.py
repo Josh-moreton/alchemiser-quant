@@ -306,16 +306,21 @@ class MarketabilityPricer:
             return None
 
         # Check daily slippage limit
-        # Assume 1 contract for estimation (actual will be checked at fill)
-        estimated_slippage = slippage_from_mid * Decimal("100")  # 100 shares per contract
-        allowed, current_daily_pct = self._slippage_tracker.check_daily_limit(estimated_slippage)
+        # NOTE: This is a per-contract approximation using the standard 100-share
+        # equity option multiplier. The actual daily slippage impact for an order
+        # with multiple contracts will be higher and should be validated at fill
+        # time using the true order quantity.
+        estimated_slippage_per_contract = slippage_from_mid * Decimal("100")
+        allowed, current_daily_pct = self._slippage_tracker.check_daily_limit(
+            estimated_slippage_per_contract
+        )
 
         if not allowed:
             logger.warning(
                 "Daily slippage limit would be exceeded",
                 symbol=contract.symbol,
                 next_limit=str(next_limit),
-                estimated_trade_slippage=str(estimated_slippage),
+                estimated_trade_slippage_per_contract=str(estimated_slippage_per_contract),
                 current_daily_slippage_pct=str(current_daily_pct),
             )
             return None
