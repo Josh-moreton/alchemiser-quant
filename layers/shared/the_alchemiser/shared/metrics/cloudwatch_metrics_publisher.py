@@ -24,9 +24,9 @@ logger = get_logger(__name__)
 # CloudWatch metric names
 METRIC_NAME_REALIZED_PNL = "RealizedPnL"
 METRIC_NAME_CAPITAL_DEPLOYED = "CapitalDeployedPct"
-METRIC_NAME_OPEN_POSITION_VALUE = "OpenPositionValue"
-METRIC_NAME_OPEN_LOT_COUNT = "OpenLotCount"
-METRIC_NAME_CLOSED_LOT_COUNT = "ClosedLotCount"
+METRIC_NAME_CURRENT_HOLDINGS_VALUE = "CurrentHoldingsValue"
+METRIC_NAME_CURRENT_HOLDINGS = "CurrentHoldings"
+METRIC_NAME_COMPLETED_TRADES = "CompletedTrades"
 METRIC_NAME_WIN_RATE = "WinRate"
 METRIC_NAME_AVG_PROFIT_PER_TRADE = "AvgProfitPerTrade"
 METRIC_NAME_WINNING_TRADES = "WinningTrades"
@@ -65,8 +65,8 @@ class CloudWatchMetricsPublisher:
     def publish_strategy_pnl_metrics(self, correlation_id: str) -> None:
         """Publish per-strategy realized P&L metrics to CloudWatch.
 
-        Queries all closed lots from DynamoDB, aggregates by strategy, and publishes
-        cumulative realized P&L for each strategy.
+        Queries all lots with completed trades from DynamoDB, aggregates by strategy,
+        and publishes cumulative realized P&L for each strategy.
 
         Args:
             correlation_id: Correlation ID for tracing
@@ -78,12 +78,12 @@ class CloudWatchMetricsPublisher:
         )
 
         try:
-            # Discover all strategies with closed lots
-            strategy_names = self._repository.discover_strategies_with_closed_lots()
+            # Discover all strategies with completed trades (exit records)
+            strategy_names = self._repository.discover_strategies_with_completed_trades()
 
             if not strategy_names:
                 logger.info(
-                    "No strategies with closed lots found",
+                    "No strategies with completed trades found",
                     extra={"correlation_id": correlation_id},
                 )
                 return
@@ -154,17 +154,22 @@ class CloudWatchMetricsPublisher:
     def _calculate_strategy_pnl(self, strategy_name: str) -> Decimal:
         """Calculate cumulative realized P&L for a strategy.
 
+        Sums P&L from all exit records across all lots for the strategy.
+        Each exit record represents a completed trade with its own P&L.
+
         Args:
             strategy_name: Strategy name
 
         Returns:
-            Cumulative realized P&L
+            Cumulative realized P&L from all completed trades
 
         """
-        closed_lots = self._repository.query_closed_lots_by_strategy(strategy_name)
+        # Query ALL lots for the strategy (not just closed ones)
+        all_lots = self._repository.query_all_lots_by_strategy(strategy_name)
 
         total_pnl = Decimal("0")
-        for lot in closed_lots:
+        for lot in all_lots:
+            # lot.realized_pnl is a computed property that sums all exit_records
             if lot.realized_pnl is not None:
                 total_pnl += lot.realized_pnl
 
@@ -259,22 +264,22 @@ class CloudWatchMetricsPublisher:
                 metric_data.extend(
                     [
                         {
-                            "MetricName": METRIC_NAME_OPEN_POSITION_VALUE,
-                            "Value": float(summary["open_position_value"]),
+                            "MetricName": METRIC_NAME_CURRENT_HOLDINGS_VALUE,
+                            "Value": float(summary["current_holdings_value"]),
                             "Unit": "None",
                             "Timestamp": timestamp,
                             "Dimensions": dimensions,
                         },
                         {
-                            "MetricName": METRIC_NAME_OPEN_LOT_COUNT,
-                            "Value": float(summary["open_lot_count"]),
+                            "MetricName": METRIC_NAME_CURRENT_HOLDINGS,
+                            "Value": float(summary["current_holdings"]),
                             "Unit": "Count",
                             "Timestamp": timestamp,
                             "Dimensions": dimensions,
                         },
                         {
-                            "MetricName": METRIC_NAME_CLOSED_LOT_COUNT,
-                            "Value": float(summary["closed_lot_count"]),
+                            "MetricName": METRIC_NAME_COMPLETED_TRADES,
+                            "Value": float(summary["completed_trades"]),
                             "Unit": "Count",
                             "Dimensions": dimensions,
                             "Timestamp": timestamp,

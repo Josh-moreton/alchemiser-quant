@@ -57,6 +57,10 @@ class DataProviderError(AlchemiserError):
     """Raised when data provider operations fail."""
 
 
+class StorageError(AlchemiserError):
+    """Raised when storage operations (DynamoDB, S3, etc.) fail."""
+
+
 class TradingClientError(AlchemiserError):
     """Raised when trading client operations fail."""
 

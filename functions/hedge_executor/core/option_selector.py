@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from the_alchemiser.shared.errors import TradingClientError
 from the_alchemiser.shared.errors.exceptions import NoLiquidContractsError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
@@ -36,6 +37,18 @@ class SelectedOption:
     contracts_to_buy: int
     estimated_premium: Decimal
     limit_price: Decimal
+
+
+@dataclass(frozen=True)
+class SelectedSpread:
+    """Selected spread contracts for execution (both legs)."""
+
+    long_leg: OptionContract
+    short_leg: OptionContract
+    contracts_to_buy: int
+    estimated_net_premium: Decimal  # Net premium (long - short credit)
+    long_limit_price: Decimal
+    short_limit_price: Decimal
 
 
 class OptionSelector:
@@ -229,9 +242,10 @@ class OptionSelector:
         except NoLiquidContractsError:
             # Re-raise fail-closed errors
             raise
-        except Exception as e:
+        except TradingClientError as e:
+            # API/broker errors - log and return None to allow caller to handle
             logger.error(
-                "Error selecting hedge contract",
+                "Trading API error selecting hedge contract",
                 underlying=underlying_symbol,
                 error=str(e),
                 exc_info=True,
@@ -487,3 +501,278 @@ class OptionSelector:
             estimated_premium=estimated_premium,
             limit_price=limit_price,
         )
+
+    def select_spread_contracts(
+        self,
+        underlying_symbol: str,
+        long_delta: Decimal,
+        short_delta: Decimal,
+        target_dte: int,
+        premium_budget: Decimal,
+        underlying_price: Decimal,
+        nav: Decimal | None = None,
+        correlation_id: str | None = None,
+    ) -> SelectedSpread | None:
+        """Select optimal spread contracts (long and short legs).
+
+        Args:
+            underlying_symbol: Underlying ETF symbol (QQQ, SPY)
+            long_delta: Target delta for long leg (e.g., 0.30)
+            short_delta: Target delta for short leg (e.g., 0.10)
+            target_dte: Target days to expiry
+            premium_budget: Dollar amount available for net premium
+            underlying_price: Current underlying price
+            nav: Portfolio NAV (optional, for payoff-based sizing)
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            SelectedSpread if both legs found, None if either leg unavailable
+
+        Raises:
+            NoLiquidContractsError: If either leg fails liquidity filters (fail-closed)
+
+        """
+        logger.info(
+            "Selecting spread contracts",
+            underlying=underlying_symbol,
+            long_delta=str(long_delta),
+            short_delta=str(short_delta),
+            target_dte=target_dte,
+            premium_budget=str(premium_budget),
+            correlation_id=correlation_id,
+        )
+
+        # Calculate expiration date range
+        today = datetime.now(UTC).date()
+        min_expiry = today + timedelta(days=self._filters.min_dte)
+        max_expiry = today + timedelta(days=self._filters.max_dte)
+        target_expiry = today + timedelta(days=target_dte)
+
+        # Calculate strike range (OTM puts)
+        strike_max = underlying_price * STRIKE_MAX_OTM_RATIO
+        strike_min = underlying_price * STRIKE_MIN_OTM_RATIO
+
+        try:
+            # Query option chain (same for both legs)
+            contracts = self._adapter.get_option_chain(
+                underlying_symbol=underlying_symbol,
+                expiration_date_gte=min_expiry,
+                expiration_date_lte=max_expiry,
+                strike_price_gte=strike_min,
+                strike_price_lte=strike_max,
+                option_type=OptionType.PUT,
+                limit=200,
+            )
+
+            if not contracts:
+                logger.error(
+                    "No contracts found in option chain for spread - API/data issue",
+                    underlying=underlying_symbol,
+                    correlation_id=correlation_id,
+                    alert_required=True,
+                )
+                return None
+
+            # Pre-filter by DTE
+            dte_filtered = [
+                c
+                for c in contracts
+                if self._filters.min_dte <= c.days_to_expiry <= self._filters.max_dte
+            ]
+
+            if not dte_filtered:
+                logger.warning(
+                    "No contracts in DTE range for spread",
+                    underlying=underlying_symbol,
+                    min_dte=self._filters.min_dte,
+                    max_dte=self._filters.max_dte,
+                )
+                return None
+
+            # Fetch quotes for filtered contracts
+            symbols = [c.symbol for c in dte_filtered]
+            quotes = self._adapter.get_option_quotes_batch(symbols)
+
+            # Enrich contracts with quote data
+            enriched_contracts = []
+            for contract in dte_filtered:
+                quote = quotes.get(contract.symbol)
+                if quote:
+                    enriched = OptionContract(
+                        symbol=contract.symbol,
+                        underlying_symbol=contract.underlying_symbol,
+                        option_type=contract.option_type,
+                        strike_price=contract.strike_price,
+                        expiration_date=contract.expiration_date,
+                        bid_price=quote.get("bid_price"),
+                        ask_price=quote.get("ask_price"),
+                        last_price=contract.last_price,
+                        volume=contract.volume,
+                        open_interest=contract.open_interest,
+                        delta=contract.delta,
+                        gamma=contract.gamma,
+                        theta=contract.theta,
+                        vega=contract.vega,
+                        implied_volatility=contract.implied_volatility,
+                    )
+                    enriched_contracts.append(enriched)
+                else:
+                    enriched_contracts.append(contract)
+
+            contracts = enriched_contracts
+
+            if not contracts:
+                return None
+
+            # Select long leg (higher delta, e.g., 30-delta)
+            long_leg = self._find_best_contract(
+                contracts=contracts,
+                target_delta=long_delta,
+                target_expiry=target_expiry,
+            )
+
+            if long_leg is None:
+                logger.error(
+                    "No liquid contract found for long leg - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    long_delta=str(long_delta),
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_liquid_long_leg",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"No liquid contract found for long leg ({long_delta} delta) on {underlying_symbol}",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
+            # Select short leg (lower delta, e.g., 10-delta)
+            short_leg = self._find_best_contract(
+                contracts=contracts,
+                target_delta=short_delta,
+                target_expiry=target_expiry,
+            )
+
+            if short_leg is None:
+                logger.error(
+                    "No liquid contract found for short leg - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    short_delta=str(short_delta),
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_liquid_short_leg",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"No liquid contract found for short leg ({short_delta} delta) on {underlying_symbol}",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
+            # Calculate pricing for both legs - fail closed if no valid price
+            long_mid_price = long_leg.mid_price or long_leg.ask_price
+            if long_mid_price is None or long_mid_price <= 0:
+                logger.error(
+                    "No valid price for long leg - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    long_symbol=long_leg.symbol,
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_valid_long_leg_price",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"No valid price for long leg {long_leg.symbol} on {underlying_symbol}",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
+            short_mid_price = short_leg.mid_price or short_leg.bid_price
+            if short_mid_price is None or short_mid_price <= 0:
+                logger.error(
+                    "No valid price for short leg - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    short_symbol=short_leg.symbol,
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_valid_short_leg_price",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"No valid price for short leg {short_leg.symbol} on {underlying_symbol}",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
+            # Net debit = long premium - short credit
+            net_debit_per_contract = (long_mid_price - short_mid_price) * 100
+
+            # Validate spread pricing - must be a net debit for protective put spreads
+            if net_debit_per_contract <= 0:
+                logger.error(
+                    "Invalid spread pricing - net debit must be positive for protective spread - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    long_strike=str(long_leg.strike_price),
+                    long_mid_price=str(long_mid_price),
+                    short_strike=str(short_leg.strike_price),
+                    short_mid_price=str(short_mid_price),
+                    net_debit=str(net_debit_per_contract),
+                    correlation_id=correlation_id,
+                    fail_closed_condition="invalid_spread_pricing",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"Invalid spread pricing on {underlying_symbol}: net debit {net_debit_per_contract} <= 0. "
+                    "Long leg premium must exceed short leg premium for protective put spread.",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
+            # Calculate contracts to buy based on net premium budget
+            contracts_to_buy = max(1, int(premium_budget / net_debit_per_contract))
+
+            # Estimated net premium
+            estimated_net_premium = net_debit_per_contract * contracts_to_buy
+
+            # Limit prices for each leg
+            long_limit_price = long_mid_price * LIMIT_PRICE_DISCOUNT_FACTOR
+            short_limit_price = short_mid_price * (Decimal("2") - LIMIT_PRICE_DISCOUNT_FACTOR)
+
+            logger.info(
+                "Selected spread contracts",
+                underlying=underlying_symbol,
+                long_symbol=long_leg.symbol,
+                long_strike=str(long_leg.strike_price),
+                long_delta=str(long_leg.delta) if long_leg.delta else "N/A",
+                short_symbol=short_leg.symbol,
+                short_strike=str(short_leg.strike_price),
+                short_delta=str(short_leg.delta) if short_leg.delta else "N/A",
+                contracts=contracts_to_buy,
+                net_debit=str(net_debit_per_contract),
+                estimated_net_premium=str(estimated_net_premium),
+            )
+
+            return SelectedSpread(
+                long_leg=long_leg,
+                short_leg=short_leg,
+                contracts_to_buy=contracts_to_buy,
+                estimated_net_premium=estimated_net_premium,
+                long_limit_price=long_limit_price,
+                short_limit_price=short_limit_price,
+            )
+
+        except NoLiquidContractsError:
+            # Re-raise fail-closed errors
+            raise
+        except TradingClientError as e:
+            # API/broker errors - log and return None to allow caller to handle
+            logger.error(
+                "Trading API error selecting spread contracts",
+                underlying=underlying_symbol,
+                error=str(e),
+                exc_info=True,
+                correlation_id=correlation_id,
+            )
+            return None

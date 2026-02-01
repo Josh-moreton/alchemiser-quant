@@ -202,6 +202,27 @@ def prompt_source_url() -> str:
         return source_url
 
 
+def prompt_csv_name_prefix(display_name: str) -> str:
+    """Prompt user for CSV name prefix used in Composer backtest exports.
+
+    The CSV export from Composer truncates strategy names to ~20 chars.
+    This prefix is used by rebalance_strategy_weights.py to map CSV rows
+    back to .clj filenames.
+
+    Args:
+        display_name: The full display name from defsymphony
+
+    Returns:
+        CSV name prefix string (first 20 chars of display name by default)
+
+    """
+    default = display_name[:20] if len(display_name) > 20 else display_name
+    print(f"\nCSV name prefix (for Composer backtest exports):")
+    print(f"  Default: '{default}'")
+    csv_prefix = input(f"  Enter prefix (or press Enter for default): ").strip()
+    return csv_prefix if csv_prefix else default
+
+
 def cmd_add() -> int:
     """Interactive command to add a strategy to the ledger."""
     print("\n=== Add Strategy to Ledger ===\n")
@@ -251,6 +272,9 @@ def cmd_add() -> int:
     # Prompt for Composer URL
     source_url = prompt_source_url()
 
+    # Prompt for CSV name prefix (for rebalance_strategy_weights.py)
+    csv_name_prefix = prompt_csv_name_prefix(display_name)
+
     # Load existing ledger
     ledger = load_ledger()
 
@@ -265,6 +289,7 @@ def cmd_add() -> int:
     entry: dict[str, Any] = {
         "strategy_name": strategy_name,
         "display_name": display_name,
+        "csv_name_prefix": csv_name_prefix,
         "source_url": source_url,
         "filename": filename,
         "date_updated": datetime.now(UTC).strftime("%Y-%m-%d"),
@@ -355,7 +380,7 @@ def cmd_add_from_config(config_file: str) -> int:
         indicator_tickers = extract_indicator_tickers(content)
         frontrunners = indicator_tickers - assets
 
-        # Prompt for source URL
+        # Prompt for source URL and CSV prefix
         print(f"\n  Strategy: {strategy_name} ({display_name})")
         print(f"    Assets: {len(assets)}, Frontrunners: {len(frontrunners)}")
 
@@ -375,10 +400,16 @@ def cmd_add_from_config(config_file: str) -> int:
             skipped_count += 1
             continue
 
+        # Prompt for CSV name prefix
+        default_csv = display_name[:20] if len(display_name) > 20 else display_name
+        csv_prefix_input = input(f"    CSV prefix [{default_csv}]: ").strip()
+        csv_name_prefix = csv_prefix_input if csv_prefix_input else default_csv
+
         # Build entry
         entry: dict[str, Any] = {
             "strategy_name": strategy_name,
             "display_name": display_name,
+            "csv_name_prefix": csv_name_prefix,
             "source_url": source_url,
             "filename": file_path,
             "date_updated": datetime.now(UTC).strftime("%Y-%m-%d"),
