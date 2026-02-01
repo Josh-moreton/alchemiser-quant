@@ -419,8 +419,40 @@ STRIKE_MAX_OTM_RATIO: Decimal = Decimal("0.95")  # Strike <= 95% of underlying
 STRIKE_MIN_OTM_RATIO: Decimal = Decimal("0.75")  # Strike >= 75% of underlying
 
 # Limit price discount factor for buy limit orders.
+# DEPRECATED: Use marketability algorithm instead.
 # Set limit price 2% below mid to avoid overpaying while ensuring fills.
 LIMIT_PRICE_DISCOUNT_FACTOR: Decimal = Decimal("0.98")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MARKETABILITY ALGORITHM PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Marketability pricing: Start at mid, step toward ask until filled or max slippage
+# Separate rules for open vs close orders and calm vs high IV conditions
+
+# Maximum slippage per trade (as percentage of mid price)
+# Open positions: more aggressive limit (higher max slippage)
+# Close positions: tighter limit (lower max slippage, exit at better price)
+MAX_SLIPPAGE_PER_TRADE_OPEN: Decimal = Decimal("0.10")  # 10% above mid for opens
+MAX_SLIPPAGE_PER_TRADE_CLOSE: Decimal = Decimal("0.05")  # 5% above mid for closes
+
+# Maximum total slippage per day (as percentage of total premium)
+# Aggregate slippage across all trades in a single day
+MAX_DAILY_SLIPPAGE_PCT: Decimal = Decimal("0.03")  # 3% of daily premium volume
+
+# Price stepping increments (as percentage of bid-ask spread)
+# Calm markets (VIX < 28): smaller steps, more patient
+# High IV (VIX >= 28): larger steps, more aggressive
+PRICE_STEP_PCT_CALM: Decimal = Decimal("0.10")  # 10% of spread per step
+PRICE_STEP_PCT_HIGH_IV: Decimal = Decimal("0.20")  # 20% of spread per step
+
+# Maximum attempts and time limits for order fills
+MAX_FILL_ATTEMPTS: int = 5  # Max number of price steps before giving up
+MAX_FILL_TIME_SECONDS: int = 180  # 3 minutes max per order
+
+# Time between price updates (seconds)
+PRICE_UPDATE_INTERVAL_SECONDS: int = 30  # 30 seconds between steps
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
