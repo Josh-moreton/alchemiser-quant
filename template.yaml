@@ -1815,6 +1815,16 @@ Resources:
                 - "alchemiser.coordinator"
               detail-type:
                 - "ScheduleCreated"
+        # HedgeReportGenerated from Hedge Reports Lambda (daily/weekly hedge reports)
+        HedgeReportGeneratedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.hedge_reports"
+              detail-type:
+                - "HedgeReportGenerated"
         # Lambda async invocation failures from Lambda Destinations
         # Catches failures when StrategyOrchestratorFunction invokes StrategyFunction async
         # and all retries are exhausted (throttling, quota, timeout, crash)
@@ -2217,7 +2227,7 @@ Resources:
                   - !GetAtt HedgeHistoryTable.Arn
 
   # ========== HEDGE REPORTS FUNCTION ==========
-  # Generates daily/weekly hedge reports and delivers via SNS
+  # Generates daily/weekly hedge reports and delivers via EventBridge (triggers NotificationsFunction)
   HedgeReportsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -2239,9 +2249,9 @@ Resources:
       Environment:
         Variables:
           STAGE: !Ref Stage
+          EVENT_BUS_NAME: !Ref AlchemiserEventBus
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
-          TRADING_NOTIFICATIONS_TOPIC_ARN: !Ref TradingNotificationsTopic
           REPORTS_BUCKET_NAME: !Ref PerformanceReportsBucket
       Events:
         # Daily report: ~4:30 PM Eastern Time (after market close and hedge evaluation)
@@ -2283,9 +2293,9 @@ Resources:
                   - !Sub "${HedgeHistoryTable.Arn}/index/*"
               - Effect: Allow
                 Action:
-                  - sns:Publish
+                  - events:PutEvents
                 Resource:
-                  - !Ref TradingNotificationsTopic
+                  - !GetAtt AlchemiserEventBus.Arn
               - Effect: Allow
                 Action:
                   - s3:PutObject

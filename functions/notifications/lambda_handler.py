@@ -86,6 +86,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_lambda_async_failure(detail, correlation_id, source)
         if detail_type == "CloudWatch Alarm State Change":
             return _handle_cloudwatch_alarm(event, correlation_id)
+        if detail_type == "HedgeReportGenerated":
+            return _handle_hedge_report(detail, correlation_id)
 
         logger.debug(
             f"Ignoring unsupported event type: {detail_type}",
@@ -776,6 +778,68 @@ without the target function being able to publish a WorkflowFailed event.
     return {
         "statusCode": 200,
         "body": f"Lambda async failure notification sent for {function_name}",
+    }
+
+
+def _handle_hedge_report(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Handle HedgeReportGenerated event from Hedge Reports Lambda.
+
+    Sends daily/weekly hedge report via email using the notification service.
+
+    Args:
+        detail: The detail payload from HedgeReportGenerated event
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    report_type = detail.get("report_type", "daily")
+    subject = detail.get("subject", f"Hedge Report - {report_type.title()}")
+    message = detail.get("message", "No report content available")
+
+    logger.info(
+        "Processing HedgeReportGenerated",
+        extra={
+            "correlation_id": correlation_id,
+            "report_type": report_type,
+            "subject": subject,
+        },
+    )
+
+    # Create minimal ApplicationContainer for notifications
+    container = ApplicationContainer.create_for_notifications("production")
+
+    # Use NotificationService to send the report email
+    # We'll use ErrorNotificationRequested with INFO severity for reports
+    notification_event = ErrorNotificationRequested(
+        correlation_id=correlation_id,
+        causation_id=detail.get("event_id", correlation_id),
+        event_id=f"hedge-report-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="notifications_v2.lambda_handler",
+        source_component="NotificationsLambda",
+        error_severity="INFO",
+        error_priority="LOW",
+        error_title=subject,
+        error_report=message,
+        error_code="HedgeReport",
+    )
+
+    notification_service = NotificationService(container)
+    notification_service.handle_event(notification_event)
+
+    logger.info(
+        "Hedge report notification sent",
+        extra={
+            "correlation_id": correlation_id,
+            "report_type": report_type,
+        },
+    )
+
+    return {
+        "statusCode": 200,
+        "body": f"Hedge report notification sent for {report_type}",
     }
 
 

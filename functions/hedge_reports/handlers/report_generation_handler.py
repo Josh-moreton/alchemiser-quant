@@ -2,7 +2,7 @@
 
 Report generation handler for hedge reports Lambda.
 
-Orchestrates daily and weekly report generation, SNS publishing,
+Orchestrates daily and weekly report generation, EventBridge publishing,
 and S3 storage for detailed reports.
 """
 
@@ -12,7 +12,7 @@ import json
 import os
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -23,6 +23,9 @@ from the_alchemiser.shared.options.schemas.hedge_report import (
     DailyHedgeReport,
     WeeklyHedgeReport,
 )
+
+if TYPE_CHECKING:
+    from typing import Any
 
 logger = get_logger(__name__)
 
@@ -44,7 +47,7 @@ class ReportGenerationHandler:
         """
         self._account_id = account_id
         self._correlation_id = correlation_id
-        self._sns_client = boto3.client("sns")
+        self._eventbridge_client = boto3.client("events")
         self._s3_client = boto3.client("s3")
 
     def generate_daily_report(
@@ -85,13 +88,14 @@ class ReportGenerationHandler:
             underlying_prices=underlying_prices,
         )
 
-        # Format summary for SNS notification
+        # Format summary for notification
         summary = self._format_daily_summary(report)
 
-        # Publish to SNS
-        self._publish_to_sns(
+        # Publish to EventBridge for notification
+        self._publish_report_event(
             subject=f"Daily Hedge Report - {report.report_date}",
             message=summary,
+            report_type="daily",
         )
 
         # Store full report to S3 (optional)
@@ -160,13 +164,14 @@ class ReportGenerationHandler:
             underlying_prices=underlying_prices,
         )
 
-        # Format summary for SNS notification
+        # Format summary for notification
         summary = self._format_weekly_summary(report)
 
-        # Publish to SNS
-        self._publish_to_sns(
+        # Publish to EventBridge for notification
+        self._publish_report_event(
             subject=f"Weekly Hedge Report - Week of {report.report_week_start}",
             message=summary,
+            report_type="weekly",
         )
 
         # Store full report to S3
@@ -377,43 +382,58 @@ class ReportGenerationHandler:
 
         return "\n".join(lines)
 
-    def _publish_to_sns(self, subject: str, message: str) -> bool:
-        """Publish report summary to SNS topic.
+    def _publish_report_event(self, subject: str, message: str, report_type: str) -> bool:
+        """Publish report event to EventBridge for NotificationsFunction.
 
         Args:
             subject: Email subject
             message: Report content
+            report_type: Type of report (daily, weekly)
 
         Returns:
             True if published successfully
 
         """
-        topic_arn = os.environ.get("TRADING_NOTIFICATIONS_TOPIC_ARN")
-        if not topic_arn:
+        event_bus_name = os.environ.get("EVENT_BUS_NAME")
+        if not event_bus_name:
             logger.warning(
-                "TRADING_NOTIFICATIONS_TOPIC_ARN not set, skipping SNS notification",
+                "EVENT_BUS_NAME not set, skipping EventBridge notification",
                 correlation_id=self._correlation_id,
             )
             return False
 
         try:
-            self._sns_client.publish(
-                TopicArn=topic_arn,
-                Subject=subject[:100],  # SNS subject limit
-                Message=message,
+            self._eventbridge_client.put_events(
+                Entries=[
+                    {
+                        "Source": "alchemiser.hedge_reports",
+                        "DetailType": "HedgeReportGenerated",
+                        "EventBusName": event_bus_name,
+                        "Detail": json.dumps(
+                            {
+                                "report_type": report_type,
+                                "subject": subject[:100],
+                                "message": message,
+                                "correlation_id": self._correlation_id,
+                                "account_id": self._account_id,
+                                "generated_at": datetime.now(UTC).isoformat(),
+                            }
+                        ),
+                    }
+                ]
             )
             logger.info(
-                "Published hedge report to SNS",
-                topic_arn=topic_arn,
+                "Published hedge report event to EventBridge",
+                event_bus=event_bus_name,
                 subject=subject,
                 correlation_id=self._correlation_id,
             )
             return True
         except (ClientError, BotoCoreError) as e:
             logger.error(
-                "Failed to publish to SNS",
+                "Failed to publish to EventBridge",
                 error=str(e),
-                topic_arn=topic_arn,
+                event_bus=event_bus_name,
                 correlation_id=self._correlation_id,
             )
             return False
@@ -435,7 +455,7 @@ class ReportGenerationHandler:
             S3 key if stored successfully, None otherwise
 
         """
-        bucket_name = os.environ.get("HEDGE_REPORTS_BUCKET")
+        bucket_name = os.environ.get("REPORTS_BUCKET_NAME")
         if not bucket_name:
             logger.debug(
                 "HEDGE_REPORTS_BUCKET not set, skipping S3 storage",
