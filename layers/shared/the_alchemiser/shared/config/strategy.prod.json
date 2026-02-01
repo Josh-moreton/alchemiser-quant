@@ -1,6 +1,5 @@
 {
   "files": [
-    "defence.clj",
     "gold.clj",
     "pals_spell.clj",
     "rains_em_dancer.clj",
@@ -9,10 +8,10 @@
     "ftlt/tqqq_ftlt_1.clj",
     "ftlt/tqqq_ftlt_2.clj",
     "ftlt/holy_grail.clj",
-    "kmlm_switcher.clj"
+    "kmlm_switcher.clj",
+    "vox_the_best.clj"
   ],
   "allocations": {
-    "defence.clj": 0.094,
     "gold.clj": 0.152,
     "pals_spell.clj": 0.084,
     "rains_em_dancer.clj": 0.099,
@@ -21,6 +20,7 @@
     "ftlt/tqqq_ftlt_1.clj": 0.185,
     "ftlt/tqqq_ftlt_2.clj": 0.135,
     "ftlt/holy_grail.clj": 0.047,
-    "kmlm_switcher.clj": 0.064
+    "kmlm_switcher.clj": 0.064,
+    "vox_the_best.clj": 0.094
   }
 }
