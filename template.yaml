@@ -2038,31 +2038,33 @@ Resources:
                 Resource:
                   - !GetAtt IVHistoryTable.Arn
 
-  # EventBridge Rule: Route RebalancePlanned events to HedgeEvaluator
-  RebalancePlannedToHedgeRule:
+  # EventBridge Rule: Route AllTradesCompleted events to HedgeEvaluator
+  # This ensures hedging evaluates actual positions after trades complete,
+  # not planned positions from RebalancePlanned (decoupled from main workflow)
+  AllTradesCompletedToHedgeRule:
     Type: AWS::Events::Rule
     Properties:
       Name: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-rebalance-to-hedge"
-        - !Sub "alchemiser-${Stage}-rebalance-to-hedge"
+        - !Sub "${StackName}-trades-completed-to-hedge"
+        - !Sub "alchemiser-${Stage}-trades-completed-to-hedge"
       EventBusName: !Ref AlchemiserEventBus
       EventPattern:
         source:
-          - alchemiser.portfolio
+          - alchemiser.trade_aggregator
         detail-type:
-          - RebalancePlanned
+          - AllTradesCompleted
       Targets:
         - Id: HedgeEvaluatorTarget
           Arn: !GetAtt HedgeEvaluatorFunction.Arn
 
-  RebalancePlannedToHedgePermission:
+  AllTradesCompletedToHedgePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref HedgeEvaluatorFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !GetAtt RebalancePlannedToHedgeRule.Arn
+      SourceArn: !GetAtt AllTradesCompletedToHedgeRule.Arn
 
   # ========== HEDGE EXECUTOR LAMBDA (OPTIONS HEDGING) ==========
   # Triggered by SQS queue to execute hedge orders via Alpaca Options API

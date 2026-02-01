@@ -351,7 +351,7 @@ def _capture_portfolio_state(correlation_id: str) -> tuple[Decimal | None, dict[
 
     Returns:
         Tuple of (capital_deployed_pct, portfolio_snapshot dict).
-        portfolio_snapshot contains: equity, cash, gross_exposure, net_exposure, top_positions
+        portfolio_snapshot contains: equity, cash, gross_exposure, net_exposure, top_positions (all positions)
 
     """
     empty_snapshot: dict[str, Any] = {
@@ -394,7 +394,7 @@ def _capture_portfolio_state(correlation_id: str) -> tuple[Decimal | None, dict[
             net_exposure = Decimal("0")
             capital_deployed_pct = None
 
-        # Fetch positions for top positions list
+        # Fetch all positions for portfolio snapshot (used by hedge evaluator)
         top_positions: list[dict[str, Any]] = []
         try:
             positions = alpaca_manager.get_positions()
@@ -405,7 +405,7 @@ def _capture_portfolio_state(correlation_id: str) -> tuple[Decimal | None, dict[
                     key=lambda p: abs(float(p.market_value)) if p.market_value else 0,
                     reverse=True,
                 )
-                for pos in sorted_positions[:5]:  # Top 5 positions
+                for pos in sorted_positions:  # All positions for hedge evaluation
                     market_value = (
                         Decimal(str(pos.market_value)) if pos.market_value else Decimal("0")
                     )
