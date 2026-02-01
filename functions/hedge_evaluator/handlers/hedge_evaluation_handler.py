@@ -31,6 +31,7 @@ from the_alchemiser.shared.options.constants import (
     VIX_PROXY_SCALE_FACTOR,
     VIX_PROXY_SYMBOL,
 )
+from the_alchemiser.shared.options.iv_signal import IVSignalCalculator, classify_iv_regime
 from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
 from the_alchemiser.shared.options.utils import get_underlying_price
 
@@ -66,6 +67,9 @@ class HedgeEvaluationHandler:
 
         # Create ExposureCalculator with container for historical data access
         self._exposure_calculator = ExposureCalculator(container=container)
+
+        # Initialize IV signal calculator
+        self._iv_calculator = IVSignalCalculator(container=container)
 
         # Initialize kill switch service
         self._kill_switch = KillSwitchService()
@@ -170,14 +174,52 @@ class HedgeEvaluationHandler:
                 self._publish_skip_event(event, skip_reason)
                 return
 
-            # FAIL-CLOSED CHECK: VIX proxy data
-            # Get VIX for adaptive budgeting - MUST succeed or fail closed
-            current_vix = self._get_current_vix_fail_closed(correlation_id)
+            # FAIL-CLOSED CHECK: IV data
+            # Calculate IV signal for the hedge underlying - MUST succeed or fail closed
+            # This replaces the old VIXY × 10 VIX proxy with proper IV data
+            iv_signal = self._iv_calculator.calculate_iv_signal(
+                underlying_symbol=primary_underlying,
+                underlying_price=underlying_price,
+                correlation_id=correlation_id,
+            )
 
-            # Calculate hedge recommendation
+            # Classify IV regime (low/mid/high based on percentile + skew)
+            iv_regime = classify_iv_regime(iv_signal)
+
+            logger.info(
+                "IV signal calculated and regime classified",
+                underlying=primary_underlying,
+                atm_iv=str(iv_signal.atm_iv),
+                iv_percentile=str(iv_signal.iv_percentile),
+                iv_skew=str(iv_signal.iv_skew),
+                regime=iv_regime.regime,
+                skew_rich=iv_regime.skew_rich,
+                correlation_id=correlation_id,
+            )
+
+            # Also fetch VIX proxy as a sanity check (log only, don't use for decisions)
+            try:
+                vix_proxy = self._get_vix_proxy_sanity_check(correlation_id)
+                logger.info(
+                    "VIX proxy sanity check",
+                    vix_proxy=str(vix_proxy),
+                    iv_signal_atm=str(iv_signal.atm_iv),
+                    note="VIX proxy is for monitoring only - IV signal drives decisions",
+                    correlation_id=correlation_id,
+                )
+            except Exception as e:
+                # VIX proxy failure is OK - it's just a sanity check
+                logger.warning(
+                    "VIX proxy sanity check failed (non-critical)",
+                    error=str(e),
+                    correlation_id=correlation_id,
+                )
+
+            # Calculate hedge recommendation using IV signal
             recommendation = self._hedge_sizer.calculate_hedge_recommendation(
                 exposure=exposure,
-                current_vix=current_vix,
+                iv_signal=iv_signal,
+                iv_regime=iv_regime,
                 underlying_price=underlying_price,
             )
 
@@ -216,7 +258,9 @@ class HedgeEvaluationHandler:
                 plan_id=plan_id,
                 premium_budget=str(recommendation.premium_budget),
                 underlying=recommendation.underlying_symbol,
-                vix_value=str(current_vix),
+                iv_atm=str(iv_signal.atm_iv),
+                iv_percentile=str(iv_signal.iv_percentile),
+                iv_regime=iv_regime.regime,
                 vix_tier=recommendation.vix_tier,
             )
 
@@ -276,16 +320,11 @@ class HedgeEvaluationHandler:
 
         return positions
 
-    def _get_current_vix_fail_closed(self, correlation_id: str | None = None) -> Decimal:
-        """Get current VIX value from VIXY ETF proxy - FAIL CLOSED on unavailable data.
+    def _get_vix_proxy_sanity_check(self, correlation_id: str | None = None) -> Decimal:
+        """Get VIX proxy value for sanity checking only (NOT for hedge decisions).
 
-        Uses VIXY (ProShares VIX Short-Term Futures ETF) as a proxy for VIX
-        since Alpaca does not provide direct VIX index quotes.
-
-        This is a fail-closed check. If VIX proxy data is unavailable or stale,
-        this method raises VIXProxyUnavailableError rather than defaulting to
-        a mid-tier assumption. The system requires real volatility data to make
-        safe hedging decisions.
+        This method fetches VIXY × 10 as a VIX approximation for comparison
+        with the IV signal. It is NOT used for hedge sizing decisions.
 
         Args:
             correlation_id: Correlation ID for tracing
@@ -294,56 +333,16 @@ class HedgeEvaluationHandler:
             Estimated VIX value from VIXY proxy
 
         Raises:
-            VIXProxyUnavailableError: If VIX proxy data is unavailable or stale
+            Exception: If VIX proxy data is unavailable (non-critical)
 
         """
-        try:
-            # Fetch VIX proxy ETF price using configurable symbol
-            proxy_price: Decimal = get_underlying_price(self._container, VIX_PROXY_SYMBOL)
+        # Fetch VIX proxy ETF price using configurable symbol
+        proxy_price: Decimal = get_underlying_price(self._container, VIX_PROXY_SYMBOL)
 
-            # Scale proxy price to approximate VIX index value
-            estimated_vix: Decimal = proxy_price * VIX_PROXY_SCALE_FACTOR
+        # Scale proxy price to approximate VIX index value
+        estimated_vix: Decimal = proxy_price * VIX_PROXY_SCALE_FACTOR
 
-            # Log for drift monitoring - VIXY/VIX relationship can drift over time
-            # Monitor this in CloudWatch to detect when scaling factor needs recalibration
-            logger.info(
-                "Fetched VIX estimate from ETF proxy",
-                proxy_symbol=VIX_PROXY_SYMBOL,
-                proxy_price=str(proxy_price),
-                scale_factor=str(VIX_PROXY_SCALE_FACTOR),
-                estimated_vix=str(estimated_vix),
-                data_source="ETF_proxy",
-                correlation_id=correlation_id,
-            )
-            logger.info(
-                "VIX proxy drift monitoring",
-                proxy_symbol=VIX_PROXY_SYMBOL,
-                proxy_price=str(proxy_price),
-                implied_vix_ratio=str(estimated_vix / proxy_price) if proxy_price > 0 else "N/A",
-                expected_ratio=str(VIX_PROXY_SCALE_FACTOR),
-                vix_estimate=str(estimated_vix),
-                monitoring_note="Track proxy_price vs estimated_vix ratio for scaling factor drift",
-                correlation_id=correlation_id,
-            )
-
-            return estimated_vix
-
-        except Exception as e:
-            # FAIL CLOSED: VIX proxy unavailable - cannot hedge safely
-            logger.error(
-                "VIX proxy data unavailable - FAILING CLOSED",
-                proxy_symbol=VIX_PROXY_SYMBOL,
-                error=str(e),
-                exc_info=True,
-                correlation_id=correlation_id,
-                fail_closed_condition="vix_proxy_unavailable",
-                alert_required=True,
-            )
-            raise VIXProxyUnavailableError(
-                message=f"VIX proxy ({VIX_PROXY_SYMBOL}) data unavailable - cannot hedge without volatility data: {e!s}",
-                proxy_symbol=VIX_PROXY_SYMBOL,
-                correlation_id=correlation_id,
-            ) from e
+        return estimated_vix
 
     def _publish_skip_event(
         self,

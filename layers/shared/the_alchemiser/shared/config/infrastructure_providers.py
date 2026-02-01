@@ -15,6 +15,7 @@ from dependency_injector import containers, providers
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers import AlpacaManager
+    from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
     from the_alchemiser.shared.services.market_data_service import MarketDataService
     from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
@@ -38,6 +39,25 @@ def _create_alpaca_manager(api_key: str, secret_key: str, *, paper: bool) -> Alp
     from the_alchemiser.shared.brokers import AlpacaManager
 
     return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+
+
+def _create_alpaca_options_adapter(
+    api_key: str, secret_key: str, *, paper: bool
+) -> AlpacaOptionsAdapter:
+    """Create AlpacaOptionsAdapter with lazy import.
+
+    Args:
+        api_key: Alpaca API key
+        secret_key: Alpaca secret key
+        paper: Whether to use paper trading
+
+    Returns:
+        AlpacaOptionsAdapter instance
+
+    """
+    from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
+
+    return AlpacaOptionsAdapter(api_key=api_key, secret_key=secret_key, paper=paper)
 
 
 def _create_market_data_service(market_data_repo: object) -> MarketDataService:
@@ -174,3 +194,13 @@ class InfrastructureProviders(containers.DeclarativeContainer):
     trading_repository = alpaca_manager
     market_data_repository = alpaca_manager
     account_repository = alpaca_manager
+
+    # Alpaca Options adapter (Singleton pattern)
+    # Used for options chain queries, quotes, and order placement
+    # Implements separate options-specific API endpoints from alpaca_manager
+    alpaca_options_adapter = providers.Singleton(
+        _create_alpaca_options_adapter,
+        api_key=config.alpaca_api_key,
+        secret_key=config.alpaca_secret_key,
+        paper=config.paper_trading,
+    )

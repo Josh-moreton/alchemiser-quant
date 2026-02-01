@@ -1095,6 +1095,55 @@ class DynamoDBTradeLedgerRepository:
             logger.error(f"Failed to discover strategies with closed lots: {e}")
             return []
 
+    def discover_strategies_with_completed_trades(self) -> list[str]:
+        """Discover all strategies that have completed trades (exit records).
+
+        Scans for unique strategy names from lots that have at least one exit record.
+        This is the correct method for P&L reporting - a completed trade is any exit,
+        regardless of whether the lot still has remaining shares.
+
+        Returns:
+            List of unique strategy names with completed trades
+
+        """
+        try:
+            # Scan for all LOT# items that have exit_records
+            response = self._table.scan(
+                FilterExpression="begins_with(PK, :pk) AND size(exit_records) > :zero",
+                ExpressionAttributeValues={
+                    ":pk": "LOT#",
+                    ":zero": 0,
+                },
+                ProjectionExpression="strategy_name",
+            )
+
+            strategy_names: set[str] = set()
+            for item in response.get("Items", []):
+                strategy_name = item.get("strategy_name")
+                if strategy_name and isinstance(strategy_name, str):
+                    strategy_names.add(strategy_name)
+
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self._table.scan(
+                    FilterExpression="begins_with(PK, :pk) AND size(exit_records) > :zero",
+                    ExpressionAttributeValues={
+                        ":pk": "LOT#",
+                        ":zero": 0,
+                    },
+                    ProjectionExpression="strategy_name",
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                for item in response.get("Items", []):
+                    strategy_name = item.get("strategy_name")
+                    if strategy_name and isinstance(strategy_name, str):
+                        strategy_names.add(strategy_name)
+
+            return sorted(strategy_names)
+        except DynamoDBException as e:
+            logger.error(f"Failed to discover strategies with completed trades: {e}")
+            return []
+
     # ========================================================================
     # Strategy Metadata Operations
     # ========================================================================
@@ -1245,57 +1294,63 @@ class DynamoDBTradeLedgerRepository:
         """Get aggregated statistics for a strategy.
 
         Calculates comprehensive metrics from all lots for the strategy.
+        Each exit_record represents a completed trade - when the strategy
+        decided to close a position. Strategies are always 100% allocated,
+        so every exit is a complete trade decision from the strategy's perspective.
 
         Args:
             strategy_name: Strategy name (filename stem)
 
         Returns:
             Dict with keys:
-                - open_lot_count: Number of open lots
-                - closed_lot_count: Number of closed lots
-                - open_position_value: Market value at entry (open lots only)
-                - total_realized_pnl: Sum of realized P&L from closed lots
-                - winning_trades: Count of closed lots with positive P&L
-                - losing_trades: Count of closed lots with negative or zero P&L
+                - current_holdings: Number of lots with remaining position
+                - current_holdings_value: Cost basis of remaining positions
+                - completed_trades: Number of closed trades (exit records)
+                - total_realized_pnl: Sum of realized P&L from all closed trades
+                - winning_trades: Count of trades with positive P&L
+                - losing_trades: Count of trades with negative or zero P&L
                 - win_rate: Percentage of winning trades (0-100)
-                - avg_profit_per_trade: Average realized P&L per closed lot
+                - avg_profit_per_trade: Average realized P&L per closed trade
 
         """
         from decimal import Decimal
 
         lots = self.query_all_lots_by_strategy(strategy_name)
 
-        open_lot_count = 0
-        closed_lot_count = 0
-        open_position_value = Decimal("0")
+        current_holdings = 0
+        current_holdings_value = Decimal("0")
         total_realized_pnl = Decimal("0")
         winning_trades = 0
         losing_trades = 0
 
         for lot in lots:
-            if lot.is_open:
-                open_lot_count += 1
-                # Use entry cost basis as position value (current price would require market data)
-                open_position_value += lot.remaining_qty * lot.entry_price
-            else:
-                closed_lot_count += 1
-                pnl = lot.realized_pnl
+            # Track current holdings (lots with remaining position)
+            if lot.remaining_qty > 0:
+                current_holdings += 1
+                current_holdings_value += lot.remaining_qty * lot.entry_price
+
+            # Each exit_record is a completed trade - strategy closed that position
+            for exit_record in lot.exit_records:
+                pnl = exit_record.realized_pnl
                 total_realized_pnl += pnl
                 if pnl > 0:
                     winning_trades += 1
                 else:
                     losing_trades += 1
 
-        # Calculate derived metrics
-        total_trades = closed_lot_count
-        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else Decimal("0")
-        avg_profit = (total_realized_pnl / total_trades) if total_trades > 0 else Decimal("0")
+        completed_trades = winning_trades + losing_trades
+        win_rate = (
+            (winning_trades / completed_trades * 100) if completed_trades > 0 else Decimal("0")
+        )
+        avg_profit = (
+            (total_realized_pnl / completed_trades) if completed_trades > 0 else Decimal("0")
+        )
 
         return {
             "strategy_name": strategy_name,
-            "open_lot_count": open_lot_count,
-            "closed_lot_count": closed_lot_count,
-            "open_position_value": open_position_value,
+            "current_holdings": current_holdings,
+            "current_holdings_value": current_holdings_value,
+            "completed_trades": completed_trades,
             "total_realized_pnl": total_realized_pnl,
             "winning_trades": winning_trades,
             "losing_trades": losing_trades,
