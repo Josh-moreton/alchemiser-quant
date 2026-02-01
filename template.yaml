@@ -2216,6 +2216,83 @@ Resources:
                 Resource:
                   - !GetAtt HedgeHistoryTable.Arn
 
+  # ========== HEDGE REPORTS FUNCTION ==========
+  # Generates daily/weekly hedge reports and delivers via SNS
+  HedgeReportsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-hedge-reports"
+        - !Sub "alchemiser-${Stage}-hedge-reports"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/hedge_reports/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt HedgeReportsExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
+          HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
+          TRADING_NOTIFICATIONS_TOPIC_ARN: !Ref TradingNotificationsTopic
+          REPORTS_BUCKET_NAME: !Ref PerformanceReportsBucket
+      Events:
+        # Daily report: ~4:30 PM Eastern Time (after market close and hedge evaluation)
+        # TIMEZONE NOTE: Uses 20:30 UTC = 4:30 PM EDT / 3:30 PM EST
+        DailyReportSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(30 20 ? * MON-FRI *)"
+            Description: "Daily hedge report (~4:30 PM ET)"
+            Input: '{"report_type": "daily"}'
+        # Weekly report: Friday ~5:00 PM Eastern Time
+        WeeklyReportSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(0 21 ? * FRI *)"
+            Description: "Weekly hedge report (Friday ~5:00 PM ET)"
+            Input: '{"report_type": "weekly"}'
+    Metadata:
+      BuildMethod: python3.12
+
+  HedgeReportsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
+      Policies:
+        - PolicyName: HedgeReportsPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt HedgePositionsTable.Arn
+                  - !Sub "${HedgePositionsTable.Arn}/index/*"
+                  - !GetAtt HedgeHistoryTable.Arn
+                  - !Sub "${HedgeHistoryTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref TradingNotificationsTopic
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !Sub "${PerformanceReportsBucket.Arn}/hedge-reports/*"
+
   # ========== DATA LAMBDA FUNCTION (PER-STAGE) ==========
   # Market data fetching and S3 storage (replaces alchemiser-shared-data)
   # Each stage gets own data function with own S3 bucket

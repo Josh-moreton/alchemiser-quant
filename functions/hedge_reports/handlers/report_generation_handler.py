@@ -288,35 +288,43 @@ class ReportGenerationHandler:
         # Add scenario projections if available
         if report.scenario_projection:
             proj = report.scenario_projection
-            lines.extend([
-                "",
-                "📉 Scenario Projections:",
-                f"  - At -10%: ${proj.total_payoff_at_minus_10:,.2f} ({proj.total_payoff_nav_pct_at_minus_10:.2f}% NAV)",
-                f"  - At -20%: ${proj.total_payoff_at_minus_20:,.2f} ({proj.total_payoff_nav_pct_at_minus_20:.2f}% NAV)",
-                f"  - At -30%: ${proj.total_payoff_at_minus_30:,.2f} ({proj.total_payoff_nav_pct_at_minus_30:.2f}% NAV)",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "📉 Scenario Projections:",
+                    f"  - At -10%: ${proj.total_payoff_at_minus_10:,.2f} ({proj.total_payoff_nav_pct_at_minus_10:.2f}% NAV)",
+                    f"  - At -20%: ${proj.total_payoff_at_minus_20:,.2f} ({proj.total_payoff_nav_pct_at_minus_20:.2f}% NAV)",
+                    f"  - At -30%: ${proj.total_payoff_at_minus_30:,.2f} ({proj.total_payoff_nav_pct_at_minus_30:.2f}% NAV)",
+                ]
+            )
 
         # Add alerts
         if report.alerts:
-            lines.extend([
-                "",
-                "⚠️ Alerts:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "⚠️ Alerts:",
+                ]
+            )
             for alert in report.alerts:
                 lines.append(f"  - {alert}")
 
         # Add attribution if present
         if report.attribution_report:
-            lines.extend([
-                "",
-                "📊 Attribution Report:",
-                f"  {report.attribution_report.summary}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "📊 Attribution Report:",
+                    f"  {report.attribution_report.summary}",
+                ]
+            )
 
-        lines.extend([
-            "",
-            f"Generated at: {report.generated_at.isoformat()}",
-        ])
+        lines.extend(
+            [
+                "",
+                f"Generated at: {report.generated_at.isoformat()}",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -346,18 +354,22 @@ class ReportGenerationHandler:
         # Add scenario projections if available
         if report.scenario_projection:
             proj = report.scenario_projection
-            lines.extend([
-                "",
-                "📉 Scenario Projections:",
-                f"  - At -10%: ${proj.total_payoff_at_minus_10:,.2f} ({proj.total_payoff_nav_pct_at_minus_10:.2f}% NAV)",
-                f"  - At -20%: ${proj.total_payoff_at_minus_20:,.2f} ({proj.total_payoff_nav_pct_at_minus_20:.2f}% NAV)",
-                f"  - At -30%: ${proj.total_payoff_at_minus_30:,.2f} ({proj.total_payoff_nav_pct_at_minus_30:.2f}% NAV)",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "📉 Scenario Projections:",
+                    f"  - At -10%: ${proj.total_payoff_at_minus_10:,.2f} ({proj.total_payoff_nav_pct_at_minus_10:.2f}% NAV)",
+                    f"  - At -20%: ${proj.total_payoff_at_minus_20:,.2f} ({proj.total_payoff_nav_pct_at_minus_20:.2f}% NAV)",
+                    f"  - At -30%: ${proj.total_payoff_at_minus_30:,.2f} ({proj.total_payoff_nav_pct_at_minus_30:.2f}% NAV)",
+                ]
+            )
 
-        lines.extend([
-            "",
-            f"Generated at: {report.generated_at.isoformat()}",
-        ])
+        lines.extend(
+            [
+                "",
+                f"Generated at: {report.generated_at.isoformat()}",
+            ]
+        )
 
         return "\n".join(lines)
 
