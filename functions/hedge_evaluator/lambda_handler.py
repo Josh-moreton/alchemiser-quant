@@ -2,8 +2,8 @@
 
 Lambda handler for hedge evaluator microservice.
 
-Triggered by EventBridge when RebalancePlanned is published by portfolio.
-Runs hedge evaluation and publishes HedgeEvaluationCompleted to EventBridge.
+Triggered by EventBridge when AllTradesCompleted is published by TradeAggregator.
+Evaluates actual portfolio positions and publishes HedgeEvaluationCompleted to EventBridge.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -27,11 +28,8 @@ from the_alchemiser.shared.events.eventbridge_publisher import (
 )
 from the_alchemiser.shared.events.schemas import (
     HedgeEvaluationCompleted,
-    RebalancePlanned,
 )
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
-from the_alchemiser.shared.schemas.common import AllocationComparison
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
 # Initialize logging on cold start (must be before get_logger)
@@ -55,12 +53,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle EventBridge event for hedge evaluation.
 
     This handler:
-    1. Unwraps the EventBridge event to get RebalancePlanned data
-    2. Runs the hedge evaluation handler
-    3. Publishes HedgeEvaluationCompleted (or WorkflowFailed) to EventBridge
+    1. Unwraps the EventBridge event to get AllTradesCompleted data
+    2. Extracts portfolio positions from portfolio_snapshot
+    3. Runs the hedge evaluation handler
+    4. Publishes HedgeEvaluationCompleted (or WorkflowFailed) to EventBridge
 
     Args:
-        event: EventBridge event containing RebalancePlanned in 'detail'
+        event: EventBridge event containing AllTradesCompleted in 'detail'
         context: Lambda context (unused)
 
     Returns:
@@ -90,11 +89,14 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
         }
 
+    # Get event type from EventBridge envelope
+    event_type = event.get("detail-type", "unknown")
+
     logger.info(
         "HedgeEvaluator Lambda invoked",
         extra={
             "correlation_id": correlation_id,
-            "event_type": event.get("detail-type", "direct"),
+            "event_type": event_type,
             "source": event.get("source", "unknown"),
         },
     )
@@ -112,77 +114,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         else:
             timestamp = datetime.now(UTC)
         timestamp = ensure_timezone_aware(timestamp)
-
-        # Validate rebalance_plan exists and has required structure
-        rebalance_plan_data = detail.get("rebalance_plan")
-        if not rebalance_plan_data:
-            logger.error(
-                "Missing rebalance_plan in event detail",
-                extra={"correlation_id": correlation_id, "detail_keys": list(detail.keys())},
-            )
-            return {
-                "statusCode": 400,
-                "body": {
-                    "status": "error",
-                    "correlation_id": correlation_id,
-                    "error": "Missing required field: rebalance_plan",
-                },
-            }
-
-        if not isinstance(rebalance_plan_data, dict):
-            logger.error(
-                "Invalid rebalance_plan type: expected dict",
-                extra={
-                    "correlation_id": correlation_id,
-                    "actual_type": type(rebalance_plan_data).__name__,
-                },
-            )
-            return {
-                "statusCode": 400,
-                "body": {
-                    "status": "error",
-                    "correlation_id": correlation_id,
-                    "error": "Invalid rebalance_plan: expected dict",
-                },
-            }
-
-        # Validate required fields in rebalance_plan
-        required_fields = ["plan_id", "items"]
-        missing_fields = [f for f in required_fields if f not in rebalance_plan_data]
-        if missing_fields:
-            logger.error(
-                "Missing required fields in rebalance_plan",
-                extra={"correlation_id": correlation_id, "missing_fields": missing_fields},
-            )
-            return {
-                "statusCode": 400,
-                "body": {
-                    "status": "error",
-                    "correlation_id": correlation_id,
-                    "error": f"Missing required fields in rebalance_plan: {missing_fields}",
-                },
-            }
-
-        rebalance_plan = RebalancePlan.from_dict(rebalance_plan_data)
-
-        # Deserialize allocation_comparison using from_json_dict to handle
-        # Decimal values serialized as strings by EventBridge
-        allocation_comparison_data = detail.get("allocation_comparison", {})
-        allocation_comparison = AllocationComparison.from_json_dict(allocation_comparison_data)
-
-        # Reconstruct RebalancePlanned event
-        rebalance_event = RebalancePlanned(
-            correlation_id=detail.get("correlation_id", correlation_id),
-            causation_id=detail.get("causation_id", correlation_id),
-            event_id=detail.get("event_id", f"rebalance-planned-{uuid.uuid4()}"),
-            timestamp=timestamp,
-            source_module=detail.get("source_module", "portfolio_v2"),
-            source_component=detail.get("source_component"),
-            rebalance_plan=rebalance_plan,
-            allocation_comparison=allocation_comparison,
-            trades_required=detail.get("trades_required", False),
-            metadata=detail.get("metadata", {}),
-        )
 
         # Create handler
         handler = HedgeEvaluationHandler(container)
@@ -205,8 +136,75 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         handler.event_bus.subscribe("HedgeEvaluationCompleted", capture_evaluation)
         handler.event_bus.subscribe("WorkflowFailed", capture_failure)
 
-        # Run hedge evaluation
-        handler.handle_event(rebalance_event)
+        # Route based on event type
+        if event_type == "AllTradesCompleted":
+            # New flow: Triggered after all trades complete
+            # Extract portfolio data from AllTradesCompleted event
+            portfolio_snapshot = detail.get("portfolio_snapshot", {})
+
+            if not portfolio_snapshot or "equity" not in portfolio_snapshot:
+                logger.warning(
+                    "No portfolio_snapshot in AllTradesCompleted - skipping hedge evaluation",
+                    extra={"correlation_id": correlation_id},
+                )
+                return {
+                    "statusCode": 200,
+                    "body": {
+                        "status": "skipped",
+                        "correlation_id": correlation_id,
+                        "reason": "No portfolio_snapshot available",
+                    },
+                }
+
+            # Extract identifiers
+            plan_id = detail.get("plan_id", str(uuid.uuid4()))
+            run_id = detail.get("run_id", "")
+
+            # Get equity (NAV) from portfolio snapshot
+            portfolio_nav = Decimal(str(portfolio_snapshot.get("equity", 0)))
+
+            if portfolio_nav <= 0:
+                logger.warning(
+                    "Zero or negative portfolio NAV - skipping hedge evaluation",
+                    extra={"correlation_id": correlation_id, "nav": str(portfolio_nav)},
+                )
+                return {
+                    "statusCode": 200,
+                    "body": {
+                        "status": "skipped",
+                        "correlation_id": correlation_id,
+                        "reason": "Invalid portfolio NAV",
+                    },
+                }
+
+            # Call handler with AllTradesCompleted data
+            handler.handle_all_trades_completed(
+                correlation_id=correlation_id,
+                causation_id=detail.get("event_id", correlation_id),
+                plan_id=plan_id,
+                run_id=run_id,
+                portfolio_nav=portfolio_nav,
+                portfolio_snapshot=portfolio_snapshot,
+                timestamp=timestamp,
+            )
+        else:
+            # Unknown event type
+            logger.error(
+                "Unsupported event type for hedge evaluation",
+                extra={
+                    "correlation_id": correlation_id,
+                    "event_type": event_type,
+                    "expected": "AllTradesCompleted",
+                },
+            )
+            return {
+                "statusCode": 400,
+                "body": {
+                    "status": "error",
+                    "correlation_id": correlation_id,
+                    "error": f"Unsupported event type: {event_type}. Expected AllTradesCompleted.",
+                },
+            }
 
         # Publish result to EventBridge and SQS
         if evaluation_event is not None:

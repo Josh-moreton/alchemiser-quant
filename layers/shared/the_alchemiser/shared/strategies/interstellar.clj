@@ -77,7 +77,7 @@
                                  (asset
                                   "UPRO"
                                   "ProShares UltraPro S&P500")
-                                 (asset "FNGA" nil)
+                                 (asset "FNGB" nil)
                                  (asset
                                   "BULZ"
                                   "MicroSectors Solactive FANG & Innovation 3X Leveraged ETN")])
@@ -103,7 +103,7 @@
                          [(weight-equal
                            [(if
                              (< (rsi "FNGS" {:window 10}) 30)
-                             [(asset "FNGA" nil)]
+                             [(asset "FNGB" nil)]
                              [(weight-equal
                                [(if
                                  (< (rsi "SPY" {:window 10}) 30)

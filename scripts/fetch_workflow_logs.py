@@ -61,6 +61,7 @@ REGION = "us-east-1"
 
 # Lambda function names (without stage prefix)
 LAMBDA_FUNCTIONS = [
+    # Core workflow
     "strategy-orchestrator",
     "strategy-worker",
     "signal-aggregator",
@@ -68,8 +69,16 @@ LAMBDA_FUNCTIONS = [
     "execution",
     "trade-aggregator",
     "notifications",
+    # Hedge functions
+    "hedge-evaluator",
+    "hedge-executor",
+    "hedge-roll-manager",
+    "hedge-reports",
+    # Utility functions
     "metrics",
     "data",
+    "pnl-capture",
+    "schedule-manager",
 ]
 
 # Log levels to include when filtering for issues

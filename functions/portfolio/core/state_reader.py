@@ -27,6 +27,53 @@ logger = get_logger(__name__)
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.state_reader"
 
+# Maximum length for equity/ETF symbols (options use OCC format with 21 chars)
+MAX_EQUITY_SYMBOL_LENGTH = 10
+
+
+def _is_options_symbol(symbol: str) -> bool:
+    """Check if a symbol is an options contract (OCC format).
+
+    Options symbols follow the OCC (Options Clearing Corporation) format:
+    - 21 characters total
+    - First 6 chars: underlying symbol (padded with spaces)
+    - Next 6 chars: expiration date (YYMMDD)
+    - Next 1 char: option type (C/P)
+    - Last 8 chars: strike price (in 1/1000 of a dollar)
+
+    Equity/ETF symbols are typically 1-5 characters, max 10.
+
+    Args:
+        symbol: The symbol to check
+
+    Returns:
+        True if the symbol appears to be an options contract
+
+    """
+    # Options symbols are longer than equity symbols
+    if len(symbol) > MAX_EQUITY_SYMBOL_LENGTH:
+        return True
+
+    # Additional check: contains digits in positions typical of OCC format
+    # (expiration date embedded in symbol)
+    if len(symbol) >= 15 and any(c.isdigit() for c in symbol[6:12]):
+        return True
+
+    return False
+
+
+def _filter_equity_symbols(symbols: set[str]) -> set[str]:
+    """Filter a set of symbols to exclude options contracts.
+
+    Args:
+        symbols: Set of symbols to filter
+
+    Returns:
+        Set containing only equity/ETF symbols (no options)
+
+    """
+    return {s for s in symbols if not _is_options_symbol(s)}
+
 
 class PortfolioStateReader:
     """Build immutable portfolio snapshots from live market data.
@@ -361,13 +408,28 @@ class PortfolioStateReader:
                 margin_info = MarginInfo()
             else:
                 # Step 2: Get current positions
-                positions = self._data_adapter.get_positions()
+                all_positions = self._data_adapter.get_positions()
 
-                # Step 3: Determine which symbols we need prices for
+                # Step 2b: Filter out options positions (options are hedged separately)
+                # Options symbols use OCC format (21 chars), equity symbols are ≤10 chars
+                options_positions = {s for s in all_positions.keys() if _is_options_symbol(s)}
+                if options_positions:
+                    logger.info(
+                        "Filtering out options positions from equity workflow",
+                        module=MODULE_NAME,
+                        action="build_snapshot",
+                        options_count=len(options_positions),
+                        options_symbols=sorted(options_positions),
+                    )
+                positions = {s: q for s, q in all_positions.items() if not _is_options_symbol(s)}
+
+                # Step 3: Determine which symbols we need prices for (equity only)
                 position_symbols = set(positions.keys())
                 price_symbols = (
                     position_symbols if symbols is None else symbols.union(position_symbols)
                 )
+                # Filter out any options symbols from price requests
+                price_symbols = _filter_equity_symbols(price_symbols)
 
                 # Step 4: Get current prices for all required symbols
                 prices = {}
