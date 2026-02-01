@@ -25,6 +25,7 @@ from .schemas.option_contract import OptionType
 
 if TYPE_CHECKING:
     from ..config.container import ApplicationContainer
+    from .schemas.option_contract import OptionContract
 
 logger = get_logger(__name__)
 
@@ -103,6 +104,18 @@ DELTA_TOLERANCE: Decimal = Decimal("0.05")  # ±5 delta points
 # Minimum number of historical IV observations required for percentile
 # Need ~1 year of trading days = 252 days minimum
 MIN_HISTORICAL_IV_OBSERVATIONS: int = 126  # 6 months minimum, prefer 252
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IV PERCENTILE APPROXIMATION THRESHOLDS (PLACEHOLDER)
+# ═══════════════════════════════════════════════════════════════════════════════
+# These thresholds map ATM IV to approximate percentile values.
+# This is a placeholder until historical IV tracking is implemented in DynamoDB.
+# Based on typical equity index IV ranges (QQQ, SPY).
+IV_APPROX_VERY_LOW_THRESHOLD: Decimal = Decimal("15")  # IV < 15% → very low (0-10th pctl)
+IV_APPROX_LOW_THRESHOLD: Decimal = Decimal("20")  # IV 15-20% → low (10th-30th pctl)
+IV_APPROX_NORMAL_THRESHOLD: Decimal = Decimal("30")  # IV 20-30% → normal (30th-70th pctl)
+IV_APPROX_HIGH_THRESHOLD: Decimal = Decimal("40")  # IV 30-40% → high (70th-90th pctl)
+# IV > 40% → very high (90th-100th pctl)
 
 
 class IVSignalCalculator:
@@ -276,9 +289,9 @@ class IVSignalCalculator:
 
     def _find_atm_option(
         self,
-        options: list,  # list[OptionContract]
+        options: list[OptionContract],
         underlying_price: Decimal,
-    ) -> object | None:  # OptionContract | None
+    ) -> OptionContract | None:
         """Find the ATM option (closest to 0.50 delta).
 
         Args:
@@ -316,9 +329,9 @@ class IVSignalCalculator:
 
     def _find_delta_target_put(
         self,
-        options: list,  # list[OptionContract]
+        options: list[OptionContract],
         target_delta: Decimal,
-    ) -> object | None:  # OptionContract | None
+    ) -> OptionContract | None:
         """Find put option closest to target delta.
 
         Args:
@@ -378,31 +391,30 @@ class IVSignalCalculator:
             IV percentile (0-100)
 
         """
-        # Placeholder logic: Map IV to approximate percentile
-        # Typical ATM IV ranges:
-        # - Very low: 10-15% (< 10th percentile)
-        # - Low: 15-20% (10th-30th percentile)
-        # - Normal: 20-30% (30th-70th percentile)
-        # - High: 30-40% (70th-90th percentile)
-        # - Very high: > 40% (> 90th percentile)
-
+        # Placeholder logic: Map IV to approximate percentile using thresholds
+        # See IV_APPROX_* constants for threshold definitions
         iv_pct = current_iv * 100  # Convert to percentage (0.20 → 20)
 
-        if iv_pct < 15:
-            # Very low IV → low percentile (0-10)
-            percentile = (iv_pct / 15) * 10
-        elif iv_pct < 20:
+        very_low = float(IV_APPROX_VERY_LOW_THRESHOLD)
+        low = float(IV_APPROX_LOW_THRESHOLD)
+        normal = float(IV_APPROX_NORMAL_THRESHOLD)
+        high = float(IV_APPROX_HIGH_THRESHOLD)
+
+        if iv_pct < very_low:
+            # Very low IV → 0-10th percentile
+            percentile = (iv_pct / very_low) * 10
+        elif iv_pct < low:
             # Low IV → 10th-30th percentile
-            percentile = 10 + ((iv_pct - 15) / 5) * 20
-        elif iv_pct < 30:
+            percentile = 10 + ((iv_pct - very_low) / (low - very_low)) * 20
+        elif iv_pct < normal:
             # Normal IV → 30th-70th percentile
-            percentile = 30 + ((iv_pct - 20) / 10) * 40
-        elif iv_pct < 40:
+            percentile = 30 + ((iv_pct - low) / (normal - low)) * 40
+        elif iv_pct < high:
             # High IV → 70th-90th percentile
-            percentile = 70 + ((iv_pct - 30) / 10) * 20
+            percentile = 70 + ((iv_pct - normal) / (high - normal)) * 20
         else:
             # Very high IV → 90th-100th percentile
-            percentile = 90 + min(((iv_pct - 40) / 20) * 10, 10)
+            percentile = 90 + min(((iv_pct - high) / 20) * 10, 10)
 
         logger.info(
             "IV percentile approximation (placeholder - needs historical data)",
