@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from the_alchemiser.shared.errors import TradingClientError
 from the_alchemiser.shared.errors.exceptions import NoLiquidContractsError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.adapters import AlpacaOptionsAdapter
@@ -241,9 +242,10 @@ class OptionSelector:
         except NoLiquidContractsError:
             # Re-raise fail-closed errors
             raise
-        except Exception as e:
+        except TradingClientError as e:
+            # API/broker errors - log and return None to allow caller to handle
             logger.error(
-                "Error selecting hedge contract",
+                "Trading API error selecting hedge contract",
                 underlying=underlying_symbol,
                 error=str(e),
                 exc_info=True,
@@ -668,9 +670,40 @@ class OptionSelector:
                     correlation_id=correlation_id,
                 )
 
-            # Calculate pricing for both legs
-            long_mid_price = long_leg.mid_price or long_leg.ask_price or Decimal("1")
-            short_mid_price = short_leg.mid_price or short_leg.bid_price or Decimal("1")
+            # Calculate pricing for both legs - fail closed if no valid price
+            long_mid_price = long_leg.mid_price or long_leg.ask_price
+            if long_mid_price is None or long_mid_price <= 0:
+                logger.error(
+                    "No valid price for long leg - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    long_symbol=long_leg.symbol,
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_valid_long_leg_price",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"No valid price for long leg {long_leg.symbol} on {underlying_symbol}",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
+
+            short_mid_price = short_leg.mid_price or short_leg.bid_price
+            if short_mid_price is None or short_mid_price <= 0:
+                logger.error(
+                    "No valid price for short leg - FAILING CLOSED",
+                    underlying=underlying_symbol,
+                    short_symbol=short_leg.symbol,
+                    correlation_id=correlation_id,
+                    fail_closed_condition="no_valid_short_leg_price",
+                    alert_required=True,
+                )
+                raise NoLiquidContractsError(
+                    message=f"No valid price for short leg {short_leg.symbol} on {underlying_symbol}",
+                    underlying_symbol=underlying_symbol,
+                    contracts_checked=len(contracts),
+                    correlation_id=correlation_id,
+                )
 
             # Net debit = long premium - short credit
             net_debit_per_contract = (long_mid_price - short_mid_price) * 100
@@ -733,9 +766,10 @@ class OptionSelector:
         except NoLiquidContractsError:
             # Re-raise fail-closed errors
             raise
-        except Exception as e:
+        except TradingClientError as e:
+            # API/broker errors - log and return None to allow caller to handle
             logger.error(
-                "Error selecting spread contracts",
+                "Trading API error selecting spread contracts",
                 underlying=underlying_symbol,
                 error=str(e),
                 exc_info=True,

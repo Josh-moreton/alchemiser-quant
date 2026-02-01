@@ -430,13 +430,14 @@ class HedgeExecutionHandler:
                     short_leg_symbol = selected_spread.short_leg.symbol
                     short_leg_strike = selected_spread.short_leg.strike_price
                     short_leg_current_delta = selected_spread.short_leg.delta
-                    
-                    # Extract actual filled price from result option_symbol
-                    # Result contains net premium (long - short), need to parse for actual short price
-                    # For now, use limit price as estimate (actual price will be close)
-                    # TODO: Parse result to extract actual short leg filled price
-                    short_leg_entry_price = selected_spread.short_limit_price
-                    
+
+                    # Use actual filled price from result if available, otherwise fallback to limit
+                    short_leg_entry_price = (
+                        result.short_leg_filled_price
+                        if result.short_leg_filled_price is not None
+                        else selected_spread.short_limit_price
+                    )
+
                     # Use long leg for persistence (primary protection leg)
                     selected_for_persistence = SelectedOption(
                         contract=selected_spread.long_leg,

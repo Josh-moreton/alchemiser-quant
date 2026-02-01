@@ -36,6 +36,7 @@ class ExecutionResult:
     filled_price: Decimal | None
     total_premium: Decimal
     error_message: str | None = None
+    short_leg_filled_price: Decimal | None = None  # For spread orders only
 
 
 class OptionsExecutionService:
@@ -384,16 +385,18 @@ class OptionsExecutionService:
                     short_status = short_order_status.get("status", "").lower()
 
                     if short_status != "filled":
-                        logger.warning(
-                            "Long leg filled but short leg not filled",
+                        logger.error(
+                            "Long leg filled but short leg not filled - spread incomplete",
                             long_order_id=long_order_id,
                             short_order_id=short_order_id,
                             short_status=short_status,
+                            alert_required=True,
                         )
-                        # Return success for long leg, but note the asymmetry
-                        # The adapter's retry/compensating logic should have handled this
+                        # Spread is incomplete - this is NOT a success condition
+                        # The adapter's retry/compensating logic should have handled this,
+                        # but if we reach here, manual intervention may be required
                         return ExecutionResult(
-                            success=True,
+                            success=False,
                             order_id=long_order_id,
                             option_symbol=long_symbol,
                             underlying_symbol=underlying_symbol,
@@ -401,7 +404,7 @@ class OptionsExecutionService:
                             filled_quantity=result.filled_quantity,
                             filled_price=result.filled_price,
                             total_premium=result.total_premium,
-                            error_message=f"Spread executed but short leg status: {short_status}",
+                            error_message=f"Spread incomplete: long leg filled but short leg status: {short_status}. Manual intervention may be required.",
                         )
 
                     # Both legs filled - calculate net premium
@@ -445,6 +448,7 @@ class OptionsExecutionService:
                         filled_quantity=filled_qty,
                         filled_price=long_filled_price - short_filled_price,
                         total_premium=net_premium,
+                        short_leg_filled_price=short_filled_price,
                     )
 
                 except TradingClientError as e:
