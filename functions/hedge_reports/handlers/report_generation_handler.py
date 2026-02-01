@@ -19,6 +19,10 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.options.hedge_report_generator import HedgeReportGenerator
+from the_alchemiser.shared.options.schemas.hedge_report import (
+    DailyHedgeReport,
+    WeeklyHedgeReport,
+)
 
 logger = get_logger(__name__)
 
@@ -262,7 +266,7 @@ class ReportGenerationHandler:
             "SPY": Decimal("600"),
         }
 
-    def _format_daily_summary(self, report: Any) -> str:
+    def _format_daily_summary(self, report: DailyHedgeReport) -> str:
         """Format daily report for SNS notification."""
         lines = [
             f"Daily Hedge Report for {report.report_date}",
@@ -328,7 +332,7 @@ class ReportGenerationHandler:
 
         return "\n".join(lines)
 
-    def _format_weekly_summary(self, report: Any) -> str:
+    def _format_weekly_summary(self, report: WeeklyHedgeReport) -> str:
         """Format weekly report for SNS notification."""
         lines = [
             f"Weekly Hedge Report: {report.report_week_start} to {report.report_week_end}",

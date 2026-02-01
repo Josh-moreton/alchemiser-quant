@@ -14,9 +14,10 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from ..logging import get_logger
-from .adapters.hedge_history_repository import HedgeAction, HedgeHistoryRepository
+from .adapters.hedge_history_repository import HedgeHistoryRepository
 from .adapters.hedge_positions_repository import HedgePositionsRepository
 from .constants import MAX_ANNUAL_PREMIUM_SPEND_PCT
+from .schemas.hedge_history_record import HedgeAction
 from .schemas.hedge_report import (
     AttributionReport,
     DailyHedgeReport,
@@ -237,7 +238,8 @@ class HedgeReportGenerator:
 
         # Calculate premium spent this week
         premium_this_week = sum(
-            r.premium for r in history_records if r.action == HedgeAction.HEDGE_OPENED
+            (r.premium for r in history_records if r.action == HedgeAction.HEDGE_OPENED),
+            Decimal("0"),
         )
 
         # Get active positions
@@ -305,15 +307,17 @@ class HedgeReportGenerator:
 
         # Calculate totals
         total_contracts = sum(p.contracts for p in positions)
-        total_premium = sum(p.entry_price * p.contracts * 100 for p in positions)
+        total_premium = sum((p.entry_price * p.contracts * 100 for p in positions), Decimal("0"))
         total_current_value = sum(
-            (p.current_price or p.entry_price) * p.contracts * 100 for p in positions
+            ((p.current_price or p.entry_price) * p.contracts * 100 for p in positions),
+            Decimal("0"),
         )
         total_unrealized_pnl = total_current_value - total_premium
 
         # Aggregate portfolio Greeks
         portfolio_delta = sum(
-            (p.current_delta or p.entry_delta) * p.contracts * 100 for p in positions
+            ((p.current_delta or p.entry_delta) * p.contracts * 100 for p in positions),
+            Decimal("0"),
         )
         portfolio_gamma = sum((p.gamma or Decimal("0")) * p.contracts * 100 for p in positions)
         portfolio_theta = sum((p.theta or Decimal("0")) * p.contracts * 100 for p in positions)
@@ -537,7 +541,10 @@ class HedgeReportGenerator:
             limit=10000,
         )
 
-        return sum(r.premium for r in records if r.action == HedgeAction.HEDGE_OPENED)
+        return sum(
+            (r.premium for r in records if r.action == HedgeAction.HEDGE_OPENED),
+            Decimal("0"),
+        )
 
     def _calculate_premium_ytd(self, as_of: date) -> Decimal:
         """Calculate year-to-date premium spend."""
@@ -552,7 +559,10 @@ class HedgeReportGenerator:
             limit=100000,
         )
 
-        return sum(r.premium for r in records if r.action == HedgeAction.HEDGE_OPENED)
+        return sum(
+            (r.premium for r in records if r.action == HedgeAction.HEDGE_OPENED),
+            Decimal("0"),
+        )
 
     def _calculate_premium_rolling_12mo(self, as_of: date) -> Decimal:
         """Calculate rolling 12-month premium spend."""
@@ -567,7 +577,10 @@ class HedgeReportGenerator:
             limit=100000,
         )
 
-        return sum(r.premium for r in records if r.action == HedgeAction.HEDGE_OPENED)
+        return sum(
+            (r.premium for r in records if r.action == HedgeAction.HEDGE_OPENED),
+            Decimal("0"),
+        )
 
     def _generate_scenario_projection(
         self,
