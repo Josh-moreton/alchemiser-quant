@@ -196,12 +196,12 @@ class HedgeSizer:
         # Note: For spreads, adjusting only the long leg delta would change the spread width
         # in unintended ways. Skip rich IV adjustments for spread strategies.
         should_reduce = iv_regime.regime == "high" or iv_regime.skew_rich
-        
+
         if should_reduce and not is_spread:
             # Convert IV percentile to approximate VIX for legacy adjustment function
             # This is temporary until we refactor apply_rich_iv_adjustment
             approximate_vix = self._iv_percentile_to_vix_approx(iv_signal.atm_iv)
-            
+
             logger.info(
                 "Applying rich IV adjustments",
                 iv_percentile=str(iv_signal.iv_percentile),

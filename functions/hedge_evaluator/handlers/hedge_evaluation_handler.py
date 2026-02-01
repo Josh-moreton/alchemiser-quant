@@ -19,7 +19,6 @@ from core.sector_mapper import SectorMapper
 
 from the_alchemiser.shared.errors.exceptions import (
     HedgeFailClosedError,
-    VIXProxyUnavailableError,
 )
 from the_alchemiser.shared.events import WorkflowFailed
 from the_alchemiser.shared.events.schemas import (

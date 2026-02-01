@@ -14,7 +14,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import BotoCoreError, ClientError
-from core.option_selector import OptionSelector, SelectedOption, SelectedSpread
+from core.option_selector import OptionSelector, SelectedOption
 from core.options_execution_service import ExecutionResult, OptionsExecutionService
 
 from the_alchemiser.shared.errors.exceptions import (
