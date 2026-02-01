@@ -383,8 +383,31 @@ Skip events are logged and a `HedgeEvaluationCompleted` with `skip_reason` is pu
 
 ### Contract Selection
 
-The `OptionSelector` finds the optimal contract:
+The `OptionSelector` uses **dynamic contract selection** based on market conditions:
 
+**See [DYNAMIC_CONTRACT_SELECTION.md](./DYNAMIC_CONTRACT_SELECTION.md) for detailed documentation.**
+
+#### Dynamic Tenor Selection
+- **Low VIX (<18)**: 60-90 DTE range, or tenor ladder (split allocation)
+- **High VIX (>35)**: 120-180 DTE range for theta efficiency
+- **High IV Percentile (>70%)**: Longer tenors preferred
+
+#### Convexity-Based Strike Selection
+1. Calculate effective convexity: `gamma / (mid_price × 100)`
+2. Filter by scenario payoff: minimum 3x at -20% move
+3. Rank by combined score: convexity + payoff contribution
+4. Select contract with highest effective score
+5. Fallback to delta/expiry scoring if gamma data unavailable
+
+#### Enhanced Liquidity Filters
+- **Open Interest**: ≥1000 contracts
+- **Volume**: ≥100 contracts/day
+- **Bid-Ask Spread (%)**: ≤5% of mid
+- **Bid-Ask Spread ($)**: ≤$0.10 absolute
+- **Mid Price**: ≥$0.05 (avoids penny options)
+- **DTE**: 14-180 days (supports long-tenor dynamic selection)
+
+**Traditional Flow (for reference):**
 1. Query option chain from Alpaca (strike range: 75-95% of underlying)
 2. Filter by target DTE (±15 days from target)
 3. Score candidates by delta proximity to target
@@ -646,6 +669,21 @@ aws lambda invoke \
 
 ---
 
+## Operational Runbooks
+
+Detailed step-by-step procedures for operational scenarios:
+
+### Assignment Handling
+- **[Assignment Handling Runbook](ASSIGNMENT_HANDLING_RUNBOOK.md)**: Complete procedures for detecting and remediating option assignment events on short legs of put spreads. Includes automated detection criteria, remediation procedures (exercise, close, or roll), halt trading mechanisms, and escalation procedures.
+
+### Roll Procedures
+- **[Roll Procedures Runbook](ROLL_PROCEDURES_RUNBOOK.md)**: Comprehensive guide to rolling hedge positions including DTE-based rolls, delta drift triggers, extrinsic value decay monitoring, spread width value criteria, and execution procedures for both tail and smoothing templates.
+
+### Emergency Unwind
+- **[Emergency Unwind Runbook](EMERGENCY_UNWIND_RUNBOOK.md)**: Critical procedures for emergency position liquidation during system failures, market disruptions, or risk management escalations. Includes controlled unwind procedures, rapid market order liquidation, broker-assisted closes, and post-emergency reconciliation.
+
+---
+
 ## Prerequisites
 
 1. **Alpaca Account**: Must have options trading enabled
@@ -658,4 +696,5 @@ aws lambda invoke \
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 10.1.0 | 2026-01-30 | Assignment handling and lifecycle runbooks added |
 | 10.0.0 | 2026-01-26 | Initial options hedging implementation |

@@ -148,7 +148,7 @@ class KillSwitchService:
                 trigger_reason=str(item["trigger_reason"]) if item.get("trigger_reason") else None,
                 triggered_at=triggered_at,
                 triggered_by=str(item["triggered_by"]) if item.get("triggered_by") else None,
-                failure_count=int(item.get("failure_count", 0)),
+                failure_count=int(str(item.get("failure_count", 0))),
                 last_failure_at=last_failure_at,
             )
 
