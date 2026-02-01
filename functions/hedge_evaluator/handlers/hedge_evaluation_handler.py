@@ -514,9 +514,7 @@ class HedgeEvaluationHandler:
             sector_exposures = self._sector_mapper.map_positions_to_sectors(positions)
 
             # Determine primary hedge underlying
-            primary_underlying, _ = self._sector_mapper.aggregate_for_single_hedge(
-                sector_exposures
-            )
+            primary_underlying, _ = self._sector_mapper.aggregate_for_single_hedge(sector_exposures)
 
             # Get current price of primary underlying (from Alpaca)
             underlying_price = get_underlying_price(self._container, primary_underlying)
