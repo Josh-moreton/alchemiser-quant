@@ -441,13 +441,17 @@ def classify_iv_regime(signal: IVSignal) -> IVRegime:
     # Determine base regime from IV percentile
     if signal.iv_percentile < IV_PERCENTILE_LOW_THRESHOLD:
         base_regime = "low"
-        regime_reason = f"IV at {signal.iv_percentile:.1f}th percentile (< {IV_PERCENTILE_LOW_THRESHOLD})"
+        regime_reason = (
+            f"IV at {signal.iv_percentile:.1f}th percentile (< {IV_PERCENTILE_LOW_THRESHOLD})"
+        )
     elif signal.iv_percentile < IV_PERCENTILE_HIGH_THRESHOLD:
         base_regime = "mid"
         regime_reason = f"IV at {signal.iv_percentile:.1f}th percentile ({IV_PERCENTILE_LOW_THRESHOLD}-{IV_PERCENTILE_HIGH_THRESHOLD})"
     else:
         base_regime = "high"
-        regime_reason = f"IV at {signal.iv_percentile:.1f}th percentile (> {IV_PERCENTILE_HIGH_THRESHOLD})"
+        regime_reason = (
+            f"IV at {signal.iv_percentile:.1f}th percentile (> {IV_PERCENTILE_HIGH_THRESHOLD})"
+        )
 
     # Check if skew is rich (elevated put premium)
     skew_rich = signal.iv_skew > SKEW_RICH_THRESHOLD

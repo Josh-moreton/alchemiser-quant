@@ -49,7 +49,7 @@ class TailHedgeTemplate:
 
     Budget rates now driven by IV percentile (see iv_signal.py):
     - Low IV (< 30th percentile): 0.8% NAV/month
-    - Mid IV (30th-70th percentile): 0.5% NAV/month  
+    - Mid IV (30th-70th percentile): 0.5% NAV/month
     - High IV (> 70th percentile): 0.3% NAV/month
     """
 
@@ -306,7 +306,7 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
 # VIX proxy (VIXY × 10) is kept as a sanity check only.
 # Budget tiers are now determined by IV percentile:
 # - Low: IV percentile < 30 (options cheap, buy aggressively)
-# - Mid: IV percentile 30-70 (normal hedging)  
+# - Mid: IV percentile 30-70 (normal hedging)
 # - High: IV percentile > 70 (options expensive, reduce intensity)
 
 VIX_LOW_THRESHOLD: Decimal = Decimal("18")  # Legacy - not used for regime
@@ -328,7 +328,7 @@ RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
 # ═══════════════════════════════════════════════════════════════════════════════
 # IMPORTANT: This proxy is NO LONGER USED for hedge sizing decisions.
 # The system now uses proper IV data from the actual hedge underlying options.
-# 
+#
 # VIXY × 10 is kept as a SANITY CHECK ONLY to monitor drift and compare with
 # the new IV-based regime classification. If this proxy is unavailable, it's
 # logged as a warning but does NOT cause the system to fail closed.
@@ -336,7 +336,7 @@ RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
 # Alpaca does not provide direct VIX index quotes. VIXY ETF was previously used
 # as a proxy with the approximation VIX ≈ VIXY * 10. This relationship varies
 # with contango/backwardation and can drift significantly.
-# 
+#
 # See iv_signal.py for the replacement: proper ATM IV from hedge underlying.
 
 VIX_PROXY_SYMBOL: str = "VIXY"
