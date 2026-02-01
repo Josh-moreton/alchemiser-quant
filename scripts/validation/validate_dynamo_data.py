@@ -597,48 +597,53 @@ class DynamoDBValidator:
             )
 
     def generate_strategy_summary(self) -> dict[str, dict[str, Any]]:
-        """Generate per-strategy metrics summary."""
+        """Generate per-strategy metrics summary.
+
+        Each exit_record represents a completed trade - when the strategy
+        decided to close a position. Strategies are always 100% allocated,
+        so every exit is a complete trade decision from the strategy's perspective.
+        """
         summary: dict[str, dict[str, Any]] = {}
 
         for lot in self.lots:
             strategy = lot.get("strategy_name", "UNKNOWN")
             if strategy not in summary:
                 summary[strategy] = {
-                    "total_lots": 0,
-                    "open_lots": 0,
-                    "closed_lots": 0,
+                    "current_holdings": 0,
+                    "completed_trades": 0,
                     "realized_pnl": Decimal("0"),
-                    "open_cost_basis": Decimal("0"),
+                    "current_holdings_value": Decimal("0"),
                     "symbols": set(),
                 }
 
-            summary[strategy]["total_lots"] += 1
             summary[strategy]["symbols"].add(lot.get("symbol", "???"))
 
-            is_open = lot.get("is_open", True)
-            if is_open:
-                summary[strategy]["open_lots"] += 1
-                try:
-                    entry_qty = Decimal(str(lot.get("entry_qty", 0)))
+            # Count completed trades (each exit_record is a closed position)
+            exit_records = lot.get("exit_records", [])
+            summary[strategy]["completed_trades"] += len(exit_records)
+
+            # Track current holdings (lots with remaining position)
+            try:
+                remaining_qty = Decimal(str(lot.get("remaining_qty", 0)))
+                if remaining_qty > 0:
+                    summary[strategy]["current_holdings"] += 1
                     entry_price = Decimal(str(lot.get("entry_price", 0)))
-                    remaining_qty = Decimal(str(lot.get("remaining_qty", 0)))
-                    cost_basis = remaining_qty * entry_price
-                    summary[strategy]["open_cost_basis"] += cost_basis
-                except (InvalidOperation, TypeError):
-                    pass
-            else:
-                summary[strategy]["closed_lots"] += 1
-                try:
-                    pnl = Decimal(str(lot.get("realized_pnl", 0)))
-                    summary[strategy]["realized_pnl"] += pnl
-                except (InvalidOperation, TypeError):
-                    pass
+                    summary[strategy]["current_holdings_value"] += remaining_qty * entry_price
+            except (InvalidOperation, TypeError):
+                pass
+
+            # Sum P&L from all completed trades
+            try:
+                pnl = Decimal(str(lot.get("realized_pnl", 0)))
+                summary[strategy]["realized_pnl"] += pnl
+            except (InvalidOperation, TypeError):
+                pass
 
         # Convert sets to lists for JSON serialization
         for strategy in summary:
             summary[strategy]["symbols"] = list(summary[strategy]["symbols"])
             summary[strategy]["realized_pnl"] = str(summary[strategy]["realized_pnl"])
-            summary[strategy]["open_cost_basis"] = str(summary[strategy]["open_cost_basis"])
+            summary[strategy]["current_holdings_value"] = str(summary[strategy]["current_holdings_value"])
 
         return summary
 
@@ -740,10 +745,10 @@ def print_report(report: DataQualityReport, verbose: bool = False) -> None:
             pnl_color = "green" if float(pnl) >= 0 else "red"
             print(f"   {colorize(strategy, 'bold')}:")
             print(
-                f"      Lots: {stats['total_lots']} ({stats['open_lots']} open, {stats['closed_lots']} closed)"
+                f"      Holdings: {stats['current_holdings']} | Completed Trades: {stats['completed_trades']}"
             )
             print(f"      Realized P&L: {colorize(f'${pnl}', pnl_color)}")
-            print(f"      Open Cost Basis: ${stats['open_cost_basis']}")
+            print(f"      Current Holdings Value: ${stats['current_holdings_value']}")
             print(f"      Symbols: {', '.join(stats['symbols'][:5])}")
         print()
 
