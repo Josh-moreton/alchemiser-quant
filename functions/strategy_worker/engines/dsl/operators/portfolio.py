@@ -579,20 +579,30 @@ def _distribute_group_shares(
 def _calculate_inverse_weights_grouped(
     groups: list[PortfolioFragment], window: float, context: DslContext
 ) -> dict[str, Decimal]:
-    """Calculate inverse volatility weights for groups.
+    """Calculate inverse volatility weights for groups (atomic units).
 
-    Each group is treated as a single unit. We calculate the weighted-average
-    volatility for each group, then apply pure inverse-vol weights (1/vol) to
-    the groups themselves. Internal weights within each group are preserved
-    and scaled by the group's share.
+    GROUPED MODE - Used when children are PortfolioFragments.
+
+    Per Composer's behavior:
+    - Each group is treated as ONE atomic unit (not individual assets)
+    - Group volatility = weighted-average volatility of its holdings
+    - Groups are weighted against each other by 1/group_vol
+    - Internal weights within each group are PRESERVED and scaled
+
+    With 1 group: That group gets 100% -> internal weights pass through unchanged
+    With N groups: Each group weighted by inverse of its volatility
+
+    Example with 2 groups:
+    - Group A (low vol): gets 80% share, internal weights scaled by 0.8
+    - Group B (high vol): gets 20% share, internal weights scaled by 0.2
 
     Args:
         groups: List of PortfolioFragment groups
-        window: Window parameter for volatility calculation
+        window: Lookback window for volatility calculation (days)
         context: DSL evaluation context
 
     Returns:
-        Dictionary of normalized weights (as Decimal)
+        Dictionary mapping symbols to final weights (sum to 1.0)
 
     """
     group_weights: list[tuple[PortfolioFragment, Decimal]] = []
@@ -699,18 +709,25 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
 def _calculate_inverse_weights(
     assets: list[str], window: float, context: DslContext
 ) -> dict[str, Decimal]:
-    """Calculate and normalize inverse volatility weights using Decimal arithmetic.
+    """Calculate inverse volatility weights for individual assets.
 
-    Implements pure inverse volatility weighting per Composer's specification:
-    - weight_i = (1 / volatility_i) / sum(1 / volatility_j for all j)
+    FLAT MODE - Used when children are bare symbols, not groups.
+
+    Per Composer's specification:
+    - Volatility = standard deviation of percent returns over lookback window
+    - Inverse volatility = 1 / volatility
+    - Weight = inverse_vol / sum(all inverse_vols)
+
+    This produces EXTREME concentration in low-vol assets. For example:
+    - BIL (0.01% vol) vs LABU (4.3% vol) -> BIL gets ~99% weight
 
     Args:
-        assets: List of asset symbols
-        window: Window parameter for volatility calculation
+        assets: List of asset symbols (bare strings)
+        window: Lookback window for volatility calculation (days)
         context: DSL evaluation context
 
     Returns:
-        Dictionary of normalized weights (as Decimal)
+        Dictionary mapping symbols to normalized weights (sum to 1.0)
 
     """
     inverse_weights: dict[str, Decimal] = {}
