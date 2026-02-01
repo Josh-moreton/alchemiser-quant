@@ -11,14 +11,14 @@
     "vox_the_best.clj"
   ],
   "allocations": {
-    "gold.clj": 0.18,
-    "rains_em_dancer.clj": 0.109,
-    "sisyphus_lowvol.clj": 0.096,
-    "ftlt/tqqq_ftlt.clj": 0.059,
-    "ftlt/tqqq_ftlt_1.clj": 0.159,
-    "ftlt/tqqq_ftlt_2.clj": 0.108,
-    "ftlt/holy_grail.clj": 0.059,
-    "kmlm_switcher.clj": 0.051,
-    "vox_the_best.clj": 0.058
+    "gold.clj": 0.068,
+    "rains_em_dancer.clj": 0.116,
+    "sisyphus_lowvol.clj": 0.196,
+    "ftlt/tqqq_ftlt.clj": 0.075,
+    "ftlt/tqqq_ftlt_1.clj": 0.098,
+    "ftlt/tqqq_ftlt_2.clj": 0.12,
+    "ftlt/holy_grail.clj": 0.089,
+    "kmlm_switcher.clj": 0.151,
+    "vox_the_best.clj": 0.087
   }
 }
