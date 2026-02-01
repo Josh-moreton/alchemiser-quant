@@ -67,6 +67,8 @@ INDICATOR_PATTERNS = [
     re.compile(rf'\(stdev-price\s+"({SYMBOL_CHARS})"'),
     re.compile(rf'\(max-drawdown\s+"({SYMBOL_CHARS})"'),
     re.compile(rf'\(volatility\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(percentage-price-oscillator\s+"({SYMBOL_CHARS})"'),
+    re.compile(rf'\(percentage-price-oscillator-signal\s+"({SYMBOL_CHARS})"'),
 ]
 
 

@@ -252,6 +252,44 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
             "New all-time high intraday resets drawdown to 0 even if price falls later",
         ),
     ),
+    "percentage_price_oscillator": PartialBarIndicatorConfig(
+        indicator_name="percentage-price-oscillator",
+        indicator_type="percentage_price_oscillator",
+        module_path="functions.strategy_worker.indicators.indicators",
+        function_name="TechnicalIndicators.percentage_price_oscillator",
+        input_requirement=InputRequirement.CLOSE_ONLY,
+        current_behavior="Computes PPO = ((EMA_short - EMA_long) / EMA_long) * 100. "
+        "Uses two EMAs of close prices to measure momentum.",
+        eligible_for_partial_bar=PartialBarEligibility.CONDITIONAL,
+        modification_notes="Works but partial bar has higher weight due to EMAs. "
+        "The short EMA is more affected by the partial bar than the long EMA. "
+        "PPO crossover signals may flip intraday then revert by close.",
+        use_live_bar=False,  # EMA-based indicator - exclude partial bar for stability
+        edge_cases=(
+            "PPO zero line crossovers may flip intraday",
+            "Signal divergence between intraday and EOD values",
+            "Short EMA (12) more sensitive to partial bar than long EMA (26)",
+        ),
+    ),
+    "percentage_price_oscillator_signal": PartialBarIndicatorConfig(
+        indicator_name="percentage-price-oscillator-signal",
+        indicator_type="percentage_price_oscillator_signal",
+        module_path="functions.strategy_worker.indicators.indicators",
+        function_name="TechnicalIndicators.percentage_price_oscillator_signal",
+        input_requirement=InputRequirement.CLOSE_ONLY,
+        current_behavior="Computes EMA of PPO (typically 9-period) for signal generation. "
+        "Triple EMA smoothing reduces partial bar impact but adds lag.",
+        eligible_for_partial_bar=PartialBarEligibility.CONDITIONAL,
+        modification_notes="Works but signal line lags behind PPO. Crossover timing "
+        "between PPO and signal line may differ intraday vs EOD. "
+        "Additional smoothing reduces but doesn't eliminate partial bar effects.",
+        use_live_bar=False,  # EMA-based indicator - exclude partial bar for stability
+        edge_cases=(
+            "PPO/Signal crossovers may flip multiple times intraday",
+            "Signal line responds slower than raw PPO to price changes",
+            "Histogram (PPO - Signal) most volatile near zero crossings",
+        ),
+    ),
 }
 
 

@@ -532,6 +532,12 @@ class IndicatorService:
             return max(window * 3 if window > 0 else 200, 200)
         if ind_type == "current_price":
             return 1
+        if ind_type in {"percentage_price_oscillator", "percentage_price_oscillator_signal"}:
+            # PPO uses EMA(long) + EMA(short) + optional signal smoothing
+            long_window = int(params.get("long_window", 26)) if params else 26
+            smooth_window = int(params.get("smooth_window", 9)) if params else 9
+            # Need at least long_window + smooth_window + buffer for stability
+            return max(long_window + smooth_window + 20, 100)
         return 252  # sensible default (~1Y)
 
     def _period_for_bars(self, required_bars: int) -> str:
@@ -597,6 +603,130 @@ class IndicatorService:
             current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None),
             data_source="real_market_data",
             metadata={"value": latest, "window": window},
+        )
+
+    def _compute_ppo(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicator:
+        """Compute Percentage Price Oscillator indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for PPO computation
+            parameters: Indicator parameters, including 'short_window' (12)
+                and 'long_window' (26)
+
+        Returns:
+            TechnicalIndicator with PPO value in metadata
+
+        Raises:
+            DslEvaluationError: If PPO cannot be computed or is NaN
+
+        """
+        short_window = int(parameters.get("short_window", 12))
+        long_window = int(parameters.get("long_window", 26))
+        ppo_series = self.technical_indicators.percentage_price_oscillator(
+            prices, short_window=short_window, long_window=long_window
+        )
+
+        latest = float(ppo_series.iloc[-1]) if len(ppo_series) > 0 else None
+        if latest is None or pd.isna(latest):
+            logger.error(
+                "PPO computation failed",
+                module=MODULE_NAME,
+                symbol=symbol,
+                short_window=short_window,
+                long_window=long_window,
+            )
+            raise DslEvaluationError(
+                f"No PPO for {symbol} short={short_window} long={long_window}"
+            )
+
+        logger.debug(
+            "PPO computed",
+            module=MODULE_NAME,
+            symbol=symbol,
+            short_window=short_window,
+            long_window=long_window,
+            value=latest,
+        )
+
+        return TechnicalIndicator(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None),
+            data_source="real_market_data",
+            metadata={
+                "value": latest,
+                "short_window": short_window,
+                "long_window": long_window,
+            },
+        )
+
+    def _compute_ppo_signal(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicator:
+        """Compute PPO Signal Line indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for PPO signal computation
+            parameters: Indicator parameters, including 'short_window' (12),
+                'long_window' (26), and 'smooth_window' (9)
+
+        Returns:
+            TechnicalIndicator with PPO signal value in metadata
+
+        Raises:
+            DslEvaluationError: If PPO signal cannot be computed or is NaN
+
+        """
+        short_window = int(parameters.get("short_window", 12))
+        long_window = int(parameters.get("long_window", 26))
+        smooth_window = int(parameters.get("smooth_window", 9))
+        ppo_signal_series = self.technical_indicators.percentage_price_oscillator_signal(
+            prices,
+            short_window=short_window,
+            long_window=long_window,
+            smooth_window=smooth_window,
+        )
+
+        latest = float(ppo_signal_series.iloc[-1]) if len(ppo_signal_series) > 0 else None
+        if latest is None or pd.isna(latest):
+            logger.error(
+                "PPO signal computation failed",
+                module=MODULE_NAME,
+                symbol=symbol,
+                short_window=short_window,
+                long_window=long_window,
+                smooth_window=smooth_window,
+            )
+            raise DslEvaluationError(
+                f"No PPO signal for {symbol} short={short_window} "
+                f"long={long_window} smooth={smooth_window}"
+            )
+
+        logger.debug(
+            "PPO signal computed",
+            module=MODULE_NAME,
+            symbol=symbol,
+            short_window=short_window,
+            long_window=long_window,
+            smooth_window=smooth_window,
+            value=latest,
+        )
+
+        return TechnicalIndicator(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None),
+            data_source="real_market_data",
+            metadata={
+                "value": latest,
+                "short_window": short_window,
+                "long_window": long_window,
+                "smooth_window": smooth_window,
+            },
         )
 
     def get_indicator(self, request: IndicatorRequest) -> TechnicalIndicator:
@@ -715,6 +845,8 @@ class IndicatorService:
                 "stdev_return": self._compute_stdev_return,
                 "stdev_price": self._compute_stdev_price,
                 "max_drawdown": self._compute_max_drawdown,
+                "percentage_price_oscillator": self._compute_ppo,
+                "percentage_price_oscillator_signal": self._compute_ppo_signal,
             }
 
             if indicator_type in indicator_dispatch:

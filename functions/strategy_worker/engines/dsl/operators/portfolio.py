@@ -579,12 +579,12 @@ def _distribute_group_shares(
 def _calculate_inverse_weights_grouped(
     groups: list[PortfolioFragment], window: float, context: DslContext
 ) -> dict[str, Decimal]:
-    """Calculate inverse volatility weights for groups (Composer behavior).
+    """Calculate inverse volatility weights for groups.
 
-    COMPOSER BEHAVIOR: Each group is treated as a single unit. We calculate
-    the weighted-average volatility for each group, then apply inverse-vol
-    weights to the groups themselves. Internal weights within each group
-    are preserved and scaled by the group's share.
+    Each group is treated as a single unit. We calculate the weighted-average
+    volatility for each group, then apply pure inverse-vol weights (1/vol) to
+    the groups themselves. Internal weights within each group are preserved
+    and scaled by the group's share.
 
     Args:
         groups: List of PortfolioFragment groups
@@ -595,9 +595,6 @@ def _calculate_inverse_weights_grouped(
         Dictionary of normalized weights (as Decimal)
 
     """
-    DAMPENING_EXPONENT = Decimal("0.25")
-
-    # Calculate inverse volatility weight for each group
     group_weights: list[tuple[PortfolioFragment, Decimal]] = []
     total_inverse = Decimal("0")
 
@@ -606,13 +603,12 @@ def _calculate_inverse_weights_grouped(
         if group_vol is not None and group_vol > 0:
             vol_decimal = Decimal(str(group_vol))
             inverse_vol = Decimal("1") / vol_decimal
-            dampened_inverse = inverse_vol**DAMPENING_EXPONENT
-            group_weights.append((group, dampened_inverse))
-            total_inverse += dampened_inverse
+            group_weights.append((group, inverse_vol))
+            total_inverse += inverse_vol
             logger.debug(
-                "DSL weight-inverse-volatility grouped: group vol=%.6f, dampened_inverse=%.6f",
+                "DSL weight-inverse-volatility grouped: group vol=%.6f, inverse_vol=%.6f",
                 group_vol,
-                float(dampened_inverse),
+                float(inverse_vol),
             )
 
     if not group_weights or total_inverse < Decimal("1e-10"):
@@ -705,21 +701,8 @@ def _calculate_inverse_weights(
 ) -> dict[str, Decimal]:
     """Calculate and normalize inverse volatility weights using Decimal arithmetic.
 
-    IMPORTANT: Composer.trade's inverse volatility implementation produces weights
-    much closer to equal-weight than true mathematical inverse volatility would give.
-    For example, with BIL (0.01% vol), DRV (1.6% vol), LABU (4.3% vol):
-    - True inverse volatility: BIL ~99%, DRV ~0.8%, LABU ~0.3%
-    - Composer produces:       BIL ~65%, DRV ~20%, LABU ~15%
-
-    To match Composer's actual behavior, we apply a fourth-root dampening transformation:
-    weight ∝ (1/volatility)^0.25
-
-    This:
-    - Still favors lower volatility assets (inverse relationship preserved)
-    - Prevents extreme weight concentration that true 1/vol would cause
-    - Matches Composer's observed outputs very closely
-    - Is essentially a "soft" inverse volatility that respects the ranking
-      but doesn't let extreme volatility differences dominate
+    Implements pure inverse volatility weighting per Composer's specification:
+    - weight_i = (1 / volatility_i) / sum(1 / volatility_j for all j)
 
     Args:
         assets: List of asset symbols
@@ -730,53 +713,31 @@ def _calculate_inverse_weights(
         Dictionary of normalized weights (as Decimal)
 
     """
-    # Dampening exponent for "soft" inverse volatility:
-    # - 1.0  → true inverse volatility (very concentrated in low-vol assets)
-    # - 0.0  → equal weight (no volatility sensitivity)
-    # - 0.25 → empirically calibrated fourth-root dampening that best matches
-    #           Composer.trade's observed behavior across a regression suite of
-    #           representative portfolios. Exponents around 0.2 skewed too close
-    #           to equal-weight, while 0.3+ produced weights that were
-    #           measurably more concentrated than Composer's outputs. 0.25 was
-    #           chosen as the smallest exponent that consistently kept the
-    #           volatility ranking intact while minimizing mean absolute error to
-    #           Composer's weights.
-    DAMPENING_EXPONENT = Decimal("0.25")
-
     inverse_weights: dict[str, Decimal] = {}
     total_inverse = Decimal("0")
 
-    # Calculate dampened inverse volatility weights
     for asset in assets:
         volatility = _get_volatility_for_asset(asset, window, context)
         if volatility is not None:
-            # Convert float volatility to Decimal
             vol_decimal = Decimal(str(volatility))
             inverse_vol = Decimal("1") / vol_decimal
+            inverse_weights[asset] = inverse_vol
+            total_inverse += inverse_vol
 
-            # Apply fourth-root dampening: (1/vol)^0.25
-            # This prevents extreme concentration while preserving volatility ranking
-            # Matches Composer's observed implementation
-            dampened_inverse = inverse_vol**DAMPENING_EXPONENT
-
-            inverse_weights[asset] = dampened_inverse
-            total_inverse += dampened_inverse
-
-    # Handle case where no valid volatilities were obtained
     if not inverse_weights or total_inverse < Decimal("1e-10"):
         logger.warning(
             "DSL weight-inverse-volatility: No valid volatilities obtained for any assets"
         )
         return {}
 
-    # Normalize weights to sum to 1 using Decimal division
+    # Normalize: weight = inverse_vol / total_inverse_vol
     normalized = {
-        asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()
+        asset: inv_weight / total_inverse
+        for asset, inv_weight in inverse_weights.items()
     }
 
-    # Log the dampening effect for transparency
     logger.debug(
-        "DSL weight-inverse-volatility: Applied fourth-root dampening to match Composer behavior",
+        "DSL weight-inverse-volatility: Computed pure inverse volatility weights",
         extra={
             "assets": assets,
             "weights": {k: float(v) for k, v in normalized.items()},
