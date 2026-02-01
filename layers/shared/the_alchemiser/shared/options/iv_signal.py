@@ -14,6 +14,7 @@ and market volatility regime than the VIX proxy.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -21,6 +22,10 @@ from typing import TYPE_CHECKING
 
 from ..errors.exceptions import IVDataStaleError
 from ..logging import get_logger
+from .adapters.iv_history_repository import (
+    MIN_OBSERVATIONS_FOR_PERCENTILE,
+    IVHistoryRepository,
+)
 from .schemas.option_contract import OptionType
 
 if TYPE_CHECKING:
@@ -123,17 +128,45 @@ class IVSignalCalculator:
 
     Fetches option chain for the hedge underlying, identifies ATM and
     25-delta put options, extracts IV, and calculates percentile
-    from historical IV data.
+    from historical IV data stored in DynamoDB.
     """
 
-    def __init__(self, container: ApplicationContainer) -> None:
+    def __init__(
+        self,
+        container: ApplicationContainer,
+        iv_history_repo: IVHistoryRepository | None = None,
+    ) -> None:
         """Initialize IV signal calculator.
 
         Args:
             container: Application DI container for accessing AlpacaOptionsAdapter
+            iv_history_repo: Optional IV history repository for percentile calculation.
+                            If not provided, will be created from environment variable.
 
         """
         self._container = container
+        self._iv_history_repo = iv_history_repo
+
+    def _get_iv_history_repo(self) -> IVHistoryRepository | None:
+        """Get or create the IV history repository.
+
+        Returns:
+            IVHistoryRepository instance or None if table not configured
+
+        """
+        if self._iv_history_repo is not None:
+            return self._iv_history_repo
+
+        # Try to create from environment variable
+        table_name = os.environ.get("IV_HISTORY_TABLE_NAME")
+        if table_name:
+            self._iv_history_repo = IVHistoryRepository(table_name)
+            return self._iv_history_repo
+
+        logger.warning(
+            "IV_HISTORY_TABLE_NAME not set, will use approximation for IV percentile"
+        )
+        return None
 
     def calculate_iv_signal(
         self,
@@ -233,9 +266,10 @@ class IVSignalCalculator:
                 iv_skew = put_25delta_iv - atm_iv
 
             # Calculate IV percentile from historical data
-            iv_percentile = self._calculate_iv_percentile(
+            iv_percentile, historical_count = self._calculate_iv_percentile(
                 underlying_symbol=underlying_symbol,
                 current_iv=atm_iv,
+                put_25delta_iv=put_25delta_iv,
                 target_dte=(IV_TARGET_DTE_MIN + IV_TARGET_DTE_MAX) // 2,
             )
 
@@ -252,7 +286,7 @@ class IVSignalCalculator:
                 iv_percentile=iv_percentile,
                 timestamp=datetime.now(UTC),
                 target_dte=avg_dte,
-                historical_iv_count=252,  # Placeholder - will be from actual history
+                historical_iv_count=historical_count,
             )
 
             logger.info(
@@ -370,29 +404,87 @@ class IVSignalCalculator:
         self,
         underlying_symbol: str,
         current_iv: Decimal,
+        put_25delta_iv: Decimal,
         target_dte: int,
-    ) -> Decimal:
+    ) -> tuple[Decimal, int]:
         """Calculate IV percentile over rolling 252-day window.
 
-        This would ideally fetch historical IV data and calculate percentile.
-        For now, we return a placeholder that preserves existing behavior
-        by mapping IV to approximate percentiles.
+        Uses historical IV data from DynamoDB when available. Falls back to
+        approximation when insufficient historical data exists (<126 observations).
 
-        TODO: Implement proper historical IV tracking in DynamoDB
-        - Store daily ATM IV snapshots for each underlying
-        - Calculate rolling percentile from historical data
+        Also records the current IV observation to build history over time.
 
         Args:
             underlying_symbol: Underlying symbol
             current_iv: Current ATM IV
+            put_25delta_iv: Current 25-delta put IV
             target_dte: Target DTE for IV calculation
 
         Returns:
-            IV percentile (0-100)
+            Tuple of (IV percentile 0-100, observation count used)
 
         """
-        # Placeholder logic: Map IV to approximate percentile using thresholds
-        # See IV_APPROX_* constants for threshold definitions
+        iv_history_repo = self._get_iv_history_repo()
+
+        # Record current IV observation (idempotent by date)
+        if iv_history_repo is not None:
+            iv_history_repo.record_daily_iv(
+                underlying_symbol=underlying_symbol,
+                atm_iv=current_iv,
+                put_25delta_iv=put_25delta_iv,
+                dte_used=target_dte,
+            )
+
+        # Try to calculate percentile from historical data
+        if iv_history_repo is not None:
+            percentile, observation_count = iv_history_repo.calculate_percentile(
+                underlying_symbol=underlying_symbol,
+                current_iv=current_iv,
+            )
+
+            # Check if we have sufficient history
+            if observation_count >= MIN_OBSERVATIONS_FOR_PERCENTILE:
+                logger.info(
+                    "Calculated IV percentile from historical data",
+                    underlying_symbol=underlying_symbol,
+                    current_iv=str(current_iv),
+                    percentile=str(percentile),
+                    observation_count=observation_count,
+                    method="historical",
+                )
+                return percentile, observation_count
+
+            # Insufficient history - fall back to approximation with warning
+            logger.warning(
+                "Insufficient IV history for accurate percentile - using approximation",
+                underlying_symbol=underlying_symbol,
+                observation_count=observation_count,
+                min_required=MIN_OBSERVATIONS_FOR_PERCENTILE,
+                note="Percentile accuracy will improve as more daily observations accumulate",
+            )
+
+        # Fallback: Map IV to approximate percentile using static thresholds
+        percentile = self._approximate_iv_percentile(current_iv, underlying_symbol)
+        return percentile, 0  # 0 indicates approximation used
+
+    def _approximate_iv_percentile(
+        self,
+        current_iv: Decimal,
+        underlying_symbol: str,
+    ) -> Decimal:
+        """Approximate IV percentile using static thresholds.
+
+        This is the fallback method when historical data is unavailable.
+        Based on typical equity index IV ranges (QQQ, SPY).
+
+        Args:
+            current_iv: Current ATM IV
+            underlying_symbol: Underlying symbol (for logging)
+
+        Returns:
+            Approximate IV percentile (0-100)
+
+        """
         iv_pct = float(current_iv * 100)  # Convert to percentage (0.20 → 20)
 
         very_low = float(IV_APPROX_VERY_LOW_THRESHOLD)

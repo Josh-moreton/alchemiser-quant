@@ -749,8 +749,7 @@ def _calculate_inverse_weights(
 
     # Normalize: weight = inverse_vol / total_inverse_vol
     normalized = {
-        asset: inv_weight / total_inverse
-        for asset, inv_weight in inverse_weights.items()
+        asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()
     }
 
     logger.debug(

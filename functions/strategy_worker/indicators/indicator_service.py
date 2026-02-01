@@ -638,9 +638,7 @@ class IndicatorService:
                 short_window=short_window,
                 long_window=long_window,
             )
-            raise DslEvaluationError(
-                f"No PPO for {symbol} short={short_window} long={long_window}"
-            )
+            raise DslEvaluationError(f"No PPO for {symbol} short={short_window} long={long_window}")
 
         logger.debug(
             "PPO computed",

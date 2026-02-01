@@ -1172,16 +1172,14 @@
                              [(weight-equal
                                [(if
                                  (<
-                                  ((unimplemented
-                                    :percentage-price-oscillator)
+                                  (percentage-price-oscillator
                                    "SOXL"
                                    {:short-window 12, :long-window 26})
                                   0)
                                  [(weight-equal
                                    [(if
                                      (<
-                                      ((unimplemented
-                                        :percentage-price-oscillator-signal)
+                                      (percentage-price-oscillator-signal
                                        "SOXL"
                                        {:short-window 12,
                                         :long-window 26,
@@ -1190,14 +1188,12 @@
                                      [(weight-equal
                                        [(if
                                          (>
-                                          ((unimplemented
-                                            :percentage-price-oscillator-signal)
+                                          (percentage-price-oscillator-signal
                                            "SOXL"
                                            {:short-window 12,
                                             :long-window 26,
                                             :smooth-window 9})
-                                          ((unimplemented
-                                            :percentage-price-oscillator)
+                                          (percentage-price-oscillator
                                            "SOXL"
                                            {:short-window 12,
                                             :long-window 26}))
@@ -1254,16 +1250,14 @@
                            [(weight-equal
                              [(if
                                (<
-                                ((unimplemented
-                                  :percentage-price-oscillator)
+                                (percentage-price-oscillator
                                  "SOXL"
                                  {:short-window 12, :long-window 26})
                                 0)
                                [(weight-equal
                                  [(if
                                    (<
-                                    ((unimplemented
-                                      :percentage-price-oscillator-signal)
+                                    (percentage-price-oscillator-signal
                                      "SOXL"
                                      {:short-window 12,
                                       :long-window 26,
@@ -1272,14 +1266,12 @@
                                    [(weight-equal
                                      [(if
                                        (>
-                                        ((unimplemented
-                                          :percentage-price-oscillator-signal)
+                                        (percentage-price-oscillator-signal
                                          "SOXL"
                                          {:short-window 12,
                                           :long-window 26,
                                           :smooth-window 9})
-                                        ((unimplemented
-                                          :percentage-price-oscillator)
+                                        (percentage-price-oscillator
                                          "SOXL"
                                          {:short-window 12,
                                           :long-window 26}))
@@ -1326,16 +1318,14 @@
                          [(weight-equal
                            [(if
                              (<
-                              ((unimplemented
-                                :percentage-price-oscillator)
+                              (percentage-price-oscillator
                                "SOXL"
                                {:short-window 12, :long-window 26})
                               0)
                              [(weight-equal
                                [(if
                                  (<
-                                  ((unimplemented
-                                    :percentage-price-oscillator-signal)
+                                  (percentage-price-oscillator-signal
                                    "SOXL"
                                    {:short-window 12,
                                     :long-window 26,
@@ -1344,14 +1334,12 @@
                                  [(weight-equal
                                    [(if
                                      (>
-                                      ((unimplemented
-                                        :percentage-price-oscillator-signal)
+                                      (percentage-price-oscillator-signal
                                        "SOXL"
                                        {:short-window 12,
                                         :long-window 26,
                                         :smooth-window 9})
-                                      ((unimplemented
-                                        :percentage-price-oscillator)
+                                      (percentage-price-oscillator
                                        "SOXL"
                                        {:short-window 12,
                                         :long-window 26}))

@@ -27,6 +27,8 @@ IndicatorType = Literal[
     "stdev_return",
     "stdev_price",
     "max_drawdown",
+    "percentage_price_oscillator",
+    "percentage_price_oscillator_signal",
 ]
 
 __all__ = ["IndicatorRequest", "IndicatorType", "PortfolioFragment"]
