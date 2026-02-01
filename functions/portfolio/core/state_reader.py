@@ -56,10 +56,7 @@ def _is_options_symbol(symbol: str) -> bool:
 
     # Additional check: contains digits in positions typical of OCC format
     # (expiration date embedded in symbol)
-    if len(symbol) >= 15 and any(c.isdigit() for c in symbol[6:12]):
-        return True
-
-    return False
+    return len(symbol) >= 15 and any(c.isdigit() for c in symbol[6:12])
 
 
 def _filter_equity_symbols(symbols: set[str]) -> set[str]:
@@ -412,7 +409,7 @@ class PortfolioStateReader:
 
                 # Step 2b: Filter out options positions (options are hedged separately)
                 # Options symbols use OCC format (21 chars), equity symbols are ≤10 chars
-                options_positions = {s for s in all_positions.keys() if _is_options_symbol(s)}
+                options_positions = {s for s in all_positions if _is_options_symbol(s)}
                 if options_positions:
                     logger.info(
                         "Filtering out options positions from equity workflow",
