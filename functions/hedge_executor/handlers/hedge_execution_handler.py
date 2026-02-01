@@ -34,6 +34,7 @@ from the_alchemiser.shared.options.adapters import (
 )
 from the_alchemiser.shared.options.constants import MAX_SINGLE_POSITION_PCT
 from the_alchemiser.shared.options.kill_switch_service import KillSwitchService
+from the_alchemiser.shared.options.marketability_pricing import OrderSide
 from the_alchemiser.shared.options.schemas.hedge_position import (
     HedgePosition,
     HedgePositionState,
@@ -256,27 +257,27 @@ class HedgeExecutionHandler:
         # FAIL-CLOSED CHECK: Spread execution availability for smoothing template
         # Smoothing template REQUIRES spread execution (buy 30-delta, sell 10-delta)
         # Do NOT fallback to single-leg execution
-        if hedge_template == "smoothing" and is_spread:
-            # Check if spread execution is available
-            # For now, we'll check if the options adapter supports spreads
-            # In the future, this could check specific market conditions
-            if not hasattr(self._options_adapter, "execute_spread_order"):
-                logger.error(
-                    "Spread execution unavailable for smoothing template - FAILING CLOSED",
-                    underlying=underlying,
-                    hedge_template=hedge_template,
-                    correlation_id=correlation_id,
-                    fail_closed_condition="spread_execution_unavailable",
-                    alert_required=True,
-                )
-                raise SpreadExecutionUnavailableError(
-                    message=f"Spread execution unavailable for smoothing template on {underlying}. "
-                    "Cannot fallback to single-leg execution as it would compromise hedge strategy.",
-                    underlying_symbol=underlying,
-                    long_delta=str(recommendation.get("target_delta")),
-                    short_delta=str(recommendation.get("short_delta")),
-                    correlation_id=correlation_id,
-                )
+        if (
+            hedge_template == "smoothing"
+            and is_spread
+            and not hasattr(self._options_adapter, "place_spread_order")
+        ):
+            logger.error(
+                "Spread execution unavailable for smoothing template - FAILING CLOSED",
+                underlying=underlying,
+                hedge_template=hedge_template,
+                correlation_id=correlation_id,
+                fail_closed_condition="spread_execution_unavailable",
+                alert_required=True,
+            )
+            raise SpreadExecutionUnavailableError(
+                message=f"Spread execution unavailable for smoothing template on {underlying}. "
+                "Cannot fallback to single-leg execution as it would compromise hedge strategy.",
+                underlying_symbol=underlying,
+                long_delta=str(recommendation.get("target_delta")),
+                short_delta=str(recommendation.get("short_delta")),
+                correlation_id=correlation_id,
+            )
 
         # Validate position concentration limit (defensive check)
         # This should already be enforced in HedgeSizer, but double-check here
@@ -313,50 +314,111 @@ class HedgeExecutionHandler:
         # Get underlying price
         underlying_price = get_underlying_price(self._container, underlying)
 
-        # Select optimal contract
-        selected = self._option_selector.select_hedge_contract(
-            underlying_symbol=underlying,
-            target_delta=target_delta,
-            target_dte=target_dte,
-            premium_budget=premium_budget,
-            underlying_price=underlying_price,
-            nav=portfolio_nav,
-            correlation_id=correlation_id,
-            current_vix=current_vix,
-        )
-
-        if selected is None:
-            logger.warning(
-                "No suitable contract found",
-                underlying=underlying,
-            )
-            return HedgeExecuted(
-                correlation_id=correlation_id,
-                causation_id=plan_id,
-                event_id=f"hedge-exec-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="hedge_executor",
-                source_component="HedgeExecutionHandler",
-                hedge_id=f"hedge-{uuid.uuid4()}",
-                plan_id=plan_id,
-                order_id="",
-                option_symbol="",
-                underlying_symbol=underlying,
-                quantity=0,
-                filled_price=Decimal("0"),
-                total_premium=Decimal("0"),
-                nav_percentage=Decimal("0"),
-                success=False,
-                error_message="No suitable contract found",
-            )
-
-        # Execute order
+        # Execute order based on template type
         hedge_id = f"hedge-{uuid.uuid4()}"
-        result = self._execution_service.execute_hedge_order(
-            selected_option=selected,
-            underlying_symbol=underlying,
-            client_order_id=hedge_id,
-        )
+
+        # Get VIX level if available (for adaptive pricing)
+        # Currently not passed in event, defaults to None (uses CALM pricing)
+        vix_level = None  # TODO: Add VIX to HedgeEvaluationCompleted event
+
+        if is_spread:
+            # Spread execution path (smoothing template)
+            short_delta = Decimal(recommendation.get("short_delta", "0.10"))
+
+            # Select both legs of the spread
+            selected_spread = self._option_selector.select_spread_contracts(
+                underlying_symbol=underlying,
+                long_delta=target_delta,
+                short_delta=short_delta,
+                target_dte=target_dte,
+                premium_budget=premium_budget,
+                underlying_price=underlying_price,
+                nav=portfolio_nav,
+                correlation_id=correlation_id,
+            )
+
+            if selected_spread is None:
+                logger.warning(
+                    "No suitable spread contracts found",
+                    underlying=underlying,
+                )
+                return HedgeExecuted(
+                    correlation_id=correlation_id,
+                    causation_id=plan_id,
+                    event_id=f"hedge-exec-{uuid.uuid4()}",
+                    timestamp=datetime.now(UTC),
+                    source_module="hedge_executor",
+                    source_component="HedgeExecutionHandler",
+                    hedge_id=hedge_id,
+                    plan_id=plan_id,
+                    order_id="",
+                    option_symbol="",
+                    underlying_symbol=underlying,
+                    quantity=0,
+                    filled_price=Decimal("0"),
+                    total_premium=Decimal("0"),
+                    nav_percentage=Decimal("0"),
+                    success=False,
+                    error_message="No suitable spread contracts found",
+                )
+
+            # Execute spread order
+            result = self._execution_service.execute_spread_order(
+                long_leg=selected_spread.long_leg,
+                short_leg=selected_spread.short_leg,
+                quantity=selected_spread.contracts_to_buy,
+                long_limit_price=selected_spread.long_limit_price,
+                short_limit_price=selected_spread.short_limit_price,
+                underlying_symbol=underlying,
+                client_order_id=hedge_id,
+            )
+
+        else:
+            # Single-leg execution path (tail hedge template)
+            selected = self._option_selector.select_hedge_contract(
+                underlying_symbol=underlying,
+                target_delta=target_delta,
+                target_dte=target_dte,
+                premium_budget=premium_budget,
+                underlying_price=underlying_price,
+                nav=portfolio_nav,
+                correlation_id=correlation_id,
+                current_vix=current_vix,
+            )
+
+            if selected is None:
+                logger.warning(
+                    "No suitable contract found",
+                    underlying=underlying,
+                )
+                return HedgeExecuted(
+                    correlation_id=correlation_id,
+                    causation_id=plan_id,
+                    event_id=f"hedge-exec-{uuid.uuid4()}",
+                    timestamp=datetime.now(UTC),
+                    source_module="hedge_executor",
+                    source_component="HedgeExecutionHandler",
+                    hedge_id=hedge_id,
+                    plan_id=plan_id,
+                    order_id="",
+                    option_symbol="",
+                    underlying_symbol=underlying,
+                    quantity=0,
+                    filled_price=Decimal("0"),
+                    total_premium=Decimal("0"),
+                    nav_percentage=Decimal("0"),
+                    success=False,
+                    error_message="No suitable contract found",
+                )
+
+            # Execute single-leg order with adaptive pricing
+            result = self._execution_service.execute_hedge_order(
+                selected_option=selected,
+                underlying_symbol=underlying,
+                client_order_id=hedge_id,
+                vix_level=vix_level,
+                order_side=OrderSide.OPEN,  # Always OPEN for new hedges
+            )
 
         # Calculate NAV percentage
         nav_pct = Decimal("0")
@@ -366,29 +428,40 @@ class HedgeExecutionHandler:
         # Persist position to DynamoDB if execution succeeded
         if result.success and self._positions_repo:
             try:
-                # Extract template and spread info from recommendation
-                hedge_template = recommendation.get("hedge_template", "tail_first")
-                is_spread = recommendation.get("is_spread", False)
-                short_leg_symbol = recommendation.get("short_leg_symbol")
-                short_leg_strike = (
-                    Decimal(recommendation["short_leg_strike"])
-                    if recommendation.get("short_leg_strike")
-                    else None
-                )
-                short_leg_entry_price = (
-                    Decimal(recommendation["short_leg_entry_price"])
-                    if recommendation.get("short_leg_entry_price")
-                    else None
-                )
-                short_leg_current_delta = (
-                    Decimal(recommendation["short_leg_current_delta"])
-                    if recommendation.get("short_leg_current_delta")
-                    else None
-                )
+                # Extract spread details if this was a spread order
+                short_leg_symbol = None
+                short_leg_strike = None
+                short_leg_entry_price = None
+                short_leg_current_delta = None
+                selected_for_persistence = None
+
+                if is_spread and selected_spread is not None:
+                    # Extract spread details from selected_spread object
+                    short_leg_symbol = selected_spread.short_leg.symbol
+                    short_leg_strike = selected_spread.short_leg.strike_price
+                    short_leg_current_delta = selected_spread.short_leg.delta
+
+                    # Use actual filled price from result if available, otherwise fallback to limit
+                    short_leg_entry_price = (
+                        result.short_leg_filled_price
+                        if result.short_leg_filled_price is not None
+                        else selected_spread.short_limit_price
+                    )
+
+                    # Use long leg for persistence (primary protection leg)
+                    selected_for_persistence = SelectedOption(
+                        contract=selected_spread.long_leg,
+                        contracts_to_buy=selected_spread.contracts_to_buy,
+                        estimated_premium=selected_spread.estimated_net_premium,
+                        limit_price=selected_spread.long_limit_price,
+                    )
+                else:
+                    # Single-leg order
+                    selected_for_persistence = selected
 
                 self._persist_hedge_position(
                     hedge_id=hedge_id,
-                    selected=selected,
+                    selected=selected_for_persistence,
                     result=result,
                     correlation_id=correlation_id,
                     portfolio_nav=portfolio_nav,

@@ -33,6 +33,7 @@ from pathlib import Path
 from statistics import median
 
 import pandas as pd
+import yaml
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -45,6 +46,15 @@ CONFIG_DIR = (
     / "shared"
     / "config"
 )
+STRATEGIES_DIR = (
+    PROJECT_ROOT
+    / "layers"
+    / "shared"
+    / "the_alchemiser"
+    / "shared"
+    / "strategies"
+)
+LEDGER_FILE = STRATEGIES_DIR / "strategy_ledger.yaml"
 
 # Valid stages
 VALID_STAGES = ("dev", "staging", "prod")
@@ -62,20 +72,65 @@ F_MIN = Decimal("0.5")  # Floor: 50% of base weight
 F_MAX = Decimal("2.0")  # Cap: 2× base weight
 
 # CSV strategy name prefix -> filename mapping
+# NOTE: This is the fallback mapping. Preferred approach is to add csv_name_prefix
+#       to the strategy ledger via `make strategy-add` which will auto-populate here.
 CSV_TO_FILENAME: dict[str, str] = {
+    "[VOXPORT] The Best": "vox_the_best.clj",
     "Flextiger-DefAI+eVTO": "defence.clj",
+    "FOMO NOMO - No Lever": "fomo_nomo.clj",
     "Golden Rotation 2x": "gold.clj",
+    "Gold and Miner Frien": "gold_and_miners.clj",
     "Nuclear Energy with": "nuclear.clj",
     "Pals Minor Spell of": "pals_spell.clj",
     "Rain's Concise EM Le": "rains_concise_em.clj",
     "Rain's Unified EM Le": "rains_em_dancer.clj",
     "Simons KMLM FULL BUI": "simons_full_kmlm.clj",
+    "SOXL Growth v2.4.5 R": "soxl_growth.clj",
     "(A) Sisyphus V0.1": "sisyphus_lowvol.clj",
-    "BT 1Nov16-22Nov22 AR": "tqqq_ftlt_1.clj",
-    "2017 BT TQQQ For The": "tqqq_ftlt_2.clj",
-    "TQQQ For The Long Te": "tqqq_ftlt.clj",
+    "BT 1Nov16-22Nov22 AR": "ftlt/tqqq_ftlt_1.clj",
+    "2017 BT TQQQ For The": "ftlt/tqqq_ftlt_2.clj",
+    "TQQQ For The Long Te": "ftlt/tqqq_ftlt.clj",
     "Blatant Tech Rulersh": "blatant_tech.clj",
+    "The Holy Grail": "ftlt/holy_grail.clj",
+    "KMLM switcher": "kmlm_switcher.clj",
+    "Custom Exposures": "custom_exposures.clj",
+    "FTL Starburst": "ftl_starburst.clj",
+    "Gold Currency Hedge": "gold_currency.clj",
+    "Growth Blend": "growth_blend.clj",
+    "V1a What Have I Done": "what_have_i_done.clj",
 }
+
+
+def load_csv_mappings_from_ledger() -> dict[str, str]:
+    """Load CSV name prefix -> filename mappings from strategy ledger.
+
+    Returns:
+        Dict mapping csv_name_prefix -> filename
+    """
+    if not LEDGER_FILE.exists():
+        return {}
+
+    with LEDGER_FILE.open("r", encoding="utf-8") as f:
+        ledger = yaml.safe_load(f) or {}
+
+    mappings: dict[str, str] = {}
+    for entry in ledger.values():
+        csv_prefix = entry.get("csv_name_prefix")
+        filename = entry.get("filename")
+        if csv_prefix and filename:
+            mappings[csv_prefix] = filename
+
+    return mappings
+
+
+def get_csv_to_filename_mapping() -> dict[str, str]:
+    """Get merged CSV to filename mapping (ledger takes priority over fallback)."""
+    # Start with fallback mapping
+    mapping = dict(CSV_TO_FILENAME)
+    # Overlay ledger mappings (takes priority)
+    ledger_mappings = load_csv_mappings_from_ledger()
+    mapping.update(ledger_mappings)
+    return mapping
 
 
 def find_latest_csv(results_dir: Path) -> Path:
@@ -87,9 +142,9 @@ def find_latest_csv(results_dir: Path) -> Path:
     return sorted(csv_files, key=lambda p: p.name)[-1]
 
 
-def match_csv_name_to_filename(csv_name: str) -> str | None:
+def match_csv_name_to_filename(csv_name: str, csv_to_filename: dict[str, str]) -> str | None:
     """Match a CSV strategy name to its corresponding .clj filename."""
-    for prefix, filename in CSV_TO_FILENAME.items():
+    for prefix, filename in csv_to_filename.items():
         if csv_name.startswith(prefix):
             return filename
     return None
@@ -110,6 +165,9 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
     """
     df = pd.read_csv(csv_path, index_col=0)
 
+    # Get merged CSV->filename mapping (ledger + fallback)
+    csv_to_filename = get_csv_to_filename_mapping()
+
     calmar_by_filename: dict[str, Decimal] = {}
     unmatched: list[str] = []
 
@@ -118,7 +176,7 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
         if csv_name == "Mean":
             continue
 
-        filename = match_csv_name_to_filename(csv_name)
+        filename = match_csv_name_to_filename(csv_name, csv_to_filename)
         if filename is None:
             unmatched.append(csv_name)
             continue
@@ -128,7 +186,12 @@ def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
         calmar_by_filename[filename] = Decimal(str(abs(calmar_value)))
 
     if unmatched:
-        print(f"Warning: Could not match CSV names: {unmatched}")
+        print(f"❌ ERROR: Could not match CSV names: {unmatched}")
+        print("\nOptions to fix:")
+        print("  1. Run 'make strategy-add' to add csv_name_prefix to the ledger (recommended)")
+        print("  2. Manually add mappings to CSV_TO_FILENAME in scripts/rebalance_strategy_weights.py")
+        print("\nAvailable .clj files: layers/shared/the_alchemiser/shared/strategies/")
+        sys.exit(1)
 
     return calmar_by_filename
 
@@ -148,6 +211,9 @@ def calculate_calmar_tilt_weights(
     Strategies in config but missing from CSV get the base weight (1/N),
     and the remaining allocation is distributed among CSV-based strategies.
 
+    IMPORTANT: Only strategies present in BOTH CSV and config are used for
+    weight calculation. CSV strategies not in config are ignored (with warning).
+
     Args:
         calmar_ratios: Dict of filename -> Calmar ratio (from CSV)
         config_files: Set of all strategy filenames from config
@@ -162,6 +228,14 @@ def calculate_calmar_tilt_weights(
     n_total = len(config_files)
     if n_total == 0:
         raise ValueError("No strategies in config")
+
+    # Filter CSV strategies to only those in config (ignore extras)
+    extra_in_csv = set(calmar_ratios.keys()) - config_files
+    if extra_in_csv:
+        print(f"\n⚠️  Strategies in CSV but not in config (ignored): {extra_in_csv}")
+
+    # Only use CSV strategies that are in config for weight calculation
+    calmar_ratios = {k: v for k, v in calmar_ratios.items() if k in config_files}
 
     # Base weight = 1/N (using total config strategies)
     w_base = Decimal("1") / Decimal(str(n_total))
@@ -191,8 +265,8 @@ def calculate_calmar_tilt_weights(
 
     print(f"\nCalmar-Tilt Calculation:")
     print(f"  N strategies (config): {n_total}")
-    print(f"  N strategies (CSV): {len(calmar_ratios)}")
-    print(f"  N missing (base weight): {len(missing_strategies)}")
+    print(f"  N strategies (CSV matched): {len(calmar_ratios)}")
+    print(f"  N missing from CSV (base weight): {len(missing_strategies)}")
     print(f"  Base weight (1/N): {float(w_base):.4f}")
     print(f"  Reserved for missing: {float(reserved_weight):.4f}")
     print(f"  Available for CSV strategies: {float(available_weight):.4f}")
@@ -373,13 +447,6 @@ def main() -> int:
 
     print("-" * 70)
     print(f"  {'TOTAL':25s}: {float(total_old):6.1%} → {float(total_new):6.1%}")
-
-    # Check for extra strategies in CSV not in config
-    weight_files = set(new_weights.keys())
-    extra_in_csv = set(calmar_ratios.keys()) - config_files
-
-    if extra_in_csv:
-        print(f"\n⚠️  Strategies in CSV but not in config: {extra_in_csv}")
 
     if args.dry_run:
         print(f"\n[DRY RUN] No changes made to {config_path.name}")

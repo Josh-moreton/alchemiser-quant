@@ -5,8 +5,12 @@ Hedge configuration constants for options hedging module.
 Contains:
 - Hedge ETF definitions with liquidity requirements
 - Tail hedge template (15-delta OTM puts, 90 DTE)
-- VIX-adaptive premium budget rates
+- IV-adaptive premium budget rates (replaces VIX proxy)
 - Liquidity filters for strike selection
+
+NOTE: Budget rates are now driven by IV signal (ATM IV + percentile + skew)
+from the actual hedge underlying, not VIXY x 10 proxy. See iv_signal.py for
+the new volatility regime classification logic.
 """
 
 from __future__ import annotations
@@ -41,7 +45,12 @@ class TailHedgeTemplate:
     Optimized for leveraged portfolios (2.0x-2.5x+ exposure):
     - 15-delta OTM puts for convex payoff in crashes
     - 90 DTE for cost efficiency and roll management
-    - VIX-adaptive budget to buy protection before vol expands
+    - IV-adaptive budget to buy protection when IV is cheap
+
+    Budget rates now driven by IV percentile (see iv_signal.py):
+    - Low IV (< 30th percentile): 0.8% NAV/month
+    - Mid IV (30th-70th percentile): 0.5% NAV/month
+    - High IV (> 70th percentile): 0.3% NAV/month
     """
 
     target_delta: Decimal  # Target put delta (e.g., 0.15 for 15-delta)
@@ -216,19 +225,28 @@ HEDGE_ETFS: dict[str, HedgeETF] = {
 # TAIL HEDGE TEMPLATE (Template 1)
 # ═══════════════════════════════════════════════════════════════════════════════
 # Optimized for leveraged (2.0x-2.5x+) tech-heavy portfolios
-# Buy protection BEFORE volatility expands (counter-intuitive but optimal)
+# Buy protection when IV is cheap (counter-intuitive but optimal)
+#
+# NOTE: Budget rates are now driven by IV signal (ATM IV + percentile + skew)
+# from the actual hedge underlying, not VIXY x 10 proxy. The VIX thresholds
+# below are legacy and kept for backward compatibility with rich IV adjustments.
+# See iv_signal.py for the new regime classification (IV percentile-based).
 
 TAIL_HEDGE_TEMPLATE: TailHedgeTemplate = TailHedgeTemplate(
     target_delta=Decimal("0.15"),  # 15-delta OTM puts
     target_dte=90,  # 90 days to expiry
     roll_trigger_dte=45,  # Roll when DTE < 45
     underlying="QQQ",  # Primary hedge (tech-correlated)
-    # VIX-adaptive budget rates (% of NAV per month)
-    # Lower budget when VIX is high (options expensive, should already own)
-    # Higher budget when VIX is low (options cheap, buy protection early)
-    budget_vix_low=Decimal("0.008"),  # VIX < 18: 0.8% NAV/month
-    budget_vix_mid=Decimal("0.005"),  # VIX 18-28: 0.5% NAV/month
-    budget_vix_high=Decimal("0.003"),  # VIX > 28: 0.3% NAV/month
+    # IV-adaptive budget rates (% of NAV per month)
+    # Lower budget when IV is high (options expensive, should already own)
+    # Higher budget when IV is low (options cheap, buy protection early)
+    # Legacy names kept for compatibility - now driven by IV percentile:
+    # - budget_vix_low: IV percentile < 30 (IV cheap)
+    # - budget_vix_mid: IV percentile 30-70 (IV normal)
+    # - budget_vix_high: IV percentile > 70 (IV rich)
+    budget_vix_low=Decimal("0.008"),  # IV cheap: 0.8% NAV/month
+    budget_vix_mid=Decimal("0.005"),  # IV normal: 0.5% NAV/month
+    budget_vix_high=Decimal("0.003"),  # IV rich: 0.3% NAV/month
     # Exposure scaling (for 2.0x-2.5x leverage)
     exposure_base=Decimal("1.0"),
     exposure_per_excess=Decimal("0.5"),  # +0.5x per 1.0x above 1.0x
@@ -285,11 +303,20 @@ LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# VIX THRESHOLDS
+# VIX THRESHOLDS (LEGACY - NOW REPLACED BY IV SIGNAL)
 # ═══════════════════════════════════════════════════════════════════════════════
+# NOTE: These VIX thresholds are LEGACY and kept only for backward compatibility
+# with rich IV adjustments. The system now uses IV percentile from the actual
+# hedge underlying (see iv_signal.py) for regime classification.
+#
+# VIX proxy (VIXY x 10) is kept as a sanity check only.
+# Budget tiers are now determined by IV percentile:
+# - Low: IV percentile < 30 (options cheap, buy aggressively)
+# - Mid: IV percentile 30-70 (normal hedging)
+# - High: IV percentile > 70 (options expensive, reduce intensity)
 
-VIX_LOW_THRESHOLD: Decimal = Decimal("18")
-VIX_HIGH_THRESHOLD: Decimal = Decimal("28")
+VIX_LOW_THRESHOLD: Decimal = Decimal("18")  # Legacy - not used for regime
+VIX_HIGH_THRESHOLD: Decimal = Decimal("28")  # Legacy - not used for regime
 
 # Rich IV threshold - when to reduce hedge intensity
 # IV is considered "rich" when it's elevated relative to normal market conditions
@@ -303,13 +330,21 @@ RICH_IV_MIN_DELTA: Decimal = Decimal("0.05")  # Floor for delta after adjustment
 RICH_IV_DTE_EXTENSION: int = 30  # Extend tenor by 30 days (e.g., 90 → 120 DTE)
 RICH_IV_PAYOFF_MULTIPLIER: Decimal = Decimal("0.75")  # Reduce payoff by 25%
 
-# VIX Proxy Configuration
-# Alpaca does not provide direct VIX index quotes. We use VIXY ETF as a liquid proxy.
-# VIXY (ProShares VIX Short-Term Futures ETF) tracks VIX short-term futures.
-# Historical analysis shows VIX ≈ VIXY * 10, so we scale by 10 to estimate VIX.
-# Note: This is an approximation - the relationship varies with contango/backwardation.
-# Typical VIX range: 10-80, with 15-25 being normal market conditions.
-# The approximation is sufficient for budget tier selection (low/mid/high).
+# VIX Proxy Configuration (SANITY CHECK ONLY - NOT USED FOR DECISIONS)
+# ═══════════════════════════════════════════════════════════════════════════════
+# IMPORTANT: This proxy is NO LONGER USED for hedge sizing decisions.
+# The system now uses proper IV data from the actual hedge underlying options.
+#
+# VIXY x 10 is kept as a SANITY CHECK ONLY to monitor drift and compare with
+# the new IV-based regime classification. If this proxy is unavailable, it's
+# logged as a warning but does NOT cause the system to fail closed.
+#
+# Alpaca does not provide direct VIX index quotes. VIXY ETF was previously used
+# as a proxy with the approximation VIX ≈ VIXY * 10. This relationship varies
+# with contango/backwardation and can drift significantly.
+#
+# See iv_signal.py for the replacement: proper ATM IV from hedge underlying.
+
 VIX_PROXY_SYMBOL: str = "VIXY"
 VIX_PROXY_SCALE_FACTOR: Decimal = Decimal("10")
 
@@ -390,8 +425,40 @@ STRIKE_MAX_OTM_RATIO: Decimal = Decimal("0.95")  # Strike <= 95% of underlying
 STRIKE_MIN_OTM_RATIO: Decimal = Decimal("0.75")  # Strike >= 75% of underlying
 
 # Limit price discount factor for buy limit orders.
+# DEPRECATED: Use marketability algorithm instead.
 # Set limit price 2% below mid to avoid overpaying while ensuring fills.
 LIMIT_PRICE_DISCOUNT_FACTOR: Decimal = Decimal("0.98")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MARKETABILITY ALGORITHM PARAMETERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Marketability pricing: Start at mid, step toward ask until filled or max slippage
+# Separate rules for open vs close orders and calm vs high IV conditions
+
+# Maximum slippage per trade (as percentage of mid price)
+# Open positions: more aggressive limit (higher max slippage)
+# Close positions: tighter limit (lower max slippage, exit at better price)
+MAX_SLIPPAGE_PER_TRADE_OPEN: Decimal = Decimal("0.10")  # 10% above mid for opens
+MAX_SLIPPAGE_PER_TRADE_CLOSE: Decimal = Decimal("0.05")  # 5% above mid for closes
+
+# Maximum total slippage per day (as percentage of total premium)
+# Aggregate slippage across all trades in a single day
+MAX_DAILY_SLIPPAGE_PCT: Decimal = Decimal("0.03")  # 3% of daily premium volume
+
+# Price stepping increments (as percentage of bid-ask spread)
+# Calm markets (VIX < 28): smaller steps, more patient
+# High IV (VIX >= 28): larger steps, more aggressive
+PRICE_STEP_PCT_CALM: Decimal = Decimal("0.10")  # 10% of spread per step
+PRICE_STEP_PCT_HIGH_IV: Decimal = Decimal("0.20")  # 20% of spread per step
+
+# Maximum attempts and time limits for order fills
+MAX_FILL_ATTEMPTS: int = 5  # Max number of price steps before giving up
+MAX_FILL_TIME_SECONDS: int = 180  # 3 minutes max per order
+
+# Time between price updates (seconds)
+PRICE_UPDATE_INTERVAL_SECONDS: int = 30  # 30 seconds between steps
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -443,8 +510,13 @@ DEFAULT_ETF_PRICE_FALLBACK: Decimal = Decimal("500")
 def get_budget_rate_for_vix(vix: Decimal) -> Decimal:
     """Get the appropriate budget rate based on current VIX level.
 
+    NOTE: This function is LEGACY and kept for backward compatibility.
+    The system now uses IV percentile from iv_signal.py for regime
+    classification. This function is called by the hedge_sizer with
+    an approximate VIX derived from IV percentile.
+
     Args:
-        vix: Current VIX index value
+        vix: Current VIX index value (or IV-derived approximation)
 
     Returns:
         Budget rate as a percentage of NAV (e.g., 0.008 = 0.8%)
@@ -506,12 +578,17 @@ def calculate_annual_drag(
     if exposure_multiplier is None:
         exposure_multiplier = get_exposure_multiplier(leverage)
 
-    # Annual rate = monthly rate × 12 months × exposure multiplier
+    # Annual rate = monthly rate * 12 months * exposure multiplier
     return monthly_rate * Decimal("12") * exposure_multiplier
 
 
 def should_reduce_hedge_intensity(vix: Decimal) -> bool:
     """Determine if hedge intensity should be reduced due to rich IV.
+
+    NOTE: This function is LEGACY and kept for backward compatibility with
+    apply_rich_iv_adjustment(). The system now uses IV percentile and skew
+    from iv_signal.py for regime classification. When called by hedge_sizer,
+    vix is an approximate value derived from IV percentile.
 
     When IV is rich (expensive), we reduce hedge intensity to avoid
     overpaying for protection by:
@@ -522,7 +599,7 @@ def should_reduce_hedge_intensity(vix: Decimal) -> bool:
     Note: Spread conversion logic not currently implemented.
 
     Args:
-        vix: Current VIX index value
+        vix: Current VIX index value (or IV-derived approximation)
 
     Returns:
         True if IV is rich and hedge intensity should be reduced
@@ -539,7 +616,12 @@ def apply_rich_iv_adjustment(
 ) -> tuple[Decimal, int, Decimal]:
     """Apply rich IV adjustments to hedge parameters.
 
-    When IV is rich (VIX > 35), reduce hedge intensity by:
+    NOTE: This function is LEGACY and uses VIX as input for backward
+    compatibility. The system now determines "rich IV" based on IV percentile
+    (> 70th percentile) and skew richness from iv_signal.py. When called by
+    hedge_sizer, vix is an approximate value derived from IV percentile.
+
+    When IV is rich (VIX > 35 or IV percentile > 70), reduce hedge intensity by:
     1. Widening delta target (further OTM, cheaper options)
     2. Extending tenor (longer DTE, better theta efficiency)
     3. Reducing target payoff (less protection needed)
@@ -548,7 +630,7 @@ def apply_rich_iv_adjustment(
         target_delta: Original target delta (e.g., 0.15)
         target_dte: Original target DTE (e.g., 90)
         target_payoff_pct: Original target payoff as % NAV (e.g., 0.08)
-        vix: Current VIX index value
+        vix: Current VIX index value (or IV-derived approximation)
 
     Returns:
         Tuple of (adjusted_delta, adjusted_dte, adjusted_payoff_pct)
