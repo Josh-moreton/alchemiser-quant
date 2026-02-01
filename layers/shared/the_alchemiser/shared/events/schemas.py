@@ -905,6 +905,9 @@ class HedgeEvaluationCompleted(BaseEvent):
 
     # Evaluation metadata
     vix_tier: str = Field(default="mid", description="VIX tier used for budget (low/mid/high)")
+    current_vix: Decimal | None = Field(
+        default=None, description="Current VIX level for dynamic selection"
+    )
     exposure_multiplier: Decimal = Field(
         default=Decimal("1.0"), description="Exposure-based budget multiplier"
     )

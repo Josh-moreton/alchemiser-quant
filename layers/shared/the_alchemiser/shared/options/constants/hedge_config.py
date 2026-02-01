@@ -106,6 +106,9 @@ class LiquidityFilters:
 
     min_open_interest: int  # Minimum contract open interest
     max_spread_pct: Decimal  # Maximum bid-ask spread (% of mid)
+    max_spread_absolute: Decimal  # Maximum absolute bid-ask spread ($)
+    min_mid_price: Decimal  # Minimum option mid price ($)
+    min_volume: int  # Minimum daily volume
     min_dte: int  # Minimum days to expiry (avoid gamma risk)
     max_dte: int  # Maximum days to expiry
 
@@ -291,8 +294,11 @@ SMOOTHING_HEDGE_TEMPLATE: SmoothingHedgeTemplate = SmoothingHedgeTemplate(
 LIQUIDITY_FILTERS: LiquidityFilters = LiquidityFilters(
     min_open_interest=1000,  # Minimum 1000 contracts OI
     max_spread_pct=Decimal("0.05"),  # Max 5% bid-ask spread
+    max_spread_absolute=Decimal("0.10"),  # Max $0.10 absolute spread
+    min_mid_price=Decimal("0.05"),  # Min $0.05 mid price (avoid penny options)
+    min_volume=100,  # Minimum 100 daily volume
     min_dte=14,  # No options expiring < 14 days (avoid gamma)
-    max_dte=120,  # No options expiring > 120 days (too far out)
+    max_dte=180,  # No options expiring > 180 days (supports long-tenor dynamic selection)
 )
 
 
