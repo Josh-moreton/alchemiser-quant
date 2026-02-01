@@ -62,7 +62,8 @@ class HedgeEvaluationHandler:
         """
         self._container = container
         self._sector_mapper = SectorMapper()
-        self._hedge_sizer = HedgeSizer()
+        # Note: HedgeSizer template is now chosen dynamically by TemplateChooser
+        self._hedge_sizer: HedgeSizer | None = None
 
         # Create ExposureCalculator with container for historical data access
         self._exposure_calculator = ExposureCalculator(container=container)
@@ -72,6 +73,11 @@ class HedgeEvaluationHandler:
 
         # Initialize kill switch service
         self._kill_switch = KillSwitchService()
+
+        # Initialize template chooser for regime-based template selection
+        from the_alchemiser.shared.options import TemplateChooser
+
+        self._template_chooser = TemplateChooser()
 
         # Create event bus if not provided
         if event_bus is None:
@@ -155,24 +161,6 @@ class HedgeEvaluationHandler:
                 if isinstance(raw_existing_hedge_count, int) and raw_existing_hedge_count >= 0:
                     existing_hedge_count = raw_existing_hedge_count
 
-            # Check if hedging is needed
-            should_hedge, skip_reason = self._hedge_sizer.should_hedge(
-                exposure=exposure,
-                existing_hedge_count=existing_hedge_count,
-            )
-
-            if not should_hedge:
-                # This is an EXPECTED skip - conditions not met for hedging
-                # This is a success state, not a failure
-                logger.info(
-                    "Hedge evaluation skipped - conditions not met",
-                    correlation_id=correlation_id,
-                    skip_reason=skip_reason,
-                    status="success_skip",
-                )
-                self._publish_skip_event(event, skip_reason)
-                return
-
             # FAIL-CLOSED CHECK: IV data
             # Calculate IV signal for the hedge underlying - MUST succeed or fail closed
             # This replaces the old VIXY x 10 VIX proxy with proper IV data
@@ -196,7 +184,7 @@ class HedgeEvaluationHandler:
                 correlation_id=correlation_id,
             )
 
-            # Also fetch VIX proxy for dynamic tenor selection
+            # Also fetch VIX proxy for dynamic tenor selection and template chooser
             current_vix: Decimal | None = None
             try:
                 vix_proxy = self._get_vix_proxy_sanity_check(correlation_id)
@@ -215,9 +203,52 @@ class HedgeEvaluationHandler:
                     error=str(e),
                     correlation_id=correlation_id,
                 )
+                # Fall back to using IV signal ATM IV as VIX proxy
+                current_vix = iv_signal.atm_iv * Decimal("100")  # Approximate
+
+            # Choose template based on market regime (use VIX and IV percentile)
+            template_rationale = self._template_chooser.choose_template(
+                vix=current_vix if current_vix is not None else Decimal("20"),
+                vix_percentile=iv_signal.iv_percentile,
+                skew=iv_signal.iv_skew,
+            )
+
+            # Log template selection rationale
+            logger.info(
+                "Template selection rationale",
+                correlation_id=correlation_id,
+                plan_id=plan_id,
+                selected_template=template_rationale.selected_template,
+                regime=template_rationale.regime,
+                vix=str(template_rationale.vix),
+                reason=template_rationale.reason,
+                hysteresis_applied=template_rationale.hysteresis_applied,
+            )
+
+            # Create HedgeSizer with selected template
+            hedge_sizer = HedgeSizer(template=template_rationale.selected_template)
+            self._hedge_sizer = hedge_sizer
+
+            # Check if hedging is needed
+            should_hedge, skip_reason = hedge_sizer.should_hedge(
+                exposure=exposure,
+                existing_hedge_count=existing_hedge_count,
+            )
+
+            if not should_hedge:
+                # This is an EXPECTED skip - conditions not met for hedging
+                # This is a success state, not a failure
+                logger.info(
+                    "Hedge evaluation skipped - conditions not met",
+                    correlation_id=correlation_id,
+                    skip_reason=skip_reason,
+                    status="success_skip",
+                )
+                self._publish_skip_event(event, skip_reason)
+                return
 
             # Calculate hedge recommendation using IV signal
-            recommendation = self._hedge_sizer.calculate_hedge_recommendation(
+            recommendation = hedge_sizer.calculate_hedge_recommendation(
                 exposure=exposure,
                 iv_signal=iv_signal,
                 iv_regime=iv_regime,
@@ -251,6 +282,9 @@ class HedgeEvaluationHandler:
                 vix_tier=recommendation.vix_tier,
                 current_vix=current_vix,
                 exposure_multiplier=recommendation.exposure_multiplier,
+                template_selected=template_rationale.selected_template,
+                template_regime=template_rationale.regime,
+                template_selection_reason=template_rationale.reason,
             )
 
             self._event_bus.publish(completed_event)
@@ -265,6 +299,8 @@ class HedgeEvaluationHandler:
                 iv_percentile=str(iv_signal.iv_percentile),
                 iv_regime=iv_regime.regime,
                 vix_tier=recommendation.vix_tier,
+                template_selected=template_rationale.selected_template,
+                template_regime=template_rationale.regime,
             )
 
         except HedgeFailClosedError as e:
