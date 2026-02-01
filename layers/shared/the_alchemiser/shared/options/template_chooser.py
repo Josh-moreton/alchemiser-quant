@@ -127,6 +127,9 @@ class TemplateChooser:
             regime, vix, vix_percentile, skew, hysteresis_applied=hysteresis_applied
         )
 
+        # Capture previous template BEFORE updating state
+        previous_template = self._last_template
+
         # Create rationale object
         rationale = TemplateSelectionRationale(
             selected_template=final_template,
@@ -135,24 +138,24 @@ class TemplateChooser:
             skew=skew,
             regime=regime,
             reason=reason,
-            previous_template=self._last_template,
+            previous_template=previous_template,
             hysteresis_applied=hysteresis_applied,
         )
 
-        # Update last template
+        # Update last template AFTER creating rationale
         self._last_template = final_template
 
-        # Log selection
+        # Log selection with correct previous_template (pre-update value)
         logger.info(
             "Template selected",
             template=final_template,
             regime=regime,
             vix=str(vix),
-            vix_percentile=str(vix_percentile) if vix_percentile else None,
-            skew=str(skew) if skew else None,
+            vix_percentile=str(vix_percentile) if vix_percentile is not None else None,
+            skew=str(skew) if skew is not None else None,
             reason=reason,
             hysteresis_applied=hysteresis_applied,
-            previous_template=self._last_template,
+            previous_template=previous_template,
         )
 
         return rationale
@@ -319,7 +322,15 @@ class TemplateChooser:
 
         # Hysteresis
         if hysteresis_applied:
-            parts.append("Hysteresis applied to prevent whipsaw")
+            hysteresis_msg = "Hysteresis applied to prevent whipsaw"
+            # When hysteresis is applied, the final template may be held over
+            # from the previous regime. Surface that explicitly if we know it.
+            if self._last_template is not None:
+                hysteresis_msg += (
+                    f"; kept previous template '{self._last_template}' "
+                    "despite current regime conditions"
+                )
+            parts.append(hysteresis_msg)
 
         return "; ".join(parts)
 

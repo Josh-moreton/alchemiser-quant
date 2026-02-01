@@ -61,20 +61,33 @@ class TestTemplateChooser:
         assert "expensive" in rationale.reason.lower()
     
     def test_hysteresis_prevents_whipsaw_near_low_threshold(self) -> None:
-        """Test hysteresis prevents switching near low VIX threshold."""
+        """Test hysteresis prevents switching near low VIX threshold.
+        
+        Low threshold is 18, hysteresis band is 16.2-19.8.
+        We test crossing from mid regime (where a switch would occur)
+        into the hysteresis band.
+        """
         chooser = TemplateChooser()
         
-        # Start with VIX = 15 (low) → tail_first
-        rationale1 = chooser.choose_template(vix=Decimal("15"))
+        # Start with VIX = 22 (mid regime) → tail_first
+        rationale1 = chooser.choose_template(vix=Decimal("22"))
         assert rationale1.selected_template == "tail_first"
         assert not rationale1.hysteresis_applied
         
-        # Move to VIX = 19 (just above threshold but in hysteresis band)
-        # Should stick with tail_first due to hysteresis
-        rationale2 = chooser.choose_template(vix=Decimal("19"))
-        # Note: 19 is above 18 threshold, so regime logic would select tail_first anyway
-        # Need to test crossing from different side
-        assert rationale2.selected_template == "tail_first"
+        # Move to VIX = 35 (high) → smoothing (establishes different template)
+        rationale2 = chooser.choose_template(vix=Decimal("35"))
+        assert rationale2.selected_template == "smoothing"
+        assert not rationale2.hysteresis_applied
+        
+        # Move to VIX = 17 (in low band 16.2-19.8, regime would select tail_first)
+        # Hysteresis SHOULD apply: we're switching templates AND in the band
+        rationale3 = chooser.choose_template(vix=Decimal("17"))
+        # VIX 17 is in low_iv_normal_skew regime → tail_first
+        # Previous was smoothing, so this IS a template change
+        # 17 is in hysteresis band (16.2-19.8), so hysteresis applies
+        assert rationale3.selected_template == "smoothing"  # Kept previous due to hysteresis
+        assert rationale3.hysteresis_applied
+        assert rationale3.previous_template == "smoothing"
     
     def test_hysteresis_prevents_whipsaw_near_high_threshold(self) -> None:
         """Test hysteresis prevents switching near high VIX threshold."""

@@ -127,7 +127,7 @@ Or with hysteresis:
 
 ```
 Template selected: smoothing
-Reason: VIX = 27 (moderate); High IV regime favors spreads for cost efficiency; Hysteresis applied to prevent whipsaw
+Reason: VIX = 32 (high, expensive options); High IV regime favors spreads for cost efficiency; Hysteresis applied to prevent whipsaw; kept previous template 'smoothing' despite current regime conditions
 ```
 
 ## Historical Validation
