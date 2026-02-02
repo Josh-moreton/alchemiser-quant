@@ -78,6 +78,7 @@ structlog = "^25.5.0"
 httpx = "^0.28.1"
 quantstats = "^0.0.81"
 notion-client = "^2.2.1"
+openpyxl = "^3.1.0"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"

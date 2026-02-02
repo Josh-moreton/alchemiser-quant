@@ -590,6 +590,128 @@ def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: s
     print()
 
 
+def push_to_excel(
+    records: list[DailyRecord],
+    excel_path: str | Path,
+) -> None:
+    """Export daily P&L records to an Excel file with incremental updates.
+
+    Reads existing data from the Excel file if it exists, merges with new records
+    (skipping dates that already exist), sorts by date, and writes back.
+
+    The Excel file is designed to be used as a local dashboard data source.
+
+    Args:
+        records: List of DailyRecord objects to export
+        excel_path: Path to the Excel file (will be created if doesn't exist)
+
+    """
+    import time
+
+    import pandas as pd
+
+    print_section_header("EXCEL EXPORT")
+
+    excel_path = Path(excel_path)
+
+    # Filter to active records only (equity > 0)
+    active_records = [r for r in records if r.equity > 0]
+    print(f"  Processing {len(active_records)} active daily records...")
+
+    # Read existing data if file exists
+    existing_dates: set[str] = set()
+    existing_df: pd.DataFrame | None = None
+
+    if excel_path.exists():
+        try:
+            existing_df = pd.read_excel(excel_path, engine="openpyxl")
+            if "Date" in existing_df.columns:
+                # Convert Date column to string format for comparison
+                existing_df["Date"] = pd.to_datetime(existing_df["Date"]).dt.strftime("%Y-%m-%d")
+                existing_dates = set(existing_df["Date"].tolist())
+            print(f"  Found {len(existing_dates)} existing records in Excel file.")
+        except Exception as e:
+            print(f"  Warning: Could not read existing file: {e}")
+            print("  Will create new file.")
+    else:
+        print("  Excel file does not exist, will create new file.")
+        # Ensure parent directory exists
+        excel_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Filter out records that already exist
+    new_records = [r for r in active_records if r.date not in existing_dates]
+
+    if not new_records:
+        print("  No new records to add. Excel file is up to date.")
+        return
+
+    print(f"  Adding {len(new_records)} new records...")
+
+    # Build new rows as list of dicts
+    new_rows = []
+    for rec in new_records:
+        start_equity = rec.equity - rec.adjusted_pnl
+        pnl_pct = float(rec.adjusted_pnl / start_equity * 100) if start_equity != 0 else 0.0
+
+        new_rows.append({
+            "Date": rec.date,
+            "Equity": float(rec.equity),
+            "P&L ($)": float(rec.adjusted_pnl),
+            "P&L (%)": round(pnl_pct, 4),
+            "Raw P&L": float(rec.raw_pnl),
+            "Deposits": float(rec.deposit),
+            "Withdrawals": float(rec.withdrawal),
+        })
+
+    new_df = pd.DataFrame(new_rows)
+
+    # Combine existing and new data
+    if existing_df is not None and not existing_df.empty:
+        # Keep only the core columns from existing (recalculate derived columns)
+        core_columns = ["Date", "Equity", "P&L ($)", "P&L (%)", "Raw P&L", "Deposits", "Withdrawals"]
+        existing_core = existing_df[[c for c in core_columns if c in existing_df.columns]]
+        combined_df = pd.concat([existing_core, new_df], ignore_index=True)
+    else:
+        combined_df = new_df
+
+    # Sort by date
+    combined_df["Date"] = pd.to_datetime(combined_df["Date"])
+    combined_df = combined_df.sort_values("Date").reset_index(drop=True)
+
+    # Calculate cumulative columns (dashboard-friendly)
+    combined_df["Cumulative P&L"] = combined_df["P&L ($)"].cumsum()
+
+    # Cumulative return: (cumulative_pnl / first_equity) * 100
+    first_equity = combined_df.iloc[0]["Equity"] - combined_df.iloc[0]["P&L ($)"]
+    if first_equity > 0:
+        combined_df["Cumulative Return (%)"] = (
+            combined_df["Cumulative P&L"] / first_equity * 100
+        ).round(4)
+    else:
+        combined_df["Cumulative Return (%)"] = 0.0
+
+    # Write to Excel with retry logic for locked files
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            combined_df.to_excel(excel_path, index=False, engine="openpyxl")
+            print(f"  Successfully wrote {len(combined_df)} total records to Excel.")
+            print(f"  File: {excel_path}")
+            break
+        except PermissionError:
+            if attempt < max_retries - 1:
+                print(f"  File is locked, retrying in 2 seconds... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(2)
+            else:
+                print("  ERROR: Excel file is locked. Please close it and try again.")
+                raise
+
+    # Summary
+    print(f"  Created: {len(new_records)} new records")
+    print(f"  Skipped (existing): {len(existing_dates)} records")
+    print()
+
+
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Alpaca P&L Report with deposit adjustments")
@@ -603,6 +725,17 @@ def main() -> None:
         default="1A",
         choices=["1W", "1M", "3M", "1A"],
         help="Period to fetch (default: 1A = 1 year)",
+    )
+    parser.add_argument(
+        "--excel",
+        action="store_true",
+        help="Export daily records to Excel file (default: OneDrive pnl.xlsx)",
+    )
+    parser.add_argument(
+        "--excel-path",
+        type=str,
+        default=None,
+        help="Custom path for Excel export (overrides default OneDrive path)",
     )
     args = parser.parse_args()
 
@@ -666,6 +799,12 @@ def main() -> None:
             return
 
         push_to_notion(records, database_id, notion_token)
+
+    # Excel export if requested
+    if args.excel:
+        default_path = Path.home() / "Library/CloudStorage/OneDrive-rwx_t/Octarine Capital/pnl.xlsx"
+        excel_path = Path(args.excel_path) if args.excel_path else default_path
+        push_to_excel(records, excel_path)
 
 
 if __name__ == "__main__":
