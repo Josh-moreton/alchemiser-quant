@@ -3,22 +3,26 @@
 
 Detailed P&L report with deposit adjustments.
 
-Pulls Alpaca portfolio history and deposit activities, then generates
-weekly and monthly P&L reports in dollars and percentages.
+Pulls Alpaca portfolio history with cashflow data in a SINGLE API call,
+then generates weekly and monthly P&L reports in dollars and percentages.
+
+Optional Notion integration: Add --notion flag to push daily records to a Notion database.
+Requires NOTION_TOKEN and NOTION_DATABASE_ID environment variables.
 """
 
 from __future__ import annotations
 
 import _setup_imports  # noqa: F401
 
-from collections import defaultdict
-from datetime import UTC, datetime
+import argparse
+import os
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable, NamedTuple
+from typing import Any, Callable, NamedTuple
 
-from dotenv import load_dotenv
 import requests
+from dotenv import load_dotenv
 
 # Load .env file before importing modules that use os.getenv
 env_path = Path(__file__).parent.parent / ".env"
@@ -33,41 +37,28 @@ class DailyRecord(NamedTuple):
     date: str
     equity: Decimal
     raw_pnl: Decimal
-    deposit: Decimal
+    deposit: Decimal  # Deposit that settled today (T+1)
+    withdrawal: Decimal  # Withdrawal today
     adjusted_pnl: Decimal
 
 
-def fetch_deposits(api_key: str, secret_key: str) -> dict[str, Decimal]:
-    """Fetch all CSD (cash deposit) activities from Alpaca."""
-    # Use the activity-type-specific endpoint (more reliable)
-    url = "https://api.alpaca.markets/v2/account/activities/CSD"
-    headers = {
-        "APCA-API-KEY-ID": api_key,
-        "APCA-API-SECRET-KEY": secret_key,
-        "accept": "application/json",
-    }
+def fetch_portfolio_history_with_cashflow(
+    api_key: str, secret_key: str, period: str = "1A"
+) -> dict[str, Any]:
+    """Fetch portfolio history WITH cashflow data in a single API call.
 
-    resp = requests.get(url, headers=headers, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
+    Uses the cashflow_types parameter to get deposits (CSD) and withdrawals (CSW)
+    aligned with the timestamp array.
 
-    deposits_by_date: dict[str, Decimal] = defaultdict(Decimal)
+    Args:
+        api_key: Alpaca API key
+        secret_key: Alpaca secret key
+        period: Period string (1W, 1M, 3M, 1A)
 
-    print(f"  Raw API returned {len(data)} CSD activities")
+    Returns:
+        Dictionary with timestamp, equity, profit_loss, profit_loss_pct, base_value, cashflow
 
-    for activity in data:
-        date_str = activity.get("date", "")[:10]
-        amount = Decimal(str(activity.get("net_amount", "0")))
-        deposits_by_date[date_str] += amount
-        print(f"    {date_str}: ${amount:,.2f}")
-
-    return dict(deposits_by_date)
-
-
-def fetch_portfolio_history(
-    api_key: str, secret_key: str
-) -> tuple[list[int], list[float], list[float]]:
-    """Fetch portfolio history with 1-year period, per-day P&L reset."""
+    """
     url = "https://api.alpaca.markets/v2/account/portfolio/history"
     headers = {
         "APCA-API-KEY-ID": api_key,
@@ -75,16 +66,16 @@ def fetch_portfolio_history(
         "accept": "application/json",
     }
     params = {
-        "period": "1A",
+        "period": period,
+        "timeframe": "1D",  # Daily data points
         "intraday_reporting": "market_hours",
         "pnl_reset": "per_day",
+        "cashflow_types": "CSD,CSW",  # Include deposits and withdrawals
     }
 
     resp = requests.get(url, headers=headers, params=params, timeout=30)
     resp.raise_for_status()
-    data = resp.json()
-
-    return data["timestamp"], data["equity"], data["profit_loss"]
+    return resp.json()
 
 
 def format_ts(ts: int) -> str:
@@ -121,8 +112,6 @@ def get_deposit_dates_for_settlement(
 
     Returns dates from prev_trading_day (exclusive) to today (exclusive).
     """
-    from datetime import timedelta
-
     start = datetime.strptime(prev_trading_day, "%Y-%m-%d")
     end = datetime.strptime(today, "%Y-%m-%d")
     dates = []
@@ -149,13 +138,10 @@ def get_deposit_dates_for_settlement(
     return dates
 
 
-def build_daily_records(
-    timestamps: list[int],
-    equities: list[float],
-    profit_losses: list[float],
-    deposits: dict[str, Decimal],
-) -> list[DailyRecord]:
-    """Build daily records with deposit-adjusted P&L.
+def build_daily_records(data: dict[str, Any]) -> tuple[list[DailyRecord], dict[str, Decimal]]:
+    """Build daily records with deposit-adjusted P&L from unified API response.
+
+    The cashflow arrays (CSD, CSW) are aligned 1:1 with timestamps.
 
     Key insight: Alpaca's equity includes deposits, but deposits settle T+1.
     A deposit made on day D appears in equity on the next trading day.
@@ -163,16 +149,43 @@ def build_daily_records(
     To get true trading P&L:
     - Calculate equity change from previous trading day
     - Subtract deposits that settled today (made on prev trading day or weekend days before today)
+
+    Returns:
+        Tuple of (daily_records, deposits_by_date)
+
     """
-    # Build list of all trading dates first
+    timestamps = data.get("timestamp", [])
+    equities = data.get("equity", [])
+    profit_losses = data.get("profit_loss", [])
+    cashflow = data.get("cashflow", {})
+
+    # Extract cashflow arrays (aligned with timestamps, default to zeros)
+    csd_values = cashflow.get("CSD", [0] * len(timestamps))
+    csw_values = cashflow.get("CSW", [0] * len(timestamps))
+
+    # Pad arrays if shorter than timestamps
+    while len(csd_values) < len(timestamps):
+        csd_values.append(0)
+    while len(csw_values) < len(timestamps):
+        csw_values.append(0)
+
+    # Build list of all trading dates and deposits_by_date
     all_dates = [format_ts(ts) for ts in timestamps]
     all_trading_days = set(all_dates)
+
+    # Build deposits_by_date from cashflow array
+    deposits_by_date: dict[str, Decimal] = {}
+    for i, date_str in enumerate(all_dates):
+        if csd_values[i] != 0:
+            deposits_by_date[date_str] = Decimal(str(csd_values[i]))
+
     records = []
 
     for i, ts in enumerate(timestamps):
         date_str = format_ts(ts)
         equity = Decimal(str(equities[i]))
         raw_pnl = Decimal(str(profit_losses[i]))
+        withdrawal_today = abs(Decimal(str(csw_values[i]))) if csw_values[i] else Decimal("0")
 
         # Get all calendar days where deposits would settle today
         deposit_settled_today = Decimal("0")
@@ -183,8 +196,8 @@ def build_daily_records(
                 prev_trading_day, date_str, all_trading_days
             )
             for d in days_to_check:
-                if d in deposits:
-                    deposit_settled_today += deposits[d]
+                if d in deposits_by_date:
+                    deposit_settled_today += deposits_by_date[d]
 
             prev_equity = Decimal(str(equities[i - 1]))
             equity_change = equity - prev_equity
@@ -200,11 +213,12 @@ def build_daily_records(
                 equity=equity,
                 raw_pnl=raw_pnl,
                 deposit=deposit_settled_today,
+                withdrawal=withdrawal_today,
                 adjusted_pnl=adjusted_pnl,
             )
         )
 
-    return records
+    return records, deposits_by_date
 
 
 def aggregate_periods(
@@ -244,7 +258,7 @@ def print_section_header(title: str) -> None:
     print("=" * 90)
 
 
-def print_daily_report(records: list[DailyRecord], deposits: dict[str, Decimal]) -> None:
+def print_daily_report(records: list[DailyRecord]) -> None:
     """Print detailed daily P&L report (only days with activity)."""
     # Filter to only show days with equity > 0
     active_records = [r for r in records if r.equity > 0]
@@ -320,7 +334,7 @@ def print_period_report(periods: dict[str, dict], period_name: str) -> None:
     )
 
 
-def print_summary(records: list[DailyRecord], deposits: dict[str, Decimal]) -> None:
+def print_summary(records: list[DailyRecord], deposits_by_date: dict[str, Decimal]) -> None:
     """Print overall summary statistics."""
     print_section_header("SUMMARY STATISTICS")
 
@@ -332,11 +346,10 @@ def print_summary(records: list[DailyRecord], deposits: dict[str, Decimal]) -> N
         return
 
     total_pnl = sum(r.adjusted_pnl for r in active_records)
-    total_deposits = sum(deposits.values())
+    total_deposits = sum(deposits_by_date.values())
 
     # Find first non-zero equity day for starting point
     first_active = active_records[0]
-    first_equity = first_active.equity - first_active.adjusted_pnl - first_active.deposit
     end_equity = active_records[-1].equity
 
     # Total return based on first meaningful equity (after first deposit)
@@ -387,11 +400,105 @@ def print_summary(records: list[DailyRecord], deposits: dict[str, Decimal]) -> N
     print()
 
 
+def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: str) -> None:
+    """Push daily P&L records to a Notion database.
+
+    Creates or updates pages in the Notion database. Uses date as the unique
+    identifier to prevent duplicates on re-runs.
+
+    Expected Notion database properties:
+    - Date (date): The trading date
+    - Equity (number): End-of-day equity
+    - P&L ($) (number): Adjusted P&L in dollars
+    - P&L (%) (number): P&L as percentage
+    - Raw P&L (number): Raw P&L from Alpaca (before deposit adjustment)
+    - Deposits (number): Deposits that settled on this day
+
+    Args:
+        records: List of DailyRecord objects
+        database_id: Notion database ID
+        notion_token: Notion integration token
+
+    """
+    try:
+        from notion_client import Client
+    except ImportError:
+        print("ERROR: notion-client package not installed. Run: poetry add notion-client")
+        return
+
+    print_section_header("NOTION EXPORT")
+
+    notion = Client(auth=notion_token)
+
+    # Filter to only active days (equity > 0)
+    active_records = [r for r in records if r.equity > 0]
+    print(f"  Pushing {len(active_records)} daily records to Notion...")
+
+    # First, query existing pages to find duplicates by date
+    existing_dates: set[str] = set()
+    try:
+        # Query all pages in the database
+        results = notion.databases.query(database_id=database_id)
+        for page in results.get("results", []):
+            props = page.get("properties", {})
+            date_prop = props.get("Date", {})
+            if date_prop.get("date") and date_prop["date"].get("start"):
+                existing_dates.add(date_prop["date"]["start"])
+    except Exception as e:
+        print(f"  Warning: Could not query existing pages: {e}")
+
+    created = 0
+    skipped = 0
+
+    for rec in active_records:
+        if rec.date in existing_dates:
+            skipped += 1
+            continue
+
+        # Calculate P&L percentage
+        start_equity = rec.equity - rec.adjusted_pnl
+        pnl_pct = float(rec.adjusted_pnl / start_equity * 100) if start_equity != 0 else 0.0
+
+        try:
+            notion.pages.create(
+                parent={"database_id": database_id},
+                properties={
+                    "Date": {"date": {"start": rec.date}},
+                    "Equity": {"number": float(rec.equity)},
+                    "P&L ($)": {"number": float(rec.adjusted_pnl)},
+                    "P&L (%)": {"number": round(pnl_pct, 4)},
+                    "Raw P&L": {"number": float(rec.raw_pnl)},
+                    "Deposits": {"number": float(rec.deposit)},
+                },
+            )
+            created += 1
+        except Exception as e:
+            print(f"  Error creating page for {rec.date}: {e}")
+
+    print(f"  Created: {created} records")
+    print(f"  Skipped (existing): {skipped} records")
+    print()
+
+
 def main() -> None:
     """Main entry point."""
+    parser = argparse.ArgumentParser(description="Alpaca P&L Report with deposit adjustments")
+    parser.add_argument(
+        "--notion",
+        action="store_true",
+        help="Push daily records to Notion database (requires NOTION_TOKEN and NOTION_DATABASE_ID)",
+    )
+    parser.add_argument(
+        "--period",
+        default="1A",
+        choices=["1W", "1M", "3M", "1A"],
+        help="Period to fetch (default: 1A = 1 year)",
+    )
+    args = parser.parse_args()
+
     print()
     print("=" * 90)
-    print("  ALPACA P&L REPORT - Deposit Adjusted")
+    print("  ALPACA P&L REPORT - Deposit Adjusted (Single API Call)")
     print("=" * 90)
     print()
     print("Loading credentials from .env...")
@@ -401,19 +508,31 @@ def main() -> None:
         print("ERROR: Missing ALPACA_KEY or ALPACA_SECRET in .env file")
         return
 
-    print("Fetching deposit history (CSD activities)...")
-    deposits = fetch_deposits(api_key, secret_key)
-    print(f"  Found {len(deposits)} days with deposits, total: ${sum(deposits.values()):,.2f}")
+    print(f"Fetching portfolio history with cashflow ({args.period} period)...")
+    data = fetch_portfolio_history_with_cashflow(api_key, secret_key, period=args.period)
 
-    print("Fetching portfolio history (1 year, per-day P&L)...")
-    timestamps, equities, profit_losses = fetch_portfolio_history(api_key, secret_key)
+    timestamps = data.get("timestamp", [])
+    cashflow = data.get("cashflow", {})
+    csd_values = cashflow.get("CSD", [])
+    csw_values = cashflow.get("CSW", [])
+
     print(f"  Found {len(timestamps)} trading days")
+    print(f"  Cashflow types in response: {list(cashflow.keys())}")
+
+    # Count days with deposits/withdrawals
+    deposit_days = sum(1 for v in csd_values if v != 0)
+    withdrawal_days = sum(1 for v in csw_values if v != 0)
+    total_deposits = sum(Decimal(str(v)) for v in csd_values if v != 0)
+    total_withdrawals = sum(Decimal(str(abs(v))) for v in csw_values if v != 0)
+
+    print(f"  Days with deposits (CSD): {deposit_days}, total: ${total_deposits:,.2f}")
+    print(f"  Days with withdrawals (CSW): {withdrawal_days}, total: ${total_withdrawals:,.2f}")
 
     print("Building daily records with deposit adjustments...")
-    records = build_daily_records(timestamps, equities, profit_losses, deposits)
+    records, deposits_by_date = build_daily_records(data)
 
     # Generate reports
-    print_daily_report(records, deposits)
+    print_daily_report(records)
 
     weekly_data = aggregate_periods(records, get_week_key)
     print_period_report(weekly_data, "Weekly")
@@ -421,7 +540,18 @@ def main() -> None:
     monthly_data = aggregate_periods(records, get_month_key)
     print_period_report(monthly_data, "Monthly")
 
-    print_summary(records, deposits)
+    print_summary(records, deposits_by_date)
+
+    # Notion export if requested
+    if args.notion:
+        notion_token = os.environ.get("NOTION_TOKEN")
+        database_id = os.environ.get("NOTION_DATABASE_ID")
+
+        if not notion_token or not database_id:
+            print("ERROR: --notion flag requires NOTION_TOKEN and NOTION_DATABASE_ID in .env")
+            return
+
+        push_to_notion(records, database_id, notion_token)
 
 
 if __name__ == "__main__":

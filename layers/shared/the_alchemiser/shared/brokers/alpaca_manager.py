@@ -911,6 +911,54 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             intraday_reporting=intraday_reporting,
         )
 
+    def get_portfolio_history_with_cashflow(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        timeframe: str = "1D",
+        period: str | None = None,
+        pnl_reset: str = "per_day",
+        intraday_reporting: str = "market_hours",
+        cashflow_types: str = "CSD,CSW",
+    ) -> dict[str, Any] | None:
+        """Get portfolio history with cashflow data in a single API call.
+
+        This is the preferred method for P&L capture as it returns equity, P&L,
+        AND cash movements (deposits/withdrawals) in one request. The cashflow
+        arrays are aligned 1:1 with the timestamp array.
+
+        Args:
+            start_date: Start date (ISO format YYYY-MM-DD)
+            end_date: End date (ISO format YYYY-MM-DD)
+            timeframe: Timeframe for data points (1D recommended)
+            period: Period string (1W, 1M, 3M, 1A) - alternative to start/end
+            pnl_reset: P&L reset mode - "per_day" for daily, "no_reset" for cumulative
+            intraday_reporting: "market_hours" or "extended_hours"
+            cashflow_types: Comma-separated types (CSD=deposit, CSW=withdrawal)
+
+        Returns:
+            Dictionary with timestamp, equity, profit_loss, profit_loss_pct,
+            base_value, base_value_asof, timeframe, and cashflow dict.
+            Returns None if failed.
+
+        Example:
+            >>> history = manager.get_portfolio_history_with_cashflow(period="1M")
+            >>> deposits = history["cashflow"].get("CSD", [])  # Aligned with timestamps
+
+        """
+        return self._account_service.get_portfolio_history_with_cashflow(
+            start_date=start_date,
+            end_date=end_date,
+            timeframe=timeframe,
+            period=period,
+            pnl_reset=pnl_reset,
+            intraday_reporting=intraday_reporting,
+            cashflow_types=cashflow_types,
+            api_key=self._api_key,
+            secret_key=self._secret_key,
+            paper=self._paper,
+        )
+
     def get_activities(
         self,
         activity_type: str | None = None,

@@ -87,10 +87,9 @@ class DailyPnLService:
     def capture_daily_pnl(self, target_date: date) -> DailyPnLRecord:
         """Capture daily P&L for a specific date and store in DynamoDB.
 
-        Uses T+1 settlement logic matching pnl_report.py:
-        - Fetches portfolio history for target date and previous trading day
-        - Calculates equity_change from previous trading day
-        - Fetches all CSD deposits and determines which settled today
+        Uses a single Alpaca API call with cashflow_types to get portfolio history
+        AND deposit/withdrawal data together. Applies T+1 settlement logic:
+        - Deposits made on day D settle on the next trading day
         - True trading P&L = equity_change - deposits_settled_today
 
         Args:
@@ -118,15 +117,16 @@ class DailyPnLService:
         try:
             date_str = target_date.isoformat()
 
-            # Fetch portfolio history for a window to get both target and previous trading day
-            # Use 7-day lookback to ensure we capture previous trading day even with holidays
+            # Fetch portfolio history WITH cashflow data in a single API call
+            # Use 7-day lookback to capture previous trading day and weekend deposits
             lookback_start = (target_date - timedelta(days=7)).isoformat()
-            history = self._alpaca_manager.get_portfolio_history(
+            history = self._alpaca_manager.get_portfolio_history_with_cashflow(
                 start_date=lookback_start,
                 end_date=date_str,
                 timeframe="1D",
-                pnl_reset="per_day",  # Use per_day to match pnl_report.py
+                pnl_reset="per_day",
                 intraday_reporting="market_hours",
+                cashflow_types="CSD,CSW",
             )
 
             if not history or not history.get("equity") or not history.get("timestamp"):
@@ -138,12 +138,22 @@ class DailyPnLService:
             timestamps = history["timestamp"]
             equity_values = history["equity"]
             profit_loss_values = history.get("profit_loss", [])
+            cashflow = history.get("cashflow", {})
 
-            # Build list of trading days from history
+            # Extract cashflow arrays (aligned with timestamps)
+            csd_values = cashflow.get("CSD", [0] * len(timestamps))
+            csw_values = cashflow.get("CSW", [0] * len(timestamps))
+
+            # Build list of trading days and deposits_by_date from cashflow
             all_trading_days: list[str] = []
-            for ts in timestamps:
+            deposits_by_date: dict[str, Decimal] = {}
+
+            for i, ts in enumerate(timestamps):
                 day_str = datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%d")
                 all_trading_days.append(day_str)
+                # Record deposit amount for this day (from cashflow array)
+                if i < len(csd_values) and csd_values[i] != 0:
+                    deposits_by_date[day_str] = Decimal(str(csd_values[i]))
 
             # Find target date's index in the history
             if date_str not in all_trading_days:
@@ -168,20 +178,12 @@ class DailyPnLService:
 
             equity_change = end_equity - prev_equity
 
-            # Fetch ALL CSD deposits to determine which settled today
-            # Use wide date range to catch weekend deposits
-            deposits_start = (target_date - timedelta(days=7)).isoformat()
-            cash_activities = self._alpaca_manager.get_non_trade_activities(
-                start_date=deposits_start,
-                activity_types=["CSD", "CSW"],
-            )
-
-            # Process cash activities
-            deposits_by_date, total_withdrawals, deposits_made_today = (
-                self._process_cash_activities(cash_activities, date_str)
-            )
+            # Get deposits/withdrawals for today directly from cashflow arrays
+            deposits_made_today = Decimal(str(csd_values[target_idx])) if target_idx < len(csd_values) else Decimal("0")
+            withdrawals_today = abs(Decimal(str(csw_values[target_idx]))) if target_idx < len(csw_values) else Decimal("0")
 
             # Calculate deposits that settled today using T+1 logic
+            # Deposits made on prev_trading_day (or weekend days before today) settle today
             deposits_settled_today = Decimal("0")
             if prev_trading_day:
                 settlement_dates = self._get_deposit_dates_for_settlement(
@@ -201,7 +203,7 @@ class DailyPnLService:
             else:
                 pnl_percent = Decimal("0")
 
-            # Create record with new fields
+            # Create record
             record = DailyPnLRecord(
                 date=date_str,
                 equity=end_equity,
@@ -210,7 +212,7 @@ class DailyPnLService:
                 raw_pnl=raw_pnl,
                 deposits_settled=deposits_settled_today,
                 deposits=deposits_made_today,
-                withdrawals=total_withdrawals,
+                withdrawals=withdrawals_today,
                 timestamp=datetime.now(UTC).isoformat(),
                 environment=self.environment,
             )
