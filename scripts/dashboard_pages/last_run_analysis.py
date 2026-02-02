@@ -89,6 +89,8 @@ def get_rebalance_plan(correlation_id: str) -> dict | None:
             return None
 
         item = response["Items"][0]
+        # Note: Numeric fields stored as strings ('S' type) in this table's schema
+        # This matches the repository implementation in dynamodb_rebalance_plan_repository.py
         plan_data_str = item.get("plan_data", {}).get("S", "{}")
         return json.loads(plan_data_str)
 

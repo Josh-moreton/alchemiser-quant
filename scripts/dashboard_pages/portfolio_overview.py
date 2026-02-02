@@ -297,5 +297,5 @@ def show() -> None:
     # Footer
     st.caption(
         f"Data from Alpaca API (deposit-adjusted). "
-        f"Auto-refreshes every 5 minutes. Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}"
+        f"Cache refreshes every 5 minutes."
     )

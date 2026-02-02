@@ -83,6 +83,8 @@ def get_symbol_trades(symbol: str) -> list[dict[str, Any]]:
             strategy_names = item.get("strategy_names", {}).get("L", [])
             strategies = [s.get("S", "") for s in strategy_names]
 
+            # Note: Numeric fields stored as strings in DynamoDB for this table
+            # This matches the implementation in dynamodb_trade_ledger_repository.py
             trades.append({
                 "order_id": item.get("order_id", {}).get("S", ""),
                 "symbol": item.get("symbol", {}).get("S", ""),

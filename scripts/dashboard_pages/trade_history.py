@@ -34,27 +34,27 @@ def get_trades(
         table = dynamodb.Table("alchemiser-dev-trade-ledger")
 
         # Build filter expression
-        filter_expr = Attr("PK").begins_with("TRADE#")
+        filter_expression = Attr("PK").begins_with("TRADE#")
 
         if start_date or end_date:
             if start_date and end_date:
-                filter_expr = filter_expr & Attr("fill_timestamp").between(start_date, end_date)
+                filter_expression = filter_expression & Attr("fill_timestamp").between(start_date, end_date)
             elif start_date:
-                filter_expr = filter_expr & Attr("fill_timestamp").gte(start_date)
+                filter_expression = filter_expression & Attr("fill_timestamp").gte(start_date)
             else:
-                filter_expr = filter_expr & Attr("fill_timestamp").lte(end_date)
+                filter_expression = filter_expression & Attr("fill_timestamp").lte(end_date)
 
         if symbol:
-            filter_expr = filter_expr & Attr("symbol").eq(symbol)
+            filter_expression = filter_expression & Attr("symbol").eq(symbol)
 
         # Scan table
-        response = table.scan(FilterExpression=filter_expr)
+        response = table.scan(FilterExpression=filter_expression)
         items = response.get("Items", [])
 
         # Handle pagination
         while "LastEvaluatedKey" in response:
             response = table.scan(
-                FilterExpression=filter_expr,
+                FilterExpression=filter_expression,
                 ExclusiveStartKey=response["LastEvaluatedKey"],
             )
             items.extend(response.get("Items", []))
