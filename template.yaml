@@ -2318,15 +2318,41 @@ Resources:
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
-      Events:
-        DailySchedule:
-          Type: Schedule
-          Properties:
-            Description: Daily P&L capture to Notion at 9:00 PM ET (after market close)
-            Schedule: cron(0 2 * * ? *)  # 2:00 AM UTC = 9:00 PM ET
-            Enabled: true
     Metadata:
       BuildMethod: python3.12
+
+  # P&L Capture Schedule - uses EventBridge Scheduler for NY timezone support
+  PnLCaptureSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-pnl-capture"
+        - !Sub "alchemiser-${Stage}-pnl-capture-schedule"
+      Description: "Daily P&L capture to Notion at 5:00 PM ET (after market close)"
+      ScheduleExpression: "cron(0 17 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt PnLCaptureFunction.Arn
+        RoleArn: !GetAtt PnLCaptureSchedulerRole.Arn
+        Input: '{"source": "daily_schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  PnLCaptureSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *scheduler-assume-role
+      Policies:
+        - PolicyName: InvokePnLCapture
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt PnLCaptureFunction.Arn
 
   PnLCaptureExecutionRole:
     Type: AWS::IAM::Role
