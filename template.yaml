@@ -135,6 +135,18 @@ Parameters:
     Default: ""
     Description: Email address for notifications (set per-environment in secret store)
 
+  # Notion P&L Dashboard configuration
+  NotionToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Notion integration token for P&L dashboard
+
+  NotionDatabaseId:
+    Type: String
+    Default: ""
+    Description: Notion database ID for daily P&L records
+
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -2300,8 +2312,9 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
-          DAILY_PNL_TABLE_NAME: !Ref DailyPnLTable
           ENVIRONMENT: !Ref Stage
+          NOTION_TOKEN: !Ref NotionToken
+          NOTION_DATABASE_ID: !Ref NotionDatabaseId
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
@@ -2309,7 +2322,7 @@ Resources:
         DailySchedule:
           Type: Schedule
           Properties:
-            Description: Daily P&L capture at 9:00 PM ET (after market close + buffer)
+            Description: Daily P&L capture to Notion at 9:00 PM ET (after market close)
             Schedule: cron(0 2 * * ? *)  # 2:00 AM UTC = 9:00 PM ET
             Enabled: true
     Metadata:
@@ -2320,18 +2333,7 @@ Resources:
     Properties:
       AssumeRolePolicyDocument: *lambda-assume-role
       ManagedPolicyArns: *lambda-basic-execution
-      Policies:
-        - PolicyName: PnLCapturePolicy
-          PolicyDocument:
-            Statement:
-              # DynamoDB read/write for daily PnL records
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:Scan
-                Resource:
-                  - !GetAtt DailyPnLTable.Arn
+      # No additional policies needed - Notion API calls don't require AWS permissions
   #
   # StrategySchedule resource removed - see issue "Double run bug" for details.
 
