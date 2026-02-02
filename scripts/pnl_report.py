@@ -299,9 +299,9 @@ def print_daily_report(records: list[DailyRecord]) -> None:
     print()
     print(
         f"{'Date':<12} {'Equity':>14} {'Raw P&L':>12} {'Deposit':>12} "
-        f"{'Adj P&L':>12} {'% Return':>10}"
+        f"{'Withdrawal':>12} {'Adj P&L':>12} {'% Return':>10}"
     )
-    print("-" * 90)
+    print("-" * 102)
 
     for rec in active_records:
         # Calculate % based on previous day's equity (start of day equity)
@@ -313,13 +313,14 @@ def print_daily_report(records: list[DailyRecord]) -> None:
         )
 
         deposit_str = f"${rec.deposit:>+10,.2f}" if rec.deposit else " " * 12
+        withdrawal_str = f"${rec.withdrawal:>+10,.2f}" if rec.withdrawal else " " * 12
 
         print(
             f"{rec.date:<12} ${rec.equity:>12,.2f} ${rec.raw_pnl:>+10,.2f} "
-            f"{deposit_str} ${rec.adjusted_pnl:>+10,.2f} {pct:>+9.2f}%"
+            f"{deposit_str} {withdrawal_str} ${rec.adjusted_pnl:>+10,.2f} {pct:>+9.2f}%"
         )
 
-    print("-" * 90)
+    print("-" * 102)
     print(f"  (Showing {len(active_records)} active days, filtered {len(records) - len(active_records)} days with $0 equity)")
 
 
@@ -470,6 +471,7 @@ def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: s
         "P&L (%)": {"number": {"format": "percent"}},
         "Raw P&L": {"number": {"format": "dollar"}},
         "Deposits": {"number": {"format": "dollar"}},
+        "Withdrawals": {"number": {"format": "dollar"}},
     }
 
     print("  Checking database schema...")
@@ -556,6 +558,7 @@ def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: s
                     "P&L (%)": {"number": round(pnl_pct / 100, 4)},  # Notion expects decimal for percent
                     "Raw P&L": {"number": float(rec.raw_pnl)},
                     "Deposits": {"number": float(rec.deposit)},
+                    "Withdrawals": {"number": float(rec.withdrawal)},
                 },
             }
             resp = requests.post(
@@ -617,6 +620,10 @@ def main() -> None:
 
     print(f"Fetching portfolio history with cashflow ({args.period} period)...")
     data = fetch_portfolio_history_with_cashflow(api_key, secret_key, period=args.period)
+
+    if data is None or not isinstance(data, dict):
+        print("ERROR: Failed to fetch portfolio history data or received invalid response.")
+        return
 
     timestamps = data.get("timestamp", [])
     cashflow = data.get("cashflow", {})

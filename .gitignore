@@ -82,3 +82,6 @@ test_fix_validation.py
 test_execution_classification.py
 FIX_VALIDATION_SUMMARY.md
 .vscode/*
+
+# AWS Lambda invoke output (temporary test data)
+response.json

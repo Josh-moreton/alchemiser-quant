@@ -178,17 +178,16 @@ class DailyPnLService:
 
             equity_change = end_equity - prev_equity
 
-            # Get deposits/withdrawals for today directly from cashflow arrays
-            deposits_made_today = (
-                Decimal(str(csd_values[target_idx]))
-                if target_idx < len(csd_values)
-                else Decimal("0")
-            )
-            withdrawals_today = (
-                abs(Decimal(str(csw_values[target_idx])))
-                if target_idx < len(csw_values)
-                else Decimal("0")
-            )
+            # Normalize cashflow arrays to match trading days length to ensure safe indexing
+            trading_days_len = len(all_trading_days)
+            if len(csd_values) < trading_days_len:
+                csd_values = list(csd_values) + [0.0] * (trading_days_len - len(csd_values))
+            if len(csw_values) < trading_days_len:
+                csw_values = list(csw_values) + [0.0] * (trading_days_len - len(csw_values))
+
+            # Get deposits/withdrawals for today directly from normalized cashflow arrays
+            deposits_made_today = Decimal(str(csd_values[target_idx]))
+            withdrawals_today = abs(Decimal(str(csw_values[target_idx])))
 
             # Calculate deposits that settled today using T+1 logic
             # Deposits made on prev_trading_day (or weekend days before today) settle today
