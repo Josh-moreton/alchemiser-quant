@@ -270,6 +270,12 @@ pnl-report:
 	@echo "📊 Generating deposit-adjusted P&L report..."
 	poetry run python scripts/pnl_report.py
 
+# Export daily P&L to local Excel file (OneDrive)
+# Usage: make pnl-excel
+pnl-excel:
+	@echo "📊 Exporting daily P&L to Excel..."
+	poetry run python scripts/pnl_report.py --excel
+
 quantstats:
 	@echo "📊 Generating QuantStats per-strategy reports..."
 	@STAGE=$${stage:-prod}; \

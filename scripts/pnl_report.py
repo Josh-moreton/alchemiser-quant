@@ -6,8 +6,7 @@ Detailed P&L report with deposit adjustments.
 Pulls Alpaca portfolio history with cashflow data in a SINGLE API call,
 then generates weekly and monthly P&L reports in dollars and percentages.
 
-Optional Notion integration: Add --notion flag to push daily records to a Notion database.
-Requires NOTION_TOKEN and NOTION_DATABASE_ID environment variables.
+Optional Excel export: Add --excel flag to export daily records to an Excel file.
 """
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ from __future__ import annotations
 import _setup_imports  # noqa: F401
 
 import argparse
-import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -24,7 +22,7 @@ from typing import Any, Callable, NamedTuple
 import requests
 from dotenv import load_dotenv
 
-# Load .env file before importing modules that use os.getenv
+# Load .env file before importing modules that use environment variables
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
 
@@ -433,163 +431,6 @@ def print_summary(records: list[DailyRecord], deposits_by_date: dict[str, Decima
     print()
 
 
-def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: str) -> None:
-    """Push daily P&L records to a Notion database.
-
-    Creates or updates pages in the Notion database. Uses date as the unique
-    identifier to prevent duplicates on re-runs.
-
-    Expected Notion database properties:
-    - Date (date): The trading date
-    - Equity (number): End-of-day equity
-    - P&L ($) (number): Adjusted P&L in dollars
-    - P&L (%) (number): P&L as percentage
-    - Raw P&L (number): Raw P&L from Alpaca (before deposit adjustment)
-    - Deposits (number): Deposits that settled on this day
-
-    Args:
-        records: List of DailyRecord objects
-        database_id: Notion database ID
-        notion_token: Notion integration token
-
-    """
-    print_section_header("NOTION EXPORT")
-
-    # Use direct API calls for reliability
-    headers = {
-        "Authorization": f"Bearer {notion_token}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28",
-    }
-    base_url = "https://api.notion.com/v1"
-
-    # Required properties we need
-    required_props = {
-        "Date": {"date": {}},
-        "Equity": {"number": {"format": "dollar"}},
-        "P&L ($)": {"number": {"format": "dollar"}},
-        "P&L (%)": {"number": {"format": "percent"}},
-        "Raw P&L": {"number": {"format": "dollar"}},
-        "Deposits": {"number": {"format": "dollar"}},
-        "Withdrawals": {"number": {"format": "dollar"}},
-    }
-
-    print("  Checking database schema...")
-    try:
-        # Retrieve database to check existing properties
-        resp = requests.get(f"{base_url}/databases/{database_id}", headers=headers, timeout=30)
-        resp.raise_for_status()
-        db_info = resp.json()
-        existing_props = set(db_info.get("properties", {}).keys())
-        missing_props = {k: v for k, v in required_props.items() if k not in existing_props}
-
-        if missing_props:
-            print(f"  Adding missing properties: {list(missing_props.keys())}")
-            update_resp = requests.patch(
-                f"{base_url}/databases/{database_id}",
-                headers=headers,
-                json={"properties": missing_props},
-                timeout=30,
-            )
-            update_resp.raise_for_status()
-            print("  Database schema updated.")
-        else:
-            print("  All required properties exist.")
-    except Exception as e:
-        print(f"  Warning: Could not update database schema: {e}")
-        print("  Continuing anyway - pages may fail if properties don't exist.")
-
-    # Filter to only active days (equity > 0)
-    active_records = [r for r in records if r.equity > 0]
-    print(f"  Pushing {len(active_records)} daily records to Notion...")
-
-    # Query existing pages to find duplicates by date
-    existing_dates: set[str] = set()
-    try:
-        has_more = True
-        start_cursor = None
-        while has_more:
-            query_body: dict[str, Any] = {}
-            if start_cursor:
-                query_body["start_cursor"] = start_cursor
-
-            resp = requests.post(
-                f"{base_url}/databases/{database_id}/query",
-                headers=headers,
-                json=query_body,
-                timeout=30,
-            )
-            resp.raise_for_status()
-            results = resp.json()
-
-            for page in results.get("results", []):
-                props = page.get("properties", {})
-                date_prop = props.get("Date", {})
-                if date_prop.get("date") and date_prop["date"].get("start"):
-                    existing_dates.add(date_prop["date"]["start"])
-
-            has_more = results.get("has_more", False)
-            start_cursor = results.get("next_cursor")
-
-        print(f"  Found {len(existing_dates)} existing records in Notion.")
-    except Exception as e:
-        print(f"  Warning: Could not query existing pages: {e}")
-
-    created = 0
-    skipped = 0
-    errors = 0
-
-    for rec in active_records:
-        if rec.date in existing_dates:
-            skipped += 1
-            continue
-
-        # Calculate P&L percentage
-        start_equity = rec.equity - rec.adjusted_pnl
-        pnl_pct = float(rec.adjusted_pnl / start_equity * 100) if start_equity != 0 else 0.0
-
-        try:
-            page_data = {
-                "parent": {"database_id": database_id},
-                "properties": {
-                    "Date": {"date": {"start": rec.date}},
-                    "Equity": {"number": float(rec.equity)},
-                    "P&L ($)": {"number": float(rec.adjusted_pnl)},
-                    "P&L (%)": {"number": round(pnl_pct / 100, 4)},  # Notion expects decimal for percent
-                    "Raw P&L": {"number": float(rec.raw_pnl)},
-                    "Deposits": {"number": float(rec.deposit)},
-                    "Withdrawals": {"number": float(rec.withdrawal)},
-                },
-            }
-            resp = requests.post(
-                f"{base_url}/pages",
-                headers=headers,
-                json=page_data,
-                timeout=30,
-            )
-            resp.raise_for_status()
-            created += 1
-        except requests.exceptions.HTTPError as e:
-            errors += 1
-            if errors <= 3:
-                error_detail = e.response.json().get("message", str(e)) if e.response else str(e)
-                print(f"  Error creating page for {rec.date}: {error_detail}")
-            elif errors == 4:
-                print("  ... (suppressing further errors)")
-        except Exception as e:
-            errors += 1
-            if errors <= 3:
-                print(f"  Error creating page for {rec.date}: {e}")
-            elif errors == 4:
-                print("  ... (suppressing further errors)")
-
-    print(f"  Created: {created} records")
-    print(f"  Skipped (existing): {skipped} records")
-    if errors > 0:
-        print(f"  Errors: {errors}")
-    print()
-
-
 def push_to_excel(
     records: list[DailyRecord],
     excel_path: str | Path,
@@ -622,17 +463,26 @@ def push_to_excel(
     existing_dates: set[str] = set()
     existing_df: pd.DataFrame | None = None
 
+    sheet_name = "pnlTable"
+
     if excel_path.exists():
         try:
-            existing_df = pd.read_excel(excel_path, engine="openpyxl")
+            existing_df = pd.read_excel(excel_path, sheet_name=sheet_name, engine="openpyxl")
             if "Date" in existing_df.columns:
                 # Convert Date column to string format for comparison
                 existing_df["Date"] = pd.to_datetime(existing_df["Date"]).dt.strftime("%Y-%m-%d")
                 existing_dates = set(existing_df["Date"].tolist())
-            print(f"  Found {len(existing_dates)} existing records in Excel file.")
+            print(f"  Found {len(existing_dates)} existing records in sheet '{sheet_name}'.")
+        except ValueError as e:
+            # Sheet doesn't exist in the file
+            if "Worksheet" in str(e):
+                print(f"  Sheet '{sheet_name}' not found, will create it.")
+            else:
+                print(f"  Warning: Could not read existing file: {e}")
+                print("  Will create new sheet.")
         except Exception as e:
             print(f"  Warning: Could not read existing file: {e}")
-            print("  Will create new file.")
+            print("  Will create new sheet.")
     else:
         print("  Excel file does not exist, will create new file.")
         # Ensure parent directory exists
@@ -694,7 +544,7 @@ def push_to_excel(
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            combined_df.to_excel(excel_path, index=False, engine="openpyxl")
+            combined_df.to_excel(excel_path, sheet_name=sheet_name, index=False, engine="openpyxl")
             print(f"  Successfully wrote {len(combined_df)} total records to Excel.")
             print(f"  File: {excel_path}")
             break
@@ -715,11 +565,6 @@ def push_to_excel(
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Alpaca P&L Report with deposit adjustments")
-    parser.add_argument(
-        "--notion",
-        action="store_true",
-        help="Push daily records to Notion database (requires NOTION_TOKEN and NOTION_DATABASE_ID)",
-    )
     parser.add_argument(
         "--period",
         default="1A",
@@ -788,17 +633,6 @@ def main() -> None:
     print_period_report(monthly_data, "Monthly")
 
     print_summary(records, deposits_by_date)
-
-    # Notion export if requested
-    if args.notion:
-        notion_token = os.environ.get("NOTION_TOKEN")
-        database_id = os.environ.get("NOTION_DATABASE_ID")
-
-        if not notion_token or not database_id:
-            print("ERROR: --notion flag requires NOTION_TOKEN and NOTION_DATABASE_ID in .env")
-            return
-
-        push_to_notion(records, database_id, notion_token)
 
     # Excel export if requested
     if args.excel:

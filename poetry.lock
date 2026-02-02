@@ -2327,21 +2327,6 @@ files = [
 ]
 
 [[package]]
-name = "notion-client"
-version = "2.7.0"
-description = "Python client for the official Notion API"
-optional = false
-python-versions = "<4,>=3.8"
-groups = ["main"]
-files = [
-    {file = "notion_client-2.7.0-py2.py3-none-any.whl", hash = "sha256:9057a8ac2103ff245556c2a5102bde1d2ccdd3505f66bcc130fc31857731d91e"},
-    {file = "notion_client-2.7.0.tar.gz", hash = "sha256:31bde3ae03ede77650cadce136152916efdd86579ff65f49fc6705fbe462e2fb"},
-]
-
-[package.dependencies]
-httpx = ">=0.23.0"
-
-[[package]]
 name = "numpy"
 version = "1.26.4"
 description = "Fundamental package for array computing in Python"
@@ -4154,4 +4139,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0.0"
-content-hash = "81adaf79553cb40f23c35f3422ac57b9e3ba06b3c8f98f0ccd8737f1a7913cea"
+content-hash = "cc6a2039fd417a247bc9e2996d190dcf6e2d6f16111f2eeff706b5737044d43f"
