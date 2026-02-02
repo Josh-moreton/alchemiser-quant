@@ -766,6 +766,146 @@ class AlpacaAccountService:
             pos.get("symbol") if isinstance(pos, dict) else None
         )
 
+    def get_portfolio_history_with_cashflow(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        timeframe: str = "1D",
+        period: str | None = None,
+        pnl_reset: str = "per_day",
+        intraday_reporting: str = "market_hours",
+        cashflow_types: str = "CSD,CSW",
+        api_key: str | None = None,
+        secret_key: str | None = None,
+        *,
+        paper: bool = False,
+    ) -> dict[str, Any] | None:
+        """Get portfolio history with cashflow data (deposits/withdrawals) in a single API call.
+
+        This method uses the Alpaca portfolio history API with cashflow_types parameter
+        to retrieve equity, P&L, AND cash movements in one request. The cashflow arrays
+        are aligned 1:1 with the timestamp array.
+
+        Args:
+            start_date: Start date (ISO format YYYY-MM-DD)
+            end_date: End date (ISO format YYYY-MM-DD)
+            timeframe: Timeframe for data points (1D recommended for daily P&L)
+            period: Period string (1W, 1M, 3M, 1A) - alternative to start/end dates
+            pnl_reset: P&L reset mode - "per_day" for daily P&L, "no_reset" for cumulative
+            intraday_reporting: "market_hours" or "extended_hours"
+            cashflow_types: Comma-separated activity types (CSD=deposit, CSW=withdrawal)
+            api_key: Alpaca API key (falls back to environment if not provided)
+            secret_key: Alpaca secret key (falls back to environment if not provided)
+            paper: True for paper trading, False for live trading
+
+        Returns:
+            Dictionary with:
+            - timestamp: List[int] - Unix timestamps
+            - equity: List[float] - Account equity at each timestamp
+            - profit_loss: List[float] - Daily P&L (raw, before deposit adjustment)
+            - profit_loss_pct: List[float] - P&L as percentage
+            - base_value: float - Starting equity for the period
+            - base_value_asof: str - Date of base value
+            - timeframe: str - Timeframe used
+            - cashflow: Dict[str, List[float]] - Cashflow by type (e.g., {"CSD": [...], "CSW": [...]})
+              Each array is aligned with timestamp array (0 for days without activity)
+
+        Note:
+            The SDK (alpaca-py 0.43.2) does not support cashflow_types parameter,
+            so this method uses raw HTTP requests similar to get_non_trade_activities().
+
+        """
+        import requests as http_requests
+
+        try:
+            # Determine base URL based on paper/live mode
+            base_url = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
+
+            # Use passed credentials or fall back to environment
+            if not api_key or not secret_key:
+                import os
+
+                api_key = os.environ.get("ALPACA_KEY") or os.environ.get("APCA_API_KEY_ID")
+                secret_key = os.environ.get("ALPACA_SECRET") or os.environ.get(
+                    "APCA_API_SECRET_KEY"
+                )
+
+            if not api_key or not secret_key:
+                logger.warning(
+                    "Could not get API keys for portfolio history with cashflow",
+                    module="alpaca_account_service",
+                )
+                return None
+
+            headers = {
+                "accept": "application/json",
+                "APCA-API-KEY-ID": str(api_key),
+                "APCA-API-SECRET-KEY": str(secret_key),
+            }
+
+            params: dict[str, str] = {
+                "timeframe": timeframe,
+                "pnl_reset": pnl_reset,
+                "intraday_reporting": intraday_reporting,
+                "cashflow_types": cashflow_types,
+            }
+
+            if period:
+                params["period"] = period
+            else:
+                if start_date:
+                    params["start"] = start_date
+                if end_date:
+                    params["end"] = end_date
+
+            response = http_requests.get(
+                f"{base_url}/v2/account/portfolio/history",
+                headers=headers,
+                params=params,
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract and return structured response
+            result: dict[str, Any] = {
+                "timestamp": data.get("timestamp", []),
+                "equity": data.get("equity", []),
+                "profit_loss": data.get("profit_loss", []),
+                "profit_loss_pct": data.get("profit_loss_pct", []),
+                "base_value": data.get("base_value"),
+                "base_value_asof": data.get("base_value_asof"),
+                "timeframe": timeframe,
+                "cashflow": data.get("cashflow", {}),
+            }
+
+            logger.debug(
+                "Retrieved portfolio history with cashflow",
+                data_points=len(result["timestamp"]),
+                cashflow_types=list(result["cashflow"].keys()) if result["cashflow"] else [],
+                module="alpaca_account_service",
+            )
+
+            return result
+
+        except http_requests.exceptions.RequestException as e:
+            logger.error(
+                "Failed to get portfolio history with cashflow due to HTTP error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                "Failed to get portfolio history with cashflow due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                module="alpaca_account_service",
+                exc_info=True,
+            )
+            return None
+
     def _extract_position_quantity(self, pos: Position | dict[str, Any]) -> float | None:
         """Extract quantity from position object, preferring qty_available."""
         # Use qty_available if available, fallback to qty for compatibility
