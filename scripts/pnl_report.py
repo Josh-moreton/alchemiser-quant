@@ -143,12 +143,15 @@ def build_daily_records(data: dict[str, Any]) -> tuple[list[DailyRecord], dict[s
 
     The cashflow arrays (CSD, CSW) are aligned 1:1 with timestamps.
 
-    Key insight: Alpaca's equity includes deposits, but deposits settle T+1.
-    A deposit made on day D appears in equity on the next trading day.
+    Key insight: Alpaca's profit_loss field gets inflated on the day a deposit settles.
+    The inflated P&L appears on the day the deposit settles (typically the next trading day
+    after the deposit is made, or Monday for weekend deposits).
 
-    To get true trading P&L:
-    - Calculate equity change from previous trading day
-    - Subtract deposits that settled today (made on prev trading day or weekend days before today)
+    Algorithm:
+    1. Build raw records from Alpaca data
+    2. For each deposit, scan that day and prior few days to find the inflated P&L
+    3. Match using 15% tolerance: find a P&L that's within 15% of the deposit amount
+    4. Subtract the deposit from the matched day's raw P&L
 
     Returns:
         Tuple of (daily_records, deposits_by_date)
@@ -169,50 +172,79 @@ def build_daily_records(data: dict[str, Any]) -> tuple[list[DailyRecord], dict[s
     while len(csw_values) < len(timestamps):
         csw_values.append(0)
 
-    # Build list of all trading dates and deposits_by_date
+    # Build list of all trading dates
     all_dates = [format_ts(ts) for ts in timestamps]
-    all_trading_days = set(all_dates)
 
-    # Build deposits_by_date from cashflow array
-    deposits_by_date: dict[str, Decimal] = {}
+    # Build deposits_by_index from cashflow array
+    deposits_by_index: dict[int, Decimal] = {}
     for i, date_str in enumerate(all_dates):
         if csd_values[i] != 0:
-            deposits_by_date[date_str] = Decimal(str(csd_values[i]))
+            deposits_by_index[i] = Decimal(str(csd_values[i]))
 
+    # Build raw P&L values indexed
+    raw_pnl_values = [Decimal(str(pl)) for pl in profit_losses]
+
+    # Track which deposit was matched to which day's adjustment
+    deposit_adjustments: dict[int, Decimal] = {}  # day_index -> deposit_to_subtract
+
+    # For each deposit, find the day with inflated P&L
+    lookback_days = 3  # Check deposit day and up to 3 prior days
+    tolerance = 0.15  # 15% tolerance for matching
+
+    for deposit_idx, deposit_amount in deposits_by_index.items():
+        best_match_idx = None
+        best_match_diff = float("inf")
+
+        # Check the deposit day and prior days
+        for offset in range(lookback_days + 1):
+            check_idx = deposit_idx - offset
+            if check_idx < 0:
+                break
+
+            raw_pnl = raw_pnl_values[check_idx]
+
+            # Check if this P&L is close to the deposit amount (within tolerance)
+            # We're looking for a P&L that's approximately equal to the deposit
+            # (because the "gain" is actually just the deposit settling)
+            diff = abs(float(raw_pnl) - float(deposit_amount))
+            relative_diff = diff / float(deposit_amount) if deposit_amount != 0 else float("inf")
+
+            if relative_diff <= tolerance and diff < best_match_diff:
+                best_match_idx = check_idx
+                best_match_diff = diff
+
+        if best_match_idx is not None:
+            # Found a match - record the adjustment for that day
+            if best_match_idx in deposit_adjustments:
+                deposit_adjustments[best_match_idx] += deposit_amount
+            else:
+                deposit_adjustments[best_match_idx] = deposit_amount
+
+    # Build final records
     records = []
+    deposits_by_date: dict[str, Decimal] = {}
 
     for i, ts in enumerate(timestamps):
         date_str = format_ts(ts)
         equity = Decimal(str(equities[i]))
-        raw_pnl = Decimal(str(profit_losses[i]))
+        raw_pnl = raw_pnl_values[i]
         withdrawal_today = abs(Decimal(str(csw_values[i]))) if csw_values[i] else Decimal("0")
 
-        # Get all calendar days where deposits would settle today
-        deposit_settled_today = Decimal("0")
-        if i > 0:
-            prev_trading_day = all_dates[i - 1]
-            # Deposits made between prev trading day and today settle today
-            days_to_check = get_deposit_dates_for_settlement(
-                prev_trading_day, date_str, all_trading_days
-            )
-            for d in days_to_check:
-                if d in deposits_by_date:
-                    deposit_settled_today += deposits_by_date[d]
+        # Get deposit that was recorded on this day (for display)
+        deposit_on_this_day = Decimal(str(csd_values[i])) if csd_values[i] != 0 else Decimal("0")
+        if deposit_on_this_day != 0:
+            deposits_by_date[date_str] = deposit_on_this_day
 
-            prev_equity = Decimal(str(equities[i - 1]))
-            equity_change = equity - prev_equity
-            # True trading P&L = equity change minus deposits that settled
-            adjusted_pnl = equity_change - deposit_settled_today
-        else:
-            # First day - no previous data to compare
-            adjusted_pnl = raw_pnl
+        # Adjust P&L if this day was matched to a deposit
+        adjustment = deposit_adjustments.get(i, Decimal("0"))
+        adjusted_pnl = raw_pnl - adjustment
 
         records.append(
             DailyRecord(
                 date=date_str,
                 equity=equity,
                 raw_pnl=raw_pnl,
-                deposit=deposit_settled_today,
+                deposit=deposit_on_this_day,  # Show deposit on the day it was recorded
                 withdrawal=withdrawal_today,
                 adjusted_pnl=adjusted_pnl,
             )
@@ -420,35 +452,90 @@ def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: s
         notion_token: Notion integration token
 
     """
-    try:
-        from notion_client import Client
-    except ImportError:
-        print("ERROR: notion-client package not installed. Run: poetry add notion-client")
-        return
-
     print_section_header("NOTION EXPORT")
 
-    notion = Client(auth=notion_token)
+    # Use direct API calls for reliability
+    headers = {
+        "Authorization": f"Bearer {notion_token}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28",
+    }
+    base_url = "https://api.notion.com/v1"
+
+    # Required properties we need
+    required_props = {
+        "Date": {"date": {}},
+        "Equity": {"number": {"format": "dollar"}},
+        "P&L ($)": {"number": {"format": "dollar"}},
+        "P&L (%)": {"number": {"format": "percent"}},
+        "Raw P&L": {"number": {"format": "dollar"}},
+        "Deposits": {"number": {"format": "dollar"}},
+    }
+
+    print("  Checking database schema...")
+    try:
+        # Retrieve database to check existing properties
+        resp = requests.get(f"{base_url}/databases/{database_id}", headers=headers, timeout=30)
+        resp.raise_for_status()
+        db_info = resp.json()
+        existing_props = set(db_info.get("properties", {}).keys())
+        missing_props = {k: v for k, v in required_props.items() if k not in existing_props}
+
+        if missing_props:
+            print(f"  Adding missing properties: {list(missing_props.keys())}")
+            update_resp = requests.patch(
+                f"{base_url}/databases/{database_id}",
+                headers=headers,
+                json={"properties": missing_props},
+                timeout=30,
+            )
+            update_resp.raise_for_status()
+            print("  Database schema updated.")
+        else:
+            print("  All required properties exist.")
+    except Exception as e:
+        print(f"  Warning: Could not update database schema: {e}")
+        print("  Continuing anyway - pages may fail if properties don't exist.")
 
     # Filter to only active days (equity > 0)
     active_records = [r for r in records if r.equity > 0]
     print(f"  Pushing {len(active_records)} daily records to Notion...")
 
-    # First, query existing pages to find duplicates by date
+    # Query existing pages to find duplicates by date
     existing_dates: set[str] = set()
     try:
-        # Query all pages in the database
-        results = notion.databases.query(database_id=database_id)
-        for page in results.get("results", []):
-            props = page.get("properties", {})
-            date_prop = props.get("Date", {})
-            if date_prop.get("date") and date_prop["date"].get("start"):
-                existing_dates.add(date_prop["date"]["start"])
+        has_more = True
+        start_cursor = None
+        while has_more:
+            query_body: dict[str, Any] = {}
+            if start_cursor:
+                query_body["start_cursor"] = start_cursor
+
+            resp = requests.post(
+                f"{base_url}/databases/{database_id}/query",
+                headers=headers,
+                json=query_body,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            results = resp.json()
+
+            for page in results.get("results", []):
+                props = page.get("properties", {})
+                date_prop = props.get("Date", {})
+                if date_prop.get("date") and date_prop["date"].get("start"):
+                    existing_dates.add(date_prop["date"]["start"])
+
+            has_more = results.get("has_more", False)
+            start_cursor = results.get("next_cursor")
+
+        print(f"  Found {len(existing_dates)} existing records in Notion.")
     except Exception as e:
         print(f"  Warning: Could not query existing pages: {e}")
 
     created = 0
     skipped = 0
+    errors = 0
 
     for rec in active_records:
         if rec.date in existing_dates:
@@ -460,23 +547,43 @@ def push_to_notion(records: list[DailyRecord], database_id: str, notion_token: s
         pnl_pct = float(rec.adjusted_pnl / start_equity * 100) if start_equity != 0 else 0.0
 
         try:
-            notion.pages.create(
-                parent={"database_id": database_id},
-                properties={
+            page_data = {
+                "parent": {"database_id": database_id},
+                "properties": {
                     "Date": {"date": {"start": rec.date}},
                     "Equity": {"number": float(rec.equity)},
                     "P&L ($)": {"number": float(rec.adjusted_pnl)},
-                    "P&L (%)": {"number": round(pnl_pct, 4)},
+                    "P&L (%)": {"number": round(pnl_pct / 100, 4)},  # Notion expects decimal for percent
                     "Raw P&L": {"number": float(rec.raw_pnl)},
                     "Deposits": {"number": float(rec.deposit)},
                 },
+            }
+            resp = requests.post(
+                f"{base_url}/pages",
+                headers=headers,
+                json=page_data,
+                timeout=30,
             )
+            resp.raise_for_status()
             created += 1
+        except requests.exceptions.HTTPError as e:
+            errors += 1
+            if errors <= 3:
+                error_detail = e.response.json().get("message", str(e)) if e.response else str(e)
+                print(f"  Error creating page for {rec.date}: {error_detail}")
+            elif errors == 4:
+                print("  ... (suppressing further errors)")
         except Exception as e:
-            print(f"  Error creating page for {rec.date}: {e}")
+            errors += 1
+            if errors <= 3:
+                print(f"  Error creating page for {rec.date}: {e}")
+            elif errors == 4:
+                print("  ... (suppressing further errors)")
 
     print(f"  Created: {created} records")
     print(f"  Skipped (existing): {skipped} records")
+    if errors > 0:
+        print(f"  Errors: {errors}")
     print()
 
 
