@@ -276,6 +276,12 @@ pnl-excel:
 	@echo "📊 Exporting daily P&L to Excel..."
 	poetry run python scripts/pnl_report.py --excel
 
+# Run P&L dashboard locally
+# Usage: make pnl-dashboard
+pnl-dashboard:
+	@echo "📊 Starting P&L dashboard..."
+	poetry run streamlit run scripts/pnl_dashboard.py
+
 quantstats:
 	@echo "📊 Generating QuantStats per-strategy reports..."
 	@STAGE=$${stage:-prod}; \
