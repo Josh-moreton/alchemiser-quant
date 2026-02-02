@@ -12,6 +12,9 @@ from __future__ import annotations
 import calendar
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
+
+import requests
 
 from the_alchemiser.shared.brokers.alpaca_manager import (
     AlpacaManager,
@@ -27,6 +30,10 @@ logger = get_logger(__name__)
 
 # Constants
 PERCENTAGE_MULTIPLIER: Decimal = Decimal("100")
+# Deposit-adjustment algorithm constants
+DEPOSIT_LOOKBACK_DAYS: int = 3  # Check deposit day and up to 3 prior days
+DEPOSIT_TOLERANCE: float = 0.15  # 15% tolerance for matching deposits to inflated P&L
+ALPACA_LIVE_API_URL: str = "https://api.alpaca.markets/v2/account/portfolio/history"
 
 
 class PnLService:
@@ -765,3 +772,264 @@ class PnLService:
             pnl_pct_str = f"({day_data.profit_loss_pct:+.2f}%)"
             lines.append(f"{day_data.date}: ${day_data.equity:,.2f} | P&L: {pnl_str} {pnl_pct_str}")
         return lines
+
+    # ========================================================================
+    # DEPOSIT-ADJUSTED P&L METHODS
+    # ========================================================================
+    # These methods provide true trading P&L by detecting and subtracting
+    # deposits that inflate Alpaca's raw profit_loss values on settlement days.
+
+    def get_all_daily_records(
+        self, period: str = "1A"
+    ) -> tuple[list[DailyPnLEntry], dict[str, Decimal]]:
+        """Get all daily P&L records with deposit adjustments.
+
+        Uses the cashflow_types API parameter to get deposits/withdrawals aligned
+        with timestamps, then applies a tolerance-matching algorithm to subtract
+        deposit amounts from inflated P&L days.
+
+        Args:
+            period: Alpaca period string (1W, 1M, 3M, 1A). Default is 1A (1 year).
+
+        Returns:
+            Tuple of (daily_records, deposits_by_date):
+            - daily_records: List of DailyPnLEntry with deposit-adjusted profit_loss
+            - deposits_by_date: Dict mapping date strings to deposit amounts
+
+        Raises:
+            ConfigurationError: If API keys are not configured.
+            DataProviderError: If Alpaca API call fails.
+
+        """
+        api_key, secret_key, _ = get_alpaca_keys()
+        if not api_key or not secret_key:
+            raise ConfigurationError(
+                "Alpaca API keys not found in configuration",
+                config_key="ALPACA_KEY/ALPACA_SECRET",
+            )
+
+        data = self._fetch_portfolio_history_with_cashflow(api_key, secret_key, period)
+        return self._build_deposit_adjusted_records(data)
+
+    def _fetch_portfolio_history_with_cashflow(
+        self, api_key: str, secret_key: str, period: str = "1A"
+    ) -> dict[str, Any]:
+        """Fetch portfolio history WITH cashflow data in a single API call.
+
+        Uses the cashflow_types parameter to get deposits (CSD) and withdrawals (CSW)
+        aligned with the timestamp array.
+
+        Args:
+            api_key: Alpaca API key.
+            secret_key: Alpaca secret key.
+            period: Period string (1W, 1M, 3M, 1A).
+
+        Returns:
+            Dictionary with timestamp, equity, profit_loss, profit_loss_pct,
+            base_value, and cashflow arrays.
+
+        Raises:
+            DataProviderError: If API call fails.
+
+        """
+        headers = {
+            "APCA-API-KEY-ID": api_key,
+            "APCA-API-SECRET-KEY": secret_key,
+            "accept": "application/json",
+        }
+        params = {
+            "period": period,
+            "timeframe": "1D",
+            "intraday_reporting": "market_hours",
+            "pnl_reset": "per_day",
+            "cashflow_types": "CSD,CSW",  # Include deposits and withdrawals
+        }
+
+        try:
+            resp = requests.get(
+                ALPACA_LIVE_API_URL, headers=headers, params=params, timeout=30
+            )
+            resp.raise_for_status()
+            result: dict[str, Any] = resp.json()
+            return result
+        except requests.RequestException as e:
+            logger.error(
+                "Failed to fetch portfolio history with cashflow",
+                error=str(e),
+                period=period,
+                correlation_id=self._correlation_id,
+                module="pnl_service",
+            )
+            raise DataProviderError(
+                f"Failed to fetch Alpaca portfolio history: {e}",
+                context={"period": period, "correlation_id": self._correlation_id},
+            ) from e
+
+    def _build_deposit_adjusted_records(
+        self, data: dict[str, Any]
+    ) -> tuple[list[DailyPnLEntry], dict[str, Decimal]]:
+        """Build daily records with deposit-adjusted P&L from unified API response.
+
+        Key insight: Alpaca's profit_loss field gets inflated on the day a deposit
+        settles. The inflated P&L appears on the day the deposit settles (typically
+        the next trading day after the deposit is made, or Monday for weekend deposits).
+
+        Algorithm:
+        1. Build raw records from Alpaca data
+        2. For each deposit, scan that day and prior few days to find the inflated P&L
+        3. Match using 15% tolerance: find a P&L that's within 15% of the deposit amount
+        4. Subtract the deposit from the matched day's raw P&L
+
+        Args:
+            data: Raw API response with timestamp, equity, profit_loss, and cashflow.
+
+        Returns:
+            Tuple of (daily_records, deposits_by_date).
+
+        """
+        timestamps = data.get("timestamp", [])
+        equities = data.get("equity", [])
+        profit_losses = data.get("profit_loss", [])
+        cashflow = data.get("cashflow", {})
+
+        # Extract cashflow arrays (aligned with timestamps, default to zeros)
+        csd_values = cashflow.get("CSD", [0] * len(timestamps))
+        csw_values = cashflow.get("CSW", [0] * len(timestamps))
+
+        # Pad arrays if shorter than timestamps
+        while len(csd_values) < len(timestamps):
+            csd_values.append(0)
+        while len(csw_values) < len(timestamps):
+            csw_values.append(0)
+
+        # Build list of all trading dates
+        all_dates = [self._format_timestamp(ts) for ts in timestamps]
+
+        # Build deposits_by_index from cashflow array
+        deposits_by_index: dict[int, Decimal] = {}
+        for i, _ in enumerate(all_dates):
+            if csd_values[i] != 0:
+                deposits_by_index[i] = Decimal(str(csd_values[i]))
+
+        # Build raw P&L values indexed
+        raw_pnl_values = [Decimal(str(pl)) for pl in profit_losses]
+
+        # Track which deposit was matched to which day's adjustment
+        deposit_adjustments: dict[int, Decimal] = {}
+
+        # For each deposit, find the day with inflated P&L
+        for deposit_idx, deposit_amount in deposits_by_index.items():
+            best_match_idx = None
+            best_match_diff = float("inf")
+
+            # Check the deposit day and prior days
+            for offset in range(DEPOSIT_LOOKBACK_DAYS + 1):
+                check_idx = deposit_idx - offset
+                if check_idx < 0:
+                    break
+
+                raw_pnl = raw_pnl_values[check_idx]
+
+                # Check if this P&L is close to the deposit amount (within tolerance)
+                diff = abs(float(raw_pnl) - float(deposit_amount))
+                relative_diff = (
+                    diff / float(deposit_amount) if deposit_amount != 0 else float("inf")
+                )
+
+                if relative_diff <= DEPOSIT_TOLERANCE and diff < best_match_diff:
+                    best_match_idx = check_idx
+                    best_match_diff = diff
+
+            if best_match_idx is not None:
+                # Found a match - record the adjustment for that day
+                if best_match_idx in deposit_adjustments:
+                    deposit_adjustments[best_match_idx] += deposit_amount
+                else:
+                    deposit_adjustments[best_match_idx] = deposit_amount
+
+        # Build final records
+        records: list[DailyPnLEntry] = []
+        deposits_by_date: dict[str, Decimal] = {}
+
+        for i, ts in enumerate(timestamps):
+            date_str = self._format_timestamp(ts)
+            equity = Decimal(str(equities[i]))
+            raw_pnl = raw_pnl_values[i]
+            withdrawal_today = (
+                abs(Decimal(str(csw_values[i]))) if csw_values[i] else Decimal("0")
+            )
+
+            # Get deposit that was recorded on this day (for display)
+            deposit_on_this_day = (
+                Decimal(str(csd_values[i])) if csd_values[i] != 0 else Decimal("0")
+            )
+            if deposit_on_this_day != 0:
+                deposits_by_date[date_str] = deposit_on_this_day
+
+            # Adjust P&L if this day was matched to a deposit
+            adjustment = deposit_adjustments.get(i, Decimal("0"))
+            adjusted_pnl = raw_pnl - adjustment
+
+            # Calculate percentage based on start-of-day equity
+            start_equity = equity - adjusted_pnl
+            pnl_pct = (
+                (adjusted_pnl / start_equity * PERCENTAGE_MULTIPLIER)
+                if start_equity != 0
+                else Decimal("0")
+            )
+
+            records.append(
+                DailyPnLEntry(
+                    date=date_str,
+                    equity=equity,
+                    profit_loss=adjusted_pnl,
+                    profit_loss_pct=pnl_pct,
+                    deposit=deposit_on_this_day if deposit_on_this_day != 0 else None,
+                    withdrawal=withdrawal_today if withdrawal_today != 0 else None,
+                )
+            )
+
+        return records, deposits_by_date
+
+    @staticmethod
+    def _format_timestamp(ts: int) -> str:
+        """Convert Unix timestamp to YYYY-MM-DD."""
+        return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def aggregate_by_month(
+        daily_records: list[DailyPnLEntry],
+    ) -> dict[str, dict[str, Decimal]]:
+        """Aggregate daily records by month for summary tables.
+
+        Args:
+            daily_records: List of daily P&L entries.
+
+        Returns:
+            Dict mapping month keys (YYYY-MM) to aggregated data:
+            - total_pnl: Sum of adjusted P&L for the month
+            - end_equity: Last day's equity
+            - total_deposits: Sum of deposits in the month
+
+        """
+        months: dict[str, dict[str, Decimal]] = {}
+
+        for rec in daily_records:
+            # Skip days with zero equity (inactive)
+            if rec.equity <= 0:
+                continue
+
+            month_key = rec.date[:7]  # YYYY-MM
+
+            if month_key not in months:
+                months[month_key] = {
+                    "total_pnl": Decimal("0"),
+                    "end_equity": Decimal("0"),
+                    "total_deposits": Decimal("0"),
+                }
+
+            months[month_key]["total_pnl"] += rec.profit_loss
+            months[month_key]["end_equity"] = rec.equity
+            months[month_key]["total_deposits"] += rec.deposit or Decimal("0")
+
+        return months
