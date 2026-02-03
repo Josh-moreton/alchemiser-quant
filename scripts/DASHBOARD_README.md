@@ -74,25 +74,103 @@ AWS_REGION=us-east-1
 
 ### Deployment to Streamlit Cloud
 
-1. **Push to GitHub**: The dashboard code is already in the repository
+The dashboard is designed for **production data only** (not dev). It requires:
+- AWS credentials (read-only IAM user created by CloudFormation)
+- Alpaca API credentials (production account)
+- User authentication (bcrypt-hashed passwords)
 
-2. **Connect to Streamlit Cloud**:
-   - Visit [share.streamlit.io](https://share.streamlit.io)
-   - Connect your GitHub account
-   - Select this repository
-   - Set main file: `scripts/dashboard.py`
+#### Step 1: Deploy the Production Stack
 
-3. **Configure Secrets**:
-   In Streamlit Cloud's app settings, add your secrets:
-   ```toml
-   [default]
-   ALPACA_KEY = "your_api_key"
-   ALPACA_SECRET = "your_secret_key"
-   ALPACA_ENDPOINT = "https://api.alpaca.markets"
-   AWS_ACCESS_KEY_ID = "your_access_key"
-   AWS_SECRET_ACCESS_KEY = "your_secret_key"
-   AWS_REGION = "us-east-1"
-   ```
+The IAM user `alchemiser-dashboard-readonly` is created automatically when you deploy to prod:
+
+```bash
+make deploy  # Deploys to prod, creates IAM user
+```
+
+#### Step 2: Create IAM Access Keys
+
+1. Go to AWS IAM Console → Users → `alchemiser-dashboard-readonly`
+2. Click "Security credentials" tab
+3. Click "Create access key" → "Application running outside AWS"
+4. Copy the Access Key ID and Secret Access Key (you won't see the secret again!)
+
+#### Step 3: Generate Password Hash
+
+Generate a bcrypt hash for your login password:
+
+```bash
+python -c "import bcrypt; print(bcrypt.hashpw(b'your_password_here', bcrypt.gensalt()).decode())"
+```
+
+#### Step 4: Generate Cookie Key
+
+Generate a random key for session cookies:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(16))"
+```
+
+#### Step 5: Connect to Streamlit Cloud
+
+1. Visit [share.streamlit.io](https://share.streamlit.io)
+2. Connect your GitHub account
+3. Select this repository
+4. Set main file: `scripts/dashboard.py`
+
+#### Step 6: Configure Secrets
+
+In Streamlit Cloud → App Settings → Secrets, add:
+
+```toml
+# AWS credentials (from Step 2 - read-only IAM user)
+AWS_ACCESS_KEY_ID = "AKIA..."
+AWS_SECRET_ACCESS_KEY = "your_secret_key_here"
+AWS_REGION = "us-east-1"
+STAGE = "prod"
+
+# Alpaca API (production account)
+ALPACA_KEY = "your_alpaca_key"
+ALPACA_SECRET = "your_alpaca_secret"
+ALPACA_ENDPOINT = "https://api.alpaca.markets"
+
+# User authentication credentials
+[credentials.usernames.josh]
+email = "your@email.com"
+name = "Josh Moreton"
+password = "$2b$12$..."  # bcrypt hash from Step 3
+
+# Add more users as needed:
+# [credentials.usernames.another_user]
+# email = "another@email.com"
+# name = "Another User"
+# password = "$2b$12$..."
+
+# Session cookie configuration
+[cookie]
+name = "alchemiser_dashboard"
+key = "your_random_key_from_step_4"
+expiry_days = 30
+```
+
+#### Local Development (Skip Auth)
+
+For local development without authentication, set `SKIP_AUTH=true`:
+
+```bash
+SKIP_AUTH=true poetry run streamlit run scripts/dashboard.py
+```
+
+Or add to your `.env` file:
+```
+SKIP_AUTH=true
+```
+
+#### Security Notes
+
+- **IAM Policy**: The dashboard user has read-only access to prod DynamoDB tables and CloudWatch Logs only
+- **Password Storage**: Passwords are bcrypt-hashed, never stored in plaintext
+- **Session Cookies**: Encrypted with your cookie key, expire after configured days
+- **Access Key Rotation**: Rotate IAM access keys periodically (set a calendar reminder)
 
 ## Architecture
 
@@ -174,15 +252,20 @@ Follow the project's coding standards:
 
 ## Troubleshooting
 
+### "No recent workflow runs found"
+- **Table not found**: The DynamoDB table `alchemiser-prod-aggregation-sessions` doesn't exist. Deploy the prod stack with `make deploy`.
+- **AWS credentials invalid**: Check that AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are set correctly in Streamlit secrets.
+- **Permissions denied**: The IAM user may be missing the `AlchemiserDashboardReadOnly` policy. Check IAM console.
+- **No workflows executed**: The trading system hasn't run any workflows in prod yet.
+
+### "Authentication not configured"
+- You're running on Streamlit Cloud but haven't set up the `[credentials]` section in secrets.
+- See "Deployment to Streamlit Cloud" above for the full secrets template.
+
 ### "No trading data available"
 - Check that Alpaca credentials are correct
-- Verify you're using the correct endpoint (live vs paper)
+- Verify you're using the **production** endpoint (`https://api.alpaca.markets`, not paper)
 - Ensure the account has trading history
-
-### "No recent workflow runs found"
-- Verify DynamoDB table exists and has data
-- Check AWS credentials and region
-- Ensure the workflow has been executed at least once
 
 ### "Error loading trades"
 - Check DynamoDB permissions

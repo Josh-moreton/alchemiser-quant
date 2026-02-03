@@ -2704,6 +2704,58 @@ Resources:
           DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
+  # ========== STREAMLIT DASHBOARD IAM USER (PROD ONLY) ==========
+  # Read-only IAM user for Streamlit Cloud dashboard access to AWS resources.
+  # Access keys must be created manually via AWS console and added to Streamlit secrets.
+  # This user has minimal permissions: read-only DynamoDB and CloudWatch Logs.
+  
+  DashboardUser:
+    Type: AWS::IAM::User
+    Condition: IsProduction
+    Properties:
+      UserName: alchemiser-dashboard-readonly
+      Tags:
+        - Key: Environment
+          Value: prod
+        - Key: Purpose
+          Value: Streamlit dashboard read-only access
+
+  DashboardPolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsProduction
+    Properties:
+      PolicyName: AlchemiserDashboardReadOnly
+      Users:
+        - !Ref DashboardUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # DynamoDB read-only for prod tables
+          - Sid: DynamoDBReadProd
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:DescribeTable
+            Resource:
+              - !GetAtt TradeLedgerTable.Arn
+              - !Sub "${TradeLedgerTable.Arn}/index/*"
+              - !GetAtt AggregationSessionsTable.Arn
+              - !GetAtt RebalancePlanTable.Arn
+              - !Sub "${RebalancePlanTable.Arn}/index/*"
+              - !GetAtt ExecutionRunsTable.Arn
+          # CloudWatch Logs read-only for prod Lambda log groups
+          - Sid: CloudWatchLogsReadProd
+            Effect: Allow
+            Action:
+              - logs:FilterLogEvents
+              - logs:GetLogEvents
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/alchemiser-prod-*:*"
+
 Outputs:
   TradeLedgerTableName:
     Description: "DynamoDB table for trade ledger persistence"
@@ -2803,6 +2855,12 @@ Outputs:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "alchemiser-${Stage}" ]
 
+  DashboardUserName:
+    Description: "IAM user for Streamlit dashboard (create access keys manually in AWS console)"
+    Condition: IsProduction
+    Value: !Ref DashboardUser
+    Export:
+      Name: alchemiser-prod-DashboardUser
 
   DashboardURL:
     Description: "CloudWatch Dashboard for monitoring errors and warnings"

@@ -61,7 +61,8 @@ class DashboardSettings(BaseModel):
             DashboardSettings instance with resolved configuration.
 
         """
-        stage = os.environ.get("STAGE", os.environ.get("APP__STAGE", "dev"))
+        # Default to prod - Streamlit dashboard is production-focused
+        stage = os.environ.get("STAGE", os.environ.get("APP__STAGE", "prod"))
         region = os.environ.get("AWS_REGION", "us-east-1")
 
         # Use explicit table names if set, otherwise derive from stage

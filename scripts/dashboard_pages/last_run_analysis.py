@@ -28,10 +28,11 @@ load_dotenv(env_path)
 @st.cache_data(ttl=60)  # Cache for 1 minute
 def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
     """Get recent aggregation sessions from DynamoDB."""
+    settings = get_dashboard_settings()
+    table_name = settings.aggregation_sessions_table
+    
     try:
-        settings = get_dashboard_settings()
         dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
-        table_name = settings.aggregation_sessions_table
 
         response = dynamodb.scan(
             TableName=table_name,
@@ -67,8 +68,26 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
         sessions.sort(key=lambda x: x["created_at"], reverse=True)
         return sessions[:limit]
 
+    except dynamodb.exceptions.ResourceNotFoundException:
+        st.error(
+            f"❌ DynamoDB table `{table_name}` not found. "
+            "Ensure the prod stack is deployed and the table exists."
+        )
+        return []
     except Exception as e:
-        st.error(f"Error loading sessions: {e}")
+        error_msg = str(e)
+        if "AccessDenied" in error_msg or "not authorized" in error_msg.lower():
+            st.error(
+                "❌ AWS credentials lack DynamoDB read permissions. "
+                "Check that the IAM user has the AlchemiserDashboardReadOnly policy attached."
+            )
+        elif "credentials" in error_msg.lower() or "security token" in error_msg.lower():
+            st.error(
+                "❌ AWS credentials not configured or invalid. "
+                "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
+            )
+        else:
+            st.error(f"❌ Error loading sessions: {e}")
         return []
 
 
