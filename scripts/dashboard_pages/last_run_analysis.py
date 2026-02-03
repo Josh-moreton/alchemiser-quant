@@ -26,30 +26,21 @@ load_dotenv(env_path)
 
 
 @st.cache_data(ttl=60)  # Cache for 1 minute
-def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
-    """Get recent aggregation sessions from DynamoDB."""
-    settings = get_dashboard_settings()
-    table_name = settings.aggregation_sessions_table
-    
-    # Check credentials first and show helpful error with debug info
-    if not settings.has_aws_credentials():
-        st.error(
-            "AWS credentials not configured or invalid. "
-            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
-        )
-        # Show debug info
-        debug_info = debug_secrets_info()
-        with st.expander("🔍 Debug: Secrets Configuration", expanded=True):
-            for key, value in debug_info.items():
-                st.text(f"{key}: {value}")
-            st.caption(
-                "Expected: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY at top level of secrets.toml, "
-                "not nested under any section like [aws] or [credentials]."
-            )
-        return []
-    
+def _fetch_sessions_from_dynamo(
+    table_name: str,
+    aws_region: str,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    limit: int = 10,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Fetch sessions from DynamoDB. Returns (sessions, error_message)."""
     try:
-        dynamodb = boto3.client("dynamodb", **settings.get_boto3_client_kwargs())
+        kwargs: dict[str, Any] = {"region_name": aws_region}
+        if aws_access_key_id and aws_secret_access_key:
+            kwargs["aws_access_key_id"] = aws_access_key_id
+            kwargs["aws_secret_access_key"] = aws_secret_access_key
+        
+        dynamodb = boto3.client("dynamodb", **kwargs)
 
         response = dynamodb.scan(
             TableName=table_name,
@@ -83,24 +74,56 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
 
         # Sort by created_at descending
         sessions.sort(key=lambda x: x["created_at"], reverse=True)
-        return sessions[:limit]
+        return sessions[:limit], None
 
-    except dynamodb.exceptions.ResourceNotFoundException:
-        st.error(
-            f"DynamoDB table `{table_name}` not found. "
-            "Ensure the prod stack is deployed and the table exists."
-        )
-        return []
     except Exception as e:
         error_msg = str(e)
-        if "AccessDenied" in error_msg or "not authorized" in error_msg.lower():
-            st.error(
-                "AWS credentials lack DynamoDB read permissions. "
-                "Check that the IAM user has the AlchemiserDashboardReadOnly policy attached."
-            )
-        else:
-            st.error(f"Error loading sessions: {e}")
+        error_type = type(e).__name__
+        return [], f"{error_type}: {error_msg}"
+
+
+def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
+    """Get recent aggregation sessions from DynamoDB."""
+    settings = get_dashboard_settings()
+    table_name = settings.aggregation_sessions_table
+    
+    # Always show debug info for troubleshooting
+    debug_info = debug_secrets_info()
+    with st.expander("🔍 Debug: Configuration Info", expanded=True):
+        st.text(f"Table name: {table_name}")
+        st.text(f"AWS Region: {settings.aws_region}")
+        st.text(f"Stage: {settings.stage}")
+        st.text(f"Has credentials: {settings.has_aws_credentials()}")
+        st.text(f"Access key (first 4 chars): {settings.aws_access_key_id[:4]}..." if settings.aws_access_key_id else "Access key: NOT SET")
+        st.text(f"Secret key present: {'Yes' if settings.aws_secret_access_key else 'No'}")
+        st.divider()
+        st.caption("Secrets debug info:")
+        for key, value in debug_info.items():
+            st.text(f"  {key}: {value}")
+    
+    # Check credentials first
+    if not settings.has_aws_credentials():
+        st.error(
+            "AWS credentials not configured or invalid. "
+            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
+        )
         return []
+    
+    # Fetch from DynamoDB (cached)
+    sessions, error = _fetch_sessions_from_dynamo(
+        table_name=table_name,
+        aws_region=settings.aws_region,
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+        limit=limit,
+    )
+    
+    if error:
+        st.error(f"DynamoDB Error: {error}")
+        return []
+    
+    st.success(f"✅ Found {len(sessions)} sessions in DynamoDB")
+    return sessions
 
 
 @st.cache_data(ttl=60)
