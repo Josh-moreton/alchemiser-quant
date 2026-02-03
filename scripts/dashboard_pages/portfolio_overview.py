@@ -171,10 +171,24 @@ def show() -> None:
 
     current_equity = df["Equity"].iloc[-1]
     total_pnl = df["Cumulative P&L"].iloc[-1]
-    total_return = df["Cumulative Return (%)"].iloc[-1]
+    total_return = df["Cumulative Return (%)"].iloc[-1]  # This is TWR
     total_deposits = df["Deposits"].sum()
     today_pnl = df["P&L ($)"].iloc[-1]
     today_pct = df["P&L (%)"].iloc[-1]
+    
+    # Calculate annualized TWR (CAGR) for forward projection
+    # Uses time-weighted return which removes deposit timing effects
+    # Formula: (1 + TWR)^(1/years) - 1
+    first_date = df["Date"].iloc[0]
+    last_date = df["Date"].iloc[-1]
+    years = (last_date - first_date).days / 365.25
+    
+    if years > 0:
+        twr_decimal = total_return / 100  # Convert TWR from % to decimal
+        # Annualize the TWR - this is the proper forward projection metric
+        annualized_return = ((1 + twr_decimal) ** (1 / years) - 1) * 100
+    else:
+        annualized_return = 0.0
 
     with col1:
         st.metric("Current Equity", f"${current_equity:,.2f}")
@@ -185,8 +199,7 @@ def show() -> None:
     with col4:
         st.metric("Latest Day P&L", f"${today_pnl:+,.2f}", delta=f"{today_pct:+.2f}%")
     with col5:
-        # Calculate total trading days
-        st.metric("Trading Days", len(df))
+        st.metric("Ann. Return", f"{annualized_return:+.2f}%")
 
     st.divider()
 
