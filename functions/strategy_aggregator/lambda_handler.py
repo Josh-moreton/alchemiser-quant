@@ -6,11 +6,15 @@ The Aggregator collects partial signals from parallel Strategy Lambda
 invocations and merges them into a single SignalGenerated event that
 triggers Portfolio Lambda (preserving the existing workflow).
 
+Supports partial failure resilience: if some strategies fail, the workflow
+proceeds with the successful ones and sends an alert notification.
+
 Trigger: EventBridge rule matching PartialSignalGenerated events.
 """
 
 from __future__ import annotations
 
+import html
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -19,7 +23,11 @@ from typing import Any
 from aggregator_settings import AggregatorSettings
 from portfolio_merger import PortfolioMerger
 
-from the_alchemiser.shared.events import SignalGenerated, WorkflowFailed
+from the_alchemiser.shared.events import (
+    SignalGenerated,
+    SystemNotificationRequested,
+    WorkflowFailed,
+)
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
     unwrap_eventbridge_event,
@@ -99,6 +107,19 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         signals_data = detail.get("signals_data", {})
         signal_count = detail.get("signal_count", 0)
         data_freshness = detail.get("data_freshness", {})
+        success = detail.get("success", True)  # Default True for backward compatibility
+        error_message = detail.get("error_message")
+
+        if not success:
+            logger.warning(
+                "Received failed partial signal",
+                extra={
+                    "session_id": session_id,
+                    "correlation_id": correlation_id,
+                    "dsl_file": dsl_file,
+                    "error_message": error_message,
+                },
+            )
 
         # Store partial signal and get updated completion count
         completed_count = session_service.store_partial_signal(
@@ -109,6 +130,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             signals_data=signals_data,
             signal_count=signal_count,
             data_freshness=data_freshness,
+            success=success,
+            error_message=error_message,
         )
 
         # Get session to check total
@@ -117,6 +140,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             raise ValueError(f"Session not found: {session_id}")
 
         total_strategies = session["total_strategies"]
+        failed_strategies = session.get("failed_strategies", 0)
 
         logger.info(
             "Stored partial signal",
@@ -125,6 +149,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "dsl_file": dsl_file,
                 "completed_strategies": completed_count,
                 "total_strategies": total_strategies,
+                "failed_strategies": failed_strategies,
+                "success": success,
             },
         )
 
@@ -137,6 +163,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                     "session_id": session_id,
                     "completed_strategies": completed_count,
                     "total_strategies": total_strategies,
+                    "failed_strategies": failed_strategies,
                 },
             }
 
@@ -147,6 +174,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "session_id": session_id,
                 "correlation_id": correlation_id,
                 "total_strategies": total_strategies,
+                "failed_strategies": failed_strategies,
             },
         )
 
@@ -156,23 +184,88 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Get all partial signals
         all_partial_signals = session_service.get_all_partial_signals(session_id)
 
-        # Merge portfolios
+        # Separate successful and failed signals
+        successful_signals = [s for s in all_partial_signals if s.get("success", True)]
+        failed_signals = [s for s in all_partial_signals if not s.get("success", True)]
+
+        # If ALL strategies failed, publish WorkflowFailed and exit
+        if not successful_signals:
+            logger.error(
+                "All strategies failed - cannot create portfolio",
+                extra={
+                    "session_id": session_id,
+                    "correlation_id": correlation_id,
+                    "total_strategies": total_strategies,
+                    "failed_count": len(failed_signals),
+                },
+            )
+
+            session_service.update_session_status(session_id, "FAILED")
+
+            failure_details = [
+                {"dsl_file": s["dsl_file"], "error": s.get("error_message", "Unknown")}
+                for s in failed_signals
+            ]
+
+            failure_event = WorkflowFailed(
+                correlation_id=correlation_id,
+                causation_id=session_id,
+                event_id=f"workflow-failed-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="aggregator_v2",
+                source_component="SignalAggregator",
+                workflow_type="signal_aggregation",
+                failure_reason=f"All {total_strategies} strategies failed evaluation",
+                failure_step="aggregation",
+                error_details={
+                    "session_id": session_id,
+                    "total_strategies": total_strategies,
+                    "failed_strategies": failure_details,
+                },
+            )
+            publish_to_eventbridge(failure_event)
+
+            return {
+                "statusCode": 500,
+                "body": {
+                    "status": "all_strategies_failed",
+                    "session_id": session_id,
+                    "correlation_id": correlation_id,
+                    "failed_count": len(failed_signals),
+                },
+            }
+
+        # Log if we have partial failures but can proceed
+        has_partial_failures = len(failed_signals) > 0
+        if has_partial_failures:
+            logger.warning(
+                "Aggregating with partial failures",
+                extra={
+                    "session_id": session_id,
+                    "correlation_id": correlation_id,
+                    "successful_count": len(successful_signals),
+                    "failed_count": len(failed_signals),
+                    "failed_files": [s["dsl_file"] for s in failed_signals],
+                },
+            )
+
+        # Merge portfolios (only from successful signals)
         merged_portfolio = portfolio_merger.merge_portfolios(
-            partial_signals=all_partial_signals,
+            partial_signals=successful_signals,
             correlation_id=correlation_id,
         )
 
         # Merge signals data (lightweight - just strategy names for Portfolio Lambda)
         merged_signals_data = portfolio_merger.merge_signals_data(
-            partial_signals=all_partial_signals,
+            partial_signals=successful_signals,
             lightweight=True,  # Reduce payload size for EventBridge
         )
 
-        # Calculate total signal count
-        total_signal_count = sum(p.get("signal_count", 0) for p in all_partial_signals)
+        # Calculate total signal count (only from successful signals)
+        total_signal_count = sum(p.get("signal_count", 0) for p in successful_signals)
 
-        # Aggregate data freshness from all partial signals (use worst case)
-        aggregated_data_freshness = _aggregate_data_freshness(all_partial_signals)
+        # Aggregate data freshness from successful partial signals (use worst case)
+        aggregated_data_freshness = _aggregate_data_freshness(successful_signals)
 
         # Serialize portfolio for EventBridge including strategy_contributions
         # Strategy contributions are essential for per-strategy P&L attribution
@@ -190,8 +283,21 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             "strategy_count": merged_portfolio.strategy_count,
             "source_strategies": merged_portfolio.source_strategies,
             "schema_version": merged_portfolio.schema_version,
-            "is_partial": merged_portfolio.is_partial,
+            # Set is_partial=True if some strategies failed (partial failure resilience)
+            "is_partial": has_partial_failures or merged_portfolio.is_partial,
         }
+
+        # Build metadata with failure info if applicable
+        event_metadata: dict[str, Any] = {
+            "aggregation_session_id": session_id,
+            "strategies_aggregated": len(successful_signals),
+            "aggregation_mode": "multi_node",
+        }
+
+        if has_partial_failures:
+            event_metadata["partial_failure"] = True
+            event_metadata["failed_strategies_count"] = len(failed_signals)
+            event_metadata["failed_dsl_files"] = [s["dsl_file"] for s in failed_signals]
 
         # Build consolidated SignalGenerated event
         signal_event = SignalGenerated(
@@ -204,11 +310,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             signals_data=merged_signals_data,
             consolidated_portfolio=portfolio_for_event,
             signal_count=total_signal_count,
-            metadata={
-                "aggregation_session_id": session_id,
-                "strategies_aggregated": len(all_partial_signals),
-                "aggregation_mode": "multi_node",
-            },
+            metadata=event_metadata,
             data_freshness=aggregated_data_freshness,
         )
 
@@ -224,14 +326,32 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Mark session as completed
         session_service.update_session_status(session_id, "COMPLETED")
 
-        logger.info(
-            "Aggregation completed successfully",
+        # Send partial failure notification if there were any failures
+        if has_partial_failures:
+            _send_partial_failure_notification(
+                correlation_id=correlation_id,
+                session_id=session_id,
+                successful_count=len(successful_signals),
+                failed_signals=failed_signals,
+                total_strategies=total_strategies,
+            )
+
+        log_level = "warning" if has_partial_failures else "info"
+        log_message = (
+            "Aggregation completed with partial failures"
+            if has_partial_failures
+            else "Aggregation completed successfully"
+        )
+        getattr(logger, log_level)(
+            log_message,
             extra={
                 "session_id": session_id,
                 "correlation_id": correlation_id,
-                "strategies_aggregated": len(all_partial_signals),
+                "strategies_aggregated": len(successful_signals),
+                "strategies_failed": len(failed_signals),
                 "total_signals": total_signal_count,
                 "symbols_in_portfolio": len(merged_portfolio.target_allocations),
+                "is_partial": has_partial_failures,
             },
         )
 
@@ -241,9 +361,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "status": "aggregated",
                 "session_id": session_id,
                 "correlation_id": correlation_id,
-                "strategies_aggregated": len(all_partial_signals),
+                "strategies_aggregated": len(successful_signals),
+                "strategies_failed": len(failed_signals),
                 "total_signals": total_signal_count,
                 "event_id": signal_event.event_id,
+                "is_partial": has_partial_failures,
             },
         }
 
@@ -304,6 +426,107 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "error": str(e),
             },
         }
+
+
+def _send_partial_failure_notification(
+    correlation_id: str,
+    session_id: str,
+    successful_count: int,
+    failed_signals: list[dict[str, Any]],
+    total_strategies: int,
+) -> None:
+    """Send notification about partial strategy failures.
+
+    Publishes a SystemNotificationRequested event to notify operators
+    that some strategies failed but the workflow proceeded with the
+    successful ones.
+
+    Args:
+        correlation_id: Workflow correlation ID.
+        session_id: Aggregation session ID.
+        successful_count: Number of strategies that succeeded.
+        failed_signals: List of failed partial signal dicts.
+        total_strategies: Total number of strategies in this session.
+
+    """
+    try:
+        failed_count = len(failed_signals)
+
+        # Build failure details for the notification
+        # HTML-escape user-provided values to prevent XSS in email clients
+        failure_rows = []
+        for signal in failed_signals:
+            dsl_file = html.escape(str(signal.get("dsl_file", "Unknown")))
+            error = html.escape(str(signal.get("error_message", "Unknown error")))
+            allocation = html.escape(str(signal.get("allocation", "?")))
+            failure_rows.append(
+                f"<tr><td>{dsl_file}</td><td>{allocation}</td><td>{error}</td></tr>"
+            )
+
+        failure_table = "\n".join(failure_rows)
+
+        html_content = f"""
+<h2>⚠️ Partial Strategy Failure Alert</h2>
+
+<p><strong>Workflow proceeding with partial results.</strong></p>
+
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;" role="table" aria-label="Session metrics">
+<tr><th scope="col">Metric</th><th scope="col">Value</th></tr>
+<tr><td>Session ID</td><td>{session_id}</td></tr>
+<tr><td>Correlation ID</td><td>{correlation_id}</td></tr>
+<tr><td>Total Strategies</td><td>{total_strategies}</td></tr>
+<tr><td>Succeeded</td><td style="color: green;">{successful_count}</td></tr>
+<tr><td>Failed</td><td style="color: red;">{failed_count}</td></tr>
+</table>
+
+<h3>Failed Strategies</h3>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;" role="table" aria-label="Failed strategy details">
+<tr><th scope="col">DSL File</th><th scope="col">Allocation</th><th scope="col">Error</th></tr>
+{failure_table}
+</table>
+
+<p><em>The trading workflow will continue with the {successful_count} successful strategies.
+Failed strategy allocations will be excluded from the portfolio (not redistributed).</em></p>
+
+<p>Review CloudWatch logs for full error details.</p>
+"""
+
+        notification = SystemNotificationRequested(
+            event_id=f"notification-{uuid.uuid4()}",
+            correlation_id=correlation_id,
+            causation_id=session_id,
+            timestamp=datetime.now(UTC),
+            source_module="aggregator_v2",
+            source_component="SignalAggregator",
+            notification_type="WARNING",
+            subject=f"⚠️ Alchemiser Partial Failure: {successful_count}/{total_strategies} strategies succeeded",
+            html_content=html_content,
+            text_content=f"Partial failure: {failed_count}/{total_strategies} strategies failed. "
+            f"Workflow proceeding with {successful_count} successful strategies.",
+        )
+
+        publish_to_eventbridge(notification)
+
+        logger.info(
+            "Sent partial failure notification",
+            extra={
+                "correlation_id": correlation_id,
+                "session_id": session_id,
+                "failed_count": failed_count,
+                "successful_count": successful_count,
+            },
+        )
+
+    except Exception as e:
+        # Don't fail aggregation if notification fails
+        logger.error(
+            "Failed to send partial failure notification",
+            extra={
+                "correlation_id": correlation_id,
+                "session_id": session_id,
+                "error": str(e),
+            },
+        )
 
 
 def _aggregate_data_freshness(partial_signals: list[dict[str, Any]]) -> dict[str, Any]:

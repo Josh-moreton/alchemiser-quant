@@ -47,6 +47,8 @@ RECOGNIZED_INDICATORS = {
     "stdev-return",
     "stdev-price",
     "max-drawdown",
+    "percentage-price-oscillator",
+    "percentage-price-oscillator-signal",
 }
 
 # Indicators that commonly appear in decision conditions

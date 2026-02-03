@@ -22,6 +22,8 @@ mathematical computations with no I/O or side effects.
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 from the_alchemiser.shared.errors.exceptions import MarketDataError
@@ -32,6 +34,7 @@ DEFAULT_RSI_WINDOW = 14
 NEUTRAL_RSI_VALUE = 50.0
 RSI_OVERBOUGHT_THRESHOLD = 70.0
 RSI_OVERSOLD_THRESHOLD = 30.0
+TRADING_DAYS_PER_YEAR = 252  # Standard annualization factor
 
 logger = get_logger(__name__)
 
@@ -343,18 +346,22 @@ class TechnicalIndicators:
 
     @staticmethod
     def stdev_return(data: pd.Series, window: int) -> pd.Series:
-        """Return rolling standard deviation of percentage returns.
+        """Return annualized rolling standard deviation of percentage returns.
 
-        Computes the volatility of returns over a rolling window. This indicator
-        measures the variability in returns and is useful for risk assessment
-        and volatility analysis.
+        Computes the annualized volatility of returns over a rolling window,
+        matching Composer's standard deviation calculation methodology.
+
+        Composer's algorithm:
+        1. Compute each day's percent return over the window
+        2. Compute the standard deviation of those daily returns (population std)
+        3. Annualize by multiplying by sqrt(252)
 
         Args:
             data (pd.Series): Price data series (typically closing prices).
             window (int): Number of periods for the rolling window calculation.
 
         Returns:
-            pd.Series: Standard deviation of returns scaled to percentage units.
+            pd.Series: Annualized standard deviation of returns as percentages.
                 The first (window-1) values will be NaN due to insufficient data.
 
         Raises:
@@ -363,12 +370,12 @@ class TechnicalIndicators:
         Example:
             >>> prices = pd.Series([100, 102, 98, 105, 103, 107])
             >>> vol = TechnicalIndicators.stdev_return(prices, 3)
-            >>> print(f"3-day volatility: {vol.iloc[-1]:.2f}%")
-            3-day volatility: 2.45%
+            >>> print(f"3-day annualized volatility: {vol.iloc[-1]:.2f}%")
+            3-day annualized volatility: 38.93%
 
         Note:
-            Returns standard deviation of pct_change() over a rolling window,
-            scaled to percentage units for interpretability.
+            Uses population standard deviation (ddof=0) and annualizes with
+            sqrt(252) to match Composer's documented calculation method.
 
         """
         # Input validation
@@ -388,8 +395,15 @@ class TechnicalIndicators:
             return pd.Series([0] * len(data), index=data.index)
 
         try:
+            # Composer method: daily returns as percentages
             returns = data.pct_change() * 100
-            return returns.rolling(window=window, min_periods=window).std()
+            # Population standard deviation (ddof=0) per Composer specification.
+            # Composer docs state: \"divide by number of observations\" (not n-1).
+            # This matches population std (N divisor) vs sample std (N-1 divisor).
+            # Verified against Composer's stdev-return indicator behavior.
+            daily_std = returns.rolling(window=window, min_periods=window).std(ddof=0)
+            # Annualize by multiplying by sqrt(252)
+            return daily_std * math.sqrt(TRADING_DAYS_PER_YEAR)
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating standard deviation of returns: {e}", exc_info=True)
             raise MarketDataError(f"Failed to calculate standard deviation of returns: {e}") from e

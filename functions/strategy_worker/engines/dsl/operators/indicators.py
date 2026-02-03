@@ -494,8 +494,107 @@ def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
     raise DslEvaluationError(f"Max drawdown for {symbol_val} window={window} not available")
 
 
-# Note: For brevity, I'm including the most common indicators
-# The full implementation would include all indicators from the original file
+def percentage_price_oscillator(args: list[ASTNode], context: DslContext) -> float:
+    """Evaluate percentage-price-oscillator via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError("percentage-price-oscillator requires symbol and parameters")
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    short_window = params.get("short-window", 12)
+    long_window = params.get("long-window", 26)
+
+    request = IndicatorRequest(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="percentage_price_oscillator",
+        parameters={"short_window": int(short_window), "long_window": int(long_window)},
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_ppo_metadata",
+                symbol=symbol_val,
+                short_window=short_window,
+                long_window=long_window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
+
+    raise DslEvaluationError(
+        f"PPO for {symbol_val} short={short_window} long={long_window} not available"
+    )
+
+
+def percentage_price_oscillator_signal(args: list[ASTNode], context: DslContext) -> float:
+    """Evaluate percentage-price-oscillator-signal via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError(
+            "percentage-price-oscillator-signal requires symbol and parameters"
+        )
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    short_window = params.get("short-window", 12)
+    long_window = params.get("long-window", 26)
+    smooth_window = params.get("smooth-window", 9)
+
+    request = IndicatorRequest(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="percentage_price_oscillator_signal",
+        parameters={
+            "short_window": int(short_window),
+            "long_window": int(long_window),
+            "smooth_window": int(smooth_window),
+        },
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_ppo_signal_metadata",
+                symbol=symbol_val,
+                short_window=short_window,
+                long_window=long_window,
+                smooth_window=smooth_window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
+
+    raise DslEvaluationError(
+        f"PPO signal for {symbol_val} short={short_window} long={long_window} "
+        f"smooth={smooth_window} not available"
+    )
 
 
 def register_indicator_operators(dispatcher: DslDispatcher) -> None:
@@ -509,5 +608,7 @@ def register_indicator_operators(dispatcher: DslDispatcher) -> None:
     dispatcher.register("stdev-return", stdev_return)
     dispatcher.register("stdev-price", stdev_price)
     dispatcher.register("max-drawdown", max_drawdown)
+    dispatcher.register("percentage-price-oscillator", percentage_price_oscillator)
+    dispatcher.register("percentage-price-oscillator-signal", percentage_price_oscillator_signal)
     dispatcher.register("ma", moving_average)
     dispatcher.register("volatility", volatility)

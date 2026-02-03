@@ -24,7 +24,6 @@ from wiring import register_strategy
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.events import (
     PartialSignalGenerated,
-    WorkflowFailed,
 )
 from the_alchemiser.shared.events.eventbridge_publisher import (
     publish_to_eventbridge,
@@ -173,28 +172,47 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             exc_info=True,
         )
 
-        # Publish WorkflowFailed to EventBridge
+        # Publish PartialSignalGenerated with success=False to allow aggregator
+        # to proceed with partial results from other strategies
         try:
-            failure_event = WorkflowFailed(
+            failure_signal = PartialSignalGenerated(
+                event_id=f"partial-signal-{uuid.uuid4()}",
                 correlation_id=correlation_id,
                 causation_id=session_id,
-                event_id=f"workflow-failed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
                 source_module="strategy_v2",
                 source_component="StrategyWorker",
-                workflow_type="signal_generation",
-                failure_reason=str(e),
-                failure_step="signal_generation",
-                error_details={
+                session_id=session_id,
+                dsl_file=dsl_file,
+                allocation=allocation,
+                strategy_number=strategy_number,
+                total_strategies=total_strategies,
+                success=False,
+                error_message=f"{type(e).__name__}: {e!s}",
+                signals_data={},
+                consolidated_portfolio={},
+                signal_count=0,
+                metadata={
+                    "single_file_mode": True,
+                    "failed": True,
                     "exception_type": type(e).__name__,
-                    "dsl_file": dsl_file,
+                },
+                data_freshness={},
+            )
+            publish_to_eventbridge(failure_signal)
+
+            logger.info(
+                "Published failure partial signal for aggregation",
+                extra={
                     "session_id": session_id,
+                    "correlation_id": correlation_id,
+                    "dsl_file": dsl_file,
+                    "error": str(e),
                 },
             )
-            publish_to_eventbridge(failure_event)
         except Exception as pub_error:
             logger.error(
-                "Failed to publish WorkflowFailed event",
+                "Failed to publish failure PartialSignalGenerated event",
                 extra={"error": str(pub_error)},
             )
 

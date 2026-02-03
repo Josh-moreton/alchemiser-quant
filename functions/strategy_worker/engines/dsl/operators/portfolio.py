@@ -579,25 +579,36 @@ def _distribute_group_shares(
 def _calculate_inverse_weights_grouped(
     groups: list[PortfolioFragment], window: float, context: DslContext
 ) -> dict[str, Decimal]:
-    """Calculate inverse volatility weights for groups (Composer behavior).
+    """Calculate inverse volatility weights for groups (atomic units).
 
-    COMPOSER BEHAVIOR: Each group is treated as a single unit. We calculate
-    the weighted-average volatility for each group, then apply inverse-vol
-    weights to the groups themselves. Internal weights within each group
-    are preserved and scaled by the group's share.
+    GROUPED MODE - Used when children are PortfolioFragments.
+
+    Per Composer's behavior:
+    - Each group is treated as ONE atomic unit (not individual assets)
+    - Group volatility = weighted-average volatility of its holdings
+    - Groups are weighted against each other by 1/group_vol
+    - Internal weights within each group are PRESERVED and scaled
+
+    With 1 group: That group gets 100% -> internal weights pass through unchanged
+    With N groups: Each group weighted by inverse of its volatility
+
+    Example with 2 groups:
+    - Group A (low vol): gets 80% share, internal weights scaled by 0.8
+    - Group B (high vol): gets 20% share, internal weights scaled by 0.2
+
+    NOTE: See _calculate_inverse_weights() docstring for DAMPENING EXPONENT
+    history and reversal guide. The same reversal steps apply to this function
+    (change the inverse_vol calculation below).
 
     Args:
         groups: List of PortfolioFragment groups
-        window: Window parameter for volatility calculation
+        window: Lookback window for volatility calculation (days)
         context: DSL evaluation context
 
     Returns:
-        Dictionary of normalized weights (as Decimal)
+        Dictionary mapping symbols to final weights (sum to 1.0)
 
     """
-    DAMPENING_EXPONENT = Decimal("0.25")
-
-    # Calculate inverse volatility weight for each group
     group_weights: list[tuple[PortfolioFragment, Decimal]] = []
     total_inverse = Decimal("0")
 
@@ -606,13 +617,12 @@ def _calculate_inverse_weights_grouped(
         if group_vol is not None and group_vol > 0:
             vol_decimal = Decimal(str(group_vol))
             inverse_vol = Decimal("1") / vol_decimal
-            dampened_inverse = inverse_vol**DAMPENING_EXPONENT
-            group_weights.append((group, dampened_inverse))
-            total_inverse += dampened_inverse
+            group_weights.append((group, inverse_vol))
+            total_inverse += inverse_vol
             logger.debug(
-                "DSL weight-inverse-volatility grouped: group vol=%.6f, dampened_inverse=%.6f",
+                "DSL weight-inverse-volatility grouped: group vol=%.6f, inverse_vol=%.6f",
                 group_vol,
-                float(dampened_inverse),
+                float(inverse_vol),
             )
 
     if not group_weights or total_inverse < Decimal("1e-10"):
@@ -703,80 +713,82 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
 def _calculate_inverse_weights(
     assets: list[str], window: float, context: DslContext
 ) -> dict[str, Decimal]:
-    """Calculate and normalize inverse volatility weights using Decimal arithmetic.
+    """Calculate inverse volatility weights for individual assets.
 
-    IMPORTANT: Composer.trade's inverse volatility implementation produces weights
-    much closer to equal-weight than true mathematical inverse volatility would give.
-    For example, with BIL (0.01% vol), DRV (1.6% vol), LABU (4.3% vol):
-    - True inverse volatility: BIL ~99%, DRV ~0.8%, LABU ~0.3%
-    - Composer produces:       BIL ~65%, DRV ~20%, LABU ~15%
+    FLAT MODE - Used when children are bare symbols, not groups.
 
-    To match Composer's actual behavior, we apply a fourth-root dampening transformation:
-    weight ∝ (1/volatility)^0.25
+    Per Composer's specification:
+    - Volatility = standard deviation of percent returns over lookback window
+    - Inverse volatility = 1 / volatility
+    - Weight = inverse_vol / sum(all inverse_vols)
 
-    This:
-    - Still favors lower volatility assets (inverse relationship preserved)
-    - Prevents extreme weight concentration that true 1/vol would cause
-    - Matches Composer's observed outputs very closely
-    - Is essentially a "soft" inverse volatility that respects the ranking
-      but doesn't let extreme volatility differences dominate
+    This produces EXTREME concentration in low-vol assets. For example:
+    - BIL (0.01% vol) vs LABU (4.3% vol) -> BIL gets ~99% weight
+
+    ============================================================================
+    DAMPENING EXPONENT HISTORY AND REVERSAL GUIDE
+    ============================================================================
+    PREVIOUSLY: weight proportional to (1/volatility)^0.25 (dampened inverse)
+    CURRENTLY:  weight proportional to 1/volatility (pure inverse, no dampening)
+
+    The 0.25 dampening exponent was INTENTIONALLY REMOVED to match Composer's
+    exact behavior. Dampening reduces concentration by raising inverse_vol to
+    a fractional power:
+    - Exponent 0.25: weight = inverse_vol^0.25 (moderate concentration)
+    - Exponent 1.0:  weight = inverse_vol      (extreme concentration, current)
+
+    RATIONALE FOR REMOVAL:
+    Composer's weight-inverse-volatility uses pure 1/vol without dampening.
+    Our parity testing confirmed Composer produces extreme concentration in
+    low-vol assets (e.g., BIL vs LABU). Dampening was a deviation from spec.
+
+    TO REVERT (add 0.25 dampening back if needed):
+    1. Add constant at module level:
+       DAMPENING_EXPONENT = Decimal("0.25")
+    2. Change this line below:
+       inverse_vol = Decimal("1") / vol_decimal
+       To:
+       inverse_vol = (Decimal("1") / vol_decimal) ** DAMPENING_EXPONENT
+    3. Apply the same change in _calculate_inverse_weights_grouped()
+    4. Run strategy tests with weight-inverse-volatility to verify behavior
+
+    Dampening may be desirable for risk management (less extreme concentration)
+    but diverges from Composer parity. Document any reversion clearly.
+    ============================================================================
 
     Args:
-        assets: List of asset symbols
-        window: Window parameter for volatility calculation
+        assets: List of asset symbols (bare strings)
+        window: Lookback window for volatility calculation (days)
         context: DSL evaluation context
 
     Returns:
-        Dictionary of normalized weights (as Decimal)
+        Dictionary mapping symbols to normalized weights (sum to 1.0)
 
     """
-    # Dampening exponent for "soft" inverse volatility:
-    # - 1.0  → true inverse volatility (very concentrated in low-vol assets)
-    # - 0.0  → equal weight (no volatility sensitivity)
-    # - 0.25 → empirically calibrated fourth-root dampening that best matches
-    #           Composer.trade's observed behavior across a regression suite of
-    #           representative portfolios. Exponents around 0.2 skewed too close
-    #           to equal-weight, while 0.3+ produced weights that were
-    #           measurably more concentrated than Composer's outputs. 0.25 was
-    #           chosen as the smallest exponent that consistently kept the
-    #           volatility ranking intact while minimizing mean absolute error to
-    #           Composer's weights.
-    DAMPENING_EXPONENT = Decimal("0.25")
-
     inverse_weights: dict[str, Decimal] = {}
     total_inverse = Decimal("0")
 
-    # Calculate dampened inverse volatility weights
     for asset in assets:
         volatility = _get_volatility_for_asset(asset, window, context)
         if volatility is not None:
-            # Convert float volatility to Decimal
             vol_decimal = Decimal(str(volatility))
             inverse_vol = Decimal("1") / vol_decimal
+            inverse_weights[asset] = inverse_vol
+            total_inverse += inverse_vol
 
-            # Apply fourth-root dampening: (1/vol)^0.25
-            # This prevents extreme concentration while preserving volatility ranking
-            # Matches Composer's observed implementation
-            dampened_inverse = inverse_vol**DAMPENING_EXPONENT
-
-            inverse_weights[asset] = dampened_inverse
-            total_inverse += dampened_inverse
-
-    # Handle case where no valid volatilities were obtained
     if not inverse_weights or total_inverse < Decimal("1e-10"):
         logger.warning(
             "DSL weight-inverse-volatility: No valid volatilities obtained for any assets"
         )
         return {}
 
-    # Normalize weights to sum to 1 using Decimal division
+    # Normalize: weight = inverse_vol / total_inverse_vol
     normalized = {
         asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()
     }
 
-    # Log the dampening effect for transparency
     logger.debug(
-        "DSL weight-inverse-volatility: Applied fourth-root dampening to match Composer behavior",
+        "DSL weight-inverse-volatility: Computed pure inverse volatility weights",
         extra={
             "assets": assets,
             "weights": {k: float(v) for k, v in normalized.items()},

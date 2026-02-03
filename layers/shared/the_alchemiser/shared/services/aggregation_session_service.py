@@ -98,6 +98,7 @@ class AggregationSessionService:
                 "correlation_id": {"S": correlation_id},
                 "total_strategies": {"N": str(len(strategy_configs))},
                 "completed_strategies": {"N": "0"},
+                "failed_strategies": {"N": "0"},
                 "status": {"S": "PENDING"},
                 "created_at": {"S": now.isoformat()},
                 "timeout_at": {"S": timeout_at.isoformat()},
@@ -133,6 +134,7 @@ class AggregationSessionService:
             "correlation_id": correlation_id,
             "total_strategies": len(strategy_configs),
             "completed_strategies": 0,
+            "failed_strategies": 0,
             "status": "PENDING",
             "created_at": now.isoformat(),
             "timeout_at": timeout_at.isoformat(),
@@ -147,20 +149,29 @@ class AggregationSessionService:
         signals_data: dict[str, Any],
         signal_count: int,
         data_freshness: dict[str, Any] | None = None,
+        *,
+        success: bool = True,
+        error_message: str | None = None,
     ) -> int:
         """Store a partial signal and increment completion counter.
 
         Uses conditional put to ensure idempotency - duplicate deliveries
         are ignored. Returns the new completed count.
 
+        Supports both successful and failed strategy evaluations:
+        - success=True: Stores full portfolio data for later aggregation
+        - success=False: Stores failure record, increments failed_strategies counter
+
         Args:
             session_id: Session ID this signal belongs to.
             dsl_file: Strategy file that generated this signal.
             allocation: Weight allocation for this file.
-            consolidated_portfolio: Partial portfolio data.
-            signals_data: Signal data from this file.
-            signal_count: Number of signals generated.
+            consolidated_portfolio: Partial portfolio data (empty if failed).
+            signals_data: Signal data from this file (empty if failed).
+            signal_count: Number of signals generated (0 if failed).
             data_freshness: Data freshness info (latest_timestamp, age_days, gate_status).
+            success: Whether the strategy evaluated successfully.
+            error_message: Error message if success=False.
 
         Returns:
             Updated completed_strategies count.
@@ -183,6 +194,8 @@ class AggregationSessionService:
                 "consolidated_portfolio": {"S": json.dumps(consolidated_portfolio, default=str)},
                 "signals_data": {"S": json.dumps(signals_data, default=str)},
                 "data_freshness": {"S": json.dumps(data_freshness or {}, default=str)},
+                "success": {"BOOL": success},
+                "error_message": {"S": error_message or ""},
             },
         )
         try:
@@ -192,29 +205,40 @@ class AggregationSessionService:
                 ConditionExpression="attribute_not_exists(SK)",
             )
 
-            # Increment counter atomically
+            # Increment completed_strategies counter (always, for completion tracking)
+            # Also increment failed_strategies if this was a failure
+            if success:
+                update_expression = "ADD completed_strategies :one"
+                expression_values: dict[str, dict[str, str]] = {":one": {"N": "1"}}
+            else:
+                update_expression = "ADD completed_strategies :one, failed_strategies :one"
+                expression_values = {":one": {"N": "1"}}
+
             response = self._client.update_item(
                 TableName=self._table_name,
                 Key={
                     "PK": {"S": f"SESSION#{session_id}"},
                     "SK": {"S": "METADATA"},
                 },
-                UpdateExpression="ADD completed_strategies :one",
-                ExpressionAttributeValues={":one": {"N": "1"}},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values,
                 ReturnValues="UPDATED_NEW",
             )
 
             completed = int(response["Attributes"]["completed_strategies"]["N"])
 
-            logger.info(
-                "Stored partial signal",
-                extra={
-                    "session_id": session_id,
-                    "dsl_file": dsl_file,
-                    "completed_strategies": completed,
-                    "signal_count": signal_count,
-                },
-            )
+            log_extra: dict[str, Any] = {
+                "session_id": session_id,
+                "dsl_file": dsl_file,
+                "completed_strategies": completed,
+                "signal_count": signal_count,
+                "success": success,
+            }
+            if not success:
+                log_extra["error_message"] = error_message
+                logger.warning("Stored failed partial signal", extra=log_extra)
+            else:
+                logger.info("Stored partial signal", extra=log_extra)
 
             return completed
 
@@ -254,6 +278,7 @@ class AggregationSessionService:
             "correlation_id": item["correlation_id"]["S"],
             "total_strategies": int(item["total_strategies"]["N"]),
             "completed_strategies": int(item["completed_strategies"]["N"]),
+            "failed_strategies": int(item.get("failed_strategies", {}).get("N", "0")),
             "status": item["status"]["S"],
             "created_at": item["created_at"]["S"],
             "timeout_at": item["timeout_at"]["S"],
@@ -266,7 +291,7 @@ class AggregationSessionService:
             session_id: Session ID to retrieve signals for.
 
         Returns:
-            List of partial signal dicts.
+            List of partial signal dicts, including both successful and failed.
 
         """
         import json
@@ -291,6 +316,8 @@ class AggregationSessionService:
                     "consolidated_portfolio": json.loads(item["consolidated_portfolio"]["S"]),
                     "signals_data": json.loads(item["signals_data"]["S"]),
                     "data_freshness": json.loads(item.get("data_freshness", {}).get("S", "{}")),
+                    "success": item.get("success", {}).get("BOOL", True),
+                    "error_message": item.get("error_message", {}).get("S", "") or None,
                 }
             )
 
@@ -299,10 +326,28 @@ class AggregationSessionService:
             extra={
                 "session_id": session_id,
                 "signal_count": len(signals),
+                "failed_count": sum(1 for s in signals if not s.get("success", True)),
             },
         )
 
         return signals
+
+    def get_failure_summary(self, session_id: str) -> list[dict[str, str]]:
+        """Get summary of failed strategies for a session.
+
+        Args:
+            session_id: Session ID to retrieve failures for.
+
+        Returns:
+            List of dicts with dsl_file and error_message for failed strategies.
+
+        """
+        all_signals = self.get_all_partial_signals(session_id)
+        return [
+            {"dsl_file": s["dsl_file"], "error_message": s.get("error_message") or "Unknown error"}
+            for s in all_signals
+            if not s.get("success", True)
+        ]
 
     def update_session_status(self, session_id: str, status: str) -> None:
         """Update session status.

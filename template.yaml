@@ -617,6 +617,42 @@ Resources:
         - Key: Service
           Value: hedge-kill-switch
 
+  # ========== IV HISTORY TABLE (OPTIONS HEDGING IV PERCENTILE) ==========
+  # DynamoDB table for storing daily ATM IV snapshots for 252-day rolling percentile
+  IVHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-iv-history"
+        - !Sub "alchemiser-${Stage}-iv-history"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: underlying_symbol
+          AttributeType: S
+        - AttributeName: record_date
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: underlying_symbol
+          KeyType: HASH
+        - AttributeName: record_date
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: iv-history
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1893,6 +1929,7 @@ Resources:
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
           HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
+          IV_HISTORY_TABLE_NAME: !Ref IVHistoryTable
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           # Note: VIX-adaptive budget rates are defined in hedge_config.py (TAIL_HEDGE_TEMPLATE).
@@ -1943,32 +1980,54 @@ Resources:
                   - dynamodb:UpdateItem
                 Resource:
                   - !GetAtt HedgeKillSwitchTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt IVHistoryTable.Arn
 
-  # EventBridge Rule: Route RebalancePlanned events to HedgeEvaluator
-  RebalancePlannedToHedgeRule:
+  # ==========================================================================
+  # BREAKING ARCHITECTURAL CHANGE (PPO/Signal Indicators PR):
+  # HedgeEvaluator is now triggered by AllTradesCompleted (from TradeAggregator)
+  # instead of the previous RebalancePlanned event.
+  #
+  # Previous behavior: Hedge evaluation ran after portfolio planning, before trades.
+  # New behavior: Hedge evaluation runs after ALL trades complete successfully.
+  #
+  # Rationale: Hedging actual positions (post-execution) is more accurate than
+  # hedging planned positions that may not fully execute. This also decouples
+  # hedging from the main equity workflow timing.
+  #
+  # Migration: Any integrations expecting HedgeEvaluationCompleted to occur
+  # before trade execution must be updated. See handle_all_trades_completed()
+  # in hedge_evaluation_handler.py.
+  # ==========================================================================
+  AllTradesCompletedToHedgeRule:
     Type: AWS::Events::Rule
     Properties:
       Name: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-rebalance-to-hedge"
-        - !Sub "alchemiser-${Stage}-rebalance-to-hedge"
+        - !Sub "${StackName}-trades-completed-to-hedge"
+        - !Sub "alchemiser-${Stage}-trades-completed-to-hedge"
       EventBusName: !Ref AlchemiserEventBus
       EventPattern:
         source:
-          - alchemiser.portfolio
+          - alchemiser.trade_aggregator
         detail-type:
-          - RebalancePlanned
+          - AllTradesCompleted
       Targets:
         - Id: HedgeEvaluatorTarget
           Arn: !GetAtt HedgeEvaluatorFunction.Arn
 
-  RebalancePlannedToHedgePermission:
+  AllTradesCompletedToHedgePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref HedgeEvaluatorFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !GetAtt RebalancePlannedToHedgeRule.Arn
+      SourceArn: !GetAtt AllTradesCompletedToHedgeRule.Arn
 
   # ========== HEDGE EXECUTOR LAMBDA (OPTIONS HEDGING) ==========
   # Triggered by SQS queue to execute hedge orders via Alpaca Options API
