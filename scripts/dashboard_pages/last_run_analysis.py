@@ -18,7 +18,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from dashboard_settings import get_dashboard_settings
+from dashboard_settings import get_dashboard_settings, debug_secrets_info
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
@@ -31,12 +31,21 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
     settings = get_dashboard_settings()
     table_name = settings.aggregation_sessions_table
     
-    # Check credentials first and show helpful error
+    # Check credentials first and show helpful error with debug info
     if not settings.has_aws_credentials():
         st.error(
             "AWS credentials not configured or invalid. "
             "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
         )
+        # Show debug info
+        debug_info = debug_secrets_info()
+        with st.expander("🔍 Debug: Secrets Configuration", expanded=True):
+            for key, value in debug_info.items():
+                st.text(f"{key}: {value}")
+            st.caption(
+                "Expected: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY at top level of secrets.toml, "
+                "not nested under any section like [aws] or [credentials]."
+            )
         return []
     
     try:

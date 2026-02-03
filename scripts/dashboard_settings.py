@@ -23,11 +23,53 @@ def _get_secret(key: str, default: str = "") -> str:
     """
     try:
         import streamlit as st
-        if hasattr(st, "secrets") and key in st.secrets:
-            return str(st.secrets[key])
-    except Exception:
-        pass
+        if hasattr(st, "secrets"):
+            # Debug: show available secret keys (not values!)
+            if key in st.secrets:
+                value = str(st.secrets[key])
+                # Return masked value for debugging
+                return value
+            # Key not found in secrets
+    except Exception as e:
+        # Log exception for debugging
+        import streamlit as st
+        st.warning(f"Exception reading secret '{key}': {type(e).__name__}: {e}")
+    
+    # Fallback to environment variable
     return os.environ.get(key, default)
+
+
+def debug_secrets_info() -> dict[str, str]:
+    """Return debug info about secrets configuration (no sensitive values)."""
+    info = {}
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            info["secrets_available"] = "Yes"
+            info["secrets_keys"] = ", ".join(st.secrets.keys()) if st.secrets else "None"
+            info["AWS_ACCESS_KEY_ID_present"] = "Yes" if "AWS_ACCESS_KEY_ID" in st.secrets else "No"
+            info["AWS_SECRET_ACCESS_KEY_present"] = "Yes" if "AWS_SECRET_ACCESS_KEY" in st.secrets else "No"
+            
+            # Check if keys might be nested under a section
+            for section_key in st.secrets.keys():
+                try:
+                    section = st.secrets[section_key]
+                    if hasattr(section, "keys"):
+                        nested_keys = list(section.keys())
+                        if nested_keys:
+                            info[f"section_{section_key}_keys"] = ", ".join(nested_keys)
+                except Exception:
+                    pass
+        else:
+            info["secrets_available"] = "No (st.secrets not present)"
+    except Exception as e:
+        info["secrets_error"] = f"{type(e).__name__}: {e}"
+    
+    # Check environment variables
+    info["env_AWS_ACCESS_KEY_ID"] = "Set" if os.environ.get("AWS_ACCESS_KEY_ID") else "Not set"
+    info["env_AWS_SECRET_ACCESS_KEY"] = "Set" if os.environ.get("AWS_SECRET_ACCESS_KEY") else "Not set"
+    
+    return info
 
 
 class DashboardSettings(BaseModel):
