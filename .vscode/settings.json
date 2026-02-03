@@ -81,5 +81,12 @@
     "sonarlint.connectedMode.project": {
         "connectionId": "josh-moreton",
         "projectKey": "Josh-moreton_alchemiser-quant"
-    }
+    },
+    "python-envs.pythonProjects": [
+        {
+            "path": "",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip"
+        }
+    ]
 }

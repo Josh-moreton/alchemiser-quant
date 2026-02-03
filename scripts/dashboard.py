@@ -31,10 +31,13 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
 
+# Favicon path (relative to repo root)
+favicon_path = Path(__file__).parent.parent / "android-chrome-512x512.png"
+
 # Page config (must be first Streamlit call)
 st.set_page_config(
     page_title="Octarine Capital - Trading Dashboard",
-    page_icon="📈",
+    page_icon=str(favicon_path) if favicon_path.exists() else "📈",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -94,7 +97,6 @@ def show_login_page(authenticator: "streamlit_authenticator.Authenticate") -> bo
             st.title("📊 Octarine Capital")
         
         st.markdown("---")
-        st.subheader("🔐 Dashboard Login")
     
     # Render login widget
     authenticator.login(location="main")
