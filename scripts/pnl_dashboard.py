@@ -28,7 +28,7 @@ from the_alchemiser.shared.services.pnl_service import PnLService
 # Page config
 st.set_page_config(
     page_title="Octarine Capital - P&L Dashboard",
-    page_icon="📈",
+    page_icon=None,
     layout="wide",
 )
 
@@ -90,7 +90,7 @@ except Exception as e:
     st.stop()
 
 # Header
-st.title("📈 Octarine Capital - P&L Dashboard")
+st.title("Octarine Capital - P&L Dashboard")
 st.caption(
     f"Data from {df['Date'].min().strftime('%Y-%m-%d')} "
     f"to {df['Date'].max().strftime('%Y-%m-%d')}"

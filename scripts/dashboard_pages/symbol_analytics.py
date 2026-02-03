@@ -191,7 +191,7 @@ def calculate_symbol_metrics(trades: list[dict[str, Any]]) -> dict[str, Any]:
 
 def show() -> None:
     """Display the symbol analytics page."""
-    st.title("📈 Symbol Analytics")
+    st.title("Symbol Analytics")
     st.caption("Detailed performance analytics for individual symbols")
 
     # Symbol selector
@@ -215,7 +215,7 @@ def show() -> None:
         return
 
     # Current Position
-    st.subheader("💼 Current Position")
+    st.subheader("Current Position")
 
     if position:
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -241,7 +241,7 @@ def show() -> None:
     st.divider()
 
     # Trading Metrics
-    st.subheader("📊 Trading Metrics")
+    st.subheader("Trading Metrics")
 
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
@@ -261,7 +261,7 @@ def show() -> None:
     st.divider()
 
     # P&L Metrics
-    st.subheader("💰 P&L Analysis")
+    st.subheader("P&L Analysis")
 
     col1, col2, col3 = st.columns(3)
 
@@ -276,7 +276,7 @@ def show() -> None:
     st.divider()
 
     # Strategy Attribution
-    st.subheader("🎯 Strategy Attribution")
+    st.subheader("Strategy Attribution")
 
     if metrics["strategies"]:
         st.write(f"**Strategies involved:** {', '.join(metrics['strategies'])}")
@@ -299,7 +299,7 @@ def show() -> None:
     st.divider()
 
     # Trade History
-    st.subheader("📋 Trade History")
+    st.subheader("Trade History")
 
     col1, col2 = st.columns(2)
 
@@ -335,7 +335,7 @@ def show() -> None:
     st.divider()
 
     # Price Chart
-    st.subheader("📈 Trade Price History")
+    st.subheader("Trade Price History")
 
     # Create price series
     price_data = pd.DataFrame([
@@ -362,7 +362,7 @@ def show() -> None:
     st.divider()
 
     # Cumulative Quantity Chart
-    st.subheader("📦 Cumulative Position")
+    st.subheader("Cumulative Position")
 
     # Calculate cumulative quantity
     cumulative_qty = []

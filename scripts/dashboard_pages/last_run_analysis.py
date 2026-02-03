@@ -264,7 +264,7 @@ def show_rebalance_plan_analysis(plan: dict[str, Any]) -> None:
 
     # Show BUY orders
     if buys:
-        st.subheader("🟢 BUY Orders")
+        st.subheader("BUY Orders")
         buy_df = pd.DataFrame([
             {
                 "Symbol": i.get("symbol", "?"),
@@ -291,7 +291,7 @@ def show_rebalance_plan_analysis(plan: dict[str, Any]) -> None:
 
     # Show SELL orders
     if sells:
-        st.subheader("🔴 SELL Orders")
+        st.subheader("SELL Orders")
         sell_df = pd.DataFrame([
             {
                 "Symbol": i.get("symbol", "?"),
@@ -340,7 +340,7 @@ def show_rebalance_plan_analysis(plan: dict[str, Any]) -> None:
 
 def show_trades_analysis(trades: list[dict[str, Any]]) -> None:
     """Display trades analysis."""
-    st.subheader("📊 Executed Trades")
+    st.subheader("Executed Trades")
 
     if not trades:
         st.info("No trades found for this run")
@@ -390,7 +390,7 @@ def show_trades_analysis(trades: list[dict[str, Any]]) -> None:
 
 def show() -> None:
     """Display the last run analysis page."""
-    st.title("🎯 Last Run Analysis")
+    st.title("Last Run Analysis")
     st.caption("Detailed view of the most recent workflow execution")
 
     # Load recent sessions
@@ -413,7 +413,7 @@ def show() -> None:
     st.divider()
 
     # Session info
-    st.subheader("📋 Workflow Summary")
+    st.subheader("Workflow Summary")
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -448,11 +448,11 @@ def show() -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        with st.expander("📄 Raw Signal Data"):
+        with st.expander("Raw Signal Data"):
             st.json(selected_session.get("merged_signal", {}))
 
     with col2:
-        with st.expander("📄 Raw Plan Data"):
+        with st.expander("Raw Plan Data"):
             if plan:
                 st.json(plan)
             else:

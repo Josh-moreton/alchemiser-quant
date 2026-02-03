@@ -200,11 +200,11 @@ def get_symbol_performance(trades: list[dict[str, Any]]) -> pd.DataFrame:
 
 def show() -> None:
     """Display the trade history page."""
-    st.title("📊 Trade History")
+    st.title("Trade History")
     st.caption("Comprehensive trade analytics with strategy and symbol attribution")
 
     # Filters
-    st.subheader("🔍 Filters")
+    st.subheader("Filters")
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -236,7 +236,7 @@ def show() -> None:
     with col3:
         st.write("")  # Spacing
         st.write("")
-        apply_filters = st.button("🔍 Apply Filters", type="primary")
+        apply_filters = st.button("Apply Filters", type="primary")
 
     st.divider()
 
@@ -252,7 +252,7 @@ def show() -> None:
         return
 
     # Summary metrics
-    st.subheader("📈 Summary")
+    st.subheader("Summary")
     col1, col2, col3, col4, col5 = st.columns(5)
 
     total_trades = len(trades)
@@ -275,7 +275,7 @@ def show() -> None:
     st.divider()
 
     # Per-Strategy Performance
-    st.subheader("📊 Per-Strategy Performance")
+    st.subheader("Per-Strategy Performance")
     strategy_df = get_strategy_performance(trades)
 
     if not strategy_df.empty:
@@ -297,7 +297,7 @@ def show() -> None:
     st.divider()
 
     # Per-Symbol Performance
-    st.subheader("📈 Per-Symbol Performance")
+    st.subheader("Per-Symbol Performance")
     symbol_df = get_symbol_performance(trades)
 
     if not symbol_df.empty:
@@ -323,7 +323,7 @@ def show() -> None:
     st.divider()
 
     # Recent Trades Table
-    st.subheader("🕐 Recent Trades")
+    st.subheader("Recent Trades")
 
     # Show last 50 trades
     recent_trades = trades[:50]
@@ -357,7 +357,7 @@ def show() -> None:
     st.divider()
 
     # Daily trade volume chart
-    st.subheader("📅 Daily Trade Volume")
+    st.subheader("Daily Trade Volume")
     
     # Group by date
     for trade in trades:
