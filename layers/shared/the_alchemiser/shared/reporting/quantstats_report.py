@@ -19,6 +19,8 @@ generate_tearsheet_from_trades(trades, initial_capital, output_path="report.html
 from the_alchemiser.shared.reporting import calculate_extended_metrics
 metrics = calculate_extended_metrics(returns_series)
 """
+# mypy: disable-error-code="no-untyped-call"
+# quantstats library doesn't have type stubs
 
 from __future__ import annotations
 

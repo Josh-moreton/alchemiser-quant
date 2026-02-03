@@ -87,7 +87,9 @@ class RollScheduleHandler:
         """Get the event bus."""
         return self._event_bus
 
-    def handle_scheduled_event(self, correlation_id: str | None = None) -> dict[str, Any]:
+    def handle_scheduled_event(  # noqa: C901
+        self, correlation_id: str | None = None
+    ) -> dict[str, Any]:
         """Handle scheduled roll check event.
 
         Scans positions and triggers rolls as needed.

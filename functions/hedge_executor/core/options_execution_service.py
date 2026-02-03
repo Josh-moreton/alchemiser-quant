@@ -209,7 +209,7 @@ class OptionsExecutionService:
                 no_fill_explicit=True,
             )
 
-    def _monitor_order_with_repricing(
+    def _monitor_order_with_repricing(  # noqa: C901
         self,
         order_id: str,
         option_symbol: str,
