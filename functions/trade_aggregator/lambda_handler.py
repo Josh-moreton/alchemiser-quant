@@ -12,7 +12,6 @@ Trigger: EventBridge rule matching TradeExecuted events.
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
