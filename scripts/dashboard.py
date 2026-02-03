@@ -130,6 +130,7 @@ def show_dashboard() -> None:
     # Navigation menu
     pages = {
         "Portfolio Overview": "portfolio_overview",
+        "Forward Projection": "forward_projection",
         "Last Run Analysis": "last_run_analysis",
         "Trade History": "trade_history",
         "Symbol Analytics": "symbol_analytics",
@@ -144,6 +145,9 @@ def show_dashboard() -> None:
     if page == "Portfolio Overview":
         from dashboard_pages import portfolio_overview
         portfolio_overview.show()
+    elif page == "Forward Projection":
+        from dashboard_pages import forward_projection
+        forward_projection.show()
     elif page == "Last Run Analysis":
         from dashboard_pages import last_run_analysis
         last_run_analysis.show()
