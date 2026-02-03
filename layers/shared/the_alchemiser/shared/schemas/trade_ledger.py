@@ -57,6 +57,29 @@ class TradeLedgerEntry(BaseModel):
     bid_at_fill: Decimal | None = Field(default=None, gt=0, description="Bid price at fill time")
     ask_at_fill: Decimal | None = Field(default=None, gt=0, description="Ask price at fill time")
 
+    # Execution quality metrics (TCA)
+    expected_price: Decimal | None = Field(
+        default=None, gt=0, description="Mid price at order submission (arrival price)"
+    )
+    slippage_bps: Decimal | None = Field(
+        default=None, description="Slippage in basis points vs expected price"
+    )
+    slippage_amount: Decimal | None = Field(
+        default=None, description="Dollar slippage (positive = worse fill)"
+    )
+    spread_at_order: Decimal | None = Field(
+        default=None, ge=0, description="Bid-ask spread width when order submitted"
+    )
+    execution_steps: int | None = Field(
+        default=None, ge=1, le=4, description="Walk-the-book steps used (1-4)"
+    )
+    time_to_fill_ms: int | None = Field(
+        default=None, ge=0, description="Milliseconds from order submission to fill"
+    )
+    quote_timestamp: datetime | None = Field(
+        default=None, description="When the quote was captured (for staleness check)"
+    )
+
     # Timing
     fill_timestamp: datetime = Field(..., description="Time and date of fill")
 
@@ -81,13 +104,15 @@ class TradeLedgerEntry(BaseModel):
         """Normalize symbol to uppercase."""
         return v.strip().upper()
 
-    @field_validator("fill_timestamp")
+    @field_validator("fill_timestamp", "quote_timestamp")
     @classmethod
-    def ensure_timezone_aware_timestamp(cls, v: datetime) -> datetime:
-        """Ensure fill timestamp is timezone-aware."""
+    def ensure_timezone_aware_timestamp(cls, v: datetime | None) -> datetime | None:
+        """Ensure timestamps are timezone-aware."""
+        if v is None:
+            return None
         result = ensure_timezone_aware(v)
         if result is None:
-            raise ValueError("fill_timestamp cannot be None")
+            raise ValueError("Timestamp cannot be None after conversion")
         return result
 
     @field_validator("strategy_weights")

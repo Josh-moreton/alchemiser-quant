@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import structlog
 from core.market_order_executor import MarketOrderExecutor
@@ -56,6 +56,8 @@ if TYPE_CHECKING:
     from core.smart_execution_strategy import (
         ExecutionConfig,
     )
+
+    from the_alchemiser.shared.types.market_data import QuoteModel
 
 logger: structlog.stdlib.BoundLogger = get_logger(__name__)
 
@@ -1230,13 +1232,56 @@ class Executor:
                             },
                         )
 
+                # Build execution quality metrics from OrderResult and quote data
+                execution_quality = self._build_execution_quality(
+                    order_result=order,
+                    quote_at_fill=quote_at_fill,
+                )
+
                 # Record order to ledger with quote data when available
                 self.trade_ledger.record_filled_order(
                     order_result=order,
                     correlation_id=plan.correlation_id,
                     rebalance_plan=plan,
                     quote_at_fill=quote_at_fill,
+                    execution_quality=execution_quality,
                 )
+
+    def _build_execution_quality(
+        self,
+        order_result: OrderResult,
+        quote_at_fill: QuoteModel | None,
+    ) -> dict[str, Any]:
+        """Build execution quality metrics dict for trade ledger.
+
+        Args:
+            order_result: Order execution result with slippage fields
+            quote_at_fill: Quote at time of fill (for spread calculation)
+
+        Returns:
+            Dict with execution quality metrics
+
+        """
+        eq: dict[str, Any] = {}
+
+        # Extract slippage metrics from OrderResult (calculated during execution)
+        if order_result.expected_price is not None:
+            eq["expected_price"] = order_result.expected_price
+        if order_result.slippage_bps is not None:
+            eq["slippage_bps"] = order_result.slippage_bps
+        if order_result.slippage_amount is not None:
+            eq["slippage_amount"] = order_result.slippage_amount
+
+        # Calculate spread at fill from quote data
+        if quote_at_fill and quote_at_fill.bid_price > 0 and quote_at_fill.ask_price > 0:
+            eq["spread_at_order"] = quote_at_fill.ask_price - quote_at_fill.bid_price
+
+        # Calculate time_to_fill_ms if we have timestamps
+        if order_result.filled_at and order_result.timestamp:
+            time_delta = order_result.filled_at - order_result.timestamp
+            eq["time_to_fill_ms"] = int(time_delta.total_seconds() * 1000)
+
+        return eq
 
     def shutdown(self) -> None:
         """Shutdown the executor and cleanup resources.

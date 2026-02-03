@@ -44,7 +44,7 @@ if favicon_path.exists():
     from PIL import Image
     favicon = Image.open(favicon_path)
 else:
-    favicon = "📊"
+    favicon = None
 
 # Page config (must be first Streamlit call)
 st.set_page_config(
@@ -131,32 +131,36 @@ def show_dashboard() -> None:
     # Inject custom styles based on theme
     inject_styles()
 
-    # Logo and Navigation
-    logo_path = Path(__file__).parent.parent / "octarine_capital_stacked.svg"
-    if logo_path.exists():
-        st.sidebar.image(str(logo_path), width="stretch")
-    else:
-        st.sidebar.title("Octarine Capital")
+    # Initialize current page in session state
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Portfolio Overview"
 
-    st.sidebar.markdown("---")
+    # Navigation links
+    pages = [
+        ("Portfolio Overview", "Portfolio Overview"),
+        ("Forward Projection", "Forward Projection"),
+        ("Last Run Analysis", "Last Run Analysis"),
+        ("Trade History", "Trade History"),
+        ("Execution Quality", "Execution Quality"),
+        ("Symbol Analytics", "Symbol Analytics"),
+        ("Options Hedging", "Options Hedging"),
+    ]
 
-    # Navigation menu with icons
-    pages = {
-        "📊 Portfolio Overview": "portfolio_overview",
-        "📈 Forward Projection": "forward_projection",
-        "🔍 Last Run Analysis": "last_run_analysis",
-        "📜 Trade History": "trade_history",
-        "🎯 Symbol Analytics": "symbol_analytics",
-        "🛡️ Options Hedging": "options_hedging",
-    }
-
-    page = st.sidebar.selectbox("Navigation", list(pages.keys()), label_visibility="collapsed")
+    # Render navigation links
+    for label, page_key in pages:
+        is_active = st.session_state.current_page == page_key
+        css_class = "nav-link-active" if is_active else "nav-link"
+        st.sidebar.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
+        if st.sidebar.button(label, key=f"nav_{page_key}", use_container_width=True):
+            st.session_state.current_page = page_key
+            st.rerun()
+        st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
     st.sidebar.markdown("---")
     st.sidebar.caption("Real-time trading system dashboard")
 
-    # Route to pages (strip emoji prefix for matching)
-    page_key = page.split(" ", 1)[1] if " " in page else page
+    # Route to pages
+    page_key = st.session_state.current_page
 
     if page_key == "Portfolio Overview":
         from dashboard_pages import portfolio_overview
@@ -174,6 +178,10 @@ def show_dashboard() -> None:
         from dashboard_pages import trade_history
 
         trade_history.show()
+    elif page_key == "Execution Quality":
+        from dashboard_pages import execution_quality
+
+        execution_quality.show()
     elif page_key == "Symbol Analytics":
         from dashboard_pages import symbol_analytics
 

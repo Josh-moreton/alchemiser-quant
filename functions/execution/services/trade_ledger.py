@@ -23,7 +23,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import ValidationError
@@ -84,6 +84,7 @@ class TradeLedgerService:
         rebalance_plan: RebalancePlan | None = None,
         quote_at_fill: QuoteModel | None = None,
         strategy_attribution: dict[str, dict[str, float]] | None = None,
+        execution_quality: dict[str, Any] | None = None,
     ) -> TradeLedgerEntry | None:
         """Record a filled order to the trade ledger.
 
@@ -99,6 +100,14 @@ class TradeLedgerService:
             strategy_attribution: Optional direct strategy attribution from TradeMessage
                 metadata. Format: {symbol: {strategy_name: weight_float}}
                 Takes precedence over rebalance_plan metadata when provided.
+            execution_quality: Optional dict with execution quality metrics:
+                - expected_price: Decimal - mid price at order submission
+                - slippage_bps: Decimal - slippage in basis points
+                - slippage_amount: Decimal - dollar slippage
+                - spread_at_order: Decimal - bid-ask spread at order time
+                - execution_steps: int - walk-the-book steps used (1-4)
+                - time_to_fill_ms: int - milliseconds to fill
+                - quote_timestamp: datetime - when quote was captured
 
         Returns:
             TradeLedgerEntry if order was filled and recorded, None otherwise
@@ -120,6 +129,9 @@ class TradeLedgerService:
         order_type = order_result.order_type
         fill_timestamp = order_result.filled_at or order_result.timestamp
 
+        # Extract execution quality metrics
+        eq = execution_quality or {}
+
         # Create and record ledger entry
         entry = self._create_entry(
             order_result=order_result,
@@ -130,6 +142,13 @@ class TradeLedgerService:
             order_type=order_type,
             strategy_names=strategy_names,
             strategy_weights=strategy_weights,
+            expected_price=eq.get("expected_price"),
+            slippage_bps=eq.get("slippage_bps"),
+            slippage_amount=eq.get("slippage_amount"),
+            spread_at_order=eq.get("spread_at_order"),
+            execution_steps=eq.get("execution_steps"),
+            time_to_fill_ms=eq.get("time_to_fill_ms"),
+            quote_timestamp=eq.get("quote_timestamp"),
         )
 
         if not entry:
@@ -255,6 +274,13 @@ class TradeLedgerService:
         order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"],
         strategy_names: list[str],
         strategy_weights: dict[str, Decimal] | None,
+        expected_price: Decimal | None = None,
+        slippage_bps: Decimal | None = None,
+        slippage_amount: Decimal | None = None,
+        spread_at_order: Decimal | None = None,
+        execution_steps: int | None = None,
+        time_to_fill_ms: int | None = None,
+        quote_timestamp: datetime | None = None,
     ) -> TradeLedgerEntry | None:
         """Create TradeLedgerEntry DTO.
 
@@ -267,6 +293,13 @@ class TradeLedgerService:
             order_type: Type of order (MARKET, LIMIT, etc.)
             strategy_names: List of strategy names
             strategy_weights: Strategy weight attribution
+            expected_price: Mid price at order submission (arrival price)
+            slippage_bps: Slippage in basis points
+            slippage_amount: Dollar slippage amount
+            spread_at_order: Bid-ask spread at order submission
+            execution_steps: Walk-the-book steps used (1-4)
+            time_to_fill_ms: Milliseconds from submission to fill
+            quote_timestamp: When the initial quote was captured
 
         Returns:
             TradeLedgerEntry if successful, None if validation fails
@@ -286,6 +319,13 @@ class TradeLedgerService:
                 fill_price=order_result.price,
                 bid_at_fill=bid_at_fill,
                 ask_at_fill=ask_at_fill,
+                expected_price=expected_price,
+                slippage_bps=slippage_bps,
+                slippage_amount=slippage_amount,
+                spread_at_order=spread_at_order,
+                execution_steps=execution_steps,
+                time_to_fill_ms=time_to_fill_ms,
+                quote_timestamp=quote_timestamp,
                 fill_timestamp=fill_timestamp,
                 order_type=order_type,
                 strategy_names=strategy_names,

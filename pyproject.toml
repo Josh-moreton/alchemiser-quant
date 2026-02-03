@@ -10,7 +10,7 @@ package-mode = false  # Dependency management only - no package installation
 # This is an AWS Lambda microservices project deployed via SAM.
 # Poetry is used only for:
 #   1. Managing dependencies (poetry.lock)
-#   2. Dev tools (pytest, mypy, ruff)
+#   2. Dev tools (mypy, ruff)
 # Lambda functions are NOT installed as a Python package.
 
 [tool.ruff]
@@ -96,11 +96,6 @@ unfixable = []
 # Scripts: Allow late imports (load_dotenv), boolean args, ternary preferences, Path.open()
 "scripts/*" = ["E402", "FBT001", "FBT002", "SIM108", "PTH123"]
 
-[tool.pytest.ini_options]
-addopts = "-n auto --dist=loadscope -q --durations=10"
-testpaths = [ "tests",]
-markers = [ "serial: cannot be run in parallel (uses shared state, real network/broker, or depends on order)",]
-
 [tool.ruff.lint.mccabe]
 max-complexity = 15
 
@@ -123,9 +118,6 @@ pip-audit = "^2.10.0"
 detect-secrets = "^1.5.0"
 pyright = "^1.1.408"
 import-linter = "^2.9"
-pytest-xdist = "^3.8.0"
-pytest-randomly = "^4.0.1"
-pytest-timeout = "^2.4.0"
 mypy-boto3-sns = "^1.41.0"
 mypy-boto3-s3 = "^1.42.37"
 mypy-boto3-events = "^1.41.0"
