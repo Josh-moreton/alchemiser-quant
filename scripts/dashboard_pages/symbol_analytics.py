@@ -32,9 +32,16 @@ from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountS
 @st.cache_data(ttl=60)
 def get_all_traded_symbols() -> list[str]:
     """Get list of all symbols that have been traded."""
+    settings = get_dashboard_settings()
+    if not settings.has_aws_credentials():
+        st.error(
+            "AWS credentials not configured or invalid. "
+            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
+        )
+        return []
+    
     try:
-        settings = get_dashboard_settings()
-        dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
+        dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
         table = dynamodb.Table(settings.trade_ledger_table)
 
         # Scan for unique symbols
@@ -69,9 +76,12 @@ def get_all_traded_symbols() -> list[str]:
 @st.cache_data(ttl=60)
 def get_symbol_trades(symbol: str) -> list[dict[str, Any]]:
     """Get all trades for a specific symbol."""
+    settings = get_dashboard_settings()
+    if not settings.has_aws_credentials():
+        return []  # Error already shown by get_all_traded_symbols
+    
     try:
-        settings = get_dashboard_settings()
-        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        dynamodb = boto3.client("dynamodb", **settings.get_boto3_client_kwargs())
         table_name = settings.trade_ledger_table
 
         # Query using GSI2 (symbol index)

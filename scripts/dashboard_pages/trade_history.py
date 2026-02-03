@@ -31,9 +31,16 @@ def get_trades(
     symbol: str | None = None,
 ) -> list[dict[str, Any]]:
     """Get trades from DynamoDB with optional filters."""
+    settings = get_dashboard_settings()
+    if not settings.has_aws_credentials():
+        st.error(
+            "AWS credentials not configured or invalid. "
+            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
+        )
+        return []
+    
     try:
-        settings = get_dashboard_settings()
-        dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
+        dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
         table = dynamodb.Table(settings.trade_ledger_table)
 
         # Build filter expression

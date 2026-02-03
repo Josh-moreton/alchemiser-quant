@@ -31,8 +31,16 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
     settings = get_dashboard_settings()
     table_name = settings.aggregation_sessions_table
     
+    # Check credentials first and show helpful error
+    if not settings.has_aws_credentials():
+        st.error(
+            "AWS credentials not configured or invalid. "
+            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
+        )
+        return []
+    
     try:
-        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        dynamodb = boto3.client("dynamodb", **settings.get_boto3_client_kwargs())
 
         response = dynamodb.scan(
             TableName=table_name,
@@ -81,11 +89,6 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
                 "AWS credentials lack DynamoDB read permissions. "
                 "Check that the IAM user has the AlchemiserDashboardReadOnly policy attached."
             )
-        elif "credentials" in error_msg.lower() or "security token" in error_msg.lower():
-            st.error(
-                "AWS credentials not configured or invalid. "
-                "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
-            )
         else:
             st.error(f"Error loading sessions: {e}")
         return []
@@ -94,9 +97,12 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
 @st.cache_data(ttl=60)
 def get_rebalance_plan(correlation_id: str) -> dict[str, Any] | None:
     """Get rebalance plan for a correlation ID."""
+    settings = get_dashboard_settings()
+    if not settings.has_aws_credentials():
+        return None  # Error already shown by get_recent_sessions
+    
     try:
-        settings = get_dashboard_settings()
-        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        dynamodb = boto3.client("dynamodb", **settings.get_boto3_client_kwargs())
         table_name = settings.rebalance_plans_table
 
         response = dynamodb.query(
@@ -125,9 +131,12 @@ def get_rebalance_plan(correlation_id: str) -> dict[str, Any] | None:
 @st.cache_data(ttl=60)
 def get_trades_for_correlation(correlation_id: str) -> list[dict[str, Any]]:
     """Get trades for a correlation ID."""
+    settings = get_dashboard_settings()
+    if not settings.has_aws_credentials():
+        return []  # Error already shown by get_recent_sessions
+    
     try:
-        settings = get_dashboard_settings()
-        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        dynamodb = boto3.client("dynamodb", **settings.get_boto3_client_kwargs())
         table_name = settings.trade_ledger_table
 
         response = dynamodb.query(
