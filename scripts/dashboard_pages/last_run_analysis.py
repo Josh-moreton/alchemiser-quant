@@ -19,6 +19,7 @@ from typing import Any
 import _setup_imports  # noqa: F401
 import boto3
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
@@ -524,7 +525,21 @@ def show_signal_analysis(signal: dict[str, Any]) -> None:
 
     # Allocation bar chart
     st.subheader("Target Allocations")
-    st.bar_chart(df.set_index("Symbol")["Weight"], width="stretch", height=300)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df["Symbol"],
+        y=df["Weight"],
+        marker_color="#7CF5D4",
+        hovertemplate="%{x}<br>Weight: %{y:.2f}%<extra></extra>",
+    ))
+    fig.update_layout(
+        height=300,
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis=dict(title="", tickangle=-45),
+        yaxis=dict(title="Weight (%)"),
+        showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     # Allocation table
     with st.expander("Allocation Details"):

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import _setup_imports  # noqa: F401
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -270,8 +271,61 @@ def show() -> None:
     # PROJECTION CHART (full width)
     # =========================================================================
     section_header("Projected Equity Curve")
-    chart_data = create_chart_data(projections)
-    st.line_chart(chart_data, height=500, width="stretch")
+    
+    use_log_scale = st.checkbox("Use logarithmic scale", value=False, help="Log scale better shows percentage growth over time")
+    
+    # Scenario colors (matches theme)
+    scenario_colors = {
+        "Conservative": "#808080",
+        "Base Case": "#7CF5D4",
+        "Optimistic": "#4CAF50",
+    }
+    
+    fig = go.Figure()
+    
+    for scenario_name, df in projections.items():
+        fig.add_trace(
+            go.Scatter(
+                x=df["Date"],
+                y=df["Equity"],
+                mode="lines",
+                name=scenario_name,
+                line=dict(color=scenario_colors[scenario_name], width=2),
+                hovertemplate="<b>%{fullData.name}</b><br>Date: %{x|%b %Y}<br>Equity: $%{y:,.0f}<extra></extra>",
+            )
+        )
+    
+    fig.update_layout(
+        height=500,
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+        ),
+        xaxis=dict(
+            title="Date",
+            rangeslider=dict(visible=True),
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1y", step="year", stepmode="backward"),
+                    dict(count=3, label="3y", step="year", stepmode="backward"),
+                    dict(count=5, label="5y", step="year", stepmode="backward"),
+                    dict(step="all", label="All"),
+                ]
+            ),
+        ),
+        yaxis=dict(
+            title="Equity ($)",
+            type="log" if use_log_scale else "linear",
+            tickformat="$,.0f",
+        ),
+        margin=dict(l=60, r=20, t=40, b=60),
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
 
     # =========================================================================
     # PROJECTION SUMMARY TABLE

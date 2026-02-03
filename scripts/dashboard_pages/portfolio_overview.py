@@ -11,6 +11,7 @@ from pathlib import Path
 
 import _setup_imports  # noqa: F401
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -343,7 +344,23 @@ def show() -> None:
 
     with col_chart:
         st.subheader("Equity Curve")
-        st.line_chart(df.set_index("Date")["Equity"], width="stretch")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df["Date"],
+            y=df["Equity"],
+            mode="lines",
+            name="Equity",
+            line=dict(color="#7CF5D4", width=2),
+            hovertemplate="Date: %{x|%b %d, %Y}<br>Equity: $%{y:,.0f}<extra></extra>",
+        ))
+        fig.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis=dict(title=""),
+            yaxis=dict(title="", tickformat="$,.0f"),
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
     with col_positions:
         st.subheader("Current Positions")
@@ -376,13 +393,47 @@ def show() -> None:
     # DAILY P&L BAR CHART (full width)
     # =========================================================================
     section_header("Daily P&L")
-    st.bar_chart(df.set_index("Date")["P&L ($)"], width="stretch")
+    colors = ["#4CAF50" if v >= 0 else "#F44336" for v in df["P&L ($)"]]
+    fig_pnl = go.Figure()
+    fig_pnl.add_trace(go.Bar(
+        x=df["Date"],
+        y=df["P&L ($)"],
+        marker_color=colors,
+        hovertemplate="Date: %{x|%b %d, %Y}<br>P&L: $%{y:+,.2f}<extra></extra>",
+    ))
+    fig_pnl.update_layout(
+        height=300,
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis=dict(title=""),
+        yaxis=dict(title="", tickformat="$,.0f"),
+        hovermode="x unified",
+        showlegend=False,
+    )
+    st.plotly_chart(fig_pnl, use_container_width=True)
 
     # =========================================================================
     # CUMULATIVE P&L CHART (full width)
     # =========================================================================
     section_header("Cumulative P&L")
-    st.line_chart(df.set_index("Date")["Cumulative P&L"], width="stretch")
+    cum_color = "#4CAF50" if df["Cumulative P&L"].iloc[-1] >= 0 else "#F44336"
+    fig_cum = go.Figure()
+    fig_cum.add_trace(go.Scatter(
+        x=df["Date"],
+        y=df["Cumulative P&L"],
+        mode="lines",
+        fill="tozeroy",
+        line=dict(color=cum_color, width=2),
+        hovertemplate="Date: %{x|%b %d, %Y}<br>Cumulative P&L: $%{y:+,.0f}<extra></extra>",
+    ))
+    fig_cum.update_layout(
+        height=300,
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis=dict(title=""),
+        yaxis=dict(title="", tickformat="$,.0f"),
+        hovermode="x unified",
+        showlegend=False,
+    )
+    st.plotly_chart(fig_cum, use_container_width=True)
 
     # =========================================================================
     # MONTHLY SUMMARY (collapsible)

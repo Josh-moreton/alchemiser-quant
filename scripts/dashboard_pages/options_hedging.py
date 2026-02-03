@@ -17,6 +17,7 @@ from typing import Any
 import _setup_imports  # noqa: F401
 import boto3
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from botocore.exceptions import ClientError
 from dashboard_settings import debug_secrets_info, get_dashboard_settings
@@ -434,7 +435,21 @@ def show_premium_spend_analysis(
         chart_data = pd.DataFrame(
             [{"Month": k, "Premium ($)": float(v)} for k, v in sorted(spend_by_month.items())]
         )
-        st.bar_chart(chart_data.set_index("Month"), width="stretch")
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=chart_data["Month"],
+            y=chart_data["Premium ($)"],
+            marker_color="#7CF5D4",
+            hovertemplate="%{x}<br>Premium: $%{y:,.2f}<extra></extra>",
+        ))
+        fig.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis=dict(title=""),
+            yaxis=dict(title="Premium ($)", tickformat="$,.0f"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 
 def show_position_details(positions: list[dict[str, Any]]) -> None:

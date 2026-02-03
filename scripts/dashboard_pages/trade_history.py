@@ -13,6 +13,7 @@ from typing import Any
 import _setup_imports  # noqa: F401
 import boto3
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from boto3.dynamodb.conditions import Attr
 from dotenv import load_dotenv
@@ -320,7 +321,21 @@ def show() -> None:
             # Chart
             st.subheader("Strategy Trade Volume")
             chart_data = strategy_df.set_index("Strategy")["Total Value"]
-            st.bar_chart(chart_data, width="stretch")
+            fig_strat = go.Figure()
+            fig_strat.add_trace(go.Bar(
+                x=chart_data.index,
+                y=chart_data.values,
+                marker_color="#7CF5D4",
+                hovertemplate="%{x}<br>Value: $%{y:,.2f}<extra></extra>",
+            ))
+            fig_strat.update_layout(
+                height=300,
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(title=""),
+                yaxis=dict(title="Total Value ($)", tickformat="$,.0f"),
+                showlegend=False,
+            )
+            st.plotly_chart(fig_strat, use_container_width=True)
         else:
             st.info("No strategy attribution data available")
 
@@ -343,7 +358,21 @@ def show() -> None:
             if len(symbol_df) > 0:
                 st.subheader("Top Symbols by Trade Value")
                 chart_data = symbol_df.head(10).set_index("Symbol")["Total Value"]
-                st.bar_chart(chart_data, width="stretch")
+                fig_sym = go.Figure()
+                fig_sym.add_trace(go.Bar(
+                    x=chart_data.index,
+                    y=chart_data.values,
+                    marker_color="#7CF5D4",
+                    hovertemplate="%{x}<br>Value: $%{y:,.2f}<extra></extra>",
+                ))
+                fig_sym.update_layout(
+                    height=300,
+                    margin=dict(l=0, r=0, t=10, b=0),
+                    xaxis=dict(title=""),
+                    yaxis=dict(title="Total Value ($)", tickformat="$,.0f"),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig_sym, use_container_width=True)
         else:
             st.info("No symbol data available")
 
@@ -361,14 +390,44 @@ def show() -> None:
                 "filled_qty": "count",
             }).rename(columns={"filled_qty": "Trade Count"})
 
-            st.line_chart(daily_volume["Trade Count"], width="stretch")
+            fig_vol = go.Figure()
+            fig_vol.add_trace(go.Scatter(
+                x=daily_volume.index,
+                y=daily_volume["Trade Count"],
+                mode="lines+markers",
+                line=dict(color="#7CF5D4", width=2),
+                marker=dict(size=6),
+                hovertemplate="Date: %{x}<br>Trades: %{y}<extra></extra>",
+            ))
+            fig_vol.update_layout(
+                height=300,
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(title=""),
+                yaxis=dict(title="Trade Count"),
+                showlegend=False,
+            )
+            st.plotly_chart(fig_vol, use_container_width=True)
 
             # Daily value breakdown
             daily_value = daily_df.groupby("Date").apply(
                 lambda x: (x["filled_qty"] * x["fill_price"]).sum()
             )
             st.subheader("Daily Trade Value")
-            st.bar_chart(daily_value, width="stretch")
+            fig_val = go.Figure()
+            fig_val.add_trace(go.Bar(
+                x=daily_value.index,
+                y=daily_value.values,
+                marker_color="#7CF5D4",
+                hovertemplate="Date: %{x}<br>Value: $%{y:,.2f}<extra></extra>",
+            ))
+            fig_val.update_layout(
+                height=300,
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(title=""),
+                yaxis=dict(title="Trade Value ($)", tickformat="$,.0f"),
+                showlegend=False,
+            )
+            st.plotly_chart(fig_val, use_container_width=True)
 
     with tab_recent:
         section_header("Recent Trades")

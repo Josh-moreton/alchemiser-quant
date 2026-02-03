@@ -13,6 +13,7 @@ from typing import Any
 import _setup_imports  # noqa: F401
 import boto3
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from boto3.dynamodb.conditions import Attr
 from dotenv import load_dotenv
@@ -315,7 +316,34 @@ def show() -> None:
             "SELL": sell_prices,
         })
 
-        st.line_chart(chart_df, width="stretch")
+        fig = go.Figure()
+        if not buy_prices.empty:
+            fig.add_trace(go.Scatter(
+                x=buy_prices.index,
+                y=buy_prices.values,
+                mode="markers",
+                name="BUY",
+                marker=dict(color="#4CAF50", size=8),
+                hovertemplate="Date: %{x|%b %d, %Y}<br>Buy Price: $%{y:.2f}<extra></extra>",
+            ))
+        if not sell_prices.empty:
+            fig.add_trace(go.Scatter(
+                x=sell_prices.index,
+                y=sell_prices.values,
+                mode="markers",
+                name="SELL",
+                marker=dict(color="#F44336", size=8),
+                hovertemplate="Date: %{x|%b %d, %Y}<br>Sell Price: $%{y:.2f}<extra></extra>",
+            ))
+        fig.update_layout(
+            height=350,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis=dict(title=""),
+            yaxis=dict(title="Price ($)", tickformat="$.2f"),
+            hovermode="closest",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
     with tab_position:
         section_header("Cumulative Position Over Time")
@@ -336,7 +364,24 @@ def show() -> None:
             })
 
         qty_df = pd.DataFrame(cumulative_qty).set_index("Timestamp")
-        st.line_chart(qty_df["Cumulative Qty"], width="stretch")
+        fig_qty = go.Figure()
+        fig_qty.add_trace(go.Scatter(
+            x=qty_df.index,
+            y=qty_df["Cumulative Qty"],
+            mode="lines",
+            fill="tozeroy",
+            line=dict(color="#7CF5D4", width=2),
+            hovertemplate="Date: %{x|%b %d, %Y}<br>Qty: %{y:.4f}<extra></extra>",
+        ))
+        fig_qty.update_layout(
+            height=350,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis=dict(title=""),
+            yaxis=dict(title="Quantity"),
+            hovermode="x unified",
+            showlegend=False,
+        )
+        st.plotly_chart(fig_qty, use_container_width=True)
 
         # Current position details
         if position:
@@ -407,11 +452,22 @@ def show() -> None:
 
             # Horizontal bar chart for strategy attribution
             st.subheader("Trade Value by Strategy")
-            st.bar_chart(
-                strategy_df.set_index("Strategy")["Total Value"],
-                width="stretch",
-                horizontal=True,
+            fig_strat = go.Figure()
+            fig_strat.add_trace(go.Bar(
+                y=strategy_df["Strategy"],
+                x=strategy_df["Total Value"],
+                orientation="h",
+                marker_color="#7CF5D4",
+                hovertemplate="%{y}<br>Value: $%{x:,.2f}<extra></extra>",
+            ))
+            fig_strat.update_layout(
+                height=max(200, len(strategy_df) * 30),
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(title="Total Value ($)", tickformat="$,.0f"),
+                yaxis=dict(title=""),
+                showlegend=False,
             )
+            st.plotly_chart(fig_strat, use_container_width=True)
         else:
             st.info("No strategy attribution available")
 
