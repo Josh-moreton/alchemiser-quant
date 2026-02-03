@@ -135,18 +135,6 @@ Parameters:
     Default: ""
     Description: Email address for notifications (set per-environment in secret store)
 
-  # Notion P&L Dashboard configuration
-  NotionToken:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: Notion integration token for P&L dashboard
-
-  NotionDatabaseId:
-    Type: String
-    Default: ""
-    Description: Notion database ID for daily P&L records
-
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Mappings:
@@ -513,39 +501,6 @@ Resources:
           Value: !Ref Stage
         - Key: Service
           Value: bad-data-markers
-
-  # ========== DAILY P&L TABLE (PNL TRACKING) ==========
-  # DynamoDB table for canonical daily P&L tracking
-  # Stores deposit-adjusted daily P&L with T+1 settlement logic
-  # Single source of truth for account-wide daily/weekly/monthly performance
-  DailyPnLTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-daily-pnl"
-        - !Sub "alchemiser-${Stage}-daily-pnl"
-      BillingMode: PAY_PER_REQUEST
-
-      AttributeDefinitions:
-        - AttributeName: date
-          AttributeType: S
-
-      KeySchema:
-        - AttributeName: date
-          KeyType: HASH
-
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: true
-
-      SSESpecification:
-        SSEEnabled: true
-
-      Tags:
-        - Key: Environment
-          Value: !Ref Stage
-        - Key: Service
-          Value: daily-pnl
 
   # ========== HEDGE POSITIONS TABLE (OPTIONS HEDGING) ==========
   # DynamoDB table for active hedge positions with lifecycle tracking
@@ -1661,7 +1616,6 @@ Resources:
         Variables:
           EVENT_BUS_NAME: !Ref AlchemiserEventBus
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
-          DAILY_PNL_TABLE_NAME: !Ref DailyPnLTable
           ENVIRONMENT: !Ref Stage
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
@@ -1700,12 +1654,6 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt ExecutionRunsTable.Arn
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:Scan
-                Resource:
-                  - !GetAtt DailyPnLTable.Arn
 
   # ========== NOTIFICATIONS LAMBDA ==========
   # Consumes TradeExecuted and WorkflowFailed events and sends email notifications
@@ -2290,77 +2238,6 @@ Resources:
   # If the Schedule Manager fails, we will be notified through normal WorkflowFailed event channels.
   # Historical note: The fallback was intended as a "safety net" but added unnecessary complexity.
 
-  # ========== P&L CAPTURE FUNCTION ==========
-  # Daily P&L capture Lambda - runs after market close to record yesterday's performance
-  PnLCaptureFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-pnl-capture"
-        - !Sub "alchemiser-${Stage}-pnl-capture"
-      Runtime: python3.12
-      Architectures:
-        - x86_64
-      CodeUri: functions/pnl_capture/
-      Handler: lambda_handler.lambda_handler
-      Role: !GetAtt PnLCaptureExecutionRole.Arn
-      Layers:
-        - !Ref SharedCodeLayer
-        - !Ref PortfolioLayer
-      Timeout: 300
-      MemorySize: 512
-      Environment:
-        Variables:
-          ENVIRONMENT: !Ref Stage
-          NOTION_TOKEN: !Ref NotionToken
-          NOTION_DATABASE_ID: !Ref NotionDatabaseId
-          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
-          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
-          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
-    Metadata:
-      BuildMethod: python3.12
-
-  # P&L Capture Schedule - uses EventBridge Scheduler for NY timezone support
-  PnLCaptureSchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-pnl-capture"
-        - !Sub "alchemiser-${Stage}-pnl-capture-schedule"
-      Description: "Daily P&L capture to Notion at 5:00 PM ET (after market close)"
-      ScheduleExpression: "cron(0 17 ? * MON-FRI *)"
-      ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt PnLCaptureFunction.Arn
-        RoleArn: !GetAtt PnLCaptureSchedulerRole.Arn
-        Input: '{"source": "daily_schedule"}'
-        RetryPolicy:
-          MaximumRetryAttempts: 2
-
-  PnLCaptureSchedulerRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *scheduler-assume-role
-      Policies:
-        - PolicyName: InvokePnLCapture
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: lambda:InvokeFunction
-                Resource:
-                  - !GetAtt PnLCaptureFunction.Arn
-
-  PnLCaptureExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *lambda-assume-role
-      ManagedPolicyArns: *lambda-basic-execution
-      # No additional policies needed - Notion API calls don't require AWS permissions
-  #
   # StrategySchedule resource removed - see issue "Double run bug" for details.
 
   StrategySchedulerRole:
@@ -2827,6 +2704,58 @@ Resources:
           DataLog: !Sub "/aws/lambda/${DataFunction}"
           StageTitle: !FindInMap [StageConfig, !Ref Stage, TitleCase]
 
+  # ========== STREAMLIT DASHBOARD IAM USER (PROD ONLY) ==========
+  # Read-only IAM user for Streamlit Cloud dashboard access to AWS resources.
+  # Access keys must be created manually via AWS console and added to Streamlit secrets.
+  # This user has minimal permissions: read-only DynamoDB and CloudWatch Logs.
+  
+  DashboardUser:
+    Type: AWS::IAM::User
+    Condition: IsProduction
+    Properties:
+      UserName: alchemiser-dashboard-readonly
+      Tags:
+        - Key: Environment
+          Value: prod
+        - Key: Purpose
+          Value: Streamlit dashboard read-only access
+
+  DashboardPolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsProduction
+    Properties:
+      PolicyName: AlchemiserDashboardReadOnly
+      Users:
+        - !Ref DashboardUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # DynamoDB read-only for prod tables
+          - Sid: DynamoDBReadProd
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:DescribeTable
+            Resource:
+              - !GetAtt TradeLedgerTable.Arn
+              - !Sub "${TradeLedgerTable.Arn}/index/*"
+              - !GetAtt AggregationSessionsTable.Arn
+              - !GetAtt RebalancePlanTable.Arn
+              - !Sub "${RebalancePlanTable.Arn}/index/*"
+              - !GetAtt ExecutionRunsTable.Arn
+          # CloudWatch Logs read-only for prod Lambda log groups
+          - Sid: CloudWatchLogsReadProd
+            Effect: Allow
+            Action:
+              - logs:FilterLogEvents
+              - logs:GetLogEvents
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/alchemiser-prod-*:*"
+
 Outputs:
   TradeLedgerTableName:
     Description: "DynamoDB table for trade ledger persistence"
@@ -2909,15 +2838,6 @@ Outputs:
         - !Sub "${StackName}-BadDataMarkersTable"
         - !Sub "alchemiser-${Stage}-BadDataMarkersTable"
 
-  DailyPnLTableName:
-    Description: "DynamoDB table for daily P&L tracking"
-    Value: !Ref DailyPnLTable
-    Export:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-DailyPnLTable"
-        - !Sub "alchemiser-${Stage}-DailyPnLTable"
-
   DataFunctionArn:
     Description: "ARN of per-stage data function"
     Value: !GetAtt DataFunction.Arn
@@ -2935,6 +2855,12 @@ Outputs:
     Description: "Stack name used for resource naming"
     Value: !If [ HasStackName, !Ref StackName, !Sub "alchemiser-${Stage}" ]
 
+  DashboardUserName:
+    Description: "IAM user for Streamlit dashboard (create access keys manually in AWS console)"
+    Condition: IsProduction
+    Value: !Ref DashboardUser
+    Export:
+      Name: alchemiser-prod-DashboardUser
 
   DashboardURL:
     Description: "CloudWatch Dashboard for monitoring errors and warnings"

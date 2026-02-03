@@ -12,6 +12,7 @@ from __future__ import annotations
 import calendar
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from the_alchemiser.shared.brokers.alpaca_manager import (
     AlpacaManager,
@@ -21,46 +22,39 @@ from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.errors.exceptions import ConfigurationError, DataProviderError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.pnl import DailyPnLEntry, PnLData
-from the_alchemiser.shared.services.daily_pnl_service import DailyPnLService
 from the_alchemiser.shared.types.money import Money
 
 logger = get_logger(__name__)
 
 # Constants
 PERCENTAGE_MULTIPLIER: Decimal = Decimal("100")
+# Deposit-adjustment algorithm constants
+DEPOSIT_LOOKBACK_DAYS: int = 3  # Check deposit day and up to 3 prior days
+DEPOSIT_TOLERANCE: float = 0.15  # 15% tolerance for matching deposits to inflated P&L
 
 
 class PnLService:
     """Service for P&L analysis and reporting.
 
-    This service provides a unified interface for P&L data, using DynamoDB
-    as the primary source for historical daily data (fast, consistent) and
-    Alpaca as fallback for real-time or missing data.
+    This service provides a unified interface for P&L data using the Alpaca API.
     """
 
     def __init__(
         self,
         alpaca_manager: AlpacaManager | None = None,
         correlation_id: str | None = None,
-        dynamodb_table_name: str | None = None,
-        environment: str | None = None,
     ) -> None:
         """Initialize P&L service.
 
         Args:
             alpaca_manager: Alpaca manager instance. If None, creates one from config.
             correlation_id: Optional correlation ID for observability tracing.
-            dynamodb_table_name: Optional DynamoDB table name for daily PnL cache.
-            environment: Environment (dev/staging/prod) for DynamoDB filtering.
 
         Raises:
             ConfigurationError: If Alpaca API keys are not found in configuration.
 
         """
         self._correlation_id = correlation_id or ""
-        self._dynamodb_table_name = dynamodb_table_name
-        self._environment = environment or "dev"
-        self._daily_pnl_service = None
 
         if alpaca_manager is None:
             api_key, secret_key, endpoint = get_alpaca_keys()
@@ -78,16 +72,6 @@ class PnLService:
             )
         else:
             self._alpaca_manager = alpaca_manager
-
-        # Initialize DailyPnLService if table name provided
-        # Lazy import to avoid circular dependency (DailyPnLService imports AlpacaManager)
-        if dynamodb_table_name:
-            self._daily_pnl_service = DailyPnLService(
-                table_name=dynamodb_table_name,
-                environment=self._environment,
-                alpaca_manager=self._alpaca_manager,
-                correlation_id=self._correlation_id,
-            )
 
     @staticmethod
     def _is_paper_from_endpoint(ep: str | None) -> bool:
@@ -221,9 +205,6 @@ class PnLService:
     def get_last_n_calendar_months_pnl(self, n_months: int = 3) -> list[PnLData]:
         """Get P&L for the last N calendar months including current month.
 
-        Uses DynamoDB as primary source for completed days if available,
-        falling back to Alpaca for missing or current-month data.
-
         Args:
             n_months: Number of months to fetch (must be positive; default 3, including current month)
 
@@ -237,138 +218,7 @@ class PnLService:
         if n_months <= 0:
             raise ValueError(f"n_months must be a positive integer; got {n_months}")
 
-        # Try DynamoDB first for faster, cached results
-        if self._daily_pnl_service:
-            try:
-                return self._get_last_n_months_from_dynamodb(n_months)
-            except Exception as e:
-                logger.warning(
-                    f"Failed to fetch P&L from DynamoDB, falling back to Alpaca: {e}",
-                    extra={
-                        "correlation_id": self._correlation_id,
-                        "error_type": type(e).__name__,
-                    },
-                )
-
-        # Fallback to Alpaca (original implementation)
         return self._get_last_n_months_from_alpaca(n_months)
-
-    def _get_last_n_months_from_dynamodb(self, n_months: int) -> list[PnLData]:
-        """Get last N months P&L from DynamoDB with daily granularity.
-
-        Aggregates daily records from DynamoDB into monthly PnLData objects.
-        """
-        if self._daily_pnl_service is None:
-            raise RuntimeError("DynamoDB service must be initialized")
-        today = datetime.now(UTC).date()
-        results: list[PnLData] = []
-
-        for i in range(n_months - 1, -1, -1):  # Start from oldest
-            # Calculate target month
-            target_month = today.month - i
-            target_year = today.year
-
-            while target_month <= 0:
-                target_month += 12
-                target_year -= 1
-
-            # Calculate date range for this month
-            start_date = datetime(target_year, target_month, 1, tzinfo=UTC).date()
-
-            # End date is last day of month or today if current month
-            if target_year == today.year and target_month == today.month:
-                end_date = today
-                month_name = calendar.month_name[target_month]
-                period_label = f"{month_name} {target_year} (MTD)"
-            else:
-                if target_month == 12:
-                    end_date = (
-                        datetime(target_year + 1, 1, 1, tzinfo=UTC) - timedelta(days=1)
-                    ).date()
-                else:
-                    end_date = (
-                        datetime(target_year, target_month + 1, 1, tzinfo=UTC) - timedelta(days=1)
-                    ).date()
-                month_name = calendar.month_name[target_month]
-                period_label = f"{month_name} {target_year}"
-
-            # Fetch daily records from DynamoDB
-            try:
-                daily_records = self._daily_pnl_service.get_daily_pnl_range(start_date, end_date)
-
-                if not daily_records:
-                    # No data in DynamoDB, add empty entry
-                    results.append(PnLData(period=period_label))
-                    continue
-
-                # Aggregate daily records into monthly P&L
-                first_record = daily_records[0]
-                if first_record.date == start_date.isoformat():
-                    # We have data from the requested period start; derive start-of-day equity
-                    start_equity = first_record.equity - first_record.pnl_amount
-                else:
-                    # Data does not start at the requested month boundary; fall back to using
-                    # the first available day's ending equity as the period start. This avoids
-                    # incorrectly inferring true month-start equity when records are missing.
-                    logger.warning(
-                        "Daily P&L records do not start at requested start_date; "
-                        "using first available day's ending equity as start_equity.",
-                        extra={
-                            "correlation_id": self._correlation_id,
-                            "year": target_year,
-                            "month": target_month,
-                            "requested_start_date": start_date.isoformat(),
-                            "actual_first_date": first_record.date,
-                        },
-                    )
-                    start_equity = first_record.equity
-                end_equity = daily_records[-1].equity
-
-                # Sum daily P&L (already adjusted for deposits/withdrawals)
-                total_pnl = sum((record.pnl_amount for record in daily_records), Decimal("0"))
-
-                # Calculate percentage
-                if start_equity > Decimal("0"):
-                    total_pnl_pct = (total_pnl / start_equity) * Decimal("100")
-                else:
-                    total_pnl_pct = Decimal("0")
-
-                # Convert daily records to DailyPnLEntry
-                daily_data = [
-                    DailyPnLEntry(
-                        date=record.date,
-                        equity=record.equity,
-                        profit_loss=record.pnl_amount,
-                        profit_loss_pct=record.pnl_percent,
-                    )
-                    for record in daily_records
-                ]
-
-                results.append(
-                    PnLData(
-                        period=period_label,
-                        start_date=start_date.isoformat(),
-                        end_date=end_date.isoformat(),
-                        start_value=start_equity,
-                        end_value=end_equity,
-                        total_pnl=total_pnl,
-                        total_pnl_pct=total_pnl_pct,
-                        daily_data=daily_data,
-                    )
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to fetch P&L from DynamoDB for {target_year}-{target_month:02d}: {e}",
-                    extra={
-                        "correlation_id": self._correlation_id,
-                        "year": target_year,
-                        "month": target_month,
-                    },
-                )
-                # Add empty entry
-                results.append(PnLData(period=period_label))
-
-        return results
 
     def _get_last_n_months_from_alpaca(self, n_months: int) -> list[PnLData]:
         """Get last N months P&L from Alpaca (original implementation)."""
@@ -919,3 +769,213 @@ class PnLService:
             pnl_pct_str = f"({day_data.profit_loss_pct:+.2f}%)"
             lines.append(f"{day_data.date}: ${day_data.equity:,.2f} | P&L: {pnl_str} {pnl_pct_str}")
         return lines
+
+    # ========================================================================
+    # DEPOSIT-ADJUSTED P&L METHODS
+    # ========================================================================
+    # These methods provide true trading P&L by detecting and subtracting
+    # deposits that inflate Alpaca's raw profit_loss values on settlement days.
+
+    def get_all_daily_records(
+        self, period: str = "1A"
+    ) -> tuple[list[DailyPnLEntry], dict[str, Decimal]]:
+        """Get all daily P&L records with deposit adjustments.
+
+        Uses the cashflow_types API parameter to get deposits/withdrawals aligned
+        with timestamps, then applies a tolerance-matching algorithm to subtract
+        deposit amounts from inflated P&L days.
+
+        Args:
+            period: Alpaca period string (1W, 1M, 3M, 1A). Default is 1A (1 year).
+
+        Returns:
+            Tuple of (daily_records, deposits_by_date):
+            - daily_records: List of DailyPnLEntry with deposit-adjusted profit_loss
+            - deposits_by_date: Dict mapping date strings to deposit amounts
+
+        Raises:
+            DataProviderError: If Alpaca API call fails.
+
+        """
+        data = self._alpaca_manager.get_portfolio_history_with_cashflow(
+            period=period,
+            timeframe="1D",
+            pnl_reset="per_day",
+            intraday_reporting="market_hours",
+            cashflow_types="CSD,CSW",
+        )
+
+        if data is None:
+            raise DataProviderError(
+                "Failed to fetch portfolio history with cashflow",
+                context={"period": period, "correlation_id": self._correlation_id},
+            )
+
+        return self._build_deposit_adjusted_records(data)
+
+    def _build_deposit_adjusted_records(
+        self, data: dict[str, Any]
+    ) -> tuple[list[DailyPnLEntry], dict[str, Decimal]]:
+        """Build daily records with deposit-adjusted P&L from unified API response.
+
+        Key insight: Alpaca's profit_loss field gets inflated on the day a deposit
+        settles. The inflated P&L appears on the day the deposit settles (typically
+        the next trading day after the deposit is made, or Monday for weekend deposits).
+
+        Algorithm:
+        1. Build raw records from Alpaca data
+        2. For each deposit, scan that day and prior few days to find the inflated P&L
+        3. Match using 15% tolerance: find a P&L that's within 15% of the deposit amount
+        4. Subtract the deposit from the matched day's raw P&L
+
+        Args:
+            data: Raw API response with timestamp, equity, profit_loss, and cashflow.
+
+        Returns:
+            Tuple of (daily_records, deposits_by_date).
+
+        """
+        timestamps = data.get("timestamp", [])
+        equities = data.get("equity", [])
+        profit_losses = data.get("profit_loss", [])
+        cashflow = data.get("cashflow", {})
+
+        # Extract cashflow arrays (aligned with timestamps, default to zeros)
+        csd_values = cashflow.get("CSD", [0] * len(timestamps))
+        csw_values = cashflow.get("CSW", [0] * len(timestamps))
+
+        # Pad arrays if shorter than timestamps
+        while len(csd_values) < len(timestamps):
+            csd_values.append(0)
+        while len(csw_values) < len(timestamps):
+            csw_values.append(0)
+
+        # Build list of all trading dates
+        all_dates = [self._format_timestamp(ts) for ts in timestamps]
+
+        # Build deposits_by_index from cashflow array
+        deposits_by_index: dict[int, Decimal] = {}
+        for i, _ in enumerate(all_dates):
+            if csd_values[i] != 0:
+                deposits_by_index[i] = Decimal(str(csd_values[i]))
+
+        # Build raw P&L values indexed
+        raw_pnl_values = [Decimal(str(pl)) for pl in profit_losses]
+
+        # Track which deposit was matched to which day's adjustment
+        deposit_adjustments: dict[int, Decimal] = {}
+
+        # For each deposit, find the day with inflated P&L
+        for deposit_idx, deposit_amount in deposits_by_index.items():
+            best_match_idx = None
+            best_match_diff = float("inf")
+
+            # Check the deposit day and prior days
+            for offset in range(DEPOSIT_LOOKBACK_DAYS + 1):
+                check_idx = deposit_idx - offset
+                if check_idx < 0:
+                    break
+
+                raw_pnl = raw_pnl_values[check_idx]
+
+                # Check if this P&L is close to the deposit amount (within tolerance)
+                diff = abs(float(raw_pnl) - float(deposit_amount))
+                relative_diff = (
+                    diff / float(deposit_amount) if deposit_amount != 0 else float("inf")
+                )
+
+                if relative_diff <= DEPOSIT_TOLERANCE and diff < best_match_diff:
+                    best_match_idx = check_idx
+                    best_match_diff = diff
+
+            if best_match_idx is not None:
+                # Found a match - record the adjustment for that day
+                if best_match_idx in deposit_adjustments:
+                    deposit_adjustments[best_match_idx] += deposit_amount
+                else:
+                    deposit_adjustments[best_match_idx] = deposit_amount
+
+        # Build final records
+        records: list[DailyPnLEntry] = []
+        deposits_by_date: dict[str, Decimal] = {}
+
+        for i, ts in enumerate(timestamps):
+            date_str = self._format_timestamp(ts)
+            equity = Decimal(str(equities[i]))
+            raw_pnl = raw_pnl_values[i]
+            withdrawal_today = abs(Decimal(str(csw_values[i]))) if csw_values[i] else Decimal("0")
+
+            # Get deposit that was recorded on this day (for display)
+            deposit_on_this_day = (
+                Decimal(str(csd_values[i])) if csd_values[i] != 0 else Decimal("0")
+            )
+            if deposit_on_this_day != 0:
+                deposits_by_date[date_str] = deposit_on_this_day
+
+            # Adjust P&L if this day was matched to a deposit
+            adjustment = deposit_adjustments.get(i, Decimal("0"))
+            adjusted_pnl = raw_pnl - adjustment
+
+            # Calculate percentage based on start-of-day equity
+            start_equity = equity - adjusted_pnl
+            pnl_pct = (
+                (adjusted_pnl / start_equity * PERCENTAGE_MULTIPLIER)
+                if start_equity != 0
+                else Decimal("0")
+            )
+
+            records.append(
+                DailyPnLEntry(
+                    date=date_str,
+                    equity=equity,
+                    profit_loss=adjusted_pnl,
+                    profit_loss_pct=pnl_pct,
+                    deposit=deposit_on_this_day if deposit_on_this_day != 0 else None,
+                    withdrawal=withdrawal_today if withdrawal_today != 0 else None,
+                )
+            )
+
+        return records, deposits_by_date
+
+    @staticmethod
+    def _format_timestamp(ts: int) -> str:
+        """Convert Unix timestamp to YYYY-MM-DD."""
+        return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def aggregate_by_month(
+        daily_records: list[DailyPnLEntry],
+    ) -> dict[str, dict[str, Decimal]]:
+        """Aggregate daily records by month for summary tables.
+
+        Args:
+            daily_records: List of daily P&L entries.
+
+        Returns:
+            Dict mapping month keys (YYYY-MM) to aggregated data:
+            - total_pnl: Sum of adjusted P&L for the month
+            - end_equity: Last day's equity
+            - total_deposits: Sum of deposits in the month
+
+        """
+        months: dict[str, dict[str, Decimal]] = {}
+
+        for rec in daily_records:
+            # Skip days with zero equity (inactive)
+            if rec.equity <= 0:
+                continue
+
+            month_key = rec.date[:7]  # YYYY-MM
+
+            if month_key not in months:
+                months[month_key] = {
+                    "total_pnl": Decimal("0"),
+                    "end_equity": Decimal("0"),
+                    "total_deposits": Decimal("0"),
+                }
+
+            months[month_key]["total_pnl"] += rec.profit_loss
+            months[month_key]["end_equity"] = rec.equity
+            months[month_key]["total_deposits"] += rec.deposit or Decimal("0")
+
+        return months

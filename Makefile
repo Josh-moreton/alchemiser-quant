@@ -34,7 +34,8 @@ help:
 	@echo "  validate-signals stage=prod          Validate prod signals"
 	@echo ""
 	@echo "Performance Reports:"
-	@echo "  pnl-report                           Generate deposit-adjusted P&L report"
+	@echo "  dashboard                            Run enhanced multi-page trading dashboard"
+	@echo "  pnl-dashboard                        Run P&L dashboard (fetches from Alpaca API)"
 	@echo "  quantstats                           Generate QuantStats reports (prod)"
 	@echo "  quantstats stage=dev                 Generate for dev environment"
 	@echo "  quantstats days=180                  Custom lookback period (default: 90)"
@@ -264,11 +265,17 @@ validate-dynamo:
 #        make quantstats stage=dev                 # Generate dev reports
 #        make quantstats days=180                  # Custom lookback period
 #        make quantstats local=1                   # Save locally (no S3 upload)
-# Generate P&L report with deposit adjustments
-# Usage: make pnl-report
-pnl-report:
-	@echo "📊 Generating deposit-adjusted P&L report..."
-	poetry run python scripts/pnl_report.py
+# Run P&L dashboard (fetches directly from Alpaca API with deposit adjustments)
+# Usage: make pnl-dashboard
+pnl-dashboard:
+	@echo "📊 Starting P&L dashboard (Alpaca API)..."
+	poetry run streamlit run scripts/pnl_dashboard.py
+
+# Run enhanced multi-page dashboard
+# Usage: make dashboard
+dashboard:
+	@echo "📊 Starting enhanced trading dashboard..."
+	poetry run streamlit run scripts/dashboard.py
 
 quantstats:
 	@echo "📊 Generating QuantStats per-strategy reports..."

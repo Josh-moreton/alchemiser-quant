@@ -462,6 +462,25 @@ All events and operations include structured metadata:
 - **DLQ Alerts**: SNS alerts when messages hit the execution DLQ
 - **Trade Ledger**: All trades persisted in DynamoDB for analysis
 
+### Dashboard
+
+An enhanced multi-page **Streamlit dashboard** provides real-time visibility into the trading system:
+
+**Run locally**:
+```bash
+make dashboard
+# or
+poetry run streamlit run scripts/dashboard.py
+```
+
+**Pages**:
+- **🏠 Portfolio Overview**: Equity curves, risk metrics (Sharpe, max drawdown, volatility), current positions
+- **🎯 Last Run Analysis**: Detailed view of recent workflow executions with strategy signals, rebalance plans, and trades
+- **📊 Trade History**: Per-strategy and per-symbol attribution, filters by date/symbol, trade analytics
+- **📈 Symbol Analytics**: Deep dive into individual symbol performance with P&L analysis and price history
+
+See [Dashboard README](scripts/DASHBOARD_README.md) for detailed documentation and deployment instructions.
+
 ## Error Handling
 
 ### Idempotency
