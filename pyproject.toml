@@ -78,7 +78,7 @@ structlog = "^25.5.0"
 httpx = "^0.28.1"
 openpyxl = "^3.1.0"
 streamlit = "^1.32.0"
-streamlit-authenticator = "^0.3.2"
+streamlit-authenticator = "^0.4.2"
 bcrypt = "^4.0.0"
 
 [tool.poetry.urls]
@@ -121,7 +121,7 @@ import-linter = "^2.9"
 mypy-boto3-sns = "^1.41.0"
 mypy-boto3-s3 = "^1.42.37"
 mypy-boto3-events = "^1.41.0"
-boto3-stubs = {extras = ["dynamodb", "events", "lambda", "s3", "sns"], version = "^1.42.39"}
+boto3-stubs = {extras = ["dynamodb", "events", "lambda", "s3", "sns"], version = "^1.42.40"}
 boto3 = "^1.42.39"
 ipython = "^9.10.0"
 mypy-boto3-dynamodb = "^1.42.33"
