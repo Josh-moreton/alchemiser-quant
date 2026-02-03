@@ -276,11 +276,17 @@ pnl-excel:
 	@echo "📊 Exporting daily P&L to Excel..."
 	poetry run python scripts/pnl_report.py --excel
 
-# Run P&L dashboard locally
+# Run P&L dashboard locally (legacy - single page)
 # Usage: make pnl-dashboard
 pnl-dashboard:
 	@echo "📊 Starting P&L dashboard..."
 	poetry run streamlit run scripts/pnl_dashboard.py
+
+# Run enhanced multi-page dashboard
+# Usage: make dashboard
+dashboard:
+	@echo "📊 Starting enhanced trading dashboard..."
+	poetry run streamlit run scripts/dashboard.py
 
 quantstats:
 	@echo "📊 Generating QuantStats per-strategy reports..."
