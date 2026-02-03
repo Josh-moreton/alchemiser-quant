@@ -1,6 +1,7 @@
 # Alchemiser Copilot Instructions
 
 ## Core guardrails
+- **No emojis:** Never use emojis in code, comments, commit messages, or documentation.
 - **Floats:** Never use `==`/`!=` on floats. Use `Decimal` for money; `math.isclose` for ratios; set explicit tolerances.
 - **Module header:** Every new module begins with `"""Business Unit: <name> | Status: current."""`.
 - **Typing:** Enforce strict typing (`mypy --config-file=pyproject.toml`). No `Any` in domain logic. DTOs are frozen.
@@ -8,7 +9,7 @@
 - **Tooling:** Use Poetry for everything (no system Python).
 - **AWS CLI:** Always use `--no-cli-pager` or pipe to `cat` to avoid interactive pagers that block automation.
 - **Version Management (MANDATORY):** AI agents MUST update version numbers for every code change using semantic versioning:
-  - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring, test additions
+  - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring
   - **MINOR** (`make bump-minor`): New features, new modules, significant refactoring, API additions (backward compatible)
   - **MAJOR** (`make bump-major`): Breaking changes, API changes, architectural overhauls, removed features
   - **Workflow:** Stage your code changes first (`git add <files>`), then run the appropriate bump command. The bump will commit both your staged changes AND the version bump together.
@@ -150,8 +151,8 @@ publish_notification(subject="...", message="...")
 - Install: `poetry install` (or `make dev` for optional groups).
 - Format/lint/type-check: `make format && make type-check`.
 - Type-check only: `make type-check`.
-- Import boundaries: `poetry run importlinter --config pyproject.toml`.
-- **Deployment (CRITICAL - READ CAREFULLY):**
+- **No tests**: This repo does not use pytest or unit tests. Validate via type-checking and manual verification.
+- **Deployment (CRITICAL - READ CAREFULLY):****
   - **DEV deployment:** `make deploy-dev` - ALWAYS use this for testing changes
   - **PRODUCTION deployment:** `make deploy` - ONLY after thorough testing in dev
   - **NEVER run `sam deploy` directly** - it defaults to production!

@@ -1,0 +1,16 @@
+# Octarine Capital Dashboard Theme Configuration
+# Light theme as default - dark mode handled via CSS toggle in styles.py
+
+[theme]
+primaryColor = "#7CF5D4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#F8FAFA"
+textColor = "#111111"
+font = "serif"
+
+[server]
+headless = true
+enableCORS = false
+
+[browser]
+gatherUsageStats = false

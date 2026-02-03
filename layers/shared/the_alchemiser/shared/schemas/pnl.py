@@ -64,8 +64,18 @@ class DailyPnLEntry(BaseModel):
     profit_loss_pct: Decimal = Field(
         description="Daily profit or loss percentage",
     )
+    deposit: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description="Deposit that settled on this day (T+1 settlement)",
+    )
+    withdrawal: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description="Withdrawal on this day",
+    )
     schema_version: str = Field(
-        default="1.0",
+        default="1.1",
         description="Schema version for compatibility tracking",
     )
 

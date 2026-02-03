@@ -1306,12 +1306,16 @@ class SingleTradeHandler:
             if trade_message.metadata:
                 strategy_attribution = trade_message.metadata.get("strategy_attribution")
 
+            # Build execution quality metrics from OrderResult
+            execution_quality = self._build_execution_quality(order_result)
+
             self.trade_ledger.record_filled_order(
                 order_result=order_result,
                 correlation_id=correlation_id,
                 rebalance_plan=None,
                 quote_at_fill=None,
                 strategy_attribution=strategy_attribution,
+                execution_quality=execution_quality,
             )
 
             self.logger.info(
@@ -1333,3 +1337,30 @@ class SingleTradeHandler:
                     "error_type": type(ledger_error).__name__,
                 },
             )
+
+    def _build_execution_quality(self, order_result: OrderResult) -> dict[str, Any]:
+        """Build execution quality metrics dict from OrderResult.
+
+        Args:
+            order_result: Order execution result with slippage fields
+
+        Returns:
+            Dict with execution quality metrics for TCA dashboard
+
+        """
+        eq: dict[str, Any] = {}
+
+        # Extract slippage metrics from OrderResult (calculated during execution)
+        if order_result.expected_price is not None:
+            eq["expected_price"] = order_result.expected_price
+        if order_result.slippage_bps is not None:
+            eq["slippage_bps"] = order_result.slippage_bps
+        if order_result.slippage_amount is not None:
+            eq["slippage_amount"] = order_result.slippage_amount
+
+        # Calculate time_to_fill_ms if we have timestamps
+        if order_result.filled_at and order_result.timestamp:
+            time_delta = order_result.filled_at - order_result.timestamp
+            eq["time_to_fill_ms"] = int(time_delta.total_seconds() * 1000)
+
+        return eq

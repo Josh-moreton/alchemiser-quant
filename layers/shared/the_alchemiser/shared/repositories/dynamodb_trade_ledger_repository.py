@@ -102,6 +102,22 @@ class DynamoDBTradeLedgerRepository:
             # Store as dict[str, str] for DynamoDB
             trade_item["strategy_weights"] = {k: str(v) for k, v in entry.strategy_weights.items()}
 
+        # Execution quality fields (TCA metrics)
+        if entry.expected_price is not None:
+            trade_item["expected_price"] = str(entry.expected_price)
+        if entry.slippage_bps is not None:
+            trade_item["slippage_bps"] = str(entry.slippage_bps)
+        if entry.slippage_amount is not None:
+            trade_item["slippage_amount"] = str(entry.slippage_amount)
+        if entry.spread_at_order is not None:
+            trade_item["spread_at_order"] = str(entry.spread_at_order)
+        if entry.execution_steps is not None:
+            trade_item["execution_steps"] = entry.execution_steps
+        if entry.time_to_fill_ms is not None:
+            trade_item["time_to_fill_ms"] = entry.time_to_fill_ms
+        if entry.quote_timestamp is not None:
+            trade_item["quote_timestamp"] = entry.quote_timestamp.isoformat()
+
         # Write main trade item
         self._table.put_item(Item=trade_item)
 

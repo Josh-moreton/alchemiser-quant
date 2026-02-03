@@ -124,6 +124,13 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
     fi
+    # Notion P&L Dashboard credentials
+    if [[ -n "${NOTION_TOKEN:-}" ]]; then
+        PARAMS+=("NotionToken=$NOTION_TOKEN")
+    fi
+    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
+        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
+    fi
 
     sam deploy \
         --no-fail-on-empty-changeset \
@@ -153,6 +160,13 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
     if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
     fi
+    # Notion P&L Dashboard credentials
+    if [[ -n "${NOTION_TOKEN:-}" ]]; then
+        PARAMS+=("NotionToken=$NOTION_TOKEN")
+    fi
+    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
+        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
+    fi
 
     sam deploy \
         --no-fail-on-empty-changeset \
@@ -181,6 +195,13 @@ else
     # Notification email (set per-environment in secret store)
     if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
         PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
+    fi
+    # Notion P&L Dashboard credentials
+    if [[ -n "${NOTION_TOKEN:-}" ]]; then
+        PARAMS+=("NotionToken=$NOTION_TOKEN")
+    fi
+    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
+        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
     fi
 
     sam deploy \
