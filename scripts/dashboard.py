@@ -31,13 +31,18 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
 
-# Favicon path (relative to repo root)
+# Favicon/PWA icon - load as Image for better PWA compatibility
 favicon_path = Path(__file__).parent.parent / "android-chrome-512x512.png"
+if favicon_path.exists():
+    from PIL import Image
+    favicon = Image.open(favicon_path)
+else:
+    favicon = "📈"
 
 # Page config (must be first Streamlit call)
 st.set_page_config(
     page_title="Octarine Capital - Trading Dashboard",
-    page_icon=str(favicon_path) if favicon_path.exists() else "📈",
+    page_icon=favicon,
     layout="wide",
     initial_sidebar_state="expanded",
 )
