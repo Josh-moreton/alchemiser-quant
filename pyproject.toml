@@ -80,7 +80,7 @@ openpyxl = "^3.1.0"
 plotly = "^5.18.0"
 streamlit = "^1.32.0"
 streamlit-authenticator = "^0.4.2"
-bcrypt = "^4.0.0"
+bcrypt = "^5.0.0"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
