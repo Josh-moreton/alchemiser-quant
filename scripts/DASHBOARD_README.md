@@ -75,17 +75,57 @@ AWS_REGION=us-east-1
 ### Deployment to Streamlit Cloud
 
 The dashboard is designed for **production data only** (not dev). It requires:
-- AWS credentials (read-only IAM user created by CloudFormation)
+- AWS credentials (read-only IAM user - created manually)
 - Alpaca API credentials (production account)
 - User authentication (bcrypt-hashed passwords)
 
-#### Step 1: Deploy the Production Stack
+#### Step 1: Create IAM User (Manual - One Time Setup)
 
-The IAM user `alchemiser-dashboard-readonly` is created automatically when you deploy to prod:
+The IAM user must be created manually via AWS Console (not CloudFormation) because CI/CD roles lack IAM user management permissions.
 
-```bash
-make deploy  # Deploys to prod, creates IAM user
+1. Go to **AWS IAM Console** → **Users** → **Create user**
+2. User name: `alchemiser-dashboard-readonly`
+3. Do NOT provide console access (API only)
+4. Click **Next** → **Attach policies directly**
+5. Click **Create policy** and use this JSON:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DynamoDBReadProd",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:DescribeTable"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:us-east-1:*:table/alchemiser-prod-*",
+                "arn:aws:dynamodb:us-east-1:*:table/alchemiser-prod-*/index/*"
+            ]
+        },
+        {
+            "Sid": "CloudWatchLogsReadProd",
+            "Effect": "Allow",
+            "Action": [
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents",
+                "logs:DescribeLogStreams",
+                "logs:DescribeLogGroups"
+            ],
+            "Resource": [
+                "arn:aws:logs:us-east-1:*:log-group:/aws/lambda/alchemiser-prod-*:*"
+            ]
+        }
+    ]
+}
 ```
+
+6. Name the policy `AlchemiserDashboardReadOnly`
+7. Attach this policy to the user and complete user creation
 
 #### Step 2: Create IAM Access Keys
 
