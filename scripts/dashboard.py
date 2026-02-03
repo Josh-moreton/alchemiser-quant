@@ -20,12 +20,18 @@ Authentication:
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
 import _setup_imports  # noqa: F401
 import streamlit as st
 from dotenv import load_dotenv
+
+# Suppress debug logs from Alpaca and internal services for cleaner dashboard output
+logging.getLogger("the_alchemiser").setLevel(logging.WARNING)
+logging.getLogger("alpaca").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 from dashboard_pages.styles import inject_styles
 
@@ -130,7 +136,7 @@ def show_dashboard() -> None:
     # Logo and Navigation
     logo_path = Path(__file__).parent.parent / "octarine_capital_stacked.svg"
     if logo_path.exists():
-        st.sidebar.image(str(logo_path), use_container_width=True)
+        st.sidebar.image(str(logo_path), width="stretch")
     else:
         st.sidebar.title("Octarine Capital")
 

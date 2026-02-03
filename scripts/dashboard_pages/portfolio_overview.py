@@ -343,7 +343,7 @@ def show() -> None:
 
     with col_chart:
         st.subheader("Equity Curve")
-        st.line_chart(df.set_index("Date")["Equity"], use_container_width=True)
+        st.line_chart(df.set_index("Date")["Equity"], width="stretch")
 
     with col_positions:
         st.subheader("Current Positions")
@@ -376,13 +376,13 @@ def show() -> None:
     # DAILY P&L BAR CHART (full width)
     # =========================================================================
     section_header("Daily P&L")
-    st.bar_chart(df.set_index("Date")["P&L ($)"], use_container_width=True)
+    st.bar_chart(df.set_index("Date")["P&L ($)"], width="stretch")
 
     # =========================================================================
     # CUMULATIVE P&L CHART (full width)
     # =========================================================================
     section_header("Cumulative P&L")
-    st.line_chart(df.set_index("Date")["Cumulative P&L"], use_container_width=True)
+    st.line_chart(df.set_index("Date")["Cumulative P&L"], width="stretch")
 
     # =========================================================================
     # MONTHLY SUMMARY (collapsible)
@@ -443,7 +443,7 @@ def show() -> None:
     # RAW DATA (collapsible)
     # =========================================================================
     with st.expander("View Raw Data"):
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
     # Footer
     st.caption(

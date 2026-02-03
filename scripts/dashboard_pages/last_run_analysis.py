@@ -488,7 +488,7 @@ def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> 
         return "color: gray"
     
     styled_df = df.style.map(style_level, subset=["Level"])
-    st.dataframe(styled_df, use_container_width=True, hide_index=True, height=400)
+    st.dataframe(styled_df, width="stretch", hide_index=True, height=400)
     
     if len(events) > 100:
         st.caption(f"Showing last 100 of {len(display_events)} events")
@@ -524,7 +524,7 @@ def show_signal_analysis(signal: dict[str, Any]) -> None:
 
     # Allocation bar chart
     st.subheader("Target Allocations")
-    st.bar_chart(df.set_index("Symbol")["Weight"], use_container_width=True, height=300)
+    st.bar_chart(df.set_index("Symbol")["Weight"], width="stretch", height=300)
 
     # Allocation table
     with st.expander("Allocation Details"):

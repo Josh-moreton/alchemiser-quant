@@ -434,7 +434,7 @@ def show_premium_spend_analysis(
         chart_data = pd.DataFrame(
             [{"Month": k, "Premium ($)": float(v)} for k, v in sorted(spend_by_month.items())]
         )
-        st.bar_chart(chart_data.set_index("Month"), use_container_width=True)
+        st.bar_chart(chart_data.set_index("Month"), width="stretch")
 
 
 def show_position_details(positions: list[dict[str, Any]]) -> None:

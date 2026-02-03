@@ -271,7 +271,7 @@ def show() -> None:
     # =========================================================================
     section_header("Projected Equity Curve")
     chart_data = create_chart_data(projections)
-    st.line_chart(chart_data, height=500, use_container_width=True)
+    st.line_chart(chart_data, height=500, width="stretch")
 
     # =========================================================================
     # PROJECTION SUMMARY TABLE

@@ -323,7 +323,7 @@ def styled_dataframe(
     # Build dataframe kwargs - only include height if specified
     df_kwargs: dict[str, Any] = {
         "hide_index": hide_index,
-        "use_container_width": True,
+        "width": "stretch",
     }
     if height is not None:
         df_kwargs["height"] = height
@@ -372,7 +372,7 @@ def direction_styled_dataframe(
     # Build dataframe kwargs - only include height if specified
     df_kwargs: dict[str, Any] = {
         "hide_index": hide_index,
-        "use_container_width": True,
+        "width": "stretch",
     }
     if height is not None:
         df_kwargs["height"] = height

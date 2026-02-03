@@ -320,7 +320,7 @@ def show() -> None:
             # Chart
             st.subheader("Strategy Trade Volume")
             chart_data = strategy_df.set_index("Strategy")["Total Value"]
-            st.bar_chart(chart_data, use_container_width=True)
+            st.bar_chart(chart_data, width="stretch")
         else:
             st.info("No strategy attribution data available")
 
@@ -343,7 +343,7 @@ def show() -> None:
             if len(symbol_df) > 0:
                 st.subheader("Top Symbols by Trade Value")
                 chart_data = symbol_df.head(10).set_index("Symbol")["Total Value"]
-                st.bar_chart(chart_data, use_container_width=True)
+                st.bar_chart(chart_data, width="stretch")
         else:
             st.info("No symbol data available")
 
@@ -361,14 +361,14 @@ def show() -> None:
                 "filled_qty": "count",
             }).rename(columns={"filled_qty": "Trade Count"})
 
-            st.line_chart(daily_volume["Trade Count"], use_container_width=True)
+            st.line_chart(daily_volume["Trade Count"], width="stretch")
 
             # Daily value breakdown
             daily_value = daily_df.groupby("Date").apply(
                 lambda x: (x["filled_qty"] * x["fill_price"]).sum()
             )
             st.subheader("Daily Trade Value")
-            st.bar_chart(daily_value, use_container_width=True)
+            st.bar_chart(daily_value, width="stretch")
 
     with tab_recent:
         section_header("Recent Trades")

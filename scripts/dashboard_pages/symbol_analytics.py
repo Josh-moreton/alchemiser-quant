@@ -315,7 +315,7 @@ def show() -> None:
             "SELL": sell_prices,
         })
 
-        st.line_chart(chart_df, use_container_width=True)
+        st.line_chart(chart_df, width="stretch")
 
     with tab_position:
         section_header("Cumulative Position Over Time")
@@ -336,7 +336,7 @@ def show() -> None:
             })
 
         qty_df = pd.DataFrame(cumulative_qty).set_index("Timestamp")
-        st.line_chart(qty_df["Cumulative Qty"], use_container_width=True)
+        st.line_chart(qty_df["Cumulative Qty"], width="stretch")
 
         # Current position details
         if position:
@@ -409,7 +409,7 @@ def show() -> None:
             st.subheader("Trade Value by Strategy")
             st.bar_chart(
                 strategy_df.set_index("Strategy")["Total Value"],
-                use_container_width=True,
+                width="stretch",
                 horizontal=True,
             )
         else:
