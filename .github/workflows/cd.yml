@@ -4,9 +4,9 @@ on:
   # Prod deployments triggered by version tags (v*.*.*)
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-staging.[0-9]+'
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*-beta.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*-staging.[0-9]*'
   # Allow manual deploys for either environment
   workflow_dispatch:
     inputs:
