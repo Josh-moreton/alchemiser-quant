@@ -340,12 +340,15 @@ def styled_dataframe(
             if col in df.columns:
                 styled = styled.map(color_positive_negative, subset=[col])
 
-    st.dataframe(
-        styled,
-        hide_index=hide_index,
-        use_container_width=True,
-        height=height,
-    )
+    # Build dataframe kwargs - only include height if specified
+    df_kwargs: dict[str, Any] = {
+        "hide_index": hide_index,
+        "use_container_width": True,
+    }
+    if height is not None:
+        df_kwargs["height"] = height
+
+    st.dataframe(styled, **df_kwargs)
 
 
 def direction_styled_dataframe(
@@ -386,12 +389,15 @@ def direction_styled_dataframe(
     if direction_col in df.columns:
         styled = styled.map(color_direction, subset=[direction_col])
 
-    st.dataframe(
-        styled,
-        hide_index=hide_index,
-        use_container_width=True,
-        height=height,
-    )
+    # Build dataframe kwargs - only include height if specified
+    df_kwargs: dict[str, Any] = {
+        "hide_index": hide_index,
+        "use_container_width": True,
+    }
+    if height is not None:
+        df_kwargs["height"] = height
+
+    st.dataframe(styled, **df_kwargs)
 
 
 # ============================================================================

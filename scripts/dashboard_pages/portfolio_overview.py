@@ -230,30 +230,30 @@ def show() -> None:
     ])
 
     # =========================================================================
-    # RISK METRICS (collapsible)
+    # RISK METRICS
     # =========================================================================
     risk_metrics = calculate_risk_metrics(df)
 
     if risk_metrics:
-        with st.expander("Risk Metrics", expanded=False):
-            col1, col2, col3, col4, col5 = st.columns(5)
+        section_header("Risk Metrics")
+        col1, col2, col3, col4, col5 = st.columns(5)
 
-            with col1:
-                sharpe = risk_metrics.get("Sharpe Ratio", 0.0)
-                metric_card("Sharpe Ratio", f"{sharpe:.2f}")
-            with col2:
-                max_dd = risk_metrics.get("Max Drawdown", 0.0)
-                metric_card("Max Drawdown", f"{max_dd:.2f}%")
-            with col3:
-                vol = risk_metrics.get("Volatility", 0.0)
-                metric_card("Volatility (Ann.)", f"{vol:.2f}%")
-            with col4:
-                win_rate = risk_metrics.get("Win Rate", 0.0)
-                metric_card("Win Rate", f"{win_rate:.1f}%")
-            with col5:
-                avg_win = risk_metrics.get("Avg Win", 0.0)
-                avg_loss = risk_metrics.get("Avg Loss", 0.0)
-                metric_card("Avg Win / Loss", f"{avg_win:.2f}% / {avg_loss:.2f}%")
+        with col1:
+            sharpe = risk_metrics.get("Sharpe Ratio", 0.0)
+            metric_card("Sharpe Ratio", f"{sharpe:.2f}")
+        with col2:
+            max_dd = risk_metrics.get("Max Drawdown", 0.0)
+            metric_card("Max Drawdown", f"{max_dd:.2f}%")
+        with col3:
+            vol = risk_metrics.get("Volatility", 0.0)
+            metric_card("Volatility (Ann.)", f"{vol:.2f}%")
+        with col4:
+            win_rate = risk_metrics.get("Win Rate", 0.0)
+            metric_card("Win Rate", f"{win_rate:.1f}%")
+        with col5:
+            avg_win = risk_metrics.get("Avg Win", 0.0)
+            avg_loss = risk_metrics.get("Avg Loss", 0.0)
+            metric_card("Avg Win / Loss", f"{avg_win:.2f}% / {avg_loss:.2f}%")
 
     # =========================================================================
     # TWO-COLUMN LAYOUT: Equity Curve (60%) + Positions (40%)
