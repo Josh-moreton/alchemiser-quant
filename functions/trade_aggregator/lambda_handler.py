@@ -502,15 +502,7 @@ def _fetch_pnl_metrics(correlation_id: str) -> dict[str, Any]:
     }
 
     try:
-        # Get DynamoDB table name from environment (optional)
-        daily_pnl_table = os.environ.get("DAILY_PNL_TABLE_NAME")
-        environment = os.environ.get("ENVIRONMENT", "dev")
-
-        pnl_service = PnLService(
-            correlation_id=correlation_id,
-            dynamodb_table_name=daily_pnl_table,
-            environment=environment,
-        )
+        pnl_service = PnLService(correlation_id=correlation_id)
 
         # Fetch last 3 calendar months (e.g., Nov, Dec, Jan MTD)
         months_data: list[dict[str, Any]] = []
