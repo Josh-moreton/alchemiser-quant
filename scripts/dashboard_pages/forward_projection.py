@@ -6,13 +6,12 @@ Forward Projection page for equity curve projections based on historical TWR.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import _setup_imports  # noqa: F401
-import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -63,7 +62,7 @@ def load_historical_metrics() -> dict:
 
     # Calculate volatility (annualized)
     daily_vol = daily_returns_decimal.std()
-    annualized_vol = daily_vol * np.sqrt(252)
+    annualized_vol = daily_vol * math.sqrt(252)
 
     # Current equity and deposits
     current_equity = df["Equity"].iloc[-1]
@@ -88,32 +87,25 @@ def project_equity(
     annual_return_pct: float,
     years: int,
     monthly_contribution: float = 0.0,
-    volatility_pct: float = 0.0,
 ) -> pd.DataFrame:
-    """Project equity forward with optional contributions and volatility bands.
+    """Project equity forward with optional contributions.
     
     Args:
         starting_equity: Current portfolio value
         annual_return_pct: Expected annual return (percentage, e.g., 15 for 15%)
         years: Number of years to project
         monthly_contribution: Monthly deposit amount
-        volatility_pct: Annual volatility for confidence bands (percentage)
     
     Returns:
-        DataFrame with Date, Equity, Upper_Band, Lower_Band columns
+        DataFrame with Date, Equity columns
     """
     months = years * 12
     monthly_return = (1 + annual_return_pct / 100) ** (1/12) - 1
-    monthly_vol = volatility_pct / 100 / np.sqrt(12) if volatility_pct > 0 else 0
 
     dates = []
     equity = []
-    upper_band = []
-    lower_band = []
 
     current = starting_equity
-    upper = starting_equity
-    lower = starting_equity
     start_date = datetime.now()
 
     for month in range(months + 1):
@@ -121,95 +113,27 @@ def project_equity(
         dates.append(date)
         equity.append(current)
 
-        # Confidence bands (roughly 1 std dev)
-        if volatility_pct > 0 and month > 0:
-            # Cumulative vol grows with sqrt of time
-            cumulative_vol = monthly_vol * np.sqrt(month)
-            upper_band.append(current * (1 + cumulative_vol))
-            lower_band.append(current * (1 - cumulative_vol))
-        else:
-            upper_band.append(current)
-            lower_band.append(current)
-
         # Grow for next month
         current = current * (1 + monthly_return) + monthly_contribution
-        upper = upper * (1 + monthly_return + monthly_vol) + monthly_contribution
-        lower = lower * (1 + monthly_return - monthly_vol) + monthly_contribution
 
     return pd.DataFrame({
         "Date": dates,
         "Equity": equity,
-        "Upper_Band": upper_band,
-        "Lower_Band": lower_band,
     })
 
 
-def create_projection_chart(
-    projections: dict[str, pd.DataFrame],
-    current_equity: float,
-) -> go.Figure:
-    """Create interactive projection chart with multiple scenarios."""
-    fig = go.Figure()
-
-    colors = {
-        "Conservative": "#EF553B",  # Red
-        "Base Case": "#636EFA",      # Blue
-        "Optimistic": "#00CC96",     # Green
-    }
-
+def create_chart_data(projections: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Combine projections into a single DataFrame for charting."""
+    # Create combined dataframe with Date as index
+    combined = pd.DataFrame()
+    
     for scenario_name, df in projections.items():
-        color = colors.get(scenario_name, "#636EFA")
-
-        # Add confidence band
-        if "Upper_Band" in df.columns and "Lower_Band" in df.columns:
-            fig.add_trace(go.Scatter(
-                x=pd.concat([df["Date"], df["Date"][::-1]]),
-                y=pd.concat([df["Upper_Band"], df["Lower_Band"][::-1]]),
-                fill="toself",
-                fillcolor=f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.1)",
-                line=dict(color="rgba(0,0,0,0)"),
-                name=f"{scenario_name} Range",
-                showlegend=False,
-                hoverinfo="skip",
-            ))
-
-        # Add main line
-        fig.add_trace(go.Scatter(
-            x=df["Date"],
-            y=df["Equity"],
-            mode="lines",
-            name=scenario_name,
-            line=dict(color=color, width=2),
-            hovertemplate="<b>%{x|%b %Y}</b><br>Equity: $%{y:,.0f}<extra></extra>",
-        ))
-
-    # Add starting point marker
-    fig.add_trace(go.Scatter(
-        x=[datetime.now()],
-        y=[current_equity],
-        mode="markers",
-        name="Current",
-        marker=dict(size=12, color="#FFA15A", symbol="diamond"),
-        hovertemplate="<b>Today</b><br>Equity: $%{y:,.0f}<extra></extra>",
-    ))
-
-    fig.update_layout(
-        title="Projected Equity Growth",
-        xaxis_title="Date",
-        yaxis_title="Portfolio Value ($)",
-        yaxis_tickformat="$,.0f",
-        hovermode="x unified",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-        ),
-        height=500,
-    )
-
-    return fig
+        if combined.empty:
+            combined["Date"] = df["Date"]
+        combined[scenario_name] = df["Equity"]
+    
+    combined = combined.set_index("Date")
+    return combined
 
 
 def show() -> None:
@@ -286,7 +210,6 @@ def show() -> None:
 
     # Generate projections
     current_equity = metrics["current_equity"]
-    volatility = metrics["annualized_vol"]
 
     projections = {
         "Conservative": project_equity(
@@ -294,28 +217,25 @@ def show() -> None:
             conservative_return,
             projection_years,
             monthly_contribution,
-            volatility,
         ),
         "Base Case": project_equity(
             current_equity,
             base_return,
             projection_years,
             monthly_contribution,
-            volatility,
         ),
         "Optimistic": project_equity(
             current_equity,
             optimistic_return,
             projection_years,
             monthly_contribution,
-            volatility,
         ),
     }
 
     # Display chart
     st.subheader("Projected Equity Curve")
-    chart = create_projection_chart(projections, current_equity)
-    st.plotly_chart(chart, use_container_width=True)
+    chart_data = create_chart_data(projections)
+    st.line_chart(chart_data, height=500)
 
     # Projection summary table
     st.subheader("Projection Summary")
