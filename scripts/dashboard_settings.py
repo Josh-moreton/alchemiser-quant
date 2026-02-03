@@ -17,12 +17,13 @@ from pydantic import BaseModel, Field
 
 def _get_secret(key: str, default: str = "") -> str:
     """Get a value from Streamlit secrets or environment variables.
-    
+
     Streamlit Cloud stores secrets in st.secrets, but boto3 doesn't read
     from there automatically. This helper checks both sources.
     """
     try:
         import streamlit as st
+
         if hasattr(st, "secrets"):
             # Debug: show available secret keys (not values!)
             if key in st.secrets:
@@ -33,8 +34,9 @@ def _get_secret(key: str, default: str = "") -> str:
     except Exception as e:
         # Log exception for debugging
         import streamlit as st
+
         st.warning(f"Exception reading secret '{key}': {type(e).__name__}: {e}")
-    
+
     # Fallback to environment variable
     return os.environ.get(key, default)
 
@@ -44,12 +46,15 @@ def debug_secrets_info() -> dict[str, str]:
     info = {}
     try:
         import streamlit as st
+
         if hasattr(st, "secrets"):
             info["secrets_available"] = "Yes"
             info["secrets_keys"] = ", ".join(st.secrets.keys()) if st.secrets else "None"
             info["AWS_ACCESS_KEY_ID_present"] = "Yes" if "AWS_ACCESS_KEY_ID" in st.secrets else "No"
-            info["AWS_SECRET_ACCESS_KEY_present"] = "Yes" if "AWS_SECRET_ACCESS_KEY" in st.secrets else "No"
-            
+            info["AWS_SECRET_ACCESS_KEY_present"] = (
+                "Yes" if "AWS_SECRET_ACCESS_KEY" in st.secrets else "No"
+            )
+
             # Check if keys might be nested under a section
             for section_key in st.secrets.keys():
                 try:
@@ -64,11 +69,13 @@ def debug_secrets_info() -> dict[str, str]:
             info["secrets_available"] = "No (st.secrets not present)"
     except Exception as e:
         info["secrets_error"] = f"{type(e).__name__}: {e}"
-    
+
     # Check environment variables
     info["env_AWS_ACCESS_KEY_ID"] = "Set" if os.environ.get("AWS_ACCESS_KEY_ID") else "Not set"
-    info["env_AWS_SECRET_ACCESS_KEY"] = "Set" if os.environ.get("AWS_SECRET_ACCESS_KEY") else "Not set"
-    
+    info["env_AWS_SECRET_ACCESS_KEY"] = (
+        "Set" if os.environ.get("AWS_SECRET_ACCESS_KEY") else "Not set"
+    )
+
     return info
 
 
@@ -99,6 +106,14 @@ class DashboardSettings(BaseModel):
     trade_ledger_table: str = Field(
         default="",
         description="DynamoDB table name for trade ledger",
+    )
+    hedge_positions_table: str = Field(
+        default="",
+        description="DynamoDB table name for hedge positions",
+    )
+    hedge_history_table: str = Field(
+        default="",
+        description="DynamoDB table name for hedge history audit trail",
     )
     aws_region: str = Field(
         default="us-east-1",
@@ -135,7 +150,7 @@ class DashboardSettings(BaseModel):
         # Default to prod - Streamlit dashboard is production-focused
         stage = _get_secret("STAGE", _get_secret("APP__STAGE", "prod"))
         region = _get_secret("AWS_REGION", "us-east-1")
-        
+
         # AWS credentials - check Streamlit secrets first, then env vars
         aws_access_key = _get_secret("AWS_ACCESS_KEY_ID", "")
         aws_secret_key = _get_secret("AWS_SECRET_ACCESS_KEY", "")
@@ -154,27 +169,35 @@ class DashboardSettings(BaseModel):
                 "TRADE_LEDGER__TABLE_NAME",
                 f"alchemiser-{stage}-trade-ledger",
             ),
+            hedge_positions_table=_get_secret(
+                "HEDGE_POSITIONS_TABLE_NAME",
+                f"alchemiser-{stage}-hedge-positions",
+            ),
+            hedge_history_table=_get_secret(
+                "HEDGE_HISTORY_TABLE_NAME",
+                f"alchemiser-{stage}-hedge-history",
+            ),
             aws_region=region,
             stage=stage,
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_key,
         )
-    
+
     def get_boto3_client_kwargs(self) -> dict[str, Any]:
         """Get kwargs for boto3.client() with credentials if available.
-        
+
         Returns dict with region_name and credentials if configured.
         If no credentials are set, returns only region_name and boto3
         will use its default credential chain (env vars, AWS config, etc.).
         """
         kwargs: dict[str, Any] = {"region_name": self.aws_region}
-        
+
         if self.aws_access_key_id and self.aws_secret_access_key:
             kwargs["aws_access_key_id"] = self.aws_access_key_id
             kwargs["aws_secret_access_key"] = self.aws_secret_access_key
-        
+
         return kwargs
-    
+
     def has_aws_credentials(self) -> bool:
         """Check if AWS credentials are configured."""
         return bool(self.aws_access_key_id and self.aws_secret_access_key)

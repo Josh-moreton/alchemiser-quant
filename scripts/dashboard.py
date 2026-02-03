@@ -35,6 +35,7 @@ load_dotenv(env_path)
 favicon_path = Path(__file__).parent.parent / "android-chrome-512x512.png"
 if favicon_path.exists():
     from PIL import Image
+
     favicon = Image.open(favicon_path)
 else:
     favicon = None
@@ -48,9 +49,9 @@ st.set_page_config(
 )
 
 
-def get_authenticator() -> "streamlit_authenticator.Authenticate | None":
+def get_authenticator() -> streamlit_authenticator.Authenticate | None:
     """Create authenticator from Streamlit secrets or environment.
-    
+
     Returns None if authentication is disabled (local dev without secrets).
     """
     try:
@@ -58,24 +59,24 @@ def get_authenticator() -> "streamlit_authenticator.Authenticate | None":
     except ImportError:
         st.warning("streamlit-authenticator not installed. Run: poetry install")
         return None
-    
+
     # Check if credentials are configured in secrets
     if hasattr(st, "secrets") and "credentials" in st.secrets:
         # Production: use Streamlit Cloud secrets
         credentials = st.secrets["credentials"].to_dict()
         cookie_config = st.secrets.get("cookie", {})
-        
+
         return stauth.Authenticate(
             credentials={"usernames": credentials.get("usernames", {})},
             cookie_name=cookie_config.get("name", "alchemiser_dashboard"),
             cookie_key=cookie_config.get("key", "default_key_change_me"),
             cookie_expiry_days=cookie_config.get("expiry_days", 30),
         )
-    
+
     # Check environment variable to skip auth (local dev)
     if os.environ.get("SKIP_AUTH", "").lower() in ("true", "1", "yes"):
         return None
-    
+
     # No secrets configured - check if we're in Streamlit Cloud
     # (Streamlit Cloud sets specific env vars)
     if os.environ.get("STREAMLIT_SHARING_MODE"):
@@ -84,36 +85,35 @@ def get_authenticator() -> "streamlit_authenticator.Authenticate | None":
             "Add credentials to Streamlit Cloud secrets. See DASHBOARD_README.md for setup."
         )
         st.stop()
-    
+
     # Local development without secrets - skip auth with warning
     return None
 
 
-def show_login_page(authenticator: "streamlit_authenticator.Authenticate") -> bool:
+def show_login_page(authenticator: streamlit_authenticator.Authenticate) -> bool:
     """Show login form and return True if authenticated."""
     # Show logo on login page
     logo_path = Path(__file__).parent.parent / "octarine_capital_stacked.svg"
-    
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if logo_path.exists():
             st.image(str(logo_path), width="stretch")
         else:
             st.title("Octarine Capital")
-        
+
         st.markdown("---")
-    
+
     # Render login widget
     authenticator.login(location="main")
-    
+
     if st.session_state.get("authentication_status"):
         return True
-    elif st.session_state.get("authentication_status") is False:
+    if st.session_state.get("authentication_status") is False:
         st.error("Username or password is incorrect")
         return False
-    else:
-        st.info("Please enter your credentials")
-        return False
+    st.info("Please enter your credentials")
+    return False
 
 
 def show_dashboard() -> None:
@@ -124,9 +124,9 @@ def show_dashboard() -> None:
         st.sidebar.image(str(logo_path), width="stretch")
     else:
         st.sidebar.title("Octarine Capital")
-    
+
     st.sidebar.markdown("---")
-    
+
     # Navigation menu
     pages = {
         "Portfolio Overview": "portfolio_overview",
@@ -134,8 +134,9 @@ def show_dashboard() -> None:
         "Last Run Analysis": "last_run_analysis",
         "Trade History": "trade_history",
         "Symbol Analytics": "symbol_analytics",
+        "Options Hedging": "options_hedging",
     }
-    
+
     page = st.sidebar.selectbox("Navigation", list(pages.keys()), label_visibility="collapsed")
 
     st.sidebar.markdown("---")
@@ -144,37 +145,46 @@ def show_dashboard() -> None:
     # Route to pages
     if page == "Portfolio Overview":
         from dashboard_pages import portfolio_overview
+
         portfolio_overview.show()
     elif page == "Forward Projection":
         from dashboard_pages import forward_projection
+
         forward_projection.show()
     elif page == "Last Run Analysis":
         from dashboard_pages import last_run_analysis
+
         last_run_analysis.show()
     elif page == "Trade History":
         from dashboard_pages import trade_history
+
         trade_history.show()
     elif page == "Symbol Analytics":
         from dashboard_pages import symbol_analytics
+
         symbol_analytics.show()
+    elif page == "Options Hedging":
+        from dashboard_pages import options_hedging
+
+        options_hedging.show()
 
 
 def main() -> None:
     """Main entry point with authentication."""
     authenticator = get_authenticator()
-    
+
     if authenticator is None:
         # Auth disabled (local dev) - show dashboard directly
         show_dashboard()
         return
-    
+
     # Check authentication status
     if show_login_page(authenticator):
         # Authenticated - show logout in sidebar and dashboard
         with st.sidebar:
             st.write(f"Welcome, **{st.session_state.get('name', 'User')}**")
             authenticator.logout("Logout", "sidebar")
-        
+
         show_dashboard()
 
 
