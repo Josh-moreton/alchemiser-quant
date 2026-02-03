@@ -42,7 +42,7 @@ flowchart LR
 
     subgraph Execution["⚡ Execution Layer"]
         SQS[(SQS Queue)]
-        E[Execution Lambda<br/>Walk-the-Book Orders]
+        E[Execution Lambda<br/>Almgren-Chriss Optimal Execution]
     end
 
     subgraph Notifications["📧 Notifications"]
@@ -94,7 +94,7 @@ flowchart LR
 | 2 | **Strategy Workers** | Execute `.clj` DSL files in parallel, fetch data from S3 datalake + Alpaca |
 | 3 | **Signal Aggregator** | Merges partial signals into single consolidated portfolio |
 | 4 | **Portfolio Lambda** | Compares target vs current positions, creates rebalance plan |
-| 5 | **Execution Lambda** | Places limit orders using walk-the-book strategy via Alpaca |
+| 5 | **Execution Lambda** | Executes trades via Alpaca using optimal execution strategies (Almgren-Chriss, walk-the-book, or market) |
 | 6 | **Notifications Lambda** | Sends trade summaries via SNS email |
 
 ### Lambda Microservices
@@ -288,14 +288,29 @@ The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
 
 ### Execution v2 (`execution_v2/`)
 
-**Purpose**: Execute trades through broker API with proper safeguards.
+**Purpose**: Execute trades through broker API with optimal execution strategies.
 
 **Trigger**: SQS Queue (buffered `RebalancePlanned` events)
 **Outputs**: `TradeExecuted` + `WorkflowCompleted`/`WorkflowFailed` events
 
+**Execution Strategies**:
+- **Almgren-Chriss** (MEDIUM urgency, default): Optimal execution balancing market impact vs. timing risk
+  - Computes risk-averse trajectory using sinh-based mathematical model
+  - Splits orders into N time slices with optimal quantity distribution
+  - Progressive pricing (60%-90% toward aggressive side)
+  - See [Almgren-Chriss Documentation](docs/ALMGREN_CHRISS_EXECUTION.md) for details
+- **Walk-the-Book** (LOW urgency): Progressive price improvement strategy
+  - 4-step progression: 50%, 75%, 95%, market order
+  - Patient execution with longer wait times
+- **Market Immediate** (HIGH urgency): Immediate market order execution
+  - Guaranteed fill but no price optimization
+
 **Key Components**:
 - `lambda_handler.py`: Lambda entry point with SQS batch handling
 - `core/execution_manager.py`: Order placement coordination
+- `unified/almgren_chriss.py`: Almgren-Chriss optimal execution strategy
+- `unified/walk_the_book.py`: Progressive pricing strategy
+- `unified/placement_service.py`: Unified order placement service
 - `handlers/`: Event handlers for trade execution
 - `models/`: Execution result DTOs
 
