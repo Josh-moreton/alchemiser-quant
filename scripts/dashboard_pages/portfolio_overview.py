@@ -54,13 +54,15 @@ def load_pnl_data() -> pd.DataFrame:
 
     # Calculate cumulative columns
     df["Cumulative P&L"] = df["P&L ($)"].cumsum()
+    df["Cumulative Deposits"] = df["Deposits"].cumsum()
 
-    # Cumulative return: (cumulative_pnl / first_equity) * 100
-    first_equity = df.iloc[0]["Equity"] - df.iloc[0]["P&L ($)"]
-    if first_equity > 0:
-        df["Cumulative Return (%)"] = (df["Cumulative P&L"] / first_equity * 100).round(4)
-    else:
-        df["Cumulative Return (%)"] = 0.0
+    # Time-Weighted Return (TWR): compound daily returns to get true trading performance
+    # This removes the effect of deposit timing - shows actual trading skill
+    # Formula: TWR = (1 + r1) × (1 + r2) × ... × (1 + rn) - 1
+    daily_returns_decimal = df["P&L (%)"] / 100  # Convert % to decimal
+    df["Cumulative Return (%)"] = (
+        ((1 + daily_returns_decimal).cumprod() - 1) * 100
+    ).round(2)
 
     return df
 
