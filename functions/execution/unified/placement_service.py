@@ -37,7 +37,7 @@ from .almgren_chriss import AlmgrenChrissStrategy
 from .order_intent import Urgency
 from .portfolio_validator import PortfolioValidator
 from .quote_service import UnifiedQuoteService
-from .walk_the_book import WalkTheBookStrategy
+from .walk_the_book import OrderAttempt, OrderStatus, WalkResult, WalkTheBookStrategy
 
 logger = get_logger(__name__)
 
@@ -379,8 +379,6 @@ class UnifiedOrderPlacementService:
             avg_price = getattr(executed_order, "filled_avg_price", executed_order.price)
 
             # Create a simple walk result for consistency
-            from .walk_the_book import OrderAttempt, OrderStatus, WalkResult
-
             walk_result = WalkResult(
                 success=True,
                 order_attempts=[
@@ -561,8 +559,6 @@ class UnifiedOrderPlacementService:
         validation_result = None
         if self.enable_validation and ac_result.success:
             # Convert AlmgrenChrissResult to WalkResult for validation compatibility
-            from .walk_the_book import OrderAttempt, OrderStatus, WalkResult
-
             # Map slice attempts to order attempts
             order_attempts = [
                 OrderAttempt(

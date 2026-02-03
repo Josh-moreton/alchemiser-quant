@@ -2,28 +2,15 @@
 
 Tests the core mathematical functionality of the Almgren-Chriss model,
 particularly the trajectory calculation and slice distribution.
+
+Note: These tests validate the mathematical properties of the trajectory
+calculation algorithm without requiring the full execution framework.
 """
 
 from decimal import Decimal
 
 import numpy as np
 import pytest
-
-# Import the strategy (note: this assumes the test can import from functions/)
-# If import fails, these are unit tests for the mathematical functions only
-try:
-    import sys
-    from pathlib import Path
-
-    # Add functions directory to path
-    sys.path.insert(0, str(Path(__file__).parent.parent / "functions" / "execution"))
-
-    from unified.almgren_chriss import AlmgrenChrissStrategy
-
-    STRATEGY_AVAILABLE = True
-except ImportError:
-    STRATEGY_AVAILABLE = False
-    pytest.skip("Strategy module not available for import", allow_module_level=True)
 
 
 class TestAlmgrenChrissTrajectory:
