@@ -38,9 +38,13 @@ from dashboard_pages.styles import inject_styles
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
 
-# Favicon - use path directly to avoid PIL caching issues on Streamlit Cloud
+# Favicon/PWA icon - read image bytes to work on Streamlit Cloud
 favicon_path = Path(__file__).parent.parent / "android-chrome-512x512.png"
-favicon = str(favicon_path) if favicon_path.exists() else "📊"
+if favicon_path.exists():
+    from PIL import Image
+    favicon = Image.open(favicon_path)
+else:
+    favicon = "📊"
 
 # Page config (must be first Streamlit call)
 st.set_page_config(
