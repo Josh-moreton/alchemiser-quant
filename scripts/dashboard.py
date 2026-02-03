@@ -37,7 +37,7 @@ if favicon_path.exists():
     from PIL import Image
     favicon = Image.open(favicon_path)
 else:
-    favicon = "📈"
+    favicon = None
 
 # Page config (must be first Streamlit call)
 st.set_page_config(
@@ -80,7 +80,7 @@ def get_authenticator() -> "streamlit_authenticator.Authenticate | None":
     # (Streamlit Cloud sets specific env vars)
     if os.environ.get("STREAMLIT_SHARING_MODE"):
         st.error(
-            "🔐 Authentication not configured!\n\n"
+            "Authentication not configured.\n\n"
             "Add credentials to Streamlit Cloud secrets. See DASHBOARD_README.md for setup."
         )
         st.stop()
@@ -99,7 +99,7 @@ def show_login_page(authenticator: "streamlit_authenticator.Authenticate") -> bo
         if logo_path.exists():
             st.image(str(logo_path), width="stretch")
         else:
-            st.title("📊 Octarine Capital")
+            st.title("Octarine Capital")
         
         st.markdown("---")
     
@@ -123,33 +123,34 @@ def show_dashboard() -> None:
     if logo_path.exists():
         st.sidebar.image(str(logo_path), width="stretch")
     else:
-        st.sidebar.title("📊 Octarine Capital")
+        st.sidebar.title("Octarine Capital")
+    
     st.sidebar.markdown("---")
-
-    page = st.sidebar.radio(
-        "Navigation",
-        [
-            "🏠 Portfolio Overview",
-            "🎯 Last Run Analysis", 
-            "📊 Trade History",
-            "📈 Symbol Analytics",
-        ],
-    )
+    
+    # Navigation menu
+    pages = {
+        "Portfolio Overview": "portfolio_overview",
+        "Last Run Analysis": "last_run_analysis",
+        "Trade History": "trade_history",
+        "Symbol Analytics": "symbol_analytics",
+    }
+    
+    page = st.sidebar.selectbox("Navigation", list(pages.keys()), label_visibility="collapsed")
 
     st.sidebar.markdown("---")
     st.sidebar.caption("Real-time trading system dashboard")
 
     # Route to pages
-    if page == "🏠 Portfolio Overview":
+    if page == "Portfolio Overview":
         from dashboard_pages import portfolio_overview
         portfolio_overview.show()
-    elif page == "🎯 Last Run Analysis":
+    elif page == "Last Run Analysis":
         from dashboard_pages import last_run_analysis
         last_run_analysis.show()
-    elif page == "📊 Trade History":
+    elif page == "Trade History":
         from dashboard_pages import trade_history
         trade_history.show()
-    elif page == "📈 Symbol Analytics":
+    elif page == "Symbol Analytics":
         from dashboard_pages import symbol_analytics
         symbol_analytics.show()
 

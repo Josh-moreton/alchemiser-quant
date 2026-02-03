@@ -152,7 +152,7 @@ def calculate_risk_metrics(df: pd.DataFrame) -> dict[str, float]:
 
 def show() -> None:
     """Display the portfolio overview page."""
-    st.title("📈 Portfolio Overview")
+    st.title("Portfolio Overview")
     st.caption("Comprehensive portfolio analytics and performance metrics")
 
     # Load data
@@ -166,7 +166,7 @@ def show() -> None:
         return
 
     # Key metrics row
-    st.subheader("📊 Key Metrics")
+    st.subheader("Key Metrics")
     col1, col2, col3, col4, col5 = st.columns(5)
 
     current_equity = df["Equity"].iloc[-1]
@@ -191,7 +191,7 @@ def show() -> None:
     st.divider()
 
     # Risk metrics row
-    st.subheader("🎯 Risk Metrics")
+    st.subheader("Risk Metrics")
     risk_metrics = calculate_risk_metrics(df)
 
     if risk_metrics:
@@ -218,7 +218,7 @@ def show() -> None:
     st.divider()
 
     # Current Positions
-    st.subheader("💼 Current Positions")
+    st.subheader("Current Positions")
     positions_df = load_positions()
 
     if not positions_df.empty:
@@ -266,7 +266,7 @@ def show() -> None:
     st.divider()
 
     # Monthly summary
-    st.subheader("📅 Monthly Summary")
+    st.subheader("Monthly Summary")
     df["Month"] = df["Date"].dt.to_period("M").astype(str)
     monthly = (
         df.groupby("Month")
@@ -304,7 +304,7 @@ def show() -> None:
     st.divider()
 
     # Raw data (expandable)
-    with st.expander("📊 View Raw Data"):
+    with st.expander("View Raw Data"):
         st.dataframe(df, width="stretch")
 
     # Footer

@@ -70,7 +70,7 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
 
     except dynamodb.exceptions.ResourceNotFoundException:
         st.error(
-            f"❌ DynamoDB table `{table_name}` not found. "
+            f"DynamoDB table `{table_name}` not found. "
             "Ensure the prod stack is deployed and the table exists."
         )
         return []
@@ -78,16 +78,16 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
         error_msg = str(e)
         if "AccessDenied" in error_msg or "not authorized" in error_msg.lower():
             st.error(
-                "❌ AWS credentials lack DynamoDB read permissions. "
+                "AWS credentials lack DynamoDB read permissions. "
                 "Check that the IAM user has the AlchemiserDashboardReadOnly policy attached."
             )
         elif "credentials" in error_msg.lower() or "security token" in error_msg.lower():
             st.error(
-                "❌ AWS credentials not configured or invalid. "
+                "AWS credentials not configured or invalid. "
                 "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
             )
         else:
-            st.error(f"❌ Error loading sessions: {e}")
+            st.error(f"Error loading sessions: {e}")
         return []
 
 
@@ -175,7 +175,7 @@ def get_trades_for_correlation(correlation_id: str) -> list[dict[str, Any]]:
 
 def show_signal_analysis(signal: dict[str, Any]) -> None:
     """Display signal analysis."""
-    st.subheader("🎯 Aggregated Signal")
+    st.subheader("Aggregated Signal")
 
     allocations = signal.get("allocations") or signal.get("target_allocations") or {}
 
@@ -199,11 +199,11 @@ def show_signal_analysis(signal: dict[str, Any]) -> None:
         st.metric("Total Weight", f"{total_weight:.1f}%")
     with col3:
         if total_weight > 101:
-            st.metric("Status", "⚠️ Over-allocated", delta=f"{total_weight - 100:.1f}%")
+            st.metric("Status", "Over-allocated", delta=f"{total_weight - 100:.1f}%")
         elif total_weight < 99:
-            st.metric("Status", "⚠️ Under-allocated", delta=f"{total_weight - 100:.1f}%")
+            st.metric("Status", "Under-allocated", delta=f"{total_weight - 100:.1f}%")
         else:
-            st.metric("Status", "✅ Balanced")
+            st.metric("Status", "Balanced")
 
     # Allocations table
     st.dataframe(
@@ -221,7 +221,7 @@ def show_signal_analysis(signal: dict[str, Any]) -> None:
 
 def show_rebalance_plan_analysis(plan: dict[str, Any]) -> None:
     """Display rebalance plan analysis."""
-    st.subheader("📋 Rebalance Plan")
+    st.subheader("Rebalance Plan")
 
     # Metadata
     metadata = plan.get("metadata", {})
