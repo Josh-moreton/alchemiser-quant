@@ -23,7 +23,19 @@ import streamlit as st
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
-from dashboard_settings import get_dashboard_settings, debug_secrets_info
+from dashboard_settings import debug_secrets_info, get_dashboard_settings
+
+from .components import (
+    alert_box,
+    direction_styled_dataframe,
+    hero_metric,
+    metric_card,
+    metric_row,
+    pipeline_status,
+    section_header,
+    styled_dataframe,
+)
+from .styles import format_currency, get_colors, inject_styles
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
@@ -368,52 +380,63 @@ def get_aggregated_signal(
 
 
 def show_workflow_summary(events: list[dict[str, Any]], lambda_counts: dict[str, int]) -> None:
-    """Display workflow execution summary."""
+    """Display workflow execution summary with pipeline visualization."""
     if not events:
         return
-    
+
     # Calculate metrics
     first_ts = events[0]["_timestamp"]
     last_ts = events[-1]["_timestamp"]
     duration = last_ts - first_ts
-    
+
     error_count = sum(1 for e in events if is_error_event(e))
-    
+
     # Level breakdown
     level_counts: dict[str, int] = {}
     for event in events:
         level = event.get("level", "unknown").lower()
         level_counts[level] = level_counts.get(level, 0) + 1
-    
-    st.subheader("Workflow Summary")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Log Events", len(events))
-    with col2:
-        st.metric("Duration", f"{duration.total_seconds():.1f}s")
-    with col3:
-        st.metric("Errors/Warnings", error_count, delta_color="inverse")
-    with col4:
-        st.metric("Lambdas Active", sum(1 for c in lambda_counts.values() if c > 0))
-    
-    # Lambda breakdown
-    with st.expander("Events by Lambda"):
-        lambda_df = pd.DataFrame([
-            {"Lambda": k, "Events": v}
-            for k, v in sorted(lambda_counts.items(), key=lambda x: -x[1])
-            if v > 0
-        ])
-        if not lambda_df.empty:
-            st.dataframe(lambda_df, hide_index=True, use_container_width=True)
-    
-    # Level breakdown
-    with st.expander("Events by Level"):
-        level_df = pd.DataFrame([
-            {"Level": k.upper(), "Count": v}
-            for k, v in sorted(level_counts.items(), key=lambda x: -x[1])
-        ])
-        st.dataframe(level_df, hide_index=True, use_container_width=True)
+
+    # Build pipeline steps from lambda counts
+    pipeline_steps = []
+    expected_order = [
+        "strategy-orchestrator",
+        "strategy-worker",
+        "signal-aggregator",
+        "portfolio",
+        "execution",
+        "trade-aggregator",
+        "notifications",
+    ]
+
+    for lambda_name in expected_order:
+        count = lambda_counts.get(lambda_name, 0)
+        if count > 0:
+            # Check if there were errors in this lambda
+            lambda_errors = sum(
+                1 for e in events
+                if e.get("_lambda_name") == lambda_name and is_error_event(e)
+            )
+            status = "error" if lambda_errors > 0 else "complete"
+        else:
+            status = "pending"
+
+        pipeline_steps.append({"name": lambda_name.replace("-", " ").title(), "status": status})
+
+    section_header("Pipeline Status")
+    pipeline_status(pipeline_steps)
+
+    # Summary metrics row
+    metric_row([
+        {"label": "Total Events", "value": f"{len(events):,}"},
+        {"label": "Duration", "value": f"{duration.total_seconds():.1f}s"},
+        {
+            "label": "Errors/Warnings",
+            "value": str(error_count),
+            "delta_positive": error_count == 0,
+        },
+        {"label": "Lambdas Active", "value": str(sum(1 for c in lambda_counts.values() if c > 0))},
+    ])
 
 
 def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> None:
@@ -472,13 +495,11 @@ def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> 
 
 
 def show_signal_analysis(signal: dict[str, Any]) -> None:
-    """Display signal analysis."""
-    st.subheader("Aggregated Signal")
-
+    """Display signal analysis with bar chart for allocation."""
     allocations = signal.get("allocations") or signal.get("target_allocations") or {}
 
     if not allocations:
-        st.warning("No allocations found in signal")
+        alert_box("No allocations found in signal", alert_type="warning")
         return
 
     df = pd.DataFrame([
@@ -486,93 +507,116 @@ def show_signal_analysis(signal: dict[str, Any]) -> None:
         for symbol, weight in allocations.items()
     ]).sort_values("Weight", ascending=False)
 
-    col1, col2, col3 = st.columns(3)
     total_weight = sum(float(v) for v in allocations.values()) * 100
 
-    with col1:
-        st.metric("Total Symbols", len(allocations))
-    with col2:
-        st.metric("Total Weight", f"{total_weight:.1f}%")
-    with col3:
-        if total_weight > 101:
-            st.metric("Status", "Over-allocated", delta=f"{total_weight - 100:.1f}%")
-        elif total_weight < 99:
-            st.metric("Status", "Under-allocated", delta=f"{total_weight - 100:.1f}%")
-        else:
-            st.metric("Status", "Balanced")
+    # Summary metrics
+    metric_row([
+        {"label": "Total Symbols", "value": str(len(allocations))},
+        {"label": "Total Weight", "value": f"{total_weight:.1f}%"},
+        {
+            "label": "Status",
+            "value": "Balanced" if 99 <= total_weight <= 101 else (
+                "Over-allocated" if total_weight > 101 else "Under-allocated"
+            ),
+            "delta_positive": 99 <= total_weight <= 101,
+        },
+    ])
 
-    st.dataframe(
-        df.style.format({"Weight": "{:.2f}%"}),
-        use_container_width=True,
-        hide_index=True,
-    )
+    # Allocation bar chart
+    st.subheader("Target Allocations")
+    st.bar_chart(df.set_index("Symbol")["Weight"], use_container_width=True, height=300)
+
+    # Allocation table
+    with st.expander("Allocation Details"):
+        styled_dataframe(
+            df,
+            formats={"Weight": "{:.2f}%"},
+        )
 
 
 def show_rebalance_plan_analysis(plan: dict[str, Any]) -> None:
     """Display rebalance plan analysis."""
-    st.subheader("Rebalance Plan")
-
     metadata = plan.get("metadata", {})
     portfolio_value = metadata.get("portfolio_value", plan.get("total_portfolio_value", 0))
     cash_balance = metadata.get("cash_balance", 0)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Portfolio Value", f"${float(portfolio_value):,.2f}")
-    with col2:
-        st.metric("Cash Balance", f"${float(cash_balance):,.2f}")
-    with col3:
-        st.metric("Plan ID", plan.get("plan_id", "N/A")[:12] + "...")
 
     items = plan.get("items", [])
     buys = [i for i in items if i.get("action") == "BUY"]
     sells = [i for i in items if i.get("action") == "SELL"]
     holds = [i for i in items if i.get("action") == "HOLD"]
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        total_buy = sum(Decimal(str(i.get("trade_amount", 0))) for i in buys)
-        st.metric("BUY Orders", len(buys), delta=f"${float(total_buy):,.2f}")
-    with col2:
-        total_sell = sum(abs(Decimal(str(i.get("trade_amount", 0)))) for i in sells)
-        st.metric("SELL Orders", len(sells), delta=f"${float(total_sell):,.2f}")
-    with col3:
-        st.metric("HOLD Positions", len(holds))
+    total_buy = sum(Decimal(str(i.get("trade_amount", 0))) for i in buys)
+    total_sell = sum(abs(Decimal(str(i.get("trade_amount", 0)))) for i in sells)
+
+    # Summary metrics
+    metric_row([
+        {"label": "Portfolio Value", "value": format_currency(float(portfolio_value))},
+        {"label": "Cash Balance", "value": format_currency(float(cash_balance))},
+        {"label": "BUY Orders", "value": str(len(buys)), "delta": format_currency(float(total_buy)), "delta_positive": True},
+        {"label": "SELL Orders", "value": str(len(sells)), "delta": format_currency(float(total_sell)), "delta_positive": False},
+    ])
+
+    # Plan details table
+    if items:
+        st.subheader("Plan Items")
+        plan_df = pd.DataFrame([
+            {
+                "Symbol": i.get("symbol", ""),
+                "Action": i.get("action", ""),
+                "Current %": float(i.get("current_weight", 0)) * 100,
+                "Target %": float(i.get("target_weight", 0)) * 100,
+                "Trade Amount": float(i.get("trade_amount", 0)),
+            }
+            for i in items
+            if i.get("action") != "HOLD"  # Only show actionable items
+        ])
+
+        if not plan_df.empty:
+            direction_styled_dataframe(
+                plan_df,
+                direction_col="Action",
+                formats={
+                    "Current %": "{:.2f}%",
+                    "Target %": "{:.2f}%",
+                    "Trade Amount": "${:+,.2f}",
+                },
+            )
 
 
 def show_trades_analysis(trades: list[dict[str, Any]]) -> None:
     """Display trades analysis."""
-    st.subheader("Executed Trades")
-
-    if not trades:
-        st.info("No trades found for this run")
-        return
-
-    col1, col2, col3 = st.columns(3)
     buy_trades = [t for t in trades if t["direction"] == "BUY"]
     sell_trades = [t for t in trades if t["direction"] == "SELL"]
     total_value = sum(t["filled_qty"] * t["fill_price"] for t in trades)
 
-    with col1:
-        st.metric("Total Trades", len(trades))
-    with col2:
-        st.metric("BUY / SELL", f"{len(buy_trades)} / {len(sell_trades)}")
-    with col3:
-        st.metric("Total Value", f"${total_value:,.2f}")
+    # Summary metrics
+    metric_row([
+        {"label": "Total Trades", "value": str(len(trades))},
+        {"label": "BUY / SELL", "value": f"{len(buy_trades)} / {len(sell_trades)}"},
+        {"label": "Total Value", "value": format_currency(total_value)},
+    ])
 
+    # Trades table
     df = pd.DataFrame([
         {
             "Symbol": t["symbol"],
             "Direction": t["direction"],
             "Qty": t["filled_qty"],
-            "Price": f"${t['fill_price']:.2f}",
-            "Value": f"${t['filled_qty'] * t['fill_price']:,.2f}",
+            "Price": t["fill_price"],
+            "Value": t["filled_qty"] * t["fill_price"],
             "Time": t["fill_timestamp"][:19],
         }
         for t in trades
     ])
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    direction_styled_dataframe(
+        df,
+        formats={
+            "Qty": "{:.4f}",
+            "Price": "${:.2f}",
+            "Value": "${:,.2f}",
+        },
+    )
 
 
 # =============================================================================
@@ -582,30 +626,25 @@ def show_trades_analysis(trades: list[dict[str, Any]]) -> None:
 
 def show() -> None:
     """Display the last run analysis page."""
+    # Inject styles
+    inject_styles()
+
     st.title("Last Run Analysis")
     st.caption("Detailed view of the most recent workflow execution from CloudWatch Logs")
 
     settings = get_dashboard_settings()
-    
-    # Debug expander
-    with st.expander("Debug: Configuration", expanded=False):
-        debug_info = debug_secrets_info()
-        st.text(f"Stage: {settings.stage}")
-        st.text(f"AWS Region: {settings.aws_region}")
-        st.text(f"Has credentials: {settings.has_aws_credentials()}")
-        if settings.aws_access_key_id:
-            st.text(f"Access key (first 4 chars): {settings.aws_access_key_id[:4]}...")
-        for key, value in debug_info.items():
-            st.text(f"  {key}: {value}")
-    
+
+    # Debug expander (collapsed by default at bottom)
     # Check credentials
     if not settings.has_aws_credentials():
-        st.error(
+        alert_box(
             "AWS credentials not configured. "
-            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
+            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets.",
+            alert_type="error",
+            icon="🔐",
         )
         return
-    
+
     # Find recent workflows from CloudWatch
     workflows, error = find_recent_workflows(
         aws_region=settings.aws_region,
@@ -615,46 +654,54 @@ def show() -> None:
         hours_back=72,
         limit=20,
     )
-    
+
     if error:
-        st.error(f"Error finding workflows: {error}")
+        alert_box(f"Error finding workflows: {error}", alert_type="error")
         return
-    
+
     if not workflows:
-        st.warning(
+        alert_box(
             f"No workflow runs found in the last 72 hours for stage '{settings.stage}'. "
-            "Check that workflows have run and logs exist in CloudWatch."
+            "Check that workflows have run and logs exist in CloudWatch.",
+            alert_type="warning",
+            icon="⚠️",
         )
         return
-    
-    st.success(f"Found {len(workflows)} workflow runs in CloudWatch")
-    
-    # Workflow selector
-    workflow_options = [
-        f"{w['correlation_id'][:30]}... - {w['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} UTC"
-        for w in workflows
-    ]
-    selected_idx = st.selectbox(
-        "Select Workflow Run",
-        range(len(workflow_options)),
-        format_func=lambda i: workflow_options[i],
-    )
-    
+
+    # =========================================================================
+    # WORKFLOW SELECTOR
+    # =========================================================================
+    col_select, col_info = st.columns([3, 1])
+
+    with col_select:
+        workflow_options = [
+            f"{w['correlation_id'][:30]}... - {w['timestamp'].strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            for w in workflows
+        ]
+        selected_idx = st.selectbox(
+            "Select Workflow Run",
+            range(len(workflow_options)),
+            format_func=lambda i: workflow_options[i],
+        )
+
     selected_workflow = workflows[selected_idx]
     correlation_id = selected_workflow["correlation_id"]
-    
-    st.divider()
-    
-    # Show workflow info
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Correlation ID", correlation_id[:20] + "...")
-    with col2:
-        st.metric("Started At", selected_workflow["timestamp"].strftime("%Y-%m-%d %H:%M:%S UTC"))
-    
-    st.divider()
-    
-    # Fetch and display logs
+
+    with col_info:
+        st.caption(f"Found {len(workflows)} runs")
+
+    # =========================================================================
+    # WORKFLOW HERO
+    # =========================================================================
+    hero_metric(
+        label="Correlation ID",
+        value=correlation_id[:25] + "...",
+        subtitle=f"Started: {selected_workflow['timestamp'].strftime('%Y-%m-%d %H:%M:%S UTC')}",
+    )
+
+    # =========================================================================
+    # FETCH DATA
+    # =========================================================================
     events, lambda_counts = fetch_workflow_logs(
         correlation_id=correlation_id,
         aws_region=settings.aws_region,
@@ -662,22 +709,7 @@ def show() -> None:
         aws_secret_access_key=settings.aws_secret_access_key,
         stage=settings.stage,
     )
-    
-    if events:
-        show_workflow_summary(events, lambda_counts)
-        st.divider()
-        
-        # Toggle for all logs vs errors only
-        show_all = st.checkbox("Show all logs (not just errors/warnings)", value=False)
-        show_logs_timeline(events, show_all=show_all)
-        st.divider()
-    else:
-        st.warning("No log events found for this workflow")
-    
-    # Fetch DynamoDB data for enrichment
-    st.subheader("Workflow Data (from DynamoDB)")
-    
-    # Signal
+
     signal = get_aggregated_signal(
         correlation_id=correlation_id,
         aws_region=settings.aws_region,
@@ -685,12 +717,7 @@ def show() -> None:
         aws_secret_access_key=settings.aws_secret_access_key,
         stage=settings.stage,
     )
-    if signal:
-        show_signal_analysis(signal)
-    else:
-        st.info("No aggregated signal found in DynamoDB")
-    
-    # Rebalance plan
+
     plan = get_rebalance_plan(
         correlation_id=correlation_id,
         aws_region=settings.aws_region,
@@ -698,12 +725,7 @@ def show() -> None:
         aws_secret_access_key=settings.aws_secret_access_key,
         stage=settings.stage,
     )
-    if plan:
-        show_rebalance_plan_analysis(plan)
-    else:
-        st.info("No rebalance plan found in DynamoDB")
-    
-    # Trades
+
     trades = get_trades_for_correlation(
         correlation_id=correlation_id,
         aws_region=settings.aws_region,
@@ -711,18 +733,66 @@ def show() -> None:
         aws_secret_access_key=settings.aws_secret_access_key,
         stage=settings.stage,
     )
-    if trades:
-        show_trades_analysis(trades)
-    else:
-        st.info("No trades found in DynamoDB")
-    
-    # Raw data expanders
-    st.divider()
-    with st.expander("Raw Data"):
-        tab1, tab2, tab3 = st.tabs(["Signal", "Plan", "Events Sample"])
-        with tab1:
-            st.json(signal or {})
-        with tab2:
-            st.json(plan or {})
-        with tab3:
-            st.json([e for e in events[:10]] if events else [])
+
+    # =========================================================================
+    # PIPELINE STATUS VISUALIZATION
+    # =========================================================================
+    if events:
+        show_workflow_summary(events, lambda_counts)
+
+    # =========================================================================
+    # TABBED INTERFACE: Logs | Signal | Plan | Trades
+    # =========================================================================
+    tab_logs, tab_signal, tab_plan, tab_trades, tab_raw = st.tabs([
+        "📋 Logs",
+        "📊 Signal",
+        "📝 Plan",
+        "💰 Trades",
+        "🔧 Raw Data",
+    ])
+
+    with tab_logs:
+        if events:
+            show_all = st.checkbox("Show all logs (not just errors/warnings)", value=False)
+            show_logs_timeline(events, show_all=show_all)
+        else:
+            st.info("No log events found for this workflow")
+
+    with tab_signal:
+        if signal:
+            show_signal_analysis(signal)
+        else:
+            st.info("No aggregated signal found in DynamoDB")
+
+    with tab_plan:
+        if plan:
+            show_rebalance_plan_analysis(plan)
+        else:
+            st.info("No rebalance plan found in DynamoDB")
+
+    with tab_trades:
+        if trades:
+            show_trades_analysis(trades)
+        else:
+            st.info("No trades found for this run")
+
+    with tab_raw:
+        st.subheader("Raw Signal Data")
+        st.json(signal or {})
+
+        st.subheader("Raw Plan Data")
+        st.json(plan or {})
+
+        st.subheader("Sample Log Events")
+        st.json([e for e in events[:10]] if events else [])
+
+    # Debug config collapsed at bottom
+    with st.expander("Debug: Configuration", expanded=False):
+        debug_info = debug_secrets_info()
+        st.text(f"Stage: {settings.stage}")
+        st.text(f"AWS Region: {settings.aws_region}")
+        st.text(f"Has credentials: {settings.has_aws_credentials()}")
+        if settings.aws_access_key_id:
+            st.text(f"Access key (first 4 chars): {settings.aws_access_key_id[:4]}...")
+        for key, value in debug_info.items():
+            st.text(f"  {key}: {value}")

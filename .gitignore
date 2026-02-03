@@ -42,6 +42,9 @@ logs/
 .env*
 .env.old
 
+# Streamlit secrets (local development)
+**/secrets.toml
+
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/

@@ -19,6 +19,15 @@ from dotenv import load_dotenv
 
 from dashboard_settings import get_dashboard_settings
 
+from .components import (
+    direction_styled_dataframe,
+    hero_metric,
+    metric_row,
+    section_header,
+    styled_dataframe,
+)
+from .styles import format_currency, inject_styles
+
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
@@ -207,45 +216,53 @@ def get_symbol_performance(trades: list[dict[str, Any]]) -> pd.DataFrame:
 
 def show() -> None:
     """Display the trade history page."""
+    # Inject styles
+    inject_styles()
+
     st.title("Trade History")
     st.caption("Comprehensive trade analytics with strategy and symbol attribution")
 
-    # Filters
-    st.subheader("Filters")
-    col1, col2, col3 = st.columns(3)
+    # =========================================================================
+    # COMPACT FILTER BAR (horizontal)
+    # =========================================================================
+    col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
 
     with col1:
-        # Date range
         date_range = st.selectbox(
             "Date Range",
             ["Last 7 Days", "Last 30 Days", "Last 90 Days", "All Time", "Custom"],
+            label_visibility="collapsed",
         )
 
-        if date_range == "Custom":
-            start_date = st.date_input("Start Date")
-            end_date = st.date_input("End Date")
-        else:
-            end_date = datetime.now(timezone.utc)
-            if date_range == "Last 7 Days":
-                start_date = end_date - timedelta(days=7)
-            elif date_range == "Last 30 Days":
-                start_date = end_date - timedelta(days=30)
-            elif date_range == "Last 90 Days":
-                start_date = end_date - timedelta(days=90)
-            else:  # All Time
-                start_date = None
-                end_date = None
-
     with col2:
-        # Symbol filter
-        symbol_filter = st.text_input("Symbol Filter (optional)", placeholder="e.g., AAPL")
+        if date_range == "Custom":
+            start_date = st.date_input("Start", label_visibility="collapsed")
+        else:
+            start_date = None
 
     with col3:
-        st.write("")  # Spacing
-        st.write("")
-        apply_filters = st.button("Apply Filters", type="primary")
+        if date_range == "Custom":
+            end_date = st.date_input("End", label_visibility="collapsed")
+        else:
+            end_date = None
 
-    st.divider()
+    with col4:
+        symbol_filter = st.text_input("Symbol", placeholder="e.g., AAPL", label_visibility="collapsed")
+
+    # Calculate date range
+    if date_range == "Custom" and start_date and end_date:
+        pass  # Use custom dates
+    else:
+        end_date = datetime.now(timezone.utc)
+        if date_range == "Last 7 Days":
+            start_date = end_date - timedelta(days=7)
+        elif date_range == "Last 30 Days":
+            start_date = end_date - timedelta(days=30)
+        elif date_range == "Last 90 Days":
+            start_date = end_date - timedelta(days=90)
+        else:  # All Time
+            start_date = None
+            end_date = None
 
     # Load trades
     start_iso = start_date.isoformat() + "T00:00:00Z" if start_date else None
@@ -258,122 +275,127 @@ def show() -> None:
         st.warning("No trades found matching filters")
         return
 
-    # Summary metrics
-    st.subheader("Summary")
-    col1, col2, col3, col4, col5 = st.columns(5)
-
+    # =========================================================================
+    # SUMMARY METRICS
+    # =========================================================================
     total_trades = len(trades)
     buy_trades = [t for t in trades if t["direction"] == "BUY"]
     sell_trades = [t for t in trades if t["direction"] == "SELL"]
     total_value = sum(t["filled_qty"] * t["fill_price"] for t in trades)
     unique_symbols = len(set(t["symbol"] for t in trades))
 
-    with col1:
-        st.metric("Total Trades", total_trades)
-    with col2:
-        st.metric("BUY Trades", len(buy_trades))
-    with col3:
-        st.metric("SELL Trades", len(sell_trades))
-    with col4:
-        st.metric("Total Value", f"${total_value:,.2f}")
-    with col5:
-        st.metric("Unique Symbols", unique_symbols)
-
-    st.divider()
-
-    # Per-Strategy Performance
-    st.subheader("Per-Strategy Performance")
-    strategy_df = get_strategy_performance(trades)
-
-    if not strategy_df.empty:
-        st.dataframe(
-            strategy_df.style.format({
-                "Total Value": "${:,.2f}",
-            }),
-            width="stretch",
-            hide_index=True,
-        )
-
-        # Chart
-        st.subheader("Strategy Trade Volume")
-        chart_data = strategy_df.set_index("Strategy")["Total Value"]
-        st.bar_chart(chart_data, width="stretch")
-    else:
-        st.info("No strategy attribution data available")
-
-    st.divider()
-
-    # Per-Symbol Performance
-    st.subheader("Per-Symbol Performance")
-    symbol_df = get_symbol_performance(trades)
-
-    if not symbol_df.empty:
-        st.dataframe(
-            symbol_df.style.format({
-                "Net Qty": "{:.4f}",
-                "Total Value": "${:,.2f}",
-                "Avg Buy Price": "${:.2f}",
-                "Avg Sell Price": "${:.2f}",
-            }),
-            width="stretch",
-            hide_index=True,
-        )
-
-        # Top 10 symbols chart
-        if len(symbol_df) > 0:
-            st.subheader("Top Symbols by Trade Value")
-            chart_data = symbol_df.head(10).set_index("Symbol")["Total Value"]
-            st.bar_chart(chart_data, width="stretch")
-    else:
-        st.info("No symbol data available")
-
-    st.divider()
-
-    # Recent Trades Table
-    st.subheader("Recent Trades")
-
-    # Show last 50 trades
-    recent_trades = trades[:50]
-    df = pd.DataFrame([
-        {
-            "Symbol": t["symbol"],
-            "Direction": t["direction"],
-            "Qty": t["filled_qty"],
-            "Price": t["fill_price"],
-            "Value": t["filled_qty"] * t["fill_price"],
-            "Timestamp": t["fill_timestamp"][:19],
-            "Strategies": ", ".join(t["strategy_names"][:2]) + ("..." if len(t["strategy_names"]) > 2 else ""),
-            "Order ID": t["order_id"][:12] + "...",
-        }
-        for t in recent_trades
-    ])
-
-    st.dataframe(
-        df.style.format({
-            "Qty": "{:.4f}",
-            "Price": "${:.2f}",
-            "Value": "${:,.2f}",
-        }),
-        width="stretch",
-        hide_index=True,
+    hero_metric(
+        label="Total Trade Value",
+        value=format_currency(total_value),
+        subtitle=f"{total_trades} trades across {unique_symbols} symbols",
     )
 
-    if len(trades) > 50:
-        st.caption(f"Showing 50 of {len(trades)} trades. Use filters to narrow results.")
+    metric_row([
+        {"label": "Total Trades", "value": f"{total_trades:,}"},
+        {"label": "BUY Trades", "value": f"{len(buy_trades):,}", "delta_positive": True},
+        {"label": "SELL Trades", "value": f"{len(sell_trades):,}", "delta_positive": False},
+        {"label": "Unique Symbols", "value": str(unique_symbols)},
+    ])
 
-    st.divider()
+    # =========================================================================
+    # TABBED VIEW: By Strategy | By Symbol | Timeline
+    # =========================================================================
+    tab_strategy, tab_symbol, tab_timeline, tab_recent = st.tabs([
+        "📊 By Strategy",
+        "🎯 By Symbol",
+        "📈 Timeline",
+        "📋 Recent Trades",
+    ])
 
-    # Daily trade volume chart
-    st.subheader("Daily Trade Volume")
-    
-    # Group by date
-    for trade in trades:
-        trade["Date"] = trade["fill_timestamp"][:10]  # Extract YYYY-MM-DD
-    
-    daily_df = pd.DataFrame(trades)
-    if not daily_df.empty:
-        daily_volume = daily_df.groupby("Date").agg({
-            "filled_qty": "count",  # Count of trades
-        }).rename(columns={"filled_qty": "Trade Count"})
-        
-        st.line_chart(daily_volume["Trade Count"], width="stretch")
+    with tab_strategy:
+        section_header("Per-Strategy Performance")
+        strategy_df = get_strategy_performance(trades)
+
+        if not strategy_df.empty:
+            styled_dataframe(
+                strategy_df,
+                formats={"Total Value": "${:,.2f}"},
+            )
+
+            # Chart
+            st.subheader("Strategy Trade Volume")
+            chart_data = strategy_df.set_index("Strategy")["Total Value"]
+            st.bar_chart(chart_data, use_container_width=True)
+        else:
+            st.info("No strategy attribution data available")
+
+    with tab_symbol:
+        section_header("Per-Symbol Performance")
+        symbol_df = get_symbol_performance(trades)
+
+        if not symbol_df.empty:
+            styled_dataframe(
+                symbol_df,
+                formats={
+                    "Net Qty": "{:.4f}",
+                    "Total Value": "${:,.2f}",
+                    "Avg Buy Price": "${:.2f}",
+                    "Avg Sell Price": "${:.2f}",
+                },
+            )
+
+            # Top 10 symbols chart
+            if len(symbol_df) > 0:
+                st.subheader("Top Symbols by Trade Value")
+                chart_data = symbol_df.head(10).set_index("Symbol")["Total Value"]
+                st.bar_chart(chart_data, use_container_width=True)
+        else:
+            st.info("No symbol data available")
+
+    with tab_timeline:
+        section_header("Daily Trade Volume")
+
+        # Group by date
+        trades_copy = [t.copy() for t in trades]
+        for trade in trades_copy:
+            trade["Date"] = trade["fill_timestamp"][:10]
+
+        daily_df = pd.DataFrame(trades_copy)
+        if not daily_df.empty:
+            daily_volume = daily_df.groupby("Date").agg({
+                "filled_qty": "count",
+            }).rename(columns={"filled_qty": "Trade Count"})
+
+            st.line_chart(daily_volume["Trade Count"], use_container_width=True)
+
+            # Daily value breakdown
+            daily_value = daily_df.groupby("Date").apply(
+                lambda x: (x["filled_qty"] * x["fill_price"]).sum()
+            )
+            st.subheader("Daily Trade Value")
+            st.bar_chart(daily_value, use_container_width=True)
+
+    with tab_recent:
+        section_header("Recent Trades")
+
+        # Show last 50 trades with direction coloring
+        recent_trades = trades[:50]
+        df = pd.DataFrame([
+            {
+                "Symbol": t["symbol"],
+                "Direction": t["direction"],
+                "Qty": t["filled_qty"],
+                "Price": t["fill_price"],
+                "Value": t["filled_qty"] * t["fill_price"],
+                "Timestamp": t["fill_timestamp"][:19],
+                "Strategies": ", ".join(t["strategy_names"][:2]) + ("..." if len(t["strategy_names"]) > 2 else ""),
+            }
+            for t in recent_trades
+        ])
+
+        direction_styled_dataframe(
+            df,
+            formats={
+                "Qty": "{:.4f}",
+                "Price": "${:.2f}",
+                "Value": "${:,.2f}",
+            },
+        )
+
+        if len(trades) > 50:
+            st.caption(f"Showing 50 of {len(trades)} trades. Use filters to narrow results.")

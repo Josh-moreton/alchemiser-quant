@@ -15,6 +15,16 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+from .components import (
+    hero_metric,
+    metric_card,
+    metric_row,
+    progress_bar,
+    section_header,
+    styled_dataframe,
+)
+from .styles import format_currency, format_percent, inject_styles
+
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
@@ -138,7 +148,10 @@ def create_chart_data(projections: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 def show() -> None:
     """Render the forward projection page."""
-    st.header("Forward Projection")
+    # Inject styles for this page
+    inject_styles()
+
+    st.title("Forward Projection")
     st.caption("Project your portfolio growth based on historical performance")
 
     # Load historical metrics
@@ -148,27 +161,45 @@ def show() -> None:
         st.error("No historical data available for projections.")
         return
 
-    # Display current metrics
-    st.subheader("Historical Performance Summary")
-    col1, col2, col3, col4 = st.columns(4)
+    # =========================================================================
+    # HERO METRIC: Current Equity
+    # =========================================================================
+    hero_metric(
+        label="Current Portfolio Value",
+        value=format_currency(metrics["current_equity"]),
+        subtitle=f"Trading since {metrics['start_date'].strftime('%b %Y')} ({metrics['years_trading']:.1f} years)",
+    )
 
-    with col1:
-        st.metric("Current Equity", f"${metrics['current_equity']:,.2f}")
-    with col2:
-        st.metric("Annualized Return", f"{metrics['annualized_return']:+.1f}%")
-    with col3:
-        st.metric("Annualized Volatility", f"{metrics['annualized_vol']:.1f}%")
-    with col4:
-        st.metric("Trading History", f"{metrics['years_trading']:.1f} years")
+    # =========================================================================
+    # HISTORICAL PERFORMANCE SUMMARY (3 columns)
+    # =========================================================================
+    metric_row([
+        {
+            "label": "Annualized Return",
+            "value": format_percent(metrics["annualized_return"], include_sign=True),
+            "delta_positive": metrics["annualized_return"] > 0,
+            "accent": True,
+        },
+        {
+            "label": "Annualized Volatility",
+            "value": format_percent(metrics["annualized_vol"]),
+        },
+        {
+            "label": "Trading Days",
+            "value": f"{metrics['trading_days']:,}",
+        },
+    ])
 
-    st.divider()
+    # =========================================================================
+    # PROJECTION PARAMETERS (side-by-side controls and assumptions)
+    # =========================================================================
+    section_header("Projection Parameters")
 
-    # Projection parameters
-    st.subheader("Projection Parameters")
+    col_controls, col_assumptions = st.columns([1, 1])
 
-    col1, col2 = st.columns(2)
+    with col_controls:
+        st.subheader("Controls")
 
-    with col1:
         projection_years = st.slider(
             "Projection Horizon (Years)",
             min_value=1,
@@ -181,34 +212,37 @@ def show() -> None:
             "Monthly Contribution ($)",
             min_value=0.0,
             max_value=100000.0,
-            value=float(round(metrics["avg_monthly_deposit"], -2)),  # Round to nearest 100
+            value=float(round(metrics["avg_monthly_deposit"], -2)),
             step=100.0,
             help="Average monthly deposit based on your history",
         )
 
-    with col2:
-        # Return assumptions for scenarios
+    with col_assumptions:
+        st.subheader("Scenario Assumptions")
+
         base_return = metrics["annualized_return"]
 
         conservative_return = st.slider(
             "Conservative Return (%)",
             min_value=-10.0,
             max_value=50.0,
-            value=max(base_return * 0.5, 5.0),  # 50% of historical or 5%, whichever is higher
+            value=max(base_return * 0.5, 5.0),
             step=0.5,
+            help="50% of historical return or 5%, whichever is higher",
         )
 
         optimistic_return = st.slider(
             "Optimistic Return (%)",
             min_value=-10.0,
             max_value=100.0,
-            value=min(base_return * 1.5, 50.0),  # 150% of historical or 50%, whichever is lower
+            value=min(base_return * 1.5, 50.0),
             step=0.5,
+            help="150% of historical return or 50%, whichever is lower",
         )
 
-    st.divider()
-
-    # Generate projections
+    # =========================================================================
+    # GENERATE PROJECTIONS
+    # =========================================================================
     current_equity = metrics["current_equity"]
 
     projections = {
@@ -232,13 +266,17 @@ def show() -> None:
         ),
     }
 
-    # Display chart
-    st.subheader("Projected Equity Curve")
+    # =========================================================================
+    # PROJECTION CHART (full width)
+    # =========================================================================
+    section_header("Projected Equity Curve")
     chart_data = create_chart_data(projections)
-    st.line_chart(chart_data, height=500)
+    st.line_chart(chart_data, height=500, use_container_width=True)
 
-    # Projection summary table
-    st.subheader("Projection Summary")
+    # =========================================================================
+    # PROJECTION SUMMARY TABLE
+    # =========================================================================
+    section_header("Projection Summary")
 
     summary_data = []
     for scenario_name, df in projections.items():
@@ -257,23 +295,27 @@ def show() -> None:
 
     summary_df = pd.DataFrame(summary_data)
 
-    st.dataframe(
-        summary_df.style.format({
+    styled_dataframe(
+        summary_df,
+        formats={
             "Final Equity": "${:,.0f}",
             "Total Contributions": "${:,.0f}",
             "Investment Growth": "${:+,.0f}",
             "Growth Multiple": "{:.1f}x",
-        }),
-        width="stretch",
-        hide_index=True,
+        },
+        highlight_positive_negative=["Investment Growth"],
     )
 
-    # Milestones
-    st.subheader("Milestones (Base Case)")
+    # =========================================================================
+    # MILESTONES WITH PROGRESS BARS
+    # =========================================================================
+    section_header("Milestones (Base Case)")
+
     milestones = [100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000]
     base_df = projections["Base Case"]
+    final_base_equity = base_df["Equity"].iloc[-1]
 
-    milestone_rows = []
+    # Display progress toward each milestone
     for milestone in milestones:
         if milestone > current_equity:
             # Find when we hit this milestone
@@ -281,22 +323,41 @@ def show() -> None:
             if not hits.empty:
                 hit_date = hits["Date"].iloc[0]
                 years_to_milestone = (hit_date - datetime.now()).days / 365.25
-                milestone_rows.append({
-                    "Milestone": f"${milestone:,.0f}",
-                    "Projected Date": hit_date.strftime("%b %Y"),
-                    "Years Away": f"{years_to_milestone:.1f}",
-                })
 
-    if milestone_rows:
-        st.dataframe(
-            pd.DataFrame(milestone_rows),
-            width="stretch",
-            hide_index=True,
-        )
-    else:
-        st.info("No milestones within projection horizon")
+                # Progress is how far along we are to hitting this milestone
+                progress_pct = (current_equity / milestone) * 100
 
-    # Disclaimer
+                col_label, col_bar, col_date = st.columns([2, 6, 2])
+
+                with col_label:
+                    st.write(f"**{format_currency(milestone)}**")
+
+                with col_bar:
+                    progress_bar(
+                        value=current_equity,
+                        max_value=milestone,
+                        show_percentage=True,
+                        warning_threshold=70,
+                        danger_threshold=90,
+                    )
+
+                with col_date:
+                    st.write(f"{hit_date.strftime('%b %Y')} ({years_to_milestone:.1f}y)")
+            else:
+                # Milestone not reachable within projection horizon
+                col_label, col_info = st.columns([2, 8])
+                with col_label:
+                    st.write(f"**{format_currency(milestone)}**")
+                with col_info:
+                    st.caption("Beyond projection horizon")
+
+            # Stop after 5 milestones for cleaner display
+            if milestone >= final_base_equity:
+                break
+
+    # =========================================================================
+    # DISCLAIMER
+    # =========================================================================
     st.divider()
     st.caption(
         "**Disclaimer:** These projections are based on historical performance and assumptions. "

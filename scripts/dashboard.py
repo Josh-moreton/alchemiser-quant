@@ -27,6 +27,9 @@ import _setup_imports  # noqa: F401
 import streamlit as st
 from dotenv import load_dotenv
 
+from dashboard_pages.components import theme_toggle
+from dashboard_pages.styles import inject_styles
+
 # Load .env file before importing modules that use environment variables
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
@@ -60,22 +63,26 @@ def get_authenticator() -> streamlit_authenticator.Authenticate | None:
         st.warning("streamlit-authenticator not installed. Run: poetry install")
         return None
 
-    # Check if credentials are configured in secrets
-    if hasattr(st, "secrets") and "credentials" in st.secrets:
-        # Production: use Streamlit Cloud secrets
-        credentials = st.secrets["credentials"].to_dict()
-        cookie_config = st.secrets.get("cookie", {})
-
-        return stauth.Authenticate(
-            credentials={"usernames": credentials.get("usernames", {})},
-            cookie_name=cookie_config.get("name", "alchemiser_dashboard"),
-            cookie_key=cookie_config.get("key", "default_key_change_me"),
-            cookie_expiry_days=cookie_config.get("expiry_days", 30),
-        )
-
     # Check environment variable to skip auth (local dev)
     if os.environ.get("SKIP_AUTH", "").lower() in ("true", "1", "yes"):
         return None
+
+    # Check if credentials are configured in secrets
+    try:
+        if hasattr(st, "secrets") and "credentials" in st.secrets:
+            # Production: use Streamlit Cloud secrets
+            credentials = st.secrets["credentials"].to_dict()
+            cookie_config = st.secrets.get("cookie", {})
+
+            return stauth.Authenticate(
+                credentials={"usernames": credentials.get("usernames", {})},
+                cookie_name=cookie_config.get("name", "alchemiser_dashboard"),
+                cookie_key=cookie_config.get("key", "default_key_change_me"),
+                cookie_expiry_days=cookie_config.get("expiry_days", 30),
+            )
+    except Exception:
+        # Secrets file doesn't exist or is malformed - skip auth for local dev
+        pass
 
     # No secrets configured - check if we're in Streamlit Cloud
     # (Streamlit Cloud sets specific env vars)
@@ -118,23 +125,29 @@ def show_login_page(authenticator: streamlit_authenticator.Authenticate) -> bool
 
 def show_dashboard() -> None:
     """Show the main dashboard content."""
+    # Inject custom styles based on theme
+    inject_styles()
+
     # Logo and Navigation
     logo_path = Path(__file__).parent.parent / "octarine_capital_stacked.svg"
     if logo_path.exists():
-        st.sidebar.image(str(logo_path), width="stretch")
+        st.sidebar.image(str(logo_path), use_container_width=True)
     else:
         st.sidebar.title("Octarine Capital")
 
+    # Theme toggle button
+    theme_toggle()
+
     st.sidebar.markdown("---")
 
-    # Navigation menu
+    # Navigation menu with icons
     pages = {
-        "Portfolio Overview": "portfolio_overview",
-        "Forward Projection": "forward_projection",
-        "Last Run Analysis": "last_run_analysis",
-        "Trade History": "trade_history",
-        "Symbol Analytics": "symbol_analytics",
-        "Options Hedging": "options_hedging",
+        "📊 Portfolio Overview": "portfolio_overview",
+        "📈 Forward Projection": "forward_projection",
+        "🔍 Last Run Analysis": "last_run_analysis",
+        "📜 Trade History": "trade_history",
+        "🎯 Symbol Analytics": "symbol_analytics",
+        "🛡️ Options Hedging": "options_hedging",
     }
 
     page = st.sidebar.selectbox("Navigation", list(pages.keys()), label_visibility="collapsed")
@@ -142,28 +155,30 @@ def show_dashboard() -> None:
     st.sidebar.markdown("---")
     st.sidebar.caption("Real-time trading system dashboard")
 
-    # Route to pages
-    if page == "Portfolio Overview":
+    # Route to pages (strip emoji prefix for matching)
+    page_key = page.split(" ", 1)[1] if " " in page else page
+
+    if page_key == "Portfolio Overview":
         from dashboard_pages import portfolio_overview
 
         portfolio_overview.show()
-    elif page == "Forward Projection":
+    elif page_key == "Forward Projection":
         from dashboard_pages import forward_projection
 
         forward_projection.show()
-    elif page == "Last Run Analysis":
+    elif page_key == "Last Run Analysis":
         from dashboard_pages import last_run_analysis
 
         last_run_analysis.show()
-    elif page == "Trade History":
+    elif page_key == "Trade History":
         from dashboard_pages import trade_history
 
         trade_history.show()
-    elif page == "Symbol Analytics":
+    elif page_key == "Symbol Analytics":
         from dashboard_pages import symbol_analytics
 
         symbol_analytics.show()
-    elif page == "Options Hedging":
+    elif page_key == "Options Hedging":
         from dashboard_pages import options_hedging
 
         options_hedging.show()

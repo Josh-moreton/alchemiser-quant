@@ -19,6 +19,16 @@ from dotenv import load_dotenv
 
 from dashboard_settings import get_dashboard_settings
 
+from .components import (
+    direction_styled_dataframe,
+    hero_metric,
+    metric_card,
+    metric_row,
+    section_header,
+    styled_dataframe,
+)
+from .styles import format_currency, format_percent, get_colors, inject_styles
+
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
@@ -201,6 +211,9 @@ def calculate_symbol_metrics(trades: list[dict[str, Any]]) -> dict[str, Any]:
 
 def show() -> None:
     """Display the symbol analytics page."""
+    # Inject styles
+    inject_styles()
+
     st.title("Symbol Analytics")
     st.caption("Detailed performance analytics for individual symbols")
 
@@ -213,8 +226,6 @@ def show() -> None:
 
     selected_symbol = st.selectbox("Select Symbol", symbols)
 
-    st.divider()
-
     # Load data for selected symbol
     trades = get_symbol_trades(selected_symbol)
     position = get_current_position(selected_symbol)
@@ -224,173 +235,185 @@ def show() -> None:
         st.warning(f"No trade history found for {selected_symbol}")
         return
 
-    # Current Position
-    st.subheader("Current Position")
-
+    # =========================================================================
+    # SYMBOL HERO with inline stats
+    # =========================================================================
     if position:
-        col1, col2, col3, col4, col5 = st.columns(5)
-
-        with col1:
-            st.metric("Quantity", f"{position['qty']:.4f}")
-        with col2:
-            st.metric("Market Value", f"${position['market_value']:,.2f}")
-        with col3:
-            st.metric("Avg Entry", f"${position['avg_entry_price']:.2f}")
-        with col4:
-            st.metric("Current Price", f"${position['current_price']:.2f}")
-        with col5:
-            unrealized_plpc = position['unrealized_plpc'] * 100
-            st.metric(
-                "Unrealized P&L",
-                f"${position['unrealized_pl']:+,.2f}",
-                delta=f"{unrealized_plpc:+.2f}%",
-            )
+        hero_metric(
+            label=selected_symbol,
+            value=format_currency(position["market_value"]),
+            subtitle=f"{position['qty']:.4f} shares @ {format_currency(position['current_price'])} | "
+                     f"Unrealized: {format_currency(position['unrealized_pl'], include_sign=True)} "
+                     f"({format_percent(position['unrealized_plpc'] * 100, include_sign=True)})",
+        )
     else:
-        st.info("No current position")
+        hero_metric(
+            label=selected_symbol,
+            value="No Position",
+            subtitle=f"First trade: {metrics.get('first_trade_date', 'N/A')} | "
+                     f"Last trade: {metrics.get('last_trade_date', 'N/A')}",
+        )
 
-    st.divider()
+    # =========================================================================
+    # TRADING METRICS ROW
+    # =========================================================================
+    metric_row([
+        {"label": "Total Trades", "value": str(metrics.get("total_trades", 0))},
+        {"label": "BUY / SELL", "value": f"{metrics.get('buy_trades', 0)} / {metrics.get('sell_trades', 0)}"},
+        {"label": "Net Qty", "value": f"{metrics.get('net_qty', 0):.4f}"},
+        {"label": "Avg Buy", "value": format_currency(metrics.get("avg_buy_price", 0))},
+        {"label": "Avg Sell", "value": format_currency(metrics.get("avg_sell_price", 0))},
+    ])
 
-    # Trading Metrics
-    st.subheader("Trading Metrics")
-
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-    with col1:
-        st.metric("Total Trades", metrics["total_trades"])
-    with col2:
-        st.metric("BUY Trades", metrics["buy_trades"])
-    with col3:
-        st.metric("SELL Trades", metrics["sell_trades"])
-    with col4:
-        st.metric("Net Qty", f"{metrics['net_qty']:.4f}")
-    with col5:
-        st.metric("Avg Buy Price", f"${metrics['avg_buy_price']:.2f}")
-    with col6:
-        st.metric("Avg Sell Price", f"${metrics['avg_sell_price']:.2f}")
-
-    st.divider()
-
-    # P&L Metrics
-    st.subheader("P&L Analysis")
-
+    # =========================================================================
+    # P&L METRICS
+    # =========================================================================
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("Total Buy Value", f"${metrics['total_buy_value']:,.2f}")
+        metric_card("Total Buy Value", format_currency(metrics.get("total_buy_value", 0)))
     with col2:
-        st.metric("Total Sell Value", f"${metrics['total_sell_value']:,.2f}")
+        metric_card("Total Sell Value", format_currency(metrics.get("total_sell_value", 0)))
     with col3:
-        realized_pl = metrics['realized_pl']
-        st.metric("Realized P&L (Est.)", f"${realized_pl:+,.2f}")
+        realized_pl = metrics.get("realized_pl", 0)
+        metric_card(
+            "Realized P&L (Est.)",
+            format_currency(realized_pl, include_sign=True),
+            delta_positive=realized_pl > 0 if realized_pl != 0 else None,
+        )
 
-    st.divider()
-
-    # Strategy Attribution
-    st.subheader("Strategy Attribution")
-
-    if metrics["strategies"]:
-        st.write(f"**Strategies involved:** {', '.join(metrics['strategies'])}")
-
-        # Count trades per strategy
-        strategy_counts = {}
-        for trade in trades:
-            for strategy in trade["strategy_names"]:
-                strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
-
-        strategy_df = pd.DataFrame([
-            {"Strategy": strategy, "Trade Count": count}
-            for strategy, count in strategy_counts.items()
-        ]).sort_values("Trade Count", ascending=False)
-
-        st.dataframe(strategy_df, width="stretch", hide_index=True)
-    else:
-        st.info("No strategy attribution available")
-
-    st.divider()
-
-    # Trade History
-    st.subheader("Trade History")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.write(f"**First Trade:** {metrics['first_trade_date']}")
-    with col2:
-        st.write(f"**Last Trade:** {metrics['last_trade_date']}")
-
-    # Create trades DataFrame
-    df = pd.DataFrame([
-        {
-            "Date": t["fill_timestamp"][:10],
-            "Time": t["fill_timestamp"][11:19],
-            "Direction": t["direction"],
-            "Qty": t["filled_qty"],
-            "Price": t["fill_price"],
-            "Value": t["filled_qty"] * t["fill_price"],
-            "Strategies": ", ".join(t["strategy_names"][:2]) + ("..." if len(t["strategy_names"]) > 2 else ""),
-        }
-        for t in trades
+    # =========================================================================
+    # TABBED CHARTS: Price History | Position | Trade History
+    # =========================================================================
+    tab_price, tab_position, tab_trades, tab_strategy = st.tabs([
+        "📈 Price History",
+        "📊 Position",
+        "📋 Trades",
+        "🎯 Strategy Attribution",
     ])
 
-    st.dataframe(
-        df.style.format({
-            "Qty": "{:.4f}",
-            "Price": "${:.2f}",
-            "Value": "${:,.2f}",
-        }),
-        width="stretch",
-        hide_index=True,
-    )
+    with tab_price:
+        section_header("Trade Price History")
 
-    st.divider()
+        # Create price series
+        price_data = pd.DataFrame([
+            {
+                "Timestamp": pd.to_datetime(t["fill_timestamp"]),
+                "Price": t["fill_price"],
+                "Direction": t["direction"],
+            }
+            for t in trades
+        ])
 
-    # Price Chart
-    st.subheader("Trade Price History")
+        # Separate buy and sell prices for different colors
+        buy_prices = price_data[price_data["Direction"] == "BUY"].set_index("Timestamp")["Price"]
+        sell_prices = price_data[price_data["Direction"] == "SELL"].set_index("Timestamp")["Price"]
 
-    # Create price series
-    price_data = pd.DataFrame([
-        {
-            "Timestamp": pd.to_datetime(t["fill_timestamp"]),
-            "Price": t["fill_price"],
-            "Direction": t["direction"],
-        }
-        for t in trades
-    ])
-
-    # Separate buy and sell prices for different colors
-    buy_prices = price_data[price_data["Direction"] == "BUY"].set_index("Timestamp")["Price"]
-    sell_prices = price_data[price_data["Direction"] == "SELL"].set_index("Timestamp")["Price"]
-
-    # Combine for display
-    chart_df = pd.DataFrame({
-        "BUY": buy_prices,
-        "SELL": sell_prices,
-    })
-
-    st.line_chart(chart_df, width="stretch")
-
-    st.divider()
-
-    # Cumulative Quantity Chart
-    st.subheader("Cumulative Position")
-
-    # Calculate cumulative quantity
-    cumulative_qty = []
-    running_qty = 0.0
-
-    for trade in trades:
-        if trade["direction"] == "BUY":
-            running_qty += trade["filled_qty"]
-        elif trade["direction"] == "SELL":
-            running_qty -= trade["filled_qty"]
-
-        cumulative_qty.append({
-            "Timestamp": pd.to_datetime(trade["fill_timestamp"]),
-            "Cumulative Qty": running_qty,
+        # Combine for display
+        chart_df = pd.DataFrame({
+            "BUY": buy_prices,
+            "SELL": sell_prices,
         })
 
-    qty_df = pd.DataFrame(cumulative_qty).set_index("Timestamp")
-    st.line_chart(qty_df["Cumulative Qty"], width="stretch")
+        st.line_chart(chart_df, use_container_width=True)
+
+    with tab_position:
+        section_header("Cumulative Position Over Time")
+
+        # Calculate cumulative quantity
+        cumulative_qty = []
+        running_qty = 0.0
+
+        for trade in trades:
+            if trade["direction"] == "BUY":
+                running_qty += trade["filled_qty"]
+            elif trade["direction"] == "SELL":
+                running_qty -= trade["filled_qty"]
+
+            cumulative_qty.append({
+                "Timestamp": pd.to_datetime(trade["fill_timestamp"]),
+                "Cumulative Qty": running_qty,
+            })
+
+        qty_df = pd.DataFrame(cumulative_qty).set_index("Timestamp")
+        st.line_chart(qty_df["Cumulative Qty"], use_container_width=True)
+
+        # Current position details
+        if position:
+            section_header("Current Position")
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                metric_card("Quantity", f"{position['qty']:.4f}")
+            with col2:
+                metric_card("Avg Entry", format_currency(position["avg_entry_price"]))
+            with col3:
+                metric_card("Current Price", format_currency(position["current_price"]))
+            with col4:
+                metric_card("Cost Basis", format_currency(position["cost_basis"]))
+
+    with tab_trades:
+        section_header("Trade History")
+
+        # Create trades DataFrame
+        df = pd.DataFrame([
+            {
+                "Date": t["fill_timestamp"][:10],
+                "Time": t["fill_timestamp"][11:19],
+                "Direction": t["direction"],
+                "Qty": t["filled_qty"],
+                "Price": t["fill_price"],
+                "Value": t["filled_qty"] * t["fill_price"],
+                "Strategies": ", ".join(t["strategy_names"][:2]) + ("..." if len(t["strategy_names"]) > 2 else ""),
+            }
+            for t in trades
+        ])
+
+        direction_styled_dataframe(
+            df,
+            formats={
+                "Qty": "{:.4f}",
+                "Price": "${:.2f}",
+                "Value": "${:,.2f}",
+            },
+        )
+
+    with tab_strategy:
+        section_header("Strategy Attribution")
+
+        if metrics.get("strategies"):
+            # Count trades per strategy
+            strategy_counts = {}
+            strategy_values = {}
+            for trade in trades:
+                trade_value = trade["filled_qty"] * trade["fill_price"]
+                for strategy in trade["strategy_names"]:
+                    strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
+                    strategy_values[strategy] = strategy_values.get(strategy, 0) + trade_value
+
+            strategy_df = pd.DataFrame([
+                {
+                    "Strategy": strategy,
+                    "Trade Count": strategy_counts[strategy],
+                    "Total Value": strategy_values[strategy],
+                }
+                for strategy in strategy_counts
+            ]).sort_values("Total Value", ascending=False)
+
+            styled_dataframe(
+                strategy_df,
+                formats={"Total Value": "${:,.2f}"},
+            )
+
+            # Horizontal bar chart for strategy attribution
+            st.subheader("Trade Value by Strategy")
+            st.bar_chart(
+                strategy_df.set_index("Strategy")["Total Value"],
+                use_container_width=True,
+                horizontal=True,
+            )
+        else:
+            st.info("No strategy attribution available")
 
     # Footer
     st.caption(f"Data for {selected_symbol}. Auto-refreshes every 60 seconds.")
