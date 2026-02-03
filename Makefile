@@ -36,9 +36,6 @@ help:
 	@echo "Performance Reports:"
 	@echo "  dashboard                            Run enhanced multi-page trading dashboard"
 	@echo "  pnl-dashboard                        Run P&L dashboard (fetches from Alpaca API)"
-	@echo "  quantstats                           Generate QuantStats reports (prod)"
-	@echo "  quantstats stage=dev                 Generate for dev environment"
-	@echo "  quantstats days=180                  Custom lookback period (default: 90)"
 	@echo ""
 	@echo "Portfolio Management:"
 	@echo "  rebalance-weights                    Recalculate strategy weights (Calmar-tilt)"
@@ -260,11 +257,6 @@ validate-dynamo:
 	if [ -n "$(json)" ]; then ARGS="$$ARGS --json"; fi; \
 	poetry run python scripts/validation/validate_dynamo_data.py $$ARGS
 
-# Generate QuantStats per-strategy performance reports
-# Usage: make quantstats                           # Generate prod reports (default)
-#        make quantstats stage=dev                 # Generate dev reports
-#        make quantstats days=180                  # Custom lookback period
-#        make quantstats local=1                   # Save locally (no S3 upload)
 # Run P&L dashboard (fetches directly from Alpaca API with deposit adjustments)
 # Usage: make pnl-dashboard
 pnl-dashboard:
@@ -276,23 +268,6 @@ pnl-dashboard:
 dashboard:
 	@echo "📊 Starting enhanced trading dashboard..."
 	poetry run streamlit run scripts/dashboard.py
-
-quantstats:
-	@echo "📊 Generating QuantStats per-strategy reports..."
-	@STAGE=$${stage:-prod}; \
-	DAYS=$${days:-90}; \
-	TABLE="alchemiser-$$STAGE-trade-ledger"; \
-	BUCKET="alchemiser-$$STAGE-reports"; \
-	echo "  Stage: $$STAGE"; \
-	echo "  Table: $$TABLE"; \
-	echo "  Bucket: $$BUCKET"; \
-	echo "  Days lookback: $$DAYS"; \
-	TRADE_LEDGER_TABLE=$$TABLE \
-	REPORTS_BUCKET=$$BUCKET \
-	DAYS_LOOKBACK=$$DAYS \
-	ALPACA_KEY=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_key" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_KEY") \
-	ALPACA_SECRET=$$(aws ssm get-parameter --name "/alchemiser/$$STAGE/alpaca_secret" --with-decryption --query "Parameter.Value" --output text --no-cli-pager 2>/dev/null || echo "$$ALPACA_SECRET") \
-	poetry run python scripts/generate_quantstats_reports.py
 
 # Recalculate strategy weights using Calmar-tilt formula
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod
