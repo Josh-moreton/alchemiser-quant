@@ -147,15 +147,25 @@ def configure_structlog_lambda() -> None:
         - No colors (CloudWatch doesn't render ANSI)
         - Filter at read-time in CloudWatch, not at write-time
 
+    Environment Variables:
+        ALCHEMISER_LOG_LEVEL: Override log level (DEBUG, INFO, WARNING, ERROR).
+                              Useful for scripts/dashboards that want less noise.
+
     """
+    import os
+
+    # Check for log level override (useful for dashboard/scripts)
+    level_name = os.environ.get("ALCHEMISER_LOG_LEVEL", "DEBUG").upper()
+    log_level = getattr(logging, level_name, logging.DEBUG)
+
     # Set up stdlib logging - emit everything, let CloudWatch filter
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(log_level)
     root_logger.handlers.clear()
 
     # Single handler: stdout -> CloudWatch
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)  # Emit everything
+    handler.setLevel(log_level)
     handler.setFormatter(logging.Formatter("%(message)s"))
     root_logger.addHandler(handler)
 

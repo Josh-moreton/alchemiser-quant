@@ -203,8 +203,8 @@ def show() -> None:
         projection_years = st.slider(
             "Projection Horizon (Years)",
             min_value=1,
-            max_value=20,
-            value=10,
+            max_value=10,
+            value=5,
             step=1,
         )
 
@@ -225,7 +225,7 @@ def show() -> None:
         conservative_return = st.slider(
             "Conservative Return (%)",
             min_value=-10.0,
-            max_value=50.0,
+            max_value=200.0,
             value=max(base_return * 0.5, 5.0),
             step=0.5,
             help="50% of historical return or 5%, whichever is higher",
@@ -234,7 +234,7 @@ def show() -> None:
         optimistic_return = st.slider(
             "Optimistic Return (%)",
             min_value=-10.0,
-            max_value=100.0,
+            max_value=500.0,
             value=min(base_return * 1.5, 50.0),
             step=0.5,
             help="150% of historical return or 50%, whichever is lower",

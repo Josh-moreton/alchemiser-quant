@@ -20,18 +20,17 @@ Authentication:
 
 from __future__ import annotations
 
-import logging
+# Suppress debug logs BEFORE any imports (structlog respects this env var)
 import os
+
+os.environ["ALCHEMISER_LOG_LEVEL"] = "WARNING"
+
+import logging
 from pathlib import Path
 
 import _setup_imports  # noqa: F401
 import streamlit as st
 from dotenv import load_dotenv
-
-# Suppress debug logs from Alpaca and internal services for cleaner dashboard output
-logging.getLogger("the_alchemiser").setLevel(logging.WARNING)
-logging.getLogger("alpaca").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 from dashboard_pages.styles import inject_styles
 
@@ -39,14 +38,9 @@ from dashboard_pages.styles import inject_styles
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
 
-# Favicon/PWA icon - load as Image for better PWA compatibility
+# Favicon - use path directly to avoid PIL caching issues on Streamlit Cloud
 favicon_path = Path(__file__).parent.parent / "android-chrome-512x512.png"
-if favicon_path.exists():
-    from PIL import Image
-
-    favicon = Image.open(favicon_path)
-else:
-    favicon = None
+favicon = str(favicon_path) if favicon_path.exists() else "📊"
 
 # Page config (must be first Streamlit call)
 st.set_page_config(
