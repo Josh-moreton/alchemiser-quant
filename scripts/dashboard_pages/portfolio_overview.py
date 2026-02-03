@@ -93,8 +93,8 @@ def load_positions() -> pd.DataFrame:
             rows.append({
                 "Symbol": pos.symbol,
                 "Qty": float(pos.qty),
-                "Avg Entry": f"${pos.avg_entry_price:.2f}" if pos.avg_entry_price else "N/A",
-                "Current Price": f"${pos.current_price:.2f}" if pos.current_price else "N/A",
+                "Avg Entry": f"${float(pos.avg_entry_price):.2f}" if pos.avg_entry_price else "N/A",
+                "Current Price": f"${float(pos.current_price):.2f}" if pos.current_price else "N/A",
                 "Market Value": market_value,
                 "Cost Basis": cost_basis,
                 "Unrealized P&L": unrealized_pl,
