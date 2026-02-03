@@ -150,7 +150,9 @@ Portfolio Lambda
 
 ### Mandatory Rules
 
-1. **Module Headers**: Every new module starts with:
+1. **No Emojis**: Never use emojis in code, comments, commit messages, or documentation.
+
+2. **Module Headers**: Every new module starts with:
    ```python
    """Business Unit: <name> | Status: current."""
    ```
@@ -208,7 +210,7 @@ from the_alchemiser.shared.events import EventBus
 ```bash
 # After making changes:
 git add <your-changed-files>
-make bump-patch   # Bug fixes, docs, tests
+make bump-patch   # Bug fixes, docs, refactoring
 make bump-minor   # New features, new modules
 make bump-major   # Breaking changes
 ```
@@ -435,6 +437,8 @@ Before committing changes:
 3. [ ] Add module header if new file
 4. [ ] Stage changes: `git add <files>`
 5. [ ] Bump version: `make bump-patch` (or minor/major)
+
+**Note**: This repo does not use pytest or unit tests. Validate changes via type-checking and manual verification.
 
 ## Need More Context?
 
