@@ -215,6 +215,12 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         # Publish to EventBridge (triggers Portfolio Lambda)
         publish_to_eventbridge(signal_event)
 
+        # Store merged signal in DynamoDB for dashboard visibility
+        session_service.store_merged_signal(
+            session_id=session_id,
+            merged_signal=portfolio_for_event,
+        )
+
         # Mark session as completed
         session_service.update_session_status(session_id, "COMPLETED")
 

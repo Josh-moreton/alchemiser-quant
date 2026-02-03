@@ -17,29 +17,9 @@ from .styles import (
     format_currency,
     format_percent,
     get_colors,
-    get_theme,
     inject_styles,
     positive_negative_color,
 )
-
-# ============================================================================
-# Theme Toggle
-# ============================================================================
-
-
-def theme_toggle() -> None:
-    """Render theme toggle button in sidebar.
-
-    Toggles between light and dark mode, storing preference in session state.
-    """
-    current_theme = get_theme()
-    icon = "☀️" if current_theme == "dark" else "🌙"
-    label = "Light Mode" if current_theme == "dark" else "Dark Mode"
-
-    if st.sidebar.button(f"{icon} {label}", key="theme_toggle", use_container_width=True):
-        st.session_state.theme_mode = "light" if current_theme == "dark" else "dark"
-        st.rerun()
-
 
 # ============================================================================
 # Metric Components

@@ -328,6 +328,42 @@ class AggregationSessionService:
             extra={"session_id": session_id, "status": status},
         )
 
+    def store_merged_signal(
+        self,
+        session_id: str,
+        merged_signal: dict[str, Any],
+    ) -> None:
+        """Store the merged signal in the session metadata.
+
+        This persists the final aggregated signal so the dashboard can read it.
+
+        Args:
+            session_id: Session ID to update.
+            merged_signal: The merged signal data to store.
+
+        """
+        import json
+
+        self._client.update_item(
+            TableName=self._table_name,
+            Key={
+                "PK": {"S": f"SESSION#{session_id}"},
+                "SK": {"S": "METADATA"},
+            },
+            UpdateExpression="SET merged_signal = :signal",
+            ExpressionAttributeValues={
+                ":signal": {"S": json.dumps(merged_signal, default=str)},
+            },
+        )
+
+        logger.info(
+            "Stored merged signal",
+            extra={
+                "session_id": session_id,
+                "symbols_count": len(merged_signal.get("target_allocations", {})),
+            },
+        )
+
     def find_stuck_sessions(self, max_age_minutes: int = 30) -> list[dict[str, Any]]:
         """Find sessions stuck in PENDING state for too long.
 

@@ -1,21 +1,16 @@
 """Business Unit: scripts | Status: current.
 
-Octarine Capital Dashboard Styles and Theming.
+Octarine Capital Dashboard Styles.
 
 This module provides:
-- Light and dark theme color constants
+- Light theme color constants
 - CSS injection for custom styling
-- Theme-aware style generation
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
 import streamlit as st
-
-ThemeMode = Literal["light", "dark"]
 
 # ============================================================================
 # Theme Color Palettes
@@ -37,7 +32,7 @@ class ThemeColors:
     border: str  # Subtle borders
 
 
-LIGHT_THEME = ThemeColors(
+THEME_COLORS = ThemeColors(
     primary="#7CF5D4",
     text_primary="#111111",
     text_secondary="#555555",
@@ -49,29 +44,10 @@ LIGHT_THEME = ThemeColors(
     border="#E5E7EB",
 )
 
-DARK_THEME = ThemeColors(
-    primary="#7CF5D4",
-    text_primary="#F9FAFB",
-    text_secondary="#9CA3AF",
-    background="#111827",
-    background_card="#1F2937",
-    positive="#34D399",
-    negative="#F87171",
-    warning="#FBBF24",
-    border="#374151",
-)
-
-
-def get_theme() -> ThemeMode:
-    """Get current theme mode from session state."""
-    if "theme_mode" not in st.session_state:
-        st.session_state.theme_mode = "light"
-    return st.session_state.theme_mode
-
 
 def get_colors() -> ThemeColors:
-    """Get color palette for current theme."""
-    return DARK_THEME if get_theme() == "dark" else LIGHT_THEME
+    """Get the color palette."""
+    return THEME_COLORS
 
 
 # ============================================================================
@@ -96,67 +72,7 @@ def _generate_css(colors: ThemeColors) -> str:
         --octarine-border: {colors.border};
     }}
 
-    /* ===== DARK MODE OVERRIDES ===== */
-    {"" if colors == LIGHT_THEME else '''
-    .stApp {
-        background-color: var(--octarine-bg) !important;
-    }
 
-    .stApp > header {
-        background-color: var(--octarine-bg) !important;
-    }
-
-    [data-testid="stSidebar"] {
-        background-color: var(--octarine-bg-card) !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-    [data-testid="stSidebar"] .stSelectbox label {
-        color: var(--octarine-text) !important;
-    }
-
-    .stMarkdown, .stMarkdown p, h1, h2, h3, h4, h5, h6 {
-        color: var(--octarine-text) !important;
-    }
-
-    .stCaption, .stCaption p {
-        color: var(--octarine-text-muted) !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        color: var(--octarine-text) !important;
-    }
-
-    [data-testid="stMetricLabel"] {
-        color: var(--octarine-text-muted) !important;
-    }
-
-    .stDataFrame {
-        background-color: var(--octarine-bg-card) !important;
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: var(--octarine-bg-card) !important;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        color: var(--octarine-text-muted) !important;
-    }
-
-    .stTabs [aria-selected="true"] {
-        color: var(--octarine-primary) !important;
-    }
-
-    .stExpander {
-        background-color: var(--octarine-bg-card) !important;
-        border-color: var(--octarine-border) !important;
-    }
-
-    .stSelectbox > div > div {
-        background-color: var(--octarine-bg-card) !important;
-        color: var(--octarine-text) !important;
-    }
-    '''}
 
     /* ===== HERO METRIC CARD ===== */
     .hero-metric {{

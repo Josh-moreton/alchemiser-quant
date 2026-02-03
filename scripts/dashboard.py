@@ -27,7 +27,6 @@ import _setup_imports  # noqa: F401
 import streamlit as st
 from dotenv import load_dotenv
 
-from dashboard_pages.components import theme_toggle
 from dashboard_pages.styles import inject_styles
 
 # Load .env file before importing modules that use environment variables
@@ -134,9 +133,6 @@ def show_dashboard() -> None:
         st.sidebar.image(str(logo_path), use_container_width=True)
     else:
         st.sidebar.title("Octarine Capital")
-
-    # Theme toggle button
-    theme_toggle()
 
     st.sidebar.markdown("---")
 
