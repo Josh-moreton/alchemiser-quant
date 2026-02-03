@@ -27,11 +27,13 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
     from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
+    from .almgren_chriss import AlmgrenChrissResult
     from .order_intent import OrderIntent
     from .portfolio_validator import ValidationResult
     from .quote_service import QuoteResult
     from .walk_the_book import WalkResult
 
+from .almgren_chriss import AlmgrenChrissStrategy
 from .order_intent import Urgency
 from .portfolio_validator import PortfolioValidator
 from .quote_service import UnifiedQuoteService
@@ -49,6 +51,7 @@ class ExecutionResult:
         intent: Original order intent
         quote_result: Quote that was used for pricing
         walk_result: Result of walk-the-book execution (if used)
+        almgren_chriss_result: Result of Almgren-Chriss execution (if used)
         validation_result: Portfolio validation result (if performed)
         execution_strategy: Which strategy was used
         total_filled: Total quantity filled
@@ -63,6 +66,7 @@ class ExecutionResult:
     intent: OrderIntent
     quote_result: QuoteResult | None
     walk_result: WalkResult | None
+    almgren_chriss_result: AlmgrenChrissResult | None
     validation_result: ValidationResult | None
     execution_strategy: str
     total_filled: Decimal
@@ -81,6 +85,9 @@ class ExecutionResult:
             "walk_the_book": f"walk-the-book ({self.walk_result.num_steps_used} steps)"
             if self.walk_result
             else "walk-the-book",
+            "almgren_chriss": f"Almgren-Chriss ({self.almgren_chriss_result.num_slices_used} slices)"
+            if self.almgren_chriss_result
+            else "Almgren-Chriss",
         }.get(self.execution_strategy, self.execution_strategy)
 
         price_str = f" @ ${self.avg_fill_price:.2f}" if self.avg_fill_price else ""
@@ -95,7 +102,10 @@ class UnifiedOrderPlacementService:
     It provides:
     - Single quote acquisition path (streaming-first with REST fallback)
     - Clear order intent abstractions (BUY/SELL_PARTIAL/SELL_FULL)
-    - Explicit walk-the-book strategy or immediate market orders
+    - Multiple execution strategies:
+        - HIGH urgency: immediate market orders
+        - MEDIUM urgency: Almgren-Chriss optimal execution (default)
+        - LOW urgency: walk-the-book progressive pricing
     - Portfolio validation after execution
     - Full audit trail of execution
 
@@ -129,6 +139,10 @@ class UnifiedOrderPlacementService:
         )
 
         self.walk_strategy = WalkTheBookStrategy(
+            alpaca_manager=alpaca_manager,
+        )
+
+        self.almgren_chriss_strategy = AlmgrenChrissStrategy(
             alpaca_manager=alpaca_manager,
         )
 
@@ -273,10 +287,17 @@ class UnifiedOrderPlacementService:
 
         # Step 4: Route to execution strategy based on urgency
         if intent.urgency == Urgency.HIGH:
+            # HIGH urgency: immediate market order
             result = await self._execute_immediate_market(
                 intent, quote_result, initial_position, start_time
             )
-        else:
+        elif intent.urgency == Urgency.MEDIUM:
+            # MEDIUM urgency: Almgren-Chriss optimal execution (default)
+            result = await self._execute_almgren_chriss(
+                intent, quote_result, initial_position, start_time
+            )
+        else:  # LOW urgency
+            # LOW urgency: walk-the-book progressive pricing
             result = await self._execute_walk_the_book(
                 intent, quote_result, initial_position, start_time
             )
@@ -400,6 +421,7 @@ class UnifiedOrderPlacementService:
                 intent=intent,
                 quote_result=quote_result,
                 walk_result=walk_result,
+                almgren_chriss_result=None,
                 validation_result=validation_result,
                 execution_strategy="market_immediate",
                 total_filled=walk_result.total_filled,
@@ -479,6 +501,7 @@ class UnifiedOrderPlacementService:
                 intent=intent,
                 quote_result=quote_result,
                 walk_result=walk_result,
+                almgren_chriss_result=None,
                 validation_result=validation_result,
                 execution_strategy="walk_the_book",
                 total_filled=walk_result.total_filled,
@@ -493,11 +516,124 @@ class UnifiedOrderPlacementService:
             intent=intent,
             quote_result=quote_result,
             walk_result=walk_result,
+            almgren_chriss_result=None,
             validation_result=validation_result,
             execution_strategy="walk_the_book",
             total_filled=walk_result.total_filled,
             avg_fill_price=walk_result.avg_fill_price,
             final_order_id=walk_result.final_order_id,
+            execution_time_seconds=execution_time,
+        )
+
+    async def _execute_almgren_chriss(
+        self,
+        intent: OrderIntent,
+        quote_result: QuoteResult,
+        initial_position: Decimal,
+        start_time: datetime,
+    ) -> ExecutionResult:
+        """Execute Almgren-Chriss optimal execution strategy (medium urgency).
+
+        Args:
+            intent: Order intent
+            quote_result: Quote result
+            initial_position: Initial position for validation
+            start_time: Execution start time
+
+        Returns:
+            ExecutionResult
+
+        """
+        log_extra = {
+            "symbol": intent.symbol,
+            "correlation_id": intent.correlation_id,
+        }
+
+        logger.info(
+            "Executing Almgren-Chriss optimal execution strategy",
+            **log_extra,
+            urgency=intent.urgency.value,
+        )
+
+        ac_result = await self.almgren_chriss_strategy.execute(intent, quote_result)
+
+        # Validate portfolio if enabled
+        validation_result = None
+        if self.enable_validation and ac_result.success:
+            # Convert AlmgrenChrissResult to WalkResult for validation compatibility
+            from .walk_the_book import OrderAttempt, OrderStatus, WalkResult
+
+            # Map slice attempts to order attempts
+            order_attempts = [
+                OrderAttempt(
+                    step=slice_attempt.slice_index,
+                    price=slice_attempt.limit_price,
+                    quantity=slice_attempt.target_quantity,
+                    order_id=slice_attempt.order_id,
+                    timestamp=slice_attempt.timestamp,
+                    status=OrderStatus(slice_attempt.status.value),
+                    filled_quantity=slice_attempt.filled_quantity,
+                    avg_fill_price=slice_attempt.avg_fill_price,
+                    broker_error_message=slice_attempt.broker_error_message,
+                )
+                for slice_attempt in ac_result.slice_attempts
+            ]
+
+            walk_result_for_validation = WalkResult(
+                success=ac_result.success,
+                order_attempts=order_attempts,
+                final_order_id=ac_result.final_order_id,
+                total_filled=ac_result.total_filled,
+                avg_fill_price=ac_result.avg_fill_price,
+                error_message=ac_result.error_message,
+            )
+
+            validation_result = await self.validator.validate_execution(
+                intent, walk_result_for_validation, initial_position
+            )
+            if not validation_result.success:
+                logger.warning(
+                    "Portfolio validation failed after Almgren-Chriss execution",
+                    **log_extra,
+                    initial_position=str(initial_position),
+                    validation_message=validation_result.validation_message,
+                )
+
+        execution_time = (datetime.now(UTC) - start_time).total_seconds()
+
+        if not ac_result.success:
+            error_msg = ac_result.error_message or "Almgren-Chriss execution failed"
+            logger.error(
+                "Almgren-Chriss execution failed",
+                **log_extra,
+                error=error_msg,
+            )
+            return ExecutionResult(
+                success=False,
+                intent=intent,
+                quote_result=quote_result,
+                walk_result=None,
+                almgren_chriss_result=ac_result,
+                validation_result=validation_result,
+                execution_strategy="almgren_chriss",
+                total_filled=ac_result.total_filled,
+                avg_fill_price=ac_result.avg_fill_price,
+                final_order_id=ac_result.final_order_id,
+                execution_time_seconds=execution_time,
+                error_message=error_msg,
+            )
+
+        return ExecutionResult(
+            success=True,
+            intent=intent,
+            quote_result=quote_result,
+            walk_result=None,
+            almgren_chriss_result=ac_result,
+            validation_result=validation_result,
+            execution_strategy="almgren_chriss",
+            total_filled=ac_result.total_filled,
+            avg_fill_price=ac_result.avg_fill_price,
+            final_order_id=ac_result.final_order_id,
             execution_time_seconds=execution_time,
         )
 
@@ -530,6 +666,7 @@ class UnifiedOrderPlacementService:
             intent=intent,
             quote_result=quote_result,
             walk_result=None,
+            almgren_chriss_result=None,
             validation_result=None,
             execution_strategy=strategy,
             total_filled=Decimal("0"),
