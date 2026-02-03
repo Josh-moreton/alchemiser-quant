@@ -18,6 +18,9 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
 
+from alpaca.trading.client import TradingClient
+
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.pnl_service import PnLService
 
@@ -66,7 +69,15 @@ def load_pnl_data() -> pd.DataFrame:
 def load_positions() -> pd.DataFrame:
     """Load current positions from Alpaca."""
     try:
-        account_service = AlpacaAccountService()
+        api_key, secret_key, endpoint = get_alpaca_keys()
+        if not api_key or not secret_key:
+            st.error("Alpaca API keys not configured")
+            return pd.DataFrame()
+        
+        # Determine if paper trading based on endpoint
+        paper = endpoint and "paper" in endpoint.lower() if endpoint else True
+        trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
+        account_service = AlpacaAccountService(trading_client)
         positions = account_service.get_positions()
 
         if not positions:
@@ -96,7 +107,7 @@ def load_positions() -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def calculate_risk_metrics(df: pd.DataFrame) -> dict:
+def calculate_risk_metrics(df: pd.DataFrame) -> dict[str, float]:
     """Calculate portfolio risk metrics."""
     if df.empty or len(df) < 2:
         return {}
@@ -217,7 +228,7 @@ def show() -> None:
                 "Unrealized P&L": "${:+,.2f}",
                 "Unrealized P&L %": "{:+.2f}%",
             }),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -238,17 +249,17 @@ def show() -> None:
 
     with col_left:
         st.subheader("Equity Curve")
-        st.line_chart(df.set_index("Date")["Equity"], use_container_width=True)
+        st.line_chart(df.set_index("Date")["Equity"], width="stretch")
 
     with col_right:
         st.subheader("Cumulative P&L")
-        st.line_chart(df.set_index("Date")["Cumulative P&L"], use_container_width=True)
+        st.line_chart(df.set_index("Date")["Cumulative P&L"], width="stretch")
 
     st.divider()
 
     # Daily P&L bar chart
     st.subheader("Daily P&L")
-    st.bar_chart(df.set_index("Date")["P&L ($)"], use_container_width=True)
+    st.bar_chart(df.set_index("Date")["P&L ($)"], width="stretch")
 
     st.divider()
 
@@ -285,14 +296,14 @@ def show() -> None:
             "Deposits": "${:,.2f}",
             "Return %": "{:+.2f}%",
         }),
-        use_container_width=True,
+        width="stretch",
     )
 
     st.divider()
 
     # Raw data (expandable)
     with st.expander("📊 View Raw Data"):
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
     # Footer
     st.caption(

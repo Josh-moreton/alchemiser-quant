@@ -14,8 +14,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-import requests
-
 from the_alchemiser.shared.brokers.alpaca_manager import (
     AlpacaManager,
     create_alpaca_manager,
@@ -33,7 +31,6 @@ PERCENTAGE_MULTIPLIER: Decimal = Decimal("100")
 # Deposit-adjustment algorithm constants
 DEPOSIT_LOOKBACK_DAYS: int = 3  # Check deposit day and up to 3 prior days
 DEPOSIT_TOLERANCE: float = 0.15  # 15% tolerance for matching deposits to inflated P&L
-ALPACA_LIVE_API_URL: str = "https://api.alpaca.markets/v2/account/portfolio/history"
 
 
 class PnLService:
@@ -797,73 +794,24 @@ class PnLService:
             - deposits_by_date: Dict mapping date strings to deposit amounts
 
         Raises:
-            ConfigurationError: If API keys are not configured.
             DataProviderError: If Alpaca API call fails.
 
         """
-        api_key, secret_key, _ = get_alpaca_keys()
-        if not api_key or not secret_key:
-            raise ConfigurationError(
-                "Alpaca API keys not found in configuration",
-                config_key="ALPACA_KEY/ALPACA_SECRET",
-            )
+        data = self._alpaca_manager.get_portfolio_history_with_cashflow(
+            period=period,
+            timeframe="1D",
+            pnl_reset="per_day",
+            intraday_reporting="market_hours",
+            cashflow_types="CSD,CSW",
+        )
 
-        data = self._fetch_portfolio_history_with_cashflow(api_key, secret_key, period)
-        return self._build_deposit_adjusted_records(data)
-
-    def _fetch_portfolio_history_with_cashflow(
-        self, api_key: str, secret_key: str, period: str = "1A"
-    ) -> dict[str, Any]:
-        """Fetch portfolio history WITH cashflow data in a single API call.
-
-        Uses the cashflow_types parameter to get deposits (CSD) and withdrawals (CSW)
-        aligned with the timestamp array.
-
-        Args:
-            api_key: Alpaca API key.
-            secret_key: Alpaca secret key.
-            period: Period string (1W, 1M, 3M, 1A).
-
-        Returns:
-            Dictionary with timestamp, equity, profit_loss, profit_loss_pct,
-            base_value, and cashflow arrays.
-
-        Raises:
-            DataProviderError: If API call fails.
-
-        """
-        headers = {
-            "APCA-API-KEY-ID": api_key,
-            "APCA-API-SECRET-KEY": secret_key,
-            "accept": "application/json",
-        }
-        params = {
-            "period": period,
-            "timeframe": "1D",
-            "intraday_reporting": "market_hours",
-            "pnl_reset": "per_day",
-            "cashflow_types": "CSD,CSW",  # Include deposits and withdrawals
-        }
-
-        try:
-            resp = requests.get(
-                ALPACA_LIVE_API_URL, headers=headers, params=params, timeout=30
-            )
-            resp.raise_for_status()
-            result: dict[str, Any] = resp.json()
-            return result
-        except requests.RequestException as e:
-            logger.error(
-                "Failed to fetch portfolio history with cashflow",
-                error=str(e),
-                period=period,
-                correlation_id=self._correlation_id,
-                module="pnl_service",
-            )
+        if data is None:
             raise DataProviderError(
-                f"Failed to fetch Alpaca portfolio history: {e}",
+                "Failed to fetch portfolio history with cashflow",
                 context={"period": period, "correlation_id": self._correlation_id},
-            ) from e
+            )
+
+        return self._build_deposit_adjusted_records(data)
 
     def _build_deposit_adjusted_records(
         self, data: dict[str, Any]
@@ -955,9 +903,7 @@ class PnLService:
             date_str = self._format_timestamp(ts)
             equity = Decimal(str(equities[i]))
             raw_pnl = raw_pnl_values[i]
-            withdrawal_today = (
-                abs(Decimal(str(csw_values[i]))) if csw_values[i] else Decimal("0")
-            )
+            withdrawal_today = abs(Decimal(str(csw_values[i]))) if csw_values[i] else Decimal("0")
 
             # Get deposit that was recorded on this day (for display)
             deposit_on_this_day = (

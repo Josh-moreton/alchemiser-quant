@@ -18,6 +18,8 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+from dashboard_settings import get_dashboard_settings
+
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
@@ -27,8 +29,9 @@ load_dotenv(env_path)
 def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
     """Get recent aggregation sessions from DynamoDB."""
     try:
-        dynamodb = boto3.client("dynamodb", region_name="us-east-1")
-        table_name = "alchemiser-dev-aggregation-sessions"
+        settings = get_dashboard_settings()
+        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        table_name = settings.aggregation_sessions_table
 
         response = dynamodb.scan(
             TableName=table_name,
@@ -70,11 +73,12 @@ def get_recent_sessions(limit: int = 10) -> list[dict[str, Any]]:
 
 
 @st.cache_data(ttl=60)
-def get_rebalance_plan(correlation_id: str) -> dict | None:
+def get_rebalance_plan(correlation_id: str) -> dict[str, Any] | None:
     """Get rebalance plan for a correlation ID."""
     try:
-        dynamodb = boto3.client("dynamodb", region_name="us-east-1")
-        table_name = "alchemiser-dev-rebalance-plans"
+        settings = get_dashboard_settings()
+        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        table_name = settings.rebalance_plans_table
 
         response = dynamodb.query(
             TableName=table_name,
@@ -103,8 +107,9 @@ def get_rebalance_plan(correlation_id: str) -> dict | None:
 def get_trades_for_correlation(correlation_id: str) -> list[dict[str, Any]]:
     """Get trades for a correlation ID."""
     try:
-        dynamodb = boto3.client("dynamodb", region_name="us-east-1")
-        table_name = "alchemiser-dev-trade-ledger"
+        settings = get_dashboard_settings()
+        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        table_name = settings.trade_ledger_table
 
         response = dynamodb.query(
             TableName=table_name,
@@ -149,7 +154,7 @@ def get_trades_for_correlation(correlation_id: str) -> list[dict[str, Any]]:
         return []
 
 
-def show_signal_analysis(signal: dict) -> None:
+def show_signal_analysis(signal: dict[str, Any]) -> None:
     """Display signal analysis."""
     st.subheader("🎯 Aggregated Signal")
 
@@ -184,7 +189,7 @@ def show_signal_analysis(signal: dict) -> None:
     # Allocations table
     st.dataframe(
         df.style.format({"Weight": "{:.2f}%"}),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -192,10 +197,10 @@ def show_signal_analysis(signal: dict) -> None:
     if len(df) <= 20:  # Only show for reasonable number of symbols
         st.subheader("Allocation Distribution")
         chart_data = df.set_index("Symbol")["Weight"]
-        st.bar_chart(chart_data, use_container_width=True)
+        st.bar_chart(chart_data, width="stretch")
 
 
-def show_rebalance_plan_analysis(plan: dict) -> None:
+def show_rebalance_plan_analysis(plan: dict[str, Any]) -> None:
     """Display rebalance plan analysis."""
     st.subheader("📋 Rebalance Plan")
 
@@ -261,7 +266,7 @@ def show_rebalance_plan_analysis(plan: dict) -> None:
                 "Current %": "{:.2f}%",
                 "Target %": "{:.2f}%",
             }),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -288,7 +293,7 @@ def show_rebalance_plan_analysis(plan: dict) -> None:
                 "Current %": "{:.2f}%",
                 "Target %": "{:.2f}%",
             }),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -309,7 +314,7 @@ def show_rebalance_plan_analysis(plan: dict) -> None:
                     "Value $": "${:,.2f}",
                     "Weight %": "{:.2f}%",
                 }),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -359,7 +364,7 @@ def show_trades_analysis(trades: list[dict[str, Any]]) -> None:
             "Value": "${:,.2f}",
             "Qty": "{:.4f}",
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 

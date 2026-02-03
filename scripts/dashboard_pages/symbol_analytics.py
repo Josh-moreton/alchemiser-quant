@@ -17,10 +17,15 @@ import streamlit as st
 from boto3.dynamodb.conditions import Attr
 from dotenv import load_dotenv
 
+from dashboard_settings import get_dashboard_settings
+
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
 
+from alpaca.trading.client import TradingClient
+
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 
 
@@ -28,8 +33,9 @@ from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountS
 def get_all_traded_symbols() -> list[str]:
     """Get list of all symbols that have been traded."""
     try:
-        dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-        table = dynamodb.Table("alchemiser-dev-trade-ledger")
+        settings = get_dashboard_settings()
+        dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
+        table = dynamodb.Table(settings.trade_ledger_table)
 
         # Scan for unique symbols
         response = table.scan(
@@ -64,8 +70,9 @@ def get_all_traded_symbols() -> list[str]:
 def get_symbol_trades(symbol: str) -> list[dict[str, Any]]:
     """Get all trades for a specific symbol."""
     try:
-        dynamodb = boto3.client("dynamodb", region_name="us-east-1")
-        table_name = "alchemiser-dev-trade-ledger"
+        settings = get_dashboard_settings()
+        dynamodb = boto3.client("dynamodb", region_name=settings.aws_region)
+        table_name = settings.trade_ledger_table
 
         # Query using GSI2 (symbol index)
         response = dynamodb.query(
@@ -109,7 +116,15 @@ def get_symbol_trades(symbol: str) -> list[dict[str, Any]]:
 def get_current_position(symbol: str) -> dict | None:
     """Get current position for a symbol."""
     try:
-        account_service = AlpacaAccountService()
+        api_key, secret_key, endpoint = get_alpaca_keys()
+        if not api_key or not secret_key:
+            st.error("Alpaca API keys not configured")
+            return None
+        
+        # Determine if paper trading based on endpoint
+        paper = endpoint and "paper" in endpoint.lower() if endpoint else True
+        trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
+        account_service = AlpacaAccountService(trading_client)
         positions = account_service.get_positions()
 
         for pos in positions:
@@ -277,7 +292,7 @@ def show() -> None:
             for strategy, count in strategy_counts.items()
         ]).sort_values("Trade Count", ascending=False)
 
-        st.dataframe(strategy_df, use_container_width=True, hide_index=True)
+        st.dataframe(strategy_df, width="stretch", hide_index=True)
     else:
         st.info("No strategy attribution available")
 
@@ -313,7 +328,7 @@ def show() -> None:
             "Price": "${:.2f}",
             "Value": "${:,.2f}",
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -342,7 +357,7 @@ def show() -> None:
         "SELL": sell_prices,
     })
 
-    st.line_chart(chart_df, use_container_width=True)
+    st.line_chart(chart_df, width="stretch")
 
     st.divider()
 
@@ -365,7 +380,7 @@ def show() -> None:
         })
 
     qty_df = pd.DataFrame(cumulative_qty).set_index("Timestamp")
-    st.line_chart(qty_df["Cumulative Qty"], use_container_width=True)
+    st.line_chart(qty_df["Cumulative Qty"], width="stretch")
 
     # Footer
     st.caption(f"Data for {selected_symbol}. Auto-refreshes every 60 seconds.")

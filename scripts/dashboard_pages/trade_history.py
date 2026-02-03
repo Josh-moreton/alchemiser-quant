@@ -17,6 +17,8 @@ import streamlit as st
 from boto3.dynamodb.conditions import Attr
 from dotenv import load_dotenv
 
+from dashboard_settings import get_dashboard_settings
+
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
@@ -30,8 +32,9 @@ def get_trades(
 ) -> list[dict[str, Any]]:
     """Get trades from DynamoDB with optional filters."""
     try:
-        dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-        table = dynamodb.Table("alchemiser-dev-trade-ledger")
+        settings = get_dashboard_settings()
+        dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
+        table = dynamodb.Table(settings.trade_ledger_table)
 
         # Build filter expression
         filter_expression = Attr("PK").begins_with("TRADE#")
@@ -280,14 +283,14 @@ def show() -> None:
             strategy_df.style.format({
                 "Total Value": "${:,.2f}",
             }),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
         # Chart
         st.subheader("Strategy Trade Volume")
         chart_data = strategy_df.set_index("Strategy")["Total Value"]
-        st.bar_chart(chart_data, use_container_width=True)
+        st.bar_chart(chart_data, width="stretch")
     else:
         st.info("No strategy attribution data available")
 
@@ -305,7 +308,7 @@ def show() -> None:
                 "Avg Buy Price": "${:.2f}",
                 "Avg Sell Price": "${:.2f}",
             }),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -313,7 +316,7 @@ def show() -> None:
         if len(symbol_df) > 0:
             st.subheader("Top Symbols by Trade Value")
             chart_data = symbol_df.head(10).set_index("Symbol")["Total Value"]
-            st.bar_chart(chart_data, use_container_width=True)
+            st.bar_chart(chart_data, width="stretch")
     else:
         st.info("No symbol data available")
 
@@ -344,7 +347,7 @@ def show() -> None:
             "Price": "${:.2f}",
             "Value": "${:,.2f}",
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -366,4 +369,4 @@ def show() -> None:
             "filled_qty": "count",  # Count of trades
         }).rename(columns={"filled_qty": "Trade Count"})
         
-        st.line_chart(daily_volume["Trade Count"], use_container_width=True)
+        st.line_chart(daily_volume["Trade Count"], width="stretch")
