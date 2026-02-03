@@ -89,7 +89,7 @@ def show_login_page(authenticator: "streamlit_authenticator.Authenticate") -> bo
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if logo_path.exists():
-            st.image(str(logo_path), use_container_width=True)
+            st.image(str(logo_path), width="stretch")
         else:
             st.title("📊 Octarine Capital")
         
@@ -114,7 +114,7 @@ def show_dashboard() -> None:
     # Logo and Navigation
     logo_path = Path(__file__).parent.parent / "octarine_capital_stacked.svg"
     if logo_path.exists():
-        st.sidebar.image(str(logo_path), use_container_width=True)
+        st.sidebar.image(str(logo_path), width="stretch")
     else:
         st.sidebar.title("📊 Octarine Capital")
     st.sidebar.markdown("---")

@@ -123,17 +123,17 @@ col_left, col_right = st.columns(2)
 
 with col_left:
     st.subheader("Equity Curve")
-    st.line_chart(df.set_index("Date")["Equity"], use_container_width=True)
+    st.line_chart(df.set_index("Date")["Equity"], width="stretch")
 
 with col_right:
     st.subheader("Cumulative P&L")
-    st.line_chart(df.set_index("Date")["Cumulative P&L"], use_container_width=True)
+    st.line_chart(df.set_index("Date")["Cumulative P&L"], width="stretch")
 
 st.divider()
 
 # Daily P&L bar chart
 st.subheader("Daily P&L")
-st.bar_chart(df.set_index("Date")["P&L ($)"], use_container_width=True)
+st.bar_chart(df.set_index("Date")["P&L ($)"], width="stretch")
 
 st.divider()
 
@@ -150,13 +150,13 @@ monthly = (
     .round(2)
 )
 monthly.columns = ["P&L ($)", "End Equity", "Deposits"]
-st.dataframe(monthly, use_container_width=True)
+st.dataframe(monthly, width="stretch")
 
 st.divider()
 
 # Raw data (expandable)
 with st.expander("View Raw Data"):
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width="stretch")
 
 # Footer
 st.caption(
