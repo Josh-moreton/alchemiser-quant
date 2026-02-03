@@ -596,6 +596,10 @@ def _calculate_inverse_weights_grouped(
     - Group A (low vol): gets 80% share, internal weights scaled by 0.8
     - Group B (high vol): gets 20% share, internal weights scaled by 0.2
 
+    NOTE: See _calculate_inverse_weights() docstring for DAMPENING EXPONENT
+    history and reversal guide. The same reversal steps apply to this function
+    (change the inverse_vol calculation below).
+
     Args:
         groups: List of PortfolioFragment groups
         window: Lookback window for volatility calculation (days)
@@ -720,6 +724,37 @@ def _calculate_inverse_weights(
 
     This produces EXTREME concentration in low-vol assets. For example:
     - BIL (0.01% vol) vs LABU (4.3% vol) -> BIL gets ~99% weight
+
+    ============================================================================
+    DAMPENING EXPONENT HISTORY AND REVERSAL GUIDE
+    ============================================================================
+    PREVIOUSLY: weight proportional to (1/volatility)^0.25 (dampened inverse)
+    CURRENTLY:  weight proportional to 1/volatility (pure inverse, no dampening)
+
+    The 0.25 dampening exponent was INTENTIONALLY REMOVED to match Composer's
+    exact behavior. Dampening reduces concentration by raising inverse_vol to
+    a fractional power:
+    - Exponent 0.25: weight = inverse_vol^0.25 (moderate concentration)
+    - Exponent 1.0:  weight = inverse_vol      (extreme concentration, current)
+
+    RATIONALE FOR REMOVAL:
+    Composer's weight-inverse-volatility uses pure 1/vol without dampening.
+    Our parity testing confirmed Composer produces extreme concentration in
+    low-vol assets (e.g., BIL vs LABU). Dampening was a deviation from spec.
+
+    TO REVERT (add 0.25 dampening back if needed):
+    1. Add constant at module level:
+       DAMPENING_EXPONENT = Decimal("0.25")
+    2. Change this line below:
+       inverse_vol = Decimal("1") / vol_decimal
+       To:
+       inverse_vol = (Decimal("1") / vol_decimal) ** DAMPENING_EXPONENT
+    3. Apply the same change in _calculate_inverse_weights_grouped()
+    4. Run strategy tests with weight-inverse-volatility to verify behavior
+
+    Dampening may be desirable for risk management (less extreme concentration)
+    but diverges from Composer parity. Document any reversion clearly.
+    ============================================================================
 
     Args:
         assets: List of asset symbols (bare strings)

@@ -397,7 +397,10 @@ class TechnicalIndicators:
         try:
             # Composer method: daily returns as percentages
             returns = data.pct_change() * 100
-            # Population std (ddof=0) per Composer docs: "divide by number of observations"
+            # Population standard deviation (ddof=0) per Composer specification.
+            # Composer docs state: \"divide by number of observations\" (not n-1).
+            # This matches population std (N divisor) vs sample std (N-1 divisor).
+            # Verified against Composer's stdev-return indicator behavior.
             daily_std = returns.rolling(window=window, min_periods=window).std(ddof=0)
             # Annualize by multiplying by sqrt(252)
             return daily_std * math.sqrt(TRADING_DAYS_PER_YEAR)

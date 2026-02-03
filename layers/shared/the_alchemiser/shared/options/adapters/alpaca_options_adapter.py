@@ -638,7 +638,11 @@ class AlpacaOptionsAdapter:
                 except TradingClientError as e:
                     last_short_error = e
                     if attempt < max_retries - 1:
-                        delay = base_retry_delay * (2 ** min(attempt, 3))  # Cap backoff at 8x base
+                        # Exponential backoff capped at 8x base (2^3) by design.
+                        # Rationale: Options spread orders require quick retry to get fills
+                        # before market moves. base_retry_delay=0.5s means max 4s delay.
+                        # Longer delays risk unfavorable price movement on the short leg.
+                        delay = base_retry_delay * (2 ** min(attempt, 3))
                         logger.warning(
                             "Short leg failed, retrying with backoff",
                             short_leg=short_leg_symbol,

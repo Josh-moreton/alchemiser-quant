@@ -646,8 +646,11 @@ class HedgeReportGenerator:
 
             nav_at_entry = Decimal(str(nav_at_entry))
 
-            # For now, skip attribution - would need entry underlying price stored
-            # This is a placeholder for the attribution detection logic
+            # TODO: nav_at_entry is extracted but not used - attribution logic requires
+            # entry_underlying_price (currently not stored) to calculate market move
+            # attribution. Remove this dead code block once attribution is properly
+            # implemented, or implement once entry data capture is available.
+            _ = nav_at_entry  # Acknowledge intentional placeholder usage
 
         return None
 

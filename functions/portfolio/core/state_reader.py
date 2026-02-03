@@ -7,6 +7,7 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
+import re
 import time
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -30,15 +31,21 @@ MODULE_NAME = "portfolio_v2.core.state_reader"
 # Maximum length for equity/ETF symbols (options use OCC format with 21 chars)
 MAX_EQUITY_SYMBOL_LENGTH = 10
 
+# OCC options symbol regex pattern.
+# Format: ROOT(1-6) + YYMMDD(6) + C/P(1) + STRIKE(8)
+# Example: AAPL  240119C00185000 (padded) or AAPL240119C00185000 (compact)
+# Regex captures: optional leading spaces, 6 digits (date), C or P, 8 digits (strike)
+OCC_SYMBOL_PATTERN = re.compile(r"^[A-Z]{1,6}\s*\d{6}[CP]\d{8}$")
+
 
 def _is_options_symbol(symbol: str) -> bool:
     """Check if a symbol is an options contract (OCC format).
 
     Options symbols follow the OCC (Options Clearing Corporation) format:
-    - 21 characters total
-    - First 6 chars: underlying symbol (padded with spaces)
+    - 21 characters total (may be compact without padding)
+    - First 1-6 chars: underlying symbol (padded with spaces in full OCC)
     - Next 6 chars: expiration date (YYMMDD)
-    - Next 1 char: option type (C/P)
+    - Next 1 char: option type (C=Call, P=Put)
     - Last 8 chars: strike price (in 1/1000 of a dollar)
 
     Equity/ETF symbols are typically 1-5 characters, max 10.
@@ -50,12 +57,17 @@ def _is_options_symbol(symbol: str) -> bool:
         True if the symbol appears to be an options contract
 
     """
-    # Options symbols are longer than equity symbols
+    # Primary check: OCC format regex for definitive match
+    if OCC_SYMBOL_PATTERN.match(symbol):
+        return True
+
+    # Fallback heuristic: options symbols are longer than typical equities
+    # This catches edge cases where formatting differs from strict OCC
     if len(symbol) > MAX_EQUITY_SYMBOL_LENGTH:
         return True
 
-    # Additional check: contains digits in positions typical of OCC format
-    # (expiration date embedded in symbol)
+    # Additional heuristic: contains digits in positions typical of OCC format
+    # (expiration date embedded in symbol, positions 6-12 in full OCC)
     return len(symbol) >= 15 and any(c.isdigit() for c in symbol[6:12])
 
 

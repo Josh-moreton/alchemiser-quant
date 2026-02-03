@@ -122,7 +122,11 @@ class IVHistoryRepository:
             record_date = datetime.now(UTC).date()
 
         now = datetime.now(UTC)
-        # Set TTL to 400 days to maintain >252 days of rolling data
+        # Set TTL to 400 calendar days to maintain >252 trading days of rolling data.
+        # Rationale: 252 trading days/year for IV percentile calculation.
+        # 400 calendar days ≈ 252 trading days (252 / 0.7 ≈ 360) + 40-day safety buffer.
+        # Buffer accounts for holidays, market closures, and ensures we never lose
+        # data needed for the rolling 252-day percentile calculation.
         ttl = int((now + timedelta(days=400)).timestamp())
 
         symbol = underlying_symbol.upper()
@@ -267,7 +271,10 @@ class IVHistoryRepository:
         historical_ivs = [r.atm_iv for r in records]
         observation_count = len(historical_ivs)
 
-        # Calculate percentile: % of historical values below current
+        # Calculate percentile: fraction of historical values strictly below current.
+        # Formula: percentile = count(historical IV < current IV) / total count * 100
+        # E.g., if current IV is higher than 80% of historical values, percentile = 80.
+        # This measures how "rich" current IV is relative to the 252-day history.
         count_below = sum(1 for iv in historical_ivs if iv < current_iv)
         percentile = Decimal(str(count_below)) / Decimal(str(observation_count)) * Decimal("100")
 

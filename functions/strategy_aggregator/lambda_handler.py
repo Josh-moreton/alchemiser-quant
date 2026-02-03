@@ -14,6 +14,7 @@ Trigger: EventBridge rule matching PartialSignalGenerated events.
 
 from __future__ import annotations
 
+import html
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -452,11 +453,12 @@ def _send_partial_failure_notification(
         failed_count = len(failed_signals)
 
         # Build failure details for the notification
+        # HTML-escape user-provided values to prevent XSS in email clients
         failure_rows = []
         for signal in failed_signals:
-            dsl_file = signal.get("dsl_file", "Unknown")
-            error = signal.get("error_message", "Unknown error")
-            allocation = signal.get("allocation", "?")
+            dsl_file = html.escape(str(signal.get("dsl_file", "Unknown")))
+            error = html.escape(str(signal.get("error_message", "Unknown error")))
+            allocation = html.escape(str(signal.get("allocation", "?")))
             failure_rows.append(
                 f"<tr><td>{dsl_file}</td><td>{allocation}</td><td>{error}</td></tr>"
             )
@@ -468,8 +470,8 @@ def _send_partial_failure_notification(
 
 <p><strong>Workflow proceeding with partial results.</strong></p>
 
-<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
-<tr><th>Metric</th><th>Value</th></tr>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;" role="table" aria-label="Session metrics">
+<tr><th scope="col">Metric</th><th scope="col">Value</th></tr>
 <tr><td>Session ID</td><td>{session_id}</td></tr>
 <tr><td>Correlation ID</td><td>{correlation_id}</td></tr>
 <tr><td>Total Strategies</td><td>{total_strategies}</td></tr>
@@ -478,8 +480,8 @@ def _send_partial_failure_notification(
 </table>
 
 <h3>Failed Strategies</h3>
-<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
-<tr><th>DSL File</th><th>Allocation</th><th>Error</th></tr>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;" role="table" aria-label="Failed strategy details">
+<tr><th scope="col">DSL File</th><th scope="col">Allocation</th><th scope="col">Error</th></tr>
 {failure_table}
 </table>
 

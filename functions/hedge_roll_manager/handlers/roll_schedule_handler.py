@@ -168,6 +168,8 @@ class RollScheduleHandler:
         should_roll, roll_reason = self._check_roll_conditions(position, dte, template, today)
 
         # Trigger roll if any condition met
+        # Note: roll_reason may be None; _trigger_roll handles this gracefully
+        # by inferring reason from DTE/template if not explicitly provided.
         if should_roll:
             self._trigger_roll(position, dte, correlation_id, roll_reason)
             return True, assignment_risk

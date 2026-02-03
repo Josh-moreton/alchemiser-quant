@@ -739,6 +739,8 @@ class HedgeEvaluationHandler:
         positions: dict[str, Decimal] = {}
 
         # Note: Despite the name 'top_positions', this field now contains ALL positions (not just top 5).
+        # The original top-5 throttling was removed as part of a feature to allow full position visibility
+        # in notifications. The key name is retained for backward compatibility with existing snapshots.
         all_positions = portfolio_snapshot.get("top_positions", [])
         if not isinstance(all_positions, list):
             logger.warning(

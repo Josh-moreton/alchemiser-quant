@@ -1998,9 +1998,22 @@ Resources:
                 Resource:
                   - !GetAtt IVHistoryTable.Arn
 
-  # EventBridge Rule: Route AllTradesCompleted events to HedgeEvaluator
-  # This ensures hedging evaluates actual positions after trades complete,
-  # not planned positions from RebalancePlanned (decoupled from main workflow)
+  # ==========================================================================
+  # BREAKING ARCHITECTURAL CHANGE (PPO/Signal Indicators PR):
+  # HedgeEvaluator is now triggered by AllTradesCompleted (from TradeAggregator)
+  # instead of the previous RebalancePlanned event.
+  #
+  # Previous behavior: Hedge evaluation ran after portfolio planning, before trades.
+  # New behavior: Hedge evaluation runs after ALL trades complete successfully.
+  #
+  # Rationale: Hedging actual positions (post-execution) is more accurate than
+  # hedging planned positions that may not fully execute. This also decouples
+  # hedging from the main equity workflow timing.
+  #
+  # Migration: Any integrations expecting HedgeEvaluationCompleted to occur
+  # before trade execution must be updated. See handle_all_trades_completed()
+  # in hedge_evaluation_handler.py.
+  # ==========================================================================
   AllTradesCompletedToHedgeRule:
     Type: AWS::Events::Rule
     Properties:
