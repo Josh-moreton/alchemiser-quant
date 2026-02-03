@@ -118,6 +118,54 @@ def load_positions() -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def calculate_period_metrics(df: pd.DataFrame, months: int) -> dict[str, float] | None:
+    """Calculate performance metrics for a specific period.
+    
+    Args:
+        df: DataFrame with Date, P&L ($), P&L (%) columns
+        months: Number of months to look back (1, 3, or 6)
+    
+    Returns:
+        Dict with period_pnl, period_return, annualized_return or None if insufficient data
+    """
+    if df.empty:
+        return None
+    
+    last_date = df["Date"].iloc[-1]
+    cutoff_date = last_date - pd.DateOffset(months=months)
+    
+    period_df = df[df["Date"] > cutoff_date]
+    
+    if period_df.empty or len(period_df) < 2:
+        return None
+    
+    # Total P&L for the period
+    period_pnl = period_df["P&L ($)"].sum()
+    
+    # TWR for the period (compound daily returns)
+    daily_returns_decimal = period_df["P&L (%)"] / 100
+    period_twr = ((1 + daily_returns_decimal).prod() - 1) * 100
+    
+    # Annualize the return
+    days_in_period = (period_df["Date"].iloc[-1] - period_df["Date"].iloc[0]).days
+    if days_in_period > 0:
+        years = days_in_period / 365.25
+        twr_decimal = period_twr / 100
+        if twr_decimal > -1:  # Avoid math errors with extreme losses
+            annualized = ((1 + twr_decimal) ** (1 / years) - 1) * 100
+        else:
+            annualized = -100.0
+    else:
+        annualized = 0.0
+    
+    return {
+        "period_pnl": period_pnl,
+        "period_return": period_twr,
+        "annualized_return": annualized,
+        "trading_days": len(period_df),
+    }
+
+
 def calculate_risk_metrics(df: pd.DataFrame) -> dict[str, float]:
     """Calculate portfolio risk metrics."""
     if df.empty or len(df) < 2:
@@ -228,6 +276,37 @@ def show() -> None:
             "delta_positive": annualized_return > 0,
         },
     ])
+
+    # =========================================================================
+    # PERIOD PERFORMANCE (1M, 3M, 6M)
+    # =========================================================================
+    section_header("Period Performance")
+    
+    period_configs = [
+        (1, "1 Month"),
+        (3, "3 Month"),
+        (6, "6 Month"),
+    ]
+    
+    period_metrics_list = []
+    for months, label in period_configs:
+        metrics = calculate_period_metrics(df, months)
+        if metrics:
+            period_metrics_list.append({
+                "label": label,
+                "value": format_currency(metrics["period_pnl"], include_sign=True),
+                "delta": f"{format_percent(metrics['period_return'], include_sign=True)} ({format_percent(metrics['annualized_return'], include_sign=True)} ann.)",
+                "delta_positive": metrics["period_pnl"] > 0,
+            })
+        else:
+            period_metrics_list.append({
+                "label": label,
+                "value": "N/A",
+                "delta": "Insufficient data",
+                "delta_positive": True,
+            })
+    
+    metric_row(period_metrics_list)
 
     # =========================================================================
     # RISK METRICS
