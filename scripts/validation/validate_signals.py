@@ -137,9 +137,17 @@ def load_strategy_ledger(ledger_path: Path) -> dict[str, dict[str, Any]]:
 
 
 def find_strategy_by_filename(ledger: dict[str, dict[str, Any]], dsl_file: str) -> dict[str, Any] | None:
-    """Find strategy metadata by DSL filename."""
+    """Find strategy metadata by DSL filename.
+
+    Handles both full paths (e.g., 'ftlt/holy_grail.clj') and basenames ('holy_grail.clj').
+    """
+    # Extract basename for nested folder support
+    basename = Path(dsl_file).name
+
     for strategy_info in ledger.values():
-        if strategy_info.get("filename") == dsl_file:
+        ledger_filename = strategy_info.get("filename", "")
+        # Match either full path or basename
+        if ledger_filename == dsl_file or ledger_filename == basename:
             return strategy_info
     return None
 
@@ -175,7 +183,9 @@ def parse_composer_holdings(raw_text: str) -> dict[str, Decimal]:
 
 def capture_live_signals(strategy_name: str) -> dict[str, Decimal] | None:
     """Capture Composer holdings via paste + Ctrl+D."""
-    temp_path = Path(tempfile.gettempdir()) / f"composer_{strategy_name}.txt"
+    # Sanitize strategy name for temp file (replace / with _)
+    safe_name = strategy_name.replace("/", "_")
+    temp_path = Path(tempfile.gettempdir()) / f"composer_{safe_name}.txt"
 
     print("\n  Paste Composer holdings, then press Enter + Ctrl+D:")
 
