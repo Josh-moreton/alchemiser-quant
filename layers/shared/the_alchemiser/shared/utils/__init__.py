@@ -25,9 +25,6 @@ from ..errors.exceptions import (
     ValidationError,
 )
 
-# Error reporting utilities
-from .error_reporter import ErrorReporter, get_error_reporter, report_error_globally
-
 # Lazy imports for Alpaca utilities to avoid importing alpaca-py at module load
 # These are accessed via __getattr__ below
 if TYPE_CHECKING:
@@ -50,13 +47,10 @@ __all__ = [
     "AlpacaErrorHandler",
     "ConfigurationError",
     "DataProviderError",
-    "ErrorReporter",
     "OrderExecutionError",
     "PortfolioError",
     "StrategyExecutionError",
     "TradingClientError",
     "ValidationError",
     "alpaca_retry_context",
-    "get_error_reporter",
-    "report_error_globally",
 ]

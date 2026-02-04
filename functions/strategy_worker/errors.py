@@ -7,7 +7,7 @@ Provides typed exceptions for strategy execution with module context
 for traceability and error handling. Supports correlation_id and causation_id
 for event-driven workflows, with structured context for observability.
 
-All exceptions support:
+All exceptions extend AlchemiserError from the shared error hierarchy and support:
 - correlation_id: Track requests across the system
 - causation_id: Link events in event-driven workflows
 - module: Identify error source for filtering
@@ -32,10 +32,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from the_alchemiser.shared.errors.exceptions import AlchemiserError
 
-class StrategyV2Error(Exception):
+
+class StrategyV2Error(AlchemiserError):
     """Base exception for strategy_v2 module.
 
+    Extends AlchemiserError to integrate with the shared error hierarchy.
     Supports event-driven workflow patterns with correlation_id and causation_id.
     All context is preserved in the context dict for structured logging.
     """
@@ -66,18 +69,24 @@ class StrategyV2Error(Exception):
             ... )
 
         """
-        super().__init__(message)
-        self.message = message
+        # Build context dict for AlchemiserError
+        context: dict[str, Any] = dict(kwargs)
+        context["module"] = module
+        if correlation_id:
+            context["correlation_id"] = correlation_id
+        if causation_id:
+            context["causation_id"] = causation_id
+
+        super().__init__(message, context)
         self.module = module
         self.correlation_id = correlation_id
         self.causation_id = causation_id
-        self.context = kwargs
 
     def to_dict(self) -> dict[str, Any]:
         """Convert error to structured data for logging and reporting.
 
         Returns:
-            Dictionary with error type, message, module, IDs, and context.
+            Dictionary with error type, message, module, IDs, context, and timestamp.
 
         Example:
             >>> error = StrategyV2Error("Test", correlation_id="123")
@@ -88,18 +97,17 @@ class StrategyV2Error(Exception):
                 'module': 'strategy_v2',
                 'correlation_id': '123',
                 'causation_id': None,
-                'context': {}
+                'context': {...},
+                'timestamp': '2026-02-04T...'
             }
 
         """
-        return {
-            "error_type": self.__class__.__name__,
-            "message": self.message,
-            "module": self.module,
-            "correlation_id": self.correlation_id,
-            "causation_id": self.causation_id,
-            "context": self.context,
-        }
+        base_dict = super().to_dict()
+        # Add strategy-specific fields for backward compatibility
+        base_dict["module"] = self.module
+        base_dict["correlation_id"] = self.correlation_id
+        base_dict["causation_id"] = self.causation_id
+        return base_dict
 
 
 class StrategyExecutionError(StrategyV2Error):

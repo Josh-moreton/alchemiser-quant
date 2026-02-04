@@ -1,8 +1,0 @@
-validation_date,session_id,strategy_name,dsl_file,matches,notes,validated_at
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,defence,defence.clj,no,"We have KTOS and RCAT, live signal has KTOS and SPAI",2026-01-15T11:20:43.153321+00:00
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,nuclear,nuclear.clj,no,"We have LEU OKLO BWXT, live signal has LEU OKLO NLR",2026-01-15T11:21:19.570114+00:00
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,rains_concise_em,rains_concise_em.clj,no,"We have EDZ, live signal has XLF",2026-01-15T11:21:46.994125+00:00
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,rains_em_dancer,rains_em_dancer.clj,no,"We have EDZ YANG TLT, live signal has EDZ VBF",2026-01-15T11:22:08.759793+00:00
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,simons_full_kmlm,simons_full_kmlm.clj,no,"we have SVIX, live signal has UVXY",2026-01-15T11:22:36.237721+00:00
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,sisyphus_lowvol,sisyphus_lowvol.clj,no,"We have TQQQ EDZ BIL BOND UGL QID SOX SRTY SPXU, live signal has UVXY VIXY EDZ UGL BIL BOND",2026-01-15T11:23:50.551204+00:00
-2026-01-14,schedule-ef3a38ed-b079-49dd-8932-80cb7cb354c1,tqqq_ftlt_2,tqqq_ftlt_2.clj,no,"We have EDC RETL TNA, live signal has VIXY",2026-01-15T11:24:32.655704+00:00
