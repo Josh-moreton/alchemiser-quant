@@ -414,18 +414,18 @@ logger.info(
 
 | Purpose | Location |
 |---------|----------|
-| Strategy Orchestrator handler | `the_alchemiser/coordinator_v2/lambda_handler.py` |
-| Strategy Worker handler | `the_alchemiser/strategy_v2/lambda_handler.py` |
-| Signal Aggregator handler | `the_alchemiser/aggregator_v2/lambda_handler.py` |
-| Portfolio Lambda handler | `the_alchemiser/portfolio_v2/lambda_handler.py` |
-| Execution Lambda handler | `the_alchemiser/execution_v2/lambda_handler.py` |
-| Notifications Lambda handler | `the_alchemiser/notifications_v2/lambda_handler.py` |
-| Event schemas | `the_alchemiser/shared/events/schemas.py` |
-| EventBridge publisher | `the_alchemiser/shared/events/eventbridge_publisher.py` |
-| SNS publisher | `the_alchemiser/shared/notifications/sns_publisher.py` |
-| DTOs | `the_alchemiser/shared/schemas/` |
-| DI Container | `the_alchemiser/shared/config/container.py` |
-| Strategy engines | `the_alchemiser/strategy_v2/engines/` |
+| Strategy Orchestrator handler | `functions/strategy_orchestrator/lambda_handler.py` |
+| Strategy Worker handler | `functions/strategy_worker/lambda_handler.py` |
+| Signal Aggregator handler | `functions/strategy_aggregator/lambda_handler.py` |
+| Portfolio Lambda handler | `functions/portfolio/lambda_handler.py` |
+| Execution Lambda handler | `functions/execution/lambda_handler.py` |
+| Notifications Lambda handler | `functions/notifications/lambda_handler.py` |
+| Event schemas | `layers/shared/the_alchemiser/shared/events/schemas.py` |
+| EventBridge publisher | `layers/shared/the_alchemiser/shared/events/eventbridge_publisher.py` |
+| SES email publisher | `layers/shared/the_alchemiser/shared/notifications/ses_publisher.py` |
+| DTOs | `layers/shared/the_alchemiser/shared/schemas/` |
+| DI Container | `layers/shared/the_alchemiser/shared/config/container.py` |
+| Strategy engines | `functions/strategy_worker/engines/` |
 | Infrastructure (SAM) | `template.yaml` |
 | Script import helper | `scripts/_setup_imports.py` |
 
