@@ -141,9 +141,6 @@
                                         "ASML"
                                         "ASML Holding NV ADR")
                                        (asset "AVGO" "Broadcom Inc.")
-                                       (asset
-                                        "ENPH"
-                                        "Enphase Energy, Inc.")
                                        (asset "JYNT" "Joint Corp")
                                        (asset
                                         "MU"
@@ -165,9 +162,6 @@
                                       [(asset
                                         "AMD"
                                         "Advanced Micro Devices, Inc.")
-                                       (asset
-                                        "ENPH"
-                                        "Enphase Energy, Inc.")
                                        (asset "EQT" "EQT Corporation")
                                        (asset
                                         "SON"
