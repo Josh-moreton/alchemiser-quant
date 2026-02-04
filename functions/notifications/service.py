@@ -67,8 +67,12 @@ class NotificationService:
 
         # Get environment configuration
         self.stage = os.environ.get("APP__STAGE", "dev")
-        # Single notification email - set per-environment via CI/CD
+        # Success emails go to NOTIFICATION_EMAIL (transactional, ignorable)
         self.notification_email = os.environ.get("NOTIFICATION_EMAIL", "notifications@rwxt.org")
+        # Failure/warning emails go to FAILURE_NOTIFICATION_EMAIL (loud, attention-worthy)
+        self.failure_notification_email = os.environ.get(
+            "FAILURE_NOTIFICATION_EMAIL", "josh@rwxt.org"
+        )
 
     def register_handlers(self) -> None:
         """Register event handlers with the event bus."""
@@ -218,8 +222,8 @@ class NotificationService:
                 run_id=run_id,
             )
 
-            # Get recipient addresses
-            to_addresses = self._get_recipients()
+            # Get recipient addresses - error notifications always go to failure channel
+            to_addresses = self._get_recipients(is_failure=True)
 
             # Send via SES
             result = send_email(
@@ -402,8 +406,9 @@ class NotificationService:
                 run_id=event.correlation_id,
             )
 
-            # Get recipient addresses
-            to_addresses = self._get_recipients()
+            # Route: SUCCESS → transactional channel, anything else → failure channel
+            is_failure = status != "SUCCESS"
+            to_addresses = self._get_recipients(is_failure=is_failure)
 
             # Send via SES
             result = send_email(
@@ -457,8 +462,9 @@ class NotificationService:
 </html>
 """
 
+            # System notifications are transactional (default channel)
             result = send_email(
-                to_addresses=self._get_recipients(),
+                to_addresses=self._get_recipients(is_failure=False),
                 subject=event.subject,
                 html_body=html_body,
                 text_body=text_body,
@@ -601,8 +607,10 @@ Correlation ID: {event.correlation_id}
                 run_id=event.correlation_id[:6],
             )
 
+            # Route: SUCCESS → transactional, warnings/failures → failure channel
+            is_failure = event.status != "SUCCESS"
             result = send_email(
-                to_addresses=self._get_recipients(),
+                to_addresses=self._get_recipients(is_failure=is_failure),
                 subject=subject,
                 html_body=html_body,
                 text_body=text_body,
@@ -658,8 +666,8 @@ Correlation ID: {event.correlation_id}
             env_prefix = "" if self.stage == "prod" else f"[{self.stage.upper()}] "
             subject = f"{env_prefix}{component}"
 
-            # Get recipient addresses
-            to_addresses = self._get_recipients()
+            # Schedule notifications are transactional (default channel)
+            to_addresses = self._get_recipients(is_failure=False)
 
             # Send via SES
             result = send_email(
@@ -689,14 +697,21 @@ Correlation ID: {event.correlation_id}
                 "error",
             )
 
-    def _get_recipients(self) -> list[str]:
-        """Get recipient email addresses.
+    def _get_recipients(self, *, is_failure: bool = False) -> list[str]:
+        """Get recipient email addresses based on notification type.
+
+        Routes success emails to NOTIFICATION_EMAIL (transactional, ignorable)
+        and failure/warning emails to FAILURE_NOTIFICATION_EMAIL (loud, attention-worthy).
+
+        Args:
+            is_failure: True for failure/warning notifications, False for success
 
         Returns:
-            List of recipient email addresses (from NOTIFICATION_EMAIL env var)
+            List of recipient email addresses
 
         """
-        return [addr.strip() for addr in self.notification_email.split(",")]
+        email = self.failure_notification_email if is_failure else self.notification_email
+        return [addr.strip() for addr in email.split(",")]
 
     def _build_logs_url(self, correlation_id: str) -> str:
         """Build CloudWatch Logs Insights URL filtered by correlation ID.

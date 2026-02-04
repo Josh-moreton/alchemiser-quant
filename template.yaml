@@ -133,7 +133,12 @@ Parameters:
   NotificationEmail:
     Type: String
     Default: ""
-    Description: Email address for notifications (set per-environment in secret store)
+    Description: Email address for success notifications (set per-environment in secret store)
+
+  FailureNotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email address for failure/warning notifications (defaults to josh@rwxt.org)
 
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
@@ -155,6 +160,7 @@ Conditions:
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
   HasNotificationEmail: !Not [ !Equals [ !Ref NotificationEmail, "" ] ]
+  HasFailureNotificationEmail: !Not [ !Equals [ !Ref FailureNotificationEmail, "" ] ]
 
 Globals:
   Function:
@@ -1726,11 +1732,15 @@ Resources:
           SES_FROM_NAME: "Octarine Capital"
           SES_REPLY_TO_ADDRESS: noreply@mail.octarine.capital
           SES_REGION: !Ref AWS::Region
-          # Notification recipient - set per-environment via NOTIFICATION_EMAIL GitHub variable
+          # Notification recipients - success emails go to NOTIFICATION_EMAIL, failures go to FAILURE_NOTIFICATION_EMAIL
           NOTIFICATION_EMAIL: !If
             - HasNotificationEmail
             - !Ref NotificationEmail
             - "notifications@rwxt.org"
+          FAILURE_NOTIFICATION_EMAIL: !If
+            - HasFailureNotificationEmail
+            - !Ref FailureNotificationEmail
+            - "josh@rwxt.org"
           # Safety: non-prod environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
       Events:
