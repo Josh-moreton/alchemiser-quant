@@ -2492,7 +2492,12 @@ Resources:
   DataSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument: *scheduler-assume-role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
       Policies:
         - PolicyName: InvokeDataFunction
           PolicyDocument:
@@ -2651,19 +2656,6 @@ Resources:
         Input: '{"source": "schedule"}'
         RetryPolicy:
           MaximumRetryAttempts: 2
-
-  DataSchedulerRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *scheduler-assume-role
-      Policies:
-        - PolicyName: InvokeDataFunction
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: lambda:InvokeFunction
-                Resource:
-                  - !GetAtt DataFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
