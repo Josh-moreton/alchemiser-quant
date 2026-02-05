@@ -115,6 +115,14 @@ class DashboardSettings(BaseModel):
         default="",
         description="DynamoDB table name for hedge history audit trail",
     )
+    account_snapshots_table: str = Field(
+        default="",
+        description="DynamoDB table name for account snapshots",
+    )
+    pnl_history_table: str = Field(
+        default="",
+        description="DynamoDB table name for P&L history",
+    )
     aws_region: str = Field(
         default="us-east-1",
         description="AWS region for DynamoDB access",
@@ -176,6 +184,14 @@ class DashboardSettings(BaseModel):
             hedge_history_table=_get_secret(
                 "HEDGE_HISTORY_TABLE_NAME",
                 f"alchemiser-{stage}-hedge-history",
+            ),
+            account_snapshots_table=_get_secret(
+                "ACCOUNT_SNAPSHOTS_TABLE",
+                f"alchemiser-{stage}-account-snapshots",
+            ),
+            pnl_history_table=_get_secret(
+                "PNL_HISTORY_TABLE",
+                f"alchemiser-{stage}-pnl-history",
             ),
             aws_region=region,
             stage=stage,

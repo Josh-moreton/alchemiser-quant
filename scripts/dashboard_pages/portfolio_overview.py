@@ -22,6 +22,11 @@ from .components import (
     section_header,
     styled_dataframe,
 )
+from .dynamodb_loader import (
+    has_dynamodb_data,
+    load_account_snapshot_from_dynamodb,
+    load_pnl_from_dynamodb,
+)
 from .styles import format_currency, format_percent, get_colors, inject_styles
 
 # Load .env file
@@ -37,7 +42,14 @@ from the_alchemiser.shared.services.pnl_service import PnLService
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_pnl_data() -> pd.DataFrame:
-    """Load P&L data from Alpaca API with deposit adjustments."""
+    """Load P&L data from DynamoDB (preferred) or Alpaca API (fallback) with deposit adjustments."""
+    # Try DynamoDB first
+    if has_dynamodb_data():
+        df = load_pnl_from_dynamodb()
+        if not df.empty:
+            return df
+    
+    # Fallback to Alpaca API
     service = PnLService()
     daily_records, _ = service.get_all_daily_records(period="1A")
 
@@ -215,15 +227,22 @@ def show() -> None:
 
     st.title("Portfolio Overview")
     st.caption("Comprehensive portfolio analytics and performance metrics")
+    
+    # Show data source indicator
+    using_dynamodb = has_dynamodb_data()
+    if using_dynamodb:
+        st.info("📊 Reading data from DynamoDB (cached snapshots updated every 6 hours)")
+    else:
+        st.warning("🔄 Reading data directly from Alpaca API (live data)")
 
     # Load data
     try:
         df = load_pnl_data()
         if df.empty:
-            st.error("No trading data available from Alpaca.")
+            st.error("No trading data available.")
             return
     except Exception as e:
-        st.error(f"Failed to load data from Alpaca: {e}")
+        st.error(f"Failed to load data: {e}")
         return
 
     # Calculate key metrics
