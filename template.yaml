@@ -2394,8 +2394,8 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-account-data-4am"
         - !Sub "alchemiser-${Stage}-account-data-4am"
-      Description: "Fetch account data at 4am ET (9am UTC)"
-      # cron(0 9 * * ? *) = 4am ET / 9am UTC
+      Description: "Fetch account data at 4am ET (9am UTC in winter, 8am UTC in summer due to DST)"
+      # cron(0 9 * * ? *) = 9am UTC (approximates 4am ET, shifts with DST)
       ScheduleExpression: "cron(0 9 * * ? *)"
       State: ENABLED
       Targets:
@@ -2411,8 +2411,8 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-account-data-10am"
         - !Sub "alchemiser-${Stage}-account-data-10am"
-      Description: "Fetch account data at 10am ET (3pm UTC)"
-      # cron(0 15 * * ? *) = 10am ET / 3pm UTC
+      Description: "Fetch account data at 10am ET (3pm UTC in winter, 2pm UTC in summer due to DST)"
+      # cron(0 15 * * ? *) = 3pm UTC (approximates 10am ET, shifts with DST)
       ScheduleExpression: "cron(0 15 * * ? *)"
       State: ENABLED
       Targets:
@@ -2428,8 +2428,8 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-account-data-4pm"
         - !Sub "alchemiser-${Stage}-account-data-4pm"
-      Description: "Fetch account data at 4pm ET (9pm UTC)"
-      # cron(0 21 * * ? *) = 4pm ET / 9pm UTC
+      Description: "Fetch account data at 4pm ET (9pm UTC in winter, 8pm UTC in summer due to DST)"
+      # cron(0 21 * * ? *) = 9pm UTC (approximates 4pm ET, shifts with DST)
       ScheduleExpression: "cron(0 21 * * ? *)"
       State: ENABLED
       Targets:
@@ -2445,8 +2445,8 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-account-data-10pm"
         - !Sub "alchemiser-${Stage}-account-data-10pm"
-      Description: "Fetch account data at 10pm ET (3am UTC next day)"
-      # cron(0 3 * * ? *) = 10pm ET / 3am UTC
+      Description: "Fetch account data at 10pm ET (3am UTC next day in winter, 2am UTC next day in summer due to DST)"
+      # cron(0 3 * * ? *) = 3am UTC (approximates 10pm ET, shifts with DST)
       ScheduleExpression: "cron(0 3 * * ? *)"
       State: ENABLED
       Targets:

@@ -74,7 +74,7 @@ class PnLDataService:
                     profit_loss_pct=rec.profit_loss_pct,
                     deposit=rec.deposit if rec.deposit else Decimal("0"),
                     withdrawal=rec.withdrawal if rec.withdrawal else Decimal("0"),
-                    base_value=rec.base_value if hasattr(rec, "base_value") else None,
+                    base_value=getattr(rec, "base_value", None),
                     cumulative_pnl=None,  # Will be calculated if needed
                     timestamp=timestamp_str,
                 )

@@ -145,9 +145,9 @@ def has_dynamodb_data() -> bool:
     """
     try:
         settings = DashboardSettings()
-        return (
-            settings.pnl_history_table is not None 
-            and settings.account_snapshots_table is not None
+        return bool(
+            settings.pnl_history_table 
+            and settings.account_snapshots_table
         )
     except Exception:
         return False

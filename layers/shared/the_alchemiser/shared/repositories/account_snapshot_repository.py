@@ -42,14 +42,8 @@ class AccountSnapshotRepository:
         """
         try:
             # Convert Pydantic model to dict for DynamoDB
+            # DynamoDB supports Decimal natively via boto3
             item = snapshot.model_dump()
-            
-            # Convert Decimal fields to string for DynamoDB storage
-            # DynamoDB supports Decimal natively but we need to ensure precision
-            for key, value in item.items():
-                if isinstance(value, Decimal):
-                    # Keep as Decimal - boto3 handles this
-                    pass
             
             self.table.put_item(Item=item)
             
