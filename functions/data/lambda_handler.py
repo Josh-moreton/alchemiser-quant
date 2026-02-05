@@ -39,12 +39,13 @@ logger = get_logger(__name__)
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle data Lambda invocations for market data refresh.
+    """Handle data Lambda invocations for market data and account data refresh.
 
-    Handles three types of invocations:
-    1. Scheduled refresh (EventBridge Schedule) - refreshes all configured symbols
-    2. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
-    3. Manual invocation - specific symbols or full seed
+    Handles four types of invocations:
+    1. Scheduled account data refresh (EventBridge Schedule) - captures account snapshots and P&L
+    2. Scheduled market data refresh (EventBridge Schedule) - refreshes all configured symbols
+    3. MarketDataFetchRequested event - on-demand fetch for specific symbol with deduplication
+    4. Manual invocation - specific symbols or full seed
 
     Args:
         event: Lambda event (varies by trigger type)
@@ -54,12 +55,117 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         Response with refresh statistics
 
     """
+    # Check if this is an account data fetch request
+    if _is_account_data_fetch(event):
+        return _handle_account_data_fetch(event)
+
     # Check if this is a MarketDataFetchRequested event
     if _is_fetch_request_event(event):
         return _handle_fetch_request(event)
 
     # Otherwise, handle as scheduled refresh or manual invocation
     return _handle_scheduled_refresh(event)
+
+
+def _is_account_data_fetch(event: dict[str, Any]) -> bool:
+    """Check if event is an account data fetch request."""
+    fetch_type = event.get("fetch_type")
+    return fetch_type == "account_data"
+
+
+def _handle_account_data_fetch(event: dict[str, Any]) -> dict[str, Any]:
+    """Handle scheduled account data fetching.
+    
+    Captures account snapshot and P&L history from Alpaca and stores in DynamoDB.
+    
+    Args:
+        event: EventBridge scheduled event
+        
+    Returns:
+        Response with capture statistics
+    """
+    from account_data_service import AccountDataService
+    from pnl_data_service import PnLDataService
+    
+    correlation_id = event.get("correlation_id") or f"account-data-fetch-{uuid.uuid4()}"
+    schedule = event.get("schedule", "unknown")
+    
+    logger.info(
+        "Account data fetch invoked",
+        extra={
+            "correlation_id": correlation_id,
+            "schedule": schedule,
+        },
+    )
+    
+    try:
+        # Capture account snapshot
+        account_service = AccountDataService()
+        snapshot = account_service.capture_account_snapshot()
+        
+        # Capture P&L history (last 1 year)
+        pnl_service = PnLDataService()
+        pnl_count = pnl_service.capture_pnl_history(period="1A")
+        
+        if snapshot and pnl_count > 0:
+            logger.info(
+                "Account data captured successfully",
+                extra={
+                    "correlation_id": correlation_id,
+                    "equity": str(snapshot.equity),
+                    "pnl_records": pnl_count,
+                },
+            )
+            
+            return {
+                "statusCode": 200,
+                "body": {
+                    "status": "success",
+                    "correlation_id": correlation_id,
+                    "schedule": schedule,
+                    "snapshot_timestamp": snapshot.timestamp,
+                    "equity": str(snapshot.equity),
+                    "pnl_records_captured": pnl_count,
+                },
+            }
+        
+        logger.warning(
+            "Account data capture incomplete",
+            extra={
+                "correlation_id": correlation_id,
+                "snapshot_success": snapshot is not None,
+                "pnl_count": pnl_count,
+            },
+        )
+        
+        return {
+            "statusCode": 206,  # Partial success
+            "body": {
+                "status": "partial_success",
+                "correlation_id": correlation_id,
+                "snapshot_success": snapshot is not None,
+                "pnl_records_captured": pnl_count,
+            },
+        }
+        
+    except Exception as e:
+        logger.error(
+            "Account data fetch failed",
+            extra={
+                "correlation_id": correlation_id,
+                "error": str(e),
+            },
+            exc_info=True,
+        )
+        
+        return {
+            "statusCode": 500,
+            "body": {
+                "status": "error",
+                "correlation_id": correlation_id,
+                "error": str(e),
+            },
+        }
 
 
 def _is_fetch_request_event(event: dict[str, Any]) -> bool:

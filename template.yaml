@@ -659,6 +659,70 @@ Resources:
         - Key: Service
           Value: iv-history
 
+  AccountSnapshotsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-snapshots"
+        - !Sub "alchemiser-${Stage}-account-snapshots"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: snapshot_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: snapshot_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: account-snapshots
+
+  PnLHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-pnl-history"
+        - !Sub "alchemiser-${Stage}-pnl-history"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: account_id
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: account_id
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: pnl-history
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -2228,6 +2292,8 @@ Resources:
           MARKET_DATA_BUCKET: !Ref MarketDataBucket
           FETCH_REQUESTS_TABLE: !Ref MarketDataFetchRequestsTable
           BAD_DATA_MARKERS_TABLE: !Ref BadDataMarkersTable
+          ACCOUNT_SNAPSHOTS_TABLE: !Ref AccountSnapshotsTable
+          PNL_HISTORY_TABLE: !Ref PnLHistoryTable
           FETCH_COOLDOWN_MINUTES: !Ref FetchCooldownMinutes
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
@@ -2284,6 +2350,23 @@ Resources:
                   - dynamodb:Scan
                 Resource:
                   - !GetAtt BadDataMarkersTable.Arn
+              # DynamoDB for account snapshots
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt AccountSnapshotsTable.Arn
+              # DynamoDB for P&L history
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt PnLHistoryTable.Arn
               # EventBridge for publishing completion events
               - Effect: Allow
                 Action:
@@ -2299,6 +2382,125 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
+
+  # ========== ACCOUNT DATA FETCHING SCHEDULES ==========
+  # Four schedules per day at 6-hour intervals
+  # Times in Eastern Time: 4am, 10am, 4pm, 10pm
+
+  AccountDataSchedule4AM:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data-4am"
+        - !Sub "alchemiser-${Stage}-account-data-4am"
+      Description: "Fetch account data at 4am ET (9am UTC)"
+      # cron(0 9 * * ? *) = 4am ET / 9am UTC
+      ScheduleExpression: "cron(0 9 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DataFunction.Arn
+          Id: AccountDataFetch4AM
+          Input: '{"fetch_type": "account_data", "schedule": "4am_et"}'
+          RoleArn: !GetAtt DataSchedulerRole.Arn
+
+  AccountDataSchedule10AM:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data-10am"
+        - !Sub "alchemiser-${Stage}-account-data-10am"
+      Description: "Fetch account data at 10am ET (3pm UTC)"
+      # cron(0 15 * * ? *) = 10am ET / 3pm UTC
+      ScheduleExpression: "cron(0 15 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DataFunction.Arn
+          Id: AccountDataFetch10AM
+          Input: '{"fetch_type": "account_data", "schedule": "10am_et"}'
+          RoleArn: !GetAtt DataSchedulerRole.Arn
+
+  AccountDataSchedule4PM:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data-4pm"
+        - !Sub "alchemiser-${Stage}-account-data-4pm"
+      Description: "Fetch account data at 4pm ET (9pm UTC)"
+      # cron(0 21 * * ? *) = 4pm ET / 9pm UTC
+      ScheduleExpression: "cron(0 21 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DataFunction.Arn
+          Id: AccountDataFetch4PM
+          Input: '{"fetch_type": "account_data", "schedule": "4pm_et"}'
+          RoleArn: !GetAtt DataSchedulerRole.Arn
+
+  AccountDataSchedule10PM:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data-10pm"
+        - !Sub "alchemiser-${Stage}-account-data-10pm"
+      Description: "Fetch account data at 10pm ET (3am UTC next day)"
+      # cron(0 3 * * ? *) = 10pm ET / 3am UTC
+      ScheduleExpression: "cron(0 3 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DataFunction.Arn
+          Id: AccountDataFetch10PM
+          Input: '{"fetch_type": "account_data", "schedule": "10pm_et"}'
+          RoleArn: !GetAtt DataSchedulerRole.Arn
+
+  # EventBridge permissions for scheduled invocations
+  DataSchedule4AMPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DataFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AccountDataSchedule4AM.Arn
+
+  DataSchedule10AMPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DataFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AccountDataSchedule10AM.Arn
+
+  DataSchedule4PMPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DataFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AccountDataSchedule4PM.Arn
+
+  DataSchedule10PMPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DataFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AccountDataSchedule10PM.Arn
+
+  # IAM role for EventBridge to invoke Data Lambda
+  DataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *scheduler-assume-role
+      Policies:
+        - PolicyName: InvokeDataFunction
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataFunction.Arn
 
   # REMOVED: Production fallback schedule (was at 3:50 PM ET Mon-Fri)
   # The fallback schedule was causing double runs when the dynamic schedule succeeded.
