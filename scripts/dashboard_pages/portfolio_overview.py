@@ -3,26 +3,16 @@
 
 Portfolio Overview page with enhanced metrics and per-symbol performance.
 
-IMPORTANT: Real-time Data Display
-----------------------------------
-This page displays real-time equity and today's P&L by fetching live account data
-from Alpaca's account API (equity and last_equity fields). This ensures the dashboard
-always shows current trading session data, even before the market closes.
-
-Historical data (equity curve, cumulative P&L) uses Alpaca's portfolio history API
-with deposit adjustments, cached for 5 minutes. Real-time account data is cached
-for 1 minute to provide near-instant updates during trading hours.
+Data is read from a DynamoDB single-table populated every 6 hours by the
+account_data Lambda.  The dashboard never calls Alpaca directly.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import _setup_imports  # noqa: F401
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from dotenv import load_dotenv
 
 from .components import (
     hero_metric,
@@ -33,22 +23,13 @@ from .components import (
 )
 from .styles import format_currency, format_percent, inject_styles
 
-# Load .env file
-env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_path)
-
-from alpaca.trading.client import TradingClient
-
-from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
-from the_alchemiser.shared.services.pnl_service import PnLService
+from . import data_access
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_pnl_data() -> pd.DataFrame:
-    """Load P&L data from Alpaca API with deposit adjustments."""
-    service = PnLService()
-    daily_records, _ = service.get_all_daily_records(period="1A")
+    """Load P&L data from DynamoDB (pre-computed by account_data Lambda)."""
+    daily_records = data_access.get_all_pnl_records()
 
     # Filter to active trading days only (equity > 0)
     active_records = [r for r in daily_records if r.equity > 0]
@@ -79,33 +60,23 @@ def load_pnl_data() -> pd.DataFrame:
 
     # Time-Weighted Return (TWR): compound daily returns to get true trading performance
     # This removes the effect of deposit timing - shows actual trading skill
-    # Formula: TWR = (1 + r1) × (1 + r2) × ... × (1 + rn) - 1
+    # Formula: TWR = (1 + r1) * (1 + r2) * ... * (1 + rn) - 1
     daily_returns_decimal = df["P&L (%)"] / 100  # Convert % to decimal
     df["Cumulative Return (%)"] = (((1 + daily_returns_decimal).cumprod() - 1) * 100).round(2)
 
     return df
 
 
-@st.cache_data(ttl=60)  # Cache for 1 minute (more frequent for real-time data)
-def load_realtime_account() -> dict[str, float]:
-    """Load real-time account data from Alpaca for current equity and today's P&L.
+@st.cache_data(ttl=300)  # Cache for 5 minutes (data refreshed by Lambda every 6h)
+def load_account_snapshot() -> dict[str, float]:
+    """Load latest account snapshot from DynamoDB.
 
     Returns:
         Dictionary with keys: current_equity, last_equity, today_pnl, today_pct
 
     """
     try:
-        api_key, secret_key, endpoint = get_alpaca_keys()
-        if not api_key or not secret_key:
-            st.error("Alpaca API keys not configured")
-            return {}
-
-        # Determine if paper trading based on endpoint
-        paper = bool(endpoint and "paper" in endpoint.lower()) if endpoint else True
-        trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
-        account_service = AlpacaAccountService(trading_client)
-        account_dict = account_service.get_account_dict()
-
+        account_dict = data_access.get_latest_account_data()
         if not account_dict:
             return {}
 
@@ -124,49 +95,31 @@ def load_realtime_account() -> dict[str, float]:
             "today_pct": today_pct,
         }
     except Exception as e:
-        st.error(f"Error loading real-time account data: {e}")
+        st.error(f"Error loading account snapshot: {e}")
         return {}
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_positions() -> pd.DataFrame:
-    """Load current positions from Alpaca."""
+    """Load current positions from DynamoDB."""
     try:
-        api_key, secret_key, endpoint = get_alpaca_keys()
-        if not api_key or not secret_key:
-            st.error("Alpaca API keys not configured")
-            return pd.DataFrame()
-
-        # Determine if paper trading based on endpoint
-        paper = bool(endpoint and "paper" in endpoint.lower()) if endpoint else True
-        trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
-        account_service = AlpacaAccountService(trading_client)
-        positions = account_service.get_positions()
+        positions = data_access.get_latest_positions()
 
         if not positions:
             return pd.DataFrame()
 
         rows = []
         for pos in positions:
-            market_value = float(pos.market_value) if pos.market_value else 0.0
-            cost_basis = float(pos.cost_basis) if pos.cost_basis else 0.0
-            unrealized_pl = float(pos.unrealized_pl) if pos.unrealized_pl else 0.0
-            unrealized_plpc = float(pos.unrealized_plpc) if pos.unrealized_plpc else 0.0
-
             rows.append(
                 {
                     "Symbol": pos.symbol,
                     "Qty": float(pos.qty),
-                    "Avg Entry": f"${float(pos.avg_entry_price):.2f}"
-                    if pos.avg_entry_price
-                    else "N/A",
-                    "Current Price": f"${float(pos.current_price):.2f}"
-                    if pos.current_price
-                    else "N/A",
-                    "Market Value": market_value,
-                    "Cost Basis": cost_basis,
-                    "Unrealized P&L": unrealized_pl,
-                    "Unrealized P&L %": unrealized_plpc * 100,
+                    "Avg Entry": f"${float(pos.avg_entry_price):.2f}",
+                    "Current Price": f"${float(pos.current_price):.2f}",
+                    "Market Value": float(pos.market_value),
+                    "Cost Basis": float(pos.cost_basis),
+                    "Unrealized P&L": float(pos.unrealized_pl),
+                    "Unrealized P&L %": float(pos.unrealized_plpc) * 100,
                 }
             )
 
@@ -284,20 +237,20 @@ def show() -> None:
         st.error(f"Failed to load data from Alpaca: {e}")
         return
 
-    # Load real-time account data for current equity and today's P&L
-    realtime = load_realtime_account()
+    # Load account snapshot for current equity and today's P&L
+    snapshot = load_account_snapshot()
 
     # Calculate key metrics
-    # Use real-time equity if available, fallback to historical
-    current_equity = realtime.get("current_equity", df["Equity"].iloc[-1])
+    # Use snapshot equity if available, fallback to historical
+    current_equity = snapshot.get("current_equity", df["Equity"].iloc[-1])
     total_pnl = df["Cumulative P&L"].iloc[-1]
     total_return = df["Cumulative Return (%)"].iloc[-1]  # This is TWR
     total_deposits = df["Deposits"].sum()
 
-    # Use real-time today's P&L if available, fallback to historical
-    if realtime:
-        today_pnl = realtime.get("today_pnl", df["P&L ($)"].iloc[-1])
-        today_pct = realtime.get("today_pct", df["P&L (%)"].iloc[-1])
+    # Use snapshot today's P&L if available, fallback to historical
+    if snapshot:
+        today_pnl = snapshot.get("today_pnl", df["P&L ($)"].iloc[-1])
+        today_pct = snapshot.get("today_pct", df["P&L (%)"].iloc[-1])
     else:
         today_pnl = df["P&L ($)"].iloc[-1]
         today_pct = df["P&L (%)"].iloc[-1]
@@ -580,9 +533,10 @@ def show() -> None:
     with st.expander("View Raw Data"):
         st.dataframe(df, width="stretch")
 
-    # Footer
+    # Footer with data freshness
+    last_updated = data_access.get_data_last_updated()
+    freshness = f" Last updated: {last_updated}." if last_updated else ""
     st.caption(
-        "Historical data from Alpaca API (deposit-adjusted). "
-        "Current equity and today's P&L are real-time (cached 1 min). "
-        "Historical cache refreshes every 5 minutes."
+        f"Data sourced from DynamoDB (refreshed every 6 hours by account_data Lambda)."
+        f"{freshness} Dashboard cache: 5 minutes."
     )

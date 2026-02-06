@@ -6,8 +6,6 @@ Symbol Analytics page with detailed per-symbol performance metrics.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 import _setup_imports  # noqa: F401
@@ -16,7 +14,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from boto3.dynamodb.conditions import Attr
-from dotenv import load_dotenv
 
 from dashboard_settings import get_dashboard_settings
 
@@ -30,14 +27,7 @@ from .components import (
 )
 from .styles import format_currency, format_percent, get_colors, inject_styles
 
-# Load .env file
-env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_path)
-
-from alpaca.trading.client import TradingClient
-
-from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
+from . import data_access
 
 
 @st.cache_data(ttl=60)
@@ -133,32 +123,23 @@ def get_symbol_trades(symbol: str) -> list[dict[str, Any]]:
         return []
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def get_current_position(symbol: str) -> dict | None:
-    """Get current position for a symbol."""
+    """Get current position for a symbol from DynamoDB."""
     try:
-        api_key, secret_key, endpoint = get_alpaca_keys()
-        if not api_key or not secret_key:
-            st.error("Alpaca API keys not configured")
-            return None
-        
-        # Determine if paper trading based on endpoint
-        paper = endpoint and "paper" in endpoint.lower() if endpoint else True
-        trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
-        account_service = AlpacaAccountService(trading_client)
-        positions = account_service.get_positions()
+        positions = data_access.get_latest_positions()
 
         for pos in positions:
             if pos.symbol == symbol:
                 return {
                     "symbol": pos.symbol,
                     "qty": float(pos.qty),
-                    "avg_entry_price": float(pos.avg_entry_price) if pos.avg_entry_price else 0.0,
-                    "current_price": float(pos.current_price) if pos.current_price else 0.0,
-                    "market_value": float(pos.market_value) if pos.market_value else 0.0,
-                    "cost_basis": float(pos.cost_basis) if pos.cost_basis else 0.0,
-                    "unrealized_pl": float(pos.unrealized_pl) if pos.unrealized_pl else 0.0,
-                    "unrealized_plpc": float(pos.unrealized_plpc) if pos.unrealized_plpc else 0.0,
+                    "avg_entry_price": float(pos.avg_entry_price),
+                    "current_price": float(pos.current_price),
+                    "market_value": float(pos.market_value),
+                    "cost_basis": float(pos.cost_basis),
+                    "unrealized_pl": float(pos.unrealized_pl),
+                    "unrealized_plpc": float(pos.unrealized_plpc),
                 }
 
         return None
