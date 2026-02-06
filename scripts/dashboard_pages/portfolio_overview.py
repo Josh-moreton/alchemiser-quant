@@ -6,7 +6,6 @@ Portfolio Overview page with enhanced metrics and per-symbol performance.
 
 from __future__ import annotations
 
-from decimal import Decimal
 from pathlib import Path
 
 import _setup_imports  # noqa: F401
@@ -22,7 +21,7 @@ from .components import (
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, format_percent, get_colors, inject_styles
+from .styles import format_currency, format_percent, inject_styles
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
@@ -50,14 +49,16 @@ def load_pnl_data() -> pd.DataFrame:
     # Convert to DataFrame
     rows = []
     for rec in active_records:
-        rows.append({
-            "Date": pd.to_datetime(rec.date),
-            "Equity": float(rec.equity),
-            "P&L ($)": float(rec.profit_loss),
-            "P&L (%)": float(rec.profit_loss_pct),
-            "Deposits": float(rec.deposit) if rec.deposit else 0.0,
-            "Withdrawals": float(rec.withdrawal) if rec.withdrawal else 0.0,
-        })
+        rows.append(
+            {
+                "Date": pd.to_datetime(rec.date),
+                "Equity": float(rec.equity),
+                "P&L ($)": float(rec.profit_loss),
+                "P&L (%)": float(rec.profit_loss_pct),
+                "Deposits": float(rec.deposit) if rec.deposit else 0.0,
+                "Withdrawals": float(rec.withdrawal) if rec.withdrawal else 0.0,
+            }
+        )
 
     df = pd.DataFrame(rows)
     df = df.sort_values("Date").reset_index(drop=True)
@@ -70,11 +71,51 @@ def load_pnl_data() -> pd.DataFrame:
     # This removes the effect of deposit timing - shows actual trading skill
     # Formula: TWR = (1 + r1) × (1 + r2) × ... × (1 + rn) - 1
     daily_returns_decimal = df["P&L (%)"] / 100  # Convert % to decimal
-    df["Cumulative Return (%)"] = (
-        ((1 + daily_returns_decimal).cumprod() - 1) * 100
-    ).round(2)
+    df["Cumulative Return (%)"] = (((1 + daily_returns_decimal).cumprod() - 1) * 100).round(2)
 
     return df
+
+
+@st.cache_data(ttl=60)  # Cache for 1 minute (more frequent for real-time data)
+def load_realtime_account() -> dict[str, float]:
+    """Load real-time account data from Alpaca for current equity and today's P&L.
+
+    Returns:
+        Dictionary with keys: current_equity, last_equity, today_pnl, today_pct
+
+    """
+    try:
+        api_key, secret_key, endpoint = get_alpaca_keys()
+        if not api_key or not secret_key:
+            st.error("Alpaca API keys not configured")
+            return {}
+
+        # Determine if paper trading based on endpoint
+        paper = bool(endpoint and "paper" in endpoint.lower()) if endpoint else True
+        trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
+        account_service = AlpacaAccountService(trading_client)
+        account_dict = account_service.get_account_dict()
+
+        if not account_dict:
+            return {}
+
+        # Extract equity values
+        current_equity = float(account_dict.get("equity", 0))
+        last_equity = float(account_dict.get("last_equity", 0))
+
+        # Calculate today's P&L
+        today_pnl = current_equity - last_equity
+        today_pct = (today_pnl / last_equity * 100) if last_equity > 0 else 0.0
+
+        return {
+            "current_equity": current_equity,
+            "last_equity": last_equity,
+            "today_pnl": today_pnl,
+            "today_pct": today_pct,
+        }
+    except Exception as e:
+        st.error(f"Error loading real-time account data: {e}")
+        return {}
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -85,9 +126,9 @@ def load_positions() -> pd.DataFrame:
         if not api_key or not secret_key:
             st.error("Alpaca API keys not configured")
             return pd.DataFrame()
-        
+
         # Determine if paper trading based on endpoint
-        paper = endpoint and "paper" in endpoint.lower() if endpoint else True
+        paper = bool(endpoint and "paper" in endpoint.lower()) if endpoint else True
         trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
         account_service = AlpacaAccountService(trading_client)
         positions = account_service.get_positions()
@@ -102,16 +143,22 @@ def load_positions() -> pd.DataFrame:
             unrealized_pl = float(pos.unrealized_pl) if pos.unrealized_pl else 0.0
             unrealized_plpc = float(pos.unrealized_plpc) if pos.unrealized_plpc else 0.0
 
-            rows.append({
-                "Symbol": pos.symbol,
-                "Qty": float(pos.qty),
-                "Avg Entry": f"${float(pos.avg_entry_price):.2f}" if pos.avg_entry_price else "N/A",
-                "Current Price": f"${float(pos.current_price):.2f}" if pos.current_price else "N/A",
-                "Market Value": market_value,
-                "Cost Basis": cost_basis,
-                "Unrealized P&L": unrealized_pl,
-                "Unrealized P&L %": unrealized_plpc * 100,
-            })
+            rows.append(
+                {
+                    "Symbol": pos.symbol,
+                    "Qty": float(pos.qty),
+                    "Avg Entry": f"${float(pos.avg_entry_price):.2f}"
+                    if pos.avg_entry_price
+                    else "N/A",
+                    "Current Price": f"${float(pos.current_price):.2f}"
+                    if pos.current_price
+                    else "N/A",
+                    "Market Value": market_value,
+                    "Cost Basis": cost_basis,
+                    "Unrealized P&L": unrealized_pl,
+                    "Unrealized P&L %": unrealized_plpc * 100,
+                }
+            )
 
         return pd.DataFrame(rows).sort_values("Market Value", ascending=False)
     except Exception as e:
@@ -121,32 +168,33 @@ def load_positions() -> pd.DataFrame:
 
 def calculate_period_metrics(df: pd.DataFrame, months: int) -> dict[str, float] | None:
     """Calculate performance metrics for a specific period.
-    
+
     Args:
         df: DataFrame with Date, P&L ($), P&L (%) columns
         months: Number of months to look back (1, 3, or 6)
-    
+
     Returns:
         Dict with period_pnl, period_return, annualized_return or None if insufficient data
+
     """
     if df.empty:
         return None
-    
+
     last_date = df["Date"].iloc[-1]
     cutoff_date = last_date - pd.DateOffset(months=months)
-    
+
     period_df = df[df["Date"] > cutoff_date]
-    
+
     if period_df.empty or len(period_df) < 2:
         return None
-    
+
     # Total P&L for the period
     period_pnl = period_df["P&L ($)"].sum()
-    
+
     # TWR for the period (compound daily returns)
     daily_returns_decimal = period_df["P&L (%)"] / 100
     period_twr = ((1 + daily_returns_decimal).prod() - 1) * 100
-    
+
     # Annualize the return
     days_in_period = (period_df["Date"].iloc[-1] - period_df["Date"].iloc[0]).days
     if days_in_period > 0:
@@ -158,7 +206,7 @@ def calculate_period_metrics(df: pd.DataFrame, months: int) -> dict[str, float] 
             annualized = -100.0
     else:
         annualized = 0.0
-    
+
     return {
         "period_pnl": period_pnl,
         "period_return": period_twr,
@@ -181,7 +229,7 @@ def calculate_risk_metrics(df: pd.DataFrame) -> dict[str, float]:
     avg_return = daily_returns.mean()
     std_return = daily_returns.std()
     if std_return > 0:
-        metrics["Sharpe Ratio"] = (avg_return / std_return) * (252 ** 0.5)
+        metrics["Sharpe Ratio"] = (avg_return / std_return) * (252**0.5)
     else:
         metrics["Sharpe Ratio"] = 0.0
 
@@ -192,7 +240,7 @@ def calculate_risk_metrics(df: pd.DataFrame) -> dict[str, float]:
     metrics["Max Drawdown"] = drawdown.min() * 100  # Convert to percentage
 
     # Volatility (annualized)
-    metrics["Volatility"] = std_return * (252 ** 0.5) * 100  # Convert to percentage
+    metrics["Volatility"] = std_return * (252**0.5) * 100  # Convert to percentage
 
     # Win rate
     winning_days = (daily_returns > 0).sum()
@@ -226,13 +274,23 @@ def show() -> None:
         st.error(f"Failed to load data from Alpaca: {e}")
         return
 
+    # Load real-time account data for current equity and today's P&L
+    realtime = load_realtime_account()
+
     # Calculate key metrics
-    current_equity = df["Equity"].iloc[-1]
+    # Use real-time equity if available, fallback to historical
+    current_equity = realtime.get("current_equity", df["Equity"].iloc[-1])
     total_pnl = df["Cumulative P&L"].iloc[-1]
     total_return = df["Cumulative Return (%)"].iloc[-1]  # This is TWR
     total_deposits = df["Deposits"].sum()
-    today_pnl = df["P&L ($)"].iloc[-1]
-    today_pct = df["P&L (%)"].iloc[-1]
+
+    # Use real-time today's P&L if available, fallback to historical
+    if realtime:
+        today_pnl = realtime.get("today_pnl", df["P&L ($)"].iloc[-1])
+        today_pct = realtime.get("today_pct", df["P&L (%)"].iloc[-1])
+    else:
+        today_pnl = df["P&L ($)"].iloc[-1]
+        today_pct = df["P&L (%)"].iloc[-1]
 
     # Calculate annualized TWR (CAGR) for forward projection
     first_date = df["Date"].iloc[0]
@@ -257,56 +315,62 @@ def show() -> None:
     # =========================================================================
     # KEY METRICS ROW (3 columns)
     # =========================================================================
-    metric_row([
-        {
-            "label": "Total P&L",
-            "value": format_currency(total_pnl, include_sign=True),
-            "delta": format_percent(total_return, include_sign=True),
-            "delta_positive": total_pnl > 0,
-            "accent": True,
-        },
-        {
-            "label": "Today's P&L",
-            "value": format_currency(today_pnl, include_sign=True),
-            "delta": format_percent(today_pct, include_sign=True),
-            "delta_positive": today_pnl > 0,
-        },
-        {
-            "label": "Annualized Return",
-            "value": format_percent(annualized_return, include_sign=True),
-            "delta_positive": annualized_return > 0,
-        },
-    ])
+    metric_row(
+        [
+            {
+                "label": "Total P&L",
+                "value": format_currency(total_pnl, include_sign=True),
+                "delta": format_percent(total_return, include_sign=True),
+                "delta_positive": total_pnl > 0,
+                "accent": True,
+            },
+            {
+                "label": "Today's P&L",
+                "value": format_currency(today_pnl, include_sign=True),
+                "delta": format_percent(today_pct, include_sign=True),
+                "delta_positive": today_pnl > 0,
+            },
+            {
+                "label": "Annualized Return",
+                "value": format_percent(annualized_return, include_sign=True),
+                "delta_positive": annualized_return > 0,
+            },
+        ]
+    )
 
     # =========================================================================
     # PERIOD PERFORMANCE (1M, 3M, 6M)
     # =========================================================================
     section_header("Period Performance")
-    
+
     period_configs = [
         (1, "1 Month"),
         (3, "3 Month"),
         (6, "6 Month"),
     ]
-    
+
     period_metrics_list = []
     for months, label in period_configs:
         metrics = calculate_period_metrics(df, months)
         if metrics:
-            period_metrics_list.append({
-                "label": label,
-                "value": format_currency(metrics["period_pnl"], include_sign=True),
-                "delta": f"{format_percent(metrics['period_return'], include_sign=True)} ({format_percent(metrics['annualized_return'], include_sign=True)} ann.)",
-                "delta_positive": metrics["period_pnl"] > 0,
-            })
+            period_metrics_list.append(
+                {
+                    "label": label,
+                    "value": format_currency(metrics["period_pnl"], include_sign=True),
+                    "delta": f"{format_percent(metrics['period_return'], include_sign=True)} ({format_percent(metrics['annualized_return'], include_sign=True)} ann.)",
+                    "delta_positive": metrics["period_pnl"] > 0,
+                }
+            )
         else:
-            period_metrics_list.append({
-                "label": label,
-                "value": "N/A",
-                "delta": "Insufficient data",
-                "delta_positive": True,
-            })
-    
+            period_metrics_list.append(
+                {
+                    "label": label,
+                    "value": "N/A",
+                    "delta": "Insufficient data",
+                    "delta_positive": True,
+                }
+            )
+
     metric_row(period_metrics_list)
 
     # =========================================================================
@@ -345,14 +409,16 @@ def show() -> None:
     with col_chart:
         st.subheader("Equity Curve")
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df["Date"],
-            y=df["Equity"],
-            mode="lines",
-            name="Equity",
-            line=dict(color="#7CF5D4", width=2),
-            hovertemplate="Date: %{x|%b %d, %Y}<br>Equity: $%{y:,.0f}<extra></extra>",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=df["Date"],
+                y=df["Equity"],
+                mode="lines",
+                name="Equity",
+                line=dict(color="#7CF5D4", width=2),
+                hovertemplate="Date: %{x|%b %d, %Y}<br>Equity: $%{y:,.0f}<extra></extra>",
+            )
+        )
         fig.update_layout(
             height=300,
             margin=dict(l=0, r=0, t=10, b=0),
@@ -368,7 +434,9 @@ def show() -> None:
 
         if not positions_df.empty:
             # Compact display for sidebar
-            display_df = positions_df[["Symbol", "Qty", "Unrealized P&L", "Unrealized P&L %"]].copy()
+            display_df = positions_df[
+                ["Symbol", "Qty", "Unrealized P&L", "Unrealized P&L %"]
+            ].copy()
             styled_dataframe(
                 display_df,
                 formats={
@@ -395,12 +463,14 @@ def show() -> None:
     section_header("Daily P&L")
     colors = ["#4CAF50" if v >= 0 else "#F44336" for v in df["P&L ($)"]]
     fig_pnl = go.Figure()
-    fig_pnl.add_trace(go.Bar(
-        x=df["Date"],
-        y=df["P&L ($)"],
-        marker_color=colors,
-        hovertemplate="Date: %{x|%b %d, %Y}<br>P&L: $%{y:+,.2f}<extra></extra>",
-    ))
+    fig_pnl.add_trace(
+        go.Bar(
+            x=df["Date"],
+            y=df["P&L ($)"],
+            marker_color=colors,
+            hovertemplate="Date: %{x|%b %d, %Y}<br>P&L: $%{y:+,.2f}<extra></extra>",
+        )
+    )
     fig_pnl.update_layout(
         height=300,
         margin=dict(l=0, r=0, t=10, b=0),
@@ -417,14 +487,16 @@ def show() -> None:
     section_header("Cumulative P&L")
     cum_color = "#4CAF50" if df["Cumulative P&L"].iloc[-1] >= 0 else "#F44336"
     fig_cum = go.Figure()
-    fig_cum.add_trace(go.Scatter(
-        x=df["Date"],
-        y=df["Cumulative P&L"],
-        mode="lines",
-        fill="tozeroy",
-        line=dict(color=cum_color, width=2),
-        hovertemplate="Date: %{x|%b %d, %Y}<br>Cumulative P&L: $%{y:+,.0f}<extra></extra>",
-    ))
+    fig_cum.add_trace(
+        go.Scatter(
+            x=df["Date"],
+            y=df["Cumulative P&L"],
+            mode="lines",
+            fill="tozeroy",
+            line=dict(color=cum_color, width=2),
+            hovertemplate="Date: %{x|%b %d, %Y}<br>Cumulative P&L: $%{y:+,.0f}<extra></extra>",
+        )
+    )
     fig_cum.update_layout(
         height=300,
         margin=dict(l=0, r=0, t=10, b=0),
@@ -442,11 +514,13 @@ def show() -> None:
         df["Month"] = df["Date"].dt.to_period("M").astype(str)
         monthly = (
             df.groupby("Month")
-            .agg({
-                "P&L ($)": "sum",
-                "Equity": "last",
-                "Deposits": "sum",
-            })
+            .agg(
+                {
+                    "P&L ($)": "sum",
+                    "Equity": "last",
+                    "Deposits": "sum",
+                }
+            )
             .round(2)
         )
         monthly.columns = ["P&L ($)", "End Equity", "Deposits"]
@@ -498,6 +572,7 @@ def show() -> None:
 
     # Footer
     st.caption(
-        "Data from Alpaca API (deposit-adjusted). "
-        "Cache refreshes every 5 minutes."
+        "Historical data from Alpaca API (deposit-adjusted). "
+        "Current equity and today's P&L are real-time (cached 1 min). "
+        "Historical cache refreshes every 5 minutes."
     )
