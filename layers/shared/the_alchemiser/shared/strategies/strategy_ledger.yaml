@@ -781,11 +781,11 @@ what_have_i_done:
   - QQQ
   - SPY
   - TLT
-fomo_nono:
-  strategy_name: fomo_nono
+fomo_nomo:
+  strategy_name: fomo_nomo
   display_name: FOMO NOMO - No Leverage
   source_url: https://app.composer.trade/symphony/LswHzgx3rfhNavmGtxur/details
-  filename: fomo_nono.clj
+  filename: fomo_nomo.clj
   date_updated: '2026-01-31'
   assets:
   - AA
