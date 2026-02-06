@@ -37,8 +37,10 @@ class AccountDataReader:
 
     Invariants:
         - Never writes to DynamoDB.
-        - Returns typed DTOs (AccountSummary, PositionSnapshot, DailyPnLEntry).
-        - Returns empty collections (not None) when no data is found.
+        - Account snapshots are returned as raw dicts (same shape as AlpacaAccountService.get_account_dict)
+          or None when no snapshot exists.
+        - Position and PnL reads return typed DTOs (PositionSnapshot, DailyPnLEntry) and use empty
+          collections (not None) when no data is found.
     """
 
     # ------------------------------------------------------------------
