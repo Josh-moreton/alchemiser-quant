@@ -90,7 +90,7 @@ FIX_VALIDATION_SUMMARY.md
 response.json
 
 # Validation and strategy output files (generated, not source)
-validation_results/*.csv
+validation_results/*
 validation_results/*.json
 strategy_results/*.csv
 strategy_results/.DS_Store

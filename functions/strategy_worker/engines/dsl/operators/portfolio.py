@@ -361,6 +361,7 @@ def _log_score_proximity(
     scored: list[tuple[str, float]],
     limit: int | None,
     context: DslContext,
+    condition_expr: ASTNode | None = None,
 ) -> None:
     """Log warning when top candidates have very close scores.
 
@@ -372,12 +373,15 @@ def _log_score_proximity(
         scored: Sorted list of (candidate_id, score) tuples
         limit: How many items are being selected
         context: DSL evaluation context for logging
+        condition_expr: Optional AST node for the filter condition (indicator)
 
     """
     if limit is None or limit <= 0 or limit >= len(scored):
         return
 
+    last_selected_sym = scored[limit - 1][0]
     last_selected_score = scored[limit - 1][1]
+    first_rejected_sym = scored[limit][0]
     first_rejected_score = scored[limit][1]
 
     score_range = abs(scored[0][1] - scored[-1][1]) if len(scored) > 1 else 1.0
@@ -388,19 +392,26 @@ def _log_score_proximity(
     relative_gap = gap / score_range
 
     if relative_gap < SCORE_PROXIMITY_THRESHOLD_PCT:
+        # Extract indicator name from condition expression
+        indicator = "unknown"
+        if condition_expr and condition_expr.is_list() and condition_expr.children:
+            head = condition_expr.children[0]
+            indicator = head.get_symbol_name() or "unknown"
+
+        all_symbols = [sym for sym, _ in scored]
         logger.warning(
-            "DSL filter: FRAGILE RANKING - score gap at selection boundary is < 1%% of range. "
-            "Ranking may diverge from Composer due to minor indicator differences. "
-            "Last selected: %s (score=%.6f), first rejected: %s (score=%.6f), "
-            "gap=%.6f, range=%.6f, relative_gap=%.4f",
-            scored[limit - 1][0],
-            last_selected_score,
-            scored[limit][0],
-            first_rejected_score,
-            gap,
-            score_range,
-            relative_gap,
-            extra={"correlation_id": context.correlation_id},
+            "FRAGILE RANKING: score gap at boundary < 1%% of range, may diverge from Composer",
+            strategy=context.trace.strategy_id,
+            indicator=indicator,
+            last_selected=last_selected_sym,
+            last_selected_score=round(last_selected_score, 6),
+            first_rejected=first_rejected_sym,
+            first_rejected_score=round(first_rejected_score, 6),
+            gap=round(gap, 6),
+            score_range=round(score_range, 6),
+            relative_gap=round(relative_gap, 4),
+            all_candidates=all_symbols,
+            correlation_id=context.correlation_id,
         )
 
 
@@ -408,6 +419,7 @@ def _log_portfolio_score_proximity(
     scored: list[tuple[PortfolioFragment, float]],
     limit: int | None,
     context: DslContext,
+    condition_expr: ASTNode | None = None,
 ) -> None:
     """Log warning when portfolio scores near the selection boundary are close.
 
@@ -418,6 +430,7 @@ def _log_portfolio_score_proximity(
         scored: Sorted list of (portfolio, score) tuples
         limit: How many portfolios are being selected
         context: DSL evaluation context for logging
+        condition_expr: Optional AST node for the filter condition (indicator)
 
     """
     if limit is None or limit <= 0 or limit >= len(scored):
@@ -436,19 +449,25 @@ def _log_portfolio_score_proximity(
     if relative_gap < SCORE_PROXIMITY_THRESHOLD_PCT:
         last_name = scored[limit - 1][0].metadata.get("group_name", "unnamed")
         next_name = scored[limit][0].metadata.get("group_name", "unnamed")
+
+        # Extract indicator name from condition expression
+        indicator = "unknown"
+        if condition_expr and condition_expr.is_list() and condition_expr.children:
+            head = condition_expr.children[0]
+            indicator = head.get_symbol_name() or "unknown"
+
         logger.warning(
-            "DSL filter: FRAGILE PORTFOLIO RANKING - score gap at selection boundary "
-            "is < 1%% of range. Portfolio ranking may diverge from Composer. "
-            "Last selected: %s (score=%.6f), first rejected: %s (score=%.6f), "
-            "gap=%.6f, range=%.6f, relative_gap=%.4f",
-            last_name,
-            last_selected_score,
-            next_name,
-            first_rejected_score,
-            gap,
-            score_range,
-            relative_gap,
-            extra={"correlation_id": context.correlation_id},
+            "FRAGILE PORTFOLIO RANKING: score gap at boundary < 1%% of range, may diverge from Composer",
+            strategy=context.trace.strategy_id,
+            indicator=indicator,
+            last_selected=last_name,
+            last_selected_score=round(last_selected_score, 6),
+            first_rejected=next_name,
+            first_rejected_score=round(first_rejected_score, 6),
+            gap=round(gap, 6),
+            score_range=round(score_range, 6),
+            relative_gap=round(relative_gap, 4),
+            correlation_id=context.correlation_id,
         )
 
 
