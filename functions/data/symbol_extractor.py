@@ -9,6 +9,7 @@ referenced in asset declarations and indicator functions.
 from __future__ import annotations
 
 import json
+import os
 import re
 from importlib import resources as importlib_resources
 from pathlib import Path
@@ -193,16 +194,45 @@ def extract_symbols_from_config(
     return all_symbols
 
 
-def get_all_configured_symbols() -> set[str]:
-    """Get all symbols from both dev and prod strategy configurations.
+def _get_config_filename_for_stage(stage: str) -> str:
+    """Map deployment stage to strategy config filename.
+
+    Args:
+        stage: Deployment stage (prod, staging, dev)
+
+    Returns:
+        Config filename for the given stage
+
+    """
+    if stage == "prod":
+        return "strategy.prod.json"
+    return "strategy.dev.json"
+
+
+def get_all_configured_symbols(stage: str | None = None) -> set[str]:
+    """Get all symbols from the strategy configuration for the current stage.
+
+    Reads APP__STAGE to determine which config to load so that each
+    environment only refreshes symbols it actually trades.
 
     Uses importlib.resources to locate files in the shared Lambda layer.
 
+    Args:
+        stage: Explicit stage override. When None, reads APP__STAGE
+               (defaults to "dev").
+
     Returns:
-        Set of all unique ticker symbols across all configured strategies
+        Set of all unique ticker symbols across configured strategies
 
     """
-    all_symbols: set[str] = set()
+    resolved_stage = (stage or os.environ.get("APP__STAGE", "dev")).lower()
+    config_name = _get_config_filename_for_stage(resolved_stage)
+
+    logger.info(
+        "Resolving symbols for stage",
+        stage=resolved_stage,
+        config=config_name,
+    )
 
     # Get paths using importlib.resources
     config_package = "the_alchemiser.shared.config"
@@ -224,46 +254,31 @@ def get_all_configured_symbols() -> set[str]:
             f"Cannot locate shared layer packages ({config_package}, {strategies_package}): {e}"
         ) from e
 
-    # Process both dev and prod configs
-    configs_processed = 0
-    config_errors: list[str] = []
+    config_file = config_path / config_name
+    try:
+        if not config_file.is_file():
+            raise FileNotFoundError(f"Strategy config not found: {config_name} at {config_file}")
 
-    for config_name in ["strategy.dev.json", "strategy.prod.json"]:
-        config_file = config_path / config_name
-        try:
-            if config_file.is_file():
-                symbols = extract_symbols_from_config(config_file, strategies_path)
-                all_symbols.update(symbols)
-                configs_processed += 1
-                logger.info(
-                    "Processed config file",
-                    config=config_name,
-                    total_symbols=len(symbols),
-                )
-            else:
-                # Log as error but continue - at least one config should exist
-                error_msg = f"Config file not found: {config_name} at {config_file}"
-                config_errors.append(error_msg)
-                logger.error(
-                    "Config file not found",
-                    config=config_name,
-                    path=str(config_file),
-                )
-        except Exception as e:
-            # Fail loudly on config processing errors
-            logger.error(
-                "Failed to process config file",
-                config=config_name,
-                error=str(e),
-            )
-            raise RuntimeError(f"Failed to process config file {config_name}: {e}") from e
-
-    # Ensure at least one config was processed successfully
-    if configs_processed == 0:
-        raise RuntimeError(f"No strategy config files found. Errors: {'; '.join(config_errors)}")
+        all_symbols = extract_symbols_from_config(config_file, strategies_path)
+        logger.info(
+            "Processed config file",
+            config=config_name,
+            stage=resolved_stage,
+            total_symbols=len(all_symbols),
+        )
+    except FileNotFoundError:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to process config file",
+            config=config_name,
+            error=str(e),
+        )
+        raise RuntimeError(f"Failed to process config file {config_name}: {e}") from e
 
     logger.info(
         "Total unique symbols extracted",
+        stage=resolved_stage,
         total=len(all_symbols),
         symbols=sorted(all_symbols),
     )
