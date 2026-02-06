@@ -78,7 +78,8 @@ Fetches historical bars from Alpaca API and stores in S3.
 |----------|------|---------|
 | Overnight refresh | 4 AM UTC | Full historical backfill to S3 |
 | Post-close refresh | 4:05 PM ET | Add today's completed daily bar to S3 |
-| Strategy execution | 4:10 PM ET | Run strategies using completed bars |
+| Strategy orchestrator | ~3:45 PM ET | Run strategies (scheduled by Schedule Manager, 15 min before close) |
+| Local signal generation | 4:30 PM ET | Generate signals locally for validation (launchd) |
 
 ## File Structure
 

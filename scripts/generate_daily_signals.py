@@ -229,6 +229,8 @@ def generate_signals_for_stage(
         writer.writeheader()
 
         for i, (dsl_file, _allocation) in enumerate(strategies.items(), 1):
+            # _allocation is the weight from strategy config, not used here
+            # since we output raw (unscaled) strategy signals for validation
             strategy_name = dsl_file.replace(".clj", "")
 
             logger.info(

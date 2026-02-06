@@ -431,9 +431,15 @@ def _get_strategies_path() -> Path:
         # importlib.resources.files() may return a MultiplexedPath on Lambda
         # when multiple package sources contribute to the namespace (layer + function).
         # MultiplexedPath's str() returns "MultiplexedPath('...')" not the actual path.
-        # Extract the first underlying path from _paths attribute.
-        if hasattr(result, "_paths") and result._paths:
-            return Path(result._paths[0])
+        #
+        # Workaround: Access the private _paths attribute to get the underlying paths.
+        # This is necessary for Python 3.11+ importlib.resources on AWS Lambda.
+        # If the internal API changes in future Python versions, this will raise
+        # AttributeError and fall through to the fallback path.
+        if hasattr(result, "_paths"):
+            paths = getattr(result, "_paths", None)
+            if paths and len(paths) > 0:
+                return Path(paths[0])
         # Fallback: if it's already a Path-like, use it directly
         return Path(result)  # type: ignore[arg-type]
     except (ModuleNotFoundError, AttributeError):

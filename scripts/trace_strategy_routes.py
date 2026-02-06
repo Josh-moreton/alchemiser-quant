@@ -265,7 +265,9 @@ def _make_historical_market_data_adapter(as_of_date: date):
             if df.empty:
                 return []
 
-            # Filter to bars up to and including the cutoff date
+            # Filter to bars up to and including the cutoff date.
+            # This includes the cutoff date's bar (T-0 semantics), which is correct
+            # for post-market-close evaluation when today's completed bar is available.
             cutoff_datetime = pd.Timestamp(self.cutoff_date, tz=timezone.utc)
             if df.index.tz is None:
                 df.index = df.index.tz_localize(timezone.utc)

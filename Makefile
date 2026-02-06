@@ -311,15 +311,15 @@ rebalance-weights:
 validate-signals:
 	@echo "Validating signals against Composer.trade..."
 	@ARGS="--shifted"; \
-	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage '$(stage)'"; else ARGS="$$ARGS --stage dev"; fi; \
 	if [ "$(fresh)" = "1" ]; then ARGS="$$ARGS --fresh"; fi; \
-	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id $(session)"; fi; \
+	if [ -n "$(session)" ]; then ARGS="$$ARGS --session-id '$(session)'"; fi; \
 	if [ "$(dynamo)" = "1" ]; then ARGS="$$ARGS --dynamo"; fi; \
 	poetry run python scripts/validation/validate_signals.py $$ARGS
 
-# Generate daily strategy signals locally (runs DSL engine with live bar injection)
+# Generate daily strategy signals locally (runs DSL engine using completed daily bars from S3)
 # Outputs CSV to validation_results/local_signals/ for use by validate-signals
-# Run at or after market close (4 PM ET). Scheduled daily at 9 PM via launchd.
+# Run at or after market close (4 PM ET). Scheduled daily at 4:30 PM via launchd.
 # Usage: make generate-signals                    # Both dev + prod
 #        make generate-signals stage=dev          # Dev only
 #        make generate-signals stage=prod         # Prod only
@@ -330,7 +330,7 @@ generate-signals:
 	poetry run python scripts/generate_daily_signals.py $$ARGS
 
 # Install/uninstall the daily signal generation scheduler (macOS launchd)
-# The plist runs generate_daily_signals.py at 9 PM Mon-Fri
+# The plist runs generate_daily_signals.py at 4:30 PM Mon-Fri
 install-scheduler:
 	@echo "Installing daily signal generation scheduler..."
 	@PLIST_SRC="scripts/com.alchemiser.daily-signals.plist"; \

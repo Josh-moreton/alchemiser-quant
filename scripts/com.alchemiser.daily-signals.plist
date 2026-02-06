@@ -3,8 +3,8 @@
 <!--
   Daily signal generation scheduler for Alchemiser.
 
-  Runs generate_daily_signals.py at 4:20 PM local time, Mon-Fri.
-  Uses closed daily bars from S3 data lake (post-market close).
+  Runs generate_daily_signals.py at 4:30 PM local time, Mon-Fri.
+  Uses completed daily bars from S3 data lake (post-market close).
   Generates signals for both dev and prod strategy profiles.
 
   Install:  make install-scheduler
@@ -13,20 +13,26 @@
   Logs:     tail -f /tmp/alchemiser-signals-stdout.log
 
   BEFORE INSTALLING:
-  1. Update WorkingDirectory and ProgramArguments paths if your repo is elsewhere
+  1. Update WorkingDirectory and ProgramArguments paths below to match your repo location
   2. Ensure AWS credentials are configured (~/.aws/credentials or env vars)
+  3. Alternatively, replace /usr/bin/env poetry run python with your venv path
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>com.alchemiser.daily-signals</string>
 
+    <!-- IMPORTANT: Update these paths to match your local repo location -->
     <key>WorkingDirectory</key>
-    <string>/Users/joshmoreton/GitHub/alchemiser-quant</string>
+    <string>/PATH/TO/alchemiser-quant</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/joshmoreton/GitHub/alchemiser-quant/venv/bin/python</string>
+        <!-- Use poetry run for portability, or replace with your venv path -->
+        <string>/usr/bin/env</string>
+        <string>poetry</string>
+        <string>run</string>
+        <string>python</string>
         <string>scripts/generate_daily_signals.py</string>
         <string>--stage</string>
         <string>both</string>
@@ -42,7 +48,7 @@
         <string>us-east-1</string>
     </dict>
 
-    <!-- Run at 4:20 PM local time (after market close + data refresh) -->
+    <!-- Run at 4:30 PM local time (25 min buffer after data refresh @ 4:05 PM) -->
     <key>StartCalendarInterval</key>
     <array>
         <!-- Monday -->
@@ -52,7 +58,7 @@
             <key>Hour</key>
             <integer>16</integer>
             <key>Minute</key>
-            <integer>20</integer>
+            <integer>30</integer>
         </dict>
         <!-- Tuesday -->
         <dict>
@@ -61,7 +67,7 @@
             <key>Hour</key>
             <integer>16</integer>
             <key>Minute</key>
-            <integer>20</integer>
+            <integer>30</integer>
         </dict>
         <!-- Wednesday -->
         <dict>
@@ -70,7 +76,7 @@
             <key>Hour</key>
             <integer>16</integer>
             <key>Minute</key>
-            <integer>20</integer>
+            <integer>30</integer>
         </dict>
         <!-- Thursday -->
         <dict>
@@ -79,7 +85,7 @@
             <key>Hour</key>
             <integer>16</integer>
             <key>Minute</key>
-            <integer>20</integer>
+            <integer>30</integer>
         </dict>
         <!-- Friday -->
         <dict>
@@ -88,7 +94,7 @@
             <key>Hour</key>
             <integer>16</integer>
             <key>Minute</key>
-            <integer>20</integer>
+            <integer>30</integer>
         </dict>
     </array>
 
@@ -97,7 +103,7 @@
     <key>StandardErrorPath</key>
     <string>/tmp/alchemiser-signals-stderr.log</string>
 
-    <!-- Don't retry if the Mac was asleep at 4:20 PM -->
+    <!-- Don't retry if the Mac was asleep at 4:30 PM -->
     <key>MisfireGracePeriod</key>
     <integer>3600</integer>
 </dict>
