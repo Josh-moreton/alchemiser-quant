@@ -34,30 +34,13 @@ def _get_account_data_table() -> Any:  # noqa: ANN401
 def _get_account_id() -> str:
     """Get the configured Alpaca account ID.
 
-    Falls back to scanning the LATEST pointers in the account data table
-    if no account ID is explicitly configured.
-
     Returns:
-        Account ID string.
+        Account ID string, or an empty string if no account ID is configured.
 
     """
     settings = get_dashboard_settings()
     if settings.account_id:
         return settings.account_id
-
-    # Fallback: scan for any LATEST pointer to discover the account ID
-    table = _get_account_data_table()
-    response = table.scan(
-        FilterExpression="begins_with(PK, :prefix)",
-        ExpressionAttributeValues={":prefix": "LATEST#"},
-        Limit=1,
-        ProjectionExpression="PK",
-    )
-    items = response.get("Items", [])
-    if items:
-        pk = items[0].get("PK", "")
-        return pk.replace("LATEST#", "")
-
     return ""
 
 
