@@ -1427,3 +1427,52 @@ gold_and_miners:
   - GDXU
   - SHNY
   - SPY
+hedged_sector_rotator:
+  strategy_name: hedged_sector_rotator
+  display_name: 'Hedged Sector Rotator '
+  csv_name_prefix: Hedged Sector Rotato
+  source_url: https://app.composer.trade/symphony/chkrQ6BnXCw31n7OIEaK/details
+  filename: hedged_sector_rotator.clj
+  date_updated: '2026-02-06'
+  assets:
+  - BND
+  - BSV
+  - BTAL
+  - CURE
+  - DRN
+  - DUSL
+  - ERX
+  - FAS
+  - LTL
+  - PSQ
+  - SH
+  - SHV
+  - SVXY
+  - TECL
+  - TLT
+  - TMF
+  - TMV
+  - TQQQ
+  - UGE
+  - UTSL
+  - UVXY
+  - UYM
+  - VIXM
+  - VIXY
+  - VTI
+  - WANT
+  - XLB
+  - XLE
+  - XLF
+  - XLI
+  - XLK
+  - XLP
+  - XLRE
+  - XLU
+  - XLV
+  - XLY
+  - XTL
+  frontrunners:
+  - BIL
+  - QQQ
+  - SPY

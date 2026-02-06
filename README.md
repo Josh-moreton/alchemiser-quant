@@ -6,7 +6,36 @@
 
 A multi-strategy quantitative trading system built on event-driven microservices architecture. Combines multiple quantitative strategies into a resilient execution engine with strict module boundaries, end-to-end traceability, and AWS-native event routing.
 
-> 🎯 **New to the platform?** Read the [**Trading Platform Architecture Guide**](docs/TRADING_PLATFORM_GUIDE_REVISED.md) for a comprehensive walkthrough written for traders. It explains how strategies are evaluated, executed in parallel, merged with weighted voting, and deployed to the market—with real code examples and focused Mermaid diagrams.
+**Key Features**:
+- **Multi-strategy portfolio**: Runs 20+ strategies in parallel, weighted and merged into a single consolidated portfolio
+- **DSL-based strategies**: Clojure-inspired domain-specific language for declarative strategy definitions
+- **Completed daily bars only**: Uses end-of-day data exclusively for consistent, reproducible signals
+- **Event-driven microservices**: AWS Lambda functions communicating via EventBridge, SQS, and SNS
+- **Signal validation**: Built-in comparison with external signal sources (Composer.trade)
+
+> **New to the platform?** Read the [**Trading Platform Architecture Guide**](docs/TRADING_PLATFORM_GUIDE_REVISED.md) for a comprehensive walkthrough written for traders.
+
+## Quick Start
+
+```bash
+# 1. Clone and install
+git clone https://github.com/Josh-moreton/alchemiser-quant.git
+cd alchemiser-quant
+poetry install --with dev
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your Alpaca API keys and AWS credentials
+
+# 3. Debug a strategy locally
+make debug-strategy s=nuclear
+
+# 4. Generate signals (after market close)
+make generate-signals stage=dev
+
+# 5. Deploy to AWS (dev)
+make deploy-dev
+```
 
 ## System Architecture
 
@@ -71,12 +100,9 @@ flowchart LR
     N --> SNS
 
     %% Data Access
-    SW1 -.->|fetch prices| S3_DATA
-    SW2 -.->|fetch prices| S3_DATA
-    SWN -.->|fetch prices| S3_DATA
-    SW1 -.->|live data| ALPACA
-    SW2 -.->|live data| ALPACA
-    SWN -.->|live data| ALPACA
+    SW1 -.->|daily bars| S3_DATA
+    SW2 -.->|daily bars| S3_DATA
+    SWN -.->|daily bars| S3_DATA
     SO -.-> DDB_AGG
     SA -.-> DDB_AGG
     P -.->|positions| ALPACA
@@ -91,7 +117,7 @@ flowchart LR
 |------|-----------|--------|
 | 0 | **Market Calendar Check** | Orchestrator checks if market is open and has sufficient time before close |
 | 1 | **Strategy Orchestrator** | Triggered by schedule, creates aggregation session, invokes workers async |
-| 2 | **Strategy Workers** | Execute `.clj` DSL files in parallel, fetch data from S3 datalake + Alpaca |
+| 2 | **Strategy Workers** | Execute `.clj` DSL files in parallel, fetch completed daily bars from S3 |
 | 3 | **Signal Aggregator** | Merges partial signals into single consolidated portfolio |
 | 4 | **Portfolio Lambda** | Compares target vs current positions, creates rebalance plan |
 | 5 | **Execution Lambda** | Places limit orders using walk-the-book strategy via Alpaca |
@@ -124,6 +150,73 @@ the_alchemiser/
 ```
 
 **Critical Constraint**: Business modules only import from `shared/`. No cross-module dependencies allowed.
+
+## Market Data Architecture
+
+The system uses **completed daily bars only** - no intraday or partial bar data. This ensures consistent, reproducible signals across backtests and live trading.
+
+### Data Flow
+
+```
+                    DATA REFRESH (two schedules)
+                    ============================
+
+     ┌─────────────────┐         ┌─────────────────┐
+     │  Overnight       │         │  Post-Close      │
+     │  (4 AM UTC)      │         │  (4:05 PM ET)    │
+     │  Full backfill   │         │  Today's bar     │
+     └────────┬─────────┘         └────────┬─────────┘
+              │                            │
+              └──────────┬─────────────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │  Alpaca Markets API   │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │   S3 Parquet Cache    │
+              │   (complete daily    │
+              │    bars only)        │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │  CachedMarketData    │
+              │  Adapter (read)      │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │   IndicatorService   │
+              │  (SMA, RSI, etc.)    │
+              └──────────────────────┘
+```
+
+### Schedule Overview
+
+| Component | Time | Purpose |
+|-----------|------|---------|
+| **Overnight Data Refresh** | 4:00 AM UTC | Full historical backfill to S3 (all symbols, ~2 years) |
+| **Post-Close Data Refresh** | 4:05 PM ET | Add today's completed daily bar to S3 |
+| **Strategy Orchestrator** | ~3:45 PM ET | Run strategies (Schedule Manager, 15 min before close) |
+| **Local Signal Generation** | 4:30 PM ET | Generate signals locally for validation (macOS launchd) |
+
+### Why Completed Daily Bars Only?
+
+1. **Reproducibility**: Same signals whether running live or backtesting
+2. **Simplicity**: No complex intraday timing or partial-bar handling
+3. **Consistency**: All indicators compute on homogeneous data
+4. **Validation**: Easy to compare against external signal sources
+
+### Data Lambda Functions
+
+| Lambda | Schedule | Purpose |
+|--------|----------|---------|
+| `DataRefreshFunction` | 4:00 AM UTC | Fetch 2 years of daily bars for all symbols |
+| `PostCloseDataRefreshFunction` | 4:05 PM ET | Fetch today's completed bar (market just closed) |
+| `GroupCacheFunction` | 4:00 AM ET | Pre-compute filterable group portfolio returns |
 
 ## Event-Driven Workflow
 
@@ -323,6 +416,175 @@ The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
 - `config/`: Dependency injection container
 - `logging/`: Structured logging utilities
 
+## DSL Strategy Engine
+
+Strategies are defined using a **Clojure-inspired domain-specific language (DSL)** that compiles to Python execution. This provides a declarative, readable syntax for portfolio allocation logic.
+
+### Example Strategy
+
+```clojure
+;; momentum_etf.clj - Simple momentum strategy
+(defsymphony
+  "Momentum ETF"
+  {:asset-class "EQUITIES", :rebalance-frequency :daily}
+  (if-then-else
+    (> (rsi {:window 14} (asset "SPY" nil)) 70)
+    (weight-equal [(asset "TLT" nil)])       ; Overbought: bonds
+    (weight-equal [(asset "SPY" nil)])))     ; Normal: equities
+```
+
+### DSL Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `asset` | Single asset reference | `(asset "SPY" nil)` |
+| `weight-equal` | Equal-weight allocation | `(weight-equal [(asset "SPY" nil) (asset "QQQ" nil)])` |
+| `weight-specified` | Custom weights | `(weight-specified [(asset "SPY" 0.6) (asset "TLT" 0.4)])` |
+| `if-then-else` | Conditional logic | `(if-then-else condition then-branch else-branch)` |
+| `filter` | Select assets by metric | `(filter (rsi {:window 14}) (select-top 3) [...])` |
+| `group` | Named sub-portfolio | `(group "Tech" [...])` |
+
+### Technical Indicators
+
+| Indicator | DSL Syntax | Description |
+|-----------|------------|-------------|
+| RSI | `(rsi {:window 14} asset)` | Relative Strength Index |
+| SMA | `(moving-average-price {:window 200} asset)` | Simple Moving Average |
+| EMA | `(exponential-moving-average-price {:window 50} asset)` | Exponential Moving Average |
+| Cumulative Return | `(cumulative-return {:window 60} asset)` | Price change over N days |
+| Max Drawdown | `(max-drawdown {:window 90} asset)` | Peak-to-trough decline |
+| Stdev Return | `(stdev-return {:window 20} asset)` | Volatility (std of returns) |
+
+### Strategy Configuration
+
+Strategies are configured per environment in `layers/shared/the_alchemiser/shared/config/`:
+
+```json
+// strategy.dev.json
+{
+  "files": ["gold.clj", "nuclear.clj", "tecl.clj", ...],
+  "allocations": {
+    "gold.clj": 0.05,
+    "nuclear.clj": 0.10,
+    "tecl.clj": 0.08,
+    ...
+  }
+}
+```
+
+Each strategy's output is weighted by its allocation, then merged into a consolidated portfolio.
+
+## Filterable Groups Cache
+
+For strategies using `filter` on `group` elements (like `select-top` or `select-bottom`), the system pre-computes daily portfolio returns for accurate historical scoring.
+
+### Problem
+
+When filtering groups by their historical performance:
+
+```clojure
+(filter (moving-average-return {:window 10}) (select-bottom 1)
+  [(group "Strategy A" [...])
+   (group "Strategy B" [...])
+   (group "Strategy C" [...])])
+```
+
+The filter needs each group's portfolio return for the last 10 days. Computing this on-the-fly is expensive and timing-sensitive.
+
+### Solution: Group Cache Lambda
+
+The **Group Cache Lambda** runs daily at 4:00 AM ET:
+
+1. Evaluates each extracted group's DSL to determine its portfolio
+2. Fetches price data and computes weighted daily return
+3. Stores results in DynamoDB (`GroupHistoricalSelectionsTable`)
+
+At strategy runtime, filter operators query the cache for fast portfolio scoring.
+
+### Adding Filterable Groups
+
+Groups are extracted to `layers/shared/the_alchemiser/shared/strategies/filterable_groups/<strategy>/`:
+
+```
+filterable_groups/
+    ftl_starburst/
+        _manifest.json           # Defines groups and metadata
+        drv_drn_mean_reversion.clj
+        labu_labd_mean_reversion.clj
+        yinn_yang_mean_reversion.clj
+```
+
+See the [Filterable Groups README](layers/shared/the_alchemiser/shared/strategies/filterable_groups/README.md) for setup instructions.
+
+## Signal Validation
+
+The system includes built-in tools to validate signals against external sources (Composer.trade) using a **shifted T-1 comparison** methodology.
+
+### Validation Workflow
+
+```
+                    SIGNAL VALIDATION FLOW
+                    ======================
+
+     ┌─────────────────┐         ┌─────────────────┐
+     │  Our Signals     │         │  Composer.trade │
+     │  (generated at   │         │  (captured at   │
+     │   4:30 PM today) │         │   any time)     │
+     └────────┬─────────┘         └────────┬─────────┘
+              │                            │
+              │  Today's signals           │  Today's live signals
+              │                            │
+              └──────────┬─────────────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │   Shifted T-1        │
+              │   Comparison         │
+              │                      │
+              │   Our T0 signals     │
+              │   vs                 │
+              │   Composer T-1       │
+              └──────────┬───────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │   Validation Report  │
+              │   (match %, diffs)   │
+              └──────────────────────┘
+```
+
+### Commands
+
+```bash
+# Generate signals locally (after market close)
+make generate-signals                    # Both dev + prod
+make generate-signals stage=dev          # Dev only
+
+# Validate against Composer.trade
+make validate-signals                    # Uses local signals (dev)
+make validate-signals stage=prod         # Prod signals
+make validate-signals fresh=1            # Start fresh capture
+
+# Debug a single strategy
+make debug-strategy s=simons_kmlm        # Full condition tracing
+make debug-strategy list=1               # List all strategies
+```
+
+### Local Signal Generation
+
+The `generate_daily_signals.py` script:
+
+1. Loads strategy config for the specified stage (dev/prod)
+2. Runs each strategy through the DSL engine
+3. Outputs signals to `validation_results/local_signals/<date>_<stage>.csv`
+
+**Scheduled via macOS launchd** at 4:30 PM local time (25 min after post-close data refresh):
+
+```bash
+make install-scheduler    # Install launchd plist
+make uninstall-scheduler  # Remove scheduler
+```
+
 ## Developer Workflow
 
 ### Setup
@@ -330,40 +592,39 @@ The strategy layer supports **horizontal scaling** via a fan-out/fan-in pattern:
 ```bash
 # Install with Poetry (recommended)
 poetry install --with dev
-
-# Or with pip
-pip install -e .
 ```
 
 ### Development Commands
 
 ```bash
-# Run trading locally (paper mode)
-poetry run python -m the_alchemiser
-
-# Format and lint
+# Format and type-check (required before commits)
 make format
-make lint
 make type-check
+
+# Debug a specific strategy
+make debug-strategy s=simons_kmlm
+make debug-strategy list=1              # List all strategies
+
+# Generate signals locally (after market close)
+make generate-signals                    # Both dev + prod
+make generate-signals stage=dev          # Dev only
+
+# Validate signals against Composer.trade
+make validate-signals                    # Uses local signals
 
 # Check module boundaries
 make import-check
-
-# Run tests
-pytest tests/
 ```
 
-### Testing
+### Version Management
+
+All code changes require a version bump before committing:
 
 ```bash
-# Run full test suite
-pytest
-
-# Test specific modules
-pytest tests/strategy_v2/
-pytest tests/portfolio_v2/
-pytest tests/execution_v2/
-pytest tests/notifications_v2/
+git add <your-changed-files>
+make bump-patch   # Bug fixes, docs, refactoring
+make bump-minor   # New features, new modules
+make bump-major   # Breaking changes
 ```
 
 ## Configuration
@@ -394,10 +655,14 @@ if not should_trade:
 ### Environment Variables
 
 ```bash
-# Required for live trading
+# Required for live trading (Lambda)
 ALPACA_API_KEY=your_api_key
 ALPACA_SECRET_KEY=your_secret_key
 ALPACA_BASE_URL=https://api.alpaca.markets  # or https://paper-api.alpaca.markets
+
+# Required for market data (Lambda + local)
+MARKET_DATA_BUCKET=alchemiser-dev-market-data  # S3 bucket for Parquet cache
+AWS_DEFAULT_REGION=us-east-1
 
 # AWS Resources (set automatically in Lambda)
 EVENT_BUS_NAME=alchemiser-dev-events
@@ -511,18 +776,19 @@ Multi-timeframe ensemble combining trend following with mean reversion signals.
 
 ## Architecture Principles
 
-1. **Microservices**: Each Lambda is independently deployable and scalable
-2. **Event-Driven Communication**: All inter-Lambda communication via EventBridge
-3. **Reliable Execution**: SQS buffering with DLQ for trade execution
-4. **Strict Boundaries**: No cross-module imports outside `shared/`
-5. **DTO-First**: Type-safe data contracts with Pydantic validation
-6. **Idempotent Operations**: Safe under retries and message reordering
-7. **Correlation Tracking**: End-to-end traceability via correlation IDs
-8. **SNS Notifications**: Email delivery without SMTP credentials
+1. **Completed Daily Bars Only**: No intraday or partial bar data - ensures reproducible signals
+2. **Microservices**: Each Lambda is independently deployable and scalable
+3. **Event-Driven Communication**: All inter-Lambda communication via EventBridge
+4. **Reliable Execution**: SQS buffering with DLQ for trade execution
+5. **Strict Boundaries**: No cross-module imports outside `shared/`
+6. **DTO-First**: Type-safe data contracts with Pydantic validation
+7. **Idempotent Operations**: Safe under retries and message reordering
+8. **Correlation Tracking**: End-to-end traceability via correlation IDs
+9. **SNS Notifications**: Email delivery without SMTP credentials
 
 ---
 
-**Version**: 2.0.0
+**Version**: 10.7.5
 **License**: MIT
 **Author**: Josh Moreton
 **Repository**: [Josh-moreton/alchemiser-quant](https://github.com/Josh-moreton/alchemiser-quant)
