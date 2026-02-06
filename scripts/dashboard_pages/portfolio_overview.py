@@ -2,6 +2,16 @@
 """Business Unit: scripts | Status: current.
 
 Portfolio Overview page with enhanced metrics and per-symbol performance.
+
+IMPORTANT: Real-time Data Display
+----------------------------------
+This page displays real-time equity and today's P&L by fetching live account data
+from Alpaca's account API (equity and last_equity fields). This ensures the dashboard
+always shows current trading session data, even before the market closes.
+
+Historical data (equity curve, cumulative P&L) uses Alpaca's portfolio history API
+with deposit adjustments, cached for 5 minutes. Real-time account data is cached
+for 1 minute to provide near-instant updates during trading hours.
 """
 
 from __future__ import annotations
