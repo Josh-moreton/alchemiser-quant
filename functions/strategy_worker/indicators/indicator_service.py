@@ -18,7 +18,6 @@ from engines.dsl.types import DslEvaluationError
 from errors import MarketDataError
 from indicators.indicators import TechnicalIndicators
 
-from the_alchemiser.shared.indicators.partial_bar_config import should_use_live_bar
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
@@ -824,20 +823,6 @@ class IndicatorService:
                 bars_count=len(bars),
                 correlation_id=correlation_id,
             )
-
-            # Strip live/partial bar if indicator shouldn't use it
-            # This is controlled per-indicator in partial_bar_config.py
-            use_live = should_use_live_bar(indicator_type)
-            if not use_live and len(bars) > 1 and bars[-1].is_incomplete:
-                logger.debug(
-                    "Stripping live bar for indicator",
-                    module=MODULE_NAME,
-                    symbol=symbol,
-                    indicator_type=indicator_type,
-                    live_bar_close=float(bars[-1].close),
-                    correlation_id=correlation_id,
-                )
-                bars = bars[:-1]
 
             # Convert bars to pandas Series for technical indicators
             prices = pd.Series([float(bar.close) for bar in bars])

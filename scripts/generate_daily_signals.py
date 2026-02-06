@@ -3,17 +3,16 @@
 
 Generate daily strategy signals locally for validation against Composer.trade.
 
-Runs all configured strategies through the DSL engine with live bar injection
-(today's close from Alpaca Snapshot API) and writes our_signals to a local CSV.
-The output CSV is consumed by validate_signals.py for shifted T-1 comparison.
+Runs all configured strategies through the DSL engine using completed daily bars
+from S3 data lake and writes our_signals to a local CSV. The output CSV is
+consumed by validate_signals.py for shifted T-1 comparison.
 
-Run at or after market close (4:00 PM ET) so the daily bar is final.
-Scheduled via launchd at 9:00 PM local time (Mon-Fri).
+Run after market close (4:00 PM ET) once the post-close data refresh has
+completed (4:05 PM ET). Scheduled via launchd at 4:20 PM local time (Mon-Fri).
 
 Prerequisites:
     - AWS credentials configured (for S3 market data reads)
-    - ALPACA__KEY and ALPACA__SECRET env vars set (for live bar snapshot)
-    - Market data refreshed in S3 (populated by Data Lambda nightly)
+    - Market data refreshed in S3 (populated by Data Lambda post-close refresh)
 
 Usage:
     make generate-signals                      # Both dev + prod
@@ -61,7 +60,6 @@ CSV_FIELDS = [
     "strategy_name",
     "dsl_file",
     "our_signals",
-    "partial_bar_config",
     "generated_at",
 ]
 
@@ -140,21 +138,6 @@ def load_strategy_config(stage: str) -> dict[str, float]:
     return result
 
 
-def get_partial_bar_config() -> dict[str, bool]:
-    """Get current partial bar configuration for all indicators.
-
-    Returns:
-        Dict mapping indicator name to use_live_bar boolean.
-
-    """
-    from the_alchemiser.shared.indicators.partial_bar_config import (
-        get_all_indicator_configs,
-    )
-
-    configs = get_all_indicator_configs()
-    return {name: cfg.use_live_bar for name, cfg in configs.items()}
-
-
 def run_single_strategy(
     dsl_file: str,
     logger: logging.Logger,
@@ -175,8 +158,8 @@ def run_single_strategy(
         CachedMarketDataAdapter,
     )
 
-    # CachedMarketDataAdapter reads historical from S3 + appends today's live bar
-    market_data_adapter = CachedMarketDataAdapter(append_live_bar=True)
+    # CachedMarketDataAdapter reads historical + today's completed bars from S3
+    market_data_adapter = CachedMarketDataAdapter()
 
     engine = DslEngine(
         strategy_config_path=STRATEGIES_PATH,
@@ -233,12 +216,6 @@ def generate_signals_for_stage(
         sum(strategies.values()),
     )
 
-    # Get partial bar config (same for all strategies)
-    partial_bar_config = get_partial_bar_config()
-    config_json = json.dumps(
-        dict(sorted(partial_bar_config.items())),
-    )
-
     # Prepare output
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     output_path = get_output_path(validation_date, stage)
@@ -283,7 +260,6 @@ def generate_signals_for_stage(
                         "strategy_name": strategy_name,
                         "dsl_file": dsl_file,
                         "our_signals": signal_json,
-                        "partial_bar_config": config_json,
                         "generated_at": datetime.now(UTC).isoformat(),
                     }
                 )
@@ -352,14 +328,6 @@ def main() -> None:
     logger.info("=" * 70)
     logger.info("DAILY SIGNAL GENERATION -- %s", validation_date)
     logger.info("=" * 70)
-
-    # Validate prerequisites
-    alpaca_key = os.environ.get("ALPACA__KEY") or os.environ.get("ALPACA_KEY")
-    if not alpaca_key:
-        logger.warning(
-            "ALPACA__KEY not set -- live bar injection will fail. "
-            "Signals will use historical close only."
-        )
 
     # Determine which stages to run
     stages: list[str] = []

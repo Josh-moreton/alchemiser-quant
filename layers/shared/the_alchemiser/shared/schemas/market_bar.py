@@ -92,7 +92,6 @@ class MarketBar(BaseModel):
     trade_count: int | None = Field(default=None, ge=0, description="Number of trades")
 
     # Data quality indicators
-    is_incomplete: bool = Field(default=False, description="Whether bar data is incomplete")
     data_source: str | None = Field(default=None, description="Data source identifier")
 
     @field_validator("symbol")

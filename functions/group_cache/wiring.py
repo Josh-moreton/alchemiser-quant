@@ -42,13 +42,10 @@ def register_strategy(container: ApplicationContainer) -> None:
     container.market_data_store = providers.Singleton(MarketDataStore)
 
     # Register market data adapter
-    # For group cache, we don't need live bar injection since we cache daily
-    # before market open
     container.strategy_market_data_adapter = providers.Factory(
         CachedMarketDataAdapter,
         market_data_store=container.market_data_store,
         fallback_adapter=None,
         enable_live_fallback=False,
-        append_live_bar=False,  # Disable live bar - we run before market open
         enable_sync_refresh=True,  # Enable on-demand data fetching via Data Lambda
     )

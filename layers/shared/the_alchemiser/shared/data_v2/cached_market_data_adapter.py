@@ -1,31 +1,21 @@
 """Business Unit: data | Status: current.
 
-Cached market data adapter for S3-backed market data with optional live bar injection.
+Cached market data adapter for S3-backed market data.
 
 This adapter implements the MarketDataPort interface using S3 Parquet storage
 as the primary data source. When cache misses occur, it can optionally delegate
 to a configurable fallback adapter (e.g., direct Alpaca API calls).
 
-Live Bar Injection:
-    When `append_live_bar=True`, the adapter fetches today's current bar from
-    Alpaca Snapshot API and appends it to historical data requests. This enables
-    real-time signal generation using current intraday prices.
-
-    The live bar includes today's OHLCV data:
-    - Open: Today's opening price
-    - High/Low: Today's high/low (so far)
-    - Close: Current/latest price
-    - Volume: Today's cumulative volume
-
 Architecture:
     S3 Cache (Parquet) -> CachedMarketDataAdapter
-           ↓
-     Optional live bar append (Alpaca Snapshot API)
-           ↓
+           |
     IndicatorService <- DSL Strategy Engine <- Strategy Lambda
 
-    Data is populated nightly by DataRefresh Lambda (Alpaca -> S3).
-    Strategy Lambda runs at 3:45 PM ET with live bar injection enabled.
+    Data is populated by DataRefresh Lambda (Alpaca -> S3):
+    - Morning refresh (9:30 AM UTC): fetches previous day's completed bars
+    - Post-close refresh (4:05 PM ET): fetches today's completed daily bar
+
+    Strategy Lambda runs after market close using completed daily bars.
 """
 
 from __future__ import annotations
@@ -41,7 +31,6 @@ import boto3
 import pandas as pd
 from botocore.config import Config
 
-from the_alchemiser.shared.data_v2.live_bar_provider import LiveBarProvider
 from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
@@ -107,9 +96,10 @@ def _parse_period_to_days(period: str) -> int:
 class CachedMarketDataAdapter(MarketDataPort):
     """Market data adapter that uses S3 cache with optional fallback.
 
-    This adapter reads historical data from S3 Parquet files populated by the
-    nightly DataRefresh Lambda. When cache is empty or stale, it can optionally
-    delegate to a configurable fallback adapter to fetch data on-demand.
+    This adapter reads daily bars from S3 Parquet files populated by the
+    DataRefresh Lambda (morning + post-close schedules). When cache is empty
+    or stale, it can optionally delegate to a configurable fallback adapter
+    to fetch data on-demand.
 
     Fallback options:
     1. Direct Alpaca API: Falls back to live Alpaca API (requires alpaca-py)
@@ -130,8 +120,6 @@ class CachedMarketDataAdapter(MarketDataPort):
         *,
         fallback_adapter: MarketDataPort | None = None,
         enable_live_fallback: bool = False,
-        append_live_bar: bool = False,
-        live_bar_provider: LiveBarProvider | None = None,
         enable_sync_refresh: bool = False,
     ) -> None:
         """Initialize cached market data adapter.
@@ -142,12 +130,6 @@ class CachedMarketDataAdapter(MarketDataPort):
                              Takes precedence over enable_live_fallback.
             enable_live_fallback: Whether to fall back to direct Alpaca API on cache miss.
                                  Only used if fallback_adapter is None.
-            append_live_bar: Whether to append today's live bar to historical data.
-                            Defaults to False for production use (historical data only).
-                            When True, fetches current price from Alpaca Snapshot API
-                            and appends as the most recent bar for indicator computation.
-            live_bar_provider: Optional LiveBarProvider instance. If None and
-                              append_live_bar is True, creates a default provider.
             enable_sync_refresh: Whether to synchronously invoke the Data Lambda to
                                 refresh stale/missing data. Only for live trading runs.
                                 Defaults to False to avoid blocking in backtests.
@@ -157,20 +139,13 @@ class CachedMarketDataAdapter(MarketDataPort):
         self._fallback_adapter = fallback_adapter
         self._alpaca_manager: AlpacaManager | None = None
         self._enable_live_fallback = enable_live_fallback
-        self._append_live_bar = append_live_bar
-        self._live_bar_provider = live_bar_provider
         self._enable_sync_refresh = enable_sync_refresh
         self._lambda_client: LambdaClient | None = None  # Lazy-init for sync refresh
-
-        # Lazy-init live bar provider if needed
-        if append_live_bar and live_bar_provider is None:
-            self._live_bar_provider = LiveBarProvider()
 
         logger.info(
             "CachedMarketDataAdapter initialized",
             has_fallback_adapter=fallback_adapter is not None,
             live_fallback_enabled=enable_live_fallback,
-            append_live_bar=append_live_bar,
             sync_refresh_enabled=enable_sync_refresh,
         )
 
@@ -473,46 +448,6 @@ class CachedMarketDataAdapter(MarketDataPort):
         )
         return []
 
-    def _validate_no_partial_bars(self, df: pd.DataFrame, symbol_str: str) -> pd.DataFrame:
-        """Validate and filter out any partial bars for today.
-
-        Alpaca's historical API should not return partial bars for today, but this
-        defensive validation ensures we never include incomplete intraday data in
-        historical series. Partial bars could skew indicator calculations.
-
-        A bar is considered partial if its timestamp is from today (market not yet
-        closed). The nightly data refresh only fetches complete daily bars.
-
-        Args:
-            df: DataFrame with OHLCV data (assumes 'timestamp' column is UTC datetime)
-            symbol_str: Symbol string for logging
-
-        Returns:
-            DataFrame with today's bars filtered out if market is still open
-
-        """
-        if df.empty:
-            return df
-
-        today = datetime.now(UTC).date()
-
-        # Check if there are any bars from today
-        today_mask = df["timestamp"].dt.date == today
-        today_count = today_mask.sum()
-
-        if today_count > 0:
-            # Log warning - this shouldn't happen with historical API
-            logger.warning(
-                "Filtering out partial bars from today (defensive validation)",
-                symbol=symbol_str,
-                today_bars_filtered=int(today_count),
-                today_date=today.isoformat(),
-            )
-            # Filter out today's bars
-            df = df[~today_mask]
-
-        return df
-
     def _dataframe_to_bars(
         self, df: pd.DataFrame, symbol_str: str, lookback_days: int
     ) -> list[BarModel]:
@@ -538,9 +473,6 @@ class CachedMarketDataAdapter(MarketDataPort):
         df = df.copy()
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
-
-        # Validate no partial bars from today (defensive check)
-        df = self._validate_no_partial_bars(df, symbol_str)
 
         # Filter to lookback period
         cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
@@ -576,19 +508,13 @@ class CachedMarketDataAdapter(MarketDataPort):
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Fetch historical bars from S3 cache, with fallback on miss.
 
-        When append_live_bar is enabled, fetches today's bar from Alpaca Snapshot
-        API and appends it to the historical series. This provides strategies with
-        the most recent price data for indicator computation (e.g., using today's
-        price as the 200th data point in a 200-day SMA).
-
         Args:
             symbol: Trading symbol
             period: Lookback period (e.g., "1Y", "6M", "90D")
             timeframe: Bar interval (must be "1Day" for cached data)
 
         Returns:
-            List of BarModel objects, oldest first. If append_live_bar is enabled,
-            includes today's bar as the most recent entry.
+            List of BarModel objects, oldest first.
 
         Raises:
             ValueError: If timeframe is not "1Day"
@@ -626,9 +552,6 @@ class CachedMarketDataAdapter(MarketDataPort):
 
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
-
-        # Validate no partial bars from today (defensive check)
-        df = self._validate_no_partial_bars(df, symbol_str)
 
         # Filter to lookback period
         cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
@@ -669,68 +592,6 @@ class CachedMarketDataAdapter(MarketDataPort):
             "Retrieved bars from cache",
             symbol=symbol_str,
             bars_count=len(bars),
-        )
-
-        # Append today's live bar if enabled (global setting for get_bars)
-        if self._append_live_bar and self._live_bar_provider is not None:
-            bars = self._append_todays_bar(bars, symbol_str)
-
-        return bars
-
-    def _append_todays_bar(self, bars: list[BarModel], symbol_str: str) -> list[BarModel]:
-        """Append today's live bar to historical bars if not already present.
-
-        Fetches today's OHLCV from Alpaca Snapshot API and appends to the bar
-        series. Checks if the last cached bar is from today to avoid duplicates.
-
-        Args:
-            bars: Historical bars from S3 cache
-            symbol_str: Symbol string for logging
-
-        Returns:
-            Bars with today's bar appended (if fetched successfully)
-
-        """
-        # Guard: this method should only be called when provider is available
-        if self._live_bar_provider is None:
-            logger.warning(
-                "Live bar provider not configured, skipping live bar append",
-                symbol=symbol_str,
-            )
-            return bars
-
-        live_bar = self._live_bar_provider.get_todays_bar(symbol_str)
-
-        if live_bar is None:
-            logger.warning(
-                "Could not fetch live bar, using cached data only",
-                symbol=symbol_str,
-            )
-            return bars
-
-        # Check if last cached bar is already from today (avoid duplicates)
-        today = datetime.now(UTC).date()
-        if bars:
-            last_bar_date = bars[-1].timestamp.date()
-            if last_bar_date == today:
-                logger.debug(
-                    "Last cached bar is from today, replacing with live bar",
-                    symbol=symbol_str,
-                    cached_close=float(bars[-1].close),
-                    live_close=float(live_bar.close),
-                )
-                # Replace the last bar with fresh live data
-                bars[-1] = live_bar
-                return bars
-
-        # Append today's bar
-        bars.append(live_bar)
-        logger.info(
-            "Appended live bar to historical data",
-            symbol=symbol_str,
-            total_bars=len(bars),
-            live_close=float(live_bar.close),
-            live_volume=live_bar.volume,
         )
 
         return bars

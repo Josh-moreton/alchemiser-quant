@@ -3,7 +3,8 @@
 <!--
   Daily signal generation scheduler for Alchemiser.
 
-  Runs generate_daily_signals.py at 9:00 PM local time, Mon-Fri.
+  Runs generate_daily_signals.py at 4:20 PM local time, Mon-Fri.
+  Uses closed daily bars from S3 data lake (post-market close).
   Generates signals for both dev and prod strategy profiles.
 
   Install:  make install-scheduler
@@ -13,8 +14,7 @@
 
   BEFORE INSTALLING:
   1. Update WorkingDirectory and ProgramArguments paths if your repo is elsewhere
-  2. Set ALPACA__KEY and ALPACA__SECRET in EnvironmentVariables below
-  3. Ensure AWS credentials are configured (~/.aws/credentials or env vars)
+  2. Ensure AWS credentials are configured (~/.aws/credentials or env vars)
 -->
 <plist version="1.0">
 <dict>
@@ -40,14 +40,9 @@
         <string>alchemiser-dev-market-data</string>
         <key>AWS_DEFAULT_REGION</key>
         <string>us-east-1</string>
-        <!-- Set these to your Alpaca API credentials -->
-        <key>ALPACA__KEY</key>
-        <string>YOUR_ALPACA_KEY_HERE</string>
-        <key>ALPACA__SECRET</key>
-        <string>YOUR_ALPACA_SECRET_HERE</string>
     </dict>
 
-    <!-- Run at 9:00 PM local time -->
+    <!-- Run at 4:20 PM local time (after market close + data refresh) -->
     <key>StartCalendarInterval</key>
     <array>
         <!-- Monday -->
@@ -55,45 +50,45 @@
             <key>Weekday</key>
             <integer>1</integer>
             <key>Hour</key>
-            <integer>21</integer>
+            <integer>16</integer>
             <key>Minute</key>
-            <integer>0</integer>
+            <integer>20</integer>
         </dict>
         <!-- Tuesday -->
         <dict>
             <key>Weekday</key>
             <integer>2</integer>
             <key>Hour</key>
-            <integer>21</integer>
+            <integer>16</integer>
             <key>Minute</key>
-            <integer>0</integer>
+            <integer>20</integer>
         </dict>
         <!-- Wednesday -->
         <dict>
             <key>Weekday</key>
             <integer>3</integer>
             <key>Hour</key>
-            <integer>21</integer>
+            <integer>16</integer>
             <key>Minute</key>
-            <integer>0</integer>
+            <integer>20</integer>
         </dict>
         <!-- Thursday -->
         <dict>
             <key>Weekday</key>
             <integer>4</integer>
             <key>Hour</key>
-            <integer>21</integer>
+            <integer>16</integer>
             <key>Minute</key>
-            <integer>0</integer>
+            <integer>20</integer>
         </dict>
         <!-- Friday -->
         <dict>
             <key>Weekday</key>
             <integer>5</integer>
             <key>Hour</key>
-            <integer>21</integer>
+            <integer>16</integer>
             <key>Minute</key>
-            <integer>0</integer>
+            <integer>20</integer>
         </dict>
     </array>
 
@@ -102,7 +97,7 @@
     <key>StandardErrorPath</key>
     <string>/tmp/alchemiser-signals-stderr.log</string>
 
-    <!-- Don't retry if the Mac was asleep at 9 PM -->
+    <!-- Don't retry if the Mac was asleep at 4:20 PM -->
     <key>MisfireGracePeriod</key>
     <integer>3600</integer>
 </dict>

@@ -43,7 +43,6 @@ import yaml
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 sys.path.insert(0, str(PROJECT_ROOT / "layers" / "shared"))
-from the_alchemiser.shared.indicators.partial_bar_config import get_all_indicator_configs
 
 LEDGER_PATH = (
     PROJECT_ROOT
@@ -395,7 +394,6 @@ def append_record(csv_path: Path, record: dict[str, Any]) -> None:
         "dsl_file",
         "our_signals",
         "live_signals",
-        "partial_bar_config",
         "captured_at",
     ]
 
@@ -770,11 +768,6 @@ def _run_capture_flow(
             def to_json(d: dict[str, Decimal] | None) -> str:
                 return json.dumps({k: float(v) for k, v in d.items()}, sort_keys=True) if d else ""
 
-            configs = get_all_indicator_configs()
-            config_json = json.dumps(
-                {n: c.use_live_bar for n, c in configs.items()}, sort_keys=True
-            )
-
             append_record(
                 csv_path,
                 {
@@ -784,7 +777,6 @@ def _run_capture_flow(
                     "dsl_file": dsl_file,
                     "our_signals": to_json(our_signals),
                     "live_signals": to_json(live_signals),
-                    "partial_bar_config": config_json,
                     "captured_at": datetime.now(UTC).isoformat(),
                 },
             )

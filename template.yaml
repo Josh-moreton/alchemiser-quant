@@ -123,6 +123,22 @@ Parameters:
     Default: "cron(30 9 ? * MON-FRI *)"
     Description: Data refresh schedule for prod (9:30 AM UTC = 9:30 AM UK, Mon-Fri)
 
+  # Post-close data refresh: fetches today's completed daily bars after market close
+  DataRefreshPostCloseScheduleDev:
+    Type: String
+    Default: "cron(5 16 ? * MON-FRI *)"
+    Description: Post-close data refresh for dev (4:05 PM ET, Mon-Fri)
+
+  DataRefreshPostCloseScheduleStaging:
+    Type: String
+    Default: "cron(5 16 ? * MON-FRI *)"
+    Description: Post-close data refresh for staging (4:05 PM ET, Mon-Fri)
+
+  DataRefreshPostCloseScheduleProd:
+    Type: String
+    Default: "cron(5 16 ? * MON-FRI *)"
+    Description: Post-close data refresh for prod (4:05 PM ET, Mon-Fri)
+
   FetchCooldownMinutes:
     Type: Number
     Default: 15
@@ -2580,6 +2596,30 @@ Resources:
         Arn: !GetAtt DataFunction.Arn
         RoleArn: !GetAtt DataSchedulerRole.Arn
         Input: '{"source": "schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  # Post-close data refresh: fetches today's completed daily bars after market close (4:05 PM ET)
+  # Uses America/New_York timezone so DST is handled automatically
+  DataRefreshPostCloseSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-refresh-post-close"
+        - !Sub "alchemiser-${Stage}-data-refresh-post-close"
+      Description: !Sub "Post-close market data refresh for ${Stage} (fetches today's completed bars)"
+      ScheduleExpression: !If
+        - IsProduction
+        - !Ref DataRefreshPostCloseScheduleProd
+        - !If [ IsStaging, !Ref DataRefreshPostCloseScheduleStaging, !Ref DataRefreshPostCloseScheduleDev ]
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt DataFunction.Arn
+        RoleArn: !GetAtt DataSchedulerRole.Arn
+        Input: '{"source": "post-close-schedule"}'
         RetryPolicy:
           MaximumRetryAttempts: 2
 
