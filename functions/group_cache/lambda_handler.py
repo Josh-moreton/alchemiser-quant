@@ -427,7 +427,11 @@ def _get_strategies_path() -> Path:
 
     """
     try:
-        return importlib_resources.files("the_alchemiser.shared.strategies")  # type: ignore[return-value]
+        result = importlib_resources.files("the_alchemiser.shared.strategies")
+        # importlib.resources.files() may return a MultiplexedPath on Lambda
+        # when multiple package sources contribute to the namespace (layer + function).
+        # Convert to a plain Path to guarantee filesystem compatibility.
+        return Path(str(result))
     except (ModuleNotFoundError, AttributeError):
         # Fallback for local development
         strategies_path = (
