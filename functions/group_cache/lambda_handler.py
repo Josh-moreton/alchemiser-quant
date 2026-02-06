@@ -23,6 +23,8 @@ from typing import Any
 import boto3
 
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
+from the_alchemiser.shared.types.market_data import BarModel
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 # Increase recursion limit for deeply nested DSL strategies
 sys.setrecursionlimit(10000)
@@ -44,7 +46,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """Handle invocation for group cache update.
 
     Evaluates all filterable groups defined in manifests and stores their
-    portfolio selections in DynamoDB for historical lookups.
+    portfolio selections and daily returns in DynamoDB for historical lookups.
+
+    The portfolio daily return is a weighted sum of each selected symbol's
+    daily return (close-to-close pct change). This enables downstream filter
+    scoring to compute metrics like moving-average-return from a pre-built
+    return series, matching Composer's approach of using *historical group
+    selections* rather than today's snapshot.
 
     Args:
         event: Lambda event (from EventBridge schedule or manual invocation)
@@ -149,11 +157,19 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                     else:
                         selections = {}
 
+                    # Compute portfolio daily return from selected symbols
+                    portfolio_daily_return = _compute_portfolio_daily_return(
+                        selections=selections,
+                        market_data_adapter=market_data_adapter,
+                        record_date_str=record_date_str,
+                        correlation_id=correlation_id,
+                    )
+
                     # Calculate TTL
                     ttl_timestamp = int((datetime.now(UTC) + timedelta(days=TTL_DAYS)).timestamp())
 
-                    # Store in DynamoDB
-                    item = {
+                    # Store in DynamoDB with portfolio return
+                    item: dict[str, str | int | dict[str, str]] = {
                         "group_id": group_id,
                         "record_date": record_date_str,
                         "selections": selections,
@@ -161,8 +177,10 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                         "evaluated_at": datetime.now(UTC).isoformat(),
                         "ttl": ttl_timestamp,
                     }
+                    if portfolio_daily_return is not None:
+                        item["portfolio_daily_return"] = str(portfolio_daily_return)  # type: ignore[assignment]
 
-                    table.put_item(Item=item)
+                    table.put_item(Item=item)  # type: ignore[arg-type]
 
                     results.append(
                         {
@@ -170,6 +188,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                             "status": "success",
                             "selection_count": len(selections),
                             "selections": selections,
+                            "portfolio_daily_return": (
+                                str(portfolio_daily_return)
+                                if portfolio_daily_return is not None
+                                else None
+                            ),
                         }
                     )
 
@@ -179,6 +202,11 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                             "group_id": group_id,
                             "selection_count": len(selections),
                             "selections": list(selections.keys()),
+                            "portfolio_daily_return": (
+                                str(portfolio_daily_return)
+                                if portfolio_daily_return is not None
+                                else None
+                            ),
                             "correlation_id": correlation_id,
                         },
                     )
@@ -244,6 +272,151 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                 "error": str(e),
             },
         }
+
+
+def _compute_portfolio_daily_return(
+    selections: dict[str, str],
+    market_data_adapter: MarketDataPort,
+    record_date_str: str,
+    correlation_id: str,
+) -> Decimal | None:
+    """Compute the weighted portfolio daily return from selected symbols.
+
+    For each symbol in the selection, fetches recent bars to compute the
+    close-to-close daily return for the record date. The portfolio return
+    is the weighted sum of individual symbol returns.
+
+    Args:
+        selections: Symbol-to-weight mapping (weights as strings)
+        market_data_adapter: Market data port for fetching bars
+        record_date_str: Date string (YYYY-MM-DD) for the record
+        correlation_id: Correlation ID for logging
+
+    Returns:
+        Weighted portfolio daily return as Decimal (e.g. Decimal("0.0153")
+        for +1.53%), or None if computation fails.
+
+    """
+    if not selections:
+        return Decimal("0")
+
+    from the_alchemiser.shared.value_objects.symbol import Symbol
+
+    weighted_return = Decimal("0")
+    total_weight = Decimal("0")
+
+    for symbol_str, weight_str in selections.items():
+        weight = Decimal(weight_str)
+        if weight <= Decimal("0"):
+            continue
+
+        try:
+            # Fetch recent bars (30 calendar days covers ~20 trading days)
+            bars = market_data_adapter.get_bars(
+                symbol=Symbol(symbol_str),
+                period="30D",
+                timeframe="1Day",
+            )
+
+            if len(bars) < 2:
+                logger.warning(
+                    "Insufficient bars for daily return",
+                    extra={
+                        "symbol": symbol_str,
+                        "bars_count": len(bars),
+                        "correlation_id": correlation_id,
+                    },
+                )
+                continue
+
+            # Find the bar for the record date and its predecessor
+            daily_return = _extract_daily_return(bars, record_date_str)
+            if daily_return is not None:
+                weighted_return += weight * daily_return
+                total_weight += weight
+            else:
+                logger.warning(
+                    "Could not find daily return for date",
+                    extra={
+                        "symbol": symbol_str,
+                        "record_date": record_date_str,
+                        "correlation_id": correlation_id,
+                    },
+                )
+
+        except Exception as e:
+            logger.warning(
+                "Failed to compute daily return for symbol",
+                extra={
+                    "symbol": symbol_str,
+                    "error": str(e),
+                    "correlation_id": correlation_id,
+                },
+            )
+
+    if total_weight <= Decimal("0"):
+        logger.warning(
+            "No symbols contributed to portfolio return",
+            extra={"correlation_id": correlation_id},
+        )
+        return None
+
+    # Normalize by total weight (handles partial failures)
+    portfolio_return = weighted_return / total_weight
+
+    logger.info(
+        "Computed portfolio daily return",
+        extra={
+            "portfolio_return": str(portfolio_return),
+            "symbols_included": str(total_weight),
+            "correlation_id": correlation_id,
+        },
+    )
+    return portfolio_return
+
+
+def _extract_daily_return(bars: list[BarModel], record_date_str: str) -> Decimal | None:
+    """Extract the daily close-to-close return for a specific date.
+
+    Searches through bars to find the one matching record_date_str and
+    computes (close / prev_close) - 1.
+
+    If the exact date is not found (e.g. weekend/holiday), uses the most
+    recent bar on or before that date.
+
+    Args:
+        bars: Chronologically ordered list of BarModel objects
+        record_date_str: ISO date string (YYYY-MM-DD)
+
+    Returns:
+        Daily return as Decimal, or None if not computable.
+
+    """
+    # Build date-indexed map for fast lookup
+    date_to_idx: dict[str, int] = {}
+    for i, bar in enumerate(bars):
+        bar_date = bar.timestamp.date().isoformat()
+        date_to_idx[bar_date] = i
+
+    # Find bar index - exact match or most recent before
+    target_idx = date_to_idx.get(record_date_str)
+    if target_idx is None:
+        # Find most recent bar on or before the record date
+        for i in range(len(bars) - 1, -1, -1):
+            if bars[i].timestamp.date().isoformat() <= record_date_str:
+                target_idx = i
+                break
+
+    if target_idx is None or target_idx < 1:
+        return None
+
+    current_close = bars[target_idx].close
+    prev_close = bars[target_idx - 1].close
+
+    if prev_close == Decimal("0"):
+        return None
+
+    return (current_close / prev_close) - Decimal("1")
 
 
 def _get_strategies_path() -> Path:

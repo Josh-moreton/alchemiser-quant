@@ -23,7 +23,7 @@ from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.operators.control_flow import create_indicator_with_symbol
 from engines.dsl.operators.group_cache_lookup import (
     is_cache_available,
-    lookup_historical_selections,
+    lookup_historical_returns,
 )
 from engines.dsl.types import DslEvaluationError, DSLValue
 
@@ -102,6 +102,134 @@ def _extract_window_from_condition(condition_expr: ASTNode, context: DslContext)
         pass
 
     return None
+
+
+# ---------- Cached portfolio metric computation ----------
+
+# Minimum number of return data points required for metric computation.
+# If fewer returns are available, fail closed (return None).
+_MIN_RETURNS_FOR_METRIC = 3
+
+# DSL operator names → canonical metric identifiers used for dispatch.
+_METRIC_DISPATCH: dict[str, str] = {
+    "moving-average-return": "moving_average_return",
+    "cumulative-return": "cumulative_return",
+    "stdev-return": "stdev_return",
+    "max-drawdown": "max_drawdown",
+}
+
+# Annualisation factor for stdev (matches TechnicalIndicators.stdev_return).
+_ANNUALISATION_SQRT_252 = Decimal("15.8745078664")  # sqrt(252) to 10dp
+
+
+def _compute_portfolio_metric(
+    returns: list[Decimal],
+    metric_name: str,
+    window: int,
+) -> float | None:
+    """Compute a portfolio-level metric from a series of daily returns.
+
+    Mirrors the formulas in ``TechnicalIndicators`` but operates on a
+    pre-built return series rather than a raw price series.
+
+    The *returns* list is expected to be sorted oldest-first and each
+    element is a fractional daily return (e.g., Decimal("0.0153") = +1.53%).
+
+    Args:
+        returns: Daily portfolio returns, oldest-first.
+        metric_name: One of ``moving_average_return``, ``cumulative_return``,
+            ``stdev_return``, ``max_drawdown``.
+        window: Lookback window size (number of trading days).
+
+    Returns:
+        Computed score as float (in percentage terms to match existing
+        per-symbol indicator output), or None if insufficient data.
+
+    """
+    if len(returns) < _MIN_RETURNS_FOR_METRIC:
+        return None
+
+    # Use up to *window* most recent returns
+    series = returns[-window:] if len(returns) >= window else returns
+
+    if metric_name == "moving_average_return":
+        return _metric_moving_average_return(series)
+    if metric_name == "cumulative_return":
+        return _metric_cumulative_return(series)
+    if metric_name == "stdev_return":
+        return _metric_stdev_return(series)
+    if metric_name == "max_drawdown":
+        return _metric_max_drawdown(series)
+
+    logger.warning("Unknown portfolio metric: %s", metric_name)
+    return None
+
+
+def _metric_moving_average_return(series: list[Decimal]) -> float:
+    """Mean of daily returns, expressed as a percentage.
+
+    Matches ``TechnicalIndicators.moving_average_return`` which computes
+    ``pct_change().rolling(window).mean() * 100``.
+    """
+    total = sum(series)
+    mean = total / Decimal(str(len(series)))
+    return float(mean * Decimal("100"))
+
+
+def _metric_cumulative_return(series: list[Decimal]) -> float:
+    """Compound return over the series, expressed as a percentage.
+
+    Matches ``TechnicalIndicators.cumulative_return`` which computes
+    ``(price / price.shift(window) - 1) * 100``, equivalent to
+    ``(prod(1 + r_i) - 1) * 100`` on a return series.
+    """
+    cumulative = Decimal("1")
+    for r in series:
+        cumulative *= Decimal("1") + r
+    return float((cumulative - Decimal("1")) * Decimal("100"))
+
+
+def _metric_stdev_return(series: list[Decimal]) -> float:
+    """Annualised population standard deviation of daily returns.
+
+    Matches ``TechnicalIndicators.stdev_return`` which computes
+    ``pct_change() * 100 |> rolling(window).std(ddof=0) * sqrt(252)``.
+    """
+    n = len(series)
+    # Convert to percentage returns first (matching TechnicalIndicators)
+    pct_series = [r * Decimal("100") for r in series]
+    mean = sum(pct_series) / Decimal(str(n))
+    variance = sum((x - mean) ** 2 for x in pct_series) / Decimal(str(n))
+    # Use float sqrt for precision - Decimal doesn't have native sqrt
+    import math
+
+    std = Decimal(str(math.sqrt(float(variance))))
+    annualised = std * _ANNUALISATION_SQRT_252
+    return float(annualised)
+
+
+def _metric_max_drawdown(series: list[Decimal]) -> float:
+    """Maximum peak-to-trough decline from equity curve, as percentage.
+
+    Reconstructs a cumulative equity curve from the return series, then
+    computes the maximum drawdown.  Matches the semantics of
+    ``TechnicalIndicators.max_drawdown``.
+    """
+    # Build equity curve (start at 1.0)
+    equity = Decimal("1")
+    peak = equity
+    max_dd = Decimal("0")
+
+    for r in series:
+        equity *= Decimal("1") + r
+        if equity > peak:
+            peak = equity
+        if peak > Decimal("0"):
+            dd = (peak - equity) / peak
+            if dd > max_dd:
+                max_dd = dd
+
+    return float(max_dd * Decimal("100"))
 
 
 def collect_assets_from_value(value: DSLValue) -> list[str]:
@@ -1229,50 +1357,87 @@ def _score_portfolio(
     if not weights:
         return None
 
-    # Check if this is a known cached group
-    group_name = fragment.metadata.get("group_name")
-    group_id = KNOWN_GROUP_ID_MAPPING.get(str(group_name)) if isinstance(group_name, str) else None
-
-    if group_id and is_cache_available():
-        # Extract window size from condition expression for lookback
-        window = _extract_window_from_condition(condition_expr, context)
-        if window:
-            historical_selections = lookup_historical_selections(
-                group_id=group_id,
-                lookback_days=window,
-            )
-            if historical_selections:
-                logger.info(
-                    "DSL filter: using cached historical selections for group scoring",
-                    extra={
-                        "group_name": group_name,
-                        "group_id": group_id,
-                        "window": window,
-                        "cached_days": len(historical_selections),
-                        "correlation_id": context.correlation_id,
-                    },
-                )
-                # TODO: Phase 2 - Compute metric from historical selections
-                # For now, fall through to current scoring logic
-                # Full implementation would:
-                # 1. For each day in historical_selections, get that day's selected symbols
-                # 2. Look up each symbol's return for that day
-                # 3. Compute the portfolio's daily return (weighted by selection weights)
-                # 4. Apply the metric (moving-average-return, stdev-return, etc.)
-                #    to the return series
-
-    # Composer parity: max-drawdown is a "lower is better" metric, but Composer
-    # uses select-top to mean "pick the best" (i.e., lowest drawdown).
-    # We negate max-drawdown scores so select-top picks the portfolio with the
-    # LOWEST drawdown (safest). This only applies when the DSL form does not
-    # include an explicit symbol argument.
-    # NOTE: stdev-return and stdev-price are NOT inverted - select-top with
-    # volatility metrics picks the HIGHEST volatility, which is valid for some
-    # strategies (e.g., beam_chain uses stdev-return to pick most volatile portfolios).
+    # Determine the metric name from the condition expression
     is_list = condition_expr.is_list() and bool(condition_expr.children)
     op_name = condition_expr.children[0].get_symbol_name() if is_list else None
     has_explicit_symbol_arg = bool(is_list and len(condition_expr.children) >= 3)
     should_invert_for_portfolio = bool(op_name in {"max-drawdown"} and not has_explicit_symbol_arg)
+
+    # ── Cache-based scoring (Phase 2) ──────────────────────────────
+    # When the group is known and cache is available, compute the metric
+    # from pre-computed historical portfolio daily returns stored by the
+    # Group Cache Lambda.  This produces Composer-parity scores because
+    # it uses the *historical* group selections, not today's snapshot.
+    group_name = fragment.metadata.get("group_name")
+    group_id = KNOWN_GROUP_ID_MAPPING.get(str(group_name)) if isinstance(group_name, str) else None
+
+    if group_id and is_cache_available():
+        window = _extract_window_from_condition(condition_expr, context)
+        canonical_metric = _METRIC_DISPATCH.get(op_name or "") if op_name else None
+
+        if window and canonical_metric:
+            # Use lookback_days > window to account for weekends/holidays
+            # (e.g. 10 trading days ≈ 15 calendar days)
+            lookback_calendar_days = int(window * 1.6) + 5
+            historical_returns = lookup_historical_returns(
+                group_id=group_id,
+                lookback_days=lookback_calendar_days,
+            )
+
+            if len(historical_returns) >= window:
+                score = _compute_portfolio_metric(
+                    returns=historical_returns,
+                    metric_name=canonical_metric,
+                    window=window,
+                )
+
+                if score is not None:
+                    if should_invert_for_portfolio:
+                        score = -score
+
+                    logger.info(
+                        "DSL filter: scored group from cached historical returns",
+                        extra={
+                            "group_name": group_name,
+                            "group_id": group_id,
+                            "metric": canonical_metric,
+                            "window": window,
+                            "returns_available": len(historical_returns),
+                            "score": score,
+                            "inverted": should_invert_for_portfolio,
+                            "correlation_id": context.correlation_id,
+                        },
+                    )
+                    return score
+
+                logger.warning(
+                    "DSL filter: metric computation returned None",
+                    extra={
+                        "group_id": group_id,
+                        "metric": canonical_metric,
+                        "returns_count": len(historical_returns),
+                        "correlation_id": context.correlation_id,
+                    },
+                )
+            else:
+                # Fail closed: insufficient cached data for the requested
+                # window.  Return None so this group is excluded from
+                # filter ranking rather than producing a misleading score.
+                logger.warning(
+                    "DSL filter: insufficient cached returns for group scoring (fail-closed)",
+                    extra={
+                        "group_id": group_id,
+                        "metric": canonical_metric,
+                        "window": window,
+                        "returns_available": len(historical_returns),
+                        "correlation_id": context.correlation_id,
+                    },
+                )
+                return None
+
+    # ── Fallback: per-symbol weighted-average scoring ──────────────
+    # Used when the group is not in KNOWN_GROUP_ID_MAPPING, cache is
+    # unavailable, or the metric is not a return-based one.
 
     # Score each symbol and compute weighted average
     total_weight = Decimal("0")
