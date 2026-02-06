@@ -92,5 +92,6 @@ response.json
 # Validation and strategy output files (generated, not source)
 validation_results/*
 validation_results/*.json
+validation_results/local_signals/*.csv
 strategy_results/*.csv
 strategy_results/.DS_Store

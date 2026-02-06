@@ -6,12 +6,8 @@ Provides register_strategy() function to wire strategy module dependencies
 into the main ApplicationContainer. Follows single composition root pattern.
 
 The strategy module reads market data directly from S3 Parquet cache.
-Data must be pre-populated by the scheduled Data Lambda refresh.
-
-Live Bar Injection:
-    When append_live_bar=True, the adapter appends today's current bar from
-    Alpaca Snapshot API to all historical data. This enables real-time signal
-    generation at 3:45 PM ET using current intraday prices.
+Data must be pre-populated by the scheduled Data Lambda refresh (morning +
+post-close schedules ensure today's completed bars are available).
 """
 
 from __future__ import annotations
@@ -32,12 +28,8 @@ def register_strategy(container: ApplicationContainer) -> None:
     and registers strategy services.
 
     Market data is read directly from S3 Parquet cache by CachedMarketDataAdapter.
-    Data must be pre-populated by the scheduled Data Lambda refresh.
-
-    Live Bar Injection:
-        When append_live_bar=True, today's current bar from Alpaca Snapshot API
-        is appended to all historical data. This enables real-time signal
-        generation at 3:45 PM ET using current intraday prices.
+    Data must be pre-populated by the scheduled Data Lambda refresh (morning +
+    post-close schedules ensure today's completed bars are available).
 
     Args:
         container: The main ApplicationContainer instance
@@ -63,15 +55,13 @@ def register_strategy(container: ApplicationContainer) -> None:
     # Register market data store (reads from S3 Parquet)
     container.market_data_store = providers.Singleton(MarketDataStore)
 
-    # Register market data adapter with live bar injection and sync refresh enabled
-    # This appends today's current bar to all indicator computations
+    # Register market data adapter with sync refresh enabled
     # Sync refresh: On cache miss, invokes Data Lambda to fetch missing data
     container.strategy_market_data_adapter = providers.Factory(
         CachedMarketDataAdapter,
         market_data_store=container.market_data_store,
         fallback_adapter=None,
         enable_live_fallback=False,
-        append_live_bar=True,  # Enable live bar injection for real-time signals
         enable_sync_refresh=True,  # Enable on-demand data fetching via Data Lambda
     )
 

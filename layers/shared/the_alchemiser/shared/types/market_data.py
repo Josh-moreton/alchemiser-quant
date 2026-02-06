@@ -68,9 +68,6 @@ class BarModel:
         low: Lowest price during the period (Decimal)
         close: Closing price for the period (Decimal)
         volume: Trading volume (number of shares/units)
-        is_incomplete: Whether this bar is a partial/incomplete bar (intraday).
-            When True, indicates this bar represents partial data (e.g., today's
-            close-so-far from Alpaca Snapshot API). Default is False.
 
     Validation:
         - OHLC relationships are validated via is_valid_ohlc property
@@ -87,7 +84,6 @@ class BarModel:
     low: Decimal
     close: Decimal
     volume: int
-    is_incomplete: bool = False
 
     @classmethod
     def from_dict(cls, data: MarketDataPoint) -> BarModel:

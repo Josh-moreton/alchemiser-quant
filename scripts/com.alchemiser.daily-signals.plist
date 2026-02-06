@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Daily signal generation scheduler for Alchemiser.
+
+  Runs generate_daily_signals.py at 4:30 PM local time, Mon-Fri.
+  Uses completed daily bars from S3 data lake (post-market close).
+  Generates signals for both dev and prod strategy profiles.
+
+  Install:  make install-scheduler
+  Remove:   make uninstall-scheduler
+  Status:   launchctl list | grep alchemiser
+  Logs:     tail -f /tmp/alchemiser-signals-stdout.log
+
+  BEFORE INSTALLING:
+  1. Update WorkingDirectory and ProgramArguments paths below to match your repo location
+  2. Ensure AWS credentials are configured (~/.aws/credentials or env vars)
+  3. Alternatively, replace /usr/bin/env poetry run python with your venv path
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alchemiser.daily-signals</string>
+
+    <!-- IMPORTANT: Update these paths to match your local repo location -->
+    <key>WorkingDirectory</key>
+    <string>/PATH/TO/alchemiser-quant</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Use poetry run for portability, or replace with your venv path -->
+        <string>/usr/bin/env</string>
+        <string>poetry</string>
+        <string>run</string>
+        <string>python</string>
+        <string>scripts/generate_daily_signals.py</string>
+        <string>--stage</string>
+        <string>both</string>
+        <string>--log-file</string>
+        <string>/tmp/alchemiser-signals.log</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MARKET_DATA_BUCKET</key>
+        <string>alchemiser-dev-market-data</string>
+        <key>AWS_DEFAULT_REGION</key>
+        <string>us-east-1</string>
+    </dict>
+
+    <!-- Run at 4:30 PM local time (25 min buffer after data refresh @ 4:05 PM) -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- Monday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>1</integer>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <!-- Tuesday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>2</integer>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <!-- Wednesday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>3</integer>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <!-- Thursday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>4</integer>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <!-- Friday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>5</integer>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/alchemiser-signals-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/alchemiser-signals-stderr.log</string>
+
+    <!-- Don't retry if the Mac was asleep at 4:30 PM -->
+    <key>MisfireGracePeriod</key>
+    <integer>3600</integer>
+</dict>
+</plist>

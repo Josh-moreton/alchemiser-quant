@@ -731,6 +731,9 @@ class SingleTradeHandler:
         from Alpaca to ensure we sell exactly what we hold, avoiding floating-point
         precision mismatches between calculated and actual positions.
 
+        For ALL sell orders, the calculated quantity is capped to the actual
+        position to prevent attempting to sell more shares than held.
+
         Args:
             trade_message: The trade message
 
@@ -780,44 +783,95 @@ class SingleTradeHandler:
 
         # If explicit shares provided, use those
         if trade_message.shares and trade_message.shares > 0:
-            return trade_message.shares
-
+            shares = trade_message.shares
         # Otherwise calculate from trade_amount and estimated price
-        if trade_message.estimated_price and trade_message.estimated_price > 0:
+        elif trade_message.estimated_price and trade_message.estimated_price > 0:
             shares = abs(trade_message.trade_amount) / trade_message.estimated_price
-            return shares.quantize(Decimal("0.000001"))
+            shares = shares.quantize(Decimal("0.000001"))
+        else:
+            # No estimated price provided - fetch current market price
+            # This is critical: we must NOT use trade_amount (dollars) as shares
+            try:
+                alpaca_manager = self.container.infrastructure.alpaca_manager()
+                current_price = alpaca_manager.get_current_price(trade_message.symbol)
 
-        # No estimated price provided - fetch current market price
-        # This is critical: we must NOT use trade_amount (dollars) as shares
+                if current_price and current_price > 0:
+                    shares = abs(trade_message.trade_amount) / Decimal(str(current_price))
+                    self.logger.debug(
+                        f"Calculated shares from current price: {shares:.6f} "
+                        f"(${abs(trade_message.trade_amount):.2f} / ${current_price:.2f})",
+                        extra={
+                            "symbol": trade_message.symbol,
+                            "trade_amount": str(trade_message.trade_amount),
+                            "current_price": str(current_price),
+                            "shares": str(shares),
+                        },
+                    )
+                    shares = shares.quantize(Decimal("0.000001"))
+                else:
+                    # Price is None or 0 - this is an error condition
+                    raise MarketDataError(
+                        f"Unable to get valid price for {trade_message.symbol}: "
+                        f"price={current_price}"
+                    )
+
+            except MarketDataError:
+                raise
+            except Exception as e:
+                raise MarketDataError(
+                    f"Failed to fetch price for {trade_message.symbol} to calculate shares: {e}"
+                ) from e
+
+        # SAFETY CAP: For SELL orders, ensure we never try to sell more than
+        # we actually hold. This prevents failures when trade_amount/price
+        # calculation exceeds the actual position (e.g. due to price changes
+        # between planning and execution, or stale position data on retry).
+        if trade_message.action == "SELL":
+            shares = self._cap_sell_shares_to_position(trade_message, shares)
+
+        return shares
+
+    def _cap_sell_shares_to_position(
+        self, trade_message: TradeMessage, calculated_shares: Decimal
+    ) -> Decimal:
+        """Cap sell shares to actual Alpaca position to prevent overselling.
+
+        Args:
+            trade_message: The trade message
+            calculated_shares: Shares calculated from trade_amount/price
+
+        Returns:
+            Shares capped to actual position, or original if position
+            lookup fails (fail-open to preserve existing behaviour).
+
+        """
         try:
             alpaca_manager = self.container.infrastructure.alpaca_manager()
-            current_price = alpaca_manager.get_current_price(trade_message.symbol)
-
-            if current_price and current_price > 0:
-                shares = abs(trade_message.trade_amount) / Decimal(str(current_price))
-                self.logger.debug(
-                    f"Calculated shares from current price: {shares:.6f} "
-                    f"(${abs(trade_message.trade_amount):.2f} / ${current_price:.2f})",
-                    extra={
-                        "symbol": trade_message.symbol,
-                        "trade_amount": str(trade_message.trade_amount),
-                        "current_price": str(current_price),
-                        "shares": str(shares),
-                    },
-                )
-                return shares.quantize(Decimal("0.000001"))
-
-            # Price is None or 0 - this is an error condition
-            raise MarketDataError(
-                f"Unable to get valid price for {trade_message.symbol}: price={current_price}"
-            )
-
-        except MarketDataError:
-            raise
+            position = alpaca_manager.get_position(trade_message.symbol)
+            if position:
+                actual_qty = getattr(position, "qty", None)
+                if actual_qty is not None:
+                    actual_position = Decimal(str(actual_qty))
+                    if calculated_shares > actual_position and actual_position > Decimal("0"):
+                        self.logger.warning(
+                            "Capping sell shares to actual position",
+                            extra={
+                                "symbol": trade_message.symbol,
+                                "calculated_shares": str(calculated_shares),
+                                "actual_position": str(actual_position),
+                                "shortfall": str(calculated_shares - actual_position),
+                            },
+                        )
+                        return actual_position
         except Exception as e:
-            raise MarketDataError(
-                f"Failed to fetch price for {trade_message.symbol} to calculate shares: {e}"
-            ) from e
+            self.logger.warning(
+                f"Failed to fetch position for sell cap, using calculated shares: {e}",
+                extra={
+                    "symbol": trade_message.symbol,
+                    "calculated_shares": str(calculated_shares),
+                },
+            )
+        return calculated_shares
 
     def _emit_trade_executed_event(
         self,
