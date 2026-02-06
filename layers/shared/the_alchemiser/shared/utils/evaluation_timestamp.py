@@ -1,10 +1,10 @@
 """Business Unit: shared | Status: current.
 
-Evaluation timestamp provider for consistent partial-bar timing.
+Evaluation timestamp provider for consistent market session timing.
 
-This module provides a standardized evaluation timestamp mechanism to ensure
-backtests and live trading both compute partial daily bars at the same intraday
-time. The default evaluation time is 15:45 ET (Eastern Time), which is:
+This module provides a standardized evaluation timestamp mechanism for
+determining market session state and progress. The default evaluation
+time is 15:45 ET (Eastern Time), which is:
 - 15 minutes before market close (4:00 PM ET)
 - After the majority of daily volume has traded
 - Before last-minute closing volatility
@@ -19,10 +19,9 @@ Usage:
     >>> print(eval_time)  # 2026-01-07T15:45:00-05:00 (or current date)
 
 Architecture:
-    - LiveBarProvider fetches snapshot at evaluation time
-    - CachedMarketDataAdapter appends live bar with evaluation timestamp
-    - IndicatorService computes using bars through evaluation timestamp
-    - Backtests can synthetically construct partial bars at same time
+    - CachedMarketDataAdapter reads completed daily bars from S3
+    - IndicatorService computes using the full daily bar series
+    - Data refresh after market close ensures today's bar is available
 
 Constants:
     DEFAULT_EVALUATION_HOUR = 15  # 3 PM ET

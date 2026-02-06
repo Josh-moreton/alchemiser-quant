@@ -94,8 +94,8 @@ class DslEngine(EventHandler):
                     CachedMarketDataAdapter,
                 )
 
-                # Enable live bar injection for real-time signal generation
-                market_data_adapter = CachedMarketDataAdapter(append_live_bar=True)
+                # Default adapter for testing/standalone use
+                market_data_adapter = CachedMarketDataAdapter()
             # IndicatorService computes indicators locally using pandas/numpy
             self.indicator_service = IndicatorService(market_data_service=market_data_adapter)
 

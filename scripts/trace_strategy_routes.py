@@ -15,17 +15,11 @@ risk-off `SHV` route but our engine selects a bucket of assets (or vice versa).
 Usage:
     poetry run python scripts/trace_strategy_routes.py --list
 
-    # Live mode (uses CachedMarketDataAdapter; optional live bar injection)
+    # Live mode (uses CachedMarketDataAdapter with completed daily bars from S3)
     poetry run python scripts/trace_strategy_routes.py beam_chain --out /tmp/beam.json
 
-    # Historical mode (cuts market data at date; no live bar injection)
+    # Historical mode (cuts market data at date)
     poetry run python scripts/trace_strategy_routes.py beam_chain --as-of 2026-01-06 --out /tmp/beam_2026-01-06.json
-
-    # Toggle partial bar policy to probe Composer semantics
-    poetry run python scripts/trace_strategy_routes.py beam_chain --policy composer
-    poetry run python scripts/trace_strategy_routes.py beam_chain --policy all-live
-    poetry run python scripts/trace_strategy_routes.py beam_chain --policy none-live
-
 """
 
 from __future__ import annotations
@@ -38,7 +32,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Literal
 from uuid import UUID
 
 from dotenv import load_dotenv
@@ -59,22 +53,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "functions" / "strategy_worker"))
 sys.path.insert(0, str(PROJECT_ROOT / "layers" / "shared"))
 
 
-Policy = Literal["composer", "all-live", "none-live", "custom"]
 Mode = Literal["live", "historical"]
-
-# Global per-indicator override map (set via --indicator-config or programmatically)
-_INDICATOR_OVERRIDES: dict[str, bool] = {}
-
-
-def set_indicator_overrides(overrides: dict[str, bool]) -> None:
-    """Set per-indicator live bar overrides programmatically.
-    
-    Args:
-        overrides: Dict mapping indicator_type to use_live_bar boolean.
-                   e.g., {"rsi": True, "cumulative_return": False}
-    """
-    global _INDICATOR_OVERRIDES
-    _INDICATOR_OVERRIDES = dict(overrides)
 
 
 def _parse_date(date_str: str) -> date:
@@ -86,14 +65,18 @@ def _parse_date(date_str: str) -> date:
 
 
 def list_strategies() -> list[str]:
-    strategies_path = PROJECT_ROOT / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+    strategies_path = (
+        PROJECT_ROOT / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+    )
     if not strategies_path.exists():
         return []
     return sorted([p.stem for p in strategies_path.glob("*.clj")])
 
 
 def _resolve_strategy_file(strategy_name: str) -> tuple[str, Path]:
-    strategies_path = PROJECT_ROOT / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+    strategies_path = (
+        PROJECT_ROOT / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies"
+    )
 
     strategy_file = f"{strategy_name}.clj"
     full_path = strategies_path / strategy_file
@@ -108,51 +91,6 @@ def _resolve_strategy_file(strategy_name: str) -> tuple[str, Path]:
     return strategy_file, full_path
 
 
-def _apply_live_bar_policy(policy: Policy) -> None:
-    """Override live-bar inclusion policy inside IndicatorService.
-
-    IndicatorService imports `should_use_live_bar` at module import time, so we
-    patch the function in that module namespace.
-    """
-
-    import indicators.indicator_service as indicator_service_mod
-
-    if policy == "composer":
-        # Default behavior: defer to shared partial_bar_config.should_use_live_bar
-        from the_alchemiser.shared.indicators.partial_bar_config import should_use_live_bar
-
-        indicator_service_mod.should_use_live_bar = should_use_live_bar
-        return
-
-    if policy == "custom":
-        # Use per-indicator overrides from _INDICATOR_OVERRIDES, falling back to config
-        from the_alchemiser.shared.indicators.partial_bar_config import should_use_live_bar as default_fn
-
-        def _custom_should_use_live_bar(indicator_type: str) -> bool:
-            if indicator_type in _INDICATOR_OVERRIDES:
-                return _INDICATOR_OVERRIDES[indicator_type]
-            return default_fn(indicator_type)
-
-        indicator_service_mod.should_use_live_bar = _custom_should_use_live_bar
-        return
-
-    def _always(_indicator_type: str) -> bool:
-        return True
-
-    def _never(_indicator_type: str) -> bool:
-        return False
-
-    if policy == "all-live":
-        indicator_service_mod.should_use_live_bar = _always
-        return
-
-    if policy == "none-live":
-        indicator_service_mod.should_use_live_bar = _never
-        return
-
-    raise ValueError(f"Unknown policy: {policy}")
-
-
 DataSource = Literal["s3", "alpaca"]
 
 
@@ -160,98 +98,8 @@ DataSource = Literal["s3", "alpaca"]
 class RunConfig:
     strategy_name: str
     mode: Mode
-    policy: Policy
-    append_live_bar: bool
     as_of: date | None
     data_source: DataSource = "s3"  # Default to S3 for backward compatibility
-
-
-def _fetch_simulated_live_bar(symbol: str, as_of_date: date) -> dict[str, Decimal] | None:
-    """Fetch the 3:45 PM ET 15-minute candle close as simulated live bar.
-    
-    This fetches the 15-minute bar that closes at 3:45 PM Eastern Time on the
-    given date. This simulates the "live" bar that Composer would see if running
-    the strategy at that time.
-    
-    Args:
-        symbol: Stock symbol to fetch
-        as_of_date: The historical date to get the 3:45 PM bar for
-        
-    Returns:
-        Dict with bar data (open, high, low, close, volume) or None if not available
-    """
-    import pytz
-    from alpaca.data.enums import Adjustment
-    from alpaca.data.historical import StockHistoricalDataClient
-    from alpaca.data.requests import StockBarsRequest
-    from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-    
-    # Try both naming conventions for Alpaca credentials
-    api_key = os.environ.get("ALPACA_API_KEY") or os.environ.get("ALPACA_KEY")
-    api_secret = os.environ.get("ALPACA_API_SECRET") or os.environ.get("ALPACA_SECRET")
-    
-    if not api_key or not api_secret:
-        print(f"  Warning: Alpaca credentials not set, cannot fetch simulated live bar for {symbol}")
-        return None
-    
-    try:
-        client = StockHistoricalDataClient(api_key, api_secret)
-        
-        # 3:45 PM ET is the close of the 15-minute bar starting at 3:30 PM
-        # In UTC: 3:45 PM ET = 8:45 PM UTC (EST) or 7:45 PM UTC (EDT)
-        et_tz = pytz.timezone("America/New_York")
-        
-        # Create 3:30 PM ET datetime for the target date (bar start time)
-        bar_start_et = et_tz.localize(datetime(as_of_date.year, as_of_date.month, as_of_date.day, 15, 30, 0))
-        bar_end_et = et_tz.localize(datetime(as_of_date.year, as_of_date.month, as_of_date.day, 15, 45, 0))
-        
-        # Convert to UTC for Alpaca API
-        bar_start_utc = bar_start_et.astimezone(pytz.UTC)
-        bar_end_utc = bar_end_et.astimezone(pytz.UTC)
-        
-        request = StockBarsRequest(
-            symbol_or_symbols=symbol,
-            timeframe=TimeFrame(15, TimeFrameUnit.Minute),
-            start=bar_start_utc,
-            end=bar_end_utc + timedelta(minutes=1),  # Small buffer to ensure we get the bar
-            adjustment=Adjustment.ALL,
-        )
-        
-        response = client.get_stock_bars(request)
-        
-        # Access bars via .data dict (BarSet response structure)
-        bars_data = response.data.get(symbol, []) if hasattr(response, 'data') else []
-        bars = list(bars_data) if bars_data else []
-        
-        if not bars:
-            return None
-        
-        # Take the FIRST bar (the one starting at 3:30 PM that closes at 3:45 PM)
-        bar = bars[0]
-        return {
-            "open": Decimal(str(bar.open)),
-            "high": Decimal(str(bar.high)),
-            "low": Decimal(str(bar.low)),
-            "close": Decimal(str(bar.close)),
-            "volume": int(bar.volume),
-            "timestamp": bar.timestamp,
-        }
-        
-    except Exception as e:
-        print(f"  Warning: Failed to fetch simulated live bar for {symbol}: {e}")
-        return None
-
-
-# Cache for simulated live bars to avoid repeated API calls
-_SIMULATED_LIVE_BAR_CACHE: dict[tuple[str, date], dict[str, Decimal] | None] = {}
-
-
-def _get_simulated_live_bar_cached(symbol: str, as_of_date: date) -> dict[str, Decimal] | None:
-    """Get simulated live bar with caching."""
-    cache_key = (symbol, as_of_date)
-    if cache_key not in _SIMULATED_LIVE_BAR_CACHE:
-        _SIMULATED_LIVE_BAR_CACHE[cache_key] = _fetch_simulated_live_bar(symbol, as_of_date)
-    return _SIMULATED_LIVE_BAR_CACHE[cache_key]
 
 
 # Cache for Alpaca daily bars
@@ -260,97 +108,97 @@ _ALPACA_DAILY_BARS_CACHE: dict[tuple[str, date], list] = {}
 
 def _fetch_alpaca_daily_bars(symbol: str, as_of_date: date, lookback_days: int = 400) -> list:
     """Fetch daily bars directly from Alpaca API.
-    
+
     Args:
         symbol: Stock symbol
         as_of_date: End date (inclusive of T-1 data)
         lookback_days: Number of days to look back
-        
+
     Returns:
         List of bar dicts with open, high, low, close, volume, timestamp
     """
-    import pytz
     from alpaca.data.enums import Adjustment
     from alpaca.data.historical import StockHistoricalDataClient
     from alpaca.data.requests import StockBarsRequest
     from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-    
+
     cache_key = (symbol, as_of_date)
     if cache_key in _ALPACA_DAILY_BARS_CACHE:
         return _ALPACA_DAILY_BARS_CACHE[cache_key]
-    
+
     api_key = os.environ.get("ALPACA_API_KEY") or os.environ.get("ALPACA_KEY")
     api_secret = os.environ.get("ALPACA_API_SECRET") or os.environ.get("ALPACA_SECRET")
-    
+
     if not api_key or not api_secret:
         print(f"  Warning: Alpaca credentials not set, cannot fetch daily bars for {symbol}")
         return []
-    
+
     try:
         client = StockHistoricalDataClient(api_key, api_secret)
-        
+
         # Fetch daily bars up to T-1 (day before as_of_date)
         end_date = as_of_date - timedelta(days=1)  # T-1
         start_date = end_date - timedelta(days=lookback_days)
-        
+
         request = StockBarsRequest(
             symbol_or_symbols=symbol,
             timeframe=TimeFrame(1, TimeFrameUnit.Day),
             start=datetime(start_date.year, start_date.month, start_date.day, tzinfo=timezone.utc),
-            end=datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc),
+            end=datetime(
+                end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc
+            ),
             adjustment=Adjustment.ALL,
         )
-        
+
         response = client.get_stock_bars(request)
-        
-        bars_data = response.data.get(symbol, []) if hasattr(response, 'data') else []
+
+        bars_data = response.data.get(symbol, []) if hasattr(response, "data") else []
         bars = list(bars_data) if bars_data else []
-        
+
         result = []
         for bar in bars:
-            result.append({
-                "open": Decimal(str(bar.open)),
-                "high": Decimal(str(bar.high)),
-                "low": Decimal(str(bar.low)),
-                "close": Decimal(str(bar.close)),
-                "volume": int(bar.volume),
-                "timestamp": bar.timestamp,
-            })
-        
+            result.append(
+                {
+                    "open": Decimal(str(bar.open)),
+                    "high": Decimal(str(bar.high)),
+                    "low": Decimal(str(bar.low)),
+                    "close": Decimal(str(bar.close)),
+                    "volume": int(bar.volume),
+                    "timestamp": bar.timestamp,
+                }
+            )
+
         _ALPACA_DAILY_BARS_CACHE[cache_key] = result
         return result
-        
+
     except Exception as e:
         print(f"  Warning: Failed to fetch Alpaca daily bars for {symbol}: {e}")
         return []
 
 
-def _make_alpaca_only_market_data_adapter(as_of_date: date, simulate_live_bar: bool = True):
+def _make_alpaca_only_market_data_adapter(as_of_date: date):
     """Create a market data adapter that fetches ONLY from Alpaca API.
-    
+
     This bypasses the S3 data lake completely and fetches all data directly
     from Alpaca's historical data API.
-    
+
     Args:
         as_of_date: The historical cutoff date
-        simulate_live_bar: If True, append a simulated live bar using the 3:45 PM ET
-                          15-minute candle from Alpaca.
     """
     from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
     from the_alchemiser.shared.types.market_data_port import MarketDataPort
     from the_alchemiser.shared.value_objects.symbol import Symbol
 
     class AlpacaOnlyMarketDataAdapter(MarketDataPort):
-        def __init__(self, cutoff_date: date, inject_live_bar: bool):
+        def __init__(self, cutoff_date: date):
             self.cutoff_date = cutoff_date
-            self.inject_live_bar = inject_live_bar
 
         def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
             symbol_str = str(symbol)
-            
+
             # Fetch daily bars from Alpaca API (up to T-1)
             alpaca_bars = _fetch_alpaca_daily_bars(symbol_str, self.cutoff_date)
-            
+
             bars: list[BarModel] = []
             for bar_data in alpaca_bars:
                 bars.append(
@@ -362,26 +210,9 @@ def _make_alpaca_only_market_data_adapter(as_of_date: date, simulate_live_bar: b
                         low=bar_data["low"],
                         close=bar_data["close"],
                         volume=bar_data["volume"],
-                        is_incomplete=False,
                     )
                 )
-            
-            # Append simulated live bar (3:45 PM candle) if configured
-            if self.inject_live_bar:
-                live_bar_data = _get_simulated_live_bar_cached(symbol_str, self.cutoff_date)
-                if live_bar_data:
-                    live_bar = BarModel(
-                        symbol=symbol_str,
-                        timestamp=live_bar_data["timestamp"],
-                        open=live_bar_data["open"],
-                        high=live_bar_data["high"],
-                        low=live_bar_data["low"],
-                        close=live_bar_data["close"],
-                        volume=live_bar_data["volume"],
-                        is_incomplete=True,  # Mark as live/partial bar
-                    )
-                    bars.append(live_bar)
-            
+
             return bars
 
         def get_latest_bar(self, symbol: Symbol) -> BarModel | None:
@@ -391,18 +222,16 @@ def _make_alpaca_only_market_data_adapter(as_of_date: date, simulate_live_bar: b
         def get_quote(self, symbol: Symbol) -> QuoteModel | None:
             return None
 
-    return AlpacaOnlyMarketDataAdapter(as_of_date, simulate_live_bar)
+    return AlpacaOnlyMarketDataAdapter(as_of_date)
 
 
-def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bool = True):
+def _make_historical_market_data_adapter(as_of_date: date):
     """Create a historical market data adapter.
-    
+
+    Uses S3 data lake Parquet files, filtered to the cutoff date.
+
     Args:
         as_of_date: The historical cutoff date
-        simulate_live_bar: If True, append a simulated live bar using the 3:45 PM ET
-                          15-minute candle from Alpaca. This bar will be marked as
-                          is_incomplete=True so the indicator service can choose
-                          whether to include or exclude it based on indicator config.
     """
     import pandas as pd
 
@@ -412,9 +241,8 @@ def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bo
     from the_alchemiser.shared.value_objects.symbol import Symbol
 
     class HistoricalMarketDataAdapter(MarketDataPort):
-        def __init__(self, cutoff_date: date, inject_live_bar: bool):
+        def __init__(self, cutoff_date: date):
             self.cutoff_date = cutoff_date
-            self.inject_live_bar = inject_live_bar
             self.market_data_store = MarketDataStore()
             self._cache: dict[str, pd.DataFrame] = {}
 
@@ -437,9 +265,10 @@ def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bo
             if df.empty:
                 return []
 
-            # Use day BEFORE cutoff for daily bars (T-1 data)
-            # The simulated live bar will provide T0 data if configured
-            cutoff_datetime = pd.Timestamp(self.cutoff_date - timedelta(days=1), tz=timezone.utc)
+            # Filter to bars up to and including the cutoff date.
+            # This includes the cutoff date's bar (T-0 semantics), which is correct
+            # for post-market-close evaluation when today's completed bar is available.
+            cutoff_datetime = pd.Timestamp(self.cutoff_date, tz=timezone.utc)
             if df.index.tz is None:
                 df.index = df.index.tz_localize(timezone.utc)
 
@@ -458,28 +287,9 @@ def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bo
                         low=Decimal(str(row.get("low", row.get("Low", 0)))),
                         close=Decimal(str(row.get("close", row.get("Close", 0)))),
                         volume=int(row.get("volume", row.get("Volume", 0))),
-                        is_incomplete=False,
                     )
                 )
-            
-            # Append simulated live bar if configured
-            if self.inject_live_bar:
-                live_bar_data = _get_simulated_live_bar_cached(symbol_str, self.cutoff_date)
-                if live_bar_data:
-                    # Create a "live" bar with is_incomplete=True
-                    # This allows the indicator service to respect should_use_live_bar()
-                    live_bar = BarModel(
-                        symbol=symbol_str,
-                        timestamp=live_bar_data["timestamp"],
-                        open=live_bar_data["open"],
-                        high=live_bar_data["high"],
-                        low=live_bar_data["low"],
-                        close=live_bar_data["close"],
-                        volume=live_bar_data["volume"],
-                        is_incomplete=True,  # Mark as live/partial bar
-                    )
-                    bars.append(live_bar)
-            
+
             return bars
 
         def get_latest_bar(self, symbol: Symbol) -> BarModel | None:
@@ -489,7 +299,7 @@ def _make_historical_market_data_adapter(as_of_date: date, simulate_live_bar: bo
         def get_quote(self, symbol: Symbol) -> QuoteModel | None:
             return None
 
-    return HistoricalMarketDataAdapter(as_of_date, simulate_live_bar)
+    return HistoricalMarketDataAdapter(as_of_date)
 
 
 def run_trace(config: RunConfig) -> dict[str, object]:
@@ -497,12 +307,10 @@ def run_trace(config: RunConfig) -> dict[str, object]:
 
     strategy_file, full_path = _resolve_strategy_file(config.strategy_name)
 
-    _apply_live_bar_policy(config.policy)
-
     if config.mode == "live":
         from the_alchemiser.shared.data_v2.cached_market_data_adapter import CachedMarketDataAdapter
 
-        market_data_adapter = CachedMarketDataAdapter(append_live_bar=config.append_live_bar)
+        market_data_adapter = CachedMarketDataAdapter()
         engine = DslEngine(
             strategy_config_path=full_path.parent,
             market_data_adapter=market_data_adapter,
@@ -513,11 +321,9 @@ def run_trace(config: RunConfig) -> dict[str, object]:
             raise ValueError("historical mode requires --as-of")
         # Choose data source adapter
         if config.data_source == "alpaca":
-            # Use Alpaca API directly (bypasses S3)
-            market_data_adapter = _make_alpaca_only_market_data_adapter(config.as_of, simulate_live_bar=True)
+            market_data_adapter = _make_alpaca_only_market_data_adapter(config.as_of)
         else:
-            # Default: use S3 data lake with simulated live bar
-            market_data_adapter = _make_historical_market_data_adapter(config.as_of, simulate_live_bar=True)
+            market_data_adapter = _make_historical_market_data_adapter(config.as_of)
         engine = DslEngine(
             strategy_config_path=full_path.parent,
             market_data_adapter=market_data_adapter,
@@ -535,13 +341,15 @@ def run_trace(config: RunConfig) -> dict[str, object]:
             "strategy_file": strategy_file,
             "mode": config.mode,
             "as_of": config.as_of.isoformat() if config.as_of else None,
-            "append_live_bar": config.append_live_bar,
-            "policy": config.policy,
+            "data_source": config.data_source,
             "correlation_id": correlation_id,
             "generated_at": datetime.now(timezone.utc).isoformat(),
         },
         "allocation": allocation_float,
-        "allocation_is_100pct_shv": (set(allocation_float.keys()) == {"SHV"} and abs(allocation_float.get("SHV", 0.0) - 1.0) < 1e-9),
+        "allocation_is_100pct_shv": (
+            set(allocation_float.keys()) == {"SHV"}
+            and abs(allocation_float.get("SHV", 0.0) - 1.0) < 1e-9
+        ),
         "decision_path": engine.evaluator.decision_path,
         "debug_traces": engine.evaluator.debug_traces,
         "filter_traces": engine.evaluator.filter_traces,
@@ -552,31 +360,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Trace DSL strategy routes (ifs + filters)")
     parser.add_argument("strategy", nargs="?", help="Strategy name without .clj")
     parser.add_argument("--list", action="store_true", help="List all available strategies")
-    parser.add_argument("--as-of", dest="as_of", help="Historical cutoff date (YYYY-MM-DD / today / yesterday)")
     parser.add_argument(
-        "--policy",
-        choices=("composer", "all-live", "none-live", "custom"),
-        default="composer",
-        help="Live bar inclusion policy for indicators",
+        "--as-of", dest="as_of", help="Historical cutoff date (YYYY-MM-DD / today / yesterday)"
     )
-    parser.add_argument(
-        "--indicator-config",
-        dest="indicator_config",
-        help="JSON file or string with per-indicator overrides, e.g., '{\"rsi\": true, \"cumulative_return\": false}'",
-    )
-    parser.add_argument(
-        "--append-live-bar",
-        dest="append_live_bar",
-        action="store_true",
-        default=True,
-        help="(live mode) append today’s partial bar when available",
-    )
-    parser.add_argument(
-        "--no-append-live-bar",
-        dest="append_live_bar",
-        action="store_false",
-        help="(live mode) disable partial bar injection",
-    )
+
     parser.add_argument(
         "--data-source",
         dest="data_source",
@@ -596,35 +383,18 @@ def main() -> None:
     if not args.strategy:
         parser.error("strategy is required (or use --list)")
 
-    # Parse and apply per-indicator config if provided
-    if args.indicator_config:
-        indicator_config_str = args.indicator_config
-        # Check if it's a file path
-        config_path = Path(indicator_config_str)
-        if config_path.exists():
-            indicator_config_str = config_path.read_text()
-        try:
-            indicator_overrides = json.loads(indicator_config_str)
-            set_indicator_overrides(indicator_overrides)
-            # Auto-switch to custom policy if not already set
-            if args.policy == "composer":
-                args.policy = "custom"
-        except json.JSONDecodeError as e:
-            parser.error(f"Invalid JSON in --indicator-config: {e}")
-
     as_of_date = _parse_date(args.as_of) if args.as_of else None
     mode: Mode = "historical" if as_of_date else "live"
 
     cfg = RunConfig(
         strategy_name=args.strategy,
         mode=mode,
-        policy=args.policy,
-        append_live_bar=bool(args.append_live_bar),
         as_of=as_of_date,
         data_source=args.data_source,
     )
 
     result = run_trace(cfg)
+
     def _json_default(obj: object) -> str:
         if isinstance(obj, Decimal):
             return str(obj)

@@ -187,4 +187,4 @@
                                   [(group "Alternate"
                                     [(weight-equal
                                       [(filter (cumulative-return {:window 20}) (select-top 2)
-                                        [(asset "TQQQ" nil) (asset "UPRO" nil) (asset "URTY" nil) (asset "QQQ" nil)])])])])])])])])])])])])])])])])])])
+                                        [(asset "TQQQ" nil) (asset "UPRO" nil) (asset "URTY" nil) (asset "QQQ" nil)])])])])])])])])])])])])])])])])])])])]))

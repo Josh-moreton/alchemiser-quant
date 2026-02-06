@@ -4,17 +4,23 @@
 Daily signal validation using shifted comparison (T-1).
 
 Workflow:
-1. Capture today's live_signals from Composer for all strategies
-2. Compare today's our_signals against YESTERDAY's live_signals
-3. Report match rate
+1. Load today's our_signals from locally-generated CSV (default) or DynamoDB
+2. Capture today's live_signals from Composer for all strategies
+3. Compare today's our_signals against YESTERDAY's live_signals
+4. Report match rate
 
 This handles the lookahead bias in Composer backtests where:
 - Today's live_signals (Composer backtest) = Tomorrow's our_signals
 
+Signal sources:
+- Default: Local CSV from validation_results/local_signals/ (via generate_daily_signals.py)
+- Legacy:  DynamoDB aggregation sessions (use --dynamo flag)
+
 Usage:
-    make validate-signals                    # Validate latest dev session
-    make validate-signals stage=prod         # Validate latest prod session
+    make validate-signals                    # Validate using local signals (dev)
+    make validate-signals stage=prod         # Validate prod signals
     make validate-signals fresh=1            # Start fresh (ignore previous captures)
+    make validate-signals dynamo=1           # Use DynamoDB instead of local CSV
 """
 
 from __future__ import annotations
@@ -32,29 +38,54 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-import boto3
 import yaml
-from botocore.exceptions import ClientError
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 sys.path.insert(0, str(PROJECT_ROOT / "layers" / "shared"))
-from the_alchemiser.shared.indicators.partial_bar_config import get_all_indicator_configs
 
 LEDGER_PATH = (
-    PROJECT_ROOT / "layers" / "shared" / "the_alchemiser" / "shared" / "strategies" / "strategy_ledger.yaml"
+    PROJECT_ROOT
+    / "layers"
+    / "shared"
+    / "the_alchemiser"
+    / "shared"
+    / "strategies"
+    / "strategy_ledger.yaml"
 )
 VALIDATION_DIR = PROJECT_ROOT / "validation_results"
+LOCAL_SIGNALS_DIR = VALIDATION_DIR / "local_signals"
 
 
 # ============================================================================
-# DynamoDB Functions
+# DynamoDB Functions (lazy-loaded, only needed with --dynamo)
 # ============================================================================
+
+
+def _import_boto3() -> tuple[Any, Any]:
+    """Lazy-import boto3 and botocore (only needed for --dynamo mode).
+
+    Returns:
+        Tuple of (boto3 module, ClientError class).
+
+    Raises:
+        SystemExit: If boto3 is not installed.
+
+    """
+    try:
+        import boto3 as _boto3
+        from botocore.exceptions import ClientError as _ClientError
+
+        return _boto3, _ClientError
+    except ImportError:
+        print("boto3 is required for --dynamo mode. Install with: poetry add boto3")
+        sys.exit(1)
 
 
 def get_dynamodb_client(region: str = "us-east-1") -> Any:
     """Get DynamoDB client."""
-    return boto3.client("dynamodb", region_name=region)
+    boto3_mod, _ = _import_boto3()
+    return boto3_mod.client("dynamodb", region_name=region)
 
 
 def get_latest_session(client: Any, table_name: str) -> dict[str, Any] | None:
@@ -114,15 +145,71 @@ def get_all_partial_signals(client: Any, table_name: str, session_id: str) -> li
 
     signals = []
     for item in response.get("Items", []):
-        signals.append({
-            "dsl_file": item.get("dsl_file", {}).get("S", ""),
-            "allocation": Decimal(item.get("allocation", {}).get("N", "0")),
-            "consolidated_portfolio": json.loads(item.get("consolidated_portfolio", {}).get("S", "{}")),
-            "signal_count": int(item.get("signal_count", {}).get("N", "0")),
-        })
+        signals.append(
+            {
+                "dsl_file": item.get("dsl_file", {}).get("S", ""),
+                "allocation": Decimal(item.get("allocation", {}).get("N", "0")),
+                "consolidated_portfolio": json.loads(
+                    item.get("consolidated_portfolio", {}).get("S", "{}")
+                ),
+                "signal_count": int(item.get("signal_count", {}).get("N", "0")),
+            }
+        )
 
     signals.sort(key=lambda x: x["dsl_file"])
     return signals
+
+
+# ============================================================================
+# Local Signal Loading
+# ============================================================================
+
+
+def load_local_signals(
+    validation_date: date,
+    stage: str,
+) -> list[dict[str, Any]] | None:
+    """Load our_signals from locally-generated CSV.
+
+    Reads the CSV produced by generate_daily_signals.py for the given date
+    and stage. Returns signal dicts compatible with the capture flow.
+
+    Args:
+        validation_date: Date to load signals for.
+        stage: Environment stage ('dev' or 'prod').
+
+    Returns:
+        List of signal dicts with keys: dsl_file, our_signals (as dict).
+        Returns None if no local signals file exists for this date.
+
+    """
+    csv_path = LOCAL_SIGNALS_DIR / f"{validation_date.isoformat()}_{stage}.csv"
+    if not csv_path.exists():
+        return None
+
+    signals: list[dict[str, Any]] = []
+    with open(csv_path) as f:
+        for row in csv.DictReader(f):
+            dsl_file = row.get("dsl_file", "")
+            signals_json = row.get("our_signals", "")
+            if not dsl_file or not signals_json:
+                continue
+
+            try:
+                parsed = json.loads(signals_json)
+                our_signals = {k: Decimal(str(v)) for k, v in parsed.items()}
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+            signals.append(
+                {
+                    "dsl_file": dsl_file,
+                    "our_signals": our_signals,
+                }
+            )
+
+    signals.sort(key=lambda x: x["dsl_file"])
+    return signals if signals else None
 
 
 # ============================================================================
@@ -136,7 +223,9 @@ def load_strategy_ledger(ledger_path: Path) -> dict[str, dict[str, Any]]:
         return yaml.safe_load(f)
 
 
-def find_strategy_by_filename(ledger: dict[str, dict[str, Any]], dsl_file: str) -> dict[str, Any] | None:
+def find_strategy_by_filename(
+    ledger: dict[str, dict[str, Any]], dsl_file: str
+) -> dict[str, Any] | None:
     """Find strategy metadata by DSL filename.
 
     Handles both full paths (e.g., 'ftlt/holy_grail.clj') and basenames ('holy_grail.clj').
@@ -231,7 +320,10 @@ def get_csv_path(validation_date: date, stage: str) -> Path:
 
     counter = 1
     while True:
-        path = VALIDATION_DIR / f"signal_validation_{validation_date.isoformat()}_{stage}_{counter}.csv"
+        path = (
+            VALIDATION_DIR
+            / f"signal_validation_{validation_date.isoformat()}_{stage}_{counter}.csv"
+        )
         if not path.exists():
             return path
         counter += 1
@@ -251,7 +343,9 @@ def find_previous_csv(current_date: date, stage: str, max_lookback: int = 5) -> 
         counter = 1
         latest = None
         while True:
-            path = VALIDATION_DIR / f"signal_validation_{check_date.isoformat()}_{stage}_{counter}.csv"
+            path = (
+                VALIDATION_DIR / f"signal_validation_{check_date.isoformat()}_{stage}_{counter}.csv"
+            )
             if path.exists():
                 latest = path
                 counter += 1
@@ -293,8 +387,15 @@ def load_captured_strategies(csv_path: Path) -> set[str]:
 
 def append_record(csv_path: Path, record: dict[str, Any]) -> None:
     """Append record to CSV."""
-    fieldnames = ["validation_date", "session_id", "strategy_name", "dsl_file",
-                  "our_signals", "live_signals", "partial_bar_config", "captured_at"]
+    fieldnames = [
+        "validation_date",
+        "session_id",
+        "strategy_name",
+        "dsl_file",
+        "our_signals",
+        "live_signals",
+        "captured_at",
+    ]
 
     file_exists = csv_path.exists()
     with open(csv_path, "a", newline="") as f:
@@ -382,17 +483,19 @@ def run_comparison_report(
             print(f"{name:<25} {'❌ MISMATCH':<15} {details}")
 
         # Prepare row for master report
-        report_rows.append({
-            "validation_date": validation_date.isoformat(),
-            "comparison_date": previous_date,
-            "stage": stage,
-            "strategy_name": name,
-            "status": status,
-            "our_signals": json.dumps({k: float(v) for k, v in ours.items()}, sort_keys=True),
-            "live_signals": json.dumps({k: float(v) for k, v in prev.items()}, sort_keys=True),
-            "symbol_details": "; ".join(symbol_details),
-            "recorded_at": datetime.now(UTC).isoformat(),
-        })
+        report_rows.append(
+            {
+                "validation_date": validation_date.isoformat(),
+                "comparison_date": previous_date,
+                "stage": stage,
+                "strategy_name": name,
+                "status": status,
+                "our_signals": json.dumps({k: float(v) for k, v in ours.items()}, sort_keys=True),
+                "live_signals": json.dumps({k: float(v) for k, v in prev.items()}, sort_keys=True),
+                "symbol_details": "; ".join(symbol_details),
+                "recorded_at": datetime.now(UTC).isoformat(),
+            }
+        )
 
     total = matches + mismatches
     rate = (matches / total * 100) if total > 0 else 0
@@ -449,7 +552,12 @@ def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Validate signals using shifted T-1 comparison")
     parser.add_argument("--stage", choices=["dev", "staging", "prod"], default="dev")
-    parser.add_argument("--session-id", type=str, help="Specific session ID")
+    parser.add_argument(
+        "--session-id", type=str, help="Specific DynamoDB session ID (implies --dynamo)"
+    )
+    parser.add_argument(
+        "--dynamo", action="store_true", help="Use DynamoDB instead of local CSV for our_signals"
+    )
     parser.add_argument("--no-browser", action="store_true", help="Don't auto-open URLs")
     parser.add_argument("--fresh", action="store_true", help="Start fresh")
     # Keep --shifted for backwards compatibility but it's now a no-op
@@ -461,67 +569,148 @@ def main() -> None:
     print("=" * 80)
     print(f"\nStage: {args.stage}")
     print("\nWorkflow:")
-    print("  1. Capture today's live_signals from Composer")
-    print("  2. Compare today's our_signals vs YESTERDAY's live_signals")
+    print("  1. Load our_signals (local CSV or DynamoDB)")
+    print("  2. Capture today's live_signals from Composer")
+    print("  3. Compare today's our_signals vs YESTERDAY's live_signals")
+
+    # --session-id implies --dynamo
+    use_dynamo = args.dynamo or args.session_id is not None
+
+    if use_dynamo:
+        _run_dynamo_flow(args)
+    else:
+        _run_local_flow(args)
+
+
+def _run_local_flow(args: argparse.Namespace) -> None:
+    """Default flow: load our_signals from locally-generated CSV.
+
+    Args:
+        args: Parsed CLI arguments.
+
+    """
+    validation_date = datetime.now(tz=UTC).date()
+    print("\nSource: Local CSV (validation_results/local_signals/)")
+    print(f"Date: {validation_date.isoformat()}")
+
+    signals = load_local_signals(validation_date, args.stage)
+
+    if signals is None:
+        local_path = LOCAL_SIGNALS_DIR / f"{validation_date.isoformat()}_{args.stage}.csv"
+        print(f"\nNo local signals found for {validation_date} ({args.stage})")
+        print(f"Expected: {local_path}")
+        print("\nRun signal generation first:")
+        print(f"  make generate-signals stage={args.stage}")
+        print("\nOr use DynamoDB as source:")
+        print(f"  make validate-signals stage={args.stage} dynamo=1")
+        sys.exit(1)
+
+    print(f"Loaded {len(signals)} signals from local CSV")
+
+    session_id = f"local-{validation_date.isoformat()}"
+    _run_capture_flow(args, signals, session_id, validation_date)
+
+
+def _run_dynamo_flow(args: argparse.Namespace) -> None:
+    """Legacy flow: load our_signals from DynamoDB.
+
+    Args:
+        args: Parsed CLI arguments.
+
+    """
+    _, ClientError = _import_boto3()
+
+    print("\nSource: DynamoDB (legacy mode)")
 
     # Initialize DynamoDB
     table_name = f"alchemiser-{args.stage}-aggregation-sessions"
     try:
         client = get_dynamodb_client()
     except Exception as e:
-        print(f"\n❌ DynamoDB error: {e}")
+        print(f"\nDynamoDB error: {e}")
         sys.exit(1)
 
     # Find session
     print("\nFinding latest session...")
     if args.session_id:
         session_id = args.session_id
-        validation_date = date.today()
+        validation_date = datetime.now(tz=UTC).date()
     else:
         try:
             latest = get_latest_session(client, table_name)
             if not latest:
-                print("❌ No sessions found")
+                print("No sessions found")
                 sys.exit(1)
 
             session_id = latest["session_id"]
             session_date = latest["created_at"].split("T")[0]
             session_time = latest["created_at"].split("T")[1].split(".")[0]
             validation_date = date.fromisoformat(session_date)
-            print(f"\n✅ Found: {session_date} @ {session_time} UTC")
+            print(f"\nFound: {session_date} @ {session_time} UTC")
             print(f"   Session: {session_id}")
             print(f"   Strategies: {latest['total_strategies']}")
         except ClientError as e:
-            print(f"\n❌ DynamoDB error: {e}")
+            print(f"\nDynamoDB error: {e}")
             sys.exit(1)
 
+    # Get signals from DynamoDB
+    print("\nLoading signals from DynamoDB...")
+    try:
+        raw_signals = get_all_partial_signals(client, table_name, session_id)
+        print(f"Found {len(raw_signals)} signals")
+    except ClientError as e:
+        print(f"\nQuery error: {e}")
+        sys.exit(1)
+
+    if not raw_signals:
+        print("No signals found")
+        sys.exit(1)
+
+    # Convert DynamoDB format to common format: list of {dsl_file, our_signals}
+    signals: list[dict[str, Any]] = []
+    for sig in raw_signals:
+        raw = sig["consolidated_portfolio"].get("target_allocations", {})
+        alloc = sig["allocation"]
+        our_signals = {sym: Decimal(str(w)) / alloc for sym, w in raw.items()}
+        signals.append(
+            {
+                "dsl_file": sig["dsl_file"],
+                "our_signals": our_signals,
+            }
+        )
+
+    _run_capture_flow(args, signals, session_id, validation_date)
+
+
+def _run_capture_flow(
+    args: argparse.Namespace,
+    signals: list[dict[str, Any]],
+    session_id: str,
+    validation_date: date,
+) -> None:
+    """Common capture flow: prompt for Composer holdings + run comparison.
+
+    Args:
+        args: Parsed CLI arguments.
+        signals: List of signal dicts with 'dsl_file' and 'our_signals' keys.
+        session_id: Session ID for CSV records.
+        validation_date: Date of the signal data.
+
+    """
     # Load ledger
     print("\nLoading strategy ledger...")
     try:
         ledger = load_strategy_ledger(LEDGER_PATH)
         print(f"Loaded {len(ledger)} strategies")
     except Exception as e:
-        print(f"\n❌ Ledger error: {e}")
-        sys.exit(1)
-
-    # Get signals
-    print("\nLoading signals...")
-    try:
-        signals = get_all_partial_signals(client, table_name, session_id)
-        print(f"Found {len(signals)} signals")
-    except ClientError as e:
-        print(f"\n❌ Query error: {e}")
-        sys.exit(1)
-
-    if not signals:
-        print("❌ No signals found")
+        print(f"\nLedger error: {e}")
         sys.exit(1)
 
     # Setup CSV
     csv_path = get_csv_path(validation_date, args.stage)
     if args.fresh and csv_path.exists():
         csv_path.unlink()
-        print("\n🔄 Fresh mode - cleared previous")
+        print("\nFresh mode - cleared previous")
 
     captured = load_captured_strategies(csv_path) if not args.fresh else set()
     if captured:
@@ -535,24 +724,27 @@ def main() -> None:
         for i, signal in enumerate(signals, 1):
             dsl_file = signal["dsl_file"]
             strategy_name = dsl_file.replace(".clj", "")
+            our_signals: dict[str, Decimal] = signal["our_signals"]
 
             if dsl_file in captured:
-                print(f"\n✓ Skipping {strategy_name} (already captured)")
+                print(f"\nSkipping {strategy_name} (already captured)")
                 continue
+
+            today_our_signals[strategy_name] = our_signals.copy()
 
             strategy = find_strategy_by_filename(ledger, dsl_file)
 
-            # Extract our_signals
-            raw = signal["consolidated_portfolio"].get("target_allocations", {})
-            alloc = signal["allocation"]
-            our_signals = {sym: Decimal(str(w)) / alloc for sym, w in raw.items()}
-            today_our_signals[strategy_name] = our_signals.copy()
-
             # Display
-            print("\n" + "━" * 80)
+            print("\n" + "-" * 80)
             print(f"\nStrategy {i} of {len(signals)}: {strategy_name}")
             if strategy:
                 print(f"Composer URL: {strategy.get('source_url', 'N/A')}")
+
+            # Show our signal
+            print("Our signal: ", end="")
+            for sym, w in sorted(our_signals.items(), key=lambda x: -float(x[1])):
+                print(f"{sym}={float(w) * 100:.1f}% ", end="")
+            print()
 
             # Open browser
             if not args.no_browser and strategy and strategy.get("source_url"):
@@ -562,36 +754,35 @@ def main() -> None:
                     pass
 
             # Capture
-            print("\n📥 Capture live_signals from Composer:")
+            print("\nCapture live_signals from Composer:")
             live_signals = capture_live_signals(strategy_name)
 
             if live_signals:
                 stats["captured"] += 1
-                print(f"\n✓ Captured {len(live_signals)} holdings")
+                print(f"\nCaptured {len(live_signals)} holdings")
             else:
                 stats["skipped"] += 1
-                print("\n⊘ No capture")
+                print("\nNo capture")
 
             # Save record
             def to_json(d: dict[str, Decimal] | None) -> str:
                 return json.dumps({k: float(v) for k, v in d.items()}, sort_keys=True) if d else ""
 
-            configs = get_all_indicator_configs()
-            config_json = json.dumps({n: c.use_live_bar for n, c in configs.items()}, sort_keys=True)
-
-            append_record(csv_path, {
-                "validation_date": validation_date.isoformat(),
-                "session_id": session_id,
-                "strategy_name": strategy_name,
-                "dsl_file": dsl_file,
-                "our_signals": to_json(our_signals),
-                "live_signals": to_json(live_signals),
-                "partial_bar_config": config_json,
-                "captured_at": datetime.now(UTC).isoformat(),
-            })
+            append_record(
+                csv_path,
+                {
+                    "validation_date": validation_date.isoformat(),
+                    "session_id": session_id,
+                    "strategy_name": strategy_name,
+                    "dsl_file": dsl_file,
+                    "our_signals": to_json(our_signals),
+                    "live_signals": to_json(live_signals),
+                    "captured_at": datetime.now(UTC).isoformat(),
+                },
+            )
 
     except KeyboardInterrupt:
-        print("\n\n✋ Interrupted - progress saved")
+        print("\n\nInterrupted - progress saved")
         print(f"Run again to resume from: {csv_path}")
         sys.exit(0)
 
@@ -611,11 +802,13 @@ def main() -> None:
 
         prev_live = load_live_signals_from_csv(previous_csv)
         if prev_live:
-            run_comparison_report(today_our_signals, prev_live, prev_date, validation_date, args.stage)
+            run_comparison_report(
+                today_our_signals, prev_live, prev_date, validation_date, args.stage
+            )
         else:
-            print(f"\n⚠️  No live_signals in: {previous_csv}")
+            print(f"\nNo live_signals in: {previous_csv}")
     else:
-        print(f"\n⚠️  No previous CSV found (searched 5 days back from {validation_date})")
+        print(f"\nNo previous CSV found (searched 5 days back from {validation_date})")
 
 
 if __name__ == "__main__":

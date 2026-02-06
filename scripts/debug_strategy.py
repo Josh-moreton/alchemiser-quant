@@ -98,8 +98,8 @@ def run_debug_strategy(strategy_name: str) -> dict:
     print("-" * 40)
     print()
 
-    # Create market data adapter with live bar injection enabled
-    market_data_adapter = CachedMarketDataAdapter(append_live_bar=True)
+    # Create market data adapter (reads completed daily bars from S3)
+    market_data_adapter = CachedMarketDataAdapter()
 
     # Create DSL engine with debug mode
     engine = DslEngine(
@@ -168,9 +168,7 @@ def run_debug_strategy(strategy_name: str) -> dict:
 
 def main() -> None:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Debug a strategy with full condition tracing"
-    )
+    parser = argparse.ArgumentParser(description="Debug a strategy with full condition tracing")
     parser.add_argument(
         "strategy",
         nargs="?",

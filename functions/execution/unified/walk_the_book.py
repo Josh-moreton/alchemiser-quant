@@ -282,6 +282,10 @@ class WalkTheBookStrategy:
                     broker_error=broker_error,
                     limit_price=str(limit_price),
                 )
+                # Cancel any pending orders from prior steps to release held shares
+                await self._cancel_prior_step_orders(
+                    order_attempts, step_index, intent.correlation_id
+                )
                 return WalkResult(
                     success=False,
                     order_attempts=order_attempts,
@@ -847,6 +851,41 @@ class WalkTheBookStrategy:
                     filled_quantity=Decimal("0"),
                     avg_fill_price=None,
                 )
+
+    async def _cancel_prior_step_orders(
+        self,
+        order_attempts: list[OrderAttempt],
+        current_step: int,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Cancel any pending orders from steps prior to the current one.
+
+        When a later step is rejected (e.g. due to held shares from a prior
+        step's unfilled limit order), we must cancel those prior orders to
+        release the held position before retrying.
+
+        Args:
+            order_attempts: All order attempts so far
+            current_step: The step index that was rejected
+            correlation_id: Correlation ID for tracing
+
+        """
+        for prior_index, prior_attempt in enumerate(order_attempts):
+            if prior_index >= current_step:
+                break
+            if (
+                prior_attempt.order_id
+                and prior_attempt.status == OrderStatus.PENDING
+                and prior_attempt.filled_quantity == Decimal("0")
+            ):
+                logger.info(
+                    "Cancelling pending order from prior step after rejection",
+                    order_id=prior_attempt.order_id,
+                    prior_step=prior_index + 1,
+                    rejected_step=current_step + 1,
+                    correlation_id=correlation_id,
+                )
+                await self._cancel_order(prior_attempt.order_id, correlation_id)
 
     async def _cancel_order(self, order_id: str, correlation_id: str | None = None) -> bool:
         """Cancel an order and wait for confirmation.

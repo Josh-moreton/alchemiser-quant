@@ -79,9 +79,7 @@ class StrategyResult:
             return f"ERROR: {self.error}"
         if not self.allocation:
             return "NO ALLOCATION"
-        return ", ".join(
-            f"{sym}: {weight:.2%}" for sym, weight in sorted(self.allocation.items())
-        )
+        return ", ".join(f"{sym}: {weight:.2%}" for sym, weight in sorted(self.allocation.items()))
 
 
 def create_historical_adapter(cutoff_date: date) -> "HistoricalMarketDataAdapter":
@@ -171,7 +169,7 @@ def create_per_indicator_adapter(
     live_date: date, historical_date: date
 ) -> "PerIndicatorMarketDataAdapter":
     """Create adapter with per-indicator T-1 logic.
-    
+
     RSI, current_price, moving_average: use live_date
     stdev_return, cumulative_return: use historical_date (T-1)
     """
@@ -182,8 +180,12 @@ def create_per_indicator_adapter(
     from the_alchemiser.shared.types.market_data_port import MarketDataPort
     from the_alchemiser.shared.value_objects.symbol import Symbol
 
-    LIVE_BAR_INDICATORS = {"rsi", "current_price", "moving_average", "moving_average_return", "exponential_moving_average_price"}
-    HISTORICAL_ONLY_INDICATORS = {"stdev_return", "stdev_price", "cumulative_return", "max_drawdown"}
+    HISTORICAL_ONLY_INDICATORS = {
+        "stdev_return",
+        "stdev_price",
+        "cumulative_return",
+        "max_drawdown",
+    }
 
     class PerIndicatorMarketDataAdapter(MarketDataPort):
         """Adapter with per-indicator date handling."""
@@ -362,7 +364,9 @@ def print_results_table(results: list[StrategyResult]) -> None:
     print(f"Live: {LIVE_DATE} (RSI uses Jan 6, stdev uses Jan 5 via T-1)")
     print("=" * 120)
 
-    print(f"\n{'Strategy':<{max_name_len}} | {'Historical (Jan 5)':<{col_width}} | {'Live (Jan 6 + T-1 for stdev)':<{col_width}}")
+    print(
+        f"\n{'Strategy':<{max_name_len}} | {'Historical (Jan 5)':<{col_width}} | {'Live (Jan 6 + T-1 for stdev)':<{col_width}}"
+    )
     print("-" * (max_name_len + col_width * 2 + 6))
 
     for strategy in VALIDATION_STRATEGIES:
