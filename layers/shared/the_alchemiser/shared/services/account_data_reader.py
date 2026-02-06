@@ -236,7 +236,8 @@ class AccountDataReader:
         if not pointer:
             return None
 
-        return pointer.get("updated_at")
+        result: str | None = pointer.get("updated_at")
+        return result
 
 
 # ======================================================================
@@ -257,7 +258,8 @@ def _deserialize_account_item(item: dict[str, Any]) -> dict[str, Any]:
         data = {}
 
     # Convert any Decimal values back to strings (DynamoDB stores numbers as Decimal)
-    return _convert_decimals(data)
+    result: dict[str, Any] = _convert_decimals(data)
+    return result
 
 
 def _deserialize_positions_item(item: dict[str, Any]) -> list[PositionSnapshot]:
