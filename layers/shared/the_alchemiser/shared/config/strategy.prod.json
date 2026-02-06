@@ -11,8 +11,8 @@
   "allocations": {
     "gold.clj": 0.08,
     "rains_em_dancer.clj": 0.136,
-    "sisyphus_lowvol.clj": 0.272,
-    "ftlt/tqqq_ftlt.clj": 0.086,
+    "sisyphus_lowvol.clj": 0.2,
+    "ftlt/tqqq_ftlt.clj": 0.158,
     "ftlt/tqqq_ftlt_2.clj": 0.142,
     "ftlt/holy_grail.clj": 0.101,
     "kmlm_switcher.clj": 0.183
