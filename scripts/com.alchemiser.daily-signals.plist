@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Daily signal generation scheduler for Alchemiser.
+
+  Runs generate_daily_signals.py at 9:00 PM local time, Mon-Fri.
+  Generates signals for both dev and prod strategy profiles.
+
+  Install:  make install-scheduler
+  Remove:   make uninstall-scheduler
+  Status:   launchctl list | grep alchemiser
+  Logs:     tail -f /tmp/alchemiser-signals-stdout.log
+
+  BEFORE INSTALLING:
+  1. Update WorkingDirectory and ProgramArguments paths if your repo is elsewhere
+  2. Set ALPACA__KEY and ALPACA__SECRET in EnvironmentVariables below
+  3. Ensure AWS credentials are configured (~/.aws/credentials or env vars)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alchemiser.daily-signals</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/joshmoreton/GitHub/alchemiser-quant</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/joshmoreton/GitHub/alchemiser-quant/venv/bin/python</string>
+        <string>scripts/generate_daily_signals.py</string>
+        <string>--stage</string>
+        <string>both</string>
+        <string>--log-file</string>
+        <string>/tmp/alchemiser-signals.log</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MARKET_DATA_BUCKET</key>
+        <string>alchemiser-dev-market-data</string>
+        <key>AWS_DEFAULT_REGION</key>
+        <string>us-east-1</string>
+        <!-- Set these to your Alpaca API credentials -->
+        <key>ALPACA__KEY</key>
+        <string>YOUR_ALPACA_KEY_HERE</string>
+        <key>ALPACA__SECRET</key>
+        <string>YOUR_ALPACA_SECRET_HERE</string>
+    </dict>
+
+    <!-- Run at 9:00 PM local time -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- Monday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>1</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <!-- Tuesday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>2</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <!-- Wednesday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>3</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <!-- Thursday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>4</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <!-- Friday -->
+        <dict>
+            <key>Weekday</key>
+            <integer>5</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/alchemiser-signals-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/alchemiser-signals-stderr.log</string>
+
+    <!-- Don't retry if the Mac was asleep at 9 PM -->
+    <key>MisfireGracePeriod</key>
+    <integer>3600</integer>
+</dict>
+</plist>
