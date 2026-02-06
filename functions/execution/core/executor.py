@@ -402,7 +402,7 @@ class Executor:
                 execution_result.intent.client_order_id if execution_result.intent else None
             )
 
-            return OrderResult(
+            order_result = OrderResult(
                 symbol=symbol,
                 action=action,  # type: ignore[arg-type]
                 trade_amount=executed_trade_amount,
@@ -418,6 +418,18 @@ class Executor:
                 filled_at=datetime.now(UTC) if execution_result.success else None,
                 client_order_id=client_order_id,
             )
+
+            # Calculate slippage using quote mid price as expected price
+            if (
+                order_result.success
+                and execution_result.quote_result
+                and execution_result.quote_result.success
+                and execution_result.quote_result.mid
+                and execution_result.quote_result.mid > Decimal("0")
+            ):
+                order_result = order_result.calculate_slippage(execution_result.quote_result.mid)
+
+            return order_result
 
         # Fallback to market order if unified service not available
         logger.warning("⚠️ Unified service not available, falling back to market order")
