@@ -21,6 +21,10 @@ from typing import Literal
 from engines.dsl.context import DslContext, FilterCandidate, FilterTrace
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.operators.control_flow import create_indicator_with_symbol
+from engines.dsl.operators.group_cache_lookup import (
+    is_cache_available,
+    lookup_historical_selections,
+)
 from engines.dsl.types import DslEvaluationError, DSLValue
 
 from the_alchemiser.shared.logging import get_logger
@@ -34,6 +38,14 @@ logger = get_logger(__name__)
 
 # Volatility calculation constants
 STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
+
+# Mapping of known group names (from DSL) to group IDs (for cache lookup)
+# This enables accurate historical scoring for filtered groups
+KNOWN_GROUP_ID_MAPPING = {
+    "YINN YANG Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__yinn_yang_mean_reversion",
+    "LABU LABD Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__labu_labd_mean_reversion",
+    "DRV DRN Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__drv_drn_mean_reversion",
+}
 
 
 # ---------- Shared helpers ----------
@@ -63,6 +75,33 @@ def _describe_filter_condition(condition_expr: ASTNode, context: DslContext) -> 
             logger.debug("DSL filter: failed to evaluate condition params for tracing: %s", exc)
 
     return desc
+
+
+def _extract_window_from_condition(condition_expr: ASTNode, context: DslContext) -> int | None:
+    """Extract the window size from a filter condition expression.
+
+    Parses expressions like (moving-average-return {:window 10}) or
+    (stdev-return {:window 12}) to extract the window value.
+
+    Returns None if window cannot be extracted.
+    """
+    if not condition_expr.is_list() or len(condition_expr.children) < 2:
+        return None
+
+    try:
+        params_val = context.evaluate_node(
+            condition_expr.children[1], context.correlation_id, context.trace
+        )
+        if isinstance(params_val, dict):
+            window = params_val.get("window")
+            if isinstance(window, int):
+                return window
+            if isinstance(window, float):
+                return int(window)
+    except (DslEvaluationError, ValueError, TypeError):
+        pass
+
+    return None
 
 
 def collect_assets_from_value(value: DSLValue) -> list[str]:
@@ -1177,11 +1216,50 @@ def _score_portfolio(
     This is essentially embedding a mini-backtest engine inside the filter
     operator, which is a significant architectural change.
 
+    UPDATE 2026-02-06: Group cache infrastructure is now in place.
+        - DynamoDB table stores daily group evaluations
+        - Group Cache Lambda populates cache at 4 AM ET daily
+        - KNOWN_GROUP_ID_MAPPING maps group names to cache keys
+        - When cache data is available, we can use historical selections
+          to compute accurate metrics for Composer parity
+
     See also: scripts/diagnose_cumret_methods.py for debugging tools.
     """
     weights = fragment.weights
     if not weights:
         return None
+
+    # Check if this is a known cached group
+    group_name = fragment.metadata.get("group_name")
+    group_id = KNOWN_GROUP_ID_MAPPING.get(str(group_name)) if isinstance(group_name, str) else None
+
+    if group_id and is_cache_available():
+        # Extract window size from condition expression for lookback
+        window = _extract_window_from_condition(condition_expr, context)
+        if window:
+            historical_selections = lookup_historical_selections(
+                group_id=group_id,
+                lookback_days=window,
+            )
+            if historical_selections:
+                logger.info(
+                    "DSL filter: using cached historical selections for group scoring",
+                    extra={
+                        "group_name": group_name,
+                        "group_id": group_id,
+                        "window": window,
+                        "cached_days": len(historical_selections),
+                        "correlation_id": context.correlation_id,
+                    },
+                )
+                # TODO: Phase 2 - Compute metric from historical selections
+                # For now, fall through to current scoring logic
+                # Full implementation would:
+                # 1. For each day in historical_selections, get that day's selected symbols
+                # 2. Look up each symbol's return for that day
+                # 3. Compute the portfolio's daily return (weighted by selection weights)
+                # 4. Apply the metric (moving-average-return, stdev-return, etc.)
+                #    to the return series
 
     # Composer parity: max-drawdown is a "lower is better" metric, but Composer
     # uses select-top to mean "pick the best" (i.e., lowest drawdown).

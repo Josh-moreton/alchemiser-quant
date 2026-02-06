@@ -659,6 +659,43 @@ Resources:
         - Key: Service
           Value: iv-history
 
+  # ========== GROUP HISTORICAL SELECTIONS TABLE (PORTFOLIO SCORING) ==========
+  # DynamoDB table for caching daily group evaluations for filter scoring
+  # Used by portfolio.py to compute accurate historical returns for groups
+  GroupHistoricalSelectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-group-history"
+        - !Sub "alchemiser-${Stage}-group-history"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: group_id
+          AttributeType: S
+        - AttributeName: record_date
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: group_id
+          KeyType: HASH
+        - AttributeName: record_date
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: group-history
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -2427,6 +2464,102 @@ Resources:
                 Resource:
                   - !GetAtt ScheduleManagerFunction.Arn
 
+  # ========== GROUP CACHE LAMBDA (PORTFOLIO SCORING CACHE) ==========
+  # Evaluates filterable groups daily and caches selections in DynamoDB
+  # for accurate historical scoring in filter operators
+  GroupCacheFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-group-cache"
+        - !Sub "alchemiser-${Stage}-group-cache"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/group_cache/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt GroupCacheExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref StrategyLayer
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          GROUP_HISTORY_TABLE: !Ref GroupHistoricalSelectionsTable
+          CACHE_TTL_DAYS: "30"
+          MARKET_DATA_BUCKET: !Ref MarketDataBucket
+          DATA_FUNCTION_NAME: !Ref DataFunction
+          # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
+    Metadata:
+      BuildMethod: python3.12
+
+  GroupCacheExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
+      Policies:
+        - PolicyName: GroupCachePolicy
+          PolicyDocument:
+            Statement:
+              # Permission to write to group history table
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt GroupHistoricalSelectionsTable.Arn
+              # Permission to read from market data bucket
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt MarketDataBucket.Arn
+                  - !Sub "${MarketDataBucket.Arn}/*"
+              # Permission to invoke data function for sync refresh
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataFunction.Arn
+
+  # Morning schedule to run group cache at 4:00 AM ET (before market open)
+  GroupCacheSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-group-cache"
+        - !Sub "alchemiser-${Stage}-group-cache"
+      Description: "Run Group Cache at 4:00 AM ET to update historical selections"
+      ScheduleExpression: "cron(0 4 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt GroupCacheFunction.Arn
+        RoleArn: !GetAtt GroupCacheSchedulerRole.Arn
+        Input: '{"source": "morning_schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  GroupCacheSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *scheduler-assume-role
+      Policies:
+        - PolicyName: InvokeGroupCache
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt GroupCacheFunction.Arn
+
   # Data Lambda Schedule - uses EventBridge Scheduler for reliable scheduling
   DataRefreshSchedule:
     Type: AWS::Scheduler::Schedule
@@ -2859,6 +2992,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-BadDataMarkersTable"
         - !Sub "alchemiser-${Stage}-BadDataMarkersTable"
+
+  GroupHistoricalSelectionsTableName:
+    Description: "DynamoDB table for group historical selections cache"
+    Value: !Ref GroupHistoricalSelectionsTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-GroupHistoricalSelectionsTable"
+        - !Sub "alchemiser-${Stage}-GroupHistoricalSelectionsTable"
 
   DataFunctionArn:
     Description: "ARN of per-stage data function"
