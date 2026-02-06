@@ -159,6 +159,132 @@ def score_candidates(
     return scored
 
 
+# Score proximity threshold for flagging fragile rankings (1% of score range)
+SCORE_PROXIMITY_THRESHOLD_PCT = 0.01
+
+
+def _deterministic_symbol_sort(
+    scored: list[tuple[str, float]], order: Literal["top", "bottom"]
+) -> list[tuple[str, float]]:
+    """Sort scored candidates with deterministic tiebreaker.
+
+    Primary sort: by score (descending for top, ascending for bottom).
+    Secondary sort: by symbol name alphabetically (ascending) when scores
+    are identical. This prevents non-deterministic ordering when multiple
+    candidates share the same score, which causes ranking instability
+    in strategies like rains_em_dancer where safe-asset RSI values are
+    very close.
+
+    Args:
+        scored: List of (symbol, score) tuples
+        order: "top" for descending score order, "bottom" for ascending
+
+    Returns:
+        Sorted list of (symbol, score) tuples
+
+    """
+    if order == "top":
+        scored.sort(key=lambda x: (-x[1], x[0]))
+    else:
+        scored.sort(key=lambda x: (x[1], x[0]))
+    return scored
+
+
+def _log_score_proximity(
+    scored: list[tuple[str, float]],
+    limit: int | None,
+    context: DslContext,
+) -> None:
+    """Log warning when top candidates have very close scores.
+
+    When the score gap between the selected cutoff and the next
+    candidate is very small, the ranking is fragile and may diverge
+    from Composer due to minor indicator computation differences.
+
+    Args:
+        scored: Sorted list of (candidate_id, score) tuples
+        limit: How many items are being selected
+        context: DSL evaluation context for logging
+
+    """
+    if limit is None or limit <= 0 or limit >= len(scored):
+        return
+
+    last_selected_score = scored[limit - 1][1]
+    first_rejected_score = scored[limit][1]
+
+    score_range = abs(scored[0][1] - scored[-1][1]) if len(scored) > 1 else 1.0
+    if score_range < 1e-10:
+        score_range = 1.0  # Avoid division by zero
+
+    gap = abs(last_selected_score - first_rejected_score)
+    relative_gap = gap / score_range
+
+    if relative_gap < SCORE_PROXIMITY_THRESHOLD_PCT:
+        logger.warning(
+            "DSL filter: FRAGILE RANKING - score gap at selection boundary is < 1%% of range. "
+            "Ranking may diverge from Composer due to minor indicator differences. "
+            "Last selected: %s (score=%.6f), first rejected: %s (score=%.6f), "
+            "gap=%.6f, range=%.6f, relative_gap=%.4f",
+            scored[limit - 1][0],
+            last_selected_score,
+            scored[limit][0],
+            first_rejected_score,
+            gap,
+            score_range,
+            relative_gap,
+            extra={"correlation_id": context.correlation_id},
+        )
+
+
+def _log_portfolio_score_proximity(
+    scored: list[tuple[PortfolioFragment, float]],
+    limit: int | None,
+    context: DslContext,
+) -> None:
+    """Log warning when portfolio scores near the selection boundary are close.
+
+    When the score gap between the last selected and first rejected portfolio
+    is very small relative to the total score range, the ranking is fragile.
+
+    Args:
+        scored: Sorted list of (portfolio, score) tuples
+        limit: How many portfolios are being selected
+        context: DSL evaluation context for logging
+
+    """
+    if limit is None or limit <= 0 or limit >= len(scored):
+        return
+
+    last_selected_score = scored[limit - 1][1]
+    first_rejected_score = scored[limit][1]
+
+    score_range = abs(scored[0][1] - scored[-1][1]) if len(scored) > 1 else 1.0
+    if score_range < 1e-10:
+        score_range = 1.0
+
+    gap = abs(last_selected_score - first_rejected_score)
+    relative_gap = gap / score_range
+
+    if relative_gap < SCORE_PROXIMITY_THRESHOLD_PCT:
+        last_name = scored[limit - 1][0].metadata.get("group_name", "unnamed")
+        next_name = scored[limit][0].metadata.get("group_name", "unnamed")
+        logger.warning(
+            "DSL filter: FRAGILE PORTFOLIO RANKING - score gap at selection boundary "
+            "is < 1%% of range. Portfolio ranking may diverge from Composer. "
+            "Last selected: %s (score=%.6f), first rejected: %s (score=%.6f), "
+            "gap=%.6f, range=%.6f, relative_gap=%.4f",
+            last_name,
+            last_selected_score,
+            next_name,
+            first_rejected_score,
+            gap,
+            score_range,
+            relative_gap,
+            extra={"correlation_id": context.correlation_id},
+        )
+
+
 def select_symbols(
     condition_expr: ASTNode,
     symbols: list[str],
@@ -180,8 +306,9 @@ def select_symbols(
             source_step="filter",
             weights={},
         )
-    scored.sort(key=lambda x: x[1], reverse=(order == "top"))
+    scored = _deterministic_symbol_sort(scored, order)
     full_sorted = list(scored)
+    _log_score_proximity(scored, limit, context)
     if limit is not None and limit >= 0:
         scored = scored[:limit]
 
@@ -1123,13 +1250,24 @@ def _select_portfolios(
         p for p in portfolios if p.metadata.get("group_name") and len(p.weights) == 1
     ]
     if groups_with_names:
+        # This is a known Composer parity limitation. We score groups by
+        # today's selected asset only, not by historical return stream.
+        # Log detailed info to help debug divergent strategies.
+        group_details = []
+        for p in groups_with_names[:10]:
+            name = p.metadata.get("group_name")
+            symbols = list(p.weights.keys())
+            group_details.append({"name": name, "selected_today": symbols})
+
         logger.warning(
             "DSL filter: filtering %d groups with decision trees. "
             "KNOWN LIMITATION: scoring uses today's selected asset only, "
-            "not historical return stream. May diverge from Composer. "
-            "Affected groups: %s",
+            "not historical return stream. May diverge from Composer for "
+            "strategies like ftl_starburst, vox_the_best, growth_blend. "
+            "Group details (first 10): %s",
             len(groups_with_names),
-            [p.metadata.get("group_name") for p in groups_with_names[:5]],
+            group_details,
+            extra={"correlation_id": context.correlation_id},
         )
 
     # Score each portfolio as a unit
@@ -1153,9 +1291,20 @@ def _select_portfolios(
             weights={},
         )
 
-    # Sort portfolios by score
-    # "top" = sort descending (highest first), "bottom" = sort ascending (lowest first)
-    scored.sort(key=lambda x: x[1], reverse=(order == "top"))
+    # Sort portfolios by score with deterministic tiebreaker
+    # Primary: score (descending for top, ascending for bottom)
+    # Secondary: first symbol alphabetically for deterministic ordering
+    def _portfolio_sort_key(
+        item: tuple[PortfolioFragment, float],
+    ) -> tuple[float, str]:
+        pf, score = item
+        first_sym = sorted(pf.weights.keys())[0] if pf.weights else ""
+        return (score, first_sym)
+
+    if order == "top":
+        scored.sort(key=lambda x: (-_portfolio_sort_key(x)[0], _portfolio_sort_key(x)[1]))
+    else:
+        scored.sort(key=lambda x: (_portfolio_sort_key(x)[0], _portfolio_sort_key(x)[1]))
 
     # Trace ranking/selection for parity debugging (capture full sorted list)
     scored_candidates: list[FilterCandidate] = []
@@ -1189,6 +1338,9 @@ def _select_portfolios(
             list(pf.weights.keys())[:5],
             len(pf.weights),
         )
+
+    # Log score proximity warning for portfolio mode
+    _log_portfolio_score_proximity(scored, limit, context)
 
     # Select top/bottom N portfolios
     if limit is not None and limit >= 0:

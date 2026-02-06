@@ -1,6 +1,17 @@
 ## [Unreleased]
 
 ### Fixed
+- **Dashboard showing stale portfolio stats**: Fixed issue where the portfolio overview page displayed outdated equity and P&L data
+  - **Root Cause**: The dashboard was using Alpaca's portfolio history API, which only returns data for completed trading days (market must close before the current day appears). This meant during trading hours, the "Today's P&L" metric was actually showing yesterday's data
+  - **Solution**: Added new `load_realtime_account()` function that fetches live account data from Alpaca's account API (using `equity` and `last_equity` fields) and calculates today's P&L in real-time as `current_equity - last_equity`
+  - **Implementation Details**:
+    - New function cached for 1 minute (vs 5 minutes for historical data) to provide near-instant updates
+    - Graceful fallback to historical data if real-time API fails
+    - Current equity and today's P&L now reflect actual trading session performance
+    - Historical data (equity curve, cumulative stats) continues using portfolio history API with deposit adjustments
+  - **Impact**: Dashboard now displays accurate, real-time portfolio statistics during trading hours
+  - **Files Modified**: `scripts/dashboard_pages/portfolio_overview.py`
+
 - **Double run bug**: Removed production fallback schedule that was causing duplicate strategy executions
   - **Root Cause**: Production had both a dynamic schedule (3:45 PM ET via Schedule Manager) and a fallback schedule (3:50 PM ET). When the dynamic schedule succeeded, the fallback would still trigger 5 minutes later, creating a second workflow run
   - **Solution**: Removed the `StrategySchedule` fallback resource from `template.yaml`. All environments (dev/staging/prod) now rely solely on the Schedule Manager for dynamic scheduling

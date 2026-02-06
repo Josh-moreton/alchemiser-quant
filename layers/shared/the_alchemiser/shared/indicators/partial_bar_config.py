@@ -104,7 +104,7 @@ _INDICATOR_CONFIGS: dict[str, PartialBarIndicatorConfig] = {
         eligible_for_partial_bar=PartialBarEligibility.YES,
         modification_notes="No modifications needed. Already works with partial bars "
         "because it simply returns the latest close value regardless of completeness.",
-        use_live_bar=False,  # Always use live bar - must return today's current price
+        use_live_bar=False,  # T-1 mode: use last completed bar to match Composer EOD evaluation
         edge_cases=(
             "Stale price if market closed and cache not updated",
             "Pre-market/after-hours price may differ from regular session",

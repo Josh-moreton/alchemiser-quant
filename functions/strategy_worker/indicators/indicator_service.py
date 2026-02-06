@@ -525,11 +525,21 @@ class IndicatorService:
             "stdev_price",
             "cumulative_return",
         }:
-            # Need at least window plus some extra for pct_change/shift stability
-            return max(window + 5, 60)
+            # Rolling window indicators need window + buffer for pct_change
+            # stability. Increased minimum from 60 to 120 for better
+            # convergence on short-window indicators used in filter ranking
+            # (e.g., stdev-return {:window 10} in ftl_starburst).
+            return max(window + 10, 120)
         if ind_type == "rsi":
-            # RSI stabilizes with more data; fetch ~3x window (min 200)
-            return max(window * 3 if window > 0 else 200, 200)
+            # RSI uses Wilder's smoothing (ewm with alpha=1/window, adjust=False)
+            # which is recursive. The EWM "memory" decays as (1-alpha)^n, so
+            # convergence requires many periods. With alpha=0.1 (window=10):
+            #   200 bars: weight of first bar = 0.9^200 ≈ 7e-10 (converged)
+            #   500 bars: even more stable baseline
+            # We use 500 bars minimum to match Composer's likely longer history
+            # and reduce parity divergence in tight RSI rankings (e.g.,
+            # rains_em_dancer where safe-asset RSI values differ by < 1 point).
+            return max(window * 5 if window > 0 else 500, 500)
         if ind_type == "current_price":
             return 1
         if ind_type in {"percentage_price_oscillator", "percentage_price_oscillator_signal"}:
