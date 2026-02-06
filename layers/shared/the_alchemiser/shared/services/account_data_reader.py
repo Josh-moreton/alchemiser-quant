@@ -200,7 +200,7 @@ class AccountDataReader:
         table: Any,  # noqa: ANN401
         account_id: str,
     ) -> list[DailyPnLEntry]:
-        """Convenience wrapper: return all PnL records for an account.
+        """Return all PnL records for an account.
 
         Args:
             table: boto3 DynamoDB Table resource.
