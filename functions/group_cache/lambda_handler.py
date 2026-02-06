@@ -430,8 +430,12 @@ def _get_strategies_path() -> Path:
         result = importlib_resources.files("the_alchemiser.shared.strategies")
         # importlib.resources.files() may return a MultiplexedPath on Lambda
         # when multiple package sources contribute to the namespace (layer + function).
-        # Convert to a plain Path to guarantee filesystem compatibility.
-        return Path(str(result))
+        # MultiplexedPath's str() returns "MultiplexedPath('...')" not the actual path.
+        # Extract the first underlying path from _paths attribute.
+        if hasattr(result, "_paths") and result._paths:
+            return Path(result._paths[0])
+        # Fallback: if it's already a Path-like, use it directly
+        return Path(result)  # type: ignore[arg-type]
     except (ModuleNotFoundError, AttributeError):
         # Fallback for local development
         strategies_path = (
