@@ -686,6 +686,47 @@ Resources:
         - Key: Service
           Value: group-history
 
+  # ========== ACCOUNT DATA TABLE (DASHBOARD DATA SOURCE) ==========
+  # Single-table design storing account snapshots, positions, and daily PnL.
+  # Written by the account_data Lambda on a 6-hourly schedule.
+  # Read by the Streamlit dashboard instead of calling Alpaca directly.
+  AccountDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAt
+        Enabled: true
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: account-data
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -2583,6 +2624,87 @@ Resources:
                 Resource:
                   - !GetAtt DataFunction.Arn
 
+  # ========== ACCOUNT DATA LAMBDA (DASHBOARD DATA SOURCE) ==========
+  # Fetches account info, positions, and PnL from Alpaca on a 6-hourly schedule
+  # and writes to AccountDataTable so the dashboard reads from DynamoDB only.
+  AccountDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/account_data/
+      Handler: lambda_handler.handler
+      Role: !GetAtt AccountDataExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          ACCOUNT_DATA_TABLE: !Ref AccountDataTable
+          # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
+    Metadata:
+      BuildMethod: python3.12
+
+  AccountDataExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
+      Policies:
+        - PolicyName: AccountDataPolicy
+          PolicyDocument:
+            Statement:
+              # Permission to write to account data table
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt AccountDataTable.Arn
+
+  # 6-hourly schedule: 4 AM, 10 AM, 4 PM, 10 PM ET
+  # The 4 PM run captures market close data
+  AccountDataSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      Description: "Fetch account data from Alpaca every 6 hours (4 AM, 10 AM, 4 PM, 10 PM ET)"
+      ScheduleExpression: "cron(0 4,10,16,22 * * ? *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt AccountDataFunction.Arn
+        RoleArn: !GetAtt AccountDataSchedulerRole.Arn
+        Input: '{"source": "scheduled"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  AccountDataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *scheduler-assume-role
+      Policies:
+        - PolicyName: InvokeAccountData
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AccountDataFunction.Arn
+
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
   # ============================================================================
@@ -2684,6 +2806,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-GroupHistoricalSelectionsTable"
         - !Sub "alchemiser-${Stage}-GroupHistoricalSelectionsTable"
+
+  AccountDataTableName:
+    Description: "DynamoDB table for account data snapshots (dashboard data source)"
+    Value: !Ref AccountDataTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-AccountDataTable"
+        - !Sub "alchemiser-${Stage}-AccountDataTable"
 
   DataFunctionArn:
     Description: "ARN of per-stage data function"

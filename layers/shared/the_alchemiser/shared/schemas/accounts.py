@@ -38,6 +38,7 @@ __all__ = [
     "EnrichedAccountSummaryView",
     "PortfolioAllocationDTO",
     "PortfolioAllocationResult",
+    "PositionSnapshot",
     "RiskMetrics",
     "RiskMetricsDTO",
     "RiskMetricsResult",
@@ -359,6 +360,46 @@ class EnrichedAccountSummaryView(BaseModel):
 
     raw: dict[str, Any] = Field(..., description="Raw broker API response")
     summary: AccountSummary = Field(..., description="Parsed account summary")
+    schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
+
+
+class PositionSnapshot(BaseModel):
+    """DTO for a point-in-time snapshot of a single broker position.
+
+    Captured periodically by the account_data Lambda and stored in DynamoDB
+    so the dashboard can read positions without calling Alpaca directly.
+
+    Attributes:
+        symbol: Trading symbol (e.g. AAPL, TQQQ).
+        qty: Number of shares held (fractional allowed).
+        avg_entry_price: Volume-weighted average entry price.
+        current_price: Latest market price at snapshot time.
+        market_value: Current market value of the position.
+        cost_basis: Total cost basis (qty * avg_entry_price).
+        unrealized_pl: Unrealized profit/loss in dollars.
+        unrealized_plpc: Unrealized profit/loss as a decimal ratio (0.05 = 5%).
+        side: Position side (long or short).
+        asset_class: Alpaca asset class (us_equity, crypto, etc.).
+        schema_version: Schema version for backward compatibility tracking.
+
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol")
+    qty: Decimal = Field(..., description="Number of shares (fractional allowed)")
+    avg_entry_price: Decimal = Field(..., ge=0, description="Average entry price")
+    current_price: Decimal = Field(..., ge=0, description="Current market price")
+    market_value: Decimal = Field(..., description="Current market value")
+    cost_basis: Decimal = Field(..., ge=0, description="Total cost basis")
+    unrealized_pl: Decimal = Field(..., description="Unrealized profit/loss ($)")
+    unrealized_plpc: Decimal = Field(..., description="Unrealized P&L ratio (e.g. 0.05 = 5%)")
+    side: str = Field(default="long", description="Position side (long/short)")
+    asset_class: str = Field(default="us_equity", description="Asset class")
     schema_version: str = Field(default="1.0", description=_SCHEMA_VERSION_DESC)
 
 

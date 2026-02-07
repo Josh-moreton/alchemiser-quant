@@ -536,15 +536,15 @@ def show() -> None:
         days_back=90,
     )
 
-    # Try to get current NAV from Alpaca (optional)
+    # Try to get current NAV from DynamoDB account snapshot (optional)
     current_nav: Decimal | None = None
     try:
-        from the_alchemiser.shared.services.pnl_service import PnLService
+        from . import data_access
 
-        pnl_service = PnLService()
-        records, _ = pnl_service.get_all_daily_records(period="1W")
-        if records:
-            current_nav = records[-1].equity
+        account_dict = data_access.get_latest_account_data()
+        if account_dict:
+            equity_str = account_dict.get("equity", "0")
+            current_nav = Decimal(str(equity_str))
     except Exception:
         pass  # NAV unavailable, continue without
 

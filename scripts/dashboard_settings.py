@@ -115,6 +115,14 @@ class DashboardSettings(BaseModel):
         default="",
         description="DynamoDB table name for hedge history audit trail",
     )
+    account_data_table: str = Field(
+        default="",
+        description="DynamoDB table name for account data snapshots",
+    )
+    account_id: str = Field(
+        default="",
+        description="Alpaca account ID for DynamoDB lookups",
+    )
     aws_region: str = Field(
         default="us-east-1",
         description="AWS region for DynamoDB access",
@@ -177,6 +185,11 @@ class DashboardSettings(BaseModel):
                 "HEDGE_HISTORY_TABLE_NAME",
                 f"alchemiser-{stage}-hedge-history",
             ),
+            account_data_table=_get_secret(
+                "ACCOUNT_DATA_TABLE",
+                f"alchemiser-{stage}-account-data",
+            ),
+            account_id=_get_secret("ALPACA_ACCOUNT_ID", ""),
             aws_region=region,
             stage=stage,
             aws_access_key_id=aws_access_key,
