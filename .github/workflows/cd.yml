@@ -168,5 +168,18 @@ jobs:
 
       - name: Deploy
         run: |
-          chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh "${{ steps.target.outputs.env }}"
+          ENV="${{ steps.target.outputs.env }}"
+          SHARED_STACK="alchemiser-${ENV}-shared"
+          chmod +x scripts/deploy.sh scripts/migrate-to-multi-stack.sh
+
+          # Check if the shared stack exists (migration already done)
+          SHARED_STATUS=$(aws cloudformation describe-stacks --stack-name "$SHARED_STACK" \
+            --query 'Stacks[0].StackStatus' --output text --no-cli-pager 2>/dev/null || echo "DOES_NOT_EXIST")
+
+          if [ "$SHARED_STATUS" = "DOES_NOT_EXIST" ] || [[ "$SHARED_STATUS" == *FAILED* ]]; then
+            echo "Shared stack not found or failed - running one-time migration..."
+            echo "y" | ./scripts/migrate-to-multi-stack.sh "$ENV"
+          else
+            echo "Shared stack exists ($SHARED_STATUS) - running normal deploy..."
+            ./scripts/deploy.sh "$ENV"
+          fi
