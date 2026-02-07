@@ -172,14 +172,16 @@ jobs:
           SHARED_STACK="alchemiser-${ENV}-shared"
           chmod +x scripts/deploy.sh scripts/migrate-to-multi-stack.sh
 
-          # Check if the shared stack exists (migration already done)
+          # Check if the shared stack exists AND is in a healthy state
           SHARED_STATUS=$(aws cloudformation describe-stacks --stack-name "$SHARED_STACK" \
             --query 'Stacks[0].StackStatus' --output text --no-cli-pager 2>/dev/null || echo "DOES_NOT_EXIST")
 
-          if [ "$SHARED_STATUS" = "DOES_NOT_EXIST" ] || [[ "$SHARED_STATUS" == *FAILED* ]]; then
-            echo "Shared stack not found or failed - running one-time migration..."
-            echo "y" | ./scripts/migrate-to-multi-stack.sh "$ENV"
-          else
-            echo "Shared stack exists ($SHARED_STATUS) - running normal deploy..."
+          # Only treat as healthy if in a *_COMPLETE state (not REVIEW_IN_PROGRESS,
+          # *_FAILED, *_IN_PROGRESS, ROLLBACK_*, etc.)
+          if [[ "$SHARED_STATUS" == *_COMPLETE ]] && [[ "$SHARED_STATUS" != "ROLLBACK_COMPLETE" ]]; then
+            echo "Shared stack healthy ($SHARED_STATUS) - running normal deploy..."
             ./scripts/deploy.sh "$ENV"
+          else
+            echo "Shared stack absent or unhealthy ($SHARED_STATUS) - running one-time migration..."
+            echo "y" | ./scripts/migrate-to-multi-stack.sh "$ENV"
           fi

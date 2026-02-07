@@ -56,9 +56,27 @@ for stack in "$SHARED_STACK" "$DATA_STACK"; do
 
     if [ "$STATUS" != "DOES_NOT_EXIST" ]; then
         echo "Deleting partial stack: $stack (status: $STATUS)..."
+
+        # If stack is in REVIEW_IN_PROGRESS, we can still delete it directly.
+        # If it's in a *_IN_PROGRESS state (other than REVIEW), wait for it first.
+        if [[ "$STATUS" == *_IN_PROGRESS ]] && [[ "$STATUS" != "REVIEW_IN_PROGRESS" ]]; then
+            echo "  Stack is in $STATUS, waiting for it to stabilize..."
+            aws cloudformation wait stack-$( [[ "$STATUS" == CREATE* ]] && echo "create" || echo "update" )-complete \
+                --stack-name "$stack" --no-cli-pager 2>/dev/null || true
+        fi
+
         aws cloudformation delete-stack --stack-name "$stack" --no-cli-pager
         echo "Waiting for $stack deletion..."
-        aws cloudformation wait stack-delete-complete --stack-name "$stack" --no-cli-pager
+        aws cloudformation wait stack-delete-complete --stack-name "$stack" --no-cli-pager 2>/dev/null || {
+            echo "  WARNING: Wait timed out or failed for $stack. Checking status..."
+            RETRY_STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" \
+                --query 'Stacks[0].StackStatus' --output text --no-cli-pager 2>/dev/null || echo "DELETED")
+            if [ "$RETRY_STATUS" != "DELETED" ] && [ "$RETRY_STATUS" != "DOES_NOT_EXIST" ]; then
+                echo "  Stack still exists ($RETRY_STATUS). Retrying delete with --retain-resources..."
+                aws cloudformation delete-stack --stack-name "$stack" --no-cli-pager 2>/dev/null || true
+                aws cloudformation wait stack-delete-complete --stack-name "$stack" --no-cli-pager 2>/dev/null || true
+            fi
+        }
         echo "  Deleted: $stack"
     else
         echo "  $stack does not exist (OK)"
