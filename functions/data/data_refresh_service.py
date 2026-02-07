@@ -273,7 +273,9 @@ class DataRefreshService:
                 # Extract bar dates if we have data
                 if not new_bars.empty and "timestamp" in new_bars.columns:
                     # Convert timestamps to dates, get unique values, and sort them
-                    bar_dates = pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").unique()
+                    bar_dates = (
+                        pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").unique()
+                    )
                     metadata["bar_dates"] = sorted(bar_dates.tolist())
 
             if success and adjustment_info and adjustment_info.adjustment_count > 0:
@@ -440,7 +442,7 @@ class DataRefreshService:
         # Populate metadata for marker-processed symbols
         # (markers use seed_initial_data which does full replacement, so we
         # cannot track incremental bar counts - record success with zero bars)
-        for symbol, success in marker_results.items():
+        for symbol, _success in marker_results.items():
             all_metadata_dict[symbol] = {
                 "new_bars": 0,
                 "bar_dates": [],

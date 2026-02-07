@@ -42,6 +42,7 @@ load_dotenv(env_path)
 favicon_path = Path(__file__).parent.parent / "android-chrome-512x512.png"
 if favicon_path.exists():
     from PIL import Image
+
     favicon = Image.open(favicon_path)
 else:
     favicon = None
@@ -141,6 +142,7 @@ def show_dashboard() -> None:
         ("Forward Projection", "Forward Projection"),
         ("Last Run Analysis", "Last Run Analysis"),
         ("Trade History", "Trade History"),
+        ("Strategy Performance", "Strategy Performance"),
         ("Execution Quality", "Execution Quality"),
         ("Symbol Analytics", "Symbol Analytics"),
         ("Options Hedging", "Options Hedging"),
@@ -178,6 +180,10 @@ def show_dashboard() -> None:
         from dashboard_pages import trade_history
 
         trade_history.show()
+    elif page_key == "Strategy Performance":
+        from dashboard_pages import strategy_performance
+
+        strategy_performance.show()
     elif page_key == "Execution Quality":
         from dashboard_pages import execution_quality
 

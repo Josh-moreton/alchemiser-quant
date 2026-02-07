@@ -1390,9 +1390,49 @@ def _score_portfolio(
     group_name = fragment.metadata.get("group_name")
     group_id = KNOWN_GROUP_ID_MAPPING.get(str(group_name)) if isinstance(group_name, str) else None
 
+    # Flag: did we successfully use the cache path?
+    _used_cache = False
+
+    if group_name and not group_id:
+        logger.warning(
+            "DSL filter: group name not found in KNOWN_GROUP_ID_MAPPING "
+            "-- cannot use DynamoDB-backed historical scoring. "
+            "Add this group to KNOWN_GROUP_ID_MAPPING for Composer parity.",
+            extra={
+                "group_name": group_name,
+                "known_groups": list(KNOWN_GROUP_ID_MAPPING.keys()),
+                "correlation_id": context.correlation_id,
+            },
+        )
+    elif group_id and not is_cache_available():
+        logger.error(
+            "DSL filter: DynamoDB group cache is NOT available for known group "
+            "-- infrastructure may be misconfigured. Falling back to "
+            "today-only snapshot scoring (NOT Composer-parity).",
+            extra={
+                "group_name": group_name,
+                "group_id": group_id,
+                "correlation_id": context.correlation_id,
+            },
+        )
+
     if group_id and is_cache_available():
         window = _extract_window_from_condition(condition_expr, context)
         canonical_metric = _METRIC_DISPATCH.get(op_name or "") if op_name else None
+
+        if not window or not canonical_metric:
+            logger.warning(
+                "DSL filter: could not extract window or metric from condition "
+                "for cached group scoring -- falling back to today-only snapshot",
+                extra={
+                    "group_name": group_name,
+                    "group_id": group_id,
+                    "op_name": op_name,
+                    "window": window,
+                    "canonical_metric": canonical_metric,
+                    "correlation_id": context.correlation_id,
+                },
+            )
 
         if window and canonical_metric:
             # Use lookback_days > window to account for weekends/holidays
@@ -1427,6 +1467,7 @@ def _score_portfolio(
                             "correlation_id": context.correlation_id,
                         },
                     )
+                    _used_cache = True
                     return score
 
                 logger.warning(
@@ -1457,6 +1498,21 @@ def _score_portfolio(
     # ── Fallback: per-symbol weighted-average scoring ──────────────
     # Used when the group is not in KNOWN_GROUP_ID_MAPPING, cache is
     # unavailable, or the metric is not a return-based one.
+    if group_name and not _used_cache:
+        logger.warning(
+            "DSL filter: FALLBACK -- scoring group '%s' with today-only "
+            "per-symbol weighted-average (NOT DynamoDB-backed historical "
+            "returns). Portfolio-level metrics (stdev-return, "
+            "moving-average-return, etc.) will reflect only today's "
+            "selected asset(s), not the historical composite return stream.",
+            group_name,
+            extra={
+                "group_name": group_name,
+                "group_id": group_id,
+                "op_name": op_name,
+                "correlation_id": context.correlation_id,
+            },
+        )
 
     # Score each symbol and compute weighted average
     total_weight = Decimal("0")
@@ -1507,25 +1563,20 @@ def _select_portfolios(
     NOTE: See _score_portfolio docstring for known limitation when filtering
     groups with decision trees (Composer parity issue).
     """
-    # Warn about known Composer parity limitation when filtering groups
+    # Log group details at debug level -- per-group cache vs fallback
+    # warnings are now emitted by _score_portfolio itself.
     groups_with_names = [
         p for p in portfolios if p.metadata.get("group_name") and len(p.weights) == 1
     ]
     if groups_with_names:
-        # This is a known Composer parity limitation. We score groups by
-        # today's selected asset only, not by historical return stream.
-        # Log detailed info to help debug divergent strategies.
         group_details = []
         for p in groups_with_names[:10]:
             name = p.metadata.get("group_name")
             symbols = list(p.weights.keys())
             group_details.append({"name": name, "selected_today": symbols})
 
-        logger.warning(
+        logger.debug(
             "DSL filter: filtering %d groups with decision trees. "
-            "KNOWN LIMITATION: scoring uses today's selected asset only, "
-            "not historical return stream. May diverge from Composer for "
-            "strategies like ftl_starburst, vox_the_best, growth_blend. "
             "Group details (first 10): %s",
             len(groups_with_names),
             group_details,
