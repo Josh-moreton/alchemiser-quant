@@ -16,6 +16,7 @@ D. Strategy comparison -- overlay multiple strategies
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any
 
@@ -51,7 +52,10 @@ def _calculate_risk_metrics(
 ) -> dict[str, float]:
     """Calculate risk metrics from strategy performance time series.
 
-    Uses daily changes in realized_pnl as the return proxy.
+    Computes annualised Sharpe from daily realised-P&L changes (dollar terms).
+    This is a P&L Sharpe -- appropriate for per-strategy analysis where each
+    strategy operates within a consistent capital allocation.  The portfolio-
+    level Sharpe in portfolio_overview uses percentage returns instead.
 
     Returns dict with sharpe, max_drawdown, volatility, profit_factor.
     """
@@ -79,8 +83,6 @@ def _calculate_risk_metrics(
         }
 
     # -- Sharpe ratio (annualized, risk-free = 0)
-    import math
-
     avg_change = sum(daily_changes) / len(daily_changes)
     variance = sum((c - avg_change) ** 2 for c in daily_changes) / max(len(daily_changes) - 1, 1)
     std_change = math.sqrt(variance)
@@ -175,7 +177,9 @@ def _show_summary_grid(
             },
             {
                 "label": "Capital Deployed",
-                "value": (format_percent(capital_deployed) if capital_deployed else "N/A"),
+                "value": (
+                    format_percent(capital_deployed) if capital_deployed is not None else "N/A"
+                ),
             },
         ]
     )
@@ -501,16 +505,12 @@ def _show_risk_metrics_tab(strategy_name: str) -> None:
     pnl_values = [s["realized_pnl"] for s in time_series]
     timestamps = [s["snapshot_timestamp"] for s in time_series]
 
-    running_max_vals: list[float] = []
     drawdowns: list[float] = []
     peak = pnl_values[0]
     for pnl in pnl_values:
         if pnl > peak:
             peak = pnl
-        running_max_vals.append(peak)
         drawdowns.append(pnl - peak)
-
-    import math
 
     if any(not math.isclose(d, 0.0, abs_tol=1e-9) for d in drawdowns):
         section_header("Drawdown Chart")
@@ -642,7 +642,7 @@ def _show_lots_tab(strategy_name: str, lot_type: str) -> None:
                     delta = close_dt - entry_dt
                     hold_days = f"{delta.days}d"
                 except (ValueError, TypeError):
-                    pass
+                    pass  # Malformed timestamps -- leave hold_days blank
 
             rows.append(
                 {
@@ -675,7 +675,6 @@ def _show_lots_tab(strategy_name: str, lot_type: str) -> None:
             # P&L distribution histogram
             section_header("P&L Distribution")
             pnl_vals = df["P&L"].tolist()
-            ["#10B981" if v >= 0 else "#EF4444" for v in pnl_vals]
             fig_hist = go.Figure()
             fig_hist.add_trace(
                 go.Histogram(
@@ -891,9 +890,7 @@ def _show_comparison(
                     "Trades": snap["completed_trades"],
                     "Sharpe": risk["sharpe"],
                     "Max DD": risk["max_drawdown"],
-                    "Profit Factor": (
-                        risk["profit_factor"] if risk["profit_factor"] != float("inf") else 999.99
-                    ),
+                    "Profit Factor": risk["profit_factor"],
                 }
             )
 
@@ -995,5 +992,5 @@ def show() -> None:
     # Footer
     st.caption(
         "Data from StrategyPerformanceTable (snapshots) and "
-        "TradeLedger (lots). Auto-refreshes every 60 seconds."
+        "TradeLedger (lots)."
     )
