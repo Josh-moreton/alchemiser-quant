@@ -1,11 +1,11 @@
-"""Business Unit: group_cache | Status: current.
+"""Business Unit: sub_strategy_data | Status: current.
 
-Dependency wiring for group_cache module.
+Dependency wiring for sub_strategy_data module.
 
 Provides register_strategy() function to wire strategy module dependencies
 into the main ApplicationContainer. Follows single composition root pattern.
 
-The group cache module reads market data directly from S3 Parquet cache.
+The sub-strategy data module reads market data directly from S3 Parquet cache.
 Data must be pre-populated by the scheduled Data Lambda refresh.
 """
 

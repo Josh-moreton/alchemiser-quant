@@ -54,8 +54,8 @@ The system is deployed as **AWS Lambda functions** that communicate asynchronous
                                                                               │ SignalGenerated
                                                                               ▼
                         ┌─────────────────┐     EventBridge      ┌─────────────────┐
-                        │  Portfolio      │◀─────────────────────│                 │
-                        │  Lambda         │                      └─────────────────┘
+                        │  Rebalance     │◀─────────────────────│                 │
+                        │  Planner       │                      └─────────────────┘
                         └─────────────────┘
                                 │ RebalancePlanned
                                 ▼
@@ -90,7 +90,7 @@ the_alchemiser/
 ├── coordinator_v2/   # Lambda: Strategy Orchestrator (entry point, fans out)
 ├── strategy_v2/      # Lambda: Strategy Worker (executes single DSL file)
 ├── aggregator_v2/    # Lambda: Signal Aggregator (merges partial signals)
-├── portfolio_v2/     # Lambda: Converts signals to rebalance plans
+├── portfolio_v2/     # Lambda: Rebalance Planner (converts signals to rebalance plans)
 ├── execution_v2/     # Lambda: Executes trades via Alpaca (SQS-triggered)
 ├── notifications_v2/ # Lambda: Sends email notifications via SNS
 └── shared/           # DTOs, events, adapters, utilities
@@ -113,12 +113,12 @@ the_alchemiser/
         ↓ (PartialSignalGenerated via EventBridge)
     Signal Aggregator (merges when all complete)
         ↓ (SignalGenerated via EventBridge)
-    Portfolio Lambda
+    Rebalance Planner Lambda
 ```
 
 ### Event Flow (Trade Execution)
 ```
-Portfolio Lambda
+Rebalance Planner Lambda
         ↓ (SELL trades to SQS Standard queue, BUYs stored in DynamoDB)
     Execution Lambdas (parallel - up to 10 concurrent)
         ↓ (Last SELL triggers BUY phase, enqueues BUY trades)
@@ -134,7 +134,7 @@ Portfolio Lambda
 | `StrategyOrchestratorFunction` | Lambda | Entry point, dispatches parallel strategy execution |
 | `StrategyFunction` | Lambda | Worker, executes single DSL strategy file |
 | `StrategyAggregatorFunction` | Lambda | Merges partial signals into consolidated portfolio |
-| `PortfolioFunction` | Lambda | Rebalance planning |
+| `RebalancePlannerFunction` | Lambda | Rebalance planning |
 | `ExecutionFunction` | Lambda | Trade execution (SQS-triggered) |
 | `NotificationsFunction` | Lambda | Email via SNS |
 | `AlchemiserEventBus` | EventBridge | Event routing between Lambdas |
@@ -144,6 +144,7 @@ Portfolio Lambda
 | `TradingNotificationsTopic` | SNS | Email notification delivery |
 | `DLQAlertTopic` | SNS | DLQ monitoring alerts |
 | `TradeLedgerTable` | DynamoDB | Trade history persistence |
+| `StrategyPerformanceTable` | DynamoDB | Per-strategy performance metrics snapshots |
 | `PerformanceReportsBucket` | S3 | CSV performance reports |
 
 ## Code Style & Guardrails
@@ -226,7 +227,7 @@ Each microservice has its own Lambda handler:
 | Strategy Orchestrator | `the_alchemiser.coordinator_v2.lambda_handler` | EventBridge Schedule (3:30 PM ET) | Invokes Strategy Workers |
 | Strategy Worker | `the_alchemiser.strategy_v2.lambda_handler` | Orchestrator (async) or Schedule (legacy) | `PartialSignalGenerated` or `SignalGenerated` |
 | Signal Aggregator | `the_alchemiser.aggregator_v2.lambda_handler` | EventBridge (`PartialSignalGenerated`) | `SignalGenerated` |
-| Portfolio | `the_alchemiser.portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | `RebalancePlanned` |
+| Rebalance Planner | `the_alchemiser.portfolio_v2.lambda_handler` | EventBridge (`SignalGenerated`) | `RebalancePlanned` |
 | Execution | `the_alchemiser.execution_v2.lambda_handler` | SQS Queue | `TradeExecuted`, `WorkflowCompleted` |
 | Notifications | `the_alchemiser.notifications_v2.lambda_handler` | EventBridge (`TradeExecuted`, `WorkflowFailed`) | SNS messages |
 
@@ -417,7 +418,7 @@ logger.info(
 | Strategy Orchestrator handler | `functions/strategy_orchestrator/lambda_handler.py` |
 | Strategy Worker handler | `functions/strategy_worker/lambda_handler.py` |
 | Signal Aggregator handler | `functions/strategy_aggregator/lambda_handler.py` |
-| Portfolio Lambda handler | `functions/portfolio/lambda_handler.py` |
+| Rebalance Planner Lambda handler | `functions/portfolio/lambda_handler.py` |
 | Execution Lambda handler | `functions/execution/lambda_handler.py` |
 | Notifications Lambda handler | `functions/notifications/lambda_handler.py` |
 | Event schemas | `layers/shared/the_alchemiser/shared/events/schemas.py` |

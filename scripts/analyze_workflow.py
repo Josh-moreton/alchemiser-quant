@@ -91,10 +91,10 @@ def analyze_workflow(log_file: str, detailed: bool = False) -> None:
             print(f"  [{ts}] {lamb}: {event[:200]}")
     print()
 
-    # Check Portfolio lambda specifically since Execution has 0 events
-    print("=== PORTFOLIO LAMBDA ANALYSIS ===")
-    portfolio_logs = lambdas.get("PortfolioFunction", [])
-    print(f"Portfolio events: {len(portfolio_logs)}")
+    # Check Rebalance Planner lambda specifically since Execution has 0 events
+    print("=== REBALANCE PLANNER LAMBDA ANALYSIS ===")
+    portfolio_logs = lambdas.get("rebalance-planner", [])
+    print(f"Rebalance planner events: {len(portfolio_logs)}")
 
     if portfolio_logs:
         # Sort by timestamp

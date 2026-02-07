@@ -1,10 +1,10 @@
-"""Business Unit: group_cache | Status: current.
+"""Business Unit: sub_strategy_data | Status: current.
 
-Lambda handler for group historical cache service.
+Lambda handler for sub-strategy data service.
 
-This service evaluates filterable groups daily and caches their portfolio
-selections in DynamoDB. This enables accurate historical scoring when
-a filter operator needs to compute moving-average-return on a group.
+Evaluates filterable groups (sub-strategies) daily and caches their portfolio
+selections and returns in DynamoDB. This enables accurate historical scoring
+when a filter operator needs to compute moving-average-return on a group.
 
 Triggered by EventBridge schedule at 4:00 AM ET daily (before market open).
 """
@@ -43,7 +43,7 @@ dynamodb = boto3.resource("dynamodb")
 
 
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
-    """Handle invocation for group cache update.
+    """Handle invocation for sub-strategy data update.
 
     Evaluates all filterable groups defined in manifests and stores their
     portfolio selections and daily returns in DynamoDB for historical lookups.
@@ -62,11 +62,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         Response indicating success/failure with details
 
     """
-    correlation_id = event.get("correlation_id", f"group-cache-{datetime.now(UTC).isoformat()}")
+    correlation_id = event.get(
+        "correlation_id", f"sub-strategy-data-{datetime.now(UTC).isoformat()}"
+    )
     date_override = event.get("date")  # For backfilling historical data
 
     logger.info(
-        "Group cache Lambda invoked",
+        "Sub-strategy data Lambda invoked",
         extra={
             "correlation_id": correlation_id,
             "date_override": date_override,
@@ -234,7 +236,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
         failures = sum(1 for r in results if r["status"] == "error")
 
         logger.info(
-            "Group cache update completed",
+            "Sub-strategy data update completed",
             extra={
                 "record_date": record_date_str,
                 "total_groups": len(results),
@@ -258,7 +260,7 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(
-            "Group cache update failed",
+            "Sub-strategy data update failed",
             extra={
                 "correlation_id": correlation_id,
                 "error": str(e),
