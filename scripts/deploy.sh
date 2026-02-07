@@ -123,7 +123,6 @@ echo "========================================"
 echo " STACK 1/3: Shared Infrastructure"
 echo "========================================"
 
-SHARED_CONFIG_ENV="shared-${ENVIRONMENT}"
 SHARED_PARAMS=("Stage=$ENVIRONMENT")
 
 # Add notification email for DLQ alerts
@@ -135,15 +134,19 @@ echo "Building shared stack..."
 sam build \
     --template template-shared.yaml \
     --build-dir .aws-sam/build-shared \
-    --parallel \
-    --config-env "$SHARED_CONFIG_ENV"
+    --parallel
 
-echo "Deploying shared stack..."
+SHARED_STACK_NAME="alchemiser-${ENVIRONMENT}-shared"
+
+echo "Deploying shared stack ($SHARED_STACK_NAME)..."
 sam deploy \
     --template .aws-sam/build-shared/template.yaml \
+    --stack-name "$SHARED_STACK_NAME" \
+    --region us-east-1 \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
     --resolve-s3 \
-    --config-env "$SHARED_CONFIG_ENV" \
+    --no-confirm-changeset \
     --parameter-overrides ${SHARED_PARAMS[@]}
 
 echo "Shared infrastructure deployed."
@@ -156,7 +159,6 @@ echo "========================================"
 echo " STACK 2/3: Data & Dashboard"
 echo "========================================"
 
-DATA_CONFIG_ENV="data-${ENVIRONMENT}"
 DATA_PARAMS=(
     "Stage=$ENVIRONMENT"
     "SharedStackName=alchemiser-${ENVIRONMENT}-shared"
@@ -169,15 +171,19 @@ echo "Building data stack..."
 sam build \
     --template template-data.yaml \
     --build-dir .aws-sam/build-data \
-    --parallel \
-    --config-env "$DATA_CONFIG_ENV"
+    --parallel
 
-echo "Deploying data stack..."
+DATA_STACK_NAME="alchemiser-${ENVIRONMENT}-data"
+
+echo "Deploying data stack ($DATA_STACK_NAME)..."
 sam deploy \
     --template .aws-sam/build-data/template.yaml \
+    --stack-name "$DATA_STACK_NAME" \
+    --region us-east-1 \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
     --resolve-s3 \
-    --config-env "$DATA_CONFIG_ENV" \
+    --no-confirm-changeset \
     --parameter-overrides ${DATA_PARAMS[@]}
 
 echo "Data & Dashboard stack deployed."
@@ -210,10 +216,16 @@ if [ -d ".aws-sam/build/StrategyFunction" ]; then
 fi
 echo ""
 
-echo "Deploying core trading stack..."
+CORE_STACK_NAME="alchemiser-${ENVIRONMENT}"
+
+echo "Deploying core trading stack ($CORE_STACK_NAME)..."
 sam deploy \
+    --stack-name "$CORE_STACK_NAME" \
+    --region us-east-1 \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
     --resolve-s3 \
+    --no-confirm-changeset \
     --config-env "$ENVIRONMENT" \
     --parameter-overrides ${CORE_PARAMS[@]}
 
