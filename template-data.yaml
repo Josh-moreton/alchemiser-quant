@@ -35,10 +35,9 @@ Parameters:
       - ephemeral
     Description: Environment type for resource configuration
 
-  # Cross-stack reference: name of the deployed shared infrastructure stack
-  SharedStackName:
-    Type: String
-    Description: CloudFormation stack name of the shared infrastructure stack (for cross-stack imports)
+  # Note: SharedStackName parameter removed. Cross-stack references now use
+  # SSM Parameter Store dynamic references ({{resolve:ssm:...}}) instead of
+  # CloudFormation Exports/Imports, avoiding the "Cannot update export" constraint.
 
   # Alpaca API credentials (per-environment)
   AlpacaKey:
@@ -266,16 +265,14 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt DataExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-DataLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/DataLayerArn}}'
       Timeout: 900
       MemorySize: 1024
       Environment:
         Variables:
-          EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
-          MARKET_DATA_BUCKET:
-            Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketName"
+          EVENT_BUS_NAME: !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
+          MARKET_DATA_BUCKET: !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketName}}'
           FETCH_REQUESTS_TABLE: !Ref MarketDataFetchRequestsTable
           BAD_DATA_MARKERS_TABLE: !Ref BadDataMarkersTable
           FETCH_COOLDOWN_MINUTES: !Ref FetchCooldownMinutes
@@ -287,8 +284,7 @@ Resources:
         MarketDataFetchRequested:
           Type: EventBridgeRule
           Properties:
-            EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            EventBusName: !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.strategy"
@@ -320,11 +316,8 @@ Resources:
                   - s3:ListBucket
                   - s3:DeleteObject
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
-                  - !Sub
-                    - "${BucketArn}/*"
-                    - BucketArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketArn}}/*'
               # DynamoDB for fetch request deduplication
               - Effect: Allow
                 Action:
@@ -349,7 +342,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
 
   # EventBridge permission for Data Lambda invocation
   DataEventBridgePermission:
@@ -358,10 +351,7 @@ Resources:
       FunctionName: !Ref DataFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !Sub
-        - "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${EventBusName}/*"
-        - EventBusName:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}/*'
 
   # ========== ACCOUNT DATA LAMBDA (DASHBOARD DATA SOURCE) ==========
   AccountDataFunction:
@@ -378,8 +368,8 @@ Resources:
       Handler: lambda_handler.handler
       Role: !GetAtt AccountDataExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-StrategyLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/StrategyLayerArn}}'
       Timeout: 300
       MemorySize: 256
       Environment:
@@ -479,39 +469,47 @@ Resources:
                 Resource:
                   - !GetAtt AccountDataFunction.Arn
 
+  # ========== SSM PARAMETERS FOR CROSS-STACK REFERENCES ==========
+  # Data stack exports are consumed by the Core Trading stack via SSM.
+  DataFunctionNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/data/DataFunctionName"
+      Type: String
+      Value: !Ref DataFunction
+      Description: "Data Lambda function name"
+
+  DataFunctionArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/data/DataFunctionArn"
+      Type: String
+      Value: !GetAtt DataFunction.Arn
+      Description: "Data Lambda function ARN"
+
 # ============================================================================
-# OUTPUTS - Cross-stack exports consumed by Core Trading stack
+# OUTPUTS - Informational only (no exports - cross-stack refs use SSM)
 # ============================================================================
 Outputs:
   DataFunctionName:
     Description: "Data Lambda function name"
     Value: !Ref DataFunction
-    Export:
-      Name: !Sub "${AWS::StackName}-DataFunctionName"
 
   DataFunctionArn:
     Description: "Data Lambda function ARN (consumed by Strategy and GroupCache in Core)"
     Value: !GetAtt DataFunction.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-DataFunctionArn"
 
   MarketDataFetchRequestsTableName:
     Description: "Market data fetch requests DynamoDB table name"
     Value: !Ref MarketDataFetchRequestsTable
-    Export:
-      Name: !Sub "${AWS::StackName}-MarketDataFetchRequestsTableName"
 
   BadDataMarkersTableName:
     Description: "Bad data markers DynamoDB table name"
     Value: !Ref BadDataMarkersTable
-    Export:
-      Name: !Sub "${AWS::StackName}-BadDataMarkersTableName"
 
   AccountDataTableName:
     Description: "Account data DynamoDB table name"
     Value: !Ref AccountDataTable
-    Export:
-      Name: !Sub "${AWS::StackName}-AccountDataTableName"
 
   DeploymentStage:
     Description: "Deployed stage"

@@ -38,14 +38,10 @@ Parameters:
     Default: ""
     Description: S3 prefix for artifacts (used for ephemeral stack isolation)
 
-  # Cross-stack references: names of the deployed shared and data stacks
-  SharedStackName:
-    Type: String
-    Description: CloudFormation stack name of the shared infrastructure stack (for cross-stack imports)
-
-  DataStackName:
-    Type: String
-    Description: CloudFormation stack name of the data/dashboard stack (for cross-stack imports)
+  # Note: SharedStackName and DataStackName parameters removed. Cross-stack
+  # references now use SSM Parameter Store dynamic references ({{resolve:ssm:...}})
+  # instead of CloudFormation Exports/Imports, avoiding the
+  # "Cannot update export as it is in use" constraint.
 
   AlpacaKey:
     Type: String
@@ -158,7 +154,7 @@ Globals:
 
         # Trade ledger DynamoDB table (from shared stack)
         TRADE_LEDGER__TABLE_NAME:
-          Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableName"
+          !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableName}}'
 
   # Strategy configuration now packaged with code; env overrides optional
 
@@ -484,7 +480,7 @@ Resources:
 
   # ========== LAMBDA LAYERS & EVENT BUS ==========
   # Layers and EventBus are now in template-shared.yaml (Shared Infrastructure Stack).
-  # Referenced via Fn::ImportValue using the SharedStackName parameter.
+  # Referenced via SSM Parameter Store dynamic references.
 
   # ============================================================================
   # MICROSERVICES ARCHITECTURE
@@ -786,7 +782,7 @@ Resources:
         - !Sub "${StackName}-signal-generated"
         - !Sub "alchemiser-${Stage}-signal-generated"
       EventBusName:
-        Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+        !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
       EventPattern:
         source:
           - alchemiser.strategy
@@ -816,10 +812,7 @@ Resources:
       FunctionName: !Ref TradeAggregatorFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !Sub
-        - "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${EventBusName}/*"
-        - EventBusName:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}/*'
 
   # Permission for Notifications Lambda to be invoked by EventBridge
   # Allows both AllTradesCompleted (from TradeAggregator) and WorkflowFailed (from any Lambda)
@@ -829,10 +822,7 @@ Resources:
       FunctionName: !Ref NotificationsFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !Sub
-        - "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${EventBusName}/*"
-        - EventBusName:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}/*'
 
   # Permission for StrategyAggregator Lambda to be invoked by EventBridge on PartialSignalGenerated events
   StrategyAggregatorEventBridgePermission:
@@ -841,10 +831,7 @@ Resources:
       FunctionName: !Ref StrategyAggregatorFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !Sub
-        - "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${EventBusName}/*"
-        - EventBusName:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}/*'
 
   # Permission for Metrics Lambda to be invoked by EventBridge on TradeExecuted events
   MetricsEventBridgePermission:
@@ -853,10 +840,7 @@ Resources:
       FunctionName: !Ref MetricsFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
-      SourceArn: !Sub
-        - "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${EventBusName}/*"
-        - EventBusName:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}/*'
 
   # Note: RebalancePlannedRule removed - Portfolio handler sends TradeMessage
   # objects directly to SQS. The RebalancePlanned event published to EventBridge
@@ -877,24 +861,24 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-StrategyLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/StrategyLayerArn}}'
       Timeout: 900  # Max timeout for on-demand data fetching
       MemorySize: 1024
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           MARKET_DATA_BUCKET:
-            Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketName}}'
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableName}}'
           # On-demand data fetching: sync refresh invokes Data Lambda when S3 cache is empty
           DATA_FUNCTION_NAME:
-            Fn::ImportValue: !Sub "${DataStackName}-DataFunctionName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/data/DataFunctionName}}'
           STAGE: !Ref Stage
           # Sync refresh timeout: max wait for Data Lambda to fetch missing data (5 minutes)
           SYNC_REFRESH_TIMEOUT_SECONDS: "300"
@@ -919,7 +903,7 @@ Resources:
       DestinationConfig:
         OnFailure:
           Destination:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
 
   StrategyExecutionRole:
     Type: AWS::IAM::Role
@@ -941,35 +925,29 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
-                  - !Sub
-                    - "${TableArn}/index/*"
-                    - TableArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}/index/*'
               # S3 permissions for per-stage market data bucket (read-only)
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
-                  - !Sub
-                    - "${BucketArn}/*"
-                    - BucketArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketArn}}/*'
               # Lambda invoke permission for sync refresh (on-demand data fetching)
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
                 Resource:
-                  - Fn::ImportValue: !Sub "${DataStackName}-DataFunctionArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/data/DataFunctionArn}}'
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running
@@ -990,14 +968,14 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyOrchestratorExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-NotificationsLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/NotificationsLayerArn}}'
       Timeout: 60  # Orchestrator just dispatches, doesn't run strategies
       MemorySize: 512
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           STRATEGY_FUNCTION_NAME: !Ref StrategyFunction
           AGGREGATION_TIMEOUT_SECONDS: "600"
@@ -1017,7 +995,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -1049,14 +1027,14 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt StrategyAggregatorExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-NotificationsLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/NotificationsLayerArn}}'
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           AGGREGATION_TABLE_NAME: !Ref AggregationSessionsTable
           ALLOCATION_TOLERANCE: "0.01"
       Events:
@@ -1064,7 +1042,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.strategy"
@@ -1086,7 +1064,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -1119,19 +1097,19 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt PortfolioExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-PortfolioLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/PortfolioLayerArn}}'
       Timeout: 900  # Max timeout for comprehensive processing
       MemorySize: 1024
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableName}}'
           # Rebalance plan persistence for auditability
           REBALANCE_PLAN__TABLE_NAME: !Ref RebalancePlanTable
           # Per-trade execution configuration
@@ -1153,18 +1131,15 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
-                  - !Sub
-                    - "${TableArn}/index/*"
-                    - TableArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}/index/*'
               # Per-trade parallel execution: SQS Standard queue access (named *Fifo for AWS compatibility)
               - Effect: Allow
                 Action:
@@ -1206,8 +1181,8 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt ExecutionExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-ExecutionLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/ExecutionLayerArn}}'
       Timeout: 600
       MemorySize: 1024
       # Concurrency limited to 10 for Alpaca trading API rate limits (200 calls/min)
@@ -1218,12 +1193,12 @@ Resources:
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
           ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
           ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
           TRADE_LEDGER__TABLE_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableName}}'
           # Per-trade execution configuration
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
           # Queue URL for triggering BUY phase after SELL phase completes
@@ -1260,7 +1235,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - sqs:ReceiveMessage
@@ -1278,11 +1253,8 @@ Resources:
                   - dynamodb:BatchWriteItem
                   - dynamodb:UpdateItem
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
-                  - !Sub
-                    - "${TableArn}/index/*"
-                    - TableArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}/index/*'
               # Per-trade execution: Execution runs table access
               - Effect: Allow
                 Action:
@@ -1310,14 +1282,14 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt TradeAggregatorExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-NotificationsLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/NotificationsLayerArn}}'
       Timeout: 60  # Aggregation should be fast
       MemorySize: 512
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           EXECUTION_RUNS_TABLE_NAME: !Ref ExecutionRunsTable
           ENVIRONMENT: !Ref Stage
           ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
@@ -1328,7 +1300,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.execution"
@@ -1350,7 +1322,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - dynamodb:GetItem
@@ -1375,18 +1347,18 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt NotificationsExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-NotificationsLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/NotificationsLayerArn}}'
       Timeout: 60
       MemorySize: 512
       Environment:
         Variables:
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           PERFORMANCE_REPORTS_BUCKET:
-            Fn::ImportValue: !Sub "${SharedStackName}-PerformanceReportsBucketName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/PerformanceReportsBucketName}}'
           TRADE_LEDGER__TABLE_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableName}}'
           # Stack name for CloudWatch Logs URL construction (matches Lambda naming pattern)
           STACK_NAME: !If
             - UseStackNameForResources
@@ -1414,7 +1386,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.trade_aggregator"
@@ -1426,7 +1398,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - prefix: "alchemiser."
@@ -1437,7 +1409,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.data"
@@ -1448,7 +1420,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.coordinator"
@@ -1461,7 +1433,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "lambda"
@@ -1501,27 +1473,21 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - dynamodb:Query
                   - dynamodb:GetItem
                   - dynamodb:Scan
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
-                  - !Sub
-                    - "${TableArn}/index/*"
-                    - TableArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}/index/*'
               - Effect: Allow
                 Action:
                   - s3:PutObject
                   - s3:GetObject
                 Resource:
-                  - !Sub
-                    - "${BucketArn}/*"
-                    - BucketArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-PerformanceReportsBucketArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/PerformanceReportsBucketArn}}/*'
               # SES permissions for email sending
               - Effect: Allow
                 Action:
@@ -1542,21 +1508,21 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt MetricsExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-NotificationsLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/NotificationsLayerArn}}'
       Timeout: 60
       MemorySize: 512
       Environment:
         Variables:
           TRADE_LEDGER__TABLE_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableName}}'
           STAGE: !Ref Stage
       Events:
         TradeExecutedEvent:
           Type: EventBridgeRule
           Properties:
             EventBusName:
-              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+              !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
             Pattern:
               source:
                 - "alchemiser.execution"
@@ -1580,11 +1546,8 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:Scan
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
-                  - !Sub
-                    - "${TableArn}/index/*"
-                    - TableArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-TradeLedgerTableArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/TradeLedgerTableArn}}/index/*'
               - Effect: Allow
                 Action:
                   - cloudwatch:PutMetricData
@@ -1607,8 +1570,8 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt HedgeEvaluatorExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-PortfolioLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/PortfolioLayerArn}}'
       Timeout: 300
       MemorySize: 512
       Environment:
@@ -1616,7 +1579,7 @@ Resources:
           # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
           OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
@@ -1647,7 +1610,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
@@ -1704,7 +1667,7 @@ Resources:
         - !Sub "${StackName}-trades-completed-to-hedge"
         - !Sub "alchemiser-${Stage}-trades-completed-to-hedge"
       EventBusName:
-        Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+        !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
       EventPattern:
         source:
           - alchemiser.trade_aggregator
@@ -1738,8 +1701,8 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt HedgeExecutorExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-ExecutionLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/ExecutionLayerArn}}'
       Timeout: 600
       MemorySize: 1024
       ReservedConcurrentExecutions: 3  # Conservative for options API limits
@@ -1748,7 +1711,7 @@ Resources:
           # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
           OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
           HEDGE_KILL_SWITCH_TABLE: !Ref HedgeKillSwitchTable
@@ -1779,7 +1742,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - sqs:ReceiveMessage
@@ -1825,8 +1788,8 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt HedgeRollManagerExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-PortfolioLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/PortfolioLayerArn}}'
       Timeout: 300
       MemorySize: 512
       Environment:
@@ -1834,7 +1797,7 @@ Resources:
           # Feature flag: Set to 'true' to enable options hedging (default: false for safety)
           OPTIONS_HEDGING_ENABLED: !If [ IsProduction, "false", "true" ]
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           HEDGE_EXECUTION_QUEUE_URL: !Ref HedgeExecutionQueue
           HEDGE_POSITIONS_TABLE_NAME: !Ref HedgePositionsTable
           HEDGE_HISTORY_TABLE_NAME: !Ref HedgeHistoryTable
@@ -1866,7 +1829,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
@@ -1887,7 +1850,7 @@ Resources:
                   - !GetAtt HedgeHistoryTable.Arn
 
   # DataFunction, DataExecutionRole, DataEventBridgePermission moved to data stack (template-data.yaml)
-  # Referenced via Fn::ImportValue using DataStackName parameter.
+  # Referenced via SSM Parameter Store dynamic references.
 
   # REMOVED: Production fallback schedule (was at 3:50 PM ET Mon-Fri)
   # The fallback schedule was causing double runs when the dynamic schedule succeeded.
@@ -1935,8 +1898,8 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt ScheduleManagerExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-NotificationsLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/NotificationsLayerArn}}'
       Timeout: 60
       MemorySize: 256
       Environment:
@@ -1946,7 +1909,7 @@ Resources:
           SCHEDULE_GROUP_NAME: "default"
           MINUTES_BEFORE_CLOSE: "15"
           EVENT_BUS_NAME:
-            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusName}}'
           # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
     Metadata:
       BuildMethod: python3.12
@@ -1982,7 +1945,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/EventBusArn}}'
 
   # Morning schedule to trigger Schedule Manager (checks calendar and sets up today's execution)
   ScheduleManagerSchedule:
@@ -2034,8 +1997,8 @@ Resources:
       Handler: lambda_handler.lambda_handler
       Role: !GetAtt GroupCacheExecutionRole.Arn
       Layers:
-        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
-        - Fn::ImportValue: !Sub "${SharedStackName}-StrategyLayerArn"
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/SharedCodeLayerArn}}'
+        - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/StrategyLayerArn}}'
       Timeout: 300
       MemorySize: 1024
       Environment:
@@ -2043,9 +2006,9 @@ Resources:
           GROUP_HISTORY_TABLE: !Ref GroupHistoricalSelectionsTable
           CACHE_TTL_DAYS: "30"
           MARKET_DATA_BUCKET:
-            Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketName}}'
           DATA_FUNCTION_NAME:
-            Fn::ImportValue: !Sub "${DataStackName}-DataFunctionName"
+            !Sub '{{resolve:ssm:/alchemiser/${Stage}/data/DataFunctionName}}'
           # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
     Metadata:
       BuildMethod: python3.12
@@ -2073,17 +2036,14 @@ Resources:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
-                  - !Sub
-                    - "${BucketArn}/*"
-                    - BucketArn:
-                        Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketArn}}'
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/shared/MarketDataBucketArn}}/*'
               # Permission to invoke data function for sync refresh
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
                 Resource:
-                  - Fn::ImportValue: !Sub "${DataStackName}-DataFunctionArn"
+                  - !Sub '{{resolve:ssm:/alchemiser/${Stage}/data/DataFunctionArn}}'
 
   # Morning schedule to run group cache at 4:00 AM ET (before market open)
   GroupCacheSchedule:

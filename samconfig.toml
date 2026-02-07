@@ -66,7 +66,6 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 parameter_overrides = [
 	"Stage=dev",
-	"SharedStackName=alchemiser-dev-shared",
 ]
 
 [data-staging.deploy.parameters]
@@ -79,7 +78,6 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 parameter_overrides = [
 	"Stage=staging",
-	"SharedStackName=alchemiser-staging-shared",
 ]
 
 [data-prod.deploy.parameters]
@@ -92,7 +90,6 @@ fail_on_empty_changeset = false
 resolve_s3 = true
 parameter_overrides = [
 	"Stage=prod",
-	"SharedStackName=alchemiser-prod-shared",
 ]
 
 # ============================================================================
@@ -126,8 +123,6 @@ resolve_s3 = true
 # Note: EquityDeploymentPct comes from EQUITY_DEPLOYMENT_PCT env var via deploy.sh
 parameter_overrides = [
 	"Stage=dev",
-	"SharedStackName=alchemiser-dev-shared",
-	"DataStackName=alchemiser-dev-data",
 ]
 
 [staging.deploy.parameters]
@@ -141,8 +136,6 @@ resolve_s3 = true
 # Staging parameters required by the template; credentials loaded from environment
 parameter_overrides = [
 	"Stage=staging",
-	"SharedStackName=alchemiser-staging-shared",
-	"DataStackName=alchemiser-staging-data",
 ]
 
 [prod.deploy.parameters]
@@ -156,8 +149,6 @@ resolve_s3 = true
 # Prod parameters required by the template; credentials loaded via Secrets Manager
 parameter_overrides = [
 	"Stage=prod",
-	"SharedStackName=alchemiser-prod-shared",
-	"DataStackName=alchemiser-prod-data",
 ]
 
 [ephemeral.build.parameters]

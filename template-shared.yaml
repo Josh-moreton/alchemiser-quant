@@ -282,6 +282,134 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
+  # ========== SSM PARAMETERS FOR CROSS-STACK REFERENCES ==========
+  # SSM Parameters replace CloudFormation Exports for mutable values (layer ARNs)
+  # that change every deploy. SSM params can be updated freely without the
+  # "Cannot update export ... as it is in use" constraint.
+
+  SharedCodeLayerArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/SharedCodeLayerArn"
+      Type: String
+      Value: !Ref SharedCodeLayer
+      Description: "Shared code layer ARN (the_alchemiser.shared)"
+
+  StrategyLayerArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/StrategyLayerArn"
+      Type: String
+      Value: !Ref StrategyLayer
+      Description: "Strategy layer ARN (awswrangler + alpaca-py)"
+
+  PortfolioLayerArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/PortfolioLayerArn"
+      Type: String
+      Value: !Ref PortfolioLayer
+      Description: "Portfolio layer ARN (alpaca-py + pydantic)"
+
+  ExecutionLayerArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/ExecutionLayerArn"
+      Type: String
+      Value: !Ref ExecutionLayer
+      Description: "Execution layer ARN (alpaca-py + pydantic)"
+
+  NotificationsLayerArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/NotificationsLayerArn"
+      Type: String
+      Value: !Ref NotificationsLayer
+      Description: "Notifications layer ARN (pydantic + structlog + alpaca-py)"
+
+  DataLayerArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/DataLayerArn"
+      Type: String
+      Value: !Ref DataLayer
+      Description: "Data layer ARN (awswrangler + alpaca-py)"
+
+  # SSM Parameters for stable resources (EventBus, DynamoDB, S3, SNS)
+  # These rarely change but using SSM avoids all cross-stack export constraints.
+
+  EventBusNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/EventBusName"
+      Type: String
+      Value: !Ref AlchemiserEventBus
+      Description: "EventBridge event bus name"
+
+  EventBusArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/EventBusArn"
+      Type: String
+      Value: !GetAtt AlchemiserEventBus.Arn
+      Description: "EventBridge event bus ARN"
+
+  TradeLedgerTableNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/TradeLedgerTableName"
+      Type: String
+      Value: !Ref TradeLedgerTable
+      Description: "Trade ledger DynamoDB table name"
+
+  TradeLedgerTableArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/TradeLedgerTableArn"
+      Type: String
+      Value: !GetAtt TradeLedgerTable.Arn
+      Description: "Trade ledger DynamoDB table ARN"
+
+  DLQAlertTopicArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/DLQAlertTopicArn"
+      Type: String
+      Value: !Ref DLQAlertTopic
+      Description: "DLQ alert SNS topic ARN"
+
+  PerformanceReportsBucketNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/PerformanceReportsBucketName"
+      Type: String
+      Value: !Ref PerformanceReportsBucket
+      Description: "Performance reports S3 bucket name"
+
+  PerformanceReportsBucketArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/PerformanceReportsBucketArn"
+      Type: String
+      Value: !GetAtt PerformanceReportsBucket.Arn
+      Description: "Performance reports S3 bucket ARN"
+
+  MarketDataBucketNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/MarketDataBucketName"
+      Type: String
+      Value: !Ref MarketDataBucket
+      Description: "Per-stage market data S3 bucket name"
+
+  MarketDataBucketArnParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/alchemiser/${Stage}/shared/MarketDataBucketArn"
+      Type: String
+      Value: !GetAtt MarketDataBucket.Arn
+      Description: "Per-stage market data S3 bucket ARN"
+
   # ========== DLQ ALERT TOPIC ==========
   DLQAlertTopic:
     Type: AWS::SNS::Topic
@@ -371,96 +499,72 @@ Resources:
 # OUTPUTS - Cross-stack exports consumed by Core and Data stacks
 # Export names use ${AWS::StackName} prefix for automatic namespacing
 # ============================================================================
+# ============================================================================
+# OUTPUTS - Informational only (no exports - cross-stack references use SSM)
+# CloudFormation Exports were removed because layer ARN exports change every
+# deploy and CloudFormation blocks updating exports consumed by other stacks.
+# All cross-stack references now use SSM Parameter Store dynamic references.
+# ============================================================================
 Outputs:
   EventBusName:
     Description: "EventBridge event bus name"
     Value: !Ref AlchemiserEventBus
-    Export:
-      Name: !Sub "${AWS::StackName}-EventBusName"
 
   EventBusArn:
     Description: "EventBridge event bus ARN"
     Value: !GetAtt AlchemiserEventBus.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-EventBusArn"
 
   SharedCodeLayerArn:
     Description: "Shared code layer ARN (the_alchemiser.shared)"
     Value: !Ref SharedCodeLayer
-    Export:
-      Name: !Sub "${AWS::StackName}-SharedCodeLayerArn"
 
   StrategyLayerArn:
     Description: "Strategy layer ARN (awswrangler + alpaca-py)"
     Value: !Ref StrategyLayer
-    Export:
-      Name: !Sub "${AWS::StackName}-StrategyLayerArn"
 
   PortfolioLayerArn:
     Description: "Portfolio layer ARN (alpaca-py + pydantic)"
     Value: !Ref PortfolioLayer
-    Export:
-      Name: !Sub "${AWS::StackName}-PortfolioLayerArn"
 
   ExecutionLayerArn:
     Description: "Execution layer ARN (alpaca-py + pydantic)"
     Value: !Ref ExecutionLayer
-    Export:
-      Name: !Sub "${AWS::StackName}-ExecutionLayerArn"
 
   NotificationsLayerArn:
     Description: "Notifications layer ARN (pydantic + structlog + alpaca-py)"
     Value: !Ref NotificationsLayer
-    Export:
-      Name: !Sub "${AWS::StackName}-NotificationsLayerArn"
 
   DataLayerArn:
     Description: "Data layer ARN (awswrangler + alpaca-py)"
     Value: !Ref DataLayer
-    Export:
-      Name: !Sub "${AWS::StackName}-DataLayerArn"
 
   TradeLedgerTableName:
     Description: "Trade ledger DynamoDB table name"
     Value: !Ref TradeLedgerTable
-    Export:
-      Name: !Sub "${AWS::StackName}-TradeLedgerTableName"
 
   TradeLedgerTableArn:
     Description: "Trade ledger DynamoDB table ARN"
     Value: !GetAtt TradeLedgerTable.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-TradeLedgerTableArn"
 
   DLQAlertTopicArn:
     Description: "DLQ alert SNS topic ARN"
     Value: !Ref DLQAlertTopic
-    Export:
-      Name: !Sub "${AWS::StackName}-DLQAlertTopicArn"
 
   PerformanceReportsBucketName:
     Description: "Performance reports S3 bucket name"
     Value: !Ref PerformanceReportsBucket
-    Export:
-      Name: !Sub "${AWS::StackName}-PerformanceReportsBucketName"
 
   PerformanceReportsBucketArn:
     Description: "Performance reports S3 bucket ARN"
     Value: !GetAtt PerformanceReportsBucket.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-PerformanceReportsBucketArn"
 
   MarketDataBucketName:
     Description: "Per-stage market data S3 bucket name"
     Value: !Ref MarketDataBucket
-    Export:
-      Name: !Sub "${AWS::StackName}-MarketDataBucketName"
 
   MarketDataBucketArn:
     Description: "Per-stage market data S3 bucket ARN"
     Value: !GetAtt MarketDataBucket.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-MarketDataBucketArn"
 
   DeploymentStage:
     Description: "Deployed stage"

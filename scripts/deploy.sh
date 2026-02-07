@@ -1,6 +1,19 @@
 #!/bin/bash
 # Multi-stack SAM deployment script for The Alchemiser Quantitative Trading System
-# Deploys stacks sequentially: shared -> data -> core
+#
+# Cross-stack references use SSM Parameter Store (not CloudFormation Exports)
+# to avoid the "Cannot update export as it is in use" constraint when layer
+# versions change every deploy.
+#
+# Migration handling:
+#   If this is the first deploy after switching from CF Exports to SSM, the
+#   script detects the existing CF exports, bootstraps SSM parameters from
+#   current stack outputs, deploys consuming stacks first (to remove their
+#   Fn::ImportValue dependencies), then deploys the shared stack (which can
+#   now remove its exports freely).
+#
+# Normal flow: shared -> data -> core
+# Migration flow: bootstrap SSM -> build all -> data -> core -> shared -> data -> core
 
 set -e
 
@@ -116,120 +129,241 @@ resolve_alpaca_params() {
 }
 
 # ============================================================================
-# STACK 1: SHARED INFRASTRUCTURE (template-shared.yaml)
+# STACK NAME DEFINITIONS
 # ============================================================================
-echo ""
-echo "========================================"
-echo " STACK 1/3: Shared Infrastructure"
-echo "========================================"
-
-SHARED_PARAMS=("Stage=$ENVIRONMENT")
-
-# Add notification email for DLQ alerts
-if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
-    SHARED_PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-fi
-
-echo "Building shared stack..."
-sam build \
-    --template template-shared.yaml \
-    --build-dir .aws-sam/build-shared \
-    --parallel
-
 SHARED_STACK_NAME="alchemiser-${ENVIRONMENT}-shared"
-
-echo "Deploying shared stack ($SHARED_STACK_NAME)..."
-sam deploy \
-    --template .aws-sam/build-shared/template.yaml \
-    --stack-name "$SHARED_STACK_NAME" \
-    --region us-east-1 \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-    --no-fail-on-empty-changeset \
-    --resolve-s3 \
-    --no-confirm-changeset \
-    --parameter-overrides ${SHARED_PARAMS[@]}
-
-echo "Shared infrastructure deployed."
-
-# ============================================================================
-# STACK 2: DATA & DASHBOARD (template-data.yaml)
-# ============================================================================
-echo ""
-echo "========================================"
-echo " STACK 2/3: Data & Dashboard"
-echo "========================================"
-
-DATA_PARAMS=(
-    "Stage=$ENVIRONMENT"
-    "SharedStackName=alchemiser-${ENVIRONMENT}-shared"
-)
-
-# Add Alpaca credentials (Data Lambda needs them for market data fetching)
-resolve_alpaca_params "$ENVIRONMENT" DATA_PARAMS
-
-echo "Building data stack..."
-sam build \
-    --template template-data.yaml \
-    --build-dir .aws-sam/build-data \
-    --parallel
-
 DATA_STACK_NAME="alchemiser-${ENVIRONMENT}-data"
-
-echo "Deploying data stack ($DATA_STACK_NAME)..."
-sam deploy \
-    --template .aws-sam/build-data/template.yaml \
-    --stack-name "$DATA_STACK_NAME" \
-    --region us-east-1 \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-    --no-fail-on-empty-changeset \
-    --resolve-s3 \
-    --no-confirm-changeset \
-    --parameter-overrides ${DATA_PARAMS[@]}
-
-echo "Data & Dashboard stack deployed."
-
-# ============================================================================
-# STACK 3: CORE TRADING (template.yaml)
-# ============================================================================
-echo ""
-echo "========================================"
-echo " STACK 3/3: Core Trading"
-echo "========================================"
-
-CORE_PARAMS=(
-    "Stage=$ENVIRONMENT"
-    "SharedStackName=alchemiser-${ENVIRONMENT}-shared"
-    "DataStackName=alchemiser-${ENVIRONMENT}-data"
-)
-
-# Add Alpaca credentials (needed by Strategy, Portfolio, Execution, etc.)
-resolve_alpaca_params "$ENVIRONMENT" CORE_PARAMS
-
-echo "Building core trading stack..."
-sam build --parallel --config-env "$ENVIRONMENT"
-
-# Show built package sizes
-echo ""
-echo "Built package sizes:"
-if [ -d ".aws-sam/build/StrategyFunction" ]; then
-    echo "   Strategy function code: $(du -sh .aws-sam/build/StrategyFunction 2>/dev/null | cut -f1 || echo 'N/A')"
-fi
-echo ""
-
 CORE_STACK_NAME="alchemiser-${ENVIRONMENT}"
 
-echo "Deploying core trading stack ($CORE_STACK_NAME)..."
-sam deploy \
-    --stack-name "$CORE_STACK_NAME" \
-    --region us-east-1 \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-    --no-fail-on-empty-changeset \
-    --resolve-s3 \
-    --no-confirm-changeset \
-    --config-env "$ENVIRONMENT" \
-    --parameter-overrides ${CORE_PARAMS[@]}
+# ============================================================================
+# SSM MIGRATION: Bootstrap SSM parameters from existing CF Exports
+# ============================================================================
+# Check if the shared stack still has CF Exports that consumers depend on.
+# If so, we need to bootstrap SSM parameters first, then deploy consumers
+# to remove their imports before the shared stack can update.
+bootstrap_ssm_from_stack_outputs() {
+    local stack_name="$1"
+    local ssm_prefix="$2"  # e.g. /alchemiser/dev/shared
 
-echo "Core Trading stack deployed."
+    echo "   Bootstrapping SSM parameters from $stack_name outputs..."
+
+    # Get all outputs from the stack
+    local outputs
+    outputs=$(aws cloudformation describe-stacks \
+        --stack-name "$stack_name" \
+        --query 'Stacks[0].Outputs' \
+        --output json \
+        --no-cli-pager 2>/dev/null || echo "[]")
+
+    if [ "$outputs" = "[]" ] || [ "$outputs" = "null" ]; then
+        echo "   No outputs found for $stack_name, skipping bootstrap."
+        return
+    fi
+
+    # Parse each output and write to SSM
+    echo "$outputs" | python3 -c "
+import json, sys, subprocess
+outputs = json.load(sys.stdin)
+prefix = '${ssm_prefix}'
+for output in outputs:
+    key = output['OutputKey']
+    value = output['OutputValue']
+    param_name = f'{prefix}/{key}'
+    # Skip DeploymentStage - not needed in SSM
+    if key == 'DeploymentStage':
+        continue
+    print(f'   Writing SSM: {param_name}')
+    subprocess.run([
+        'aws', 'ssm', 'put-parameter',
+        '--name', param_name,
+        '--value', value,
+        '--type', 'String',
+        '--overwrite',
+        '--no-cli-pager'
+    ], check=True, capture_output=True)
+print(f'   Bootstrapped {len([o for o in outputs if o[\"OutputKey\"] != \"DeploymentStage\"])} SSM parameters.')
+"
+}
+
+check_exports_exist() {
+    local stack_name="$1"
+    local export_name="$2"
+    aws cloudformation list-exports \
+        --query "Exports[?Name=='${export_name}'].Value" \
+        --output text \
+        --no-cli-pager 2>/dev/null | grep -q .
+}
+
+needs_migration() {
+    # Check if the shared stack still has CF Exports (the old pattern).
+    # If the export exists, consumers may still be importing it.
+    check_exports_exist "$SHARED_STACK_NAME" "${SHARED_STACK_NAME}-StrategyLayerArn"
+}
+
+# ============================================================================
+# BUILD ALL STACKS
+# ============================================================================
+build_all_stacks() {
+    echo ""
+    echo "Building shared stack..."
+    sam build \
+        --template template-shared.yaml \
+        --build-dir .aws-sam/build-shared \
+        --parallel
+
+    echo ""
+    echo "Building data stack..."
+    sam build \
+        --template template-data.yaml \
+        --build-dir .aws-sam/build-data \
+        --parallel
+
+    echo ""
+    echo "Building core trading stack..."
+    sam build --parallel --config-env "$ENVIRONMENT"
+
+    # Show built package sizes
+    echo ""
+    echo "Built package sizes:"
+    if [ -d ".aws-sam/build/StrategyFunction" ]; then
+        echo "   Strategy function code: $(du -sh .aws-sam/build/StrategyFunction 2>/dev/null | cut -f1 || echo 'N/A')"
+    fi
+    echo ""
+}
+
+# ============================================================================
+# DEPLOY FUNCTIONS
+# ============================================================================
+deploy_shared() {
+    local SHARED_PARAMS=("Stage=$ENVIRONMENT")
+    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
+        SHARED_PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
+    fi
+
+    echo "Deploying shared stack ($SHARED_STACK_NAME)..."
+    sam deploy \
+        --template .aws-sam/build-shared/template.yaml \
+        --stack-name "$SHARED_STACK_NAME" \
+        --region us-east-1 \
+        --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --no-confirm-changeset \
+        --parameter-overrides ${SHARED_PARAMS[@]}
+    echo "Shared infrastructure deployed."
+}
+
+deploy_data() {
+    local DATA_PARAMS=("Stage=$ENVIRONMENT")
+    resolve_alpaca_params "$ENVIRONMENT" DATA_PARAMS
+
+    echo "Deploying data stack ($DATA_STACK_NAME)..."
+    sam deploy \
+        --template .aws-sam/build-data/template.yaml \
+        --stack-name "$DATA_STACK_NAME" \
+        --region us-east-1 \
+        --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --no-confirm-changeset \
+        --parameter-overrides ${DATA_PARAMS[@]}
+    echo "Data & Dashboard stack deployed."
+}
+
+deploy_core() {
+    local CORE_PARAMS=("Stage=$ENVIRONMENT")
+    resolve_alpaca_params "$ENVIRONMENT" CORE_PARAMS
+
+    echo "Deploying core trading stack ($CORE_STACK_NAME)..."
+    sam deploy \
+        --stack-name "$CORE_STACK_NAME" \
+        --region us-east-1 \
+        --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --no-confirm-changeset \
+        --config-env "$ENVIRONMENT" \
+        --parameter-overrides ${CORE_PARAMS[@]}
+    echo "Core Trading stack deployed."
+}
+
+# ============================================================================
+# MAIN DEPLOYMENT LOGIC
+# ============================================================================
+
+if needs_migration; then
+    echo ""
+    echo "========================================"
+    echo " CF Export -> SSM Migration Detected"
+    echo "========================================"
+    echo "Shared stack still has CloudFormation Exports."
+    echo "Running migration: bootstrap SSM -> data -> core -> shared -> data -> core"
+    echo ""
+
+    # Step 1: Bootstrap SSM parameters from current stack outputs
+    echo "--- Step 1/6: Bootstrap SSM parameters ---"
+    bootstrap_ssm_from_stack_outputs "$SHARED_STACK_NAME" "/alchemiser/${ENVIRONMENT}/shared"
+    # Also bootstrap data stack SSM params if it exists
+    if aws cloudformation describe-stacks --stack-name "$DATA_STACK_NAME" --no-cli-pager > /dev/null 2>&1; then
+        bootstrap_ssm_from_stack_outputs "$DATA_STACK_NAME" "/alchemiser/${ENVIRONMENT}/data"
+    fi
+
+    # Step 2: Build all stacks
+    echo ""
+    echo "--- Step 2/6: Build all stacks ---"
+    build_all_stacks
+
+    # Step 3: Deploy consumers first (removes Fn::ImportValue dependencies)
+    echo ""
+    echo "--- Step 3/6: Deploy data stack (remove imports) ---"
+    deploy_data
+
+    echo ""
+    echo "--- Step 4/6: Deploy core stack (remove imports) ---"
+    deploy_core
+
+    # Step 5: Deploy shared stack (can now remove/update exports freely)
+    echo ""
+    echo "--- Step 5/6: Deploy shared stack (update exports + SSM) ---"
+    deploy_shared
+
+    # Step 6: Redeploy consumers to pick up new layer ARNs from SSM
+    echo ""
+    echo "--- Step 6/6: Redeploy consumers with new layer ARNs ---"
+    deploy_data
+    deploy_core
+
+    echo ""
+    echo "========================================"
+    echo " Migration complete! Future deploys will use normal order."
+    echo "========================================"
+else
+    # Normal deploy order: shared -> data -> core
+    echo ""
+    echo "========================================"
+    echo " Normal Deploy (SSM-based cross-stack refs)"
+    echo "========================================"
+
+    build_all_stacks
+
+    echo ""
+    echo "========================================"
+    echo " STACK 1/3: Shared Infrastructure"
+    echo "========================================"
+    deploy_shared
+
+    echo ""
+    echo "========================================"
+    echo " STACK 2/3: Data & Dashboard"
+    echo "========================================"
+    deploy_data
+
+    echo ""
+    echo "========================================"
+    echo " STACK 3/3: Core Trading"
+    echo "========================================"
+    deploy_core
+fi
 
 # ============================================================================
 # COMPLETE
