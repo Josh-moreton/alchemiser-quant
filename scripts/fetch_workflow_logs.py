@@ -65,7 +65,7 @@ LAMBDA_FUNCTIONS = [
     "strategy-orchestrator",
     "strategy-worker",
     "signal-aggregator",
-    "portfolio",
+    "rebalance-planner",
     "execution",
     "trade-aggregator",
     "notifications",
@@ -73,12 +73,12 @@ LAMBDA_FUNCTIONS = [
     "hedge-evaluator",
     "hedge-executor",
     "hedge-roll-manager",
-    "hedge-reports",
-    # Utility functions
-    "metrics",
+    # Data & utility functions
     "data",
-    "pnl-capture",
     "schedule-manager",
+    "sub-strategy-data",
+    "account-data",
+    "strategy-performance",
 ]
 
 # Log levels to include when filtering for issues
