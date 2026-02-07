@@ -265,16 +265,17 @@ class DataRefreshService:
             # Append to existing data
             success, adjustment_info = self.market_data_store.append_bars(symbol, new_bars)
 
-            metadata["new_bars"] = len(new_bars)
-            
-            # Extract bar dates if we have data
-            if not new_bars.empty and "timestamp" in new_bars.columns:
-                # Convert timestamps to dates, get unique values, and sort them
-                bar_dates = pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").unique()
-                metadata["bar_dates"] = sorted(bar_dates.tolist())
+            # Only populate bar/adjustment metadata if write succeeded
+            # (avoid misleading users about data that wasn't actually persisted)
+            if success:
+                metadata["new_bars"] = len(new_bars)
 
-            # Only populate adjustment metadata if write succeeded
-            # (avoid misleading users about adjustments that weren't actually persisted)
+                # Extract bar dates if we have data
+                if not new_bars.empty and "timestamp" in new_bars.columns:
+                    # Convert timestamps to dates, get unique values, and sort them
+                    bar_dates = pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").unique()
+                    metadata["bar_dates"] = sorted(bar_dates.tolist())
+
             if success and adjustment_info and adjustment_info.adjustment_count > 0:
                 metadata["adjusted"] = True
                 metadata["adjusted_dates"] = adjustment_info.adjusted_dates
@@ -435,6 +436,20 @@ class DataRefreshService:
         # Process bad data markers first (these need full re-fetch)
         marker_results = self.process_bad_data_markers()
         results_dict.update(marker_results)
+
+        # Populate metadata for marker-processed symbols
+        # (markers use seed_initial_data which does full replacement, so we
+        # cannot track incremental bar counts - record success with zero bars)
+        for symbol, success in marker_results.items():
+            all_metadata_dict[symbol] = {
+                "new_bars": 0,
+                "bar_dates": [],
+                "adjusted": False,
+                "adjusted_dates": [],
+                "adjustment_count": 0,
+                "max_pct_change": 0.0,
+                "marker_refetch": True,
+            }
 
         # Then do incremental refresh (markers already re-fetched, won't duplicate)
         refresh_data = self.refresh_all_symbols()

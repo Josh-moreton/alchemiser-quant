@@ -529,7 +529,7 @@ class NotificationService:
                     date_str = bar_dates[0]
                 else:
                     date_str = f"{bar_dates[0]} through {bar_dates[-1]}"
-                
+
                 # Create plain English summary
                 bar_plural = "bar" if total_bars_fetched == 1 else "bars"
                 day_plural = "day" if len(bar_dates) == 1 else "days"
