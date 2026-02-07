@@ -269,9 +269,9 @@ class DataRefreshService:
             
             # Extract bar dates if we have data
             if not new_bars.empty and "timestamp" in new_bars.columns:
-                # Convert timestamps to dates and sort them
-                bar_dates = pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").tolist()
-                metadata["bar_dates"] = sorted(set(bar_dates))
+                # Convert timestamps to dates, get unique values, and sort them
+                bar_dates = pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").unique()
+                metadata["bar_dates"] = sorted(bar_dates.tolist())
 
             # Only populate adjustment metadata if write succeeded
             # (avoid misleading users about adjustments that weren't actually persisted)

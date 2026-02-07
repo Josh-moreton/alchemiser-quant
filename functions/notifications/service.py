@@ -527,8 +527,6 @@ class NotificationService:
                 # Format date range
                 if len(bar_dates) == 1:
                     date_str = bar_dates[0]
-                elif len(bar_dates) == 2:
-                    date_str = f"{bar_dates[0]} and {bar_dates[1]}"
                 else:
                     date_str = f"{bar_dates[0]} through {bar_dates[-1]}"
                 
