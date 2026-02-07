@@ -1,0 +1,467 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/validator/sam_schema/schema.json
+# yaml-language-server: disable-validation
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Alchemiser Shared Infrastructure Stack
+
+  EventBridge bus, Lambda layers, trade ledger, S3 buckets, and DLQ alerts.
+  Consumed by Core Trading and Data/Dashboard stacks via cross-stack exports.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+      - ephemeral
+    Description: Deployment stage (dev, staging, prod, or ephemeral)
+
+  StackName:
+    Type: String
+    Default: ""
+    Description: Optional override for stack-specific resource naming (used for ephemeral stacks)
+
+  Env:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+      - ephemeral
+    Description: Environment type for resource configuration
+
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email address for success notifications (set per-environment in secret store)
+
+Conditions:
+  IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
+  HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
+  UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
+  HasNotificationEmail: !Not [ !Equals [ !Ref NotificationEmail, "" ] ]
+
+Resources:
+  # ========== EVENTBRIDGE EVENT BUS ==========
+  # Async domain event communication between all microservices
+  AlchemiserEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-events"
+        - !Sub "alchemiser-${Stage}-events"
+
+  # ========== TRADE LEDGER TABLE ==========
+  # DynamoDB Table for trade ledger persistence (single-table design, 6 GSIs)
+  TradeLedgerTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-trade-ledger"
+        - !Sub "alchemiser-${Stage}-trade-ledger"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+        - AttributeName: GSI3PK
+          AttributeType: S
+        - AttributeName: GSI3SK
+          AttributeType: S
+        - AttributeName: GSI4PK
+          AttributeType: S
+        - AttributeName: GSI4SK
+          AttributeType: S
+        - AttributeName: GSI5PK
+          AttributeType: S
+        - AttributeName: GSI5SK
+          AttributeType: S
+        - AttributeName: GSI6PK
+          AttributeType: S
+        - AttributeName: GSI6SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      GlobalSecondaryIndexes:
+        # GSI1: Query by correlation_id
+        - IndexName: GSI1-CorrelationIndex
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI2: Query by symbol
+        - IndexName: GSI2-SymbolIndex
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI3: Query by strategy
+        - IndexName: GSI3-StrategyIndex
+          KeySchema:
+            - AttributeName: GSI3PK
+              KeyType: HASH
+            - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI4: Query snapshots by correlation_id
+        - IndexName: GSI4-CorrelationSnapshotIndex
+          KeySchema:
+            - AttributeName: GSI4PK
+              KeyType: HASH
+            - AttributeName: GSI4SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI5: Query strategy lots by strategy name (for FIFO P&L tracking)
+        - IndexName: GSI5-StrategyLotsIndex
+          KeySchema:
+            - AttributeName: GSI5PK
+              KeyType: HASH
+            - AttributeName: GSI5SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+        # GSI6: Query strategy lots by symbol (cross-strategy position analysis)
+        - IndexName: GSI6-SymbolLotsIndex
+          KeySchema:
+            - AttributeName: GSI6PK
+              KeyType: HASH
+            - AttributeName: GSI6SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: trade-ledger
+
+  # ========== LAMBDA LAYERS ==========
+
+  # Strategy Layer: awswrangler (pandas, numpy, pyarrow) + alpaca-py
+  StrategyLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-deps"
+        - !Sub "alchemiser-${Stage}-strategy-deps"
+      Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
+      ContentUri: layers/strategy/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
+
+  # Portfolio Layer: alpaca-py + pydantic (no pandas/numpy)
+  PortfolioLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-portfolio-deps"
+        - !Sub "alchemiser-${Stage}-portfolio-deps"
+      Description: Portfolio Lambda dependencies (alpaca-py, pydantic)
+      ContentUri: layers/portfolio/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Execution Layer: alpaca-py + pydantic (no pandas/numpy)
+  ExecutionLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-execution-deps"
+        - !Sub "alchemiser-${Stage}-execution-deps"
+      Description: Execution Lambda dependencies (alpaca-py, pydantic)
+      ContentUri: layers/execution/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Notifications Layer: pydantic + structlog + alpaca-py (lightweight)
+  NotificationsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-notifications-deps"
+        - !Sub "alchemiser-${Stage}-notifications-deps"
+      Description: Notifications Lambda dependencies (pydantic, structlog, alpaca-py)
+      ContentUri: layers/notifications/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # Data Layer: awswrangler (pandas, numpy, pyarrow) + alpaca-py
+  DataLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-deps"
+        - !Sub "alchemiser-${Stage}-data-deps"
+      Description: awswrangler 3.10.0 + alpaca-py (pandas, numpy, pyarrow included)
+      ContentUri: layers/data/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: makefile
+
+  # Shared Code Layer: the_alchemiser.shared module - used by ALL Lambda functions
+  SharedCodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-shared-code"
+        - !Sub "alchemiser-${Stage}-shared-code"
+      Description: Shared business logic (the_alchemiser.shared module)
+      ContentUri: layers/shared/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  # ========== DLQ ALERT TOPIC ==========
+  DLQAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-dlq-alerts"
+        - !Sub "alchemiser-${Stage}-dlq-alerts"
+      DisplayName: "Alchemiser DLQ Alert"
+
+  DLQAlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DLQAlertTopic
+      Protocol: email
+      Endpoint: !If
+        - HasNotificationEmail
+        - !Ref NotificationEmail
+        - "notifications@rwxt.org"
+
+  # ========== S3 BUCKETS ==========
+
+  # Performance reports bucket (CSV strategy reports with presigned URL access)
+  PerformanceReportsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !If
+        - HasStackName
+        - !Sub "${StackName}-performance-reports"
+        - !Sub "alchemiser-${Stage}-reports"
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldReports
+            ExpirationInDays: 30
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: performance-reports
+
+  # Per-stage market data bucket (Parquet files for historical data)
+  MarketDataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !If
+        - HasStackName
+        - !Sub "${StackName}-market-data"
+        - !Sub "alchemiser-${Stage}-market-data"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: market-data
+
+# ============================================================================
+# OUTPUTS - Cross-stack exports consumed by Core and Data stacks
+# Export names use ${AWS::StackName} prefix for automatic namespacing
+# ============================================================================
+Outputs:
+  EventBusName:
+    Description: "EventBridge event bus name"
+    Value: !Ref AlchemiserEventBus
+    Export:
+      Name: !Sub "${AWS::StackName}-EventBusName"
+
+  EventBusArn:
+    Description: "EventBridge event bus ARN"
+    Value: !GetAtt AlchemiserEventBus.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EventBusArn"
+
+  SharedCodeLayerArn:
+    Description: "Shared code layer ARN (the_alchemiser.shared)"
+    Value: !Ref SharedCodeLayer
+    Export:
+      Name: !Sub "${AWS::StackName}-SharedCodeLayerArn"
+
+  StrategyLayerArn:
+    Description: "Strategy layer ARN (awswrangler + alpaca-py)"
+    Value: !Ref StrategyLayer
+    Export:
+      Name: !Sub "${AWS::StackName}-StrategyLayerArn"
+
+  PortfolioLayerArn:
+    Description: "Portfolio layer ARN (alpaca-py + pydantic)"
+    Value: !Ref PortfolioLayer
+    Export:
+      Name: !Sub "${AWS::StackName}-PortfolioLayerArn"
+
+  ExecutionLayerArn:
+    Description: "Execution layer ARN (alpaca-py + pydantic)"
+    Value: !Ref ExecutionLayer
+    Export:
+      Name: !Sub "${AWS::StackName}-ExecutionLayerArn"
+
+  NotificationsLayerArn:
+    Description: "Notifications layer ARN (pydantic + structlog + alpaca-py)"
+    Value: !Ref NotificationsLayer
+    Export:
+      Name: !Sub "${AWS::StackName}-NotificationsLayerArn"
+
+  DataLayerArn:
+    Description: "Data layer ARN (awswrangler + alpaca-py)"
+    Value: !Ref DataLayer
+    Export:
+      Name: !Sub "${AWS::StackName}-DataLayerArn"
+
+  TradeLedgerTableName:
+    Description: "Trade ledger DynamoDB table name"
+    Value: !Ref TradeLedgerTable
+    Export:
+      Name: !Sub "${AWS::StackName}-TradeLedgerTableName"
+
+  TradeLedgerTableArn:
+    Description: "Trade ledger DynamoDB table ARN"
+    Value: !GetAtt TradeLedgerTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-TradeLedgerTableArn"
+
+  DLQAlertTopicArn:
+    Description: "DLQ alert SNS topic ARN"
+    Value: !Ref DLQAlertTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-DLQAlertTopicArn"
+
+  PerformanceReportsBucketName:
+    Description: "Performance reports S3 bucket name"
+    Value: !Ref PerformanceReportsBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-PerformanceReportsBucketName"
+
+  PerformanceReportsBucketArn:
+    Description: "Performance reports S3 bucket ARN"
+    Value: !GetAtt PerformanceReportsBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PerformanceReportsBucketArn"
+
+  MarketDataBucketName:
+    Description: "Per-stage market data S3 bucket name"
+    Value: !Ref MarketDataBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-MarketDataBucketName"
+
+  MarketDataBucketArn:
+    Description: "Per-stage market data S3 bucket ARN"
+    Value: !GetAtt MarketDataBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-MarketDataBucketArn"
+
+  DeploymentStage:
+    Description: "Deployed stage"
+    Value: !Ref Stage

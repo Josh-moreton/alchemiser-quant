@@ -1,0 +1,518 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/validator/sam_schema/schema.json
+# yaml-language-server: disable-validation
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Alchemiser Data & Dashboard Stack
+
+  Market data fetching (Data Lambda), account snapshots (AccountData Lambda),
+  and their DynamoDB tables and schedules.
+  Imports shared infrastructure (EventBus, layers, S3) from the Shared stack.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+      - ephemeral
+    Description: Deployment stage (dev, staging, prod, or ephemeral)
+
+  StackName:
+    Type: String
+    Default: ""
+    Description: Optional override for stack-specific resource naming (used for ephemeral stacks)
+
+  Env:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+      - ephemeral
+    Description: Environment type for resource configuration
+
+  # Cross-stack reference: name of the deployed shared infrastructure stack
+  SharedStackName:
+    Type: String
+    Description: CloudFormation stack name of the shared infrastructure stack (for cross-stack imports)
+
+  # Alpaca API credentials (per-environment)
+  AlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key (used only in dev; leave blank for prod)
+
+  AlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret (used only in dev; leave blank for prod)
+
+  AlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
+
+  StagingAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for staging
+
+  StagingAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for staging
+
+  StagingAlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint for staging
+
+  ProdAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for production
+
+  ProdAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for production
+
+  ProdAlpacaEndpoint:
+    Type: String
+    Default: https://api.alpaca.markets
+    Description: Alpaca API endpoint for production
+
+  EquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: Equity deployment percentage
+
+  StagingEquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: Equity deployment percentage for staging
+
+  ProdEquityDeploymentPct:
+    Type: String
+    Default: "1.0"
+    Description: Equity deployment percentage for production
+
+  # Data refresh schedule (single daily run after US market close)
+  DataRefreshScheduleExpr:
+    Type: String
+    Default: "cron(1 16 ? * MON-FRI *)"
+    Description: Daily market data refresh (4:01 PM ET, Mon-Fri)
+
+  FetchCooldownMinutes:
+    Type: Number
+    Default: 15
+    Description: Cooldown period (minutes) before allowing another fetch for same symbol
+
+Conditions:
+  IsStaging: !Equals [ !Ref Stage, staging ]
+  IsProduction: !Equals [ !Ref Stage, prod ]
+  IsEphemeral: !Equals [ !Ref Stage, ephemeral ]
+  HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
+  UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
+
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 512
+    Environment:
+      Variables:
+        APP__STAGE: !If [ IsProduction, "prod", !If [ IsStaging, "staging", "dev" ] ]
+        ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+        ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+        ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
+        ALPACA__EQUITY_DEPLOYMENT_PCT: !If [ IsProduction, !Ref ProdEquityDeploymentPct, !If [ IsStaging, !Ref StagingEquityDeploymentPct, !Ref EquityDeploymentPct ] ]
+
+Resources:
+  # ========== DYNAMODB TABLES ==========
+
+  # Market data fetch request deduplication table
+  MarketDataFetchRequestsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-market-data-fetch-requests"
+        - !Sub "alchemiser-${Stage}-market-data-fetch-requests"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: market-data-fetch-requests
+
+  # Bad data markers table (symbols/dates needing re-fetch)
+  BadDataMarkersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-bad-data-markers"
+        - !Sub "alchemiser-${Stage}-bad-data-markers"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: bad-data-markers
+
+  # Account data table (dashboard data source - single-table design)
+  AccountDataTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAt
+        Enabled: true
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: account-data
+
+  # ========== DATA LAMBDA FUNCTION ==========
+  # Market data fetching and S3 storage (per-stage)
+  DataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data"
+        - !Sub "alchemiser-${Stage}-data"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/data/
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt DataExecutionRole.Arn
+      Layers:
+        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
+        - Fn::ImportValue: !Sub "${SharedStackName}-DataLayerArn"
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EVENT_BUS_NAME:
+            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+          MARKET_DATA_BUCKET:
+            Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketName"
+          FETCH_REQUESTS_TABLE: !Ref MarketDataFetchRequestsTable
+          BAD_DATA_MARKERS_TABLE: !Ref BadDataMarkersTable
+          FETCH_COOLDOWN_MINUTES: !Ref FetchCooldownMinutes
+          ALPACA__KEY: !If [ IsProduction, !Ref ProdAlpacaKey, !If [ IsStaging, !Ref StagingAlpacaKey, !Ref AlpacaKey ] ]
+          ALPACA__SECRET: !If [ IsProduction, !Ref ProdAlpacaSecret, !If [ IsStaging, !Ref StagingAlpacaSecret, !Ref AlpacaSecret ] ]
+          ALPACA__ENDPOINT: !If [ IsProduction, !Ref ProdAlpacaEndpoint, !If [ IsStaging, !Ref StagingAlpacaEndpoint, !Ref AlpacaEndpoint ] ]
+      Events:
+        # On-demand fetch requests from strategy lambdas
+        MarketDataFetchRequested:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName:
+              Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+            Pattern:
+              source:
+                - "alchemiser.strategy"
+              detail-type:
+                - "MarketDataFetchRequested"
+    Metadata:
+      BuildMethod: python3.12
+
+  DataExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: &lambda-assume-role
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns: &lambda-basic-execution
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DataPolicy
+          PolicyDocument:
+            Statement:
+              # S3 read/write for market data
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                Resource:
+                  - Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
+                  - !Sub
+                    - "${BucketArn}/*"
+                    - BucketArn:
+                        Fn::ImportValue: !Sub "${SharedStackName}-MarketDataBucketArn"
+              # DynamoDB for fetch request deduplication
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt MarketDataFetchRequestsTable.Arn
+              # DynamoDB for bad data markers
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt BadDataMarkersTable.Arn
+              # EventBridge for publishing completion events
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - Fn::ImportValue: !Sub "${SharedStackName}-EventBusArn"
+
+  # EventBridge permission for Data Lambda invocation
+  DataEventBridgePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DataFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub
+        - "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${EventBusName}/*"
+        - EventBusName:
+            Fn::ImportValue: !Sub "${SharedStackName}-EventBusName"
+
+  # ========== ACCOUNT DATA LAMBDA (DASHBOARD DATA SOURCE) ==========
+  AccountDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/account_data/
+      Handler: lambda_handler.handler
+      Role: !GetAtt AccountDataExecutionRole.Arn
+      Layers:
+        - Fn::ImportValue: !Sub "${SharedStackName}-SharedCodeLayerArn"
+        - Fn::ImportValue: !Sub "${SharedStackName}-StrategyLayerArn"
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          ACCOUNT_DATA_TABLE: !Ref AccountDataTable
+    Metadata:
+      BuildMethod: python3.12
+
+  AccountDataExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
+      Policies:
+        - PolicyName: AccountDataPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt AccountDataTable.Arn
+
+  # ========== SCHEDULES ==========
+
+  # Daily data refresh (4:01 PM ET, after US market close, fetches completed daily bars)
+  DataRefreshSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-data-refresh"
+        - !Sub "alchemiser-${Stage}-data-refresh"
+      Description: !Sub "Daily market data refresh for ${Stage} (4:01 PM ET, Mon-Fri)"
+      ScheduleExpression: !Ref DataRefreshScheduleExpr
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt DataFunction.Arn
+        RoleArn: !GetAtt DataSchedulerRole.Arn
+        Input: '{"source": "schedule"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  DataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: &scheduler-assume-role
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeDataFunction
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataFunction.Arn
+
+  # Account data schedule (6-hourly: 4 AM, 10 AM, 4 PM, 10 PM ET)
+  AccountDataSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      Description: "Fetch account data from Alpaca every 6 hours (4 AM, 10 AM, 4 PM, 10 PM ET)"
+      ScheduleExpression: "cron(0 4,10,16,22 * * ? *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt AccountDataFunction.Arn
+        RoleArn: !GetAtt AccountDataSchedulerRole.Arn
+        Input: '{"source": "scheduled"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  AccountDataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *scheduler-assume-role
+      Policies:
+        - PolicyName: InvokeAccountData
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AccountDataFunction.Arn
+
+# ============================================================================
+# OUTPUTS - Cross-stack exports consumed by Core Trading stack
+# ============================================================================
+Outputs:
+  DataFunctionName:
+    Description: "Data Lambda function name"
+    Value: !Ref DataFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-DataFunctionName"
+
+  DataFunctionArn:
+    Description: "Data Lambda function ARN (consumed by Strategy and GroupCache in Core)"
+    Value: !GetAtt DataFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-DataFunctionArn"
+
+  MarketDataFetchRequestsTableName:
+    Description: "Market data fetch requests DynamoDB table name"
+    Value: !Ref MarketDataFetchRequestsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-MarketDataFetchRequestsTableName"
+
+  BadDataMarkersTableName:
+    Description: "Bad data markers DynamoDB table name"
+    Value: !Ref BadDataMarkersTable
+    Export:
+      Name: !Sub "${AWS::StackName}-BadDataMarkersTableName"
+
+  AccountDataTableName:
+    Description: "Account data DynamoDB table name"
+    Value: !Ref AccountDataTable
+    Export:
+      Name: !Sub "${AWS::StackName}-AccountDataTableName"
+
+  DeploymentStage:
+    Description: "Deployed stage"
+    Value: !Ref Stage

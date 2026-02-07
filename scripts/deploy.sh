@@ -1,224 +1,236 @@
 #!/bin/bash
-# Optimized SAM deployment script for The Alchemiser Quantitative Trading System
+# Multi-stack SAM deployment script for The Alchemiser Quantitative Trading System
+# Deploys stacks sequentially: shared -> data -> core
 
 set -e
 
 # Load environment variables from .env if it exists
 if [ -f ".env" ]; then
-    echo "📝 Loading environment variables from .env..."
+    echo "Loading environment variables from .env..."
     set -a  # automatically export all variables
     source .env
     set +a
 fi
 
-echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
+echo "Deploying The Alchemiser Quantitative Trading System (multi-stack)"
 echo "================================================"
 
 # Usage: ./scripts/deploy.sh [dev|staging|prod]
 ENVIRONMENT="${1:-prod}"
 if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
-    echo "❌ Invalid environment: $ENVIRONMENT (use 'dev', 'staging', or 'prod')"
+    echo "ERROR: Invalid environment: $ENVIRONMENT (use 'dev', 'staging', or 'prod')"
     exit 1
 fi
 echo "Environment: $ENVIRONMENT"
 
 # Check if we're in the right directory
 if [ ! -f "template.yaml" ]; then
-    echo "❌ Error: template.yaml not found. Make sure you're in the project root directory."
+    echo "ERROR: template.yaml not found. Make sure you're in the project root directory."
     exit 1
 fi
 
 # Check if sam CLI is installed
 if ! command -v sam &> /dev/null; then
-    echo "❌ Error: AWS SAM CLI is not installed. Please install it first:"
+    echo "ERROR: AWS SAM CLI is not installed. Please install it first:"
     echo "   pip install aws-sam-cli"
     exit 1
 fi
 
 # Check if poetry is available
 if ! command -v poetry &> /dev/null; then
-    echo "❌ Error: Poetry is not installed. Please install it first."
+    echo "ERROR: Poetry is not installed. Please install it first."
     exit 1
 fi
 
 # Ensure poetry export plugin is available or provide a safe fallback
-echo "🔧 Checking Poetry export capability..."
+echo "Checking Poetry export capability..."
 if ! poetry help export > /dev/null 2>&1; then
-    echo "⚠️  'poetry export' not found. Attempting to install poetry-plugin-export..."
-    # First try via Poetry's plugin system
+    echo "WARNING: 'poetry export' not found. Attempting to install poetry-plugin-export..."
     if ! poetry self add "poetry-plugin-export>=1.7.1" > /dev/null 2>&1; then
-        echo "⚠️  Could not install plugin via 'poetry self add'."
-        # If poetry was installed via pipx, try pipx inject as a fallback (best-effort)
+        echo "WARNING: Could not install plugin via 'poetry self add'."
         if command -v pipx > /dev/null 2>&1; then
-            echo "ℹ️  Trying 'pipx inject poetry poetry-plugin-export'..."
+            echo "INFO: Trying 'pipx inject poetry poetry-plugin-export'..."
             pipx inject poetry poetry-plugin-export > /dev/null 2>&1 || true
         fi
     fi
 fi
 
 # Remove any existing requirements.txt from root to avoid duplication
-echo "🧹 Removing root requirements.txt to avoid duplication with layer..."
+echo "Removing root requirements.txt to avoid duplication with layer..."
 rm -f requirements.txt
 
 # Function-specific layers are defined in layers/<function>/requirements.txt
-# These are manually curated to ship only what each Lambda needs
-echo "📦 Verifying function-specific layer requirements..."
+echo "Verifying function-specific layer requirements..."
 
 LAYER_DIRS=("strategy" "portfolio" "execution" "notifications" "data")
 for layer in "${LAYER_DIRS[@]}"; do
     if [ ! -f "layers/$layer/requirements.txt" ]; then
-        echo "❌ Error: layers/$layer/requirements.txt not found"
+        echo "ERROR: layers/$layer/requirements.txt not found"
         exit 1
     fi
-    echo "   ✅ layers/$layer/requirements.txt: $(wc -l < layers/$layer/requirements.txt | tr -d ' ') lines"
+    echo "   layers/$layer/requirements.txt: $(wc -l < layers/$layer/requirements.txt | tr -d ' ') lines"
 done
 
-echo "✅ All function-specific layer requirements verified"
+echo "All function-specific layer requirements verified"
 
-# Build the SAM application (skip if already built, e.g., by CI/CD)
-if [ -f ".aws-sam/build/template.yaml" ]; then
-    echo "ℹ️  SAM build artifacts already exist, skipping build..."
-    echo "   (To force rebuild, run: rm -rf .aws-sam)"
-else
-    echo "🔨 Building SAM application..."
-    # Note: CodeUri now points to functions/<name>/ for per-Lambda packaging; shared runtime code is provided by layers/shared/ (SharedCodeLayer)
-    sam build --parallel --config-env "$ENVIRONMENT"
+# ============================================================================
+# RESOLVE ALPACA CREDENTIALS PER ENVIRONMENT
+# ============================================================================
+resolve_alpaca_params() {
+    local env="$1"
+    local -n params_ref="$2"
+
+    if [ "$env" = "dev" ]; then
+        if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+            echo "ERROR: ALPACA_KEY and ALPACA_SECRET must be set for dev deploy (env)." >&2
+            exit 1
+        fi
+        params_ref+=("AlpacaKey=$ALPACA_KEY")
+        params_ref+=("AlpacaSecret=$ALPACA_SECRET")
+        params_ref+=("AlpacaEndpoint=${ALPACA_ENDPOINT:-https://paper-api.alpaca.markets/v2}")
+        params_ref+=("EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}")
+    elif [ "$env" = "staging" ]; then
+        if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+            echo "ERROR: ALPACA_KEY and ALPACA_SECRET must be set for staging deploy (env)." >&2
+            exit 1
+        fi
+        params_ref+=("StagingAlpacaKey=$ALPACA_KEY")
+        params_ref+=("StagingAlpacaSecret=$ALPACA_SECRET")
+        params_ref+=("StagingAlpacaEndpoint=${ALPACA_ENDPOINT:-https://paper-api.alpaca.markets/v2}")
+        params_ref+=("StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}")
+    else
+        if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+            echo "ERROR: ALPACA_KEY and ALPACA_SECRET must be set for prod deploy (env)." >&2
+            exit 1
+        fi
+        params_ref+=("ProdAlpacaKey=$ALPACA_KEY")
+        params_ref+=("ProdAlpacaSecret=$ALPACA_SECRET")
+        params_ref+=("ProdAlpacaEndpoint=${ALPACA_ENDPOINT:-https://api.alpaca.markets}")
+        params_ref+=("ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}")
+    fi
+
+    # Common optional params
+    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
+        params_ref+=("NotificationEmail=$NOTIFICATION_EMAIL")
+    fi
+}
+
+# ============================================================================
+# STACK 1: SHARED INFRASTRUCTURE (template-shared.yaml)
+# ============================================================================
+echo ""
+echo "========================================"
+echo " STACK 1/3: Shared Infrastructure"
+echo "========================================"
+
+SHARED_CONFIG_ENV="shared-${ENVIRONMENT}"
+SHARED_PARAMS=("Stage=$ENVIRONMENT")
+
+# Add notification email for DLQ alerts
+if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
+    SHARED_PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
 fi
 
-# Show actual built package sizes
+echo "Building shared stack..."
+sam build \
+    --template template-shared.yaml \
+    --build-dir .aws-sam/build-shared \
+    --parallel \
+    --config-env "$SHARED_CONFIG_ENV"
+
+echo "Deploying shared stack..."
+sam deploy \
+    --template .aws-sam/build-shared/template.yaml \
+    --no-fail-on-empty-changeset \
+    --resolve-s3 \
+    --config-env "$SHARED_CONFIG_ENV" \
+    --parameter-overrides ${SHARED_PARAMS[@]}
+
+echo "Shared infrastructure deployed."
+
+# ============================================================================
+# STACK 2: DATA & DASHBOARD (template-data.yaml)
+# ============================================================================
 echo ""
-echo "📦 Built package sizes:"
-for layer in "${LAYER_DIRS[@]}"; do
-    layer_path=".aws-sam/build/${layer^}Layer"
-    if [ -d "$layer_path" ]; then
-        echo "   ${layer} layer: $(du -sh "$layer_path" 2>/dev/null | cut -f1 || echo 'N/A')"
-    fi
-done
+echo "========================================"
+echo " STACK 2/3: Data & Dashboard"
+echo "========================================"
+
+DATA_CONFIG_ENV="data-${ENVIRONMENT}"
+DATA_PARAMS=(
+    "Stage=$ENVIRONMENT"
+    "SharedStackName=alchemiser-${ENVIRONMENT}-shared"
+)
+
+# Add Alpaca credentials (Data Lambda needs them for market data fetching)
+resolve_alpaca_params "$ENVIRONMENT" DATA_PARAMS
+
+echo "Building data stack..."
+sam build \
+    --template template-data.yaml \
+    --build-dir .aws-sam/build-data \
+    --parallel \
+    --config-env "$DATA_CONFIG_ENV"
+
+echo "Deploying data stack..."
+sam deploy \
+    --template .aws-sam/build-data/template.yaml \
+    --no-fail-on-empty-changeset \
+    --resolve-s3 \
+    --config-env "$DATA_CONFIG_ENV" \
+    --parameter-overrides ${DATA_PARAMS[@]}
+
+echo "Data & Dashboard stack deployed."
+
+# ============================================================================
+# STACK 3: CORE TRADING (template.yaml)
+# ============================================================================
+echo ""
+echo "========================================"
+echo " STACK 3/3: Core Trading"
+echo "========================================"
+
+CORE_PARAMS=(
+    "Stage=$ENVIRONMENT"
+    "SharedStackName=alchemiser-${ENVIRONMENT}-shared"
+    "DataStackName=alchemiser-${ENVIRONMENT}-data"
+)
+
+# Add Alpaca credentials (needed by Strategy, Portfolio, Execution, etc.)
+resolve_alpaca_params "$ENVIRONMENT" CORE_PARAMS
+
+echo "Building core trading stack..."
+sam build --parallel --config-env "$ENVIRONMENT"
+
+# Show built package sizes
+echo ""
+echo "Built package sizes:"
 if [ -d ".aws-sam/build/StrategyFunction" ]; then
     echo "   Strategy function code: $(du -sh .aws-sam/build/StrategyFunction 2>/dev/null | cut -f1 || echo 'N/A')"
 fi
 echo ""
 
-# Deploy the application
-echo "🚀 Deploying to AWS..."
+echo "Deploying core trading stack..."
+sam deploy \
+    --no-fail-on-empty-changeset \
+    --resolve-s3 \
+    --config-env "$ENVIRONMENT" \
+    --parameter-overrides ${CORE_PARAMS[@]}
 
-if [ "$ENVIRONMENT" = "dev" ]; then
-    if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
-        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for dev deploy (env)." >&2
-        exit 1
-    fi
-    ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
-    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
+echo "Core Trading stack deployed."
 
-    PARAMS=(
-        "Stage=dev"
-        "AlpacaKey=$ALPACA_KEY"
-        "AlpacaSecret=$ALPACA_SECRET"
-        "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
-        "EquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
-    )
-    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
-        PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
-    fi
-    # Notification email (set per-environment in secret store)
-    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
-        PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-    fi
-    # Notion P&L Dashboard credentials
-    if [[ -n "${NOTION_TOKEN:-}" ]]; then
-        PARAMS+=("NotionToken=$NOTION_TOKEN")
-    fi
-    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
-        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
-    fi
-
-    sam deploy \
-        --no-fail-on-empty-changeset \
-        --resolve-s3 \
-        --config-env "$ENVIRONMENT" \
-        --parameter-overrides ${PARAMS[@]}
-elif [ "$ENVIRONMENT" = "staging" ]; then
-    # Staging: use same pattern as prod but with staging-specific parameters
-    if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
-        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for staging deploy (env)." >&2
-        exit 1
-    fi
-    STAGING_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
-    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
-
-    PARAMS=(
-        "Stage=staging"
-        "StagingAlpacaKey=$ALPACA_KEY"
-        "StagingAlpacaSecret=$ALPACA_SECRET"
-        "StagingAlpacaEndpoint=$STAGING_ALPACA_ENDPOINT_PARAM"
-        "StagingEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
-    )
-    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
-        PARAMS+=("StagingEmailPassword=$EMAIL_PASSWORD_PARAM")
-    fi
-    # Notification email (set per-environment in secret store)
-    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
-        PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-    fi
-    # Notion P&L Dashboard credentials
-    if [[ -n "${NOTION_TOKEN:-}" ]]; then
-        PARAMS+=("NotionToken=$NOTION_TOKEN")
-    fi
-    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
-        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
-    fi
-
-    sam deploy \
-        --no-fail-on-empty-changeset \
-        --resolve-s3 \
-        --config-env "$ENVIRONMENT" \
-        --parameter-overrides ${PARAMS[@]}
-else
-    # Production: use the same ALPACA_* variables for both monolithic and microservices
-    if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
-        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for prod deploy (env)." >&2
-        exit 1
-    fi
-    PROD_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
-    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
-
-    PARAMS=(
-        "Stage=prod"
-        "ProdAlpacaKey=$ALPACA_KEY"
-        "ProdAlpacaSecret=$ALPACA_SECRET"
-        "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
-        "ProdEquityDeploymentPct=${EQUITY_DEPLOYMENT_PCT:-1.0}"
-    )
-    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
-        PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
-    fi
-    # Notification email (set per-environment in secret store)
-    if [[ -n "${NOTIFICATION_EMAIL:-}" ]]; then
-        PARAMS+=("NotificationEmail=$NOTIFICATION_EMAIL")
-    fi
-    # Notion P&L Dashboard credentials
-    if [[ -n "${NOTION_TOKEN:-}" ]]; then
-        PARAMS+=("NotionToken=$NOTION_TOKEN")
-    fi
-    if [[ -n "${NOTION_DATABASE_ID:-}" ]]; then
-        PARAMS+=("NotionDatabaseId=$NOTION_DATABASE_ID")
-    fi
-
-    sam deploy \
-        --no-fail-on-empty-changeset \
-        --resolve-s3 \
-        --config-env "$ENVIRONMENT" \
-        --parameter-overrides ${PARAMS[@]}
-fi
-
+# ============================================================================
+# COMPLETE
+# ============================================================================
 echo ""
-echo "✅ Deployment complete!"
+echo "========================================"
+echo " All 3 stacks deployed successfully!"
+echo "========================================"
 echo ""
-echo "🧪 To test your deployment:"
-echo "   sam local invoke TradingSystemFunction"
+echo "Stacks deployed:"
+echo "   1. alchemiser-${ENVIRONMENT}-shared  (EventBus, Layers, TradeLedger, S3)"
+echo "   2. alchemiser-${ENVIRONMENT}-data    (Data Lambda, AccountData Lambda)"
+echo "   3. alchemiser-${ENVIRONMENT}         (Strategy, Portfolio, Execution, etc.)"
 echo ""
-echo "📊 To view logs:"
-echo "   sam logs -n TradingSystemFunction --tail"
-echo ""
-echo "🔗 To get the Lambda function URL:"
-echo "   aws lambda get-function-url-config --function-name TradingSystemFunction"
+echo "To view logs:"
+echo "   sam logs -n StrategyFunction --stack-name alchemiser-${ENVIRONMENT} --tail"

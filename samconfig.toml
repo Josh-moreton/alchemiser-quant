@@ -1,5 +1,104 @@
 # SAM configuration for The Alchemiser Quantitative Trading System
+# Multi-stack architecture: shared -> data -> core (deployed in order)
 version = 0.1
+
+# ============================================================================
+# SHARED INFRASTRUCTURE STACK (template-shared.yaml)
+# EventBus, Lambda layers, TradeLedger, S3 buckets, DLQ alerts
+# ============================================================================
+
+[shared.build.parameters]
+beta_features = true
+use_container = false
+
+[shared-dev.deploy.parameters]
+stack_name = "alchemiser-dev-shared"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=dev",
+]
+
+[shared-staging.deploy.parameters]
+stack_name = "alchemiser-staging-shared"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=staging",
+]
+
+[shared-prod.deploy.parameters]
+stack_name = "alchemiser-prod-shared"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=prod",
+]
+
+# ============================================================================
+# DATA & DASHBOARD STACK (template-data.yaml)
+# Data Lambda, AccountData Lambda, their tables, and schedules
+# ============================================================================
+
+[data.build.parameters]
+beta_features = true
+use_container = false
+
+[data-dev.deploy.parameters]
+stack_name = "alchemiser-dev-data"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=dev",
+	"SharedStackName=alchemiser-dev-shared",
+]
+
+[data-staging.deploy.parameters]
+stack_name = "alchemiser-staging-data"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=staging",
+	"SharedStackName=alchemiser-staging-shared",
+]
+
+[data-prod.deploy.parameters]
+stack_name = "alchemiser-prod-data"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = [
+	"Stage=prod",
+	"SharedStackName=alchemiser-prod-shared",
+]
+
+# ============================================================================
+# CORE TRADING STACK (template.yaml)
+# Strategy, Portfolio, Execution, Notifications, Hedge, Metrics Lambdas
+# ============================================================================
 
 [default.build.parameters]
 beta_features = true
@@ -27,6 +126,8 @@ resolve_s3 = true
 # Note: EquityDeploymentPct comes from EQUITY_DEPLOYMENT_PCT env var via deploy.sh
 parameter_overrides = [
 	"Stage=dev",
+	"SharedStackName=alchemiser-dev-shared",
+	"DataStackName=alchemiser-dev-data",
 ]
 
 [staging.deploy.parameters]
@@ -40,6 +141,8 @@ resolve_s3 = true
 # Staging parameters required by the template; credentials loaded from environment
 parameter_overrides = [
 	"Stage=staging",
+	"SharedStackName=alchemiser-staging-shared",
+	"DataStackName=alchemiser-staging-data",
 ]
 
 [prod.deploy.parameters]
@@ -53,6 +156,8 @@ resolve_s3 = true
 # Prod parameters required by the template; credentials loaded via Secrets Manager
 parameter_overrides = [
 	"Stage=prod",
+	"SharedStackName=alchemiser-prod-shared",
+	"DataStackName=alchemiser-prod-data",
 ]
 
 [ephemeral.build.parameters]

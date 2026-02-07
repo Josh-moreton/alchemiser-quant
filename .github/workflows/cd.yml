@@ -88,9 +88,6 @@ jobs:
       - name: Install SAM CLI
         uses: aws-actions/setup-sam@v2
 
-      - name: Build (matching target env)
-        run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
-
       - name: Prepare environment variables (dev)
         if: steps.target.outputs.env == 'dev'
         env:
