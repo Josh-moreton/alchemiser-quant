@@ -512,12 +512,32 @@ class NotificationService:
             failed_count = context.get("symbols_failed_count", 0)
             duration_seconds = context.get("duration_seconds", 0)
             failed_symbols = context.get("failed_symbols", [])
+            total_bars_fetched = context.get("total_bars_fetched", 0)
+            bar_dates = context.get("bar_dates", [])
 
             # Format duration
             if duration_seconds >= 60:
                 duration_str = f"{duration_seconds // 60}m {duration_seconds % 60}s"
             else:
                 duration_str = f"{duration_seconds}s"
+
+            # Format bar information in plain English
+            bars_summary = ""
+            if total_bars_fetched > 0 and bar_dates:
+                # Format date range
+                if len(bar_dates) == 1:
+                    date_str = bar_dates[0]
+                else:
+                    date_str = f"{bar_dates[0]} through {bar_dates[-1]}"
+
+                # Create plain English summary
+                bar_plural = "bar" if total_bars_fetched == 1 else "bars"
+                day_plural = "day" if len(bar_dates) == 1 else "days"
+                bars_summary = f"{total_bars_fetched} new daily {bar_plural} downloaded for {len(bar_dates)} {day_plural} ({date_str})"
+            elif total_bars_fetched > 0:
+                bars_summary = f"{total_bars_fetched} new daily bars downloaded"
+            else:
+                bars_summary = "No new bars downloaded (data is up to date)"
 
             # Determine status for display
             if event.status == "SUCCESS":
@@ -548,6 +568,12 @@ class NotificationService:
 
             html_content = f"""
     <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">Refresh Results</h3>
+    
+    <div style="background-color: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6;">
+            <strong>Data Update:</strong> {bars_summary}
+        </p>
+    </div>
 
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
         <tr style="background-color: #f8f9fa;">
@@ -588,6 +614,8 @@ class NotificationService:
             text_content = f"""
 Refresh Results
 {"=" * 50}
+
+DATA UPDATE: {bars_summary}
 
 Total Symbols: {total_symbols}
 Updated: {updated_count}
