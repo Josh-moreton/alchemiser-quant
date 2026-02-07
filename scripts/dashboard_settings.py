@@ -119,6 +119,10 @@ class DashboardSettings(BaseModel):
         default="",
         description="DynamoDB table name for account data snapshots",
     )
+    strategy_performance_table: str = Field(
+        default="",
+        description="DynamoDB table name for strategy performance snapshots",
+    )
     account_id: str = Field(
         default="",
         description="Alpaca account ID for DynamoDB lookups",
@@ -188,6 +192,10 @@ class DashboardSettings(BaseModel):
             account_data_table=_get_secret(
                 "ACCOUNT_DATA_TABLE",
                 f"alchemiser-{stage}-account-data",
+            ),
+            strategy_performance_table=_get_secret(
+                "STRATEGY_PERFORMANCE_TABLE",
+                f"alchemiser-{stage}-strategy-performance",
             ),
             account_id=_get_secret("ALPACA_ACCOUNT_ID", ""),
             aws_region=region,
