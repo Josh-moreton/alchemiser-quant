@@ -1,6 +1,5 @@
 {
   "files": [
-    "gold.clj",
     "rains_em_dancer.clj",
     "sisyphus_lowvol.clj",
     "ftlt/tqqq_ftlt.clj",
@@ -10,7 +9,6 @@
     "hedged_sector_rotator.clj"
   ],
   "allocations": {
-    "gold.clj": 0.074,
     "rains_em_dancer.clj": 0.127,
     "sisyphus_lowvol.clj": 0.225,
     "ftlt/tqqq_ftlt.clj": 0.08,
