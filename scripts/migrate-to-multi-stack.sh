@@ -108,9 +108,10 @@ else
             --query 'Stacks[0].StackStatus' --output text --no-cli-pager 2>/dev/null || echo "DELETED")
         if [ "$FINAL_STATUS" = "DELETE_FAILED" ]; then
             echo "  Stack delete partially failed (retained resources). Force-deleting..."
-            # Get the retained resource IDs
+            # Get resources that are NOT yet deleted - only these can be passed to --retain-resources.
+            # Resources in DELETE_COMPLETE are already gone and must NOT be listed.
             RETAINED=$(aws cloudformation describe-stack-resources --stack-name "$OLD_STACK" \
-                --query 'StackResources[?ResourceStatus==`DELETE_COMPLETE` || ResourceStatus==`DELETE_SKIPPED`].LogicalResourceId' \
+                --query 'StackResources[?ResourceStatus!=`DELETE_COMPLETE`].LogicalResourceId' \
                 --output text --no-cli-pager 2>/dev/null || echo "")
             # Retry delete, retaining those resources (they'll be cleaned up in Phase 3)
             RETAIN_ARGS=""
@@ -118,6 +119,7 @@ else
                 RETAIN_ARGS="$RETAIN_ARGS $r"
             done
             if [ -n "$RETAIN_ARGS" ]; then
+                echo "  Retaining resources: $RETAIN_ARGS"
                 aws cloudformation delete-stack --stack-name "$OLD_STACK" \
                     --retain-resources $RETAIN_ARGS --no-cli-pager
             else
