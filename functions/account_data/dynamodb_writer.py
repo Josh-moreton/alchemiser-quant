@@ -127,7 +127,7 @@ def write_pnl_records(
     ttl = int((datetime.now(UTC) + timedelta(days=PNL_TTL_DAYS)).timestamp())
     written = 0
 
-    with table.batch_writer() as batch:
+    with table.batch_writer(overwrite_by_pkeys=["PK", "SK"]) as batch:
         for record in daily_records:
             item: dict[str, Any] = {
                 "PK": f"PNL#{account_id}",
