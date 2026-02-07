@@ -829,6 +829,10 @@ class DataLakeUpdateCompleted(BaseEvent):
 
     # Data metrics
     total_bars_fetched: int = Field(default=0, description="Total bars fetched across all symbols")
+    bar_dates: list[str] = Field(
+        default_factory=list,
+        description="List of unique dates (YYYY-MM-DD) for which bars were fetched"
+    )
     data_source: str = Field(default="alpaca_api", description="Data source (alpaca_api, etc)")
 
     # Adjustment tracking (NEW)

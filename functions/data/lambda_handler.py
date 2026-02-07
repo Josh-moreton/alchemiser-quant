@@ -308,6 +308,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         results_dict: dict[str, bool] = {}
         adjustments_dict: dict[str, dict[str, Any]] = {}
         symbols_adjusted_list: list[str] = []
+        all_metadata_dict: dict[str, dict[str, Any]] = {}
 
         if specific_symbols:
             # Refresh only specified symbols
@@ -325,6 +326,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 for symbol in specific_symbols:
                     success, metadata = service.refresh_symbol(symbol)
                     results_dict[symbol] = success
+                    all_metadata_dict[symbol] = metadata
                     if metadata.get("adjusted", False):
                         adjustments_dict[symbol] = metadata
                         symbols_adjusted_list.append(symbol)
@@ -340,6 +342,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
             results_dict = refresh_data["results"]
             adjustments_dict = refresh_data["adjustments"]
             symbols_adjusted_list = refresh_data["symbols_adjusted"]
+            all_metadata_dict = refresh_data.get("all_metadata", {})
 
         # Calculate statistics
         total = len(results_dict)
@@ -355,6 +358,21 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
             for symbol, adj in adjustments_dict.items()
             if adj.get("adjusted_dates")
         }
+
+        # Calculate bar statistics
+        total_bars_fetched = sum(
+            metadata.get("new_bars", 0)
+            for metadata in all_metadata_dict.values()
+        )
+        
+        # Aggregate all unique dates across all symbols
+        all_bar_dates: set[str] = set()
+        for metadata in all_metadata_dict.values():
+            bar_dates = metadata.get("bar_dates", [])
+            all_bar_dates.update(bar_dates)
+        
+        # Convert to sorted list for easier display
+        sorted_bar_dates = sorted(all_bar_dates)
 
         # Calculate duration
         end_time = datetime.now(UTC)
@@ -401,7 +419,8 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 failed_symbols=failed_symbols,
                 symbols_updated_count=success_count,
                 symbols_failed_count=failed_count,
-                total_bars_fetched=0,  # Not tracked - would require summing new_bars across all symbols
+                total_bars_fetched=total_bars_fetched,
+                bar_dates=sorted_bar_dates,
                 data_source="alpaca_api",
                 # Adjustment fields (NEW)
                 symbols_adjusted=symbols_adjusted_list,

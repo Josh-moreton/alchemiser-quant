@@ -224,6 +224,7 @@ class DataRefreshService:
         Returns:
             Tuple of (success: bool, metadata: dict) where metadata contains:
             - 'new_bars': number of new bars added
+            - 'bar_dates': list of dates (YYYY-MM-DD) for the new bars
             - 'adjusted': whether adjustments were detected
             - 'adjusted_dates': list of adjusted dates (if any)
             - 'adjustment_count': number of adjustments
@@ -232,6 +233,7 @@ class DataRefreshService:
         """
         metadata: dict[str, Any] = {
             "new_bars": 0,
+            "bar_dates": [],
             "adjusted": False,
             "adjusted_dates": [],
             "adjustment_count": 0,
@@ -264,6 +266,12 @@ class DataRefreshService:
             success, adjustment_info = self.market_data_store.append_bars(symbol, new_bars)
 
             metadata["new_bars"] = len(new_bars)
+            
+            # Extract bar dates if we have data
+            if not new_bars.empty and "timestamp" in new_bars.columns:
+                # Convert timestamps to dates and sort them
+                bar_dates = pd.to_datetime(new_bars["timestamp"]).dt.strftime("%Y-%m-%d").tolist()
+                metadata["bar_dates"] = sorted(set(bar_dates))
 
             # Only populate adjustment metadata if write succeeded
             # (avoid misleading users about adjustments that weren't actually persisted)
@@ -306,6 +314,7 @@ class DataRefreshService:
             - 'results': Dict mapping symbol to success status
             - 'adjustments': Dict mapping symbol to adjustment metadata
             - 'symbols_adjusted': List of symbols with detected adjustments
+            - 'all_metadata': Dict mapping symbol to full metadata (including bar counts/dates)
 
         """
         symbols = self._get_symbols_to_refresh()
@@ -318,10 +327,12 @@ class DataRefreshService:
         results: dict[str, bool] = {}
         adjustments: dict[str, dict[str, Any]] = {}
         symbols_adjusted: list[str] = []
+        all_metadata: dict[str, dict[str, Any]] = {}
 
         for i, symbol in enumerate(sorted(symbols)):
             success, metadata = self.refresh_symbol(symbol)
             results[symbol] = success
+            all_metadata[symbol] = metadata
 
             # Track adjustments
             if metadata.get("adjusted", False):
@@ -350,6 +361,7 @@ class DataRefreshService:
             "results": results,
             "adjustments": adjustments,
             "symbols_adjusted": symbols_adjusted,
+            "all_metadata": all_metadata,
         }
 
     def process_bad_data_markers(
@@ -412,11 +424,13 @@ class DataRefreshService:
             - 'results': Dict mapping symbol to success status
             - 'adjustments': Dict mapping symbol to adjustment metadata
             - 'symbols_adjusted': List of symbols with detected adjustments
+            - 'all_metadata': Dict mapping symbol to full metadata (including bar counts/dates)
 
         """
         results_dict: dict[str, bool] = {}
         adjustments_dict: dict[str, dict[str, Any]] = {}
         symbols_adjusted_list: list[str] = []
+        all_metadata_dict: dict[str, dict[str, Any]] = {}
 
         # Process bad data markers first (these need full re-fetch)
         marker_results = self.process_bad_data_markers()
@@ -429,6 +443,7 @@ class DataRefreshService:
         refresh_results = refresh_data["results"]
         adjustments_dict = refresh_data["adjustments"]
         symbols_adjusted_list = refresh_data["symbols_adjusted"]
+        all_metadata_dict = refresh_data.get("all_metadata", {})
 
         # Merge results (marker results take precedence for overlapping symbols)
         for symbol, success in refresh_results.items():
@@ -439,6 +454,7 @@ class DataRefreshService:
             "results": results_dict,
             "adjustments": adjustments_dict,
             "symbols_adjusted": symbols_adjusted_list,
+            "all_metadata": all_metadata_dict,
         }
 
     def seed_initial_data(

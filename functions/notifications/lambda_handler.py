@@ -655,6 +655,7 @@ def _build_data_lake_notification(
         "symbols_updated_count": update_detail.get("symbols_updated_count", 0),
         "symbols_failed_count": update_detail.get("symbols_failed_count", 0),
         "total_bars_fetched": update_detail.get("total_bars_fetched", 0),
+        "bar_dates": update_detail.get("bar_dates", []),
         "data_source": update_detail.get("data_source", "alpaca_api"),
         "start_time_utc": update_detail.get("start_time_utc", ""),
         "end_time_utc": update_detail.get("end_time_utc", ""),
