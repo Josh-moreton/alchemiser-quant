@@ -6,8 +6,9 @@ Serialises account summaries, position snapshots, and daily PnL records
 into DynamoDB items following the single-table design documented in
 the account_data_reader service.
 
-All financial values are stored as strings (Decimal -> str) so DynamoDB
-Number type preserves full precision.
+All financial values are converted from Decimal to string and stored inside
+JSON blobs (DynamoDB String attributes) to preserve full decimal precision
+during JSON serialisation and round-tripping.
 """
 
 from __future__ import annotations

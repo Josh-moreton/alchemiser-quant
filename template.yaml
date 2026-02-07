@@ -2642,7 +2642,7 @@ Resources:
       Role: !GetAtt AccountDataExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer
-        - !Ref StrategyLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
       Timeout: 300
       MemorySize: 256
       Environment:

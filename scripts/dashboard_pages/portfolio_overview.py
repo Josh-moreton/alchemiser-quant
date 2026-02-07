@@ -231,10 +231,10 @@ def show() -> None:
     try:
         df = load_pnl_data()
         if df.empty:
-            st.error("No trading data available from Alpaca.")
+            st.error("No trading data available from account data store.")
             return
     except Exception as e:
-        st.error(f"Failed to load data from Alpaca: {e}")
+        st.error(f"Failed to load data from DynamoDB account data table: {e}")
         return
 
     # Load account snapshot for current equity and today's P&L

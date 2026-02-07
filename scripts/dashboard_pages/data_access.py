@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import _setup_imports  # noqa: F401
+import _setup_imports  # noqa: F401  -- side-effect: configures sys.path for the_alchemiser imports
 import boto3
 from dashboard_settings import get_dashboard_settings
 
