@@ -127,17 +127,6 @@ Parameters:
     Default: ""
     Description: Email address for failure/warning notifications (defaults to josh@rwxt.org)
 
-Mappings:
-  StageConfig:
-    dev:
-      TitleCase: "Dev"
-    staging:
-      TitleCase: "Staging"
-    prod:
-      TitleCase: "Production"
-    ephemeral:
-      TitleCase: "Ephemeral"
-
 Conditions:
   IsStaging: !Equals [ !Ref Stage, staging ]
   IsProduction: !Equals [ !Ref Stage, prod ]

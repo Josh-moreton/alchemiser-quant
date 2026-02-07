@@ -110,7 +110,7 @@ Parameters:
   # Data refresh schedule (single daily run after US market close)
   DataRefreshScheduleExpr:
     Type: String
-    Default: "cron(1 16 ? * MON-FRI *)"
+    Default: "cron(5 16 ? * MON-FRI *)"
     Description: Daily market data refresh (4:01 PM ET, Mon-Fri)
 
   FetchCooldownMinutes:
