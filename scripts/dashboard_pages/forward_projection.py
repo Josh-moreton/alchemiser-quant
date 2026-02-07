@@ -8,13 +8,11 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import _setup_imports  # noqa: F401
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from dotenv import load_dotenv
 
 from .components import (
     hero_metric,
@@ -26,18 +24,13 @@ from .components import (
 )
 from .styles import format_currency, format_percent, inject_styles
 
-# Load .env file
-env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_path)
-
-from the_alchemiser.shared.services.pnl_service import PnLService
+from . import data_access
 
 
 @st.cache_data(ttl=300)
 def load_historical_metrics() -> dict:
     """Load historical performance metrics for projection baseline."""
-    service = PnLService()
-    daily_records, _ = service.get_all_daily_records(period="1A")
+    daily_records = data_access.get_all_pnl_records()
 
     # Filter to active trading days only (equity > 0)
     active_records = [r for r in daily_records if r.equity > 0]

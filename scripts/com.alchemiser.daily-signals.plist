@@ -3,8 +3,8 @@
 <!--
   Daily signal generation scheduler for Alchemiser.
 
-  Runs generate_daily_signals.py at 4:30 PM local time, Mon-Fri.
-  Uses completed daily bars from S3 data lake (post-market close).
+  Runs generate_daily_signals.py at 9:15 PM UK time (4:15 PM ET), Mon-Fri.
+  Uses completed daily bars from S3 data lake (post-US market close).
   Generates signals for both dev and prod strategy profiles.
 
   Install:  make install-scheduler
@@ -48,7 +48,7 @@
         <string>us-east-1</string>
     </dict>
 
-    <!-- Run at 4:30 PM local time (25 min buffer after data refresh @ 4:05 PM) -->
+    <!-- Run at 9:15 PM UK time (= 4:15 PM ET, after US market close + data refresh) -->
     <key>StartCalendarInterval</key>
     <array>
         <!-- Monday -->
@@ -56,45 +56,45 @@
             <key>Weekday</key>
             <integer>1</integer>
             <key>Hour</key>
-            <integer>16</integer>
+            <integer>21</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>15</integer>
         </dict>
         <!-- Tuesday -->
         <dict>
             <key>Weekday</key>
             <integer>2</integer>
             <key>Hour</key>
-            <integer>16</integer>
+            <integer>21</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>15</integer>
         </dict>
         <!-- Wednesday -->
         <dict>
             <key>Weekday</key>
             <integer>3</integer>
             <key>Hour</key>
-            <integer>16</integer>
+            <integer>21</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>15</integer>
         </dict>
         <!-- Thursday -->
         <dict>
             <key>Weekday</key>
             <integer>4</integer>
             <key>Hour</key>
-            <integer>16</integer>
+            <integer>21</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>15</integer>
         </dict>
         <!-- Friday -->
         <dict>
             <key>Weekday</key>
             <integer>5</integer>
             <key>Hour</key>
-            <integer>16</integer>
+            <integer>21</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>15</integer>
         </dict>
     </array>
 
@@ -103,7 +103,7 @@
     <key>StandardErrorPath</key>
     <string>/tmp/alchemiser-signals-stderr.log</string>
 
-    <!-- Don't retry if the Mac was asleep at 4:30 PM -->
+    <!-- Don't retry if the Mac was asleep at 9:15 PM -->
     <key>MisfireGracePeriod</key>
     <integer>3600</integer>
 </dict>

@@ -107,37 +107,11 @@ Parameters:
     Default: https://api.alpaca.markets
     Description: Alpaca API endpoint for production
 
-  # Data Function Configuration
-  DataRefreshScheduleDev:
-    Type: String
-    Default: "cron(35 9 ? * MON-FRI *)"
-    Description: Data refresh schedule for dev (9:35 AM UTC, Mon-Fri)
-
-  DataRefreshScheduleStaging:
-    Type: String
-    Default: "cron(40 9 ? * MON-FRI *)"
-    Description: Data refresh schedule for staging (9:40 AM UTC, Mon-Fri)
-
-  DataRefreshScheduleProd:
-    Type: String
-    Default: "cron(30 9 ? * MON-FRI *)"
-    Description: Data refresh schedule for prod (9:30 AM UTC = 9:30 AM UK, Mon-Fri)
-
-  # Post-close data refresh: fetches today's completed daily bars after market close
-  DataRefreshPostCloseScheduleDev:
+  # Single daily data refresh after US market close (4:05 PM ET)
+  DataRefreshScheduleExpr:
     Type: String
     Default: "cron(5 16 ? * MON-FRI *)"
-    Description: Post-close data refresh for dev (4:05 PM ET, Mon-Fri)
-
-  DataRefreshPostCloseScheduleStaging:
-    Type: String
-    Default: "cron(5 16 ? * MON-FRI *)"
-    Description: Post-close data refresh for staging (4:05 PM ET, Mon-Fri)
-
-  DataRefreshPostCloseScheduleProd:
-    Type: String
-    Default: "cron(5 16 ? * MON-FRI *)"
-    Description: Post-close data refresh for prod (4:05 PM ET, Mon-Fri)
+    Description: Daily market data refresh (4:05 PM ET, Mon-Fri)
 
   FetchCooldownMinutes:
     Type: Number
@@ -711,6 +685,47 @@ Resources:
           Value: !Ref Stage
         - Key: Service
           Value: group-history
+
+  # ========== ACCOUNT DATA TABLE (DASHBOARD DATA SOURCE) ==========
+  # Single-table design storing account snapshots, positions, and daily PnL.
+  # Written by the account_data Lambda on a 6-hourly schedule.
+  # Read by the Streamlit dashboard instead of calling Alpaca directly.
+  AccountDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAt
+        Enabled: true
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: account-data
 
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
@@ -2576,7 +2591,7 @@ Resources:
                 Resource:
                   - !GetAtt GroupCacheFunction.Arn
 
-  # Data Lambda Schedule - uses EventBridge Scheduler for reliable scheduling
+  # Daily data refresh (4:05 PM ET, after US market close, fetches completed daily bars)
   DataRefreshSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -2584,42 +2599,15 @@ Resources:
         - UseStackNameForResources
         - !Sub "${StackName}-data-refresh"
         - !Sub "alchemiser-${Stage}-data-refresh"
-      Description: !Sub "Daily market data refresh for ${Stage}"
-      ScheduleExpression: !If
-        - IsProduction
-        - !Ref DataRefreshScheduleProd
-        - !If [ IsStaging, !Ref DataRefreshScheduleStaging, !Ref DataRefreshScheduleDev ]
-      ScheduleExpressionTimezone: "UTC"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt DataFunction.Arn
-        RoleArn: !GetAtt DataSchedulerRole.Arn
-        Input: '{"source": "schedule"}'
-        RetryPolicy:
-          MaximumRetryAttempts: 2
-
-  # Post-close data refresh: fetches today's completed daily bars after market close (4:05 PM ET)
-  # Uses America/New_York timezone so DST is handled automatically
-  DataRefreshPostCloseSchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-data-refresh-post-close"
-        - !Sub "alchemiser-${Stage}-data-refresh-post-close"
-      Description: !Sub "Post-close market data refresh for ${Stage} (fetches today's completed bars)"
-      ScheduleExpression: !If
-        - IsProduction
-        - !Ref DataRefreshPostCloseScheduleProd
-        - !If [ IsStaging, !Ref DataRefreshPostCloseScheduleStaging, !Ref DataRefreshPostCloseScheduleDev ]
+      Description: !Sub "Daily market data refresh for ${Stage} (4:05 PM ET, Mon-Fri)"
+      ScheduleExpression: !Ref DataRefreshScheduleExpr
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
         Arn: !GetAtt DataFunction.Arn
         RoleArn: !GetAtt DataSchedulerRole.Arn
-        Input: '{"source": "post-close-schedule"}'
+        Input: '{"source": "schedule"}'
         RetryPolicy:
           MaximumRetryAttempts: 2
 
@@ -2635,6 +2623,87 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource:
                   - !GetAtt DataFunction.Arn
+
+  # ========== ACCOUNT DATA LAMBDA (DASHBOARD DATA SOURCE) ==========
+  # Fetches account info, positions, and PnL from Alpaca on a 6-hourly schedule
+  # and writes to AccountDataTable so the dashboard reads from DynamoDB only.
+  AccountDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: functions/account_data/
+      Handler: lambda_handler.handler
+      Role: !GetAtt AccountDataExecutionRole.Arn
+      Layers:
+        - !Ref SharedCodeLayer
+        - !Ref PortfolioLayer  # alpaca-py, pydantic (lightweight)
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          ACCOUNT_DATA_TABLE: !Ref AccountDataTable
+          # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
+    Metadata:
+      BuildMethod: python3.12
+
+  AccountDataExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *lambda-assume-role
+      ManagedPolicyArns: *lambda-basic-execution
+      Policies:
+        - PolicyName: AccountDataPolicy
+          PolicyDocument:
+            Statement:
+              # Permission to write to account data table
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt AccountDataTable.Arn
+
+  # 6-hourly schedule: 4 AM, 10 AM, 4 PM, 10 PM ET
+  # The 4 PM run captures market close data
+  AccountDataSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-account-data"
+        - !Sub "alchemiser-${Stage}-account-data"
+      Description: "Fetch account data from Alpaca every 6 hours (4 AM, 10 AM, 4 PM, 10 PM ET)"
+      ScheduleExpression: "cron(0 4,10,16,22 * * ? *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt AccountDataFunction.Arn
+        RoleArn: !GetAtt AccountDataSchedulerRole.Arn
+        Input: '{"source": "scheduled"}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  AccountDataSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: *scheduler-assume-role
+      Policies:
+        - PolicyName: InvokeAccountData
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AccountDataFunction.Arn
 
   # ============================================================================
   # END MICROSERVICES ARCHITECTURE
@@ -2737,6 +2806,15 @@ Outputs:
         - UseStackNameForResources
         - !Sub "${StackName}-GroupHistoricalSelectionsTable"
         - !Sub "alchemiser-${Stage}-GroupHistoricalSelectionsTable"
+
+  AccountDataTableName:
+    Description: "DynamoDB table for account data snapshots (dashboard data source)"
+    Value: !Ref AccountDataTable
+    Export:
+      Name: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-AccountDataTable"
+        - !Sub "alchemiser-${Stage}-AccountDataTable"
 
   DataFunctionArn:
     Description: "ARN of per-stage data function"
