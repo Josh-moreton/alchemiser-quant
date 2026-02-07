@@ -727,6 +727,44 @@ Resources:
         - Key: Service
           Value: account-data
 
+  # ========== STRATEGY PERFORMANCE TABLE ==========
+  # Per-strategy performance metrics (P&L, win rate, holdings) written by
+  # the strategy_performance Lambda on each TradeExecuted event.
+  # Read by the Streamlit dashboard for strategy-level analytics.
+  StrategyPerformanceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - UseStackNameForResources
+        - !Sub "${StackName}-strategy-performance"
+        - !Sub "alchemiser-${Stage}-strategy-performance"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAt
+        Enabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Service
+          Value: strategy-performance
+
   # ========== FUNCTION-SPECIFIC LAMBDA LAYERS ==========
   # Each Lambda gets its own optimized layer with only required dependencies
   # boto3/botocore excluded from all layers - Lambda runtime provides them
@@ -1175,15 +1213,15 @@ Resources:
           Value: !Ref StrategyAggregatorFunction
       TreatMissingData: notBreaching
 
-  # Portfolio Lambda errors - catches failures in rebalance planning
-  PortfolioErrorsAlarm:
+  # Rebalance Planner Lambda errors - catches failures in rebalance planning
+  RebalancePlannerErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-portfolio-errors"
-        - !Sub "alchemiser-${Stage}-portfolio-errors"
-      AlarmDescription: "Alert when Portfolio Lambda has errors"
+        - !Sub "${StackName}-rebalance-planner-errors"
+        - !Sub "alchemiser-${Stage}-rebalance-planner-errors"
+      AlarmDescription: "Alert when Rebalance Planner Lambda has errors"
       MetricName: Errors
       Namespace: AWS/Lambda
       Statistic: Sum
@@ -1193,7 +1231,7 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       Dimensions:
         - Name: FunctionName
-          Value: !Ref PortfolioFunction
+          Value: !Ref RebalancePlannerFunction
       TreatMissingData: notBreaching
 
   # Notifications Lambda errors - CRITICAL: if this fails, no one knows
@@ -1237,13 +1275,13 @@ Resources:
         detail-type:
           - SignalGenerated
       Targets:
-        - Id: PortfolioTarget
-          Arn: !GetAtt PortfolioFunction.Arn
+        - Id: RebalancePlannerTarget
+          Arn: !GetAtt RebalancePlannerFunction.Arn
 
   SignalGeneratedPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref PortfolioFunction
+      FunctionName: !Ref RebalancePlannerFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt SignalGeneratedRule.Arn
@@ -1281,11 +1319,11 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
 
-  # Permission for Metrics Lambda to be invoked by EventBridge on TradeExecuted events
-  MetricsEventBridgePermission:
+  # Permission for Strategy Performance Lambda to be invoked by EventBridge on TradeExecuted events
+  StrategyPerformanceEventBridgePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref MetricsFunction
+      FunctionName: !Ref StrategyPerformanceFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
@@ -1522,20 +1560,20 @@ Resources:
 
   # ========== END MULTI-NODE STRATEGY SCALING ==========
 
-  # Portfolio Lambda - Rebalance planning microservice
-  PortfolioFunction:
+  # Rebalance Planner Lambda - Converts signals to rebalance plans
+  RebalancePlannerFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-portfolio"
-        - !Sub "alchemiser-${Stage}-portfolio"
+        - !Sub "${StackName}-rebalance-planner"
+        - !Sub "alchemiser-${Stage}-rebalance-planner"
       Runtime: python3.12
       Architectures:
         - x86_64
       CodeUri: functions/portfolio/
       Handler: lambda_handler.lambda_handler
-      Role: !GetAtt PortfolioExecutionRole.Arn
+      Role: !GetAtt RebalancePlannerExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer
         - !Ref PortfolioLayer
@@ -1556,13 +1594,13 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  PortfolioExecutionRole:
+  RebalancePlannerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument: *lambda-assume-role
       ManagedPolicyArns: *lambda-basic-execution
       Policies:
-        - PolicyName: PortfolioPolicy
+        - PolicyName: RebalancePlannerPolicy
           PolicyDocument:
             Statement:
               - Effect: Allow
@@ -1921,18 +1959,18 @@ Resources:
                   - ses:SendRawEmail
                 Resource: "*"
 
-  # ========== METRICS LAMBDA (PRODUCTION ONLY) ==========
-  # Publishes per-strategy realized P&L metrics to CloudWatch
-  MetricsFunction:
+  # ========== STRATEGY PERFORMANCE LAMBDA ==========
+  # Publishes per-strategy performance metrics to DynamoDB
+  StrategyPerformanceFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "alchemiser-${Stage}-metrics"
+      FunctionName: !Sub "alchemiser-${Stage}-strategy-performance"
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: functions/metrics/
+      CodeUri: functions/strategy_performance/
       Handler: lambda_handler.lambda_handler
-      Role: !GetAtt MetricsExecutionRole.Arn
+      Role: !GetAtt StrategyPerformanceExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer
         - !Ref NotificationsLayer  # Minimal dependencies (pydantic, structlog, boto3)
@@ -1941,6 +1979,7 @@ Resources:
       Environment:
         Variables:
           TRADE_LEDGER__TABLE_NAME: !Ref TradeLedgerTable
+          STRATEGY_PERFORMANCE_TABLE: !Ref StrategyPerformanceTable
           STAGE: !Ref Stage
       Events:
         TradeExecutedEvent:
@@ -1955,13 +1994,13 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  MetricsExecutionRole:
+  StrategyPerformanceExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument: *lambda-assume-role
       ManagedPolicyArns: *lambda-basic-execution
       Policies:
-        - PolicyName: MetricsPolicy
+        - PolicyName: StrategyPerformancePolicy
           PolicyDocument:
             Statement:
               - Effect: Allow
@@ -1974,8 +2013,11 @@ Resources:
                   - !Sub "${TradeLedgerTable.Arn}/index/*"
               - Effect: Allow
                 Action:
-                  - cloudwatch:PutMetricData
-                Resource: "*"
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt StrategyPerformanceTable.Arn
 
   # ========== HEDGE EVALUATOR LAMBDA (OPTIONS HEDGING) ==========
   # Triggered by RebalancePlanned to evaluate hedge requirements
@@ -2498,19 +2540,19 @@ Resources:
   # ========== GROUP CACHE LAMBDA (PORTFOLIO SCORING CACHE) ==========
   # Evaluates filterable groups daily and caches selections in DynamoDB
   # for accurate historical scoring in filter operators
-  GroupCacheFunction:
+  SubStrategyDataFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-group-cache"
-        - !Sub "alchemiser-${Stage}-group-cache"
+        - !Sub "${StackName}-sub-strategy-data"
+        - !Sub "alchemiser-${Stage}-sub-strategy-data"
       Runtime: python3.12
       Architectures:
         - x86_64
-      CodeUri: functions/group_cache/
+      CodeUri: functions/sub_strategy_data/
       Handler: lambda_handler.lambda_handler
-      Role: !GetAtt GroupCacheExecutionRole.Arn
+      Role: !GetAtt SubStrategyDataExecutionRole.Arn
       Layers:
         - !Ref SharedCodeLayer
         - !Ref StrategyLayer
@@ -2526,13 +2568,13 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  GroupCacheExecutionRole:
+  SubStrategyDataExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument: *lambda-assume-role
       ManagedPolicyArns: *lambda-basic-execution
       Policies:
-        - PolicyName: GroupCachePolicy
+        - PolicyName: SubStrategyDataPolicy
           PolicyDocument:
             Statement:
               # Permission to write to group history table
@@ -2558,38 +2600,38 @@ Resources:
                 Resource:
                   - !GetAtt DataFunction.Arn
 
-  # Morning schedule to run group cache at 4:00 AM ET (before market open)
-  GroupCacheSchedule:
+  # Morning schedule to run sub-strategy data at 4:00 AM ET (before market open)
+  SubStrategyDataSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: !If
         - UseStackNameForResources
-        - !Sub "${StackName}-group-cache"
-        - !Sub "alchemiser-${Stage}-group-cache"
-      Description: "Run Group Cache at 4:00 AM ET to update historical selections"
+        - !Sub "${StackName}-sub-strategy-data"
+        - !Sub "alchemiser-${Stage}-sub-strategy-data"
+      Description: "Run sub-strategy data at 4:00 AM ET to update historical selections"
       ScheduleExpression: "cron(0 4 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !GetAtt GroupCacheFunction.Arn
-        RoleArn: !GetAtt GroupCacheSchedulerRole.Arn
+        Arn: !GetAtt SubStrategyDataFunction.Arn
+        RoleArn: !GetAtt SubStrategyDataSchedulerRole.Arn
         Input: '{"source": "morning_schedule"}'
         RetryPolicy:
           MaximumRetryAttempts: 2
 
-  GroupCacheSchedulerRole:
+  SubStrategyDataSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument: *scheduler-assume-role
       Policies:
-        - PolicyName: InvokeGroupCache
+        - PolicyName: InvokeSubStrategyData
           PolicyDocument:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource:
-                  - !GetAtt GroupCacheFunction.Arn
+                  - !GetAtt SubStrategyDataFunction.Arn
 
   # Daily data refresh (4:05 PM ET, after US market close, fetches completed daily bars)
   DataRefreshSchedule:

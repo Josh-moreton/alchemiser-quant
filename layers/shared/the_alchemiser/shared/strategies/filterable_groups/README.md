@@ -154,14 +154,14 @@ All files must show "Balanced!" before proceeding.
 
 2. **Backfill historical data** (one-time):
    ```bash
-   poetry run python scripts/backfill_group_cache.py --stage dev --days 30
+   poetry run python scripts/backfill_sub_strategy_data.py --stage dev --days 30
    ```
 
    Adjust `--days` based on the longest lookback window your filter uses. Add a buffer (e.g., if filter uses 10-day window, backfill 30 days).
 
 3. **Verify the cache is populated**:
    ```bash
-   aws logs tail /aws/lambda/alchemiser-dev-group-cache --since 5m --format short --no-cli-pager | grep -E "(cache|groups)"
+   aws logs tail /aws/lambda/alchemiser-dev-sub-strategy-data --since 5m --format short --no-cli-pager | grep -E "(cache|groups)"
    ```
 
 ## DynamoDB Schema
@@ -202,7 +202,7 @@ Minimum returns required: 3 days (hardcoded in `_MIN_RETURNS_FOR_METRIC`).
 2. Check file paths in manifest match actual `.clj` files
 3. Check CloudWatch logs for parsing errors:
    ```bash
-   aws logs tail /aws/lambda/alchemiser-dev-group-cache --since 10m --format short --no-cli-pager
+   aws logs tail /aws/lambda/alchemiser-dev-sub-strategy-data --since 10m --format short --no-cli-pager
    ```
 
 ### Parse errors (Missing closing RBRACKET)
@@ -224,10 +224,10 @@ This is a Lambda packaging issue. The fix is in `lambda_handler.py` line ~430 wh
 
 | File | Purpose |
 |------|---------|
-| `functions/group_cache/lambda_handler.py` | Daily cache population Lambda |
+| `functions/sub_strategy_data/lambda_handler.py` | Daily cache population Lambda |
 | `functions/strategy_worker/engines/dsl/operators/group_cache_lookup.py` | Cache query utilities |
 | `functions/strategy_worker/engines/dsl/operators/portfolio.py` | Portfolio scoring with cache |
-| `scripts/backfill_group_cache.py` | Historical data backfill script |
+| `scripts/backfill_sub_strategy_data.py` | Historical data backfill script |
 | `scripts/check_balance.py` | Bracket balance validator |
 
 ## Example: ftl_starburst

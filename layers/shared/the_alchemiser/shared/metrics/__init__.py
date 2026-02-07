@@ -1,10 +1,10 @@
 """Business Unit: shared | Status: current.
 
-Metrics publishing for CloudWatch observability.
+Strategy performance metrics publishing to DynamoDB.
 """
 
 from __future__ import annotations
 
-from .cloudwatch_metrics_publisher import CloudWatchMetricsPublisher
+from .dynamodb_metrics_publisher import DynamoDBMetricsPublisher
 
-__all__ = ["CloudWatchMetricsPublisher"]
+__all__ = ["DynamoDBMetricsPublisher"]

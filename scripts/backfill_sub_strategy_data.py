@@ -3,25 +3,25 @@
 
 Backfill the Group Historical Selections DynamoDB cache.
 
-The Group Cache Lambda runs daily and adds one entry per group per day.
+The Sub-Strategy Data Lambda runs daily and adds one entry per group per day.
 For the filter scoring to work immediately (e.g. a 10-day moving average
 needs ~10 trading days of data), we need to populate historical entries.
 
-This script invokes the Group Cache Lambda with a ``date`` override for
+This script invokes the Sub-Strategy Data Lambda with a ``date`` override for
 each trading day in the requested range to backfill the cache.
 
 Usage:
     # Backfill the last 20 calendar days (default) to dev table
-    python scripts/backfill_group_cache.py
+    python scripts/backfill_sub_strategy_data.py
 
     # Backfill a specific range
-    python scripts/backfill_group_cache.py --start 2026-01-20 --end 2026-02-05
+    python scripts/backfill_sub_strategy_data.py --start 2026-01-20 --end 2026-02-05
 
     # Specify stage
-    python scripts/backfill_group_cache.py --stage dev --days 25
+    python scripts/backfill_sub_strategy_data.py --stage dev --days 25
 
     # Dry-run: show which dates would be backfilled
-    python scripts/backfill_group_cache.py --dry-run
+    python scripts/backfill_sub_strategy_data.py --dry-run
 
 Environment Variables:
     AWS_PROFILE / AWS_DEFAULT_REGION: For boto3 session
@@ -77,13 +77,13 @@ def _get_trading_days(start: date, end: date) -> list[date]:
 
 def _resolve_function_name(stage: str) -> str:
     """Resolve the Lambda function name for the given stage."""
-    return f"alchemiser-{stage}-group-cache"
+    return f"alchemiser-{stage}-sub-strategy-data"
 
 
 def main() -> None:
     """Run the backfill."""
     parser = argparse.ArgumentParser(
-        description="Backfill Group Cache DynamoDB table with historical data"
+        description="Backfill sub-strategy data DynamoDB table with historical data"
     )
     parser.add_argument(
         "--stage",
@@ -130,7 +130,7 @@ def main() -> None:
     trading_days = _get_trading_days(start_date, end_date)
     function_name = _resolve_function_name(args.stage)
 
-    print(f"Backfill Group Cache: {function_name}")
+    print(f"Backfill Sub-Strategy Data: {function_name}")
     print(f"Date range: {start_date} to {end_date}")
     print(f"Trading days to process: {len(trading_days)}")
     print()
