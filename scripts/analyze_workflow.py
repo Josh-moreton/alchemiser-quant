@@ -93,23 +93,23 @@ def analyze_workflow(log_file: str, detailed: bool = False) -> None:
 
     # Check Rebalance Planner lambda specifically since Execution has 0 events
     print("=== REBALANCE PLANNER LAMBDA ANALYSIS ===")
-    portfolio_logs = lambdas.get("rebalance-planner", [])
-    print(f"Rebalance planner events: {len(portfolio_logs)}")
+    rebalance_planner_logs = lambdas.get("rebalance-planner", [])
+    print(f"Rebalance planner events: {len(rebalance_planner_logs)}")
 
-    if portfolio_logs:
+    if rebalance_planner_logs:
         # Sort by timestamp
         def get_ts(log: dict) -> str:
             return log.get("timestamp", log.get("_timestamp", ""))
 
-        sorted_logs = sorted(portfolio_logs, key=get_ts)
+        sorted_logs = sorted(rebalance_planner_logs, key=get_ts)
 
-        print("\nFirst 5 Portfolio events:")
+        print("\nFirst 5 Rebalance Planner events:")
         for log in sorted_logs[:5]:
             event = log.get("event", log.get("_raw_message", ""))
             ts = get_ts(log)
             print(f"  [{ts}] {event[:150]}")
 
-        print("\nLast 5 Portfolio events:")
+        print("\nLast 5 Rebalance Planner events:")
         for log in sorted_logs[-5:]:
             event = log.get("event", log.get("_raw_message", ""))
             ts = get_ts(log)

@@ -69,25 +69,26 @@ class DynamoDBMetricsPublisher:
             iso_ts = timestamp.isoformat()
             ttl = int(time.time()) + _TTL_SECONDS
 
-            for summary in summaries:
-                strategy_name = summary["strategy_name"]
-                item = self._build_item(summary, iso_ts, ttl, correlation_id)
+            with self._table.batch_writer() as batch:
+                for summary in summaries:
+                    strategy_name = summary["strategy_name"]
+                    item = self._build_item(summary, iso_ts, ttl, correlation_id)
 
-                # Write snapshot item
-                snapshot_item = {
-                    "PK": f"STRATEGY#{strategy_name}",
-                    "SK": f"SNAPSHOT#{iso_ts}",
-                    **item,
-                }
-                self._table.put_item(Item=snapshot_item)
+                    # Write snapshot item
+                    snapshot_item = {
+                        "PK": f"STRATEGY#{strategy_name}",
+                        "SK": f"SNAPSHOT#{iso_ts}",
+                        **item,
+                    }
+                    batch.put_item(Item=snapshot_item)
 
-                # Write LATEST pointer (overwrites previous)
-                latest_item = {
-                    "PK": "LATEST",
-                    "SK": f"STRATEGY#{strategy_name}",
-                    **item,
-                }
-                self._table.put_item(Item=latest_item)
+                    # Write LATEST pointer (overwrites previous)
+                    latest_item = {
+                        "PK": "LATEST",
+                        "SK": f"STRATEGY#{strategy_name}",
+                        **item,
+                    }
+                    batch.put_item(Item=latest_item)
 
             logger.info(
                 f"Wrote performance metrics for {len(summaries)} strategies",
@@ -144,12 +145,13 @@ class DynamoDBMetricsPublisher:
             self._table.put_item(Item=item)
 
             # LATEST pointer
-            latest_item = {
+            latest_item: dict[str, str | int] = {
                 "PK": "LATEST",
                 "SK": "CAPITAL_DEPLOYED",
                 "capital_deployed_pct": str(capital_deployed_pct),
                 "snapshot_timestamp": iso_ts,
                 "correlation_id": correlation_id,
+                "ExpiresAt": ttl,
             }
             self._table.put_item(Item=latest_item)
 
