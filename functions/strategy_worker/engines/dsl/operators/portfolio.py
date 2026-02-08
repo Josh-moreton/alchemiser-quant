@@ -43,21 +43,6 @@ logger = get_logger(__name__)
 # Volatility calculation constants
 STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
 
-# Mapping of known group names (from DSL) to group IDs (for cache lookup)
-# This enables accurate historical scoring for filtered groups
-# DEPRECATED: Retained for backward compatibility with existing cache entries.
-# New groups are resolved dynamically via _derive_group_id().
-KNOWN_GROUP_ID_MAPPING = {
-    # Inner WYLD sub-groups (scored by WYLD's inner filter)
-    "YINN YANG Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__yinn_yang_mean_reversion",
-    "LABU LABD Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__labu_labd_mean_reversion",
-    "DRV DRN Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__drv_drn_mean_reversion",
-    # Top-level groups (scored by the 3 top-level filters: moving-average-return, rsi, stdev-return)
-    "WYLD Mean Reversion Combo v2 w/ Overcompensating Frontrunner [FTL]": "ftl_starburst__wyld_combo",
-    "Walter's Champagne and CocaineStrategies": "ftl_starburst__walters_champagne",
-    "NOVA | (multiple TQQQ, one crypto) KMLM switcher (single pops) MonkeyBusiness  WM74|": "ftl_starburst__nova_switcher",
-}
-
 
 def _derive_group_id(group_name: str) -> str:
     """Derive a deterministic cache-compatible group_id from a DSL group name.
@@ -187,8 +172,8 @@ def _compute_daily_return_for_portfolio(
 def _extract_bar_return(bars: list[Any], record_date_str: str) -> Decimal | None:
     """Extract close-to-close daily return for a date from a bar series.
 
-    Mirrors _extract_daily_return in sub_strategy_data but works with
-    any bar objects that have .timestamp and .close attributes.
+    Extracts close-to-close daily return from bar objects that have
+    .timestamp and .close attributes.
 
     Args:
         bars: Chronologically ordered bars with .timestamp and .close.
@@ -1731,7 +1716,7 @@ def _try_cache_scoring(
     if not isinstance(group_name, str) or not group_name:
         return None
 
-    group_id = KNOWN_GROUP_ID_MAPPING.get(group_name) or _derive_group_id(group_name)
+    group_id = _derive_group_id(group_name)
 
     if not is_cache_available():
         logger.error(
@@ -1924,22 +1909,17 @@ def _score_portfolio(
 
     UPDATE 2026-02-06: Group cache infrastructure is now in place.
         - DynamoDB table stores daily group evaluations
-        - Group Cache Lambda populates cache at 4 AM ET daily
-        - KNOWN_GROUP_ID_MAPPING maps group names to cache keys
+        - group_id is derived dynamically via _derive_group_id() (hash-based)
         - When cache data is available, we can use historical selections
           to compute accurate metrics for Composer parity
 
     UPDATE 2026-02-09: On-demand backfill is now implemented.
-        - group_id is derived dynamically via _derive_group_id() (hash-based)
-        - KNOWN_GROUP_ID_MAPPING is retained only for backward compatibility
-          with existing cache entries
         - On cache miss, if the group's AST body is preserved on the
           PortfolioFragment metadata, the engine re-evaluates the group
           for each historical trading day, computes daily returns, and
           writes the results to DynamoDB before scoring
-        - This eliminates the need for manual .clj extraction for every
-          new group; any named group is automatically backfilled on first
-          encounter
+        - This eliminates the need for manual extraction; any named
+          group is automatically backfilled on first encounter
 
     See also: scripts/diagnose_cumret_methods.py for debugging tools.
     """
@@ -1971,7 +1951,7 @@ def _score_portfolio(
     # metric is not a return-based one.
     if group_name:
         group_id = (
-            KNOWN_GROUP_ID_MAPPING.get(str(group_name)) or _derive_group_id(str(group_name))
+            _derive_group_id(str(group_name))
             if isinstance(group_name, str) and group_name
             else None
         )
