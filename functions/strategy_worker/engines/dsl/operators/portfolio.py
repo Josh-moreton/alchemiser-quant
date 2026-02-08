@@ -43,6 +43,11 @@ logger = get_logger(__name__)
 # Volatility calculation constants
 STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
 
+# Pattern matching valid trading symbols (1-5 uppercase letters/digits).
+# Anything that does NOT match is treated as a named portfolio/strategy
+# group requiring proper historical composite scoring.
+_TICKER_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9]{0,4}$")
+
 
 def _derive_group_id(group_name: str) -> str:
     """Derive a deterministic cache-compatible group_id from a DSL group name.
@@ -69,6 +74,33 @@ def _derive_group_id(group_name: str) -> str:
     # Hash for uniqueness
     hash_prefix = hashlib.sha256(group_name.encode("utf-8")).hexdigest()[:8]
     return f"{slug}_{hash_prefix}"
+
+
+def _is_bare_asset_fragment(fragment: PortfolioFragment, group_name: object) -> bool:
+    """Return True if the fragment is a bare symbol, not a named portfolio.
+
+    The check is intentionally simple: if the ``group_name`` looks like a
+    trading symbol (1-5 uppercase letters/digits) it is a bare asset that
+    was wrapped by ``_normalize_portfolio_items``.  Anything else -- long
+    names, mixed case, spaces, special characters -- is a real strategy /
+    portfolio group that must go through cache or in-process scoring so
+    its historical composite return stream is properly reconstructed.
+
+    This avoids fragile heuristics based on ``_AST_BODY_STORE`` presence or
+    ``source_step``, which can break when fragments are re-wrapped across
+    evaluation layers.
+
+    Args:
+        fragment: The portfolio fragment to check.
+        group_name: The group_name metadata value (may be ``None``).
+
+    Returns:
+        True when the group_name matches a ticker-symbol pattern.
+
+    """
+    if not isinstance(group_name, str) or not group_name:
+        return False
+    return bool(_TICKER_SYMBOL_RE.match(group_name))
 
 
 # ---------- On-demand group cache backfill ----------
@@ -2152,8 +2184,28 @@ def _score_portfolio(
     has_explicit_symbol_arg = bool(is_list and len(condition_expr.children) >= 3)
     should_invert_for_portfolio = bool(op_name in {"max-drawdown"} and not has_explicit_symbol_arg)
 
-    # ── Cache-based scoring ────────────────────────────────────────
+    # ── Bare-asset short-circuit ────────────────────────────────────
+    # Single-symbol fragments with no AST body (bare assets wrapped by
+    # _normalize_portfolio_items) need no group-level cache scoring.
+    # Their historical return stream IS the symbol's return stream.
     group_name = fragment.metadata.get("group_name")
+    if _is_bare_asset_fragment(fragment, group_name):
+        logger.debug(
+            "DSL filter: bare-asset group '%s' -- skipping cache/in-process "
+            "scoring (per-symbol metric is already correct)",
+            group_name,
+            extra={
+                "group_name": group_name,
+                "source_step": fragment.source_step,
+                "correlation_id": context.correlation_id,
+            },
+        )
+        # Fall through directly to per-symbol scoring (no warning needed).
+        return _per_symbol_score(
+            fragment, condition_expr, context, should_invert=should_invert_for_portfolio
+        ), "per_symbol_direct"
+
+    # ── Cache-based scoring ────────────────────────────────────────
     cache_result = _try_cache_scoring(
         fragment,
         condition_expr,
@@ -2183,7 +2235,7 @@ def _score_portfolio(
     # ── Fallback: per-symbol weighted-average scoring ──────────────
     # Used when the group has no name, cache is unavailable, or the
     # metric is not a return-based one.
-    if group_name:
+    if group_name and not _is_bare_asset_fragment(fragment, group_name):
         group_id = (
             _derive_group_id(str(group_name))
             if isinstance(group_name, str) and group_name
@@ -2204,7 +2256,36 @@ def _score_portfolio(
             },
         )
 
-    # Score each symbol and compute weighted average
+    return _per_symbol_score(
+        fragment, condition_expr, context, should_invert=should_invert_for_portfolio
+    ), "per_symbol_fallback"
+
+
+def _per_symbol_score(
+    fragment: PortfolioFragment,
+    condition_expr: ASTNode,
+    context: DslContext,
+    *,
+    should_invert: bool,
+) -> float | None:
+    """Score a portfolio fragment by weighted-average of per-symbol metrics.
+
+    Evaluates the condition metric for each symbol in the fragment's weights
+    and computes a weighted average. This is the correct approach for
+    single-symbol fragments and serves as the final fallback for multi-asset
+    groups when cache and in-process scoring are unavailable.
+
+    Args:
+        fragment: Portfolio fragment to score.
+        condition_expr: AST node for the metric expression.
+        context: DSL evaluation context.
+        should_invert: Whether to negate the metric (e.g. max-drawdown).
+
+    Returns:
+        Weighted-average score, or None if scoring fails for all symbols.
+
+    """
+    weights = fragment.weights
     total_weight = Decimal("0")
     weighted_sum = Decimal("0")
 
@@ -2217,7 +2298,7 @@ def _score_portfolio(
                 if isinstance(metric_val, int | float)
                 else float(context.as_decimal(metric_val))
             )
-            if should_invert_for_portfolio:
+            if should_invert:
                 metric_val = -metric_val
             weighted_sum += weight * Decimal(str(metric_val))
             total_weight += weight
@@ -2229,8 +2310,8 @@ def _score_portfolio(
             )
 
     if total_weight > Decimal("0"):
-        return float(weighted_sum / total_weight), "per_symbol_fallback"
-    return None, "per_symbol_fallback"
+        return float(weighted_sum / total_weight)
+    return None
 
 
 def _select_portfolios(

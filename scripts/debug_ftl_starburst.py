@@ -722,6 +722,7 @@ def _print_scoring_path_audit(filter_traces: list[dict[str, Any]]) -> None:
         "cache_hit": GREEN,
         "cache_miss_backfill": CYAN,
         "in_process_fallback": YELLOW,
+        "per_symbol_direct": DIM,
         "per_symbol_fallback": RED,
         "cache_unavailable": RED,
     }
@@ -730,7 +731,8 @@ def _print_scoring_path_audit(filter_traces: list[dict[str, Any]]) -> None:
     print(f"{BOLD}  SCORING PATH AUDIT{RESET}")
     print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"\n  Legend: {GREEN}cache_hit{RESET}  {CYAN}cache_miss_backfill{RESET}  "
-          f"{YELLOW}in_process_fallback{RESET}  {RED}per_symbol_fallback{RESET}")
+          f"{YELLOW}in_process_fallback{RESET}  {DIM}per_symbol_direct{RESET}  "
+          f"{RED}per_symbol_fallback{RESET}")
     print()
 
     for i, ft in enumerate(portfolio_filters, 1):

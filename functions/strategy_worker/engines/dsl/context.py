@@ -32,6 +32,7 @@ type ScoringPath = Literal[
     "cache_hit",
     "cache_miss_backfill",
     "per_symbol_fallback",
+    "per_symbol_direct",
     "cache_unavailable",
     "in_process_fallback",
 ]
