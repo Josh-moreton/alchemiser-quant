@@ -281,14 +281,19 @@ def _backfill_group_cache(
     _BACKFILL_IN_PROGRESS.add(group_id)
     original_as_of_date = getattr(indicator_svc, "as_of_date", None)
     try:
-        today = datetime.now(UTC).date()
-        calendar_days = min(int(window * 1.6) + 5, _MAX_BACKFILL_CALENDAR_DAYS)
-        trading_days = _get_trading_days(today, calendar_days)
+        # Use as_of_date as the anchor when running inside a nested
+        # backfill (e.g. WYLD's body triggers OFR inner-group backfill).
+        # This prevents look-ahead bias: inner groups must only see data
+        # available up to the outer evaluation date, not real today.
+        anchor_date = original_as_of_date or datetime.now(UTC).date()
+        calendar_days = min(int(window * 2.5) + 10, _MAX_BACKFILL_CALENDAR_DAYS)
+        trading_days = _get_trading_days(anchor_date, calendar_days)
 
         # Check which dates already exist in cache
         existing_returns = lookup_historical_returns(
             group_id=group_id,
             lookback_days=calendar_days,
+            end_date=anchor_date,
         )
         # We don't have per-date info from lookup_historical_returns, so
         # we just check the count.  If we already have enough, return early.
@@ -335,6 +340,17 @@ def _backfill_group_cache(
                 if not day_weights:
                     continue
 
+                logger.info(
+                    "Backfill: group resolved for date",
+                    extra={
+                        "group_id": group_id,
+                        "group_name": group_name,
+                        "eval_date": eval_date.isoformat(),
+                        "selections": {k: str(v) for k, v in day_weights.items()},
+                        "correlation_id": context.correlation_id,
+                    },
+                )
+
                 # Compute portfolio return for this date
                 daily_ret = _compute_daily_return_for_portfolio(
                     selections=day_weights,
@@ -375,10 +391,12 @@ def _backfill_group_cache(
         )
 
         # Return the full set of returns (existing + new), oldest-first
-        # Re-query the cache to get a clean sorted series
+        # Re-query the cache to get a clean sorted series, bounded by
+        # the anchor date to prevent look-ahead bias in nested backfill.
         refreshed = lookup_historical_returns(
             group_id=group_id,
             lookback_days=calendar_days,
+            end_date=anchor_date,
         )
         return list(refreshed)
 
@@ -1833,10 +1851,17 @@ def _fetch_or_backfill_returns(
     context: DslContext,
 ) -> list[Decimal]:
     """Fetch historical returns from cache, triggering backfill on miss."""
-    lookback_calendar_days = int(window * 1.6) + 5
+    lookback_calendar_days = int(window * 2.5) + 10
+
+    # When running inside a nested backfill, the indicator service has
+    # as_of_date set to the outer evaluation date.  Bound the cache
+    # lookup to that date to prevent look-ahead bias.
+    anchor_date: date | None = getattr(context.indicator_service, "as_of_date", None)
+
     historical_returns = lookup_historical_returns(
         group_id=group_id,
         lookback_days=lookback_calendar_days,
+        end_date=anchor_date,
     )
 
     if len(historical_returns) >= window:
