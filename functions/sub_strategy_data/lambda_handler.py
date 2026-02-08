@@ -163,10 +163,15 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             )
 
             try:
-                # Evaluate the group strategy
+                # Evaluate the group strategy.
+                # Pass record_date as as_of_date so the DSL engine truncates
+                # market data to that date. Without this, backfilled dates
+                # would all evaluate using current market data and produce
+                # identical selections for every historical date.
                 target_allocation, _trace = dsl_engine.evaluate_strategy(
                     strategy_config_path=group_path,
                     correlation_id=f"{correlation_id}-{group_id}",
+                    as_of_date=record_date,
                 )
 
                 if target_allocation and target_allocation.target_weights:
