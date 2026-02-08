@@ -849,15 +849,26 @@ def _print_divergence_analysis(
     # Check NOVA RSI divergence
     nova_picks_uvxy = weights.get("UVXY", 0.0) > 0.1
     if nova_picks_uvxy:
-        # Find which RSI triggered it
+        # Find which NOVA cascade RSI triggered it (XLP, QQQE, VTV, etc.)
+        nova_cascade_syms = {sym for sym, _ in NOVA_RSI_CASCADE}
         for t in debug_traces:
             left_expr = t.get("left_expr", "")
-            if left_expr.startswith("rsi(") and t.get("result"):
-                sym = left_expr.replace("rsi(", "").rstrip(")")
+            if not left_expr.startswith("rsi("):
+                continue
+            # Only look at NOVA cascade RSI checks (XLP, QQQE, VTV, etc.)
+            sym = left_expr.replace("rsi(", "").rstrip(")")
+            if sym not in nova_cascade_syms:
+                continue
+            right_val = t.get("right_value", 0.0)
+            # Only match numeric threshold comparisons (not rsi-vs-rsi)
+            if not isinstance(right_val, (int, float)) or right_val < 10:
+                continue
+            if t.get("result"):
                 rsi_val = t.get("left_value", 0.0)
-                threshold = t.get("right_value", 0.0)
+                threshold = right_val
+                margin = float(rsi_val) - float(threshold)
                 print(f"  {RED}[DIVERGENCE 1] NOVA RSI cascade triggers UVXY{RESET}")
-                print(f"    rsi({sym}) = {rsi_val:.4f} > {threshold:.0f}")
+                print(f"    rsi({sym}) = {float(rsi_val):.4f} > {float(threshold):.0f}  (margin: +{margin:.2f})")
                 print(f"    In Composer, NOVA picks TQQQ (all RSI checks must be False).")
                 print(f"    Possible causes:")
                 print(f"      - RSI calculation differs (period, data source, adjusted close)")
