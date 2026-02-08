@@ -80,26 +80,28 @@ def _derive_group_id(group_name: str) -> str:
 def _is_bare_asset_fragment(fragment: PortfolioFragment, group_name: object) -> bool:
     """Return True if the fragment is a bare symbol, not a named portfolio.
 
-    The check is intentionally simple: if the ``group_name`` looks like a
-    trading symbol (1-5 uppercase letters/digits, with optional share-class
-    suffix like ``/B`` or ``.B`` for BRK/B, BF.B) it is a bare asset that
-    was wrapped by ``_normalize_portfolio_items``.  Anything else -- long
-    names, mixed case, spaces, apostrophes -- is a real strategy /
-    portfolio group that must go through cache or in-process scoring so
-    its historical composite return stream is properly reconstructed.
+    A fragment is a bare asset when ALL of the following hold:
 
-    This avoids fragile heuristics based on ``_AST_BODY_STORE`` presence or
-    ``source_step``, which can break when fragments are re-wrapped across
-    evaluation layers.
+    1. ``source_step`` is ``"asset"`` (set by ``_normalize_portfolio_items``
+       when wrapping a raw ``(asset "TQQQ")`` string).
+    2. ``group_name`` matches a trading symbol pattern (1-5 uppercase
+       letters/digits, with optional share-class suffix like ``/B`` or
+       ``.B`` for BRK/B, BF.B).
+
+    Real strategy/portfolio groups (NOVA, WYLD, etc.) have
+    ``source_step="group"`` even though their names may look like tickers,
+    so the ``source_step`` check prevents false positives.
 
     Args:
         fragment: The portfolio fragment to check.
         group_name: The group_name metadata value (may be ``None``).
 
     Returns:
-        True when the group_name matches a ticker-symbol pattern.
+        True only for bare-asset fragments created by normalization.
 
     """
+    if fragment.source_step != "asset":
+        return False
     if not isinstance(group_name, str) or not group_name:
         return False
     return bool(_TICKER_SYMBOL_RE.match(group_name))
