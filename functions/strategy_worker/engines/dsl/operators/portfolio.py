@@ -48,7 +48,7 @@ KNOWN_GROUP_ID_MAPPING = {
     "DRV DRN Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__drv_drn_mean_reversion",
     # Top-level groups (scored by the 3 top-level filters: moving-average-return, rsi, stdev-return)
     "WYLD Mean Reversion Combo v2 w/ Overcompensating Frontrunner [FTL]": "ftl_starburst__wyld_combo",
-    " Walter's Champagne and CocaineStrategies": "ftl_starburst__walters_champagne",
+    "Walter's Champagne and CocaineStrategies": "ftl_starburst__walters_champagne",
     "NOVA | (multiple TQQQ, one crypto) KMLM switcher (single pops) MonkeyBusiness  WM74|": "ftl_starburst__nova_switcher",
 }
 
@@ -99,6 +99,8 @@ def _extract_window_from_condition(condition_expr: ASTNode, context: DslContext)
         )
         if isinstance(params_val, dict):
             window = params_val.get("window")
+            if isinstance(window, Decimal):
+                return int(window)
             if isinstance(window, int):
                 return window
             if isinstance(window, float):
