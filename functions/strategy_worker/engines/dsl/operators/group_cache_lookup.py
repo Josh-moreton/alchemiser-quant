@@ -239,3 +239,79 @@ def lookup_historical_returns(
 def is_cache_available() -> bool:
     """Check if the group history cache is configured and available."""
     return bool(GROUP_HISTORY_TABLE and get_dynamodb_table() is not None)
+
+
+def write_historical_return(
+    group_id: str,
+    record_date: str,
+    selections: dict[str, str],
+    portfolio_daily_return: Decimal,
+    *,
+    ttl_days: int = 30,
+) -> bool:
+    """Write a single historical return entry to the group cache.
+
+    Used by on-demand backfill when the strategy worker detects a cache miss
+    during portfolio scoring and re-evaluates the group for historical dates.
+
+    Args:
+        group_id: Group identifier (hash-based, e.g. "max_dd_tqqq_vs_uvxy_a1b2c3d4e5f6")
+        record_date: ISO date string (YYYY-MM-DD)
+        selections: Symbol-to-weight mapping (weights as strings)
+        portfolio_daily_return: Daily return as Decimal (e.g. Decimal("0.0153"))
+        ttl_days: TTL in days for the DynamoDB item (default: 30)
+
+    Returns:
+        True if write succeeded, False otherwise.
+
+    """
+    table = get_dynamodb_table()
+    if table is None:
+        logger.warning("Cannot write to group cache: table not available")
+        return False
+
+    ttl_epoch = int((datetime.now(UTC) + timedelta(days=ttl_days)).timestamp())
+
+    try:
+        table.put_item(  # type: ignore[attr-defined]
+            Item={
+                "group_id": group_id,
+                "record_date": record_date,
+                "selections": selections,
+                "selection_count": len(selections),
+                "portfolio_daily_return": str(portfolio_daily_return),
+                "evaluated_at": datetime.now(UTC).isoformat(),
+                "source": "on_demand_backfill",
+                "ttl": ttl_epoch,
+            },
+        )
+        logger.debug(
+            "Wrote historical return to cache",
+            extra={
+                "group_id": group_id,
+                "record_date": record_date,
+                "portfolio_daily_return": str(portfolio_daily_return),
+            },
+        )
+        return True
+
+    except ClientError as e:
+        logger.warning(
+            "Failed to write historical return to cache",
+            extra={
+                "group_id": group_id,
+                "record_date": record_date,
+                "error": str(e),
+            },
+        )
+        return False
+    except Exception as e:
+        logger.warning(
+            "Unexpected error writing historical return to cache",
+            extra={
+                "group_id": group_id,
+                "record_date": record_date,
+                "error": str(e),
+            },
+        )
+        return False

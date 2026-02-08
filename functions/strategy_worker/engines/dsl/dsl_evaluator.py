@@ -315,6 +315,9 @@ class DslEvaluator:
         if node.metadata and node.metadata.get("node_subtype") == "map":
             return self._evaluate_map_literal(node, correlation_id, trace)
 
+        # Resolve market_data_service from the concrete IndicatorService if available
+        market_data_service = getattr(self.indicator_service, "market_data_service", None)
+
         # Create context for function applications
         context = DslContext(
             indicator_service=self.indicator_service,
@@ -323,6 +326,7 @@ class DslEvaluator:
             trace=trace,
             evaluate_node=self._evaluate_node,
             debug_mode=self.debug_mode,
+            market_data_service=market_data_service,
         )
         # Share decision_path and debug_traces with context so all contexts accumulate to the same list
         context.decision_path = self.decision_path

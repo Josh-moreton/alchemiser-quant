@@ -197,7 +197,7 @@ class DslEngine(EventHandler):
             # This ensures all indicator computations use data only up to
             # the target date, producing date-accurate strategy selections.
             if hasattr(self.indicator_service, "as_of_date"):
-                self.indicator_service.as_of_date = as_of_date  # type: ignore[union-attr]
+                self.indicator_service.as_of_date = as_of_date
 
             # Parse strategy file
             ast = self._parse_strategy_file(strategy_config_path)

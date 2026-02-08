@@ -20,6 +20,7 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 if TYPE_CHECKING:
     from engines.dsl.events import DslEventPublisher
@@ -151,6 +152,7 @@ class DslContext:
         evaluate_node: Callable[[ASTNode, str, Trace], DSLValue],
         *,
         debug_mode: bool = False,
+        market_data_service: MarketDataPort | None = None,
     ) -> None:
         """Initialize DSL context.
 
@@ -161,6 +163,7 @@ class DslContext:
             trace: Trace object for logging evaluation steps
             evaluate_node: Function to evaluate AST nodes
             debug_mode: If True, enables detailed condition tracing for debugging
+            market_data_service: Optional market data port for on-demand backfill
 
         """
         self.indicator_service = indicator_service
@@ -170,6 +173,7 @@ class DslContext:
         self.evaluate_node = evaluate_node
         self.timestamp = datetime.now(UTC)
         self.debug_mode = debug_mode
+        self.market_data_service = market_data_service
         # Decision path stored as list of dicts for serialization compatibility.
         # Note: This is initialized here but immediately replaced with evaluator's
         # shared list (see dsl_evaluator.py line 289) to ensure all contexts

@@ -1431,11 +1431,12 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !GetAtt DataFunction.Arn
-              # DynamoDB read permission for group history cache (filter scoring)
+              # DynamoDB read/write permission for group history cache (filter scoring + on-demand backfill)
               - Effect: Allow
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:Query
+                  - dynamodb:PutItem
                 Resource:
                   - !GetAtt GroupHistoricalSelectionsTable.Arn
 
