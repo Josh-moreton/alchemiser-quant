@@ -10,7 +10,7 @@ with proper validation and type safety.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -232,9 +232,9 @@ class PortfolioFragment(BaseModel):
     )
 
     # Metadata
-    metadata: dict[str, Any] = Field(
+    metadata: dict[str, int | float | str | bool] = Field(
         default_factory=dict,
-        description="Fragment metadata (e.g., group_name, AST body for on-demand backfill)",
+        description="Fragment metadata (e.g., group_name for tracing)",
     )
 
     def normalize_weights(self) -> PortfolioFragment:

@@ -79,6 +79,12 @@ def _derive_group_id(group_name: str) -> str:
 # attempt another backfill for the same group.
 _BACKFILL_IN_PROGRESS: set[str] = set()
 
+# Transient store for group AST bodies, keyed by PortfolioFragment.fragment_id.
+# Populated by the ``group()`` operator and consumed by ``_fetch_or_backfill_returns``
+# during on-demand backfill.  Kept out of PortfolioFragment.metadata to avoid
+# leaking non-serialisable ASTNode objects into EventBridge payloads.
+_AST_BODY_STORE: dict[str, list[ASTNode]] = {}
+
 # Maximum number of calendar days to backfill in a single on-demand run.
 # Keeps Lambda execution time bounded (each day requires re-evaluation
 # of the full group AST + bar fetches for every holding).
@@ -143,9 +149,16 @@ def _compute_daily_return_for_portfolio(
         if weight <= Decimal("0"):
             continue
         try:
+            # Derive a period that covers from today back through record_date
+            # plus a small buffer.  The fixed "30D" was insufficient for dates
+            # older than 30 calendar days, which the backfill window can reach.
+            today = datetime.now(UTC).date()
+            days_back = max((today - record_date).days + 5, 30)
+            period = f"{days_back}D"
+
             bars = context.market_data_service.get_bars(
                 symbol=Symbol(symbol_str),
-                period="30D",
+                period=period,
                 timeframe="1Day",
             )
             if len(bars) < 2:
@@ -266,6 +279,7 @@ def _backfill_group_cache(
         return []
 
     _BACKFILL_IN_PROGRESS.add(group_id)
+    original_as_of_date = getattr(indicator_svc, "as_of_date", None)
     try:
         today = datetime.now(UTC).date()
         calendar_days = min(int(window * 1.6) + 5, _MAX_BACKFILL_CALENDAR_DAYS)
@@ -286,9 +300,6 @@ def _backfill_group_cache(
                 extra={"group_id": group_id},
             )
             return list(existing_returns)
-
-        # Save the original as_of_date so we can restore it after backfill
-        original_as_of_date = getattr(indicator_svc, "as_of_date", None)
 
         backfilled_returns: list[tuple[str, Decimal]] = []
 
@@ -351,8 +362,7 @@ def _backfill_group_cache(
                     exc,
                 )
 
-        # Restore original as_of_date
-        indicator_svc.as_of_date = original_as_of_date
+        # Restore original as_of_date is handled in the finally block
 
         logger.info(
             "On-demand backfill completed",
@@ -373,6 +383,10 @@ def _backfill_group_cache(
         return list(refreshed)
 
     finally:
+        # Always restore as_of_date to prevent the shared indicator_service
+        # from staying pinned to a historical date after an exception.
+        if hasattr(indicator_svc, "as_of_date"):
+            indicator_svc.as_of_date = original_as_of_date
         _BACKFILL_IN_PROGRESS.discard(group_id)
 
 
@@ -1615,10 +1629,12 @@ def group(args: list[ASTNode], context: DslContext) -> DSLValue:
         merged_metadata: dict[str, Any] = {
             **last_result.metadata,
             "group_name": group_name,
-            # Preserve the raw AST body so _score_portfolio can re-evaluate
-            # the group for historical dates during on-demand backfill.
-            "_ast_body": list(body),
         }
+        # Store raw AST body in module-level transient store (NOT in metadata)
+        # so _fetch_or_backfill_returns can re-evaluate the group for historical
+        # dates.  Keeping it out of metadata prevents non-serialisable ASTNode
+        # objects from leaking into EventBridge via DecisionEvaluated payloads.
+        _AST_BODY_STORE[last_result.fragment_id] = list(body)
         return last_result.model_copy(update={"metadata": merged_metadata})
 
     return last_result
@@ -1704,14 +1720,13 @@ def _try_cache_scoring(
     Returns the computed score if the cache path succeeds, or ``None``
     if the caller should fall through to per-symbol fallback scoring.
 
-    A return of ``None`` does NOT mean "fail-closed exclude this group"
-    -- that decision is made by returning ``None`` explicitly inside this
-    function when we have a group_id and cache but insufficient data.
-    The caller interprets a ``None`` return as "try fallback".
-
-    The sentinel ``_FAIL_CLOSED`` constant is returned when the group
-    should be excluded from filter ranking (insufficient cache even
-    after backfill).
+    ``None`` is returned when:
+    - The fragment has no group name (not a named group).
+    - The DynamoDB cache table is unavailable.
+    - The window or metric cannot be extracted from the condition.
+    - Insufficient cached returns exist even after on-demand backfill
+      (the caller then falls back to today-only per-symbol scoring).
+    - The metric computation itself yields no result.
     """
     if not isinstance(group_name, str) or not group_name:
         return None
@@ -1758,17 +1773,17 @@ def _try_cache_scoring(
     )
 
     if len(historical_returns) < window:
-        # Fail closed: insufficient cached data even after backfill.
+        # Insufficient data: fall back to per-symbol scoring in _score_portfolio.
         logger.warning(
             "DSL filter: insufficient cached returns for group scoring "
-            "(fail-closed, even after backfill attempt)",
+            "(falling back to per-symbol weighted average)",
             extra={
                 "group_id": group_id,
                 "group_name": group_name,
                 "metric": canonical_metric,
                 "window": window,
                 "returns_available": len(historical_returns),
-                "has_ast_body": bool(fragment.metadata.get("_ast_body")),
+                "has_ast_body": bool(_AST_BODY_STORE.get(fragment.fragment_id)),
                 "correlation_id": context.correlation_id,
             },
         )
@@ -1828,8 +1843,8 @@ def _fetch_or_backfill_returns(
         return historical_returns
 
     # On-demand backfill: re-evaluate group for historical dates
-    ast_body = fragment.metadata.get("_ast_body")
-    if not ast_body or not isinstance(ast_body, list):
+    ast_body = _AST_BODY_STORE.get(fragment.fragment_id)
+    if not ast_body:
         return historical_returns
 
     logger.info(
