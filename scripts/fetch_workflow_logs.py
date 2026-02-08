@@ -76,7 +76,6 @@ LAMBDA_FUNCTIONS = [
     # Data & utility functions
     "data",
     "schedule-manager",
-    "sub-strategy-data",
     "account-data",
     "strategy-performance",
 ]

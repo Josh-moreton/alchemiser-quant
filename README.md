@@ -216,7 +216,6 @@ The system uses **completed daily bars only** - no intraday or partial bar data.
 |--------|----------|---------|
 | `DataRefreshFunction` | 4:00 AM UTC | Fetch 2 years of daily bars for all symbols |
 | `PostCloseDataRefreshFunction` | 4:05 PM ET | Fetch today's completed bar (market just closed) |
-| `SubStrategyDataFunction` | 4:00 AM ET | Pre-compute filterable group portfolio returns |
 
 ## Event-Driven Workflow
 
@@ -491,30 +490,16 @@ When filtering groups by their historical performance:
 
 The filter needs each group's portfolio return for the last 10 days. Computing this on-the-fly is expensive and timing-sensitive.
 
-### Solution: Group Cache Lambda
+### Solution: On-Demand Group Cache
 
-The **Group Cache Lambda** runs daily at 4:00 AM ET:
+When a filter operator encounters a named group, the **strategy worker** automatically handles cache population:
 
-1. Evaluates each extracted group's DSL to determine its portfolio
-2. Fetches price data and computes weighted daily return
-3. Stores results in DynamoDB (`GroupHistoricalSelectionsTable`)
+1. Checks DynamoDB (`GroupHistoricalSelectionsTable`) for cached portfolio returns
+2. On cache miss, re-evaluates the group's AST body for historical dates
+3. Computes weighted daily portfolio returns and writes results to DynamoDB
+4. Scores the group using the cached return series
 
-At strategy runtime, filter operators query the cache for fast portfolio scoring.
-
-### Adding Filterable Groups
-
-Groups are extracted to `layers/shared/the_alchemiser/shared/strategies/filterable_groups/<strategy>/`:
-
-```
-filterable_groups/
-    ftl_starburst/
-        _manifest.json           # Defines groups and metadata
-        drv_drn_mean_reversion.clj
-        labu_labd_mean_reversion.clj
-        yinn_yang_mean_reversion.clj
-```
-
-See the [Filterable Groups README](layers/shared/the_alchemiser/shared/strategies/filterable_groups/README.md) for setup instructions.
+Group IDs are derived deterministically from group names using SHA-256 hashing, so no manual configuration is required when adding new strategies or groups.
 
 ## Signal Validation
 
