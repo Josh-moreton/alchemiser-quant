@@ -10,7 +10,7 @@ real-time technical indicator calculations for DSL strategy evaluation.
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pandas as pd
@@ -56,6 +56,10 @@ class IndicatorService:
         self.market_data_service = market_data_service
         # Always initialize indicators; data access is gated separately by market_data_service
         self.technical_indicators: TechnicalIndicators = TechnicalIndicators()
+        # Optional date cutoff for historical evaluation (backfilling).
+        # When set, bars are truncated to only include data on or before
+        # this date, ensuring indicators reflect the historical state.
+        self.as_of_date: date | None = None
         logger.info(
             "IndicatorService initialized",
             module=MODULE_NAME,
@@ -802,6 +806,20 @@ class IndicatorService:
                 period=period,
                 timeframe="1Day",
             )
+
+            # Truncate bars to as_of_date when doing historical evaluation.
+            # Without this, backfilled dates would all use current market data
+            # and produce identical selections regardless of the target date.
+            if self.as_of_date is not None and bars:
+                bars = [b for b in bars if b.timestamp.date() <= self.as_of_date]
+                logger.debug(
+                    "Truncated bars to as_of_date",
+                    module=MODULE_NAME,
+                    symbol=symbol,
+                    as_of_date=self.as_of_date.isoformat(),
+                    bars_after_truncation=len(bars),
+                    correlation_id=correlation_id,
+                )
 
             if not bars:
                 logger.error(

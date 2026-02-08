@@ -735,16 +735,20 @@ An enhanced multi-page **Streamlit dashboard** provides real-time visibility int
 ```bash
 make dashboard
 # or
-poetry run streamlit run scripts/dashboard.py
+poetry run streamlit run dashboard/app.py
 ```
 
 **Pages**:
-- **🏠 Portfolio Overview**: Equity curves, risk metrics (Sharpe, max drawdown, volatility), current positions
-- **🎯 Last Run Analysis**: Detailed view of recent workflow executions with strategy signals, rebalance plans, and trades
-- **📊 Trade History**: Per-strategy and per-symbol attribution, filters by date/symbol, trade analytics
-- **📈 Symbol Analytics**: Deep dive into individual symbol performance with P&L analysis and price history
+- **Portfolio Overview**: Equity curves, risk metrics (Sharpe, max drawdown, volatility), current positions
+- **Forward Projection**: Growth scenario modelling and drawdown analysis
+- **Last Run Analysis**: Detailed view of recent workflow executions with strategy signals, rebalance plans, and trades
+- **Trade History**: Per-strategy and per-symbol attribution, filters by date/symbol, trade analytics
+- **Strategy Performance**: Per-strategy P&L, risk metrics, lot-level drill-down
+- **Execution Quality**: Transaction cost analysis (TCA), slippage, fill timing
+- **Symbol Analytics**: Deep dive into individual symbol performance with P&L analysis and price history
+- **Options Hedging**: Hedge positions, roll schedule, premium spend budget
 
-See [Dashboard README](scripts/DASHBOARD_README.md) for detailed documentation and deployment instructions.
+See [Dashboard README](dashboard/docs/README.md) for detailed documentation and deployment instructions.
 
 ## Error Handling
 

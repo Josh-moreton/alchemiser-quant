@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Symbol Analytics page with detailed per-symbol performance metrics.
 """
@@ -15,9 +15,9 @@ import plotly.graph_objects as go
 import streamlit as st
 from boto3.dynamodb.conditions import Attr
 
-from dashboard_settings import get_dashboard_settings
+from settings import get_dashboard_settings
 
-from .components import (
+from components.ui import (
     direction_styled_dataframe,
     hero_metric,
     metric_card,
@@ -25,9 +25,9 @@ from .components import (
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, format_percent, get_colors, inject_styles
+from components.styles import format_currency, format_percent, get_colors, inject_styles
 
-from . import data_access
+from data import account as data_access
 
 
 @st.cache_data(ttl=60)
@@ -40,7 +40,7 @@ def get_all_traded_symbols() -> list[str]:
             "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
         )
         return []
-    
+
     try:
         dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
         table = dynamodb.Table(settings.trade_ledger_table)
@@ -80,7 +80,7 @@ def get_symbol_trades(symbol: str) -> list[dict[str, Any]]:
     settings = get_dashboard_settings()
     if not settings.has_aws_credentials():
         return []  # Error already shown by get_all_traded_symbols
-    
+
     try:
         dynamodb = boto3.client("dynamodb", **settings.get_boto3_client_kwargs())
         table_name = settings.trade_ledger_table
@@ -268,10 +268,10 @@ def show() -> None:
     # TABBED CHARTS: Price History | Position | Trade History
     # =========================================================================
     tab_price, tab_position, tab_trades, tab_strategy = st.tabs([
-        "📈 Price History",
-        "📊 Position",
-        "📋 Trades",
-        "🎯 Strategy Attribution",
+        "Price History",
+        "Position",
+        "Trades",
+        "Strategy Attribution",
     ])
 
     with tab_price:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Execution Quality (TCA) dashboard page.
 
@@ -26,16 +26,16 @@ import streamlit as st
 from boto3.dynamodb.conditions import Attr
 from dotenv import load_dotenv
 
-from dashboard_settings import get_dashboard_settings
+from settings import get_dashboard_settings
 
-from .components import (
+from components.ui import (
     direction_styled_dataframe,
     hero_metric,
     metric_row,
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, format_percent, inject_styles
+from components.styles import format_currency, format_percent, inject_styles
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"

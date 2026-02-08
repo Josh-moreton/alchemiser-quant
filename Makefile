@@ -35,7 +35,6 @@ help:
 	@echo ""
 	@echo "Performance Reports:"
 	@echo "  dashboard                            Run enhanced multi-page trading dashboard"
-	@echo "  pnl-dashboard                        Run P&L dashboard (fetches from Alpaca API)"
 	@echo ""
 	@echo "Portfolio Management:"
 	@echo "  rebalance-weights                    Recalculate strategy weights (Calmar-tilt)"
@@ -257,17 +256,11 @@ validate-dynamo:
 	if [ -n "$(json)" ]; then ARGS="$$ARGS --json"; fi; \
 	poetry run python scripts/validation/validate_dynamo_data.py $$ARGS
 
-# Run P&L dashboard (fetches directly from Alpaca API with deposit adjustments)
-# Usage: make pnl-dashboard
-pnl-dashboard:
-	@echo "📊 Starting P&L dashboard (Alpaca API)..."
-	poetry run streamlit run scripts/pnl_dashboard.py
-
 # Run enhanced multi-page dashboard
 # Usage: make dashboard
 dashboard:
-	@echo "📊 Starting enhanced trading dashboard..."
-	poetry run streamlit run scripts/dashboard.py
+	@echo "Starting trading dashboard..."
+	poetry run streamlit run dashboard/app.py
 
 # Recalculate strategy weights using Calmar-tilt formula
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod

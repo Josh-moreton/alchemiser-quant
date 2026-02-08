@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Trade History page with per-strategy and per-symbol attribution.
 """
@@ -18,16 +18,16 @@ import streamlit as st
 from boto3.dynamodb.conditions import Attr
 from dotenv import load_dotenv
 
-from dashboard_settings import get_dashboard_settings
+from settings import get_dashboard_settings
 
-from .components import (
+from components.ui import (
     direction_styled_dataframe,
     hero_metric,
     metric_row,
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, inject_styles
+from components.styles import format_currency, inject_styles
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
@@ -48,7 +48,7 @@ def get_trades(
             "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets."
         )
         return []
-    
+
     try:
         dynamodb = boto3.resource("dynamodb", **settings.get_boto3_client_kwargs())
         table = dynamodb.Table(settings.trade_ledger_table)
@@ -302,10 +302,10 @@ def show() -> None:
     # TABBED VIEW: By Strategy | By Symbol | Timeline
     # =========================================================================
     tab_strategy, tab_symbol, tab_timeline, tab_recent = st.tabs([
-        "📊 By Strategy",
-        "🎯 By Symbol",
-        "📈 Timeline",
-        "📋 Recent Trades",
+        "By Strategy",
+        "By Symbol",
+        "Timeline",
+        "Recent Trades",
     ])
 
     with tab_strategy:

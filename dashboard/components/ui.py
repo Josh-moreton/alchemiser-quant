@@ -1,4 +1,4 @@
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Reusable UI Components for Octarine Capital Dashboard.
 
@@ -13,7 +13,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from .styles import (
+from components.styles import (
     format_currency,
     format_percent,
     get_colors,
@@ -226,19 +226,19 @@ def pipeline_status(
         name = step["name"]
 
         if status == "complete":
-            icon = "✓"
+            icon = "checkmark"
             step_class = "pipeline-step pipeline-step-complete"
         elif status == "error":
-            icon = "✗"
+            icon = "x"
             step_class = "pipeline-step pipeline-step-error"
         else:
-            icon = "○"
+            icon = "o"
             step_class = "pipeline-step pipeline-step-pending"
 
         html_parts.append(f'<span class="{step_class}">{icon} {name}</span>')
 
         if i < len(steps) - 1:
-            html_parts.append('<span class="pipeline-arrow">→</span>')
+            html_parts.append('<span class="pipeline-arrow">-></span>')
 
     st.markdown(
         f'<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">{"".join(html_parts)}</div>',
