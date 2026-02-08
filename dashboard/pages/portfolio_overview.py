@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Portfolio Overview page with enhanced metrics and per-symbol performance.
 
@@ -14,16 +14,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from .components import (
+from components.ui import (
     hero_metric,
     metric_card,
     metric_row,
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, format_percent, inject_styles
+from components.styles import format_currency, format_percent, inject_styles
 
-from . import data_access
+from data import account as data_access
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Options Hedging dashboard page showing hedge positions, decisions, and analytics.
 
@@ -20,10 +20,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from botocore.exceptions import ClientError
-from dashboard_settings import debug_secrets_info, get_dashboard_settings
+from settings import debug_secrets_info, get_dashboard_settings
 from dotenv import load_dotenv
 
-from .components import (
+from components.ui import (
     alert_box,
     hero_metric,
     metric_card,
@@ -32,7 +32,7 @@ from .components import (
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, format_percent, inject_styles
+from components.styles import format_currency, format_percent, inject_styles
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
@@ -232,11 +232,11 @@ def show_active_positions_table(positions: list[dict[str, Any]]) -> None:
         )
 
         if dte <= 14:
-            roll_status = "🔴 CRITICAL"
+            roll_status = "CRITICAL"
         elif dte <= roll_threshold:
-            roll_status = "🟡 DUE"
+            roll_status = "DUE"
         else:
-            roll_status = "🟢 OK"
+            roll_status = "OK"
 
         rows.append(
             {
@@ -247,7 +247,7 @@ def show_active_positions_table(positions: list[dict[str, Any]]) -> None:
                 "DTE": dte,
                 "Contracts": pos.get("contracts", 0),
                 "Entry $": float(pos.get("entry_price", 0)),
-                "Entry Δ": float(pos.get("entry_delta", 0)),
+                "Entry Delta": float(pos.get("entry_delta", 0)),
                 "Premium": float(pos.get("total_premium_paid", 0)),
                 "Template": template,
                 "Roll": roll_status,
@@ -261,7 +261,7 @@ def show_active_positions_table(positions: list[dict[str, Any]]) -> None:
         formats={
             "Strike": "${:,.0f}",
             "Entry $": "${:.2f}",
-            "Entry Δ": "{:.2f}",
+            "Entry Delta": "{:.2f}",
             "Premium": "${:,.2f}",
         },
     )
@@ -539,7 +539,7 @@ def show() -> None:
     # Try to get current NAV from DynamoDB account snapshot (optional)
     current_nav: Decimal | None = None
     try:
-        from . import data_access
+        from data import account as data_access
 
         account_dict = data_access.get_latest_account_data()
         if account_dict:
@@ -576,7 +576,7 @@ def show() -> None:
             underlying = pos.get("underlying_symbol", "")
             strike = float(pos.get("strike_price", 0))
             alert_box(
-                f"🚨 URGENT: {underlying} ${strike:.0f} Put expires in {dte} days - roll required!",
+                f"URGENT: {underlying} ${strike:.0f} Put expires in {dte} days - roll required!",
                 severity="error",
             )
 
@@ -665,11 +665,11 @@ def show() -> None:
     # TABBED SECTIONS
     # =========================================================================
     tab_positions, tab_rolls, tab_spend, tab_history, tab_details = st.tabs([
-        "📊 Positions",
-        "🔄 Roll Schedule",
-        "💰 Premium Spend",
-        "📜 History",
-        "🔍 Details",
+        "Positions",
+        "Roll Schedule",
+        "Premium Spend",
+        "History",
+        "Details",
     ])
 
     with tab_positions:
@@ -695,7 +695,7 @@ def show() -> None:
     # =========================================================================
     # DEBUG CONFIG (Collapsed at bottom)
     # =========================================================================
-    with st.expander("🔧 Debug Configuration", expanded=False):
+    with st.expander("Debug Configuration", expanded=False):
         debug_info = debug_secrets_info()
         st.text(f"Stage: {settings.stage}")
         st.text(f"AWS Region: {settings.aws_region}")

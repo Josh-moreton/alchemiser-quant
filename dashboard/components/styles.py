@@ -1,4 +1,4 @@
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Octarine Capital Dashboard Styles.
 

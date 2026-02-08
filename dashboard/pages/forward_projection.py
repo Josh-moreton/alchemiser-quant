@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Forward Projection page for equity curve projections based on historical TWR.
 """
@@ -14,7 +14,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from .components import (
+from components.ui import (
     hero_metric,
     metric_card,
     metric_row,
@@ -22,9 +22,9 @@ from .components import (
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, format_percent, inject_styles
+from components.styles import format_currency, format_percent, inject_styles
 
-from . import data_access
+from data import account as data_access
 
 
 @st.cache_data(ttl=300)
@@ -93,15 +93,16 @@ def project_equity(
     monthly_contribution: float = 0.0,
 ) -> pd.DataFrame:
     """Project equity forward with optional contributions.
-    
+
     Args:
         starting_equity: Current portfolio value
         annual_return_pct: Expected annual return (percentage, e.g., 15 for 15%)
         years: Number of years to project
         monthly_contribution: Monthly deposit amount
-    
+
     Returns:
         DataFrame with Date, Equity columns
+
     """
     months = years * 12
     monthly_return = (1 + annual_return_pct / 100) ** (1/12) - 1
@@ -130,12 +131,12 @@ def create_chart_data(projections: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Combine projections into a single DataFrame for charting."""
     # Create combined dataframe with Date as index
     combined = pd.DataFrame()
-    
+
     for scenario_name, df in projections.items():
         if combined.empty:
             combined["Date"] = df["Date"]
         combined[scenario_name] = df["Equity"]
-    
+
     combined = combined.set_index("Date")
     return combined
 
@@ -264,18 +265,18 @@ def show() -> None:
     # PROJECTION CHART (full width)
     # =========================================================================
     section_header("Projected Equity Curve")
-    
+
     use_log_scale = st.checkbox("Use logarithmic scale", value=False, help="Log scale better shows percentage growth over time")
-    
+
     # Scenario colors (matches theme)
     scenario_colors = {
         "Conservative": "#808080",
         "Base Case": "#7CF5D4",
         "Optimistic": "#4CAF50",
     }
-    
+
     fig = go.Figure()
-    
+
     for scenario_name, df in projections.items():
         fig.add_trace(
             go.Scatter(
@@ -287,7 +288,7 @@ def show() -> None:
                 hovertemplate="<b>%{fullData.name}</b><br>Date: %{x|%b %Y}<br>Equity: $%{y:,.0f}<extra></extra>",
             )
         )
-    
+
     fig.update_layout(
         height=500,
         hovermode="x unified",
@@ -317,7 +318,7 @@ def show() -> None:
         ),
         margin=dict(l=60, r=20, t=40, b=60),
     )
-    
+
     st.plotly_chart(fig, use_container_width=True)
 
     # =========================================================================

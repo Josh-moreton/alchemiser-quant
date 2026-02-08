@@ -1,6 +1,6 @@
 #!/bin/bash
 # Creates IAM user for Streamlit dashboard with read-only access
-# Run: ./scripts/create_dashboard_iam_user.sh
+# Run: ./dashboard/scripts/create_dashboard_iam_user.sh
 
 set -e
 
@@ -58,5 +58,5 @@ aws iam create-access-key --user-name "$USER_NAME" --no-cli-pager
 echo "========================================"
 
 echo ""
-echo "✅ Done! Copy the AccessKeyId and SecretAccessKey above for Streamlit secrets."
-echo "⚠️  The SecretAccessKey will NOT be shown again!"
+echo "Done! Copy the AccessKeyId and SecretAccessKey above for Streamlit secrets."
+echo "WARNING: The SecretAccessKey will NOT be shown again!"

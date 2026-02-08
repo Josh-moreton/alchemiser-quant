@@ -1,6 +1,6 @@
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
-Dashboard data access layer.
+Dashboard account data access layer.
 
 Provides a thin wrapper around AccountDataReader that handles boto3 Table
 construction using DashboardSettings credentials. All dashboard pages import
@@ -13,7 +13,7 @@ from typing import Any
 
 import _setup_imports  # noqa: F401  -- side-effect: configures sys.path for the_alchemiser imports
 import boto3
-from dashboard_settings import get_dashboard_settings
+from settings import get_dashboard_settings
 
 from the_alchemiser.shared.services.account_data_reader import AccountDataReader
 

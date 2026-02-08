@@ -1,4 +1,4 @@
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Strategy Performance page -- per-strategy analytics with lot-level detail.
 
@@ -23,10 +23,10 @@ from typing import Any
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from dashboard_settings import get_dashboard_settings
+from settings import get_dashboard_settings
 
-from . import strategy_data_access as sda
-from .components import (
+from data import strategy as sda
+from components.ui import (
     alert_box,
     direction_styled_dataframe,
     hero_metric,
@@ -36,7 +36,7 @@ from .components import (
     section_header,
     styled_dataframe,
 )
-from .styles import (
+from components.styles import (
     format_currency,
     format_percent,
     inject_styles,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Last Run Analysis page showing the most recent workflow execution details.
 
@@ -24,9 +24,9 @@ import streamlit as st
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
-from dashboard_settings import debug_secrets_info, get_dashboard_settings
+from settings import debug_secrets_info, get_dashboard_settings
 
-from .components import (
+from components.ui import (
     alert_box,
     direction_styled_dataframe,
     hero_metric,
@@ -36,7 +36,7 @@ from .components import (
     section_header,
     styled_dataframe,
 )
-from .styles import format_currency, get_colors, inject_styles
+from components.styles import format_currency, get_colors, inject_styles
 
 # Load .env file
 env_path = Path(__file__).parent.parent.parent / ".env"
@@ -74,7 +74,7 @@ def find_recent_workflows(
     limit: int = 20,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Find recent workflow runs from CloudWatch Logs.
-    
+
     Scans the strategy-orchestrator log group for correlation_ids.
     Returns (workflows, error_message).
     """
@@ -82,19 +82,19 @@ def find_recent_workflows(
     if aws_access_key_id and aws_secret_access_key:
         kwargs["aws_access_key_id"] = aws_access_key_id
         kwargs["aws_secret_access_key"] = aws_secret_access_key
-    
+
     try:
         logs_client = boto3.client("logs", **kwargs)
         orchestrator_log_group = f"/aws/lambda/alchemiser-{stage}-strategy-orchestrator"
-        
+
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(hours=hours_back)
-        
+
         start_ms = int(start_time.timestamp() * 1000)
         end_ms = int(end_time.timestamp() * 1000)
-        
+
         workflows: dict[str, dict[str, Any]] = {}
-        
+
         # Search for logs with correlation_id
         filter_patterns = [
             '{ $.extra.correlation_id = * }',
@@ -102,7 +102,7 @@ def find_recent_workflows(
             '"workflow-"',
             '"schedule-"',
         ]
-        
+
         for filter_pattern in filter_patterns:
             try:
                 response = logs_client.filter_log_events(
@@ -112,13 +112,13 @@ def find_recent_workflows(
                     filterPattern=filter_pattern,
                     limit=500,
                 )
-                
+
                 for event in response.get("events", []):
                     try:
                         message = json.loads(event["message"])
                         extra = message.get("extra", {})
                         cid = extra.get("correlation_id", "") or message.get("correlation_id", "")
-                        
+
                         if cid and (cid.startswith("workflow-") or cid.startswith("schedule-")):
                             ts = event["timestamp"]
                             if cid not in workflows or ts > workflows[cid]["timestamp_ms"]:
@@ -139,15 +139,15 @@ def find_recent_workflows(
                                     "timestamp_ms": ts,
                                     "timestamp": datetime.fromtimestamp(ts / 1000, tz=timezone.utc),
                                 }
-                
+
                 if workflows:
                     break  # Found workflows, no need to try more patterns
-                    
+
             except ClientError as e:
                 if "ResourceNotFoundException" in str(e):
                     return [], f"Log group not found: {orchestrator_log_group}"
                 continue
-        
+
         # Sort by timestamp descending and return top N
         sorted_workflows = sorted(
             workflows.values(),
@@ -155,7 +155,7 @@ def find_recent_workflows(
             reverse=True,
         )
         return sorted_workflows[:limit], None
-        
+
     except ClientError as e:
         return [], f"CloudWatch Error: {e}"
     except Exception as e:
@@ -171,33 +171,33 @@ def fetch_workflow_logs(
     stage: str = "prod",
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Fetch all logs for a workflow from all Lambda log groups.
-    
+
     Returns (events, lambda_counts).
     """
     kwargs: dict[str, Any] = {"region_name": aws_region}
     if aws_access_key_id and aws_secret_access_key:
         kwargs["aws_access_key_id"] = aws_access_key_id
         kwargs["aws_secret_access_key"] = aws_secret_access_key
-    
+
     logs_client = boto3.client("logs", **kwargs)
     log_groups = [f"/aws/lambda/alchemiser-{stage}-{fn}" for fn in LAMBDA_FUNCTIONS]
-    
+
     # Search last 48 hours
     end_time = datetime.now(timezone.utc)
     start_time = end_time - timedelta(hours=48)
     start_ms = int(start_time.timestamp() * 1000)
     end_ms = int(end_time.timestamp() * 1000)
-    
+
     all_events: list[dict[str, Any]] = []
     lambda_counts: dict[str, int] = {}
-    
+
     for log_group in log_groups:
         lambda_name = log_group.split("/")[-1].replace(f"alchemiser-{stage}-", "")
         count = 0
-        
+
         try:
             paginator = logs_client.get_paginator("filter_log_events")
-            
+
             for page in paginator.paginate(
                 logGroupName=log_group,
                 startTime=start_ms,
@@ -225,13 +225,13 @@ def fetch_workflow_logs(
                             "_raw_message": event["message"][:500],
                             "_is_json": False,
                         })
-            
+
             lambda_counts[lambda_name] = count
-                        
+
         except Exception:
             lambda_counts[lambda_name] = 0
             continue  # Skip log groups that don't exist or have errors
-    
+
     # Sort by timestamp
     all_events.sort(key=lambda x: x.get("_timestamp_ms", 0))
     return all_events, lambda_counts
@@ -265,9 +265,9 @@ def get_rebalance_plan(
     if aws_access_key_id and aws_secret_access_key:
         kwargs["aws_access_key_id"] = aws_access_key_id
         kwargs["aws_secret_access_key"] = aws_secret_access_key
-    
+
     table_name = f"alchemiser-{stage}-rebalance-plans"
-    
+
     try:
         dynamodb = boto3.client("dynamodb", **kwargs)
         response = dynamodb.query(
@@ -303,9 +303,9 @@ def get_trades_for_correlation(
     if aws_access_key_id and aws_secret_access_key:
         kwargs["aws_access_key_id"] = aws_access_key_id
         kwargs["aws_secret_access_key"] = aws_secret_access_key
-    
+
     table_name = f"alchemiser-{stage}-trade-ledger"
-    
+
     try:
         dynamodb = boto3.client("dynamodb", **kwargs)
         response = dynamodb.query(
@@ -349,9 +349,9 @@ def get_aggregated_signal(
     if aws_access_key_id and aws_secret_access_key:
         kwargs["aws_access_key_id"] = aws_access_key_id
         kwargs["aws_secret_access_key"] = aws_secret_access_key
-    
+
     table_name = f"alchemiser-{stage}-aggregation-sessions"
-    
+
     try:
         dynamodb = boto3.client("dynamodb", **kwargs)
         response = dynamodb.query(
@@ -443,7 +443,7 @@ def show_workflow_summary(events: list[dict[str, Any]], lambda_counts: dict[str,
 def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> None:
     """Display logs timeline."""
     st.subheader("Logs Timeline")
-    
+
     if show_all:
         display_events = events
     else:
@@ -453,21 +453,21 @@ def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> 
             with st.expander("Show all logs"):
                 show_logs_timeline(events, show_all=True)
             return
-    
+
     # Convert to DataFrame for display
     rows = []
     for event in display_events[-100:]:  # Limit to last 100
         ts = event["_timestamp"]
         level = event.get("level", "?").upper()
         lambda_name = event.get("_lambda_name", "?")
-        
+
         if event.get("_is_json", True):
             message = event.get("event", "")[:200]
             module = event.get("module", "")
         else:
             message = event.get("_raw_message", "")[:200]
             module = ""
-        
+
         rows.append({
             "Time": ts.strftime("%H:%M:%S.%f")[:-3],
             "Lambda": lambda_name,
@@ -475,9 +475,9 @@ def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> 
             "Module": module,
             "Message": message,
         })
-    
+
     df = pd.DataFrame(rows)
-    
+
     # Style based on level
     def style_level(val: str) -> str:
         if val in ("ERROR", "CRITICAL", "FATAL"):
@@ -487,10 +487,10 @@ def show_logs_timeline(events: list[dict[str, Any]], show_all: bool = False) -> 
         elif val == "INFO":
             return "color: green"
         return "color: gray"
-    
+
     styled_df = df.style.map(style_level, subset=["Level"])
     st.dataframe(styled_df, width="stretch", hide_index=True, height=400)
-    
+
     if len(events) > 100:
         st.caption(f"Showing last 100 of {len(display_events)} events")
 
@@ -656,7 +656,7 @@ def show() -> None:
             "AWS credentials not configured. "
             "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Streamlit secrets.",
             alert_type="error",
-            icon="🔐",
+            icon="",
         )
         return
 
@@ -679,7 +679,7 @@ def show() -> None:
             f"No workflow runs found in the last 72 hours for stage '{settings.stage}'. "
             "Check that workflows have run and logs exist in CloudWatch.",
             alert_type="warning",
-            icon="⚠️",
+            icon="",
         )
         return
 
@@ -759,11 +759,11 @@ def show() -> None:
     # TABBED INTERFACE: Logs | Signal | Plan | Trades
     # =========================================================================
     tab_logs, tab_signal, tab_plan, tab_trades, tab_raw = st.tabs([
-        "📋 Logs",
-        "📊 Signal",
-        "📝 Plan",
-        "💰 Trades",
-        "🔧 Raw Data",
+        "Logs",
+        "Signal",
+        "Plan",
+        "Trades",
+        "Raw Data",
     ])
 
     with tab_logs:

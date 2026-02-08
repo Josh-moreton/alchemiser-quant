@@ -2756,7 +2756,7 @@ Resources:
   # ========== STREAMLIT DASHBOARD IAM USER ==========
   # NOTE: The IAM user for the Streamlit dashboard must be created manually via AWS Console
   # because the GitHub Actions role lacks IAM user management permissions.
-  # See scripts/DASHBOARD_README.md for instructions on creating the user and policy.
+  # See dashboard/docs/README.md for instructions on creating the user and policy.
 
 Outputs:
   TradeLedgerTableName:

@@ -1,4 +1,4 @@
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Data access layer for the Strategy Performance dashboard page.
 
@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 import boto3
 import streamlit as st
 from boto3.dynamodb.conditions import Attr, Key
-from dashboard_settings import get_dashboard_settings
+from settings import get_dashboard_settings
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import Table as DynamoDBTable

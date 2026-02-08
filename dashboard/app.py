@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: scripts | Status: current.
+"""Business Unit: dashboard | Status: current.
 
 Enhanced Streamlit dashboard for The Alchemiser Trading System.
 
@@ -9,7 +9,7 @@ Multi-page dashboard with:
 - Trade history & attribution
 - Per-symbol analytics
 
-Run locally: streamlit run scripts/dashboard.py
+Run locally: streamlit run dashboard/app.py
 Deploy: Push to GitHub, connect to Streamlit Cloud
 
 Authentication:
@@ -32,7 +32,7 @@ import _setup_imports  # noqa: F401
 import streamlit as st
 from dotenv import load_dotenv
 
-from dashboard_pages.styles import inject_styles
+from components.styles import inject_styles
 
 # Load .env file before importing modules that use environment variables
 env_path = Path(__file__).parent.parent / ".env"
@@ -93,7 +93,7 @@ def get_authenticator() -> streamlit_authenticator.Authenticate | None:
     if os.environ.get("STREAMLIT_SHARING_MODE"):
         st.error(
             "Authentication not configured.\n\n"
-            "Add credentials to Streamlit Cloud secrets. See DASHBOARD_README.md for setup."
+            "Add credentials to Streamlit Cloud secrets. See dashboard/docs/README.md for setup."
         )
         st.stop()
 
@@ -165,35 +165,35 @@ def show_dashboard() -> None:
     page_key = st.session_state.current_page
 
     if page_key == "Portfolio Overview":
-        from dashboard_pages import portfolio_overview
+        from pages import portfolio_overview
 
         portfolio_overview.show()
     elif page_key == "Forward Projection":
-        from dashboard_pages import forward_projection
+        from pages import forward_projection
 
         forward_projection.show()
     elif page_key == "Last Run Analysis":
-        from dashboard_pages import last_run_analysis
+        from pages import last_run_analysis
 
         last_run_analysis.show()
     elif page_key == "Trade History":
-        from dashboard_pages import trade_history
+        from pages import trade_history
 
         trade_history.show()
     elif page_key == "Strategy Performance":
-        from dashboard_pages import strategy_performance
+        from pages import strategy_performance
 
         strategy_performance.show()
     elif page_key == "Execution Quality":
-        from dashboard_pages import execution_quality
+        from pages import execution_quality
 
         execution_quality.show()
     elif page_key == "Symbol Analytics":
-        from dashboard_pages import symbol_analytics
+        from pages import symbol_analytics
 
         symbol_analytics.show()
     elif page_key == "Options Hedging":
-        from dashboard_pages import options_hedging
+        from pages import options_hedging
 
         options_hedging.show()
 
