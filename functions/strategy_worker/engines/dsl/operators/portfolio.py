@@ -430,12 +430,24 @@ def _backfill_group_cache(
 
                 # Write to DynamoDB cache
                 selections_str = {sym: str(w) for sym, w in day_weights.items()}
-                write_historical_return(
+                write_ok = write_historical_return(
                     group_id=group_id,
                     record_date=eval_date.isoformat(),
                     selections=selections_str,
                     portfolio_daily_return=daily_ret,
                 )
+                if not write_ok:
+                    logger.warning(
+                        "Backfill: failed to persist cache entry to DynamoDB "
+                        "-- data computed but NOT saved",
+                        extra={
+                            "group_id": group_id,
+                            "group_name": group_name,
+                            "eval_date": eval_date.isoformat(),
+                            "daily_return": str(daily_ret),
+                            "correlation_id": context.correlation_id,
+                        },
+                    )
                 backfilled_returns.append((eval_date.isoformat(), daily_ret))
 
             except Exception as exc:
@@ -468,6 +480,39 @@ def _backfill_group_cache(
             lookback_days=calendar_days,
             end_date=anchor_date,
         )
+
+        # Post-backfill validation: if we computed returns but none
+        # persisted to DynamoDB, something is seriously wrong.
+        if backfilled_returns and len(refreshed) == 0:
+            logger.error(
+                "CRITICAL: on-demand backfill computed %d returns but "
+                "DynamoDB re-query returned ZERO -- cache writes are "
+                "silently failing. Check IAM permissions, table name, "
+                "and GROUP_HISTORY_TABLE environment variable.",
+                len(backfilled_returns),
+                extra={
+                    "group_id": group_id,
+                    "group_name": group_name,
+                    "days_computed": len(backfilled_returns),
+                    "days_persisted": 0,
+                    "correlation_id": context.correlation_id,
+                },
+            )
+        elif backfilled_returns and len(refreshed) < len(backfilled_returns):
+            logger.warning(
+                "Post-backfill validation: only %d of %d computed returns "
+                "persisted to DynamoDB cache",
+                len(refreshed),
+                len(backfilled_returns),
+                extra={
+                    "group_id": group_id,
+                    "group_name": group_name,
+                    "days_computed": len(backfilled_returns),
+                    "days_persisted": len(refreshed),
+                    "correlation_id": context.correlation_id,
+                },
+            )
+
         return list(refreshed)
 
     finally:
@@ -2296,6 +2341,16 @@ def _score_portfolio(
         should_invert=should_invert_for_portfolio,
     )
     if cache_result is not None:
+        logger.info(
+            "DSL filter: group scored via DynamoDB cache",
+            extra={
+                "group_name": group_name,
+                "scoring_path": "cache_hit",
+                "op_name": op_name,
+                "score": cache_result,
+                "correlation_id": context.correlation_id,
+            },
+        )
         return cache_result, "cache_hit"
 
     # ── In-process historical scoring (no DynamoDB) ────────────────
@@ -2311,6 +2366,21 @@ def _score_portfolio(
             should_invert=should_invert_for_portfolio,
         )
         if in_process_result is not None:
+            logger.warning(
+                "DSL filter: group '%s' scored via IN-PROCESS fallback "
+                "(not DynamoDB cache). This means the cache is empty or "
+                "writes are failing. The score is still accurate but "
+                "cache should be investigated.",
+                group_name,
+                extra={
+                    "group_name": group_name,
+                    "scoring_path": "in_process_fallback",
+                    "op_name": op_name,
+                    "score": in_process_result,
+                    "cache_available": is_cache_available(),
+                    "correlation_id": context.correlation_id,
+                },
+            )
             return in_process_result, "in_process_fallback"
 
     # ── Fallback: per-symbol weighted-average scoring ──────────────
@@ -2332,6 +2402,7 @@ def _score_portfolio(
             extra={
                 "group_name": group_name,
                 "group_id": group_id,
+                "scoring_path": "per_symbol_fallback",
                 "op_name": op_name,
                 "correlation_id": context.correlation_id,
             },

@@ -108,14 +108,25 @@ def lookup_historical_selections(
                 symbol: Decimal(weight) for symbol, weight in raw_selections.items()
             }
 
-        logger.debug(
-            "Cache lookup successful",
-            extra={
-                "group_id": group_id,
-                "lookback_days": lookback_days,
-                "dates_found": len(selections),
-            },
-        )
+        if len(selections) == 0:
+            logger.warning(
+                "Group history cache returned ZERO records -- cache may not "
+                "be populated for this group",
+                extra={
+                    "group_id": group_id,
+                    "lookback_days": lookback_days,
+                    "dates_found": 0,
+                },
+            )
+        else:
+            logger.debug(
+                "Cache lookup successful",
+                extra={
+                    "group_id": group_id,
+                    "lookback_days": lookback_days,
+                    "dates_found": len(selections),
+                },
+            )
 
     except ClientError as e:
         logger.warning(
@@ -212,14 +223,25 @@ def lookup_historical_returns(
                         },
                     )
 
-        logger.debug(
-            "Historical returns lookup successful",
-            extra={
-                "group_id": group_id,
-                "lookback_days": lookback_days,
-                "returns_found": len(returns),
-            },
-        )
+        if len(returns) == 0:
+            logger.warning(
+                "Historical returns lookup returned ZERO records -- group "
+                "cache is empty or unpopulated for the requested window",
+                extra={
+                    "group_id": group_id,
+                    "lookback_days": lookback_days,
+                    "returns_found": 0,
+                },
+            )
+        else:
+            logger.debug(
+                "Historical returns lookup successful",
+                extra={
+                    "group_id": group_id,
+                    "lookback_days": lookback_days,
+                    "returns_found": len(returns),
+                },
+            )
         return returns
 
     except ClientError as e:
