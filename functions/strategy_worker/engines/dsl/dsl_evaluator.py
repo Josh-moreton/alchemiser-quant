@@ -20,7 +20,10 @@ from engines.dsl.events import DslEventPublisher
 from engines.dsl.operators.comparison import register_comparison_operators
 from engines.dsl.operators.control_flow import register_control_flow_operators
 from engines.dsl.operators.indicators import register_indicator_operators
-from engines.dsl.operators.portfolio import register_portfolio_operators
+from engines.dsl.operators.portfolio import (
+    clear_evaluation_caches,
+    register_portfolio_operators,
+)
 from engines.dsl.operators.selection import register_selection_operators
 from engines.dsl.types import DslEvaluationError, DSLValue
 
@@ -114,6 +117,10 @@ class DslEvaluator:
             self.decision_path = []
             self.debug_traces = []
             self.filter_traces = []
+
+            # Clear module-level caches from prior evaluation runs to
+            # prevent stale memoization data leaking across invocations.
+            clear_evaluation_caches()
 
             # Add trace entry for evaluation start
             trace = trace.add_entry(

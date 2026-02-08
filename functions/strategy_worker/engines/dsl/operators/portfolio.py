@@ -121,10 +121,37 @@ _BACKFILL_IN_PROGRESS: set[str] = set()
 # leaking non-serialisable ASTNode objects into EventBridge payloads.
 _AST_BODY_STORE: dict[str, list[ASTNode]] = {}
 
+# AST body store keyed by stable group_id (not ephemeral fragment_id).
+# Populated by ``group()`` alongside ``_AST_BODY_STORE``.  Ensures that
+# re-evaluations during in-process scoring can locate AST bodies even
+# when ``weight_equal`` / ``filter`` generate new fragment_ids (uuid4).
+_AST_BODY_BY_GROUP_ID: dict[str, list[ASTNode]] = {}
+
+# Memoization cache for in-process group daily returns.
+# Key: (group_id, date_iso_str) -> Decimal daily return (or None for
+# dates that failed / returned no data).  Prevents exponential recursion
+# in deeply nested strategies where inner groups would otherwise trigger
+# their own full backfill loops for every outer evaluation date.
+# Cleared between strategy runs via ``clear_evaluation_caches()``.
+_IN_PROCESS_RETURN_MEMO: dict[tuple[str, str], Decimal | None] = {}
+
 # Maximum number of calendar days to backfill in a single on-demand run.
 # Keeps Lambda execution time bounded (each day requires re-evaluation
 # of the full group AST + bar fetches for every holding).
 _MAX_BACKFILL_CALENDAR_DAYS = 45
+
+
+def clear_evaluation_caches() -> None:
+    """Clear all module-level caches between strategy evaluation runs.
+
+    Must be called at the start of each strategy evaluation to prevent
+    stale memoization data from a previous run leaking into the current
+    one.  Safe to call multiple times.
+    """
+    _AST_BODY_STORE.clear()
+    _AST_BODY_BY_GROUP_ID.clear()
+    _IN_PROCESS_RETURN_MEMO.clear()
+    _BACKFILL_IN_PROGRESS.clear()
 
 
 def _get_trading_days(end_date: date, num_calendar_days: int) -> list[date]:
@@ -1691,12 +1718,39 @@ def group(args: list[ASTNode], context: DslContext) -> DSLValue:
             **last_result.metadata,
             "group_name": group_name,
         }
-        # Store raw AST body in module-level transient store (NOT in metadata)
+        # Store raw AST body in module-level transient stores (NOT in metadata)
         # so _fetch_or_backfill_returns can re-evaluate the group for historical
         # dates.  Keeping it out of metadata prevents non-serialisable ASTNode
         # objects from leaking into EventBridge via DecisionEvaluated payloads.
         _AST_BODY_STORE[last_result.fragment_id] = list(body)
+        _AST_BODY_BY_GROUP_ID[_derive_group_id(group_name)] = list(body)
         return last_result.model_copy(update={"metadata": merged_metadata})
+
+    # Body produced a non-fragment value (bare symbol from if/else without
+    # weight-equal, or a raw weights dict).  Wrap in PortfolioFragment so
+    # group identity is preserved -- without this, _normalize_portfolio_items
+    # would tag the result as source_step="asset", losing group semantics.
+    if isinstance(last_result, str):
+        wrapped = PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="group",
+            weights={last_result: Decimal("1")},
+            metadata={"group_name": group_name},
+        )
+        _AST_BODY_STORE[wrapped.fragment_id] = list(body)
+        _AST_BODY_BY_GROUP_ID[_derive_group_id(group_name)] = list(body)
+        return wrapped
+
+    if isinstance(last_result, dict):
+        wrapped = PortfolioFragment(
+            fragment_id=str(uuid.uuid4()),
+            source_step="group",
+            weights={k: Decimal(str(v)) for k, v in last_result.items()},
+            metadata={"group_name": group_name},
+        )
+        _AST_BODY_STORE[wrapped.fragment_id] = list(body)
+        _AST_BODY_BY_GROUP_ID[_derive_group_id(group_name)] = list(body)
+        return wrapped
 
     return last_result
 
@@ -1946,18 +2000,35 @@ def _collect_in_process_returns(
     group_name: str,
     context: DslContext,
 ) -> list[Decimal]:
-    """Collect daily returns by re-evaluating a group body for each trading day."""
+    """Collect daily returns by re-evaluating a group body for each trading day.
+
+    Uses ``(group_id, date)`` memoization to ensure each group-date pair
+    is evaluated at most once across the entire strategy run.  This prevents
+    exponential recursion in deeply nested group hierarchies (e.g. FTL
+    Starburst with 5+ nesting levels) where inner groups would otherwise
+    trigger their own full backfill loops for every outer evaluation date.
+    """
+    group_id = _derive_group_id(group_name)
     returns: list[Decimal] = []
     for eval_date in trading_days:
+        memo_key = (group_id, eval_date.isoformat())
+        if memo_key in _IN_PROCESS_RETURN_MEMO:
+            cached = _IN_PROCESS_RETURN_MEMO[memo_key]
+            if cached is not None:
+                returns.append(cached)
+            continue
         try:
             daily_ret = _evaluate_group_for_date(ast_body, eval_date, context)
+            _IN_PROCESS_RETURN_MEMO[memo_key] = daily_ret
             if daily_ret is not None:
                 returns.append(daily_ret)
         except Exception:
-            logger.debug(
+            _IN_PROCESS_RETURN_MEMO[memo_key] = None
+            logger.warning(
                 "In-process scoring: failed to evaluate %s for %s",
-                eval_date.isoformat(),
                 group_name,
+                eval_date.isoformat(),
+                exc_info=True,
             )
     return returns
 
@@ -1985,6 +2056,10 @@ def _try_in_process_scoring(
     per-symbol fallback.
     """
     ast_body = _AST_BODY_STORE.get(fragment.fragment_id)
+    if not ast_body:
+        # Fragment ID may have changed (uuid4 in weight_equal).
+        # Fall back to stable group_id-based lookup.
+        ast_body = _AST_BODY_BY_GROUP_ID.get(_derive_group_id(group_name))
     if not ast_body or not context.market_data_service:
         return None
 
@@ -2075,6 +2150,8 @@ def _fetch_or_backfill_returns(
 
     # On-demand backfill: re-evaluate group for historical dates
     ast_body = _AST_BODY_STORE.get(fragment.fragment_id)
+    if not ast_body:
+        ast_body = _AST_BODY_BY_GROUP_ID.get(group_id)
     if not ast_body:
         return historical_returns
 
