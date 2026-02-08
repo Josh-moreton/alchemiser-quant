@@ -238,7 +238,7 @@ def run_ftl_starburst(
     # Silence structlog before any engine imports to suppress startup noise.
     import structlog as _structlog
 
-    _structlog.configure(wrapper_class=_structlog.make_filtering_bound_logger(_logging.WARNING))
+    _structlog.configure(wrapper_class=_structlog.make_filtering_bound_logger(_logging.INFO))
 
     from engines.dsl.engine import DslEngine
 
