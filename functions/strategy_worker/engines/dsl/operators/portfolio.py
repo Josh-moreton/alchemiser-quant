@@ -1281,6 +1281,11 @@ def group(args: list[ASTNode], context: DslContext) -> DSLValue:
     if last_result is None:
         return PortfolioFragment(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
 
+    # DSL vectors like [(weight-equal ...)] evaluate to [PortfolioFragment].
+    # Unwrap single-element lists so the isinstance check below succeeds
+    # and group_name metadata is attached for cache-based filter scoring.
+    last_result = _unwrap_single_element_list(last_result)
+
     if isinstance(last_result, PortfolioFragment):
         merged_metadata = {**last_result.metadata, "group_name": group_name}
         return last_result.model_copy(update={"metadata": merged_metadata})

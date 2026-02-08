@@ -37,6 +37,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 os.environ.setdefault("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
 
 # ---------------------------------------------------------------------------
 # Path setup
