@@ -43,10 +43,11 @@ logger = get_logger(__name__)
 # Volatility calculation constants
 STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
 
-# Pattern matching valid trading symbols (1-5 uppercase letters/digits).
+# Pattern matching valid trading symbols (1-5 uppercase letters/digits,
+# plus optional share-class suffix like /B or .B for BRK/B, BF.B etc.).
 # Anything that does NOT match is treated as a named portfolio/strategy
 # group requiring proper historical composite scoring.
-_TICKER_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9]{0,4}$")
+_TICKER_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9]{0,4}([/.][A-Z])?$")
 
 
 def _derive_group_id(group_name: str) -> str:
@@ -80,9 +81,10 @@ def _is_bare_asset_fragment(fragment: PortfolioFragment, group_name: object) -> 
     """Return True if the fragment is a bare symbol, not a named portfolio.
 
     The check is intentionally simple: if the ``group_name`` looks like a
-    trading symbol (1-5 uppercase letters/digits) it is a bare asset that
+    trading symbol (1-5 uppercase letters/digits, with optional share-class
+    suffix like ``/B`` or ``.B`` for BRK/B, BF.B) it is a bare asset that
     was wrapped by ``_normalize_portfolio_items``.  Anything else -- long
-    names, mixed case, spaces, special characters -- is a real strategy /
+    names, mixed case, spaces, apostrophes -- is a real strategy /
     portfolio group that must go through cache or in-process scoring so
     its historical composite return stream is properly reconstructed.
 
