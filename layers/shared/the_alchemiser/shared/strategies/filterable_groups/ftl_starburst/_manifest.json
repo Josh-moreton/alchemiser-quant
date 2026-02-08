@@ -1,12 +1,11 @@
 {
   "description": "Manifest of filterable groups extracted from ftl_starburst.clj for historical caching",
   "parent_strategy": "ftl_starburst.clj",
-  "filter_indicator": {
-    "type": "moving-average-return",
-    "window": 10,
-    "selector": "select-bottom",
-    "count": 1
-  },
+  "filter_indicators": [
+    {"type": "moving-average-return", "window": 10, "selector": "select-bottom", "count": 1},
+    {"type": "rsi", "window": 10, "selector": "select-bottom", "count": 1},
+    {"type": "stdev-return", "window": 10, "selector": "select-bottom", "count": 1}
+  ],
   "groups": [
     {
       "group_id": "ftl_starburst__yinn_yang_mean_reversion",
@@ -28,13 +27,40 @@
       "strategy_file": "drv_drn_mean_reversion.clj",
       "lookback_days": 10,
       "description": "Real Estate 3x leveraged bull/bear mean reversion with WAM overlay"
+    },
+    {
+      "group_id": "ftl_starburst__wyld_combo",
+      "group_name": "WYLD Mean Reversion Combo v2 w/ Overcompensating Frontrunner [FTL]",
+      "strategy_file": "wyld_combo.clj",
+      "lookback_days": 10,
+      "description": "Composite of 3 mean reversion sub-groups scored by inner filter",
+      "depends_on": [
+        "ftl_starburst__yinn_yang_mean_reversion",
+        "ftl_starburst__labu_labd_mean_reversion",
+        "ftl_starburst__drv_drn_mean_reversion"
+      ]
+    },
+    {
+      "group_id": "ftl_starburst__walters_champagne",
+      "group_name": " Walter's Champagne and CocaineStrategies",
+      "strategy_file": "walters_champagne.clj",
+      "lookback_days": 10,
+      "description": "KMLM/Tech switch, Foreign Rat (EDC/EDZ), JRT stocks (LLY, NVO, COST, PGR, GE)"
+    },
+    {
+      "group_id": "ftl_starburst__nova_switcher",
+      "group_name": "NOVA | (multiple TQQQ, one crypto) KMLM switcher (single pops) MonkeyBusiness  WM74|",
+      "strategy_file": "nova_switcher.clj",
+      "lookback_days": 10,
+      "description": "Multi-level RSI chain, resolves to TQQQ in most conditions with volatility hedges"
     }
   ],
   "cache_table": "GroupHistoricalSelections",
   "cache_ttl_days": 30,
   "notes": [
-    "These groups are scored by the parent strategy using moving-average-return over 10 days",
-    "The cache Lambda should evaluate each group daily and store its portfolio selection",
-    "Historical selections are used to compute the accurate return stream for filter scoring"
+    "Inner groups (yinn_yang, labu_labd, drv_drn) are scored by the WYLD combo's inner filter",
+    "Top-level groups (wyld_combo, walters_champagne, nova_switcher) are scored by 3 top-level filters",
+    "The cache Lambda evaluates each group daily and stores its portfolio selection + daily return",
+    "Groups with depends_on must be evaluated after their dependencies within each Lambda invocation"
   ]
 }

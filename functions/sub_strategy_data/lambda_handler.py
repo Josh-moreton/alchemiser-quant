@@ -122,114 +122,134 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             },
         )
 
+        # Flatten groups and sort: independent groups first, dependent groups after.
+        # This ensures groups with cached inner filters (e.g., WYLD combo) are
+        # evaluated after their dependencies have been cached in this invocation.
+        all_groups: list[dict[str, Any]] = []
+        for manifest in manifests:
+            for group in manifest["groups"]:
+                all_groups.append({**group, "_directory": manifest["directory"]})
+
+        independent = [g for g in all_groups if not g.get("depends_on")]
+        dependent = [g for g in all_groups if g.get("depends_on")]
+        ordered_groups = independent + dependent
+
+        logger.info(
+            "Ordered groups for evaluation",
+            extra={
+                "independent_count": len(independent),
+                "dependent_count": len(dependent),
+                "order": [g["group_id"] for g in ordered_groups],
+                "correlation_id": correlation_id,
+            },
+        )
+
         # Process each group
         results = []
         table = dynamodb.Table(GROUP_HISTORY_TABLE)
 
-        for manifest in manifests:
-            manifest_dir = manifest["directory"]
-            for group in manifest["groups"]:
-                group_id = group["group_id"]
-                group_file = group["strategy_file"]
-                group_path = f"filterable_groups/{manifest_dir}/{group_file}"
+        for group in ordered_groups:
+            group_id = group["group_id"]
+            group_file = group["strategy_file"]
+            group_path = f"filterable_groups/{group['_directory']}/{group_file}"
+
+            logger.info(
+                f"Evaluating group: {group_id}",
+                extra={
+                    "group_id": group_id,
+                    "group_path": group_path,
+                    "correlation_id": correlation_id,
+                },
+            )
+
+            try:
+                # Evaluate the group strategy
+                target_allocation, _trace = dsl_engine.evaluate_strategy(
+                    strategy_config_path=group_path,
+                    correlation_id=f"{correlation_id}-{group_id}",
+                )
+
+                if target_allocation and target_allocation.target_weights:
+                    # Extract symbols and weights
+                    selections = {
+                        symbol: str(weight)
+                        for symbol, weight in target_allocation.target_weights.items()
+                        if weight > Decimal("0")
+                    }
+                else:
+                    selections = {}
+
+                # Compute portfolio daily return from selected symbols
+                portfolio_daily_return = _compute_portfolio_daily_return(
+                    selections=selections,
+                    market_data_adapter=market_data_adapter,
+                    record_date_str=record_date_str,
+                    correlation_id=correlation_id,
+                )
+
+                # Calculate TTL
+                ttl_timestamp = int((datetime.now(UTC) + timedelta(days=TTL_DAYS)).timestamp())
+
+                # Store in DynamoDB with portfolio return
+                item: dict[str, str | int | dict[str, str]] = {
+                    "group_id": group_id,
+                    "record_date": record_date_str,
+                    "selections": selections,
+                    "selection_count": len(selections),
+                    "evaluated_at": datetime.now(UTC).isoformat(),
+                    "ttl": ttl_timestamp,
+                }
+                if portfolio_daily_return is not None:
+                    item["portfolio_daily_return"] = str(portfolio_daily_return)  # type: ignore[assignment]
+
+                table.put_item(Item=item)  # type: ignore[arg-type]
+
+                results.append(
+                    {
+                        "group_id": group_id,
+                        "status": "success",
+                        "selection_count": len(selections),
+                        "selections": selections,
+                        "portfolio_daily_return": (
+                            str(portfolio_daily_return)
+                            if portfolio_daily_return is not None
+                            else None
+                        ),
+                    }
+                )
 
                 logger.info(
-                    f"Evaluating group: {group_id}",
+                    f"Cached group: {group_id}",
                     extra={
                         "group_id": group_id,
-                        "group_path": group_path,
+                        "selection_count": len(selections),
+                        "selections": list(selections.keys()),
+                        "portfolio_daily_return": (
+                            str(portfolio_daily_return)
+                            if portfolio_daily_return is not None
+                            else None
+                        ),
                         "correlation_id": correlation_id,
                     },
                 )
 
-                try:
-                    # Evaluate the group strategy
-                    target_allocation, _trace = dsl_engine.evaluate_strategy(
-                        strategy_config_path=group_path,
-                        correlation_id=f"{correlation_id}-{group_id}",
-                    )
-
-                    if target_allocation and target_allocation.target_weights:
-                        # Extract symbols and weights
-                        selections = {
-                            symbol: str(weight)
-                            for symbol, weight in target_allocation.target_weights.items()
-                            if weight > Decimal("0")
-                        }
-                    else:
-                        selections = {}
-
-                    # Compute portfolio daily return from selected symbols
-                    portfolio_daily_return = _compute_portfolio_daily_return(
-                        selections=selections,
-                        market_data_adapter=market_data_adapter,
-                        record_date_str=record_date_str,
-                        correlation_id=correlation_id,
-                    )
-
-                    # Calculate TTL
-                    ttl_timestamp = int((datetime.now(UTC) + timedelta(days=TTL_DAYS)).timestamp())
-
-                    # Store in DynamoDB with portfolio return
-                    item: dict[str, str | int | dict[str, str]] = {
+            except Exception as e:
+                logger.error(
+                    f"Failed to evaluate group: {group_id}",
+                    extra={
                         "group_id": group_id,
-                        "record_date": record_date_str,
-                        "selections": selections,
-                        "selection_count": len(selections),
-                        "evaluated_at": datetime.now(UTC).isoformat(),
-                        "ttl": ttl_timestamp,
+                        "error": str(e),
+                        "correlation_id": correlation_id,
+                    },
+                    exc_info=True,
+                )
+                results.append(
+                    {
+                        "group_id": group_id,
+                        "status": "error",
+                        "error": str(e),
                     }
-                    if portfolio_daily_return is not None:
-                        item["portfolio_daily_return"] = str(portfolio_daily_return)  # type: ignore[assignment]
-
-                    table.put_item(Item=item)  # type: ignore[arg-type]
-
-                    results.append(
-                        {
-                            "group_id": group_id,
-                            "status": "success",
-                            "selection_count": len(selections),
-                            "selections": selections,
-                            "portfolio_daily_return": (
-                                str(portfolio_daily_return)
-                                if portfolio_daily_return is not None
-                                else None
-                            ),
-                        }
-                    )
-
-                    logger.info(
-                        f"Cached group: {group_id}",
-                        extra={
-                            "group_id": group_id,
-                            "selection_count": len(selections),
-                            "selections": list(selections.keys()),
-                            "portfolio_daily_return": (
-                                str(portfolio_daily_return)
-                                if portfolio_daily_return is not None
-                                else None
-                            ),
-                            "correlation_id": correlation_id,
-                        },
-                    )
-
-                except Exception as e:
-                    logger.error(
-                        f"Failed to evaluate group: {group_id}",
-                        extra={
-                            "group_id": group_id,
-                            "error": str(e),
-                            "correlation_id": correlation_id,
-                        },
-                        exc_info=True,
-                    )
-                    results.append(
-                        {
-                            "group_id": group_id,
-                            "status": "error",
-                            "error": str(e),
-                        }
-                    )
+                )
 
         # Count successes and failures
         successes = sum(1 for r in results if r["status"] == "success")

@@ -42,9 +42,14 @@ STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
 # Mapping of known group names (from DSL) to group IDs (for cache lookup)
 # This enables accurate historical scoring for filtered groups
 KNOWN_GROUP_ID_MAPPING = {
+    # Inner WYLD sub-groups (scored by WYLD's inner filter)
     "YINN YANG Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__yinn_yang_mean_reversion",
     "LABU LABD Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__labu_labd_mean_reversion",
     "DRV DRN Mean Reversion [FTL Copy] w/ WAM Updated Package": "ftl_starburst__drv_drn_mean_reversion",
+    # Top-level groups (scored by the 3 top-level filters: moving-average-return, rsi, stdev-return)
+    "WYLD Mean Reversion Combo v2 w/ Overcompensating Frontrunner [FTL]": "ftl_starburst__wyld_combo",
+    " Walter's Champagne and CocaineStrategies": "ftl_starburst__walters_champagne",
+    "NOVA | (multiple TQQQ, one crypto) KMLM switcher (single pops) MonkeyBusiness  WM74|": "ftl_starburst__nova_switcher",
 }
 
 
@@ -116,6 +121,7 @@ _METRIC_DISPATCH: dict[str, str] = {
     "cumulative-return": "cumulative_return",
     "stdev-return": "stdev_return",
     "max-drawdown": "max_drawdown",
+    "rsi": "rsi",
 }
 
 # Annualisation factor for stdev (matches TechnicalIndicators.stdev_return).
@@ -138,7 +144,7 @@ def _compute_portfolio_metric(
     Args:
         returns: Daily portfolio returns, oldest-first.
         metric_name: One of ``moving_average_return``, ``cumulative_return``,
-            ``stdev_return``, ``max_drawdown``.
+            ``stdev_return``, ``max_drawdown``, ``rsi``.
         window: Lookback window size (number of trading days).
 
     Returns:
@@ -153,19 +159,21 @@ def _compute_portfolio_metric(
     series = returns[-window:] if len(returns) >= window else returns
 
     if metric_name == "moving_average_return":
-        return _metric_moving_average_return(series)
+        return _metric_moving_average_return(series, window)
     if metric_name == "cumulative_return":
-        return _metric_cumulative_return(series)
+        return _metric_cumulative_return(series, window)
     if metric_name == "stdev_return":
-        return _metric_stdev_return(series)
+        return _metric_stdev_return(series, window)
     if metric_name == "max_drawdown":
-        return _metric_max_drawdown(series)
+        return _metric_max_drawdown(series, window)
+    if metric_name == "rsi":
+        return _metric_rsi(series, window)
 
     logger.warning("Unknown portfolio metric: %s", metric_name)
     return None
 
 
-def _metric_moving_average_return(series: list[Decimal]) -> float:
+def _metric_moving_average_return(series: list[Decimal], window: int) -> float:
     """Mean of daily returns, expressed as a percentage.
 
     Matches ``TechnicalIndicators.moving_average_return`` which computes
@@ -176,7 +184,7 @@ def _metric_moving_average_return(series: list[Decimal]) -> float:
     return float(mean * Decimal("100"))
 
 
-def _metric_cumulative_return(series: list[Decimal]) -> float:
+def _metric_cumulative_return(series: list[Decimal], window: int) -> float:
     """Compound return over the series, expressed as a percentage.
 
     Matches ``TechnicalIndicators.cumulative_return`` which computes
@@ -189,7 +197,7 @@ def _metric_cumulative_return(series: list[Decimal]) -> float:
     return float((cumulative - Decimal("1")) * Decimal("100"))
 
 
-def _metric_stdev_return(series: list[Decimal]) -> float:
+def _metric_stdev_return(series: list[Decimal], window: int) -> float:
     """Annualised population standard deviation of daily returns.
 
     Matches ``TechnicalIndicators.stdev_return`` which computes
@@ -208,7 +216,7 @@ def _metric_stdev_return(series: list[Decimal]) -> float:
     return float(annualised)
 
 
-def _metric_max_drawdown(series: list[Decimal]) -> float:
+def _metric_max_drawdown(series: list[Decimal], window: int) -> float:
     """Maximum peak-to-trough decline from equity curve, as percentage.
 
     Reconstructs a cumulative equity curve from the return series, then
@@ -230,6 +238,45 @@ def _metric_max_drawdown(series: list[Decimal]) -> float:
                 max_dd = dd
 
     return float(max_dd * Decimal("100"))
+
+
+def _metric_rsi(series: list[Decimal], window: int) -> float:
+    """RSI of a synthetic price series reconstructed from daily returns.
+
+    Rebuilds a price series from fractional daily returns, then applies
+    Wilder's smoothing (EWM with alpha = 1/window) to match the formula
+    in ``TechnicalIndicators.rsi``.
+    """
+    # Reconstruct price series: P[0]=100, P[i] = P[i-1] * (1 + r[i])
+    prices: list[Decimal] = [Decimal("100")]
+    for r in series:
+        prices.append(prices[-1] * (Decimal("1") + r))
+
+    # Compute price deltas
+    deltas = [prices[i] - prices[i - 1] for i in range(1, len(prices))]
+    if not deltas:
+        return 50.0  # Neutral RSI when no data
+
+    # Separate gains and losses
+    gains = [max(d, Decimal("0")) for d in deltas]
+    losses = [max(-d, Decimal("0")) for d in deltas]
+
+    # Wilder's EWM (alpha = 1/window, adjust=False)
+    alpha = Decimal("1") / Decimal(str(window))
+    one_minus_alpha = Decimal("1") - alpha
+
+    avg_gain = gains[0]
+    avg_loss = losses[0]
+    for i in range(1, len(gains)):
+        avg_gain = alpha * gains[i] + one_minus_alpha * avg_gain
+        avg_loss = alpha * losses[i] + one_minus_alpha * avg_loss
+
+    # Compute RSI
+    if avg_loss == Decimal("0"):
+        return 100.0
+    rs = avg_gain / avg_loss
+    rsi_val = Decimal("100") - (Decimal("100") / (Decimal("1") + rs))
+    return float(rsi_val)
 
 
 def collect_assets_from_value(value: DSLValue) -> list[str]:
@@ -1576,8 +1623,7 @@ def _select_portfolios(
             group_details.append({"name": name, "selected_today": symbols})
 
         logger.debug(
-            "DSL filter: filtering %d groups with decision trees. "
-            "Group details (first 10): %s",
+            "DSL filter: filtering %d groups with decision trees. Group details (first 10): %s",
             len(groups_with_names),
             group_details,
             extra={"correlation_id": context.correlation_id},

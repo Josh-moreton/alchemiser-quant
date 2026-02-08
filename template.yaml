@@ -1366,6 +1366,8 @@ Resources:
           SYNC_REFRESH_TIMEOUT_SECONDS: "300"
           # Enable live bar injection - appends today's current price to historical data
           # This allows indicators (e.g., 200-day SMA) to use the most recent price
+          # Group history cache for filter scoring (DynamoDB-backed historical returns)
+          GROUP_HISTORY_TABLE: !Ref GroupHistoricalSelectionsTable
 
     Metadata:
       BuildMethod: python3.12
@@ -1429,6 +1431,13 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !GetAtt DataFunction.Arn
+              # DynamoDB read permission for group history cache (filter scoring)
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt GroupHistoricalSelectionsTable.Arn
 
   # ========== MULTI-NODE STRATEGY SCALING (Orchestrator + Aggregator) ==========
   # These Lambdas enable horizontal scaling of strategy execution by running
