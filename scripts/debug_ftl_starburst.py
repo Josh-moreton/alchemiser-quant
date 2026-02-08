@@ -343,6 +343,11 @@ def run_ftl_starburst(
     _print_filter_traces(filter_traces)
 
     # ------------------------------------------------------------------
+    # 6b. Scoring path audit (how each portfolio was scored)
+    # ------------------------------------------------------------------
+    _print_scoring_path_audit(filter_traces)
+
+    # ------------------------------------------------------------------
     # 7. Final allocation summary (Composer-style)
     # ------------------------------------------------------------------
     _print_allocation_summary(weights, as_of_date)
@@ -567,14 +572,16 @@ def _print_top_level_group_selection(filter_traces: list[dict[str, Any]]) -> Non
             is_selected = c.get("candidate_id", "") in selected_ids
             symbols = c.get("symbols_sample", [])
             sym_str = ", ".join(symbols[:5]) if symbols else "?"
+            sp = c.get("scoring_path", "")
+            sp_tag = f" [{sp}]" if sp else ""
 
             marker = f" {GREEN}<< SELECTED{RESET}" if is_selected else ""
             score_str = f"{score:>12.6f}" if isinstance(score, float) else str(score)
 
             if is_selected:
-                print(f"    {GREEN}{name:<12s}{RESET} score={score_str}  [{sym_str}]{marker}")
+                print(f"    {GREEN}{name:<12s}{RESET} score={score_str}  [{sym_str}]{sp_tag}{marker}")
             else:
-                print(f"    {DIM}{name:<12s}{RESET} score={score_str}  {DIM}[{sym_str}]{RESET}")
+                print(f"    {DIM}{name:<12s}{RESET} score={score_str}  {DIM}[{sym_str}]{sp_tag}{RESET}")
 
         # Show returns_available info from scoring logs
         for c in candidates:
@@ -698,6 +705,61 @@ def _print_filter_traces(filter_traces: list[dict[str, Any]]) -> None:
             score_str = f"{score:.6f}" if isinstance(score, float) else str(score)
             display_name = _short_group_name(name) if mode == "portfolio" else name
             print(f"       {display_name:30s}  score={score_str}  {marker}")
+
+
+def _print_scoring_path_audit(filter_traces: list[dict[str, Any]]) -> None:
+    """Print a scoring-path audit showing how each portfolio candidate was scored.
+
+    Highlights whether each group was scored via DynamoDB cache, in-process
+    historical re-evaluation, or today-only per-symbol fallback.
+    """
+    portfolio_filters = [ft for ft in filter_traces if ft.get("mode") == "portfolio"]
+    if not portfolio_filters:
+        return
+
+    # Colour map for scoring paths
+    path_colours: dict[str, str] = {
+        "cache_hit": GREEN,
+        "cache_miss_backfill": CYAN,
+        "in_process_fallback": YELLOW,
+        "per_symbol_fallback": RED,
+        "cache_unavailable": RED,
+    }
+
+    print(f"\n{BOLD}{'=' * 72}{RESET}")
+    print(f"{BOLD}  SCORING PATH AUDIT{RESET}")
+    print(f"{BOLD}{'=' * 72}{RESET}")
+    print(f"\n  Legend: {GREEN}cache_hit{RESET}  {CYAN}cache_miss_backfill{RESET}  "
+          f"{YELLOW}in_process_fallback{RESET}  {RED}per_symbol_fallback{RESET}")
+    print()
+
+    for i, ft in enumerate(portfolio_filters, 1):
+        indicator = _get_filter_indicator(ft)
+        window = _get_filter_window(ft)
+        depth = ft.get("filter_depth", "?")
+        candidates = ft.get("scored_candidates", [])
+        selected_ids = ft.get("selected_candidate_ids", [])
+
+        tag = ""
+        if _is_top_level_group_filter(ft):
+            tag = f" {YELLOW}[TOP-LEVEL]{RESET}"
+        elif _is_ofr_max_dd_filter(ft):
+            tag = f" {MAGENTA}[OFR]{RESET}"
+
+        print(f"  {DIM}[{i}]{RESET} filter({indicator} w={window}) depth={depth}{tag}")
+
+        for c in candidates:
+            name = c.get("candidate_name", "?")
+            sp = c.get("scoring_path", "unknown")
+            score = c.get("score", 0.0)
+            is_sel = c.get("candidate_id", "") in selected_ids
+            colour = path_colours.get(sp, DIM)
+            sel_mark = f" {GREEN}<< SELECTED{RESET}" if is_sel else ""
+            short = _short_group_name(name) if name else "?"
+            score_str = f"{score:.6f}" if isinstance(score, float) else str(score)
+            print(f"    {short:<20s} {colour}{sp:<25s}{RESET} score={score_str}{sel_mark}")
+
+        print()
 
 
 def _print_debug_traces(debug_traces: list[dict[str, Any]]) -> None:

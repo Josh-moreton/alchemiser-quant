@@ -21,7 +21,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Literal
 
-from engines.dsl.context import DslContext, FilterCandidate, FilterTrace
+from engines.dsl.context import DslContext, FilterCandidate, FilterTrace, ScoringPath
 from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.operators.control_flow import create_indicator_with_symbol
 from engines.dsl.operators.group_cache_lookup import (
@@ -257,9 +257,12 @@ def _backfill_group_cache(
 
     """
     if group_id in _BACKFILL_IN_PROGRESS:
-        logger.debug(
-            "Backfill guard: %s already in progress, skipping",
+        logger.warning(
+            "Backfill guard: %s (%s) already in progress -- recursive "
+            "backfill detected, falling back to today-only scoring",
             group_id,
+            group_name,
+            extra={"group_id": group_id, "group_name": group_name},
         )
         return []
 
@@ -340,6 +343,13 @@ def _backfill_group_cache(
                 if not day_weights:
                     continue
 
+                # Compute portfolio return for this date
+                daily_ret = _compute_daily_return_for_portfolio(
+                    selections=day_weights,
+                    record_date=eval_date,
+                    context=context,
+                )
+
                 logger.info(
                     "Backfill: group resolved for date",
                     extra={
@@ -347,16 +357,11 @@ def _backfill_group_cache(
                         "group_name": group_name,
                         "eval_date": eval_date.isoformat(),
                         "selections": {k: str(v) for k, v in day_weights.items()},
+                        "daily_return": str(daily_ret) if daily_ret is not None else "None",
                         "correlation_id": context.correlation_id,
                     },
                 )
 
-                # Compute portfolio return for this date
-                daily_ret = _compute_daily_return_for_portfolio(
-                    selections=day_weights,
-                    record_date=eval_date,
-                    context=context,
-                )
                 if daily_ret is None:
                     continue
 
@@ -371,11 +376,13 @@ def _backfill_group_cache(
                 backfilled_returns.append((eval_date.isoformat(), daily_ret))
 
             except Exception as exc:
-                logger.debug(
-                    "Backfill: failed to evaluate date %s for %s: %s",
+                logger.warning(
+                    "Backfill: failed to evaluate date %s for group %s (%s): %s",
                     eval_date.isoformat(),
+                    group_name,
                     group_id,
                     exc,
+                    exc_info=True,
                 )
 
         # Restore original as_of_date is handled in the finally block
@@ -820,7 +827,7 @@ def _log_score_proximity(
 
 
 def _log_portfolio_score_proximity(
-    scored: list[tuple[PortfolioFragment, float]],
+    scored: list[tuple[PortfolioFragment, float, ScoringPath]],
     limit: int | None,
     context: DslContext,
     condition_expr: ASTNode | None = None,
@@ -831,7 +838,7 @@ def _log_portfolio_score_proximity(
     is very small relative to the total score range, the ranking is fragile.
 
     Args:
-        scored: Sorted list of (portfolio, score) tuples
+        scored: Sorted list of (portfolio, score, scoring_path) tuples
         limit: How many portfolios are being selected
         context: DSL evaluation context for logging
         condition_expr: Optional AST node for the filter condition (indicator)
@@ -1694,6 +1701,11 @@ def _normalize_portfolio_items(value: list[DSLValue]) -> list[PortfolioFragment]
     Groups may return lists containing single PortfolioFragments. This
     normalizes all items to be direct PortfolioFragments.
 
+    Bare string symbols (from ``(asset ...)`` nodes) are wrapped in a
+    single-asset PortfolioFragment so that mixed ``[group, group, asset]``
+    vectors are evaluated in portfolio mode rather than silently falling
+    back to individual-asset mode.
+
     Returns empty list if normalization fails.
     """
     normalized: list[PortfolioFragment] = []
@@ -1701,8 +1713,24 @@ def _normalize_portfolio_items(value: list[DSLValue]) -> list[PortfolioFragment]
         unwrapped = _unwrap_single_element_list(item)
         if isinstance(unwrapped, PortfolioFragment):
             normalized.append(unwrapped)
+        elif isinstance(unwrapped, str) and unwrapped:
+            # Bare symbol string from (asset ...) -- wrap in a single-asset
+            # PortfolioFragment so the filter can score it alongside groups.
+            logger.info(
+                "DSL filter: wrapping bare asset '%s' in PortfolioFragment "
+                "for mixed group/asset filter evaluation",
+                unwrapped,
+            )
+            normalized.append(
+                PortfolioFragment(
+                    fragment_id=str(uuid.uuid4()),
+                    source_step="asset",
+                    weights={unwrapped: Decimal("1")},
+                    metadata={"group_name": unwrapped},
+                )
+            )
         else:
-            # Item is not a PortfolioFragment after unwrapping - not a portfolio list
+            # Item is not a PortfolioFragment or symbol after unwrapping
             return []
     return normalized
 
@@ -1843,6 +1871,148 @@ def _try_cache_scoring(
     return score
 
 
+def _evaluate_group_for_date(
+    ast_body: list[ASTNode],
+    eval_date: date,
+    context: DslContext,
+) -> Decimal | None:
+    """Evaluate a group AST body for a single historical date.
+
+    Sets ``as_of_date`` on the indicator service, re-evaluates the
+    body, extracts weights, and computes the portfolio daily return.
+    The caller must save/restore ``as_of_date`` around this call.
+    """
+    context.indicator_service.as_of_date = eval_date
+
+    last_result: DSLValue = None
+    for expr in ast_body:
+        last_result = context.evaluate_node(expr, context.correlation_id, context.trace)
+    last_result = _unwrap_single_element_list(last_result)
+
+    if isinstance(last_result, PortfolioFragment):
+        day_weights = dict(last_result.weights)
+    else:
+        day_weights = collect_weights_from_value(last_result) if last_result else {}
+
+    if not day_weights:
+        return None
+
+    return _compute_daily_return_for_portfolio(
+        selections=day_weights,
+        record_date=eval_date,
+        context=context,
+    )
+
+
+def _collect_in_process_returns(
+    ast_body: list[ASTNode],
+    trading_days: list[date],
+    group_name: str,
+    context: DslContext,
+) -> list[Decimal]:
+    """Collect daily returns by re-evaluating a group body for each trading day."""
+    returns: list[Decimal] = []
+    for eval_date in trading_days:
+        try:
+            daily_ret = _evaluate_group_for_date(ast_body, eval_date, context)
+            if daily_ret is not None:
+                returns.append(daily_ret)
+        except Exception:
+            logger.debug(
+                "In-process scoring: failed to evaluate %s for %s",
+                eval_date.isoformat(),
+                group_name,
+            )
+    return returns
+
+
+def _try_in_process_scoring(
+    fragment: PortfolioFragment,
+    condition_expr: ASTNode,
+    context: DslContext,
+    *,
+    group_name: str,
+    op_name: str | None,
+    should_invert: bool,
+) -> float | None:
+    """Score a portfolio by re-evaluating its AST body in-process (no DynamoDB).
+
+    This fallback is used when:
+    - The DynamoDB group cache is unavailable (local debug runs)
+    - Cache scoring failed but the group has a stored AST body
+
+    It re-evaluates the group for each historical trading day in the
+    lookback window, computes daily portfolio returns, then applies
+    the requested metric (moving-average-return, stdev-return, etc.).
+
+    Returns the score if successful, or ``None`` to fall through to
+    per-symbol fallback.
+    """
+    ast_body = _AST_BODY_STORE.get(fragment.fragment_id)
+    if not ast_body or not context.market_data_service:
+        return None
+
+    indicator_svc = context.indicator_service
+    if not hasattr(indicator_svc, "as_of_date"):
+        return None
+
+    window = _extract_window_from_condition(condition_expr, context)
+    canonical_metric = _METRIC_DISPATCH.get(op_name or "") if op_name else None
+    if not window or not canonical_metric:
+        return None
+
+    group_id = _derive_group_id(group_name)
+    if group_id in _BACKFILL_IN_PROGRESS:
+        return None
+
+    _BACKFILL_IN_PROGRESS.add(group_id)
+    original_as_of_date = getattr(indicator_svc, "as_of_date", None)
+    try:
+        anchor_date = original_as_of_date or datetime.now(UTC).date()
+        calendar_days = min(int(window * 2.5) + 10, _MAX_BACKFILL_CALENDAR_DAYS)
+        trading_days = _get_trading_days(anchor_date, calendar_days)
+
+        returns = _collect_in_process_returns(ast_body, trading_days, group_name, context)
+
+        if len(returns) < window:
+            logger.info(
+                "In-process scoring: insufficient returns for %s (%d available, %d needed)",
+                group_name,
+                len(returns),
+                window,
+            )
+            return None
+
+        score = _compute_portfolio_metric(
+            returns=returns,
+            metric_name=canonical_metric,
+            window=window,
+        )
+        if score is None:
+            return None
+
+        if should_invert:
+            score = -score
+
+        logger.info(
+            "DSL filter: scored group via in-process historical evaluation",
+            extra={
+                "group_name": group_name,
+                "metric": canonical_metric,
+                "window": window,
+                "returns_evaluated": len(returns),
+                "score": score,
+                "correlation_id": context.correlation_id,
+            },
+        )
+        return score
+
+    finally:
+        if hasattr(indicator_svc, "as_of_date"):
+            indicator_svc.as_of_date = original_as_of_date
+        _BACKFILL_IN_PROGRESS.discard(group_id)
+
+
 def _fetch_or_backfill_returns(
     fragment: PortfolioFragment,
     group_id: str,
@@ -1895,13 +2065,21 @@ def _score_portfolio(
     fragment: PortfolioFragment,
     condition_expr: ASTNode,
     context: DslContext,
-) -> float | None:
-    """Calculate a weighted-average score for a portfolio fragment.
+) -> tuple[float | None, ScoringPath]:
+    """Calculate a score for a portfolio fragment and report the scoring path.
 
-    For each symbol in the portfolio, evaluates the condition and computes
-    the portfolio-level metric as a weighted average of individual scores.
+    Tries scoring approaches in priority order:
+    1. DynamoDB cache-based historical scoring (Composer parity)
+    2. In-process historical re-evaluation (no DynamoDB, debug runs)
+    3. Per-symbol weighted-average of today's indicator values (fallback)
 
-    Returns None if scoring fails for all symbols.
+    Returns:
+        Tuple of (score, scoring_path) where scoring_path is one of:
+        ``"cache_hit"``, ``"cache_miss_backfill"``,
+        ``"in_process_fallback"``, ``"per_symbol_fallback"``,
+        ``"cache_unavailable"``.
+
+    Returns ``(None, scoring_path)`` if scoring fails for all symbols.
 
     KNOWN LIMITATION (2026-01-11):
     -----------------------------
@@ -1962,10 +2140,11 @@ def _score_portfolio(
           group is automatically backfilled on first encounter
 
     See also: scripts/diagnose_cumret_methods.py for debugging tools.
+
     """
     weights = fragment.weights
     if not weights:
-        return None
+        return None, "per_symbol_fallback"
 
     # Determine the metric name from the condition expression
     is_list = condition_expr.is_list() and bool(condition_expr.children)
@@ -1984,7 +2163,22 @@ def _score_portfolio(
         should_invert=should_invert_for_portfolio,
     )
     if cache_result is not None:
-        return cache_result
+        return cache_result, "cache_hit"
+
+    # ── In-process historical scoring (no DynamoDB) ────────────────
+    # When cache is unavailable (e.g. local debug) but we have the AST
+    # body, re-evaluate the group for historical dates in-memory.
+    if isinstance(group_name, str) and group_name:
+        in_process_result = _try_in_process_scoring(
+            fragment,
+            condition_expr,
+            context,
+            group_name=group_name,
+            op_name=op_name,
+            should_invert=should_invert_for_portfolio,
+        )
+        if in_process_result is not None:
+            return in_process_result, "in_process_fallback"
 
     # ── Fallback: per-symbol weighted-average scoring ──────────────
     # Used when the group has no name, cache is unavailable, or the
@@ -2035,8 +2229,8 @@ def _score_portfolio(
             )
 
     if total_weight > Decimal("0"):
-        return float(weighted_sum / total_weight)
-    return None
+        return float(weighted_sum / total_weight), "per_symbol_fallback"
+    return None, "per_symbol_fallback"
 
 
 def _select_portfolios(
@@ -2059,6 +2253,21 @@ def _select_portfolios(
     NOTE: See _score_portfolio docstring for known limitation when filtering
     groups with decision trees (Composer parity issue).
     """
+    context.portfolio_filter_depth += 1
+    try:
+        return _select_portfolios_inner(portfolios, condition_expr, order, limit, context)
+    finally:
+        context.portfolio_filter_depth -= 1
+
+
+def _select_portfolios_inner(
+    portfolios: list[PortfolioFragment],
+    condition_expr: ASTNode,
+    order: Literal["top", "bottom"],
+    limit: int | None,
+    context: DslContext,
+) -> PortfolioFragment:
+    """Inner implementation of portfolio selection (see _select_portfolios)."""
     # Log group details at debug level -- per-group cache vs fallback
     # warnings are now emitted by _score_portfolio itself.
     groups_with_names = [
@@ -2079,15 +2288,16 @@ def _select_portfolios(
         )
 
     # Score each portfolio as a unit
-    scored: list[tuple[PortfolioFragment, float]] = []
+    scored: list[tuple[PortfolioFragment, float, ScoringPath]] = []
     for idx, portfolio in enumerate(portfolios):
-        score = _score_portfolio(portfolio, condition_expr, context)
+        score, scoring_path = _score_portfolio(portfolio, condition_expr, context)
         if score is not None:
-            scored.append((portfolio, score))
+            scored.append((portfolio, score, scoring_path))
             logger.debug(
-                "DSL filter: portfolio %d scored %.4f with %d symbols",
+                "DSL filter: portfolio %d scored %.4f via %s with %d symbols",
                 idx,
                 score,
+                scoring_path,
                 len(portfolio.weights),
             )
 
@@ -2103,9 +2313,9 @@ def _select_portfolios(
     # Primary: score (descending for top, ascending for bottom)
     # Secondary: first symbol alphabetically for deterministic ordering
     def _portfolio_sort_key(
-        item: tuple[PortfolioFragment, float],
+        item: tuple[PortfolioFragment, float, ScoringPath],
     ) -> tuple[float, str]:
-        pf, score = item
+        pf, score, _path = item
         first_sym = sorted(pf.weights.keys())[0] if pf.weights else ""
         return (score, first_sym)
 
@@ -2116,7 +2326,7 @@ def _select_portfolios(
 
     # Trace ranking/selection for parity debugging (capture full sorted list)
     scored_candidates: list[FilterCandidate] = []
-    for rank, (pf, score) in enumerate(scored):
+    for rank, (pf, score, scoring_path) in enumerate(scored):
         meta_name = pf.metadata.get("group_name")
         candidate_name = meta_name if isinstance(meta_name, str) else None
         symbols = list(pf.weights.keys())
@@ -2129,6 +2339,7 @@ def _select_portfolios(
                 symbol_count=len(symbols),
                 symbols_sample=symbols[:10],
                 rank=rank,
+                scoring_path=scoring_path,
             )
         )
 
@@ -2138,11 +2349,12 @@ def _select_portfolios(
         order,
         limit,
     )
-    for idx, (pf, score) in enumerate(scored[:5]):
+    for idx, (pf, score, scoring_path) in enumerate(scored[:5]):
         logger.info(
-            "DSL filter: portfolio %d: score=%.4f, symbols=%s, symbol_count=%d",
+            "DSL filter: portfolio %d: score=%.4f via %s, symbols=%s, symbol_count=%d",
             idx,
             score,
+            scoring_path,
             list(pf.weights.keys())[:5],
             len(pf.weights),
         )
@@ -2161,7 +2373,8 @@ def _select_portfolios(
         "limit": limit,
         "condition": _describe_filter_condition(condition_expr, context),
         "scored_candidates": scored_candidates,
-        "selected_candidate_ids": [pf.fragment_id for pf, _score in scored],
+        "selected_candidate_ids": [pf.fragment_id for pf, _score, _path in scored],
+        "filter_depth": context.portfolio_filter_depth,
     }
     context.add_filter_trace(portfolio_trace)
 
@@ -2178,7 +2391,7 @@ def _select_portfolios(
     merged: dict[str, Decimal] = {}
     portfolio_weight = Decimal("1") / Decimal(str(len(scored)))
 
-    for portfolio, _score in scored:
+    for portfolio, _score, _path in scored:
         for sym, sym_weight in portfolio.weights.items():
             contribution = portfolio_weight * sym_weight
             merged[sym] = merged.get(sym, Decimal("0")) + contribution

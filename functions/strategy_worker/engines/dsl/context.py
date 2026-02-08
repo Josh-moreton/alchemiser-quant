@@ -27,6 +27,15 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Scoring method used to produce a portfolio candidate's score.
+type ScoringPath = Literal[
+    "cache_hit",
+    "cache_miss_backfill",
+    "per_symbol_fallback",
+    "cache_unavailable",
+    "in_process_fallback",
+]
+
 
 class DecisionNodeBase(TypedDict):
     """Base decision node with required fields.
@@ -118,6 +127,7 @@ class FilterCandidate(TypedDict, total=False):
     rank: int
     symbol_count: int
     symbols_sample: list[str]
+    scoring_path: ScoringPath
 
 
 class FilterTrace(TypedDict, total=False):
@@ -133,6 +143,7 @@ class FilterTrace(TypedDict, total=False):
     scored_candidates: list[FilterCandidate]
     selected_candidate_ids: list[str]
     timestamp: str
+    filter_depth: int
 
 
 class DslContext:
@@ -183,6 +194,9 @@ class DslContext:
         self.debug_traces: list[DebugTrace] = []
         # Filter traces for ranking/selection debugging (when debug_mode=True)
         self.filter_traces: list[FilterTrace] = []
+        # Nesting depth counter: incremented each time we enter a portfolio
+        # filter, so nested group-of-group scoring can be diagnosed.
+        self.portfolio_filter_depth: int = 0
 
     def add_debug_trace(
         self,
