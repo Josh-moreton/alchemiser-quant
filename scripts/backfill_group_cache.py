@@ -17,6 +17,10 @@ Usage:
     poetry run python scripts/backfill_group_cache.py \\
         ftl_starburst.clj --days 60
 
+    # Backfill ALL available history (as far back as data exists):
+    poetry run python scripts/backfill_group_cache.py \\
+        ftl_starburst.clj --all
+
     # Dry-run (compute but do not write to DynamoDB):
     poetry run python scripts/backfill_group_cache.py \\
         ftl_starburst.clj --dry-run
@@ -32,6 +36,7 @@ import argparse
 import os
 import sys
 import time
+import uuid
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from fnmatch import fnmatch
@@ -61,6 +66,19 @@ sys.path.insert(0, str(STRATEGY_WORKER_PATH))
 
 # Deep nesting in FTL Starburst etc.
 sys.setrecursionlimit(10000)
+
+# ---------------------------------------------------------------------------
+# Indicator warm-up period
+# ---------------------------------------------------------------------------
+# Many indicators need a minimum amount of historical data before they can
+# produce valid results. For example:
+#   - max_drawdown needs at least 12 bars
+#   - moving averages (e.g., SMA 200) need 200 bars
+#   - RSI typically needs 14+ bars
+#
+# We add this buffer (in trading days) to the earliest available date to
+# ensure indicators have enough data to calculate properly.
+INDICATOR_WARMUP_DAYS = 90  # ~3 months of trading days for safety
 
 # ---------------------------------------------------------------------------
 # Terminal colours (ANSI)
@@ -442,11 +460,11 @@ def _evaluate_group_for_date(
                 ret = (curr_close - prev_close) / prev_close
                 weighted_return += weight * ret
                 total_weight += weight
-        except Exception as exc:
-            print(
-                f"{progress}  {YELLOW}WARNING: failed to get bars for "
-                f"{symbol_str} on {record_date_str}: {exc}{RESET}"
-            )
+        except Exception:
+            # Symbol has no data for this date - skip silently
+            # This is expected when backfilling with symbols that have
+            # different data availability (e.g., FNGU started later than SPY)
+            pass
 
     if total_weight <= Decimal("0"):
         return day_weights, None
@@ -467,6 +485,150 @@ def _get_trading_days(end_date: date, num_calendar_days: int) -> list[date]:
             days.append(current)
         current += timedelta(days=1)
     return days
+
+
+def _get_trading_days_from_range(start_date: date, end_date: date) -> list[date]:
+    """Generate weekdays (oldest-first) from a date range."""
+    days: list[date] = []
+    current = start_date
+    while current <= end_date:
+        if current.weekday() < 5:
+            days.append(current)
+        current += timedelta(days=1)
+    return days
+
+
+def _discover_available_date_range(
+    symbols: set[str],
+    *,
+    verbose: bool = True,
+) -> tuple[date | None, date | None, dict[str, tuple[date, date]]]:
+    """Discover the date range with available market data for the given symbols.
+
+    Returns the date range where ALL symbols have data (most restrictive).
+    The earliest date is the LATEST of all symbol earliest dates.
+    The latest date is the EARLIEST of all symbol latest dates.
+
+    This ensures we only evaluate dates where ALL symbols have complete data.
+
+    Args:
+        symbols: Set of symbol strings to check.
+        verbose: If True, print symbol ranges.
+
+    Returns:
+        (start_date, end_date, symbol_ranges) tuple.
+        start_date is the LATEST earliest date (most restrictive).
+        end_date is the EARLIEST latest date.
+        symbol_ranges maps symbol -> (earliest, latest).
+
+    """
+    import pandas as pd
+
+    from the_alchemiser.shared.data_v2.market_data_store import MarketDataStore
+
+    store = MarketDataStore()
+    # For "all symbols have data", we want the LATEST earliest and EARLIEST latest
+    latest_earliest: date | None = None  # Most restrictive start
+    earliest_latest: date | None = None  # Most restrictive end
+    symbol_ranges: dict[str, tuple[date, date]] = {}
+
+    for symbol in symbols:
+        try:
+            df = store.read_symbol_data(symbol)
+            if df is None or df.empty:
+                continue
+
+            # Handle timestamp column
+            if "timestamp" in df.columns:
+                ts_col = pd.to_datetime(df["timestamp"])
+            elif df.index.name == "timestamp" or isinstance(df.index, pd.DatetimeIndex):
+                ts_col = pd.to_datetime(df.index)
+            else:
+                continue
+
+            sym_earliest = ts_col.min().date()
+            sym_latest = ts_col.max().date()
+            symbol_ranges[symbol] = (sym_earliest, sym_latest)
+
+            # Most restrictive: latest of all earliest dates
+            if latest_earliest is None or sym_earliest > latest_earliest:
+                latest_earliest = sym_earliest
+            # Most restrictive: earliest of all latest dates
+            if earliest_latest is None or sym_latest < earliest_latest:
+                earliest_latest = sym_latest
+
+        except Exception as exc:
+            if verbose:
+                print(f"  {YELLOW}WARNING: Could not read data for {symbol}: {exc}{RESET}")
+
+    if verbose and symbol_ranges:
+        print(f"\n  {DIM}Symbol data ranges:{RESET}")
+        for sym, (s_early, s_late) in sorted(symbol_ranges.items()):
+            days_available = len(_get_trading_days_from_range(s_early, s_late))
+            # Highlight the limiting symbol(s)
+            is_limiting = (s_early == latest_earliest) or (s_late == earliest_latest)
+            marker = f" {YELLOW}<-- limiting{RESET}" if is_limiting else ""
+            print(f"    {sym:<10s}  {s_early} to {s_late}  ({days_available} trading days){marker}")
+
+    return latest_earliest, earliest_latest, symbol_ranges
+
+
+def _discover_single_group_symbols(gi: GroupInfo, engine: Any) -> set[str]:
+    """Discover all unique symbols referenced by a single group.
+
+    Evaluates the group's AST body to extract all possible symbols.
+    """
+    from engines.dsl.operators.portfolio import (
+        PortfolioFragment,
+        collect_weights_from_value,
+    )
+    from the_alchemiser.shared.schemas.trace import Trace
+
+    symbols: set[str] = set()
+
+    try:
+        # Create a fresh Trace for this evaluation
+        trace = Trace(
+            trace_id=str(uuid.uuid4()),
+            correlation_id="symbol-discovery",
+            strategy_id="backfill",
+            started_at=datetime.now(UTC),
+        )
+
+        for expr in gi.body:
+            result = engine.evaluator._evaluate_node(expr, "discovery", trace)
+
+            # Unwrap single-element list
+            if isinstance(result, list) and len(result) == 1:
+                result = result[0]
+
+            # Extract symbols from weights
+            if isinstance(result, PortfolioFragment):
+                symbols.update(result.weights.keys())
+            elif isinstance(result, dict):
+                symbols.update(result.keys())
+            elif isinstance(result, str):
+                symbols.add(result)
+            else:
+                weights = collect_weights_from_value(result) if result else {}
+                symbols.update(weights.keys())
+
+    except Exception:
+        # Group may fail during symbol discovery - that's OK
+        pass
+
+    return symbols
+
+
+def _discover_group_symbols(groups: list[GroupInfo], engine: Any) -> set[str]:
+    """Discover all unique symbols referenced by a list of groups.
+
+    Evaluates each group's AST body to extract all possible symbols.
+    """
+    symbols: set[str] = set()
+    for gi in groups:
+        symbols.update(_discover_single_group_symbols(gi, engine))
+    return symbols
 
 
 # ---------------------------------------------------------------------------
@@ -500,7 +662,9 @@ def _write_to_dynamodb(
 def backfill_strategy_groups(
     clj_path: str,
     *,
-    lookback_days: int = 45,
+    lookback_days: int | None = 45,
+    backfill_all: bool = False,
+    warmup_days: int = INDICATOR_WARMUP_DAYS,
     dry_run: bool = False,
     group_patterns: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -508,7 +672,10 @@ def backfill_strategy_groups(
 
     Args:
         clj_path: Path to .clj strategy file (absolute or relative).
-        lookback_days: Calendar days to backfill.
+        lookback_days: Calendar days to backfill. Ignored if backfill_all=True.
+        backfill_all: If True, backfill all available historical data.
+        warmup_days: Trading days for indicator warm-up period (default: 252).
+            Indicators like max_drawdown, SMA, RSI need historical data.
         dry_run: If True, compute but do not write to DynamoDB.
         group_patterns: Optional list of glob patterns to filter groups.
 
@@ -553,7 +720,10 @@ def backfill_strategy_groups(
     print(f"{BOLD}  Group Cache Backfill: {strategy_name}{RESET}")
     print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"  File:     {clj_file}")
-    print(f"  Lookback: {lookback_days} calendar days")
+    if backfill_all:
+        print(f"  Mode:     ALL available history")
+    else:
+        print(f"  Lookback: {lookback_days} calendar days")
     print(f"  Dry run:  {dry_run}")
     print(f"  Table:    {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
 
@@ -619,9 +789,14 @@ def backfill_strategy_groups(
 
     # ---- Determine trading days ----
     end_date = datetime.now(UTC).date()
-    trading_days = _get_trading_days(end_date, lookback_days)
-    print(f"\n  Trading days in window: {len(trading_days)} "
-          f"({trading_days[0]} to {trading_days[-1]})")
+
+    # For non-all mode, calculate trading days once upfront
+    global_trading_days: list[date] | None = None
+    if not backfill_all:
+        effective_lookback = lookback_days or 45
+        global_trading_days = _get_trading_days(end_date, effective_lookback)
+        print(f"\n  Trading days in window: {len(global_trading_days)} "
+              f"({global_trading_days[0]} to {global_trading_days[-1]})")
 
     # ---- Backfill each group ----
     results: dict[str, dict[str, Any]] = {}
@@ -637,6 +812,78 @@ def backfill_strategy_groups(
               f"{group_name} (depth={gi.depth}){RESET}")
         print(f"  group_id: {DIM}{group_id}{RESET}")
         print(f"  metric:   {DIM}{gi.parent_filter_metric}{RESET}")
+
+        # Determine trading days for this group
+        if backfill_all:
+            # Discover symbols for THIS group specifically
+            print(f"  {DIM}Discovering symbols for this group ...{RESET}")
+            group_symbols = _discover_single_group_symbols(gi, engine)
+            if not group_symbols:
+                print(f"  {YELLOW}WARNING: No symbols discovered for group, skipping{RESET}")
+                results[group_name] = {
+                    "group_id": group_id,
+                    "days_evaluated": 0,
+                    "days_written": 0,
+                    "days_skipped": 0,
+                    "days_failed": 0,
+                    "elapsed_seconds": 0,
+                    "records": [],
+                }
+                continue
+
+            print(f"  Symbols: {', '.join(sorted(group_symbols))}")
+
+            # Discover date range for THIS group (most restrictive)
+            start_date, data_end_date, symbol_ranges = _discover_available_date_range(
+                group_symbols, verbose=True
+            )
+
+            if start_date is None or data_end_date is None:
+                print(f"  {YELLOW}WARNING: No market data found for group symbols, skipping{RESET}")
+                results[group_name] = {
+                    "group_id": group_id,
+                    "days_evaluated": 0,
+                    "days_written": 0,
+                    "days_skipped": 0,
+                    "days_failed": 0,
+                    "elapsed_seconds": 0,
+                    "records": [],
+                }
+                continue
+
+            # Add indicator warm-up period to ensure indicators have enough
+            # historical data to calculate properly. We need warmup_days
+            # trading days of data before we can start evaluation.
+            # Convert trading days to approximate calendar days (5 trading days per 7 calendar days)
+            warmup_calendar_days = int(warmup_days * 7 / 5) + 5  # Add buffer
+            eval_start = start_date + timedelta(days=warmup_calendar_days)
+
+            # Ensure we don't start after today
+            if eval_start >= end_date:
+                print(f"  {YELLOW}WARNING: Not enough data for indicator warm-up "
+                      f"(need {warmup_days} trading days), skipping{RESET}")
+                print(f"  {DIM}Data starts: {start_date}, warm-up ends: {eval_start}, "
+                      f"today: {end_date}{RESET}")
+                results[group_name] = {
+                    "group_id": group_id,
+                    "days_evaluated": 0,
+                    "days_written": 0,
+                    "days_skipped": 0,
+                    "days_failed": 0,
+                    "elapsed_seconds": 0,
+                    "records": [],
+                }
+                continue
+
+            trading_days = _get_trading_days_from_range(eval_start, end_date)
+            print(f"  {CYAN}Data available from: {start_date}{RESET}")
+            print(f"  {CYAN}Indicator warm-up: {warmup_days} trading days{RESET}")
+            print(f"  {CYAN}Eval date range: {eval_start} to {end_date} "
+                  f"({len(trading_days)} trading days){RESET}")
+        else:
+            # Use global trading days for non-all mode
+            assert global_trading_days is not None
+            trading_days = global_trading_days
 
         group_results: list[dict[str, Any]] = []
         wrote = 0
@@ -716,23 +963,25 @@ def backfill_strategy_groups(
     print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"  Strategy:        {strategy_name}")
     print(f"  DynamoDB table:  {os.environ.get('GROUP_HISTORY_TABLE', '(not set)')}")
-    print(f"  Mode:            {'DRY RUN' if dry_run else 'LIVE'}")
+    lookback_mode = "ALL available history (per-group)" if backfill_all else f"{lookback_days or 45} calendar days"
+    print(f"  Lookback:        {lookback_mode}")
+    print(f"  Write mode:      {'DRY RUN' if dry_run else 'LIVE'}")
     print(f"  Duration:        {overall_elapsed:.1f}s")
     print(f"  Groups:          {len(unique_groups_sorted)}")
-    print(f"  Trading days:    {len(trading_days)}")
     print(f"  Total writes:    {total_writes}")
     print(f"  Total failures:  {total_failures}")
 
     print(f"\n  {BOLD}Per-group breakdown:{RESET}")
-    print(f"  {'Group':<50s}  {'Written':>7s}  {'Skip':>4s}  {'Fail':>4s}  {'Time':>6s}")
-    print(f"  {'-' * 50}  {'-' * 7}  {'-' * 4}  {'-' * 4}  {'-' * 6}")
+    print(f"  {'Group':<50s}  {'Days':>5s}  {'Written':>7s}  {'Skip':>4s}  {'Fail':>4s}  {'Time':>6s}")
+    print(f"  {'-' * 50}  {'-' * 5}  {'-' * 7}  {'-' * 4}  {'-' * 4}  {'-' * 6}")
     for gname, gdata in results.items():
+        d = gdata["days_evaluated"]
         w = gdata["days_written"]
         s = gdata["days_skipped"]
         f = gdata["days_failed"]
         t = gdata["elapsed_seconds"]
         color = GREEN if f == 0 and w > 0 else (RED if f > 0 else YELLOW)
-        print(f"  {gname[:50]:<50s}  {color}{w:>7d}{RESET}  {s:>4d}  {f:>4d}  {t:>5.1f}s")
+        print(f"  {gname[:50]:<50s}  {d:>5d}  {color}{w:>7d}{RESET}  {s:>4d}  {f:>4d}  {t:>5.1f}s")
 
     if total_failures > 0:
         print(f"\n  {RED}WARNING: {total_failures} write(s) failed -- "
@@ -751,9 +1000,17 @@ def backfill_strategy_groups(
 
         for gname, gdata in results.items():
             gid = gdata["group_id"]
+            days_evaluated = gdata["days_evaluated"]
+            if days_evaluated == 0:
+                continue
+
+            # Use the number of days evaluated for this group as lookback
+            # Add buffer to account for weekends
+            verify_lookback = int(days_evaluated * 1.5) + 10
+
             returns = lookup_historical_returns(
                 group_id=gid,
-                lookback_days=lookback_days,
+                lookback_days=verify_lookback,
                 end_date=end_date,
             )
             expected = gdata["days_written"]
@@ -778,6 +1035,8 @@ def main() -> None:
 Examples:
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --days 60
+  poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --all
+  poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --all --warmup 60
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --dry-run
   poetry run python scripts/backfill_group_cache.py ftl_starburst.clj --group "WYLD*"
         """,
@@ -789,8 +1048,22 @@ Examples:
     parser.add_argument(
         "--days",
         type=int,
-        default=45,
-        help="Calendar days to backfill (default: 45)",
+        default=None,
+        help="Calendar days to backfill (default: 45, ignored if --all is used)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="backfill_all",
+        help="Backfill ALL available historical data (as far back as data exists)",
+    )
+    parser.add_argument(
+        "--warmup",
+        type=int,
+        default=INDICATOR_WARMUP_DAYS,
+        help=f"Trading days for indicator warm-up period (default: {INDICATOR_WARMUP_DAYS}). "
+             "Indicators like max_drawdown, SMA, RSI need historical data to calculate. "
+             "Only used with --all.",
     )
     parser.add_argument(
         "--dry-run",
@@ -807,9 +1080,14 @@ Examples:
 
     args = parser.parse_args()
 
+    # Default to 45 days if not using --all and --days not specified
+    lookback_days = args.days if args.days is not None else (None if args.backfill_all else 45)
+
     backfill_strategy_groups(
         clj_path=args.strategy_file,
-        lookback_days=args.days,
+        lookback_days=lookback_days,
+        backfill_all=args.backfill_all,
+        warmup_days=args.warmup,
         dry_run=args.dry_run,
         group_patterns=args.groups,
     )
