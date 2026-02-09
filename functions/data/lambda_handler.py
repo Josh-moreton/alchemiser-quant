@@ -372,10 +372,7 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         ]
 
         # Calculate bar statistics for successful symbols
-        total_bars_fetched = sum(
-            metadata.get("new_bars", 0)
-            for metadata in successful_metadata
-        )
+        total_bars_fetched = sum(metadata.get("new_bars", 0) for metadata in successful_metadata)
 
         # Aggregate all unique dates across all successfully refreshed symbols
         all_bar_dates: set[str] = set()

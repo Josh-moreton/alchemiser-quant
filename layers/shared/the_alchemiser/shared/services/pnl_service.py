@@ -895,8 +895,10 @@ class PnLService:
                 else:
                     deposit_adjustments[best_match_idx] = deposit_amount
 
-        # Build final records
-        records: list[DailyPnLEntry] = []
+        # Build final records, deduplicating by date (last entry wins).
+        # Alpaca can return multiple timestamps that map to the same calendar
+        # date (e.g. half-day sessions like Christmas Eve).
+        records_by_date: dict[str, DailyPnLEntry] = {}
         deposits_by_date: dict[str, Decimal] = {}
 
         for i, ts in enumerate(timestamps):
@@ -924,18 +926,16 @@ class PnLService:
                 else Decimal("0")
             )
 
-            records.append(
-                DailyPnLEntry(
-                    date=date_str,
-                    equity=equity,
-                    profit_loss=adjusted_pnl,
-                    profit_loss_pct=pnl_pct,
-                    deposit=deposit_on_this_day if deposit_on_this_day != 0 else None,
-                    withdrawal=withdrawal_today if withdrawal_today != 0 else None,
-                )
+            records_by_date[date_str] = DailyPnLEntry(
+                date=date_str,
+                equity=equity,
+                profit_loss=adjusted_pnl,
+                profit_loss_pct=pnl_pct,
+                deposit=deposit_on_this_day if deposit_on_this_day != 0 else None,
+                withdrawal=withdrawal_today if withdrawal_today != 0 else None,
             )
 
-        return records, deposits_by_date
+        return list(records_by_date.values()), deposits_by_date
 
     @staticmethod
     def _format_timestamp(ts: int) -> str:

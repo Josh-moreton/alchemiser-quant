@@ -35,7 +35,6 @@ help:
 	@echo ""
 	@echo "Performance Reports:"
 	@echo "  dashboard                            Run enhanced multi-page trading dashboard"
-	@echo "  pnl-dashboard                        Run P&L dashboard (fetches from Alpaca API)"
 	@echo ""
 	@echo "Portfolio Management:"
 	@echo "  rebalance-weights                    Recalculate strategy weights (Calmar-tilt)"
@@ -94,7 +93,7 @@ type-check:
 	MYPYPATH="layers/shared" poetry run mypy layers/shared/the_alchemiser/ --config-file=pyproject.toml
 	@# Check each Lambda function with its own MYPYPATH context
 	@echo "  → Checking Lambda functions..."
-	@for func in execution portfolio strategy_worker strategy_orchestrator strategy_aggregator trade_aggregator notifications data metrics account_data; do \
+	@for func in execution portfolio strategy_worker strategy_orchestrator strategy_aggregator trade_aggregator notifications data strategy_performance account_data hedge_evaluator hedge_executor hedge_roll_manager schedule_manager; do \
 		if [ -d "functions/$$func" ]; then \
 			echo "    → functions/$$func"; \
 			MYPYPATH="functions/$$func:layers/shared" poetry run mypy "functions/$$func/" --config-file=pyproject.toml 2>&1 | grep -v "^Success" || true; \
@@ -257,17 +256,11 @@ validate-dynamo:
 	if [ -n "$(json)" ]; then ARGS="$$ARGS --json"; fi; \
 	poetry run python scripts/validation/validate_dynamo_data.py $$ARGS
 
-# Run P&L dashboard (fetches directly from Alpaca API with deposit adjustments)
-# Usage: make pnl-dashboard
-pnl-dashboard:
-	@echo "📊 Starting P&L dashboard (Alpaca API)..."
-	poetry run streamlit run scripts/pnl_dashboard.py
-
 # Run enhanced multi-page dashboard
 # Usage: make dashboard
 dashboard:
-	@echo "📊 Starting enhanced trading dashboard..."
-	poetry run streamlit run scripts/dashboard.py
+	@echo "Starting trading dashboard..."
+	poetry run streamlit run dashboard/app.py
 
 # Recalculate strategy weights using Calmar-tilt formula
 # Usage: make rebalance-weights                    # Use latest CSV, update config, deploy to prod

@@ -19,6 +19,7 @@ from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.events import DslEventPublisher
 from engines.dsl.operators.comparison import register_comparison_operators
 from engines.dsl.operators.control_flow import register_control_flow_operators
+from engines.dsl.operators.group_scoring import clear_evaluation_caches
 from engines.dsl.operators.indicators import register_indicator_operators
 from engines.dsl.operators.portfolio import register_portfolio_operators
 from engines.dsl.operators.selection import register_selection_operators
@@ -114,6 +115,10 @@ class DslEvaluator:
             self.decision_path = []
             self.debug_traces = []
             self.filter_traces = []
+
+            # Clear module-level caches from prior evaluation runs to
+            # prevent stale memoization data leaking across invocations.
+            clear_evaluation_caches()
 
             # Add trace entry for evaluation start
             trace = trace.add_entry(
@@ -315,6 +320,9 @@ class DslEvaluator:
         if node.metadata and node.metadata.get("node_subtype") == "map":
             return self._evaluate_map_literal(node, correlation_id, trace)
 
+        # Resolve market_data_service from the concrete IndicatorService if available
+        market_data_service = getattr(self.indicator_service, "market_data_service", None)
+
         # Create context for function applications
         context = DslContext(
             indicator_service=self.indicator_service,
@@ -323,6 +331,7 @@ class DslEvaluator:
             trace=trace,
             evaluate_node=self._evaluate_node,
             debug_mode=self.debug_mode,
+            market_data_service=market_data_service,
         )
         # Share decision_path and debug_traces with context so all contexts accumulate to the same list
         context.decision_path = self.decision_path
