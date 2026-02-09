@@ -46,15 +46,18 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
 
 # ---------------------------------------------------------------------------
-# Path setup
+# Path setup -- use shared _setup_imports for layer path, then add the
+# strategy_worker function directory for engines.* imports.
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).parent.parent
+import _setup_imports  # noqa: F401
+
+PROJECT_ROOT = _setup_imports.PROJECT_ROOT
 STRATEGY_WORKER_PATH = PROJECT_ROOT / "functions" / "strategy_worker"
-SHARED_LAYER_PATH = PROJECT_ROOT / "layers" / "shared"
-STRATEGIES_DIR = SHARED_LAYER_PATH / "the_alchemiser" / "shared" / "strategies"
+STRATEGIES_DIR = (
+    _setup_imports.SHARED_LAYER_PATH / "the_alchemiser" / "shared" / "strategies"
+)
 
 sys.path.insert(0, str(STRATEGY_WORKER_PATH))
-sys.path.insert(0, str(SHARED_LAYER_PATH))
 
 # Deep nesting in FTL Starburst etc.
 sys.setrecursionlimit(10000)
@@ -407,8 +410,11 @@ def _evaluate_group_for_date(
                 ret = (curr_close - prev_close) / prev_close
                 weighted_return += weight * ret
                 total_weight += weight
-        except Exception:
-            pass
+        except Exception as exc:
+            print(
+                f"{progress}  {YELLOW}WARNING: failed to get bars for "
+                f"{symbol_str} on {record_date_str}: {exc}{RESET}"
+            )
 
     if total_weight <= Decimal("0"):
         return day_weights, None

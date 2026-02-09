@@ -26,9 +26,9 @@ def main() -> None:
     groups: dict[str, list[dict[str, str]]] = defaultdict(list)
     for item in data:
         gid = item["group_id"]["S"]
-        rec: dict[str, str] = {"date": item.get("trade_date", {}).get("S", "?")}
+        rec: dict[str, str] = {"date": item.get("record_date", {}).get("S", "?")}
         for k, v in item.items():
-            if k in ("group_id", "trade_date"):
+            if k in ("group_id", "record_date"):
                 continue
             val = list(v.values())[0] if isinstance(v, dict) else str(v)
             rec[k] = str(val)

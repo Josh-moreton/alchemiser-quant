@@ -19,11 +19,9 @@ from engines.dsl.dispatcher import DslDispatcher
 from engines.dsl.events import DslEventPublisher
 from engines.dsl.operators.comparison import register_comparison_operators
 from engines.dsl.operators.control_flow import register_control_flow_operators
+from engines.dsl.operators.group_scoring import clear_evaluation_caches
 from engines.dsl.operators.indicators import register_indicator_operators
-from engines.dsl.operators.portfolio import (
-    clear_evaluation_caches,
-    register_portfolio_operators,
-)
+from engines.dsl.operators.portfolio import register_portfolio_operators
 from engines.dsl.operators.selection import register_selection_operators
 from engines.dsl.types import DslEvaluationError, DSLValue
 
