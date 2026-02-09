@@ -21,6 +21,7 @@ from typing import Any
 
 from data_refresh_service import DataRefreshService
 from fetch_request_service import FetchRequestService
+from symbol_extractor import get_all_configured_symbols
 
 from the_alchemiser.shared.events import (
     DataLakeUpdateCompleted,
@@ -310,8 +311,27 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
         symbols_adjusted_list: list[str] = []
         all_metadata_dict: dict[str, dict[str, Any]] = {}
 
-        if specific_symbols:
-            # Refresh only specified symbols
+        if full_seed:
+            # Full seed: download complete historical data for all symbols
+            # Use explicitly provided symbols, or fall back to all configured symbols
+            seed_symbols = specific_symbols or sorted(get_all_configured_symbols())
+
+            logger.info(
+                "Full seed requested",
+                extra={
+                    "correlation_id": correlation_id,
+                    "symbol_count": len(seed_symbols),
+                    "symbols": seed_symbols,
+                },
+            )
+
+            results_dict = service.seed_initial_data(seed_symbols)
+            # seed_initial_data does full replacement; bar metadata is not
+            # tracked for full seeds, so leave all_metadata_dict empty.
+            # The email will show "No new bars downloaded" which is
+            # accurate since this is a full seed, not an incremental update.
+        elif specific_symbols:
+            # Incremental refresh for specified symbols only
             logger.info(
                 "Refreshing specific symbols",
                 extra={
@@ -320,20 +340,13 @@ def _handle_scheduled_refresh(event: dict[str, Any]) -> dict[str, Any]:
                 },
             )
 
-            if full_seed:
-                results_dict = service.seed_initial_data(specific_symbols)
-                # seed_initial_data does full replacement; bar metadata is not
-                # tracked for full seeds, so leave all_metadata_dict empty.
-                # The email will show "No new bars downloaded" which is
-                # accurate since this is a full seed, not an incremental update.
-            else:
-                for symbol in specific_symbols:
-                    success, metadata = service.refresh_symbol(symbol)
-                    results_dict[symbol] = success
-                    all_metadata_dict[symbol] = metadata
-                    if metadata.get("adjusted", False):
-                        adjustments_dict[symbol] = metadata
-                        symbols_adjusted_list.append(symbol)
+            for symbol in specific_symbols:
+                success, metadata = service.refresh_symbol(symbol)
+                results_dict[symbol] = success
+                all_metadata_dict[symbol] = metadata
+                if metadata.get("adjusted", False):
+                    adjustments_dict[symbol] = metadata
+                    symbols_adjusted_list.append(symbol)
         else:
             # Refresh all symbols from strategy configs
             # Use refresh_all_with_markers to also process bad data markers
