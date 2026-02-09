@@ -227,14 +227,46 @@ def _extract_metric_name(condition_node: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Market data adapter (same as debug_ftl_starburst.py)
+# Market data adapter for historical backfill
 # ---------------------------------------------------------------------------
 def _build_market_data_adapter() -> Any:
-    """Build a CachedMarketDataAdapter with full history."""
+    """Build a market data adapter that returns ALL historical data.
+
+    For backfill evaluation, we need ALL data (not filtered from now-period)
+    so that the indicator_service.as_of_date truncation can work correctly.
+    The standard CachedMarketDataAdapter filters from datetime.now() which
+    breaks historical point-in-time evaluation.
+    """
     from the_alchemiser.shared.data_v2.cached_market_data_adapter import (
         CachedMarketDataAdapter,
     )
-    return CachedMarketDataAdapter()
+    from the_alchemiser.shared.types.market_data import BarModel
+    from the_alchemiser.shared.types.market_data_port import MarketDataPort
+    from the_alchemiser.shared.value_objects.symbol import Symbol
+
+    class _MaxPeriodAdapter(MarketDataPort):
+        """Wrapper that always requests MAX period to get all historical data."""
+
+        def __init__(self) -> None:
+            self._inner = CachedMarketDataAdapter()
+
+        def get_bars(
+            self,
+            symbol: Symbol,
+            period: str,  # noqa: ARG002 - we ignore and use MAX
+            timeframe: str,
+        ) -> list[BarModel]:
+            # Always use MAX to get all available data.
+            # The indicator_service.as_of_date will truncate to the eval date.
+            return self._inner.get_bars(symbol, "MAX", timeframe)
+
+        def get_latest_bar(self, symbol: Symbol) -> BarModel | None:
+            return self._inner.get_latest_bar(symbol)
+
+        def get_quote(self, symbol: Symbol) -> Any:
+            return self._inner.get_latest_quote(symbol)
+
+    return _MaxPeriodAdapter()
 
 
 # ---------------------------------------------------------------------------
