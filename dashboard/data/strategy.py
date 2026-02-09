@@ -393,7 +393,7 @@ def get_all_strategy_metadata() -> dict[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=900)  # 15-min TTL — full table scan, call sparingly
 def get_attribution_coverage(days: int = 30) -> dict[str, Any]:
     """Assess attribution data quality for recent trades.
 

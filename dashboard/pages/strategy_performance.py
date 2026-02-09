@@ -7,17 +7,12 @@ Dual data source architecture:
 - TradeLedger for lot-level drill-down (open/closed lots, trade history)
 - Strategy ledger metadata for enrichment (display names, source URLs, assets)
 
-Sections:
-A. Summary grid -- all strategies at a glance
-B. Data quality -- attribution coverage audit
-C. Strategy drill-down -- individual strategy detail with tabs
-D. Strategy comparison -- overlay multiple strategies
+Sections: A) summary grid, B) data quality, C) drill-down, D) comparison.
+Tab rendering is delegated to ``_strategy_tabs`` to stay under 500 lines.
 """
 
 from __future__ import annotations
 
-import math
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
@@ -26,9 +21,16 @@ import streamlit as st
 from settings import get_dashboard_settings
 
 from data import strategy as sda
+from data.risk import calculate_risk_metrics
+from pages._strategy_tabs import (
+    show_assets_tab,
+    show_lots_tab,
+    show_risk_metrics_tab,
+    show_time_series_tab,
+    show_trades_tab,
+)
 from components.ui import (
     alert_box,
-    direction_styled_dataframe,
     hero_metric,
     metric_card,
     metric_row,
@@ -41,88 +43,6 @@ from components.styles import (
     format_percent,
     inject_styles,
 )
-
-# ---------------------------------------------------------------------------
-# Risk metrics calculations (adapted from portfolio_overview)
-# ---------------------------------------------------------------------------
-
-
-def _calculate_risk_metrics(
-    time_series: list[dict[str, Any]],
-) -> dict[str, float]:
-    """Calculate risk metrics from strategy performance time series.
-
-    Computes annualised Sharpe from daily realised-P&L changes (dollar terms).
-    This is a P&L Sharpe -- appropriate for per-strategy analysis where each
-    strategy operates within a consistent capital allocation.  The portfolio-
-    level Sharpe in portfolio_overview uses percentage returns instead.
-
-    Returns dict with sharpe, max_drawdown, volatility, profit_factor.
-    """
-    if len(time_series) < 3:
-        return {
-            "sharpe": 0.0,
-            "max_drawdown": 0.0,
-            "max_drawdown_pct": 0.0,
-            "volatility": 0.0,
-            "profit_factor": 0.0,
-        }
-
-    pnl_values = [s["realized_pnl"] for s in time_series]
-
-    # Daily changes in realized P&L (returns proxy)
-    daily_changes = [pnl_values[i] - pnl_values[i - 1] for i in range(1, len(pnl_values))]
-
-    if not daily_changes:
-        return {
-            "sharpe": 0.0,
-            "max_drawdown": 0.0,
-            "max_drawdown_pct": 0.0,
-            "volatility": 0.0,
-            "profit_factor": 0.0,
-        }
-
-    # -- Sharpe ratio (annualized, risk-free = 0)
-    avg_change = sum(daily_changes) / len(daily_changes)
-    variance = sum((c - avg_change) ** 2 for c in daily_changes) / max(len(daily_changes) - 1, 1)
-    std_change = math.sqrt(variance)
-    sharpe = (avg_change / std_change) * math.sqrt(252) if std_change > 0 else 0.0
-
-    # -- Max drawdown (peak-to-trough in cumulative P&L)
-    running_max = pnl_values[0]
-    max_drawdown = 0.0
-    max_drawdown_pct = 0.0
-    for pnl in pnl_values:
-        if pnl > running_max:
-            running_max = pnl
-        drawdown = running_max - pnl
-        if drawdown > max_drawdown:
-            max_drawdown = drawdown
-            if not math.isclose(running_max, 0.0, abs_tol=1e-9):
-                max_drawdown_pct = (drawdown / abs(running_max)) * 100
-
-    # -- Volatility (annualized std of daily P&L changes)
-    volatility = std_change * math.sqrt(252)
-
-    # -- Profit factor (sum of gains / sum of losses)
-    gross_wins = sum(c for c in daily_changes if c > 0)
-    gross_losses = abs(sum(c for c in daily_changes if c < 0))
-    profit_factor = (
-        gross_wins / gross_losses
-        if not math.isclose(gross_losses, 0.0, abs_tol=1e-9)
-        else float("inf")
-        if gross_wins > 0
-        else 0.0
-    )
-
-    return {
-        "sharpe": sharpe,
-        "max_drawdown": max_drawdown,
-        "max_drawdown_pct": max_drawdown_pct,
-        "volatility": volatility,
-        "profit_factor": profit_factor,
-    }
-
 
 # ---------------------------------------------------------------------------
 # Section A: Summary Grid
@@ -368,445 +288,27 @@ def _show_strategy_detail(
 
     # -- Tab 1: Time Series
     with tabs[0]:
-        _show_time_series_tab(strategy_name)
+        show_time_series_tab(strategy_name)
 
     # -- Tab 2: Risk Metrics
     with tabs[1]:
-        _show_risk_metrics_tab(strategy_name)
+        show_risk_metrics_tab(strategy_name)
 
     # -- Tab 3: Open Lots
     with tabs[2]:
-        _show_lots_tab(strategy_name, lot_type="open")
+        show_lots_tab(strategy_name, lot_type="open")
 
     # -- Tab 4: Closed Lots
     with tabs[3]:
-        _show_lots_tab(strategy_name, lot_type="closed")
+        show_lots_tab(strategy_name, lot_type="closed")
 
     # -- Tab 5: Trade History
     with tabs[4]:
-        _show_trades_tab(strategy_name)
+        show_trades_tab(strategy_name)
 
     # -- Tab 6: Assets
     with tabs[5]:
-        _show_assets_tab(strategy_name, assets, frontrunners)
-
-
-def _show_time_series_tab(strategy_name: str) -> None:
-    """Render cumulative P&L and metrics over time."""
-    section_header("Realized P&L Over Time")
-    time_series = sda.get_strategy_time_series(strategy_name)
-
-    if len(time_series) < 2:
-        st.info(
-            "Not enough data points for time-series charts. "
-            "Data accumulates with each trade execution."
-        )
-        return
-
-    df = pd.DataFrame(time_series)
-    df["timestamp"] = pd.to_datetime(df["snapshot_timestamp"])
-    df = df.sort_values("timestamp")
-
-    # Deduplicate to daily granularity (keep last snapshot per day)
-    df["date"] = df["timestamp"].dt.date
-    df = df.drop_duplicates(subset="date", keep="last")
-
-    # Cumulative P&L line chart
-    final_pnl = df["realized_pnl"].iloc[-1]
-    line_color = "#10B981" if final_pnl >= 0 else "#EF4444"
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=df["timestamp"],
-            y=df["realized_pnl"],
-            mode="lines",
-            fill="tozeroy",
-            line={"color": line_color, "width": 2},
-            fillcolor=("rgba(16, 185, 129, 0.1)" if final_pnl >= 0 else "rgba(239, 68, 68, 0.1)"),
-            hovertemplate=("Date: %{x|%b %d, %Y}<br>Realized P&L: $%{y:,.2f}<extra></extra>"),
-        )
-    )
-    fig.update_layout(
-        height=350,
-        margin={"l": 0, "r": 0, "t": 10, "b": 0},
-        xaxis={"title": ""},
-        yaxis={"title": "Realized P&L ($)", "tickformat": "$,.0f"},
-        hovermode="x unified",
-        showlegend=False,
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Win rate trend
-    if "win_rate" in df.columns:
-        section_header("Win Rate Trend")
-        fig_wr = go.Figure()
-        fig_wr.add_trace(
-            go.Scatter(
-                x=df["timestamp"],
-                y=df["win_rate"],
-                mode="lines",
-                line={"color": "#7CF5D4", "width": 2},
-                hovertemplate=("Date: %{x|%b %d, %Y}<br>Win Rate: %{y:.1f}%<extra></extra>"),
-            )
-        )
-        fig_wr.update_layout(
-            height=250,
-            margin={"l": 0, "r": 0, "t": 10, "b": 0},
-            xaxis={"title": ""},
-            yaxis={"title": "Win Rate (%)", "range": [0, 100]},
-            hovermode="x unified",
-            showlegend=False,
-        )
-        st.plotly_chart(fig_wr, use_container_width=True)
-
-
-def _show_risk_metrics_tab(strategy_name: str) -> None:
-    """Render risk and return metrics."""
-    section_header("Risk & Return Metrics")
-    time_series = sda.get_strategy_time_series(strategy_name)
-
-    if len(time_series) < 5:
-        st.info(
-            "Need at least 5 data points for risk metrics. "
-            "More trade executions will populate this."
-        )
-        return
-
-    metrics = _calculate_risk_metrics(time_series)
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        metric_card(
-            "Sharpe Ratio",
-            f"{metrics['sharpe']:.2f}",
-            delta_positive=metrics["sharpe"] > 0,
-        )
-    with col2:
-        metric_card(
-            "Max Drawdown",
-            format_currency(metrics["max_drawdown"]),
-        )
-    with col3:
-        metric_card(
-            "Volatility (Ann.)",
-            format_currency(metrics["volatility"]),
-        )
-    with col4:
-        pf = metrics["profit_factor"]
-        pf_str = f"{pf:.2f}" if pf != float("inf") else "Inf"
-        metric_card(
-            "Profit Factor",
-            pf_str,
-            delta_positive=pf > 1.0 if pf != float("inf") else True,
-        )
-
-    # Drawdown chart
-    pnl_values = [s["realized_pnl"] for s in time_series]
-    timestamps = [s["snapshot_timestamp"] for s in time_series]
-
-    drawdowns: list[float] = []
-    peak = pnl_values[0]
-    for pnl in pnl_values:
-        if pnl > peak:
-            peak = pnl
-        drawdowns.append(pnl - peak)
-
-    if any(not math.isclose(d, 0.0, abs_tol=1e-9) for d in drawdowns):
-        section_header("Drawdown Chart")
-        fig_dd = go.Figure()
-        fig_dd.add_trace(
-            go.Scatter(
-                x=[pd.to_datetime(t) for t in timestamps],
-                y=drawdowns,
-                mode="lines",
-                fill="tozeroy",
-                line={"color": "#EF4444", "width": 1.5},
-                fillcolor="rgba(239, 68, 68, 0.15)",
-                hovertemplate=("Date: %{x|%b %d, %Y}<br>Drawdown: $%{y:,.2f}<extra></extra>"),
-            )
-        )
-        fig_dd.update_layout(
-            height=250,
-            margin={"l": 0, "r": 0, "t": 10, "b": 0},
-            xaxis={"title": ""},
-            yaxis={"title": "Drawdown ($)", "tickformat": "$,.0f"},
-            hovermode="x unified",
-            showlegend=False,
-        )
-        st.plotly_chart(fig_dd, use_container_width=True)
-
-
-def _show_lots_tab(strategy_name: str, lot_type: str) -> None:
-    """Render open or closed lots table."""
-    section_header(f"{'Open' if lot_type == 'open' else 'Closed'} Lots")
-
-    lots_data = sda.get_strategy_lots(strategy_name)
-    lots = lots_data.get(lot_type, [])
-
-    if not lots:
-        st.info(f"No {lot_type} lots found for this strategy.")
-        return
-
-    if lot_type == "open":
-        rows = []
-        for lot in lots:
-            rows.append(
-                {
-                    "Symbol": lot["symbol"],
-                    "Entry Date": lot["entry_timestamp"][:10] if lot["entry_timestamp"] else "",
-                    "Entry Price": lot["entry_price"],
-                    "Qty": lot["entry_qty"],
-                    "Remaining": lot["remaining_qty"],
-                    "Cost Basis": lot["cost_basis"],
-                }
-            )
-        df = pd.DataFrame(rows)
-        if not df.empty:
-            df = df.sort_values("Symbol")
-            styled_dataframe(
-                df,
-                formats={
-                    "Entry Price": "${:.2f}",
-                    "Qty": "{:.4f}",
-                    "Remaining": "{:.4f}",
-                    "Cost Basis": "${:,.2f}",
-                },
-            )
-
-            # Pie chart of open positions by cost basis
-            if len(df) > 1:
-                fig_pie = go.Figure()
-                fig_pie.add_trace(
-                    go.Pie(
-                        labels=df["Symbol"],
-                        values=df["Cost Basis"],
-                        hole=0.4,
-                        hovertemplate=(
-                            "%{label}<br>Cost Basis: $%{value:,.2f}<br>%{percent}<extra></extra>"
-                        ),
-                        marker={
-                            "colors": [
-                                "#7CF5D4",
-                                "#10B981",
-                                "#34D399",
-                                "#6EE7B7",
-                                "#A7F3D0",
-                                "#059669",
-                                "#047857",
-                                "#065F46",
-                                "#064E3B",
-                                "#022C22",
-                            ]
-                        },
-                    )
-                )
-                fig_pie.update_layout(
-                    height=300,
-                    margin={"l": 0, "r": 0, "t": 10, "b": 0},
-                    showlegend=True,
-                    legend={
-                        "orientation": "h",
-                        "yanchor": "bottom",
-                        "y": -0.15,
-                        "xanchor": "center",
-                        "x": 0.5,
-                    },
-                )
-                st.plotly_chart(fig_pie, use_container_width=True)
-
-    else:
-        rows = []
-        for lot in lots:
-            # Compute average exit from exit records
-            exits = lot.get("exit_records", [])
-            if exits:
-                total_exit_qty = sum(e["exit_qty"] for e in exits)
-                total_exit_value = sum(e["exit_qty"] * e["exit_price"] for e in exits)
-                avg_exit = total_exit_value / total_exit_qty if total_exit_qty > 0 else 0.0
-            else:
-                avg_exit = 0.0
-
-            pnl = lot["realized_pnl"]
-            cost_basis = lot["cost_basis"]
-            pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0.0
-
-            # Hold duration
-            entry_ts = lot["entry_timestamp"]
-            closed_ts = lot.get("fully_closed_at", "")
-            hold_days = ""
-            if entry_ts and closed_ts:
-                try:
-                    entry_dt = datetime.fromisoformat(entry_ts.replace("Z", "+00:00"))
-                    close_dt = datetime.fromisoformat(closed_ts.replace("Z", "+00:00"))
-                    delta = close_dt - entry_dt
-                    hold_days = f"{delta.days}d"
-                except (ValueError, TypeError):
-                    pass  # Malformed timestamps -- leave hold_days blank
-
-            rows.append(
-                {
-                    "Symbol": lot["symbol"],
-                    "Entry Date": entry_ts[:10] if entry_ts else "",
-                    "Entry Price": lot["entry_price"],
-                    "Avg Exit": avg_exit,
-                    "Qty": lot["entry_qty"],
-                    "P&L": pnl,
-                    "P&L %": pnl_pct,
-                    "Hold": hold_days,
-                }
-            )
-
-        df = pd.DataFrame(rows)
-        if not df.empty:
-            df = df.sort_values("Entry Date", ascending=False)
-            styled_dataframe(
-                df,
-                formats={
-                    "Entry Price": "${:.2f}",
-                    "Avg Exit": "${:.2f}",
-                    "Qty": "{:.4f}",
-                    "P&L": "${:,.2f}",
-                    "P&L %": "{:+.1f}%",
-                },
-                highlight_positive_negative=["P&L", "P&L %"],
-            )
-
-            # P&L distribution histogram
-            section_header("P&L Distribution")
-            pnl_vals = df["P&L"].tolist()
-            fig_hist = go.Figure()
-            fig_hist.add_trace(
-                go.Histogram(
-                    x=pnl_vals,
-                    nbinsx=20,
-                    marker_color="#7CF5D4",
-                    hovertemplate=("Range: $%{x:,.2f}<br>Count: %{y}<extra></extra>"),
-                )
-            )
-            fig_hist.update_layout(
-                height=250,
-                margin={"l": 0, "r": 0, "t": 10, "b": 0},
-                xaxis={"title": "P&L ($)", "tickformat": "$,.0f"},
-                yaxis={"title": "Count"},
-                showlegend=False,
-            )
-            st.plotly_chart(fig_hist, use_container_width=True)
-
-
-def _show_trades_tab(strategy_name: str) -> None:
-    """Render individual trades attributed to this strategy."""
-    section_header("Trade History")
-
-    trades = sda.get_strategy_trades(strategy_name)
-
-    if not trades:
-        st.info("No trade history found for this strategy.")
-        return
-
-    rows = []
-    for t in trades:
-        rows.append(
-            {
-                "Date": t["fill_timestamp"][:10] if t["fill_timestamp"] else "",
-                "Time": t["fill_timestamp"][11:19] if len(t["fill_timestamp"]) > 19 else "",
-                "Symbol": t["symbol"],
-                "Direction": t["direction"],
-                "Qty": t["quantity"],
-                "Price": t["price"],
-                "Value": t["strategy_trade_value"],
-                "Weight": t["weight"],
-            }
-        )
-
-    df = pd.DataFrame(rows)
-    if not df.empty:
-        df = df.sort_values("Date", ascending=False)
-        direction_styled_dataframe(
-            df,
-            formats={
-                "Qty": "{:.4f}",
-                "Price": "${:.2f}",
-                "Value": "${:,.2f}",
-                "Weight": "{:.1%}",
-            },
-        )
-
-        # Trade value over time
-        if len(df) > 1:
-            section_header("Trade Values Over Time")
-            df_chart = df.copy()
-            df_chart["Timestamp"] = pd.to_datetime(
-                df_chart["Date"] + " " + df_chart["Time"], errors="coerce"
-            )
-            df_chart = df_chart.dropna(subset=["Timestamp"]).sort_values("Timestamp")
-
-            buy_df = df_chart[df_chart["Direction"] == "BUY"]
-            sell_df = df_chart[df_chart["Direction"] == "SELL"]
-
-            fig_tv = go.Figure()
-            if not buy_df.empty:
-                fig_tv.add_trace(
-                    go.Scatter(
-                        x=buy_df["Timestamp"],
-                        y=buy_df["Value"],
-                        mode="markers",
-                        name="BUY",
-                        marker={"color": "#4CAF50", "size": 8},
-                        hovertemplate=("%{x|%b %d}<br>Value: $%{y:,.2f}<extra>BUY</extra>"),
-                    )
-                )
-            if not sell_df.empty:
-                fig_tv.add_trace(
-                    go.Scatter(
-                        x=sell_df["Timestamp"],
-                        y=sell_df["Value"],
-                        mode="markers",
-                        name="SELL",
-                        marker={"color": "#F44336", "size": 8},
-                        hovertemplate=("%{x|%b %d}<br>Value: $%{y:,.2f}<extra>SELL</extra>"),
-                    )
-                )
-            fig_tv.update_layout(
-                height=300,
-                margin={"l": 0, "r": 0, "t": 10, "b": 0},
-                xaxis={"title": ""},
-                yaxis={"title": "Trade Value ($)", "tickformat": "$,.0f"},
-                hovermode="closest",
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                },
-            )
-            st.plotly_chart(fig_tv, use_container_width=True)
-
-
-def _show_assets_tab(
-    strategy_name: str,
-    assets: list[str],
-    frontrunners: list[str],
-) -> None:
-    """Render asset composition from strategy ledger metadata."""
-    section_header("Asset Composition")
-
-    if not assets and not frontrunners:
-        st.info(
-            "No asset metadata available. Run 'python scripts/strategy_ledger.py sync' to populate."
-        )
-        return
-
-    col1, col2 = st.columns(2)
-    with col1:
-        metric_card("Traded Assets", str(len(assets)))
-        if assets:
-            st.markdown("  ".join(f"`{a}`" for a in sorted(assets)))
-    with col2:
-        metric_card("Indicator-Only (Frontrunners)", str(len(frontrunners)))
-        if frontrunners:
-            st.markdown("  ".join(f"`{f}`" for f in sorted(frontrunners)))
+        show_assets_tab(strategy_name, assets, frontrunners)
 
 
 # ---------------------------------------------------------------------------
@@ -880,7 +382,7 @@ def _show_comparison(
 
         # Side-by-side metrics
         snap = next((s for s in snapshots if s["strategy_name"] == name), None)
-        risk = _calculate_risk_metrics(ts)
+        risk = calculate_risk_metrics(ts)
         if snap:
             comparison_rows.append(
                 {
@@ -888,9 +390,11 @@ def _show_comparison(
                     "Realized P&L": snap["realized_pnl"],
                     "Win Rate (%)": snap["win_rate"],
                     "Trades": snap["completed_trades"],
-                    "Sharpe": risk["sharpe"],
+                    "P&L Sharpe": risk["pnl_sharpe"],
                     "Max DD": risk["max_drawdown"],
-                    "Profit Factor": risk["profit_factor"],
+                    "Profit Factor": (
+                        risk["profit_factor"] if risk["profit_factor"] is not None else float("nan")
+                    ),
                 }
             )
 
@@ -918,11 +422,11 @@ def _show_comparison(
             formats={
                 "Realized P&L": "${:,.2f}",
                 "Win Rate (%)": "{:.1f}%",
-                "Sharpe": "{:.2f}",
+                "P&L Sharpe": "{:.2f}",
                 "Max DD": "${:,.2f}",
                 "Profit Factor": "{:.2f}",
             },
-            highlight_positive_negative=["Realized P&L", "Sharpe"],
+            highlight_positive_negative=["Realized P&L", "P&L Sharpe"],
         )
 
 
@@ -992,5 +496,5 @@ def show() -> None:
     # Footer
     st.caption(
         "Data from StrategyPerformanceTable (snapshots) and "
-        "TradeLedger (lots)."
+        "TradeLedger (lots). Data cached for 60-300s per query."
     )
