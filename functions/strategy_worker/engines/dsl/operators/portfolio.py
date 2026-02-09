@@ -1199,7 +1199,7 @@ def _normalize_portfolio_items(value: list[DSLValue]) -> list[PortfolioFragment]
     frag_iter = iter(fragments)
     bare_iter = iter(bare_strings)
     next_bare = next(bare_iter, None)
-    for pos, item in enumerate(value):
+    for pos, _item in enumerate(value):
         if next_bare is not None and next_bare[0] == pos:
             sym = next_bare[1]
             result.append(

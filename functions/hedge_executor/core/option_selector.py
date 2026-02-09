@@ -722,6 +722,7 @@ class OptionSelector:
                 contracts=contracts,
                 target_delta=long_delta,
                 target_expiry=target_expiry,
+                underlying_price=underlying_price,
             )
 
             if long_leg is None:
@@ -745,6 +746,7 @@ class OptionSelector:
                 contracts=contracts,
                 target_delta=short_delta,
                 target_expiry=target_expiry,
+                underlying_price=underlying_price,
             )
 
             if short_leg is None:
