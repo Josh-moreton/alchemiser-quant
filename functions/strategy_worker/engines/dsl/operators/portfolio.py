@@ -1143,54 +1143,90 @@ def asset(args: list[ASTNode], context: DslContext) -> str:
 
 
 def _normalize_portfolio_items(value: list[DSLValue]) -> list[PortfolioFragment]:
-    """Normalize a list of portfolio items by unwrapping nested lists.
+    """Normalize a list of DSL values into PortfolioFragments for portfolio mode.
 
-    Groups may return lists containing single PortfolioFragments. This
-    normalizes all items to be direct PortfolioFragments.
+    Portfolio mode is needed when the filter's input list contains at least
+    one real group (PortfolioFragment).  This only happens when a filter
+    wraps ``(group ...)`` nodes -- i.e. we need to apply an indicator to
+    the group's historical return stream, not an individual asset's.
 
-    Bare string symbols (from ``(asset ...)`` nodes) are wrapped in a
-    single-asset PortfolioFragment so that mixed ``[group, group, asset]``
-    vectors are evaluated in portfolio mode rather than silently falling
-    back to individual-asset mode.
-
-    Returns empty list if normalization fails.
+    Decision rules
+    --------------
+    * **All PortfolioFragments** -- pure group filter (e.g. beam_chain).
+      Return as-is after unwrapping single-element wrappers.
+    * **All bare strings** -- pure asset filter (e.g. fomo_nomo's inner
+      300-symbol filter).  Return empty -> caller uses individual-asset
+      mode.
+    * **Mixed (groups + assets)** -- wrap bare strings as single-asset
+      PortfolioFragments so they can participate in portfolio scoring
+      alongside real groups.  (Not currently used by any strategy but
+      handled for robustness.)
+    * **Any non-fragment, non-string item** -- return empty (not a valid
+      portfolio list).
     """
-    normalized: list[PortfolioFragment] = []
-    for item in value:
+    fragments: list[PortfolioFragment] = []
+    bare_strings: list[tuple[int, str]] = []  # (index, symbol)
+    has_real_group = False
+
+    for idx, item in enumerate(value):
         unwrapped = _unwrap_single_element_list(item)
         if isinstance(unwrapped, PortfolioFragment):
-            normalized.append(unwrapped)
+            fragments.append(unwrapped)
+            has_real_group = True
         elif isinstance(unwrapped, str) and unwrapped:
-            # Bare symbol string from (asset ...) -- wrap in a single-asset
-            # PortfolioFragment so the filter can score it alongside groups.
-            logger.info(
-                "DSL filter: wrapping bare asset '%s' in PortfolioFragment "
-                "for mixed group/asset filter evaluation",
-                unwrapped,
-            )
-            normalized.append(
+            bare_strings.append((idx, unwrapped))
+        else:
+            # Contains something that is neither a group nor a symbol
+            return []
+
+    if not has_real_group:
+        # All bare strings -- individual asset mode is correct (and faster).
+        return []
+
+    if not bare_strings:
+        # All groups -- pure portfolio mode, no wrapping needed.
+        return fragments
+
+    # Mixed list: wrap bare strings so they participate in portfolio scoring.
+    logger.info(
+        "DSL filter: mixed list detected -- wrapping %d bare asset(s) "
+        "alongside %d group(s) for portfolio scoring",
+        len(bare_strings),
+        len(fragments),
+    )
+    # Build output preserving original order
+    result: list[PortfolioFragment] = []
+    frag_iter = iter(fragments)
+    bare_iter = iter(bare_strings)
+    next_bare = next(bare_iter, None)
+    for pos, item in enumerate(value):
+        if next_bare is not None and next_bare[0] == pos:
+            sym = next_bare[1]
+            result.append(
                 PortfolioFragment(
                     fragment_id=str(uuid.uuid4()),
                     source_step="asset",
-                    weights={unwrapped: Decimal("1")},
-                    metadata={"group_name": unwrapped},
+                    weights={sym: Decimal("1")},
+                    metadata={"group_name": sym},
                 )
             )
+            next_bare = next(bare_iter, None)
         else:
-            # Item is not a PortfolioFragment or symbol after unwrapping
-            return []
-    return normalized
+            result.append(next(frag_iter))
+    return result
 
 
 def _is_portfolio_list(value: DSLValue) -> tuple[bool, list[PortfolioFragment]]:
-    """Check if the value is a list of PortfolioFragments (groups).
+    """Decide whether the filter's input list needs portfolio-mode scoring.
 
-    Returns a tuple of (is_portfolio_list, normalized_fragments).
-    Handles nested lists by unwrapping single-element wrappers.
+    Portfolio mode is required when the list contains at least one real
+    group (PortfolioFragment) -- meaning an indicator must be applied to
+    the group's historical return stream rather than an individual asset's.
+
+    Returns ``(True, normalized_fragments)`` for portfolio mode, or
+    ``(False, [])`` for individual-asset mode.
     """
-    if not isinstance(value, list):
-        return False, []
-    if not value:
+    if not isinstance(value, list) or not value:
         return False, []
 
     normalized = _normalize_portfolio_items(value)
