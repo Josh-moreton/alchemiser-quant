@@ -15,11 +15,11 @@ Prerequisites:
     - Market data refreshed in S3 (populated by Data Lambda post-close refresh)
 
 Usage:
-    make generate-signals                      # Both dev + prod
-    make generate-signals stage=dev            # Dev only
+    make generate-signals                      # Dev only (default)
     make generate-signals stage=prod           # Prod only
+    make generate-signals stage=both           # Both dev + prod
 
-    poetry run python scripts/generate_daily_signals.py --stage both
+    poetry run python scripts/generate_daily_signals.py              # Dev only (default)
     poetry run python scripts/generate_daily_signals.py --stage dev
     poetry run python scripts/generate_daily_signals.py --stage prod --log-file /tmp/signals.log
 """
@@ -308,8 +308,8 @@ def main() -> None:
     parser.add_argument(
         "--stage",
         choices=["dev", "prod", "both"],
-        default="both",
-        help="Which strategy profile to run (default: both)",
+        default="dev",
+        help="Which strategy profile to run (default: dev)",
     )
     parser.add_argument(
         "--log-file",

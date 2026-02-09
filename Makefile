@@ -313,13 +313,13 @@ validate-signals:
 # Generate daily strategy signals locally (runs DSL engine using completed daily bars from S3)
 # Outputs CSV to validation_results/local_signals/ for use by validate-signals
 # Run at or after market close (4 PM ET). Scheduled daily at 4:30 PM via launchd.
-# Usage: make generate-signals                    # Both dev + prod
-#        make generate-signals stage=dev          # Dev only
+# Usage: make generate-signals                    # Dev only (default)
 #        make generate-signals stage=prod         # Prod only
+#        make generate-signals stage=both         # Both dev + prod
 generate-signals:
 	@echo "Generating daily strategy signals..."
 	@ARGS=""; \
-	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage both"; fi; \
+	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
 	poetry run python scripts/generate_daily_signals.py $$ARGS
 
 # Install/uninstall the daily signal generation scheduler (macOS launchd)

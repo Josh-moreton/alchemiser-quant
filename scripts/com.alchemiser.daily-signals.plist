@@ -5,7 +5,7 @@
 
   Runs generate_daily_signals.py at 9:15 PM UK time (4:15 PM ET), Mon-Fri.
   Uses completed daily bars from S3 data lake (post-US market close).
-  Generates signals for both dev and prod strategy profiles.
+  Generates signals for the dev strategy profile only.
 
   Install:  make install-scheduler
   Remove:   make uninstall-scheduler
@@ -35,7 +35,7 @@
         <string>python</string>
         <string>scripts/generate_daily_signals.py</string>
         <string>--stage</string>
-        <string>both</string>
+        <string>dev</string>
         <string>--log-file</string>
         <string>/tmp/alchemiser-signals.log</string>
     </array>
