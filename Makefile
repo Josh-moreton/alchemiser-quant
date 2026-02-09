@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals debug-strategy debug-strategy-historical rebalance-weights pnl-report
+.PHONY: help clean format type-check import-check migration-check deploy-dev deploy-prod bump-patch bump-minor bump-major version deploy-ephemeral destroy-ephemeral list-ephemeral logs strategy-add strategy-add-from-config strategy-list strategy-sync strategy-list-dynamo strategy-check-fractionable validate-data-lake validate-dynamo validate-signals validate-strategy debug-strategy debug-strategy-historical rebalance-weights pnl-report
 
 # Python path setup for scripts (mirrors Lambda layer structure)
 export PYTHONPATH := $(shell pwd)/layers/shared:$(PYTHONPATH)
@@ -32,6 +32,8 @@ help:
 	@echo "  validate-dynamo stage=dev            Validate dev environment data"
 	@echo "  validate-signals                     Validate signals vs Composer.trade"
 	@echo "  validate-signals stage=prod          Validate prod signals"
+	@echo "  validate-strategy s=<name>           Validate single strategy vs Composer backtest"
+	@echo "  validate-strategy s=<name> days=10   Validate with custom window"
 	@echo ""
 	@echo "Performance Reports:"
 	@echo "  dashboard                            Run enhanced multi-page trading dashboard"
@@ -391,6 +393,26 @@ debug-strategy-historical:
 		echo "🔬 Debugging strategy: $(s) (as-of $(as-of))"; \
 		poetry run python scripts/debug_strategy_historical.py $(s) --as-of "$(as-of)"; \
 	fi
+
+# Validate a single strategy against Composer daily-close backtest
+# Runs the strategy for each trading day in a window, then prompts for Composer holdings
+# Usage: make validate-strategy s=gold                     # 5 trading days ending yesterday
+#        make validate-strategy s=gold days=10             # 10 trading days
+#        make validate-strategy s=gold end=2026-02-07      # Custom end date
+#        make validate-strategy s=gold no-browser=1        # Don't auto-open Composer URL
+validate-strategy:
+	@if [ -z "$(s)" ]; then \
+		echo "Usage: make validate-strategy s=<strategy_name>"; \
+		echo "       make validate-strategy s=<name> days=10"; \
+		echo "       make validate-strategy s=<name> end=2026-02-07"; \
+		exit 1; \
+	fi
+	@ARGS="$(s)"; \
+	if [ -n "$(days)" ]; then ARGS="$$ARGS --days $(days)"; fi; \
+	if [ -n "$(end)" ]; then ARGS="$$ARGS --end-date $(end)"; fi; \
+	if [ "$(no-browser)" = "1" ]; then ARGS="$$ARGS --no-browser"; fi; \
+	if [ -n "$(tolerance)" ]; then ARGS="$$ARGS --tolerance $(tolerance)"; fi; \
+	poetry run python scripts/validation/validate_single_strategy.py $$ARGS
 
 # ============================================================================
 # OBSERVABILITY
