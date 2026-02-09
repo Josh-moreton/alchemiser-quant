@@ -130,8 +130,8 @@ def validate_environment() -> bool:
     os.environ["ALPACA__KEY"] = alpaca_key
     os.environ["ALPACA__SECRET"] = alpaca_secret
 
-    # Default to the shared market data bucket unless explicitly overridden
-    bucket = os.environ.get("MARKET_DATA_BUCKET", "alchemiser-shared-market-data")
+    # Default to the dev market data bucket unless explicitly overridden
+    bucket = os.environ.get("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
     os.environ["MARKET_DATA_BUCKET"] = bucket
     logger.info(
         "Using market data bucket",
