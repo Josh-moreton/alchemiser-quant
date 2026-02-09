@@ -71,6 +71,9 @@ ALPHA = Decimal("0.5")  # Square-root dampening
 F_MIN = Decimal("0.5")  # Floor: 50% of base weight
 F_MAX = Decimal("2.0")  # Cap: 2× base weight
 
+# FTLT folder prefix for strategy separation
+FTLT_PREFIX = "ftlt/"
+
 # CSV strategy name prefix -> filename mapping
 # NOTE: This is the fallback mapping. Preferred approach is to add csv_name_prefix
 #       to the strategy ledger via `make strategy-add` which will auto-populate here.
@@ -180,7 +183,7 @@ def calculate_group_weights(
     Returns:
         Dict of filename -> normalized weight summing to target_weight
     """
-    if len(config_files) == 0:
+    if not config_files:
         return {}
     
     # Base weight within this group
@@ -348,11 +351,11 @@ def calculate_calmar_tilt_weights(
     calmar_ratios = {k: v for k, v in calmar_ratios.items() if k in config_files}
 
     # Separate FTLT strategies from base strategies
-    ftlt_config_files = {f for f in config_files if f.startswith("ftlt/")}
+    ftlt_config_files = {f for f in config_files if f.startswith(FTLT_PREFIX)}
     base_config_files = config_files - ftlt_config_files
     
-    ftlt_calmar_ratios = {k: v for k, v in calmar_ratios.items() if k.startswith("ftlt/")}
-    base_calmar_ratios = {k: v for k, v in calmar_ratios.items() if not k.startswith("ftlt/")}
+    ftlt_calmar_ratios = {k: v for k, v in calmar_ratios.items() if k.startswith(FTLT_PREFIX)}
+    base_calmar_ratios = {k: v for k, v in calmar_ratios.items() if not k.startswith(FTLT_PREFIX)}
     
     print(f"\n📁 Strategy Groups:")
     print(f"  FTLT strategies: {len(ftlt_config_files)} (target: 50% portfolio weight)")
