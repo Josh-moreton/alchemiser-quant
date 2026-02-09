@@ -20,11 +20,22 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 if TYPE_CHECKING:
     from engines.dsl.events import DslEventPublisher
 
 logger = get_logger(__name__)
+
+# Scoring method used to produce a portfolio candidate's score.
+type ScoringPath = Literal[
+    "cache_hit",
+    "cache_miss_backfill",
+    "per_symbol_fallback",
+    "per_symbol_direct",
+    "cache_unavailable",
+    "in_process_fallback",
+]
 
 
 class DecisionNodeBase(TypedDict):
@@ -117,6 +128,7 @@ class FilterCandidate(TypedDict, total=False):
     rank: int
     symbol_count: int
     symbols_sample: list[str]
+    scoring_path: ScoringPath
 
 
 class FilterTrace(TypedDict, total=False):
@@ -132,6 +144,7 @@ class FilterTrace(TypedDict, total=False):
     scored_candidates: list[FilterCandidate]
     selected_candidate_ids: list[str]
     timestamp: str
+    filter_depth: int
 
 
 class DslContext:
@@ -151,6 +164,7 @@ class DslContext:
         evaluate_node: Callable[[ASTNode, str, Trace], DSLValue],
         *,
         debug_mode: bool = False,
+        market_data_service: MarketDataPort | None = None,
     ) -> None:
         """Initialize DSL context.
 
@@ -161,6 +175,7 @@ class DslContext:
             trace: Trace object for logging evaluation steps
             evaluate_node: Function to evaluate AST nodes
             debug_mode: If True, enables detailed condition tracing for debugging
+            market_data_service: Optional market data port for on-demand backfill
 
         """
         self.indicator_service = indicator_service
@@ -170,6 +185,7 @@ class DslContext:
         self.evaluate_node = evaluate_node
         self.timestamp = datetime.now(UTC)
         self.debug_mode = debug_mode
+        self.market_data_service = market_data_service
         # Decision path stored as list of dicts for serialization compatibility.
         # Note: This is initialized here but immediately replaced with evaluator's
         # shared list (see dsl_evaluator.py line 289) to ensure all contexts
@@ -179,6 +195,9 @@ class DslContext:
         self.debug_traces: list[DebugTrace] = []
         # Filter traces for ranking/selection debugging (when debug_mode=True)
         self.filter_traces: list[FilterTrace] = []
+        # Nesting depth counter: incremented each time we enter a portfolio
+        # filter, so nested group-of-group scoring can be diagnosed.
+        self.portfolio_filter_depth: int = 0
 
     def add_debug_trace(
         self,

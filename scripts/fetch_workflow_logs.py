@@ -65,7 +65,7 @@ LAMBDA_FUNCTIONS = [
     "strategy-orchestrator",
     "strategy-worker",
     "signal-aggregator",
-    "portfolio",
+    "rebalance-planner",
     "execution",
     "trade-aggregator",
     "notifications",
@@ -73,12 +73,11 @@ LAMBDA_FUNCTIONS = [
     "hedge-evaluator",
     "hedge-executor",
     "hedge-roll-manager",
-    "hedge-reports",
-    # Utility functions
-    "metrics",
+    # Data & utility functions
     "data",
-    "pnl-capture",
     "schedule-manager",
+    "account-data",
+    "strategy-performance",
 ]
 
 # Log levels to include when filtering for issues
@@ -664,37 +663,170 @@ def get_aggregated_signal(
         return None
 
 
-def print_signal_analysis(signal: dict[str, Any]) -> None:
-    """Print aggregated signal analysis.
+def get_partial_signals(
+    dynamodb: Any,
+    correlation_id: str,
+    stage: str = "dev",
+) -> list[dict[str, Any]]:
+    """Query per-strategy partial signals from the aggregation sessions table.
+
+    Each partial signal contains the raw (un-weighted) portfolio for a single
+    strategy, where allocations sum to ~100%.
 
     Args:
-        signal: The aggregated signal data
+        dynamodb: boto3 DynamoDB client
+        correlation_id: The workflow correlation ID
+        stage: Environment stage (dev or prod)
+
+    Returns:
+        List of partial signal dicts with dsl_file, allocation weight, and
+        consolidated_portfolio.
 
     """
-    print(f"\n{colour('📈 AGGREGATED SIGNAL', 'bold')}")
-    print("=" * 80)
+    table_name = f"alchemiser-{stage}-aggregation-sessions"
+
+    try:
+        response = dynamodb.query(
+            TableName=table_name,
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            ExpressionAttributeValues={
+                ":pk": {"S": f"SESSION#{correlation_id}"},
+                ":sk_prefix": {"S": "STRATEGY#"},
+            },
+        )
+
+        signals = []
+        for item in response.get("Items", []):
+            portfolio_str = item.get("consolidated_portfolio", {}).get("S", "{}")
+            signals.append(
+                {
+                    "dsl_file": item.get("dsl_file", {}).get("S", ""),
+                    "allocation": Decimal(item.get("allocation", {}).get("N", "0")),
+                    "signal_count": int(item.get("signal_count", {}).get("N", "0")),
+                    "consolidated_portfolio": json.loads(portfolio_str),
+                    "success": item.get("success", {}).get("BOOL", True),
+                    "error_message": item.get("error_message", {}).get("S", "") or None,
+                }
+            )
+
+        return signals
+
+    except ClientError:
+        return []
+
+
+def print_signal_analysis(
+    signal: dict[str, Any],
+    partial_signals: list[dict[str, Any]] | None = None,
+) -> None:
+    """Print aggregated signal analysis with per-strategy breakdowns.
+
+    Shows each strategy's raw portfolio (allocations summing to ~100%) followed
+    by the combined weighted allocations across the whole portfolio.
+
+    Args:
+        signal: The aggregated signal data (merged signal).
+        partial_signals: Optional list of per-strategy partial signals from DynamoDB.
+
+    """
+    print(f"\n{colour('AGGREGATED SIGNAL', 'bold')}")
+    print("=" * 110)
 
     allocations = signal.get("allocations") or signal.get("target_allocations") or {}
+    source_strategies: list[str] = signal.get("source_strategies", [])
+    strategy_count = signal.get("strategy_count", len(source_strategies))
+    is_partial = signal.get("is_partial", False)
 
     if not allocations:
         print("   No allocations found in signal")
         return
 
+    # Summary header
     print(f"   Total symbols: {len(allocations)}")
+    print(f"   Strategies merged: {strategy_count}")
+    if source_strategies:
+        print(f"   Source strategies: {', '.join(source_strategies)}")
+    if is_partial:
+        print(f"   {colour('WARNING: Partial signal (some strategies failed)', 'yellow')}")
 
     total_weight = sum(Decimal(str(v)) for v in allocations.values())
     print(f"   Total weight: {format_percentage(total_weight)}")
 
     if total_weight > Decimal("1.0"):
-        print(f"   {colour('⚠️  WARNING: Signal weights sum to > 100%!', 'yellow')}")
+        print(f"   {colour('WARNING: Signal weights sum to > 100%!', 'yellow')}")
 
-    print(f"\n   {colour('Top Allocations:', 'bold')}")
-    sorted_allocs = sorted(allocations.items(), key=lambda x: Decimal(str(x[1])), reverse=True)
-    for symbol, weight in sorted_allocs[:10]:
-        print(f"      {symbol:<10} {format_percentage(weight):>10}")
+    # --- Per-strategy raw portfolios (each sums to ~100%) ---
+    if partial_signals:
+        print(f"\n   {colour('PER-STRATEGY PORTFOLIOS (raw allocations, each sums to ~100%):', 'bold')}")
+        print(f"   {'-' * 106}")
 
-    if len(sorted_allocs) > 10:
-        print(f"      ... and {len(sorted_allocs) - 10} more")
+        for ps in sorted(partial_signals, key=lambda x: x["dsl_file"]):
+            dsl_file = ps["dsl_file"]
+            portfolio_weight = ps["allocation"]
+            success = ps.get("success", True)
+            portfolio_data = ps["consolidated_portfolio"]
+            signal_count = ps.get("signal_count", 0)
+
+            # Extract raw target_allocations from the partial portfolio
+            raw_allocs: dict[str, str] = {}
+            if isinstance(portfolio_data, dict):
+                raw_allocs = portfolio_data.get("target_allocations", {})
+                if not raw_allocs:
+                    # Fallback: filter out metadata keys from the dict itself
+                    metadata_keys = {
+                        "correlation_id", "timestamp", "strategy_count",
+                        "source_strategies", "schema_version",
+                        "strategy_contributions",
+                    }
+                    raw_allocs = {
+                        k: v for k, v in portfolio_data.items()
+                        if k not in metadata_keys
+                    }
+
+            status = colour("OK", "green") if success else colour("FAILED", "red")
+            error_msg = ps.get("error_message", "")
+
+            strat_total = sum(Decimal(str(v)) for v in raw_allocs.values()) if raw_allocs else Decimal("0")
+            print(
+                f"\n   {colour(dsl_file, 'cyan')}  "
+                f"[portfolio weight: {format_percentage(portfolio_weight)}, "
+                f"signals: {signal_count}, status: {status}]"
+            )
+
+            if error_msg:
+                print(f"      {colour(f'Error: {error_msg}', 'red')}")
+
+            if not raw_allocs:
+                print("      (no allocations)")
+                continue
+
+            # Normalize to raw strategy output (each strategy sums to ~100%)
+            # The stored values are already scaled by portfolio weight, so divide back out
+            strat_total = sum(Decimal(str(v)) for v in raw_allocs.values())
+            if strat_total > 0:
+                normalised_allocs = {
+                    sym: Decimal(str(w)) / strat_total
+                    for sym, w in raw_allocs.items()
+                }
+            else:
+                normalised_allocs = {sym: Decimal("0") for sym in raw_allocs}
+
+            print(f"      {'Symbol':<10} {'Raw Weight':>10}  {'Weighted':>10}")
+            print(f"      {'-' * 34}")
+
+            sorted_raw = sorted(
+                normalised_allocs.items(), key=lambda x: x[1], reverse=True,
+            )
+            for symbol, norm_weight in sorted_raw:
+                if norm_weight > 0:
+                    orig_weight = Decimal(str(raw_allocs[symbol]))
+                    print(
+                        f"      {symbol:<10} "
+                        f"{format_percentage(norm_weight):>10}  "
+                        f"{format_percentage(orig_weight):>10}"
+                    )
+
+        print(f"\n   {'-' * 106}")
 
 
 def query_executed_trades(
@@ -868,12 +1000,13 @@ def print_workflow_data(correlation_id: str, stage: str, events: list[dict[str, 
 
     dynamodb = boto3.client("dynamodb", region_name=REGION)
 
-    # Get aggregated signal
+    # Get aggregated signal and per-strategy partial signals
     signal = get_aggregated_signal(dynamodb, correlation_id, stage)
+    partial_signals = get_partial_signals(dynamodb, correlation_id, stage)
     if signal:
-        print_signal_analysis(signal)
+        print_signal_analysis(signal, partial_signals=partial_signals or None)
     else:
-        print(f"   {colour('⚠️  No aggregated signal found in DynamoDB', 'yellow')}")
+        print(f"   {colour('No aggregated signal found in DynamoDB', 'yellow')}")
 
     # Get rebalance plan and execution status from Trade Ledger
     plan = get_rebalance_plan(dynamodb, correlation_id, stage)

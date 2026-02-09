@@ -568,7 +568,7 @@ class NotificationService:
 
             html_content = f"""
     <h3 style="color: #333; margin: 20px 0 15px 0; font-size: 16px;">Refresh Results</h3>
-    
+
     <div style="background-color: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6;">
             <strong>Data Update:</strong> {bars_summary}
