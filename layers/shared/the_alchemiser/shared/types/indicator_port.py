@@ -9,6 +9,7 @@ transparently by the Strategy module.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Protocol
 
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
@@ -23,6 +24,15 @@ class IndicatorPort(Protocol):
     - IndicatorLambdaClient (invokes Indicators Lambda)
     - Local IndicatorService (for testing)
 
+    """
+
+    as_of_date: date | None
+    """Optional date cutoff for historical evaluation.
+
+    When set, market data is truncated to this date so that indicators
+    reflect the historical state.  Used by the on-demand backfill engine
+    to produce date-accurate cached selections.  Defaults to ``None``
+    (use live / most-recent data).
     """
 
     def get_indicator(self, request: IndicatorRequest) -> TechnicalIndicator:

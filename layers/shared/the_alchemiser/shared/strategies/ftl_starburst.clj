@@ -1497,7 +1497,7 @@
                                                     "QQQ"
                                                     nil)])])])])])])])])])])])])])])])])])])])])])
          (group
-          " Walter's Champagne and CocaineStrategies"
+          "Walter's Champagne and CocaineStrategies"
           [(weight-equal
             [(group
               "KMLM | Technology"
@@ -7408,7 +7408,7 @@
                                                     "QQQ"
                                                     nil)])])])])])])])])])])])])])])])])])])])])])
          (group
-          " Walter's Champagne and CocaineStrategies"
+          "Walter's Champagne and CocaineStrategies"
           [(weight-equal
             [(group
               "KMLM | Technology"
@@ -13319,7 +13319,7 @@
                                                     "QQQ"
                                                     nil)])])])])])])])])])])])])])])])])])])])])])
          (group
-          " Walter's Champagne and CocaineStrategies"
+          "Walter's Champagne and CocaineStrategies"
           [(weight-equal
             [(group
               "KMLM | Technology"

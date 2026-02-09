@@ -1431,11 +1431,12 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !GetAtt DataFunction.Arn
-              # DynamoDB read permission for group history cache (filter scoring)
+              # DynamoDB read/write permission for group history cache (filter scoring + on-demand backfill)
               - Effect: Allow
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:Query
+                  - dynamodb:PutItem
                 Resource:
                   - !GetAtt GroupHistoricalSelectionsTable.Arn
 
@@ -2545,102 +2546,6 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource:
                   - !GetAtt ScheduleManagerFunction.Arn
-
-  # ========== GROUP CACHE LAMBDA (PORTFOLIO SCORING CACHE) ==========
-  # Evaluates filterable groups daily and caches selections in DynamoDB
-  # for accurate historical scoring in filter operators
-  SubStrategyDataFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-sub-strategy-data"
-        - !Sub "alchemiser-${Stage}-sub-strategy-data"
-      Runtime: python3.12
-      Architectures:
-        - x86_64
-      CodeUri: functions/sub_strategy_data/
-      Handler: lambda_handler.lambda_handler
-      Role: !GetAtt SubStrategyDataExecutionRole.Arn
-      Layers:
-        - !Ref SharedCodeLayer
-        - !Ref StrategyLayer
-      Timeout: 300
-      MemorySize: 1024
-      Environment:
-        Variables:
-          GROUP_HISTORY_TABLE: !Ref GroupHistoricalSelectionsTable
-          CACHE_TTL_DAYS: "30"
-          MARKET_DATA_BUCKET: !Ref MarketDataBucket
-          DATA_FUNCTION_NAME: !Ref DataFunction
-          # ALPACA__KEY, ALPACA__SECRET, ALPACA__ENDPOINT come from Globals
-    Metadata:
-      BuildMethod: python3.12
-
-  SubStrategyDataExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *lambda-assume-role
-      ManagedPolicyArns: *lambda-basic-execution
-      Policies:
-        - PolicyName: SubStrategyDataPolicy
-          PolicyDocument:
-            Statement:
-              # Permission to write to group history table
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                  - dynamodb:GetItem
-                  - dynamodb:Query
-                Resource:
-                  - !GetAtt GroupHistoricalSelectionsTable.Arn
-              # Permission to read from market data bucket
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt MarketDataBucket.Arn
-                  - !Sub "${MarketDataBucket.Arn}/*"
-              # Permission to invoke data function for sync refresh
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource:
-                  - !GetAtt DataFunction.Arn
-
-  # Morning schedule to run sub-strategy data at 4:00 AM ET (before market open)
-  SubStrategyDataSchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: !If
-        - UseStackNameForResources
-        - !Sub "${StackName}-sub-strategy-data"
-        - !Sub "alchemiser-${Stage}-sub-strategy-data"
-      Description: "Run sub-strategy data at 4:00 AM ET to update historical selections"
-      ScheduleExpression: "cron(0 4 ? * MON-FRI *)"
-      ScheduleExpressionTimezone: "America/New_York"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      Target:
-        Arn: !GetAtt SubStrategyDataFunction.Arn
-        RoleArn: !GetAtt SubStrategyDataSchedulerRole.Arn
-        Input: '{"source": "morning_schedule"}'
-        RetryPolicy:
-          MaximumRetryAttempts: 2
-
-  SubStrategyDataSchedulerRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument: *scheduler-assume-role
-      Policies:
-        - PolicyName: InvokeSubStrategyData
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: lambda:InvokeFunction
-                Resource:
-                  - !GetAtt SubStrategyDataFunction.Arn
 
   # Daily data refresh (4:05 PM ET, after US market close, fetches completed daily bars)
   DataRefreshSchedule:

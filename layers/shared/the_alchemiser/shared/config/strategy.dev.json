@@ -1,8 +1,18 @@
 {
   "files": [
-    "ftl_starburst.clj"
+    "rains_concise_em.clj",
+    "rains_em_dancer.clj",
+    "sisyphus_lowvol.clj",
+    "ftl_starburst.clj",
+    "soxl_growth.clj",
+    "fomo_nomo.clj"
   ],
   "allocations": {
-    "ftl_starburst.clj": 1
+    "rains_concise_em.clj": 0.167,
+    "rains_em_dancer.clj": 0.108,
+    "sisyphus_lowvol.clj": 0.224,
+    "ftl_starburst.clj": 0.167,
+    "soxl_growth.clj": 0.167,
+    "fomo_nomo.clj": 0.167
   }
 }
