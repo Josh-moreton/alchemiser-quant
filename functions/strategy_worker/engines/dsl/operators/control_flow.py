@@ -315,6 +315,9 @@ def _capture_decision(
 ) -> None:
     """Capture decision node in context for signal reasoning.
 
+    Also checks if the comparison that produced this condition result was
+    flagged as fragile (values near threshold) and annotates accordingly.
+
     Args:
         condition: The condition AST node that was evaluated
         condition_result: Result of evaluating the condition
@@ -323,7 +326,21 @@ def _capture_decision(
 
     """
     decision_node = _build_decision_node(condition, bool(condition_result), branch_taken, context)
-    context.decision_path.append(dict(decision_node))
+    decision_dict = dict(decision_node)
+
+    # Check if this decision's condition matches the most recent fragile detection.
+    # Fragile decisions are appended by comparison operators during evaluation,
+    # so the latest one corresponds to this if-condition.
+    if context.fragile_decisions:
+        condition_str = str(decision_dict.get("condition", ""))
+        latest_fragile = context.fragile_decisions[-1]
+        fragile_condition = str(latest_fragile.get("condition", ""))
+        # Match if the fragile condition string appears in the decision condition
+        if fragile_condition and fragile_condition in condition_str:
+            decision_dict["fragile"] = True
+            decision_dict["fragile_margin"] = latest_fragile.get("margin")
+
+    context.decision_path.append(decision_dict)
 
 
 def _publish_decision_event(

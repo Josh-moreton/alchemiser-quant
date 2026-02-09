@@ -84,6 +84,10 @@ class DecisionNode(DecisionNodeBase, total=False):
     indicator_params: dict[str, Any] | None
     market_context: str | None
     strategic_intent: str | None
+    # Parity risk: True when compared values are near the decision boundary.
+    # A small indicator calculation difference could flip this branch.
+    fragile: bool
+    fragile_margin: float | None
 
 
 class DebugTrace(TypedDict, total=False):
@@ -191,6 +195,9 @@ class DslContext:
         # shared list (see dsl_evaluator.py line 289) to ensure all contexts
         # accumulate decisions to the same list.
         self.decision_path: list[dict[str, Any]] = []
+        # Fragile decisions: comparisons where values are near the threshold.
+        # Each entry is a dict with condition, margin, left/right values.
+        self.fragile_decisions: list[dict[str, Any]] = []
         # Debug traces for detailed condition logging (when debug_mode=True)
         self.debug_traces: list[DebugTrace] = []
         # Filter traces for ranking/selection debugging (when debug_mode=True)

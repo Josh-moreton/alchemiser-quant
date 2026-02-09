@@ -68,19 +68,24 @@ def _get_sync_refresh_timeout() -> int:
 
 
 def _parse_period_to_days(period: str) -> int:
-    """Convert period string (e.g., '1Y', '6M', '90D') to number of days.
+    """Convert period string (e.g., '1Y', '6M', '90D', 'MAX') to number of days.
 
     Args:
-        period: Period string in format <number><unit> where unit is Y/M/D
+        period: Period string in format <number><unit> where unit is Y/M/D,
+            or the special value 'MAX' to request all available data.
 
     Returns:
-        Number of calendar days
+        Number of calendar days. Returns -1 for 'MAX' (all available).
 
     Raises:
         ValueError: If period format is invalid
 
     """
     period = period.strip().upper()
+
+    # Special sentinel: return all available data without date filtering
+    if period == "MAX":
+        return -1
 
     if period.endswith("Y"):
         years = int(period[:-1])
@@ -90,7 +95,9 @@ def _parse_period_to_days(period: str) -> int:
         return months * 30
     if period.endswith("D"):
         return int(period[:-1])
-    raise ValueError(f"Invalid period format: {period}. Expected format like '1Y', '6M', '90D'")
+    raise ValueError(
+        f"Invalid period format: {period}. Expected format like '1Y', '6M', '90D', 'MAX'"
+    )
 
 
 class CachedMarketDataAdapter(MarketDataPort):
@@ -553,9 +560,10 @@ class CachedMarketDataAdapter(MarketDataPort):
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp")
 
-        # Filter to lookback period
-        cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
-        df = df[df["timestamp"] >= cutoff_date]
+        # Filter to lookback period (skip for MAX = all available data)
+        if lookback_days > 0:
+            cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
+            df = df[df["timestamp"] >= cutoff_date]
 
         if df.empty:
             logger.warning(

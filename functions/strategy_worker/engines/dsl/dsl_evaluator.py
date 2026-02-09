@@ -26,11 +26,14 @@ from engines.dsl.operators.selection import register_selection_operators
 from engines.dsl.types import DslEvaluationError, DSLValue
 
 from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.indicator_port import IndicatorPort
+
+logger = get_logger(__name__)
 
 __all__ = [
     "DslEvaluationError",
@@ -76,6 +79,8 @@ class DslEvaluator:
         self.debug_traces: list[DebugTrace] = []
         # Shared filter traces for all contexts during evaluation
         self.filter_traces: list[FilterTrace] = []
+        # Shared fragile decisions: comparisons where values are near thresholds
+        self.fragile_decisions: list[dict[str, Any]] = []
 
     def _register_all_operators(self) -> None:
         """Register all DSL operators with the dispatcher."""
@@ -115,6 +120,7 @@ class DslEvaluator:
             self.decision_path = []
             self.debug_traces = []
             self.filter_traces = []
+            self.fragile_decisions = []
 
             # Clear module-level caches from prior evaluation runs to
             # prevent stale memoization data leaking across invocations.
@@ -183,6 +189,15 @@ class DslEvaluator:
                 description="DSL evaluation completed successfully",
                 outputs={"allocation_assets": len(allocation.target_weights)},
             )
+
+            # Log fragile decisions summary for parity monitoring
+            if self.fragile_decisions:
+                logger.warning(
+                    "Strategy evaluation has fragile decisions that may diverge from Composer",
+                    fragile_count=len(self.fragile_decisions),
+                    fragile_decisions=self.fragile_decisions,
+                    correlation_id=correlation_id,
+                )
 
             return allocation, trace
 
@@ -337,6 +352,7 @@ class DslEvaluator:
         context.decision_path = self.decision_path
         context.debug_traces = self.debug_traces
         context.filter_traces = self.filter_traces
+        context.fragile_decisions = self.fragile_decisions
 
         # Function application: (func arg1 arg2 ...)
         first_child = node.children[0]
