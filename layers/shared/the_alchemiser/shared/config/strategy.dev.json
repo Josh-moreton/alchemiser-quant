@@ -5,14 +5,26 @@
     "sisyphus_lowvol.clj",
     "ftl_starburst.clj",
     "soxl_growth.clj",
-    "fomo_nomo.clj"
+    "fomo_nomo.clj",
+    "rains_em_dancer.clj",
+    "sisyphus_lowvol.clj",
+    "ftlt/tqqq_ftlt.clj",
+    "ftlt/tqqq_ftlt_2.clj",
+    "ftlt/holy_grail.clj",
+    "kmlm_switcher.clj",
+    "hedged_sector_rotator.clj"
   ],
   "allocations": {
-    "rains_concise_em.clj": 0.167,
-    "rains_em_dancer.clj": 0.108,
-    "sisyphus_lowvol.clj": 0.224,
-    "ftl_starburst.clj": 0.167,
-    "soxl_growth.clj": 0.167,
-    "fomo_nomo.clj": 0.167
+    "rains_concise_em.clj": 0.091,
+    "rains_em_dancer.clj": 0.085,
+    "sisyphus_lowvol.clj": 0.168,
+    "ftl_starburst.clj": 0.091,
+    "soxl_growth.clj": 0.091,
+    "fomo_nomo.clj": 0.091,
+    "ftlt/tqqq_ftlt.clj": 0.053,
+    "ftlt/tqqq_ftlt_2.clj": 0.089,
+    "ftlt/holy_grail.clj": 0.063,
+    "kmlm_switcher.clj": 0.114,
+    "hedged_sector_rotator.clj": 0.064
   }
 }
