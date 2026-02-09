@@ -499,10 +499,8 @@ def backfill_strategy_groups(
     _logging.getLogger("urllib3").setLevel(_logging.WARNING)
 
     from engines.dsl.engine import DslEngine
-    from engines.dsl.operators.portfolio import (
-        _derive_group_id,
-        clear_evaluation_caches,
-    )
+    from engines.dsl.operators.group_scoring import clear_evaluation_caches
+    from engines.dsl.operators.portfolio import _derive_group_id
     from engines.dsl.sexpr_parser import SexprParser
 
     # Resolve the .clj file path
