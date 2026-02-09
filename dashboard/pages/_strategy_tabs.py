@@ -142,7 +142,7 @@ def show_risk_metrics_tab(strategy_name: str) -> None:
         )
 
     # Drawdown chart
-    pnl_values = [s["realized_pnl"] for s in time_series]
+    pnl_values = [s.get("realized_pnl", 0.0) for s in time_series]
     timestamps = [s["snapshot_timestamp"] for s in time_series]
 
     drawdowns: list[float] = []
@@ -177,6 +177,165 @@ def show_risk_metrics_tab(strategy_name: str) -> None:
         st.plotly_chart(fig_dd, use_container_width=True)
 
 
+def _render_open_lots(lots: list[dict[str, Any]]) -> None:
+    """Render open lots table with pie chart of positions by cost basis."""
+    rows = []
+    for lot in lots:
+        rows.append(
+            {
+                "Symbol": lot["symbol"],
+                "Entry Date": lot["entry_timestamp"][:10] if lot["entry_timestamp"] else "",
+                "Entry Price": lot["entry_price"],
+                "Qty": lot["entry_qty"],
+                "Remaining": lot["remaining_qty"],
+                "Cost Basis": lot["cost_basis"],
+            }
+        )
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return
+
+    df = df.sort_values("Symbol")
+    styled_dataframe(
+        df,
+        formats={
+            "Entry Price": "${:.2f}",
+            "Qty": "{:.4f}",
+            "Remaining": "{:.4f}",
+            "Cost Basis": "${:,.2f}",
+        },
+    )
+
+    if len(df) <= 1:
+        return
+
+    fig_pie = go.Figure()
+    fig_pie.add_trace(
+        go.Pie(
+            labels=df["Symbol"],
+            values=df["Cost Basis"],
+            hole=0.4,
+            hovertemplate=(
+                "%{label}<br>Cost Basis: $%{value:,.2f}<br>%{percent}<extra></extra>"
+            ),
+            marker={
+                "colors": [
+                    "#7CF5D4",
+                    "#10B981",
+                    "#34D399",
+                    "#6EE7B7",
+                    "#A7F3D0",
+                    "#059669",
+                    "#047857",
+                    "#065F46",
+                    "#064E3B",
+                    "#022C22",
+                ]
+            },
+        )
+    )
+    fig_pie.update_layout(
+        height=300,
+        margin={"l": 0, "r": 0, "t": 10, "b": 0},
+        showlegend=True,
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": -0.15,
+            "xanchor": "center",
+            "x": 0.5,
+        },
+    )
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+
+def _render_closed_lots(lots: list[dict[str, Any]]) -> None:
+    """Render closed lots table with P&L distribution histogram."""
+    rows = []
+    for lot in lots:
+        exits = lot.get("exit_records", [])
+        if exits:
+            total_exit_qty = sum(e["exit_qty"] for e in exits)
+            total_exit_value = sum(e["exit_qty"] * e["exit_price"] for e in exits)
+            avg_exit = total_exit_value / total_exit_qty if total_exit_qty > 0 else 0.0
+        else:
+            avg_exit = 0.0
+
+        pnl = lot["realized_pnl"]
+        cost_basis = lot["cost_basis"]
+        pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0.0
+
+        hold_days = _compute_hold_duration(
+            lot["entry_timestamp"], lot.get("fully_closed_at", "")
+        )
+
+        rows.append(
+            {
+                "Symbol": lot["symbol"],
+                "Entry Date": lot["entry_timestamp"][:10] if lot["entry_timestamp"] else "",
+                "Entry Price": lot["entry_price"],
+                "Avg Exit": avg_exit,
+                "Qty": lot["entry_qty"],
+                "P&L": pnl,
+                "P&L %": pnl_pct,
+                "Hold": hold_days,
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return
+
+    df = df.sort_values("Entry Date", ascending=False)
+    styled_dataframe(
+        df,
+        formats={
+            "Entry Price": "${:.2f}",
+            "Avg Exit": "${:.2f}",
+            "Qty": "{:.4f}",
+            "P&L": "${:,.2f}",
+            "P&L %": "{:+.1f}%",
+        },
+        highlight_positive_negative=["P&L", "P&L %"],
+    )
+
+    section_header("P&L Distribution")
+    pnl_vals = df["P&L"].tolist()
+    fig_hist = go.Figure()
+    fig_hist.add_trace(
+        go.Histogram(
+            x=pnl_vals,
+            nbinsx=20,
+            marker_color="#7CF5D4",
+            hovertemplate=("Range: $%{x:,.2f}<br>Count: %{y}<extra></extra>"),
+        )
+    )
+    fig_hist.update_layout(
+        height=250,
+        margin={"l": 0, "r": 0, "t": 10, "b": 0},
+        xaxis={"title": "P&L ($)", "tickformat": "$,.0f"},
+        yaxis={"title": "Count"},
+        showlegend=False,
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+
+def _compute_hold_duration(entry_ts: str, closed_ts: str) -> str:
+    """Compute hold duration string from entry and close timestamps."""
+    if not entry_ts or not closed_ts:
+        return ""
+    try:
+        entry_dt = datetime.fromisoformat(entry_ts.replace("Z", "+00:00"))
+        close_dt = datetime.fromisoformat(closed_ts.replace("Z", "+00:00"))
+        delta = close_dt - entry_dt
+        return f"{delta.days}d"
+    except (ValueError, TypeError):
+        _logger.warning(
+            "Malformed lot timestamps: entry=%s closed=%s", entry_ts, closed_ts
+        )
+        return ""
+
+
 def show_lots_tab(strategy_name: str, lot_type: str) -> None:
     """Render open or closed lots table."""
     section_header(f"{'Open' if lot_type == 'open' else 'Closed'} Lots")
@@ -189,151 +348,9 @@ def show_lots_tab(strategy_name: str, lot_type: str) -> None:
         return
 
     if lot_type == "open":
-        rows = []
-        for lot in lots:
-            rows.append(
-                {
-                    "Symbol": lot["symbol"],
-                    "Entry Date": lot["entry_timestamp"][:10] if lot["entry_timestamp"] else "",
-                    "Entry Price": lot["entry_price"],
-                    "Qty": lot["entry_qty"],
-                    "Remaining": lot["remaining_qty"],
-                    "Cost Basis": lot["cost_basis"],
-                }
-            )
-        df = pd.DataFrame(rows)
-        if not df.empty:
-            df = df.sort_values("Symbol")
-            styled_dataframe(
-                df,
-                formats={
-                    "Entry Price": "${:.2f}",
-                    "Qty": "{:.4f}",
-                    "Remaining": "{:.4f}",
-                    "Cost Basis": "${:,.2f}",
-                },
-            )
-
-            # Pie chart of open positions by cost basis
-            if len(df) > 1:
-                fig_pie = go.Figure()
-                fig_pie.add_trace(
-                    go.Pie(
-                        labels=df["Symbol"],
-                        values=df["Cost Basis"],
-                        hole=0.4,
-                        hovertemplate=(
-                            "%{label}<br>Cost Basis: $%{value:,.2f}<br>%{percent}<extra></extra>"
-                        ),
-                        marker={
-                            "colors": [
-                                "#7CF5D4",
-                                "#10B981",
-                                "#34D399",
-                                "#6EE7B7",
-                                "#A7F3D0",
-                                "#059669",
-                                "#047857",
-                                "#065F46",
-                                "#064E3B",
-                                "#022C22",
-                            ]
-                        },
-                    )
-                )
-                fig_pie.update_layout(
-                    height=300,
-                    margin={"l": 0, "r": 0, "t": 10, "b": 0},
-                    showlegend=True,
-                    legend={
-                        "orientation": "h",
-                        "yanchor": "bottom",
-                        "y": -0.15,
-                        "xanchor": "center",
-                        "x": 0.5,
-                    },
-                )
-                st.plotly_chart(fig_pie, use_container_width=True)
-
+        _render_open_lots(lots)
     else:
-        rows = []
-        for lot in lots:
-            # Compute average exit from exit records
-            exits = lot.get("exit_records", [])
-            if exits:
-                total_exit_qty = sum(e["exit_qty"] for e in exits)
-                total_exit_value = sum(e["exit_qty"] * e["exit_price"] for e in exits)
-                avg_exit = total_exit_value / total_exit_qty if total_exit_qty > 0 else 0.0
-            else:
-                avg_exit = 0.0
-
-            pnl = lot["realized_pnl"]
-            cost_basis = lot["cost_basis"]
-            pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0.0
-
-            # Hold duration
-            entry_ts = lot["entry_timestamp"]
-            closed_ts = lot.get("fully_closed_at", "")
-            hold_days = ""
-            if entry_ts and closed_ts:
-                try:
-                    entry_dt = datetime.fromisoformat(entry_ts.replace("Z", "+00:00"))
-                    close_dt = datetime.fromisoformat(closed_ts.replace("Z", "+00:00"))
-                    delta = close_dt - entry_dt
-                    hold_days = f"{delta.days}d"
-                except (ValueError, TypeError):
-                    _logger.warning(
-                        "Malformed lot timestamps: entry=%s closed=%s", entry_ts, closed_ts
-                    )
-
-            rows.append(
-                {
-                    "Symbol": lot["symbol"],
-                    "Entry Date": entry_ts[:10] if entry_ts else "",
-                    "Entry Price": lot["entry_price"],
-                    "Avg Exit": avg_exit,
-                    "Qty": lot["entry_qty"],
-                    "P&L": pnl,
-                    "P&L %": pnl_pct,
-                    "Hold": hold_days,
-                }
-            )
-
-        df = pd.DataFrame(rows)
-        if not df.empty:
-            df = df.sort_values("Entry Date", ascending=False)
-            styled_dataframe(
-                df,
-                formats={
-                    "Entry Price": "${:.2f}",
-                    "Avg Exit": "${:.2f}",
-                    "Qty": "{:.4f}",
-                    "P&L": "${:,.2f}",
-                    "P&L %": "{:+.1f}%",
-                },
-                highlight_positive_negative=["P&L", "P&L %"],
-            )
-
-            # P&L distribution histogram
-            section_header("P&L Distribution")
-            pnl_vals = df["P&L"].tolist()
-            fig_hist = go.Figure()
-            fig_hist.add_trace(
-                go.Histogram(
-                    x=pnl_vals,
-                    nbinsx=20,
-                    marker_color="#7CF5D4",
-                    hovertemplate=("Range: $%{x:,.2f}<br>Count: %{y}<extra></extra>"),
-                )
-            )
-            fig_hist.update_layout(
-                height=250,
-                margin={"l": 0, "r": 0, "t": 10, "b": 0},
-                xaxis={"title": "P&L ($)", "tickformat": "$,.0f"},
-                yaxis={"title": "Count"},
-                showlegend=False,
-            )
-            st.plotly_chart(fig_hist, use_container_width=True)
+        _render_closed_lots(lots)
 
 
 def show_trades_tab(strategy_name: str) -> None:

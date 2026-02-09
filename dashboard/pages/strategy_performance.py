@@ -21,7 +21,6 @@ import streamlit as st
 from settings import get_dashboard_settings
 
 from data import strategy as sda
-from data.risk import calculate_risk_metrics
 from pages._strategy_tabs import (
     show_assets_tab,
     show_lots_tab,
@@ -29,6 +28,7 @@ from pages._strategy_tabs import (
     show_time_series_tab,
     show_trades_tab,
 )
+from pages._strategy_comparison import show_comparison
 from components.ui import (
     alert_box,
     hero_metric,
@@ -312,125 +312,6 @@ def _show_strategy_detail(
 
 
 # ---------------------------------------------------------------------------
-# Section D: Strategy Comparison
-# ---------------------------------------------------------------------------
-
-
-def _show_comparison(
-    snapshots: list[dict[str, Any]],
-    metadata: dict[str, dict[str, Any]],
-) -> None:
-    """Render multi-strategy comparison overlay."""
-    section_header("Strategy Comparison")
-
-    strategy_names = sorted(s["strategy_name"] for s in snapshots)
-    display_map = {
-        name: metadata.get(name, {}).get("display_name", name) for name in strategy_names
-    }
-
-    selected = st.multiselect(
-        "Select strategies to compare (2-6)",
-        options=strategy_names,
-        format_func=lambda x: display_map.get(x, x),
-        max_selections=6,
-    )
-
-    if len(selected) < 2:
-        st.info("Select at least 2 strategies to compare.")
-        return
-
-    # Overlaid P&L line chart
-    accent_colors = [
-        "#7CF5D4",
-        "#10B981",
-        "#F59E0B",
-        "#3B82F6",
-        "#8B5CF6",
-        "#EF4444",
-    ]
-
-    fig_cmp = go.Figure()
-    comparison_rows: list[dict[str, Any]] = []
-
-    for i, name in enumerate(selected):
-        ts = sda.get_strategy_time_series(name)
-        if not ts:
-            continue
-
-        df_ts = pd.DataFrame(ts)
-        df_ts["timestamp"] = pd.to_datetime(df_ts["snapshot_timestamp"])
-        df_ts = df_ts.sort_values("timestamp")
-        # Deduplicate to daily
-        df_ts["date"] = df_ts["timestamp"].dt.date
-        df_ts = df_ts.drop_duplicates(subset="date", keep="last")
-
-        color = accent_colors[i % len(accent_colors)]
-        display = display_map.get(name, name)
-
-        fig_cmp.add_trace(
-            go.Scatter(
-                x=df_ts["timestamp"],
-                y=df_ts["realized_pnl"],
-                mode="lines",
-                name=display,
-                line={"color": color, "width": 2},
-                hovertemplate=(
-                    f"{display}<br>Date: %{{x|%b %d, %Y}}<br>P&L: $%{{y:,.2f}}<extra></extra>"
-                ),
-            )
-        )
-
-        # Side-by-side metrics
-        snap = next((s for s in snapshots if s["strategy_name"] == name), None)
-        risk = calculate_risk_metrics(ts)
-        if snap:
-            comparison_rows.append(
-                {
-                    "Strategy": display,
-                    "Realized P&L": snap["realized_pnl"],
-                    "Win Rate (%)": snap["win_rate"],
-                    "Trades": snap["completed_trades"],
-                    "P&L Sharpe": risk["pnl_sharpe"],
-                    "Max DD": risk["max_drawdown"],
-                    "Profit Factor": (
-                        risk["profit_factor"] if risk["profit_factor"] is not None else float("nan")
-                    ),
-                }
-            )
-
-    fig_cmp.update_layout(
-        height=400,
-        margin={"l": 0, "r": 0, "t": 10, "b": 0},
-        xaxis={"title": ""},
-        yaxis={"title": "Realized P&L ($)", "tickformat": "$,.0f"},
-        hovermode="x unified",
-        legend={
-            "orientation": "h",
-            "yanchor": "bottom",
-            "y": 1.02,
-            "xanchor": "center",
-            "x": 0.5,
-        },
-    )
-    st.plotly_chart(fig_cmp, use_container_width=True)
-
-    # Comparison table
-    if comparison_rows:
-        cdf = pd.DataFrame(comparison_rows)
-        styled_dataframe(
-            cdf,
-            formats={
-                "Realized P&L": "${:,.2f}",
-                "Win Rate (%)": "{:.1f}%",
-                "P&L Sharpe": "{:.2f}",
-                "Max DD": "${:,.2f}",
-                "Profit Factor": "{:.2f}",
-            },
-            highlight_positive_negative=["Realized P&L", "P&L Sharpe"],
-        )
-
-
-# ---------------------------------------------------------------------------
 # Main page entry point
 # ---------------------------------------------------------------------------
 
@@ -491,7 +372,7 @@ def show() -> None:
 
     # ----- Section D: Comparison -----
     if len(snapshots) >= 2:
-        _show_comparison(snapshots, metadata)
+        show_comparison(snapshots, metadata)
 
     # Footer
     st.caption(

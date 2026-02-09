@@ -38,7 +38,7 @@ def calculate_risk_metrics(
             "profit_factor": None,
         }
 
-    pnl_values = [s["realized_pnl"] for s in time_series]
+    pnl_values = [s.get("realized_pnl", 0.0) for s in time_series]
 
     # Daily changes in realized P&L (returns proxy)
     daily_changes = [pnl_values[i] - pnl_values[i - 1] for i in range(1, len(pnl_values))]

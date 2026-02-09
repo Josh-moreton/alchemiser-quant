@@ -91,7 +91,7 @@ class DynamoDBMetricsPublisher:
                     batch.put_item(Item=latest_item)
 
             logger.info(
-                f"Wrote performance metrics for {len(summaries)} strategies",
+                "Wrote performance metrics",
                 extra={
                     "correlation_id": correlation_id,
                     "strategy_count": len(summaries),
@@ -100,21 +100,25 @@ class DynamoDBMetricsPublisher:
 
         except AWSException as e:
             logger.error(
-                f"Failed to write strategy metrics: {e}",
+                "Failed to write strategy metrics",
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
+                    "error": str(e),
                 },
             )
+            raise
         except Exception as e:
             logger.error(
-                f"Unexpected error writing strategy metrics: {e}",
+                "Unexpected error writing strategy metrics",
                 exc_info=True,
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
+                    "error": str(e),
                 },
             )
+            raise
 
     def write_capital_deployed_metric(
         self, capital_deployed_pct: Decimal | None, correlation_id: str
@@ -156,7 +160,7 @@ class DynamoDBMetricsPublisher:
             self._table.put_item(Item=latest_item)
 
             logger.info(
-                f"Wrote capital deployed metric: {capital_deployed_pct:.2f}%",
+                "Wrote capital deployed metric",
                 extra={
                     "correlation_id": correlation_id,
                     "capital_deployed_pct": str(capital_deployed_pct),
@@ -165,12 +169,14 @@ class DynamoDBMetricsPublisher:
 
         except AWSException as e:
             logger.error(
-                f"Failed to write capital deployed metric: {e}",
+                "Failed to write capital deployed metric",
                 extra={
                     "correlation_id": correlation_id,
                     "error_type": type(e).__name__,
+                    "error": str(e),
                 },
             )
+            raise
 
     @staticmethod
     def _build_item(
