@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -157,13 +157,20 @@ class DslEngine(EventHandler):
             )
 
     def evaluate_strategy(
-        self, strategy_config_path: str, correlation_id: str | None = None
+        self,
+        strategy_config_path: str,
+        correlation_id: str | None = None,
+        as_of_date: date | None = None,
     ) -> tuple[StrategyAllocation, Trace]:
         """Evaluate strategy from configuration file.
 
         Args:
             strategy_config_path: Path to .clj strategy file
             correlation_id: Optional correlation ID for tracking
+            as_of_date: Optional date cutoff for historical evaluation.
+                When set, market data is truncated to this date so that
+                indicators reflect the historical state. Used by backfill
+                to produce date-accurate cached selections.
 
         Returns:
             Tuple of (StrategyAllocation, Trace)
@@ -181,9 +188,15 @@ class DslEngine(EventHandler):
                 extra={
                     "correlation_id": correlation_id,
                     "strategy_config_path": strategy_config_path,
+                    "as_of_date": as_of_date.isoformat() if as_of_date else None,
                     "component": "dsl_engine",
                 },
             )
+
+            # Set as_of_date on indicator service for historical evaluation.
+            # This ensures all indicator computations use data only up to
+            # the target date, producing date-accurate strategy selections.
+            self.indicator_service.as_of_date = as_of_date
 
             # Parse strategy file
             ast = self._parse_strategy_file(strategy_config_path)
