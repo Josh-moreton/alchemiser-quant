@@ -312,37 +312,6 @@ validate-signals:
 	if [ "$(dynamo)" = "1" ]; then ARGS="$$ARGS --dynamo"; fi; \
 	poetry run python scripts/validation/validate_signals.py $$ARGS
 
-# Generate daily strategy signals locally (runs DSL engine using completed daily bars from S3)
-# Outputs CSV to validation_results/local_signals/ for use by validate-signals
-# Run at or after market close (4 PM ET). Scheduled daily at 4:30 PM via launchd.
-# Usage: make generate-signals                    # Dev only (default)
-#        make generate-signals stage=prod         # Prod only
-#        make generate-signals stage=both         # Both dev + prod
-generate-signals:
-	@echo "Generating daily strategy signals..."
-	@ARGS=""; \
-	if [ -n "$(stage)" ]; then ARGS="$$ARGS --stage $(stage)"; else ARGS="$$ARGS --stage dev"; fi; \
-	poetry run python scripts/generate_daily_signals.py $$ARGS
-
-# Install/uninstall the daily signal generation scheduler (macOS launchd)
-# The plist runs generate_daily_signals.py at 4:30 PM Mon-Fri
-install-scheduler:
-	@echo "Installing daily signal generation scheduler..."
-	@PLIST_SRC="scripts/com.alchemiser.daily-signals.plist"; \
-	PLIST_DST="$$HOME/Library/LaunchAgents/com.alchemiser.daily-signals.plist"; \
-	if [ ! -f "$$PLIST_SRC" ]; then echo "Plist not found: $$PLIST_SRC"; exit 1; fi; \
-	cp "$$PLIST_SRC" "$$PLIST_DST"; \
-	launchctl unload "$$PLIST_DST" 2>/dev/null || true; \
-	launchctl load "$$PLIST_DST"; \
-	echo "Scheduler installed and loaded: $$PLIST_DST"
-
-uninstall-scheduler:
-	@echo "Uninstalling daily signal generation scheduler..."
-	@PLIST_DST="$$HOME/Library/LaunchAgents/com.alchemiser.daily-signals.plist"; \
-	launchctl unload "$$PLIST_DST" 2>/dev/null || true; \
-	rm -f "$$PLIST_DST"; \
-	echo "Scheduler uninstalled"
-
 # ============================================================================
 # STRATEGY DEBUGGING
 # ============================================================================

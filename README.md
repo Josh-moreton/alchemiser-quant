@@ -30,10 +30,7 @@ cp .env.example .env
 # 3. Debug a strategy locally
 make debug-strategy s=nuclear
 
-# 4. Generate signals (after market close)
-make generate-signals stage=dev
-
-# 5. Deploy to AWS (dev)
+# 4. Deploy to AWS (dev)
 make deploy-dev
 ```
 
@@ -541,10 +538,6 @@ The system includes built-in tools to validate signals against external sources 
 ### Commands
 
 ```bash
-# Generate signals locally (after market close)
-make generate-signals                    # Both dev + prod
-make generate-signals stage=dev          # Dev only
-
 # Validate against Composer.trade
 make validate-signals                    # Uses local signals (dev)
 make validate-signals stage=prod         # Prod signals
@@ -553,21 +546,6 @@ make validate-signals fresh=1            # Start fresh capture
 # Debug a single strategy
 make debug-strategy s=simons_kmlm        # Full condition tracing
 make debug-strategy list=1               # List all strategies
-```
-
-### Local Signal Generation
-
-The `generate_daily_signals.py` script:
-
-1. Loads strategy config for the specified stage (dev/prod)
-2. Runs each strategy through the DSL engine
-3. Outputs signals to `validation_results/local_signals/<date>_<stage>.csv`
-
-**Scheduled via macOS launchd** at 4:30 PM local time (25 min after post-close data refresh):
-
-```bash
-make install-scheduler    # Install launchd plist
-make uninstall-scheduler  # Remove scheduler
 ```
 
 ## Developer Workflow
@@ -589,10 +567,6 @@ make type-check
 # Debug a specific strategy
 make debug-strategy s=simons_kmlm
 make debug-strategy list=1              # List all strategies
-
-# Generate signals locally (after market close)
-make generate-signals                    # Both dev + prod
-make generate-signals stage=dev          # Dev only
 
 # Validate signals against Composer.trade
 make validate-signals                    # Uses local signals
