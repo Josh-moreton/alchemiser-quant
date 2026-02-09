@@ -157,6 +157,112 @@ def strip_prefix(filename: str) -> str:
     return filename
 
 
+def calculate_group_weights(
+    calmar_ratios: dict[str, Decimal],
+    config_files: set[str],
+    target_weight: Decimal,
+    alpha: Decimal,
+    f_min: Decimal,
+    f_max: Decimal,
+    group_name: str,
+) -> dict[str, Decimal]:
+    """Calculate Calmar-tilted weights for a group of strategies.
+    
+    Args:
+        calmar_ratios: Dict of filename -> Calmar ratio (for this group)
+        config_files: Set of strategy filenames in config (for this group)
+        target_weight: Total weight this group should sum to (e.g., 0.5 for 50%)
+        alpha: Dampening exponent
+        f_min: Minimum multiplier floor
+        f_max: Maximum multiplier cap
+        group_name: Name of the group for logging
+    
+    Returns:
+        Dict of filename -> normalized weight summing to target_weight
+    """
+    if len(config_files) == 0:
+        return {}
+    
+    # Base weight within this group
+    n_group = len(config_files)
+    w_base = Decimal("1") / Decimal(str(n_group))
+    
+    # Identify missing strategies in this group
+    csv_files = set(calmar_ratios.keys())
+    missing_strategies = config_files - csv_files
+    
+    if missing_strategies:
+        print(f"\n⚠️  {group_name} strategies missing from CSV (will get equal share):")
+        for s in sorted(missing_strategies):
+            print(f"    - {s}")
+    
+    # If no CSV data for this group, distribute equally
+    if not calmar_ratios:
+        print(f"\n⚠️  No CSV data for {group_name} strategies, using equal weights")
+        equal_weight = target_weight / Decimal(str(n_group))
+        return {f: equal_weight.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP) 
+                for f in config_files}
+    
+    # Calculate median Calmar for this group
+    calmar_values = list(calmar_ratios.values())
+    median_calmar = Decimal(str(median([float(c) for c in calmar_values])))
+    
+    if median_calmar == 0:
+        print(f"\n⚠️  Median Calmar for {group_name} is zero, using equal weights")
+        equal_weight = target_weight / Decimal(str(n_group))
+        return {f: equal_weight.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP) 
+                for f in config_files}
+    
+    print(f"\n{group_name} Calmar-Tilt Calculation:")
+    print(f"  N strategies: {n_group}")
+    print(f"  N with CSV data: {len(calmar_ratios)}")
+    print(f"  N missing from CSV: {len(missing_strategies)}")
+    print(f"  Target group weight: {float(target_weight):.1%}")
+    print(f"  Base weight (within group): {float(w_base):.4f}")
+    print(f"  Median Calmar: {float(median_calmar):.4f}")
+    
+    # Reserve weight for missing strategies (proportional to group size)
+    reserved_weight = (target_weight / Decimal(str(n_group))) * Decimal(str(len(missing_strategies)))
+    available_weight = target_weight - reserved_weight
+    
+    # Calculate raw weights with tilt for CSV strategies
+    raw_weights: dict[str, Decimal] = {}
+    
+    print(f"\n  Per-strategy calculation:")
+    for filename, calmar in sorted(calmar_ratios.items()):
+        ratio = calmar / median_calmar
+        dampened = Decimal(str(float(ratio) ** float(alpha)))
+        clipped = max(f_min, min(f_max, dampened))
+        raw_weight = w_base * clipped
+        raw_weights[filename] = raw_weight
+        
+        print(
+            f"    {filename:30s}: Calmar={float(calmar):8.2f}, "
+            f"ratio={float(ratio):6.2f}, dampened={float(dampened):5.2f}, "
+            f"clipped={float(clipped):4.2f}, raw_w={float(raw_weight):.4f}"
+        )
+    
+    # Normalize to fill available_weight
+    csv_total = sum(raw_weights.values())
+    normalized_weights: dict[str, Decimal] = {}
+    
+    for filename, raw_w in raw_weights.items():
+        scaled = (raw_w / csv_total) * available_weight
+        normalized_weights[filename] = scaled.quantize(
+            Decimal("0.001"), rounding=ROUND_HALF_UP
+        )
+    
+    # Add missing strategies with equal share of reserved weight
+    if missing_strategies:
+        missing_weight = reserved_weight / Decimal(str(len(missing_strategies)))
+        for filename in missing_strategies:
+            normalized_weights[filename] = missing_weight.quantize(
+                Decimal("0.001"), rounding=ROUND_HALF_UP
+            )
+    
+    return normalized_weights
+
+
 def load_calmar_ratios(csv_path: Path) -> dict[str, Decimal]:
     """Load Calmar ratios from CSV and map to filenames.
 
@@ -214,6 +320,10 @@ def calculate_calmar_tilt_weights(
     IMPORTANT: Only strategies present in BOTH CSV and config are used for
     weight calculation. CSV strategies not in config are ignored (with warning).
 
+    FTLT FOLDER HANDLING: Strategies within the ftlt/ folder are treated
+    separately. Their weights sum to 50% of the portfolio, while base
+    strategies (not in ftlt/) sum to the remaining 50%.
+
     Args:
         calmar_ratios: Dict of filename -> Calmar ratio (from CSV)
         config_files: Set of all strategy filenames from config
@@ -237,86 +347,41 @@ def calculate_calmar_tilt_weights(
     # Only use CSV strategies that are in config for weight calculation
     calmar_ratios = {k: v for k, v in calmar_ratios.items() if k in config_files}
 
-    # Base weight = 1/N (using total config strategies)
-    w_base = Decimal("1") / Decimal(str(n_total))
-
-    # Identify missing strategies (in config but not in CSV)
-    csv_files = set(calmar_ratios.keys())
-    missing_strategies = config_files - csv_files
-
-    if missing_strategies:
-        print(f"\n⚠️  Strategies missing from CSV (will get base weight {float(w_base):.1%}):")
-        for s in sorted(missing_strategies):
-            print(f"    - {s}")
-
-    # Reserve base weight for missing strategies
-    reserved_weight = w_base * Decimal(str(len(missing_strategies)))
-    available_weight = Decimal("1") - reserved_weight
-
-    # Calculate median Calmar from CSV strategies
-    if not calmar_ratios:
-        raise ValueError("No Calmar ratios provided from CSV")
-
-    calmar_values = list(calmar_ratios.values())
-    median_calmar = Decimal(str(median([float(c) for c in calmar_values])))
-
-    if median_calmar == 0:
-        raise ValueError("Median Calmar ratio is zero, cannot compute weights")
-
-    print(f"\nCalmar-Tilt Calculation:")
-    print(f"  N strategies (config): {n_total}")
-    print(f"  N strategies (CSV matched): {len(calmar_ratios)}")
-    print(f"  N missing from CSV (base weight): {len(missing_strategies)}")
-    print(f"  Base weight (1/N): {float(w_base):.4f}")
-    print(f"  Reserved for missing: {float(reserved_weight):.4f}")
-    print(f"  Available for CSV strategies: {float(available_weight):.4f}")
-    print(f"  Median Calmar: {float(median_calmar):.4f}")
-    print(f"  Alpha (dampening): {float(alpha)}")
-    print(f"  f_min (floor): {float(f_min)}")
-    print(f"  f_max (cap): {float(f_max)}")
-
-    # Calculate raw weights with tilt for CSV strategies
-    raw_weights: dict[str, Decimal] = {}
-
-    print("\n  Per-strategy calculation (CSV strategies):")
-    for filename, calmar in sorted(calmar_ratios.items()):
-        # Ratio to median
-        ratio = calmar / median_calmar
-
-        # Apply alpha (square root dampening)
-        # For Decimal, we use float conversion for the power operation
-        dampened = Decimal(str(float(ratio) ** float(alpha)))
-
-        # Clip to [f_min, f_max]
-        clipped = max(f_min, min(f_max, dampened))
-
-        # Multiply by base weight
-        raw_weight = w_base * clipped
-        raw_weights[filename] = raw_weight
-
-        print(
-            f"    {filename:25s}: Calmar={float(calmar):8.2f}, "
-            f"ratio={float(ratio):6.2f}, dampened={float(dampened):5.2f}, "
-            f"clipped={float(clipped):4.2f}, raw_w={float(raw_weight):.4f}"
-        )
-
-    # Normalize CSV strategies to fill the available_weight
-    csv_total = sum(raw_weights.values())
-    normalized_weights: dict[str, Decimal] = {}
-
-    for filename, raw_w in raw_weights.items():
-        # Scale to fit within available_weight
-        scaled = (raw_w / csv_total) * available_weight
-        normalized_weights[filename] = scaled.quantize(
-            Decimal("0.001"), rounding=ROUND_HALF_UP
-        )
-
-    # Add missing strategies at base weight
-    for filename in missing_strategies:
-        normalized_weights[filename] = w_base.quantize(
-            Decimal("0.001"), rounding=ROUND_HALF_UP
-        )
-
+    # Separate FTLT strategies from base strategies
+    ftlt_config_files = {f for f in config_files if f.startswith("ftlt/")}
+    base_config_files = config_files - ftlt_config_files
+    
+    ftlt_calmar_ratios = {k: v for k, v in calmar_ratios.items() if k.startswith("ftlt/")}
+    base_calmar_ratios = {k: v for k, v in calmar_ratios.items() if not k.startswith("ftlt/")}
+    
+    print(f"\n📁 Strategy Groups:")
+    print(f"  FTLT strategies: {len(ftlt_config_files)} (target: 50% portfolio weight)")
+    print(f"  Base strategies: {len(base_config_files)} (target: 50% portfolio weight)")
+    
+    # Calculate weights for each group independently, each summing to 50%
+    ftlt_weights = calculate_group_weights(
+        calmar_ratios=ftlt_calmar_ratios,
+        config_files=ftlt_config_files,
+        target_weight=Decimal("0.5"),
+        alpha=alpha,
+        f_min=f_min,
+        f_max=f_max,
+        group_name="FTLT"
+    )
+    
+    base_weights = calculate_group_weights(
+        calmar_ratios=base_calmar_ratios,
+        config_files=base_config_files,
+        target_weight=Decimal("0.5"),
+        alpha=alpha,
+        f_min=f_min,
+        f_max=f_max,
+        group_name="Base"
+    )
+    
+    # Merge the two groups
+    normalized_weights = {**ftlt_weights, **base_weights}
+    
     # Adjust for rounding errors to ensure exact sum of 1.0
     adjustment = Decimal("1") - sum(normalized_weights.values())
     if adjustment != 0:
