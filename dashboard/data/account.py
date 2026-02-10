@@ -46,41 +46,60 @@ def _get_account_data_table() -> Any:  # noqa: ANN401
     return dynamodb.Table(table_name)
 
 
-def _discover_account_id(table: Any) -> str:  # noqa: ANN401
-    """Discover the account ID by scanning for LATEST# partition keys.
+def _discover_account_id_via_alpaca() -> str:
+    """Discover the account ID by calling the Alpaca REST API.
 
-    The account_data Lambda writes ``LATEST#{account_id}`` pointers.
-    We query for one of these to extract the account ID dynamically,
-    so no static ``ALPACA_ACCOUNT_ID`` environment variable is needed.
+    Uses ``ALPACA_KEY`` and ``ALPACA_SECRET`` from Streamlit secrets
+    to query the broker ``/v2/account`` endpoint.  The endpoint is
+    chosen based on the active stage (paper for dev/staging, live for
+    prod).
 
-    Args:
-        table: boto3 DynamoDB Table resource for the account-data table.
+    This avoids a ``dynamodb:Scan`` call which the dashboard-readonly
+    IAM user is not authorised to perform.
 
     Returns:
-        Account ID string, or empty string if no data exists.
+        Account ID string, or empty string if credentials are missing
+        or the API call fails.
 
     """
-    from boto3.dynamodb.conditions import Key
+    import json
+    import urllib.error
+    import urllib.request
+
+    from settings import _get_secret
+
+    api_key = _get_secret("ALPACA_KEY", "")
+    api_secret = _get_secret("ALPACA_SECRET", "")
+
+    if not api_key or not api_secret:
+        logger.warning(
+            "ALPACA_KEY / ALPACA_SECRET not configured -- "
+            "cannot auto-discover account ID via Alpaca API"
+        )
+        return ""
+
+    settings = get_dashboard_settings()
+    base_url = (
+        "https://api.alpaca.markets"
+        if settings.stage == "prod"
+        else "https://paper-api.alpaca.markets"
+    )
+
+    url = f"{base_url}/v2/account"
+    req = urllib.request.Request(url)  # noqa: S310 -- URL is hardcoded https
+    req.add_header("APCA-API-KEY-ID", api_key)
+    req.add_header("APCA-API-SECRET-KEY", api_secret)
 
     try:
-        # Scan is expensive but we only need 1 item and the table is small.
-        # We look for LATEST# prefix which always exists if data was written.
-        response = table.scan(
-            FilterExpression=Key("PK").begins_with("LATEST#"),
-            ProjectionExpression="PK",
-            Limit=10,
-        )
-        items = response.get("Items", [])
-        for item in items:
-            pk: str = item.get("PK", "")
-            if pk.startswith("LATEST#"):
-                discovered = pk.removeprefix("LATEST#")
-                logger.info("Auto-discovered account_id=%s from DynamoDB", discovered)
-                return discovered
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode())
+            account_id: str = data.get("id", "")
+            if account_id:
+                logger.info("Discovered account_id=%s via Alpaca API", account_id)
+            return account_id
     except Exception:
-        logger.warning("Failed to auto-discover account ID from DynamoDB", exc_info=True)
-
-    return ""
+        logger.warning("Failed to discover account ID via Alpaca API", exc_info=True)
+        return ""
 
 
 # Module-level cache so we discover at most once per settings reload
@@ -111,13 +130,8 @@ def _get_account_id() -> str:
     if _cached_account_id is not None:
         return _cached_account_id
 
-    # Attempt auto-discovery from DynamoDB
-    try:
-        table = _get_account_data_table()
-        _cached_account_id = _discover_account_id(table)
-    except Exception:
-        logger.warning("Could not connect to DynamoDB for account ID discovery", exc_info=True)
-        _cached_account_id = ""
+    # Attempt auto-discovery via Alpaca REST API
+    _cached_account_id = _discover_account_id_via_alpaca()
 
     if not _cached_account_id:
         logger.warning("No account data found in %s", settings.account_data_table)
