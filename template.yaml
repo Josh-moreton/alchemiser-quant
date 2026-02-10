@@ -2024,6 +2024,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
+                  - dynamodb:BatchWriteItem
                   - dynamodb:GetItem
                   - dynamodb:Query
                 Resource:
