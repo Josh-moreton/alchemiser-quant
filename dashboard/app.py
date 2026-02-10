@@ -20,19 +20,33 @@ Authentication:
 
 from __future__ import annotations
 
-# Suppress debug logs BEFORE any imports (structlog respects this env var)
+# Suppress noisy structlog output BEFORE any imports
 import os
 
 os.environ["ALCHEMISER_LOG_LEVEL"] = "WARNING"
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import _setup_imports  # noqa: F401
 import streamlit as st
-from dotenv import load_dotenv
-
 from components.styles import inject_styles
+from dotenv import load_dotenv
+from settings import get_active_stage, get_dashboard_settings, set_stage
+
+if TYPE_CHECKING:
+    import streamlit_authenticator
+
+# ---------------------------------------------------------------------------
+# Bootstrap: configure stdlib logging so dashboard diagnostics appear in the
+# Streamlit console (structlog is already silenced via ALCHEMISER_LOG_LEVEL).
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("dashboard")
 
 # Load .env file before importing modules that use environment variables
 env_path = Path(__file__).parent.parent / ".env"
@@ -54,6 +68,62 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+# ---------------------------------------------------------------------------
+# Page imports (deferred so heavy deps load only when needed)
+# ---------------------------------------------------------------------------
+def _page_portfolio_overview() -> None:
+    from pages import portfolio_overview
+
+    portfolio_overview.show()
+
+
+def _page_forward_projection() -> None:
+    from pages import forward_projection
+
+    forward_projection.show()
+
+
+def _page_last_run_analysis() -> None:
+    from pages import last_run_analysis
+
+    last_run_analysis.show()
+
+
+def _page_trade_history() -> None:
+    from pages import trade_history
+
+    trade_history.show()
+
+
+def _page_strategy_performance() -> None:
+    from pages import strategy_performance
+
+    strategy_performance.show()
+
+
+def _page_execution_quality() -> None:
+    from pages import execution_quality
+
+    execution_quality.show()
+
+
+def _page_symbol_analytics() -> None:
+    from pages import symbol_analytics
+
+    symbol_analytics.show()
+
+
+def _page_options_hedging() -> None:
+    from pages import options_hedging
+
+    options_hedging.show()
+
+
+# ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
 
 
 def get_authenticator() -> streamlit_authenticator.Authenticate | None:
@@ -127,75 +197,74 @@ def show_login_page(authenticator: streamlit_authenticator.Authenticate) -> bool
     return False
 
 
+# ---------------------------------------------------------------------------
+# Sidebar controls: environment switcher + connection status
+# ---------------------------------------------------------------------------
+
+_STAGE_OPTIONS = ("dev", "staging", "prod")
+
+
+def _render_sidebar_controls() -> None:
+    """Render the environment switcher and connection status in the sidebar."""
+    current_stage = get_active_stage()
+    stage_index = _STAGE_OPTIONS.index(current_stage) if current_stage in _STAGE_OPTIONS else 0
+
+    selected_stage = st.sidebar.selectbox(
+        "Environment",
+        _STAGE_OPTIONS,
+        index=stage_index,
+        key="env_selector",
+    )
+
+    # If the user changed the environment, rebuild settings + clear caches
+    if selected_stage != current_stage:
+        logger.info("Environment switched from %s to %s", current_stage, selected_stage)
+        set_stage(selected_stage)
+        st.rerun()
+
+    # Connection status indicator
+    settings = get_dashboard_settings()
+    issues: list[str] = []
+    if not settings.account_id:
+        issues.append("ALPACA_ACCOUNT_ID not set")
+    if not settings.has_aws_credentials():
+        issues.append("AWS credentials not configured (using default chain)")
+
+    if issues:
+        st.sidebar.warning(" | ".join(issues))
+    else:
+        st.sidebar.caption(f"Connected: {settings.account_data_table}")
+
+    st.sidebar.markdown("---")
+
+
+# ---------------------------------------------------------------------------
+# Dashboard rendering via st.navigation()
+# ---------------------------------------------------------------------------
+
+
 def show_dashboard() -> None:
-    """Show the main dashboard content."""
+    """Show the main dashboard content using Streamlit's st.navigation API."""
     # Inject custom styles based on theme
     inject_styles()
 
-    # Initialize current page in session state
-    if "current_page" not in st.session_state:
-        st.session_state.current_page = "Portfolio Overview"
+    # Sidebar: environment switcher + status
+    _render_sidebar_controls()
 
-    # Navigation links
-    pages = [
-        ("Portfolio Overview", "Portfolio Overview"),
-        ("Forward Projection", "Forward Projection"),
-        ("Last Run Analysis", "Last Run Analysis"),
-        ("Trade History", "Trade History"),
-        ("Strategy Performance", "Strategy Performance"),
-        ("Execution Quality", "Execution Quality"),
-        ("Symbol Analytics", "Symbol Analytics"),
-        ("Options Hedging", "Options Hedging"),
+    # Define pages using st.navigation
+    nav_pages = [
+        st.Page(_page_portfolio_overview, title="Portfolio Overview", default=True),
+        st.Page(_page_forward_projection, title="Forward Projection"),
+        st.Page(_page_last_run_analysis, title="Last Run Analysis"),
+        st.Page(_page_trade_history, title="Trade History"),
+        st.Page(_page_strategy_performance, title="Strategy Performance"),
+        st.Page(_page_execution_quality, title="Execution Quality"),
+        st.Page(_page_symbol_analytics, title="Symbol Analytics"),
+        st.Page(_page_options_hedging, title="Options Hedging"),
     ]
 
-    # Render navigation links
-    for label, page_key in pages:
-        is_active = st.session_state.current_page == page_key
-        css_class = "nav-link-active" if is_active else "nav-link"
-        st.sidebar.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
-        if st.sidebar.button(label, key=f"nav_{page_key}", use_container_width=True):
-            st.session_state.current_page = page_key
-            st.rerun()
-        st.sidebar.markdown("</div>", unsafe_allow_html=True)
-
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Real-time trading system dashboard")
-
-    # Route to pages
-    page_key = st.session_state.current_page
-
-    if page_key == "Portfolio Overview":
-        from pages import portfolio_overview
-
-        portfolio_overview.show()
-    elif page_key == "Forward Projection":
-        from pages import forward_projection
-
-        forward_projection.show()
-    elif page_key == "Last Run Analysis":
-        from pages import last_run_analysis
-
-        last_run_analysis.show()
-    elif page_key == "Trade History":
-        from pages import trade_history
-
-        trade_history.show()
-    elif page_key == "Strategy Performance":
-        from pages import strategy_performance
-
-        strategy_performance.show()
-    elif page_key == "Execution Quality":
-        from pages import execution_quality
-
-        execution_quality.show()
-    elif page_key == "Symbol Analytics":
-        from pages import symbol_analytics
-
-        symbol_analytics.show()
-    elif page_key == "Options Hedging":
-        from pages import options_hedging
-
-        options_hedging.show()
+    selected_page = st.navigation(nav_pages)
+    selected_page.run()
 
 
 def main() -> None:
