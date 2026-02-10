@@ -178,6 +178,14 @@ class DashboardSettings(BaseModel):
         aws_access_key = _get_secret("AWS_ACCESS_KEY_ID", "")
         aws_secret_key = _get_secret("AWS_SECRET_ACCESS_KEY", "")
 
+        # Resolve account ID: try stage-specific key first, then generic fallback.
+        # Streamlit Cloud doesn't support per-environment secrets natively, so
+        # we use a naming convention: ACCOUNT_ID_DEV, _STAGING, _PROD.
+        account_id = _get_secret(
+            f"ACCOUNT_ID_{stage.upper()}",
+            _get_secret("ACCOUNT_ID", ""),
+        )
+
         # Use explicit table names if set, otherwise derive from stage
         return cls(
             aggregation_sessions_table=_get_secret(
@@ -208,7 +216,7 @@ class DashboardSettings(BaseModel):
                 "STRATEGY_PERFORMANCE_TABLE",
                 f"alchemiser-{stage}-strategy-performance",
             ),
-            account_id=_get_secret("ACCOUNT_ID", ""),
+            account_id=account_id,
             aws_region=region,
             stage=stage,
             aws_access_key_id=aws_access_key,
