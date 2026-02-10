@@ -85,11 +85,15 @@ class DashboardSettings(BaseModel):
     Loads configuration from Streamlit secrets or environment variables
     with smart defaults that derive table names from the STAGE variable.
 
+    Stage is controlled dynamically via the dashboard sidebar selector
+    (not from environment variables or secrets).  Default: ``dev``.
+
     Streamlit Secrets (secrets.toml or Streamlit Cloud):
         AWS_ACCESS_KEY_ID: AWS access key for DynamoDB
         AWS_SECRET_ACCESS_KEY: AWS secret key for DynamoDB
         AWS_REGION: AWS region for DynamoDB, defaults to 'us-east-1'
-        STAGE: Environment stage (dev/staging/prod), defaults to 'prod'
+        ALPACA_KEY: Alpaca API key (for account ID auto-discovery)
+        ALPACA_SECRET: Alpaca API secret (for account ID auto-discovery)
 
     Environment Variables (fallback):
         Same keys as above, checked if not in Streamlit secrets
@@ -166,8 +170,8 @@ class DashboardSettings(BaseModel):
             DashboardSettings instance with resolved configuration.
 
         """
-        # Use override if provided, otherwise read from secrets/env
-        stage = stage_override or _get_secret("STAGE", _get_secret("APP__STAGE", "dev"))
+        # Stage is purely UI-driven; default to dev
+        stage = stage_override or "dev"
         region = _get_secret("AWS_REGION", "us-east-1")
 
         # AWS credentials - check Streamlit secrets first, then env vars
@@ -204,7 +208,7 @@ class DashboardSettings(BaseModel):
                 "STRATEGY_PERFORMANCE_TABLE",
                 f"alchemiser-{stage}-strategy-performance",
             ),
-            account_id=_get_secret("ALPACA_ACCOUNT_ID", ""),
+            account_id="",  # always auto-discovered via Alpaca API
             aws_region=region,
             stage=stage,
             aws_access_key_id=aws_access_key,
@@ -233,7 +237,7 @@ class DashboardSettings(BaseModel):
 
 # Singleton instance loaded once per process
 _settings: DashboardSettings | None = None
-_stage_override: str | None = None
+_stage_override: str = "dev"
 
 
 def set_stage(stage: str) -> None:
@@ -266,10 +270,8 @@ def set_stage(stage: str) -> None:
 
 
 def get_active_stage() -> str:
-    """Return the currently active stage (override or default)."""
-    if _stage_override is not None:
-        return _stage_override
-    return _get_secret("STAGE", _get_secret("APP__STAGE", "dev"))
+    """Return the currently active stage (UI-driven, default ``dev``)."""
+    return _stage_override
 
 
 def get_dashboard_settings() -> DashboardSettings:

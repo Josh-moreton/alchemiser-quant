@@ -107,33 +107,28 @@ _cached_account_id: str | None = None
 
 
 def _get_account_id() -> str:
-    """Get the Alpaca account ID.
+    """Get the Alpaca account ID via the broker REST API.
 
-    Resolution order:
-        1. Explicit ``ALPACA_ACCOUNT_ID`` from secrets / env (if set).
-        2. Auto-discovered from the DynamoDB account-data table.
-
-    The discovered value is cached for the lifetime of the current
-    settings singleton (cleared when the user switches environment).
+    The account ID is resolved by calling the Alpaca ``/v2/account``
+    endpoint using ``ALPACA_KEY`` / ``ALPACA_SECRET`` from Streamlit
+    secrets.  The result is cached for the process lifetime (cleared
+    when the user switches environment via ``reset_account_cache``).
 
     Returns:
-        Account ID string, or an empty string if none can be resolved.
+        Account ID string, or an empty string if discovery fails.
 
     """
     global _cached_account_id
-
-    settings = get_dashboard_settings()
-    if settings.account_id:
-        return settings.account_id
 
     # Return cached discovery result if available
     if _cached_account_id is not None:
         return _cached_account_id
 
-    # Attempt auto-discovery via Alpaca REST API
+    # Discover via Alpaca REST API
     _cached_account_id = _discover_account_id_via_alpaca()
 
     if not _cached_account_id:
+        settings = get_dashboard_settings()
         logger.warning("No account data found in %s", settings.account_data_table)
 
     return _cached_account_id
