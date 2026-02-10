@@ -45,6 +45,49 @@ from the_alchemiser.shared.notifications.templates import (
 )
 
 
+def _derive_error_context(
+    event: ErrorNotificationRequested,
+) -> tuple[str, str, str, list[str]]:
+    """Derive notification context from error event severity.
+
+    Maps error severity to appropriate component name, display status,
+    impact description, and suggested quick actions. Hedge evaluation
+    failures use WARNING severity (set by lambda_handler) to distinguish
+    them from main portfolio failures.
+
+    Args:
+        event: The error notification event
+
+    Returns:
+        Tuple of (component, status, impact, quick_actions)
+
+    """
+    if event.error_severity == "WARNING":
+        return (
+            "hedge evaluation",
+            "WARNING",
+            "Portfolio trades completed successfully. Hedge evaluation failed separately.",
+            [
+                "Check if options market data is available (IV data requires market hours)",
+                "Review hedge evaluator CloudWatch Logs for details",
+                "Verify SPY options chain data freshness via Alpaca",
+                "This does not affect portfolio positions or equity trades",
+            ],
+        )
+
+    return (
+        "your daily rebalance summary",
+        "FAILURE",
+        "Workflow did not complete successfully",
+        [
+            "Check CloudWatch Logs for detailed stack trace",
+            "Verify Alpaca API connectivity and credentials",
+            "Check market data freshness in S3",
+            "Review recent code changes",
+        ],
+    )
+
+
 class NotificationService:
     """Event-driven notification service using Amazon SES.
 
@@ -67,12 +110,8 @@ class NotificationService:
 
         # Get environment configuration
         self.stage = os.environ.get("APP__STAGE", "dev")
-        # Success emails go to NOTIFICATION_EMAIL (transactional, ignorable)
+        # All emails go to NOTIFICATION_EMAIL; inbox rules handle routing
         self.notification_email = os.environ.get("NOTIFICATION_EMAIL", "notifications@rwxt.org")
-        # Failure/warning emails go to FAILURE_NOTIFICATION_EMAIL (loud, attention-worthy)
-        self.failure_notification_email = os.environ.get(
-            "FAILURE_NOTIFICATION_EMAIL", "josh@rwxt.org"
-        )
 
     def register_handlers(self) -> None:
         """Register event handlers with the event bus."""
@@ -181,49 +220,40 @@ class NotificationService:
         """
         self._log_event_context(event, f"Processing error notification: {event.error_title}")
 
-        component = "your daily rebalance summary"
-        failed_step = event.error_title
-        run_id = event.correlation_id
+        component, status, impact, quick_actions = _derive_error_context(event)
 
         try:
-            # Build template context for failure email
             context = {
-                "status": "FAILURE",
+                "component": component,
+                "status": status,
                 "env": self.stage,
                 "run_id": event.correlation_id,
                 "correlation_id": event.correlation_id,
-                "failed_step": failed_step,
-                "impact": "Workflow did not complete successfully",
+                "failed_step": event.error_title,
+                "impact": impact,
                 "exception_type": event.error_code or "Unknown",
-                "exception_message": event.error_report[:500],  # Truncate for email
+                "exception_message": event.error_report[:500],
                 "stack_trace": event.error_report,
-                "retry_attempts": 0,  # Not tracked yet
+                "retry_attempts": 0,
                 "last_attempt_time_utc": event.timestamp.isoformat(),
                 "last_successful_run_id": "N/A",
                 "last_successful_run_time_utc": "N/A",
-                "quick_actions": [
-                    "Check CloudWatch Logs for detailed stack trace",
-                    "Verify Alpaca API connectivity and credentials",
-                    "Check market data freshness in S3",
-                    "Review recent code changes",
-                ],
+                "quick_actions": quick_actions,
                 "logs_url": self._build_logs_url(event.correlation_id),
             }
 
-            # Render templates
             html_body = render_daily_run_failure_html(context)
             text_body = render_daily_run_failure_text(context)
 
-            # Build subject
             subject = format_subject(
                 component=component,
-                status="FAILURE",
+                status=status,
                 env=self.stage,
-                run_id=run_id,
+                run_id=event.correlation_id,
             )
 
-            # Get recipient addresses - error notifications always go to failure channel
-            to_addresses = self._get_recipients(is_failure=True)
+            # Get recipient addresses
+            to_addresses = self._get_recipients()
 
             # Send via SES
             result = send_email(
@@ -406,9 +436,7 @@ class NotificationService:
                 run_id=event.correlation_id,
             )
 
-            # Route: SUCCESS → transactional channel, anything else → failure channel
-            is_failure = status != "SUCCESS"
-            to_addresses = self._get_recipients(is_failure=is_failure)
+            to_addresses = self._get_recipients()
 
             # Send via SES
             result = send_email(
@@ -462,9 +490,8 @@ class NotificationService:
 </html>
 """
 
-            # System notifications are transactional (default channel)
             result = send_email(
-                to_addresses=self._get_recipients(is_failure=False),
+                to_addresses=self._get_recipients(),
                 subject=event.subject,
                 html_body=html_body,
                 text_body=text_body,
@@ -635,10 +662,8 @@ Correlation ID: {event.correlation_id}
                 run_id=event.correlation_id[:6],
             )
 
-            # Route: SUCCESS → transactional, warnings/failures → failure channel
-            is_failure = event.status != "SUCCESS"
             result = send_email(
-                to_addresses=self._get_recipients(is_failure=is_failure),
+                to_addresses=self._get_recipients(),
                 subject=subject,
                 html_body=html_body,
                 text_body=text_body,
@@ -694,8 +719,7 @@ Correlation ID: {event.correlation_id}
             env_prefix = "" if self.stage == "prod" else f"[{self.stage.upper()}] "
             subject = f"{env_prefix}{component}"
 
-            # Schedule notifications are transactional (default channel)
-            to_addresses = self._get_recipients(is_failure=False)
+            to_addresses = self._get_recipients()
 
             # Send via SES
             result = send_email(
@@ -725,21 +749,17 @@ Correlation ID: {event.correlation_id}
                 "error",
             )
 
-    def _get_recipients(self, *, is_failure: bool = False) -> list[str]:
-        """Get recipient email addresses based on notification type.
+    def _get_recipients(self) -> list[str]:
+        """Get recipient email addresses from NOTIFICATION_EMAIL.
 
-        Routes success emails to NOTIFICATION_EMAIL (transactional, ignorable)
-        and failure/warning emails to FAILURE_NOTIFICATION_EMAIL (loud, attention-worthy).
-
-        Args:
-            is_failure: True for failure/warning notifications, False for success
+        All emails go to the same recipient(s). Inbox rules handle
+        routing based on subject-line status (SUCCESS/PARTIAL_SUCCESS/FAILURE).
 
         Returns:
             List of recipient email addresses
 
         """
-        email = self.failure_notification_email if is_failure else self.notification_email
-        return [addr.strip() for addr in email.split(",")]
+        return [addr.strip() for addr in self.notification_email.split(",")]
 
     def _build_logs_url(self, correlation_id: str) -> str:
         """Build CloudWatch Logs Insights URL filtered by correlation ID.

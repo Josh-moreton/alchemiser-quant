@@ -123,12 +123,7 @@ Parameters:
   NotificationEmail:
     Type: String
     Default: ""
-    Description: Email address for success notifications (set per-environment in secret store)
-
-  FailureNotificationEmail:
-    Type: String
-    Default: ""
-    Description: Email address for failure/warning notifications (defaults to josh@rwxt.org)
+    Description: Email address for all notifications (set per-environment in secret store)
 
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
@@ -150,7 +145,6 @@ Conditions:
   HasStackName: !Not [ !Equals [ !Ref StackName, "" ] ]
   UseStackNameForResources: !Or [ !Condition IsEphemeral, !Condition HasStackName ]
   HasNotificationEmail: !Not [ !Equals [ !Ref NotificationEmail, "" ] ]
-  HasFailureNotificationEmail: !Not [ !Equals [ !Ref FailureNotificationEmail, "" ] ]
 
 Globals:
   Function:
@@ -1301,7 +1295,7 @@ Resources:
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${AlchemiserEventBus.Name}/*"
 
   # Permission for Notifications Lambda to be invoked by EventBridge
-  # Allows both AllTradesCompleted (from TradeAggregator) and WorkflowFailed (from any Lambda)
+  # Allows AllTradesCompleted, WorkflowFailed, and HedgeEvaluationCompleted
   NotificationsEventBridgePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1848,15 +1842,11 @@ Resources:
           SES_FROM_NAME: "Octarine Capital"
           SES_REPLY_TO_ADDRESS: noreply@mail.octarine.capital
           SES_REGION: !Ref AWS::Region
-          # Notification recipients - success emails go to NOTIFICATION_EMAIL, failures go to FAILURE_NOTIFICATION_EMAIL
+          # Notification recipient - all emails go to NOTIFICATION_EMAIL; inbox rules handle routing
           NOTIFICATION_EMAIL: !If
             - HasNotificationEmail
             - !Ref NotificationEmail
             - "notifications@rwxt.org"
-          FAILURE_NOTIFICATION_EMAIL: !If
-            - HasFailureNotificationEmail
-            - !Ref FailureNotificationEmail
-            - "josh@rwxt.org"
           # Safety: non-prod environments must explicitly enable real emails
           ALLOW_REAL_EMAILS: !If [ IsProduction, "true", "false" ]
       Events:
@@ -1881,6 +1871,16 @@ Resources:
                 - prefix: "alchemiser."
               detail-type:
                 - "WorkflowFailed"
+        # HedgeEvaluationCompleted from Hedge Evaluator (hedge success notification)
+        HedgeEvaluationCompletedEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref AlchemiserEventBus
+            Pattern:
+              source:
+                - "alchemiser.hedge_evaluator"
+              detail-type:
+                - "HedgeEvaluationCompleted"
         # DataLakeUpdateCompleted from Data Lambda (market data refresh success)
         DataLakeUpdateCompletedEvent:
           Type: EventBridgeRule

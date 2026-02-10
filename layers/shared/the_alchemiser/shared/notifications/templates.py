@@ -307,17 +307,18 @@ def format_subject(
     *,
     include_status: bool = True,
 ) -> str:
-    """Format email subject line following institutional spec.
+    """Format email subject line with status always present for inbox rule routing.
 
     Format:
-      - Production SUCCESS: "{Component}"
-      - Production other: "{Component} - {STATUS}"
-      - Non-production SUCCESS: "[DEV] {Component}" or "[STAGING] {Component}"
-      - Non-production other: "[DEV] {Component} - {STATUS}" or "[STAGING] {Component} - {STATUS}"
+      - Production: "{Component} - {STATUS}"
+      - Non-production: "[DEV] {Component} - {STATUS}"
+
+    Status is always included (SUCCESS, PARTIAL_SUCCESS, FAILURE, etc.) so that
+    inbox rules can route emails based on the subject line.
 
     Args:
         component: Component name (e.g., "Your Daily Rebalance Summary", "Data Lake Refresh")
-        status: Status (SUCCESS, SUCCESS_WITH_WARNINGS, FAILURE, RECOVERED)
+        status: Status (SUCCESS, PARTIAL_SUCCESS, SUCCESS_WITH_WARNINGS, FAILURE, RECOVERED)
         env: Environment (dev/staging/prod)
         run_id: Unused; retained for backward compatibility
         run_date: Unused; retained for backward compatibility
@@ -330,8 +331,8 @@ def format_subject(
     # Capitalize component for consistency
     component_title = component.title()
 
-    # Only include status if enabled and it's not SUCCESS
-    status_suffix = "" if not include_status or status == "SUCCESS" else f" - {status}"
+    # Always include status for inbox rule routing
+    status_suffix = f" - {status}" if include_status else ""
 
     # Production emails have no environment prefix
     if env == "prod":
@@ -358,6 +359,7 @@ def render_html_header(component: str, status: str) -> str:
         "SUCCESS": "#28a745",
         "SUCCESS_WITH_WARNINGS": "#ffc107",
         "PARTIAL_SUCCESS": "#ffc107",
+        "WARNING": "#fd7e14",
         "FAILURE": "#dc3545",
         "RECOVERED": "#17a2b8",
     }
@@ -1300,7 +1302,10 @@ def render_daily_run_failure_html(context: dict[str, Any]) -> str:
         Complete HTML email body
 
     """
-    header = render_html_header("Daily Run", "FAILURE")
+    header = render_html_header(
+        context.get("component", "Daily Run"),
+        context.get("status", "FAILURE"),
+    )
     footer = render_html_footer()
 
     # Extract context values
@@ -1381,7 +1386,10 @@ def render_daily_run_failure_text(context: dict[str, Any]) -> str:
         Complete plain text email body
 
     """
-    header = render_text_header("Daily Run", "FAILURE")
+    header = render_text_header(
+        context.get("component", "Daily Run"),
+        context.get("status", "FAILURE"),
+    )
     footer = render_text_footer()
 
     # Extract context values
