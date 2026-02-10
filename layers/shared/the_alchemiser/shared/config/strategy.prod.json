@@ -1,6 +1,7 @@
 {
   "files": [
     "rains_em_dancer.clj",
+    "rains_concise_em.clj",
     "sisyphus_lowvol.clj",
     "ftlt/tqqq_ftlt.clj",
     "ftlt/tqqq_ftlt_2.clj",
@@ -9,12 +10,13 @@
     "hedged_sector_rotator.clj"
   ],
   "allocations": {
-    "rains_em_dancer.clj": 0.133,
-    "sisyphus_lowvol.clj": 0.266,
-    "ftlt/tqqq_ftlt.clj": 0.084,
-    "ftlt/tqqq_ftlt_2.clj": 0.139,
-    "ftlt/holy_grail.clj": 0.099,
-    "kmlm_switcher.clj": 0.179,
-    "hedged_sector_rotator.clj": 0.1
+    "rains_em_dancer.clj": 0.077,
+    "rains_concise_em.clj": 0.1,
+    "sisyphus_lowvol.clj": 0.161,
+    "ftlt/tqqq_ftlt.clj": 0.13,
+    "ftlt/tqqq_ftlt_2.clj": 0.216,
+    "ftlt/holy_grail.clj": 0.154,
+    "kmlm_switcher.clj": 0.104,
+    "hedged_sector_rotator.clj": 0.058
   }
 }
