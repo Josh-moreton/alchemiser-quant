@@ -212,7 +212,6 @@
                  (asset "MOFG" "")
                  (asset "HTHT" "")
                  (asset "NEWP" "")
-                 (asset "JAMF" "")
                  (asset "ANNX" "")
                  (asset "GPCR" "")
                  (asset "STX" "")
