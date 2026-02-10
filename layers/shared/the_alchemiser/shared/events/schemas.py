@@ -1095,3 +1095,117 @@ class HedgeRollTriggered(BaseEvent):
     roll_reason: str = Field(
         ..., description="Reason for roll (dte_threshold, profit_taking, etc.)"
     )
+
+
+# ========== PER-STRATEGY BOOK ARCHITECTURE (PROPOSED) ==========
+# The following event schemas support the proposed per-strategy book architecture.
+# See docs/ARCH_PER_STRATEGY_BOOKS.md for full design details.
+# Status: PROOF OF CONCEPT - Not yet integrated into workflow
+
+
+class StrategyExecutionRequested(BaseEvent):
+    """Event emitted when a strategy requests trade execution.
+
+    This event is part of the proposed per-strategy book architecture where
+    each strategy independently calculates its rebalance plan and triggers
+    its own execution, eliminating the need for signal aggregation and
+    centralized rebalance planning.
+
+    Design:
+    - Each strategy operates on a portion of total capital (allocation)
+    - Strategy calculates its own rebalance plan
+    - Publishes per-trade execution requests
+    - Trades recorded to strategy-specific ledger partition
+
+    This event replaces the aggregation flow:
+    OLD: PartialSignalGenerated → Aggregator → SignalGenerated → RebalancePlanned → Execution
+    NEW: StrategyExecutionRequested → Execution
+
+    See docs/ARCH_PER_STRATEGY_BOOKS.md for complete architecture proposal.
+    """
+
+    event_type: str = Field(
+        default="StrategyExecutionRequested", description=EVENT_TYPE_DESCRIPTION
+    )
+    __event_version__: str = CONTRACT_VERSION
+
+    schema_version: str = Field(
+        default=CONTRACT_VERSION, description=EVENT_SCHEMA_VERSION_DESCRIPTION
+    )
+
+    # Strategy identification
+    strategy_id: str = Field(
+        ...,
+        description="Unique strategy identifier (e.g., 'momentum', 'mean_reversion')",
+    )
+    dsl_file: str = Field(..., description="DSL strategy file name (e.g., '1-momentum.clj')")
+
+    # Capital allocation
+    allocation: Decimal = Field(
+        ...,
+        description="Strategy's capital allocation as fraction of total (0-1)",
+        ge=Decimal("0"),
+        le=Decimal("1"),
+    )
+    strategy_capital: Decimal = Field(
+        ...,
+        description="Total capital allocated to this strategy (dollars)",
+        ge=Decimal("0"),
+    )
+
+    # Trade details
+    symbol: str = Field(..., description="Symbol to trade")
+    direction: Literal["BUY", "SELL"] = Field(..., description="Trade direction")
+    target_qty: int = Field(..., description="Target quantity to trade", ge=0)
+    target_value: Decimal = Field(
+        ...,
+        description="Target dollar value of trade (for validation)",
+        ge=Decimal("0"),
+    )
+
+    # Current position context
+    current_qty: int = Field(
+        default=0,
+        description="Current quantity held by this strategy",
+    )
+    current_value: Decimal = Field(
+        default=Decimal("0"),
+        description="Current market value of position",
+    )
+
+    # Trade prioritization (for execution ordering)
+    priority: int = Field(
+        default=5,
+        description="Execution priority (1=highest, 10=lowest)",
+        ge=1,
+        le=10,
+    )
+    phase: Literal["SELL", "BUY"] = Field(
+        ...,
+        description="Execution phase (SELLs execute before BUYs)",
+    )
+
+    # Metadata
+    rebalance_reason: str = Field(
+        default="strategy_signal",
+        description="Reason for rebalance (strategy_signal, risk_limit, etc.)",
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional strategy-specific metadata",
+    )
+
+    @field_validator("target_qty")
+    @classmethod
+    def validate_target_qty(cls, v: int) -> int:
+        """Validate target quantity is non-negative."""
+        if v < 0:
+            raise ValueError("target_qty must be non-negative")
+        return v
+
+    @field_validator("direction", "phase")
+    @classmethod
+    def validate_direction_phase_alignment(cls, v: str, info: Any) -> str:
+        """Validate that direction and phase are aligned."""
+        # Note: This validator runs per field, full cross-validation would need model_validator
+        return v
