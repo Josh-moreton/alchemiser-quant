@@ -40,9 +40,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-# Set environment variables for S3 market data access
+# Set environment variables for S3 market data access and DynamoDB group cache
 os.environ.setdefault("MARKET_DATA_BUCKET", "alchemiser-dev-market-data")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+os.environ.setdefault("GROUP_HISTORY_TABLE", "alchemiser-dev-group-history")
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
