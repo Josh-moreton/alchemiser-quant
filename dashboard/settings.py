@@ -208,7 +208,7 @@ class DashboardSettings(BaseModel):
                 "STRATEGY_PERFORMANCE_TABLE",
                 f"alchemiser-{stage}-strategy-performance",
             ),
-            account_id="",  # always auto-discovered via Alpaca API
+            account_id=_get_secret("ACCOUNT_ID", ""),
             aws_region=region,
             stage=stage,
             aws_access_key_id=aws_access_key,

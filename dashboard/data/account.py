@@ -46,6 +46,27 @@ def _get_account_data_table() -> Any:  # noqa: ANN401
     return dynamodb.Table(table_name)
 
 
+def _discover_account_id_via_dynamodb() -> str:
+    """Discover the account ID from the DynamoDB registry entry.
+
+    The account_data Lambda writes a well-known item at
+    ``PK=REGISTRY``, ``SK=ACCOUNT_ID``.  This is the preferred
+    discovery path because it requires only a single GetItem --
+    no Scan and no external API call.
+
+    Returns:
+        Account ID string, or empty string if the registry entry
+        does not exist or the table is unreachable.
+
+    """
+    try:
+        table = _get_account_data_table()
+        return AccountDataReader.discover_account_id(table)
+    except Exception:
+        logger.warning("Failed to discover account ID from DynamoDB registry", exc_info=True)
+        return ""
+
+
 def _discover_account_id_via_alpaca() -> str:
     """Discover the account ID by calling the Alpaca REST API.
 
@@ -107,15 +128,18 @@ _cached_account_id: str | None = None
 
 
 def _get_account_id() -> str:
-    """Get the Alpaca account ID via the broker REST API.
+    """Get the Alpaca account ID.
 
-    The account ID is resolved by calling the Alpaca ``/v2/account``
-    endpoint using ``ALPACA_KEY`` / ``ALPACA_SECRET`` from Streamlit
-    secrets.  The result is cached for the process lifetime (cleared
-    when the user switches environment via ``reset_account_cache``).
+    Discovery chain (first non-empty wins):
+        1. Streamlit secret / environment variable ``ACCOUNT_ID``
+        2. DynamoDB registry entry (``PK=REGISTRY``, ``SK=ACCOUNT_ID``)
+        3. Alpaca REST API ``/v2/account`` (legacy fallback)
+
+    The result is cached for the process lifetime (cleared when the
+    user switches environment via ``reset_account_cache``).
 
     Returns:
-        Account ID string, or an empty string if discovery fails.
+        Account ID string, or empty string if all discovery methods fail.
 
     """
     global _cached_account_id
@@ -124,11 +148,22 @@ def _get_account_id() -> str:
     if _cached_account_id is not None:
         return _cached_account_id
 
-    # Discover via Alpaca REST API
+    # 1. Explicit secret / env var
+    settings = get_dashboard_settings()
+    if settings.account_id:
+        logger.info("Using account_id from settings: %s", settings.account_id)
+        _cached_account_id = settings.account_id
+        return _cached_account_id
+
+    # 2. DynamoDB registry (written by account_data Lambda)
+    _cached_account_id = _discover_account_id_via_dynamodb()
+    if _cached_account_id:
+        return _cached_account_id
+
+    # 3. Legacy fallback -- Alpaca REST API
     _cached_account_id = _discover_account_id_via_alpaca()
 
     if not _cached_account_id:
-        settings = get_dashboard_settings()
         logger.warning("No account data found in %s", settings.account_data_table)
 
     return _cached_account_id
