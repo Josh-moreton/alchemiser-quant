@@ -341,36 +341,6 @@ def _generate_css(colors: ThemeColors) -> str:
         margin: 1rem 0;
     }}
 
-    /* Sidebar navigation links - style buttons as links */
-    .nav-link button {{
-        background: transparent !important;
-        border: none !important;
-        color: {colors.text_primary} !important;
-        text-align: left !important;
-        padding: 0.4rem 0 !important;
-        width: 100% !important;
-        font-size: 0.95rem !important;
-        cursor: pointer !important;
-        box-shadow: none !important;
-    }}
-
-    .nav-link button:hover {{
-        color: {colors.primary} !important;
-        background: transparent !important;
-    }}
-
-    .nav-link-active button {{
-        background: transparent !important;
-        border: none !important;
-        color: {colors.primary} !important;
-        font-weight: 600 !important;
-        text-align: left !important;
-        padding: 0.4rem 0 !important;
-        width: 100% !important;
-        font-size: 0.95rem !important;
-        box-shadow: none !important;
-    }}
-
     /* Navigation items */
     [data-testid="stSidebar"] .stSelectbox {{
         margin-top: 0.5rem;

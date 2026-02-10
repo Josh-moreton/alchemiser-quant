@@ -1,0 +1,12 @@
+# Dashboard dependencies for Streamlit Cloud deployment.
+# Streamlit Cloud reads this file to install packages.
+streamlit>=1.54.0
+streamlit-authenticator>=0.4.2
+pydantic>=2.0.0
+boto3>=1.42.0
+pandas>=2.2.0
+plotly>=6.0.0
+numpy>=1.26.0
+structlog>=25.0.0
+python-dotenv>=1.0.0
+Pillow>=10.0.0
