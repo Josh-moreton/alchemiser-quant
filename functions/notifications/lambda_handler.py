@@ -2,7 +2,7 @@
 
 Lambda handler for event-driven notifications microservice.
 
-Consumes AllTradesCompleted (from TradeAggregator) and WorkflowFailed events
+Consumes AllTradesCompleted, WorkflowFailed, and HedgeEvaluationCompleted events
 from EventBridge and sends email notifications using the NotificationService.
 
 This is a stateless handler - all aggregation logic lives in TradeAggregator.
@@ -78,6 +78,8 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return _handle_all_trades_completed(detail, correlation_id)
         if detail_type == "WorkflowFailed":
             return _handle_workflow_failed(detail, correlation_id, source)
+        if detail_type == "HedgeEvaluationCompleted":
+            return _handle_hedge_evaluation_completed(detail, correlation_id)
         if detail_type == "DataLakeUpdateCompleted":
             return _handle_data_lake_update(detail, correlation_id)
         if detail_type == "ScheduleCreated":
@@ -393,6 +395,143 @@ def _handle_workflow_failed(
     }
 
 
+def _handle_hedge_evaluation_completed(
+    detail: dict[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    """Handle HedgeEvaluationCompleted events by sending hedge notification.
+
+    Sends a separate hedge evaluation email with full recommendation details,
+    independent of the main portfolio notification stream.
+
+    Args:
+        detail: The detail payload from HedgeEvaluationCompleted event
+        correlation_id: Correlation ID for tracing
+
+    Returns:
+        Response with status code and message
+
+    """
+    skip_reason = detail.get("skip_reason")
+    recommendations = detail.get("recommendations", [])
+
+    # Skip notification if hedging was skipped (kill switch, low exposure, etc.)
+    if skip_reason or not recommendations:
+        logger.info(
+            "Hedge evaluation skipped, no notification sent",
+            extra={"correlation_id": correlation_id, "skip_reason": skip_reason},
+        )
+        return {
+            "statusCode": 200,
+            "body": f"Hedge skipped ({skip_reason}), no notification for {correlation_id}",
+        }
+
+    logger.info(
+        "Processing HedgeEvaluationCompleted",
+        extra={
+            "correlation_id": correlation_id,
+            "recommendation_count": len(recommendations),
+            "vix_tier": detail.get("vix_tier"),
+        },
+    )
+
+    context = _build_hedge_success_context(detail, correlation_id)
+    _send_hedge_success_email(context, correlation_id)
+
+    return {
+        "statusCode": 200,
+        "body": f"Hedge evaluation notification sent for {correlation_id}",
+    }
+
+
+def _build_hedge_success_context(detail: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+    """Build template context for hedge evaluation success email.
+
+    Args:
+        detail: HedgeEvaluationCompleted event detail
+        correlation_id: Correlation ID for log URL generation
+
+    Returns:
+        Template context dict for hedge_templates rendering
+
+    """
+    stage = os.environ.get("APP__STAGE", "dev")
+    region = os.environ.get("AWS_REGION", "ap-southeast-2")
+    logs_url = (
+        f"https://{region}.console.aws.amazon.com/cloudwatch/home"
+        f"?region={region}#logsV2:logs-insights"
+        f"$3FqueryDetail$3D~(query~'{correlation_id}')"
+    )
+
+    budget_nav_pct = detail.get("budget_nav_pct", "0")
+    try:
+        budget_display = str(round(Decimal(str(budget_nav_pct)) * 100, 3))
+    except Exception:
+        budget_display = str(budget_nav_pct)
+
+    return {
+        "env": stage,
+        "run_id": correlation_id,
+        "portfolio_nav": detail.get("portfolio_nav", "N/A"),
+        "vix_tier": detail.get("vix_tier", "unknown"),
+        "template_selected": detail.get("template_selected", "unknown"),
+        "template_regime": detail.get("template_regime", "N/A"),
+        "template_selection_reason": detail.get("template_selection_reason", ""),
+        "total_premium_budget": detail.get("total_premium_budget", "N/A"),
+        "budget_nav_pct": budget_display,
+        "current_vix": detail.get("current_vix", "N/A"),
+        "exposure_multiplier": detail.get("exposure_multiplier", "1.0"),
+        "recommendations": detail.get("recommendations", []),
+        "logs_url": logs_url,
+    }
+
+
+def _send_hedge_success_email(context: dict[str, Any], correlation_id: str) -> None:
+    """Render and send hedge evaluation success email via SES.
+
+    Args:
+        context: Template context for rendering
+        correlation_id: Correlation ID for logging
+
+    """
+    from the_alchemiser.shared.notifications.hedge_templates import (
+        render_hedge_evaluation_success_html,
+        render_hedge_evaluation_success_text,
+    )
+    from the_alchemiser.shared.notifications.ses_publisher import send_email
+    from the_alchemiser.shared.notifications.templates import format_subject
+
+    stage = os.environ.get("APP__STAGE", "dev")
+    notification_email = os.environ.get("NOTIFICATION_EMAIL", "notifications@rwxt.org")
+    to_addresses = [addr.strip() for addr in notification_email.split(",")]
+
+    html_body = render_hedge_evaluation_success_html(context)
+    text_body = render_hedge_evaluation_success_text(context)
+    subject = format_subject(
+        component="hedge evaluation",
+        status="SUCCESS",
+        env=stage,
+        run_id=correlation_id,
+    )
+
+    result = send_email(
+        to_addresses=to_addresses,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+    if result.get("status") == "sent":
+        logger.info(
+            "Hedge evaluation notification sent",
+            extra={"correlation_id": correlation_id, "message_id": result.get("message_id")},
+        )
+    else:
+        logger.error(
+            "Failed to send hedge evaluation notification",
+            extra={"correlation_id": correlation_id, "error": result.get("error")},
+        )
+
+
 def _build_error_notification(
     workflow_failed_detail: dict[str, Any],
     correlation_id: str,
@@ -418,6 +557,11 @@ def _build_error_notification(
     # Determine source module from event source
     source_module = source.replace("alchemiser.", "") if source else "unknown"
 
+    # Hedge evaluation failures are secondary -- main portfolio succeeded
+    is_hedge_failure = workflow_type == "hedge_evaluation"
+    severity = "WARNING" if is_hedge_failure else "CRITICAL"
+    priority = "MEDIUM" if is_hedge_failure else "HIGH"
+
     # Build error report content
     error_report = f"""
 Workflow Failure Report
@@ -442,8 +586,8 @@ Error Details:
         timestamp=datetime.now(UTC),
         source_module="notifications_v2.lambda_handler",
         source_component="NotificationsLambda",
-        error_severity="CRITICAL",
-        error_priority="HIGH",
+        error_severity=severity,
+        error_priority=priority,
         error_title=f"Workflow Failed: {failure_step}",
         error_report=error_report.strip(),
         error_code=error_details.get("exception_type"),
