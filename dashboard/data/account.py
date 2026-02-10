@@ -21,6 +21,16 @@ from the_alchemiser.shared.services.account_data_reader import AccountDataReader
 logger = logging.getLogger(__name__)
 
 
+def reset_account_cache() -> None:
+    """Clear the cached account ID.
+
+    Call when the user switches environment so the next lookup
+    re-discovers the account ID from the new DynamoDB table.
+    """
+    global _cached_account_id
+    _cached_account_id = None
+
+
 def _get_account_data_table() -> Any:  # noqa: ANN401
     """Get a boto3 DynamoDB Table resource for the account data table.
 
@@ -36,18 +46,83 @@ def _get_account_data_table() -> Any:  # noqa: ANN401
     return dynamodb.Table(table_name)
 
 
-def _get_account_id() -> str:
-    """Get the configured Alpaca account ID.
+def _discover_account_id(table: Any) -> str:  # noqa: ANN401
+    """Discover the account ID by scanning for LATEST# partition keys.
+
+    The account_data Lambda writes ``LATEST#{account_id}`` pointers.
+    We query for one of these to extract the account ID dynamically,
+    so no static ``ALPACA_ACCOUNT_ID`` environment variable is needed.
+
+    Args:
+        table: boto3 DynamoDB Table resource for the account-data table.
 
     Returns:
-        Account ID string, or an empty string if no account ID is configured.
+        Account ID string, or empty string if no data exists.
 
     """
+    from boto3.dynamodb.conditions import Key
+
+    try:
+        # Scan is expensive but we only need 1 item and the table is small.
+        # We look for LATEST# prefix which always exists if data was written.
+        response = table.scan(
+            FilterExpression=Key("PK").begins_with("LATEST#"),
+            ProjectionExpression="PK",
+            Limit=10,
+        )
+        items = response.get("Items", [])
+        for item in items:
+            pk: str = item.get("PK", "")
+            if pk.startswith("LATEST#"):
+                discovered = pk.removeprefix("LATEST#")
+                logger.info("Auto-discovered account_id=%s from DynamoDB", discovered)
+                return discovered
+    except Exception:
+        logger.warning("Failed to auto-discover account ID from DynamoDB", exc_info=True)
+
+    return ""
+
+
+# Module-level cache so we discover at most once per settings reload
+_cached_account_id: str | None = None
+
+
+def _get_account_id() -> str:
+    """Get the Alpaca account ID.
+
+    Resolution order:
+        1. Explicit ``ALPACA_ACCOUNT_ID`` from secrets / env (if set).
+        2. Auto-discovered from the DynamoDB account-data table.
+
+    The discovered value is cached for the lifetime of the current
+    settings singleton (cleared when the user switches environment).
+
+    Returns:
+        Account ID string, or an empty string if none can be resolved.
+
+    """
+    global _cached_account_id
+
     settings = get_dashboard_settings()
     if settings.account_id:
         return settings.account_id
-    logger.warning("ALPACA_ACCOUNT_ID not configured -- all account queries will return empty")
-    return ""
+
+    # Return cached discovery result if available
+    if _cached_account_id is not None:
+        return _cached_account_id
+
+    # Attempt auto-discovery from DynamoDB
+    try:
+        table = _get_account_data_table()
+        _cached_account_id = _discover_account_id(table)
+    except Exception:
+        logger.warning("Could not connect to DynamoDB for account ID discovery", exc_info=True)
+        _cached_account_id = ""
+
+    if not _cached_account_id:
+        logger.warning("No account data found in %s", settings.account_data_table)
+
+    return _cached_account_id
 
 
 def get_latest_account_data() -> dict[str, Any] | None:

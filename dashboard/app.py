@@ -224,14 +224,8 @@ def _render_sidebar_controls() -> None:
 
     # Connection status indicator
     settings = get_dashboard_settings()
-    issues: list[str] = []
-    if not settings.account_id:
-        issues.append("ALPACA_ACCOUNT_ID not set")
     if not settings.has_aws_credentials():
-        issues.append("AWS credentials not configured (using default chain)")
-
-    if issues:
-        st.sidebar.warning(" | ".join(issues))
+        st.sidebar.warning("AWS credentials not configured (using default chain)")
     else:
         st.sidebar.caption(f"Connected: {settings.account_data_table}")
 

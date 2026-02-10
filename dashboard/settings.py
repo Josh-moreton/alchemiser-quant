@@ -254,6 +254,11 @@ def set_stage(stage: str) -> None:
     _stage_override = stage
     _settings = None
 
+    # Clear the auto-discovered account ID so it re-discovers from the new table
+    from data.account import reset_account_cache
+
+    reset_account_cache()
+
     # Flush every page-level cache so data is re-read from the new tables
     import streamlit as st
 
