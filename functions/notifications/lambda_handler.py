@@ -11,6 +11,7 @@ Each event triggers exactly one notification, eliminating race conditions.
 
 from __future__ import annotations
 
+import decimal
 import os
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -414,8 +415,8 @@ def _handle_hedge_evaluation_completed(
     skip_reason = detail.get("skip_reason")
     recommendations = detail.get("recommendations", [])
 
-    # Skip notification if hedging was skipped (kill switch, low exposure, etc.)
-    if skip_reason or not recommendations:
+    # Skip notification only when explicitly skipped (kill switch, low exposure, etc.)
+    if skip_reason:
         logger.info(
             "Hedge evaluation skipped, no notification sent",
             extra={"correlation_id": correlation_id, "skip_reason": skip_reason},
@@ -455,17 +456,16 @@ def _build_hedge_success_context(detail: dict[str, Any], correlation_id: str) ->
 
     """
     stage = os.environ.get("APP__STAGE", "dev")
-    region = os.environ.get("AWS_REGION", "ap-southeast-2")
-    logs_url = (
-        f"https://{region}.console.aws.amazon.com/cloudwatch/home"
-        f"?region={region}#logsV2:logs-insights"
-        f"$3FqueryDetail$3D~(query~'{correlation_id}')"
-    )
+
+    # Reuse NotificationService's logs URL builder for consistency
+    container = ApplicationContainer.create_for_notifications("production")
+    notification_service = NotificationService(container)
+    logs_url = notification_service._build_logs_url(correlation_id)
 
     budget_nav_pct = detail.get("budget_nav_pct", "0")
     try:
         budget_display = str(round(Decimal(str(budget_nav_pct)) * 100, 3))
-    except Exception:
+    except (decimal.InvalidOperation, TypeError, ValueError):
         budget_display = str(budget_nav_pct)
 
     return {
@@ -486,50 +486,35 @@ def _build_hedge_success_context(detail: dict[str, Any], correlation_id: str) ->
 
 
 def _send_hedge_success_email(context: dict[str, Any], correlation_id: str) -> None:
-    """Render and send hedge evaluation success email via SES.
+    """Render and send hedge evaluation success email via NotificationService.
 
     Args:
-        context: Template context for rendering
-        correlation_id: Correlation ID for logging
+        context: Template context for rendering.
+        correlation_id: Correlation ID for logging and idempotency.
 
     """
     from the_alchemiser.shared.notifications.hedge_templates import (
         render_hedge_evaluation_success_html,
         render_hedge_evaluation_success_text,
     )
-    from the_alchemiser.shared.notifications.ses_publisher import send_email
-    from the_alchemiser.shared.notifications.templates import format_subject
-
-    stage = os.environ.get("APP__STAGE", "dev")
-    notification_email = os.environ.get("NOTIFICATION_EMAIL", "notifications@rwxt.org")
-    to_addresses = [addr.strip() for addr in notification_email.split(",")]
 
     html_body = render_hedge_evaluation_success_html(context)
     text_body = render_hedge_evaluation_success_text(context)
-    subject = format_subject(
+
+    container = ApplicationContainer.create_for_notifications("production")
+    notification_service = NotificationService(container)
+    notification_service.send_notification(
         component="hedge evaluation",
         status="SUCCESS",
-        env=stage,
-        run_id=correlation_id,
-    )
-
-    result = send_email(
-        to_addresses=to_addresses,
-        subject=subject,
         html_body=html_body,
         text_body=text_body,
+        correlation_id=correlation_id,
     )
 
-    if result.get("status") == "sent":
-        logger.info(
-            "Hedge evaluation notification sent",
-            extra={"correlation_id": correlation_id, "message_id": result.get("message_id")},
-        )
-    else:
-        logger.error(
-            "Failed to send hedge evaluation notification",
-            extra={"correlation_id": correlation_id, "error": result.get("error")},
-        )
+    logger.info(
+        "Hedge evaluation notification dispatched via NotificationService",
+        extra={"correlation_id": correlation_id},
+    )
 
 
 def _build_error_notification(
@@ -559,7 +544,7 @@ def _build_error_notification(
 
     # Hedge evaluation failures are secondary -- main portfolio succeeded
     is_hedge_failure = workflow_type == "hedge_evaluation"
-    severity = "WARNING" if is_hedge_failure else "CRITICAL"
+    severity = "MEDIUM" if is_hedge_failure else "CRITICAL"
     priority = "MEDIUM" if is_hedge_failure else "HIGH"
 
     # Build error report content

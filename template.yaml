@@ -1878,7 +1878,7 @@ Resources:
             EventBusName: !Ref AlchemiserEventBus
             Pattern:
               source:
-                - "alchemiser.hedge_evaluator"
+                - "alchemiser.hedge"
               detail-type:
                 - "HedgeEvaluationCompleted"
         # DataLakeUpdateCompleted from Data Lambda (market data refresh success)

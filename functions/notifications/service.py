@@ -62,7 +62,7 @@ def _derive_error_context(
         Tuple of (component, status, impact, quick_actions)
 
     """
-    if event.error_severity == "WARNING":
+    if event.error_severity == "MEDIUM":
         return (
             "hedge evaluation",
             "WARNING",
@@ -121,6 +121,55 @@ class NotificationService:
         self.event_bus.subscribe("SystemNotificationRequested", self)
 
         self.logger.info("Registered notification event handlers")
+
+    def send_notification(
+        self,
+        *,
+        component: str,
+        status: str,
+        html_body: str,
+        text_body: str,
+        correlation_id: str,
+    ) -> None:
+        """Send an email notification using centralised recipient and subject logic.
+
+        This is the preferred entry point for ad-hoc notifications (e.g. hedge
+        evaluation success) that do not originate from a typed event schema but
+        still need consistent recipient handling and subject formatting.
+
+        Args:
+            component: Component name for subject (e.g. "hedge evaluation")
+            status: Status string (SUCCESS, FAILURE, WARNING, etc.)
+            html_body: Pre-rendered HTML email body
+            text_body: Pre-rendered plain text email body
+            correlation_id: Correlation ID for logging
+
+        """
+        subject = format_subject(
+            component=component,
+            status=status,
+            env=self.stage,
+            run_id=correlation_id,
+        )
+        to_addresses = self._get_recipients()
+
+        result = send_email(
+            to_addresses=to_addresses,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+        )
+
+        if result.get("status") == "sent":
+            self.logger.info(
+                f"Notification sent via SES (message_id={result.get('message_id')})",
+                extra={"correlation_id": correlation_id, "component": component},
+            )
+        else:
+            self.logger.error(
+                f"Failed to send notification: {result.get('error')}",
+                extra={"correlation_id": correlation_id, "component": component},
+            )
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle notification events with idempotency guard.
