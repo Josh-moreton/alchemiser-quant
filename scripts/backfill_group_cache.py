@@ -1017,6 +1017,7 @@ def _backfill_single_group(
     correlation_id: str,
     *,
     quiet: bool = False,
+    progress_interval: int = 0,
 ) -> dict[str, Any]:
     """Run the position-tracking backfill loop for one group.
 
@@ -1031,6 +1032,8 @@ def _backfill_single_group(
         engine: DslEngine instance.
         correlation_id: Tracing identifier.
         quiet: If True, suppress per-day output (for parallel workers).
+        progress_interval: If >0 and quiet=True, print a compact progress
+            line every N days evaluated.
 
     Returns:
         Dict with keys: group_name, group_id, items, days_evaluated,
@@ -1045,9 +1048,31 @@ def _backfill_single_group(
     group_start = time.time()
 
     prev_weights: dict[str, Decimal] | None = None
+    total_days = len(trading_days)
+    last_progress_print = 0
 
     for day_idx, eval_date in enumerate(trading_days):
-        progress = f"  [{day_idx + 1}/{len(trading_days)}] {eval_date}"
+        progress = f"  [{day_idx + 1}/{total_days}] {eval_date}"
+
+        # Periodic progress for parallel workers
+        if (
+            quiet
+            and progress_interval > 0
+            and day_idx > 0
+            and (day_idx - last_progress_print) >= progress_interval
+        ):
+            elapsed_so_far = time.time() - group_start
+            pct = (day_idx / total_days) * 100
+            rate = day_idx / elapsed_so_far if elapsed_so_far > 0 else 0
+            eta = (total_days - day_idx) / rate if rate > 0 else 0
+            print(
+                f"  {DIM}[{group_name[:35]}] "
+                f"{day_idx}/{total_days} ({pct:.0f}%) "
+                f"{len(dynamo_items)} records | "
+                f"{elapsed_so_far:.0f}s elapsed, ~{eta:.0f}s remaining{RESET}",
+                flush=True,
+            )
+            last_progress_print = day_idx
         try:
             today_weights = _evaluate_group_signal(
                 ast_body, eval_date, engine, correlation_id,
@@ -1174,6 +1199,12 @@ def _parallel_worker(group_name: str) -> dict[str, Any]:
         debug_mode=False,
     )
 
+    print(
+        f"  {DIM}[{group_name[:35]}] Worker started, "
+        f"initialising engine ({len(trading_days)} days to process)...{RESET}",
+        flush=True,
+    )
+
     clear_evaluation_caches()
     try:
         engine.evaluate_strategy(clj_filename, correlation_id)
@@ -1182,9 +1213,17 @@ def _parallel_worker(group_name: str) -> dict[str, Any]:
         # will handle missing data gracefully per group.
         pass
 
+    print(
+        f"  {DIM}[{group_name[:35]}] Engine ready, evaluating...{RESET}",
+        flush=True,
+    )
+
     group_id = _derive_group_id(group_name)
+    # Print progress every ~10% of days, minimum every 250 days
+    interval = max(250, len(trading_days) // 10)
     return _backfill_single_group(
-        gi, group_id, trading_days, engine, correlation_id, quiet=True,
+        gi, group_id, trading_days, engine, correlation_id,
+        quiet=True, progress_interval=interval,
     )
 
 
