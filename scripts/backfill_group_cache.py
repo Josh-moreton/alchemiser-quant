@@ -134,8 +134,7 @@ def _worker_init(
     groups_by_name_data: dict[str, Any],
     trading_days_by_group_data: dict[str, list[date]],
     preloaded_data_arg: dict[str, Any],
-    strategies_dir_str: str,
-    clj_filename: str,
+    symbols_by_group_data: dict[str, set[str]],
     correlation_id: str,
 ) -> None:
     """Initializer for spawn-mode process pool workers.
@@ -143,14 +142,18 @@ def _worker_init(
     Called once per worker process before any tasks are dispatched.
     Populates the module-level ``_WORKER_STATE`` dict so that
     ``_parallel_worker`` can access shared data.
+
+    Note: The group bodies (``GroupInfo.body``) contain pre-parsed AST
+    nodes extracted in the main process.  Workers evaluate these
+    directly via ``_evaluate_group_signal`` -- no strategy file parsing
+    or warm-up evaluation is needed.
     """
     global _WORKER_STATE
     _WORKER_STATE = {
         "groups_by_name": groups_by_name_data,
         "trading_days_by_group": trading_days_by_group_data,
         "preloaded_data": preloaded_data_arg,
-        "strategies_dir": Path(strategies_dir_str),
-        "clj_filename": clj_filename,
+        "symbols_by_group": symbols_by_group_data,
         "correlation_id": correlation_id,
     }
 
@@ -1182,45 +1185,33 @@ def _parallel_worker(group_name: str) -> dict[str, Any]:
     state = _WORKER_STATE
     gi: GroupInfo = state["groups_by_name"][group_name]
     trading_days: list[date] = state["trading_days_by_group"][group_name]
-    preloaded_data: dict[str, pd.DataFrame] = state["preloaded_data"]
-    strategies_dir: Path = state["strategies_dir"]
-    clj_filename: str = state["clj_filename"]
+    full_data: dict[str, pd.DataFrame] = state["preloaded_data"]
+    group_symbols: set[str] = state["symbols_by_group"].get(group_name, set())
     correlation_id: str = state["correlation_id"]
 
     from engines.dsl.engine import DslEngine
     from engines.dsl.operators.group_scoring import clear_evaluation_caches
     from engines.dsl.operators.portfolio import _derive_group_id
 
-    # Each worker gets its own engine with in-memory adapter
-    adapter = _InMemoryAdapter(preloaded_data)
+    # Build adapter with only the DataFrames this group needs
+    group_data = {s: full_data[s] for s in group_symbols if s in full_data}
+    adapter = _InMemoryAdapter(group_data)
     engine = DslEngine(
-        strategy_config_path=strategies_dir,
         market_data_adapter=adapter,
         debug_mode=False,
     )
 
     print(
-        f"  {DIM}[{group_name[:35]}] Worker started, "
-        f"initialising engine ({len(trading_days)} days to process)...{RESET}",
+        f"  {DIM}[{group_name[:35]}] Worker ready "
+        f"({len(group_data)} symbols, {len(trading_days)} days)...{RESET}",
         flush=True,
     )
 
     clear_evaluation_caches()
-    try:
-        engine.evaluate_strategy(clj_filename, correlation_id)
-    except Exception:
-        # Warm-up may fail if some symbols lack data; per-day eval
-        # will handle missing data gracefully per group.
-        pass
-
-    print(
-        f"  {DIM}[{group_name[:35]}] Engine ready, evaluating...{RESET}",
-        flush=True,
-    )
 
     group_id = _derive_group_id(group_name)
-    # Print progress every ~10% of days, minimum every 250 days
-    interval = max(250, len(trading_days) // 10)
+    # Print progress every ~5% of days, minimum every 50 days
+    interval = max(50, len(trading_days) // 20)
     return _backfill_single_group(
         gi, group_id, trading_days, engine, correlation_id,
         quiet=True, progress_interval=interval,
@@ -1494,8 +1485,7 @@ def backfill_strategy_groups(
                     {gi.name: gi for gi in processable},
                     trading_days_by_group,
                     preloaded_data,
-                    str(STRATEGIES_DIR),
-                    clj_file.name,
+                    symbols_by_group,
                     correlation_id,
                 ),
             ) as executor:
