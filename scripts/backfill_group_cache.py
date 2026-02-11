@@ -779,15 +779,22 @@ def _discover_group_symbols(groups: list[GroupInfo], engine: Any) -> set[str]:
     return symbols
 
 
+# Indicator DSL names whose first string argument is a ticker symbol.
+_INDICATOR_FUNCTIONS: frozenset[str] = frozenset({
+    "rsi", "current-price", "moving-average-price", "moving-average-return",
+    "cumulative-return", "exponential-moving-average-price",
+    "stdev-return", "stdev-price", "max-drawdown",
+    "percentage-price-oscillator", "percentage-price-oscillator-signal",
+    "ma", "volatility",
+})
+
+
 def _extract_symbols_from_ast(nodes: list[Any]) -> set[str]:
-    """Extract ticker symbols from AST nodes by walking for ``(asset ...)`` forms.
+    """Extract ticker symbols from AST nodes by walking for ``(asset ...)`` forms
+    and indicator calls like ``(cumulative-return "FXI" ...)``.
 
     This is a pure AST walk -- no engine evaluation or indicator computation
-    needed.  Finds all ``(asset "TICKER" ...)`` patterns and extracts the
-    ticker string.
-
-    Also finds bare string atoms that look like ticker symbols (1-5 uppercase
-    letters) used as arguments to indicators like ``(rsi "IEF" ...)``.
+    needed.
 
     Args:
         nodes: List of ASTNode objects to walk.
@@ -800,22 +807,32 @@ def _extract_symbols_from_ast(nodes: list[Any]) -> set[str]:
 
     symbols: set[str] = set()
 
+    def _is_ticker(value: Any) -> bool:
+        """Check if a value looks like a ticker symbol (1-5 uppercase letters)."""
+        return isinstance(value, str) and 1 <= len(value) <= 5 and value.isalpha() and value.isupper()
+
     def _walk(node: Any) -> None:
         if not isinstance(node, ASTNode):
             return
 
         if node.is_list() and node.children:
             first = node.children[0]
-            # Match (asset "TICKER" "description")
-            if (
-                first.is_symbol()
-                and first.get_symbol_name() == "asset"
-                and len(node.children) >= 2
-            ):
-                ticker_node = node.children[1]
-                ticker = ticker_node.get_atom_value()
-                if isinstance(ticker, str) and ticker.isupper():
-                    symbols.add(ticker)
+            if first.is_symbol():
+                func_name = first.get_symbol_name()
+
+                # Match (asset "TICKER" "description")
+                if func_name == "asset" and len(node.children) >= 2:
+                    ticker_node = node.children[1]
+                    ticker = ticker_node.get_atom_value()
+                    if _is_ticker(ticker):
+                        symbols.add(ticker)
+
+                # Match (indicator-fn "TICKER" ...)
+                elif func_name in _INDICATOR_FUNCTIONS and len(node.children) >= 2:
+                    ticker_node = node.children[1]
+                    ticker = ticker_node.get_atom_value()
+                    if _is_ticker(ticker):
+                        symbols.add(ticker)
 
             # Recurse into all children
             for child in node.children:
@@ -1119,7 +1136,12 @@ def _parallel_worker(group_name: str) -> dict[str, Any]:
     )
 
     clear_evaluation_caches()
-    engine.evaluate_strategy(clj_filename, correlation_id)
+    try:
+        engine.evaluate_strategy(clj_filename, correlation_id)
+    except Exception:
+        # Warm-up may fail if some symbols lack data; per-day eval
+        # will handle missing data gracefully per group.
+        pass
 
     group_id = _derive_group_id(group_name)
     return _backfill_single_group(
@@ -1433,7 +1455,11 @@ def backfill_strategy_groups(
                 debug_mode=False,
             )
             clear_evaluation_caches()
-            engine.evaluate_strategy(clj_file.name, correlation_id)
+            try:
+                engine.evaluate_strategy(clj_file.name, correlation_id)
+            except Exception as warm_exc:
+                print(f"  {YELLOW}Warm-up eval failed ({type(warm_exc).__name__}: "
+                      f"{warm_exc}); continuing per-group ...{RESET}")
 
             for gi in processable:
                 group_id = _derive_group_id(gi.name)
